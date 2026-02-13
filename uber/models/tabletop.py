@@ -17,7 +17,7 @@ __all__ = ['TabletopGame', 'TabletopCheckout']
 class TabletopGame(MagModel, table=True):
     code: str = Column(String)
     name: str = Column(String)
-    attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
+    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id')))
     returned: bool = Column(Boolean, default=False)
     checkouts: list['TabletopCheckout'] = Relationship(sa_relationship=relationship('TabletopCheckout', order_by='TabletopCheckout.checked_out', backref=backref('game', lazy='joined')))
 
@@ -37,7 +37,7 @@ class TabletopCheckout(MagModel, table=True):
     TabletopGame: joined
     """
 
-    game_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('tabletop_game.id'))
-    attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
+    game_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('tabletop_game.id')))
+    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id')))
     checked_out: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
     returned: datetime | None = Column(DateTime(timezone=True), nullable=True)

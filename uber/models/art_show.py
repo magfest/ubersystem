@@ -19,6 +19,7 @@ from sqlalchemy.orm import backref
 from sqlalchemy.types import Integer, Boolean, String, Uuid, DateTime
 from sqlalchemy.schema import ForeignKey, UniqueConstraint, Index
 from sqlmodel import Field, Relationship
+from typing import ClassVar
 
 log = logging.getLogger(__name__)
 
@@ -31,16 +32,16 @@ class ArtShowAgentCode(MagModel, table=True):
     """
     ArtShowApplication: joined
     """
-    app_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('art_show_application.id'))
+    app_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('art_show_application.id')))
     app: 'ArtShowApplication' = Relationship(sa_relationship=relationship('ArtShowApplication', lazy='joined',
                        backref=backref('agent_codes', cascade='merge,refresh-expire,expunge'),
-                       foreign_keys=app_id,
+                       foreign_keys='ArtShowAgentCode.app_id',
                        cascade='merge,refresh-expire,expunge'))
-    attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'),
-                         nullable=True)
+    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'),
+                         nullable=True))
     attendee: 'Attendee' = Relationship(sa_relationship=relationship('Attendee',
                             backref=backref('agent_codes', cascade='merge,refresh-expire,expunge'),
-                            foreign_keys=attendee_id,
+                            foreign_keys='ArtShowAgentCode.attendee_id',
                             cascade='merge,refresh-expire,expunge'))
     code: str = Column(String)
     cancelled: datetime | None = Column(DateTime(timezone=True), nullable=True)
@@ -64,9 +65,9 @@ class ArtShowApplication(MagModel, table=True):
     ModelReceipt: select
     """
     
-    attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'),
-                         nullable=True)
-    attendee: 'Attendee' = Relationship(sa_relationship=relationship('Attendee', lazy='joined', foreign_keys=attendee_id, cascade='save-update, merge',
+    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'),
+                         nullable=True))
+    attendee: 'Attendee' = Relationship(sa_relationship=relationship('Attendee', lazy='joined', foreign_keys='ArtShowApplication.attendee_id', cascade='save-update, merge',
                             backref=backref('art_show_applications', cascade='save-update, merge')))
     checked_in: datetime | None = Column(DateTime(timezone=True), nullable=True)
     checked_out: datetime | None = Column(DateTime(timezone=True), nullable=True)
@@ -113,7 +114,7 @@ class ArtShowApplication(MagModel, table=True):
 
     assignments: list['ArtPanelAssignment'] = Relationship(sa_relationship=relationship('ArtPanelAssignment', backref=backref('app', lazy='joined')))
 
-    email_model_name = 'app'
+    email_model_name: ClassVar = 'app'
 
     @presave_adjustment
     def _cost_adjustments(self):
@@ -451,18 +452,18 @@ class ArtShowPiece(MagModel, table=True):
     Attendee (buyer): joined
     """
 
-    app_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('art_show_application.id', ondelete='SET NULL'), nullable=True)
-    app: 'ArtShowApplication' = Relationship(sa_relationship=relationship('ArtShowApplication', foreign_keys=app_id,
+    app_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('art_show_application.id', ondelete='SET NULL'), nullable=True))
+    app: 'ArtShowApplication' = Relationship(sa_relationship=relationship('ArtShowApplication', foreign_keys='ArtShowPiece.app_id',
                        cascade='save-update, merge', lazy='joined',
                        backref=backref('art_show_pieces',
                                        cascade='save-update, merge')))
-    receipt_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('art_show_receipt.id', ondelete='SET NULL'), nullable=True)
-    receipt: 'ArtShowReceipt' = Relationship(sa_relationship=relationship('ArtShowReceipt', foreign_keys=receipt_id,
+    receipt_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('art_show_receipt.id', ondelete='SET NULL'), nullable=True))
+    receipt: 'ArtShowReceipt' = Relationship(sa_relationship=relationship('ArtShowReceipt', foreign_keys='ArtShowPiece.receipt_id',
                            cascade='save-update, merge',
                            overlaps="art_show_purchases,buyer",
                            backref=backref('pieces', lazy='selectin', cascade='save-update, merge', overlaps="art_show_purchases,buyer")))
-    winning_bidder_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('art_show_bidder.id', ondelete='SET NULL'), nullable=True)
-    winning_bidder: 'ArtShowBidder' = Relationship(sa_relationship=relationship('ArtShowBidder', foreign_keys=winning_bidder_id,
+    winning_bidder_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('art_show_bidder.id', ondelete='SET NULL'), nullable=True))
+    winning_bidder: 'ArtShowBidder' = Relationship(sa_relationship=relationship('ArtShowBidder', foreign_keys='ArtShowPiece.winning_bidder_id',
                                   cascade='save-update, merge',
                                   backref=backref('art_show_pieces',
                                                   cascade='save-update, merge')))
@@ -611,7 +612,7 @@ class ArtShowPanel(MagModel, table=True):
 
     assignments: list['ArtPanelAssignment'] = Relationship(sa_relationship=relationship('ArtPanelAssignment', lazy='selectin', backref=backref('panel', lazy='joined')))
 
-    __table_args__ = (
+    __table_args__: ClassVar = (
         UniqueConstraint('gallery', 'surface_type', 'origin_x', 'origin_y', 'terminus_x', 'terminus_y'),
     )
 
@@ -645,12 +646,12 @@ class ArtPanelAssignment(MagModel, table=True):
     ArtShowPanel: joined
     """
 
-    panel_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('art_show_panel.id'))
-    app_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('art_show_application.id'))
+    panel_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('art_show_panel.id')))
+    app_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('art_show_application.id')))
     manual: bool = Column(Boolean, default=False)
     assigned_side: int = Column(Choice(c.ART_SHOW_PANEL_SIDE_OPTS), default=c.START)
 
-    __table_args__ = (
+    __table_args__: ClassVar = (
         UniqueConstraint('panel_id', 'assigned_side'),
         Index('ix_art_panel_assignment_panel_id', 'panel_id'),
         Index('ix_art_panel_assignment_assigned_side', 'assigned_side'),
@@ -681,8 +682,8 @@ class ArtShowPayment(MagModel, table=True):
     ArtShowReceipt: joined
     """
 
-    receipt_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('art_show_receipt.id', ondelete='SET NULL'), nullable=True)
-    receipt: 'ArtShowReceipt' = Relationship(sa_relationship=relationship('ArtShowReceipt', lazy='joined', foreign_keys=receipt_id,
+    receipt_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('art_show_receipt.id', ondelete='SET NULL'), nullable=True))
+    receipt: 'ArtShowReceipt' = Relationship(sa_relationship=relationship('ArtShowReceipt', lazy='joined', foreign_keys='ArtShowPayment.receipt_id',
                            cascade='save-update, merge',
                            backref=backref('art_show_payments', lazy='selectin',
                                            cascade='save-update, merge')))
@@ -699,8 +700,8 @@ class ArtShowReceipt(MagModel, table=True):
     """
 
     invoice_num: int = Column(Integer, default=0)
-    attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
-    attendee: 'Attendee' = Relationship(sa_relationship=relationship('Attendee', foreign_keys=attendee_id,
+    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True))
+    attendee: 'Attendee' = Relationship(sa_relationship=relationship('Attendee', foreign_keys='ArtShowReceipt.attendee_id',
                             cascade='save-update, merge', lazy='joined',
                             overlaps="art_show_purchases,buyer",
                             backref=backref('art_show_receipts',
@@ -765,14 +766,14 @@ class ArtShowBidder(MagModel, table=True):
     Attendee: joined
     """
 
-    attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
+    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True))
     bidder_num: str = Column(String)
     admin_notes: str = Column(String)
     signed_up: datetime | None = Column(DateTime(timezone=True), nullable=True)
     email_won_bids: bool = Column(Boolean, default=False)
     contact_type: int = Column(Choice(c.ART_SHOW_CONTACT_TYPE_OPTS), default=c.EMAIL)
 
-    email_model_name = 'bidder'
+    email_model_name: ClassVar = 'bidder'
 
     @presave_adjustment
     def zfill_bidder_num(self):

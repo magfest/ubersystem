@@ -69,18 +69,18 @@ class DeptChecklistItem(MagModel, table=True):
     Department: joined
     """
 
-    department_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('department.id'))
-    attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
+    department_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('department.id')))
+    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id')))
     slug: str = Column(String)
     comments: str = Column(String, default='')
 
-    __table_args__ = (
+    __table_args__: ClassVar = (
         UniqueConstraint('department_id', 'attendee_id', 'slug'),
     )
 
 
 class BulkPrintingRequest(MagModel, table=True):
-    department_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('department.id'))
+    department_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('department.id')))
     link: str = Column(String)
     copies: str = Column(Integer)
     print_orientation: int = Column(Choice(c.PRINT_ORIENTATION_OPTS), default=c.PORTRAIT)
@@ -107,11 +107,11 @@ class DeptMembership(MagModel, table=True):
     is_dept_head: bool = Column(Boolean, default=False)
     is_poc: bool = Column(Boolean, default=False)
     is_checklist_admin: bool = Column(Boolean, default=False)
-    attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
-    department_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('department.id'))
+    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id')))
+    department_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('department.id')))
 
-    __mapper_args__ = {'confirm_deleted_rows': False}
-    __table_args__ = (
+    __mapper_args__: ClassVar = {'confirm_deleted_rows': False}
+    __table_args__: ClassVar = (
         UniqueConstraint('attendee_id', 'department_id'),
         Index('ix_dept_membership_attendee_id', 'attendee_id'),
         Index('ix_dept_membership_department_id', 'department_id'),
@@ -153,15 +153,15 @@ class DeptMembershipRequest(MagModel, table=True):
     Department: joined
     """
 
-    attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
+    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id')))
 
     # A NULL value for the department_id indicates the attendee is willing
     # to volunteer for any department (they checked "Anything" for
     # "Where do you want to help?").
-    department_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('department.id'), nullable=True)
+    department_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('department.id'), nullable=True))
 
-    __mapper_args__ = {'confirm_deleted_rows': False}
-    __table_args__ = (
+    __mapper_args__: ClassVar = {'confirm_deleted_rows': False}
+    __table_args__: ClassVar = (
         UniqueConstraint('attendee_id', 'department_id'),
         Index('ix_dept_membership_request_attendee_id', 'attendee_id'),
         Index('ix_dept_membership_request_department_id', 'department_id'),
@@ -175,7 +175,7 @@ class DeptRole(MagModel, table=True):
 
     name: str = Column(String)
     description: str = Column(String)
-    department_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('department.id'))
+    department_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('department.id')))
 
     dept_memberships: list['DeptMembership'] = Relationship(sa_relationship=relationship(
         'DeptMembership',
@@ -183,7 +183,7 @@ class DeptRole(MagModel, table=True):
         cascade='save-update,merge,refresh-expire,expunge',
         secondary='dept_membership_dept_role'))
 
-    __table_args__ = (
+    __table_args__: ClassVar = (
         UniqueConstraint('name', 'department_id'),
         Index('ix_dept_role_department_id', 'department_id'),
     )
@@ -226,7 +226,7 @@ class Department(MagModel, table=True):
     name: str = Column(String, unique=True)
     description: str = Column(String)
     solicits_volunteers: bool = Column(Boolean, default=True)
-    parent_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('department.id'), nullable=True)
+    parent_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('department.id'), nullable=True))
     max_consecutive_minutes: int = Column(Integer, default=0)
     from_email: str = Column(String)
     manages_panels: bool = Column(Boolean, default=False)
@@ -438,8 +438,8 @@ class Job(MagModel, table=True):
         (_ONLY_MEMBERS, 'Members of this department'),
         (_ALL_VOLUNTEERS, 'All volunteers')]
 
-    job_template_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('job_template.id'), nullable=True)
-    department_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('department.id'))
+    job_template_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('job_template.id'), nullable=True))
+    department_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('department.id')))
 
     name: str = Column(String)
     description: str = Column(String)
@@ -456,8 +456,8 @@ class Job(MagModel, table=True):
         cascade='save-update,merge,refresh-expire,expunge', secondary='job_required_role'))
     shifts: list['Shift'] = Relationship(sa_relationship=relationship('Shift', backref=backref('job', lazy='joined'), lazy='selectin'))
 
-    __table_args__ = (
-        Index('ix_job_department_id', department_id),
+    __table_args__: ClassVar = (
+        Index('ix_job_department_id', 'department_id'),
     )
 
     _repr_attr_names: ClassVar = ['name']
@@ -717,7 +717,7 @@ class JobTemplate(MagModel, table=True):
     DeptRole: selectin
     """
 
-    department_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('department.id'))
+    department_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('department.id')))
 
     template_name: str = Column(String)
     type: int = Column(Choice(c.JOB_TEMPLATE_TYPE_OPTS), default=c.FILL_GAPS)
@@ -954,15 +954,15 @@ class Shift(MagModel, table=True):
     Job: joined
     """
 
-    job_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('job.id', ondelete='cascade'))
-    attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='cascade'))
+    job_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('job.id', ondelete='cascade')))
+    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='cascade')))
     worked: int = Column(Choice(c.WORKED_STATUS_OPTS), default=c.SHIFT_UNMARKED)
     rating: int = Column(Choice(c.RATING_OPTS), default=c.UNRATED)
     comment: str = Column(String)
 
-    __table_args__ = (
-        Index('ix_shift_job_id', job_id),
-        Index('ix_shift_attendee_id', attendee_id),
+    __table_args__: ClassVar = (
+        Index('ix_shift_job_id', 'job_id'),
+        Index('ix_shift_attendee_id', 'attendee_id'),
     )
 
     @property

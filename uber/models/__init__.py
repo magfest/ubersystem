@@ -131,7 +131,7 @@ def uncamel(s, sep='_'):
 
 DeclarativeBase.metadata = MetaData()
 class MagModel(SQLModel):
-    model_config = ConfigDict(ignored_types=(hybrid_method, hybrid_property))
+    model_config: ClassVar = ConfigDict(ignored_types=(hybrid_method, hybrid_property))
 
     @declared_attr.directive
     def __tablename__(cls) -> str:
@@ -159,9 +159,9 @@ class MagModel(SQLModel):
             data[field] = val
         return data
     
-    id: str | None = Field(sa_type=Uuid(as_uuid=False), default_factory=str(uuid4()), primary_key=True)
-    created: datetime = Field(sa_type=DateTime(timezone=True), sa_column_kwargs={'server_default': utcnow()}, default_factory=datetime.now(UTC))
-    last_updated: datetime = Field(sa_type=DateTime(timezone=True), sa_column_kwargs={'server_default': utcnow()}, default_factory=datetime.now(UTC))
+    id: str | None = Field(sa_type=Uuid(as_uuid=False), default_factory=lambda: str(uuid4()), primary_key=True)
+    created: datetime = Field(sa_type=DateTime(timezone=True), sa_column_kwargs={'server_default': utcnow()}, default_factory=lambda: datetime.now(UTC))
+    last_updated: datetime = Field(sa_type=DateTime(timezone=True), sa_column_kwargs={'server_default': utcnow()}, default_factory=lambda: datetime.now(UTC))
 
     """
     The two columns below allow tracking any object in external sources,
@@ -772,7 +772,7 @@ from uber.models.tracking import Tracking  # noqa: E402
 
 class UberSession(sqlalchemy.orm.Session):
     engine = engine
-    BaseClass = DeclarativeBase
+    BaseClass = SQLModel
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -2325,7 +2325,7 @@ _ScopedSession.model_mixin = UberSession.model_mixin
 _ScopedSession.all_models = UberSession.all_models
 _ScopedSession.resolve_model = UberSession.resolve_model
 _ScopedSession.engine = engine
-_ScopedSession.BaseClass = DeclarativeBase
+_ScopedSession.BaseClass = SQLModel
 _ScopedSession.SessionMixin = UberSession.SessionMixin
 _ScopedSession.session_factory = SessionFactory
 
@@ -2354,7 +2354,7 @@ def initialize_db():
         log.info(f"Initializing model {str(model)}")
         if not hasattr(Session.SessionMixin, model.__tablename__):
             setattr(Session.SessionMixin, model.__tablename__, _make_getter(model))
-    DeclarativeBase.metadata.create_all(engine)
+    SQLModel.metadata.create_all(engine)
 cherrypy.engine.subscribe('start', initialize_db, priority=97)
 
 def _attendee_validity_check():

@@ -35,8 +35,8 @@ class GuestGroup(MagModel, table=True):
     Group: joined
     """
     
-    group_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('group.id'))
-    event_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('event.id', ondelete='SET NULL'), nullable=True)
+    group_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('group.id')))
+    event_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('event.id', ondelete='SET NULL'), nullable=True))
     group_type: int = Column(Choice(c.GROUP_TYPE_OPTS), default=c.BAND)
     num_hotel_rooms: int = Column(Integer, default=1, admin_only=True)
     payment: int = Column(Integer, default=0, admin_only=True)
@@ -301,7 +301,7 @@ class GuestInfo(MagModel, table=True):
     GuestGroup: joined
     """
 
-    guest_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
+    guest_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True))
     poc_phone: str = Column(String)
     performer_count: int = Column(Integer, default=0)
     bringing_vehicle: bool = Column(Boolean, default=False)
@@ -314,7 +314,7 @@ class GuestInfo(MagModel, table=True):
 
 
 class GuestImage(MagModel, GuidebookImageMixin, table=True):
-    guest_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'))
+    guest_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('guest_group.id')))
 
     @property
     def url(self):
@@ -335,7 +335,7 @@ class GuestBio(MagModel, table=True):
     GuestGroup: joined
     """
 
-    guest_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
+    guest_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True))
     desc: str = Column(String)
     member_info: str = Column(String)
     website: str = Column(String)
@@ -359,7 +359,7 @@ class GuestTaxes(MagModel, table=True):
     GuestGroup: joined
     """
 
-    guest_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
+    guest_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True))
     w9_sent: bool = Column(Boolean, default=False)
 
     @property
@@ -372,7 +372,7 @@ class GuestStagePlot(MagModel, table=True):
     GuestGroup: joined
     """
 
-    guest_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
+    guest_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True))
     filename: str = Column(String)
     content_type: str = Column(String)
     notes: str = Column(String)
@@ -412,7 +412,7 @@ class GuestPanel(MagModel, table=True):
     GuestGroup: joined
     """
 
-    guest_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
+    guest_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True))
     wants_panel: int | None = Column(Choice(c.GUEST_PANEL_OPTS), nullable=True)
     name: str = Column(String)
     length: str = Column(String)
@@ -430,7 +430,7 @@ class GuestTrack(MagModel, table=True):
     GuestGroup: joined
     """
 
-    guest_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'))
+    guest_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('guest_group.id')))
     filename: str = Column(String)
     content_type: str = Column(String)
     extension: str = Column(String)
@@ -475,7 +475,7 @@ class GuestMerch(MagModel, table=True):
     _inventory_file_regex: ClassVar = re.compile(r'^(audio|image)(|\-\d+)$')
     _inventory_filename_regex: ClassVar = re.compile(r'^(audio|image)(|\-\d+)_filename$')
 
-    guest_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
+    guest_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True))
     selling_merch: int | None = Column(Choice(c.GUEST_MERCH_OPTS), nullable=True)
     delivery_method: int | None = Column(Choice(c.GUEST_MERCH_DELIVERY_OPTS), nullable=True)
     payout_method: int | None = Column(Choice(c.GUEST_MERCH_PAYOUT_METHOD_OPTS), nullable=True)
@@ -492,7 +492,7 @@ class GuestMerch(MagModel, table=True):
     checkin_time: int | None = Column(Choice(c.GUEST_MERCH_CHECKIN_TIMES), nullable=True)
     checkout_time: int | None = Column(Choice(c.GUEST_MERCH_CHECKOUT_TIMES), nullable=True)
     merch_events: str = Column(String)
-    inventory: dict[Any, Any] = Column(JSON, default={}, server_default='{}')
+    inventory: dict[Any, Any] = Field(sa_type=JSON, default_factory=dict)
     inventory_updated: datetime | None = Column(DateTime(timezone=True), nullable=True)
     extra_info: str = Column(String)
     tax_phone: str = Column(String)
@@ -509,7 +509,7 @@ class GuestMerch(MagModel, table=True):
     poc_region: str = Column(String)
     poc_country: str = Column(String)
 
-    handlers: dict[str, Any] = Column(JSON, default=[], server_default='[]')
+    handlers: dict[str, Any] = Field(sa_type=JSON, default_factory=dict)
 
     @property
     def full_name(self):
@@ -774,7 +774,7 @@ class GuestCharity(MagModel, table=True):
     GuestGroup: joined
     """
 
-    guest_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
+    guest_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True))
     donating: int | None = Column(Choice(c.GUEST_CHARITY_OPTS), nullable=True)
     desc: str = Column(String)
 
@@ -793,7 +793,7 @@ class GuestAutograph(MagModel, table=True):
     GuestGroup: joined
     """
 
-    guest_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
+    guest_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True))
     num: int = Column(Integer, default=0)
     length: int = Column(Integer, default=60)  # session length in minutes
     rock_island_autographs: bool | None = Column(Boolean, nullable=True)
@@ -810,7 +810,7 @@ class GuestInterview(MagModel, table=True):
     GuestGroup: joined
     """
 
-    guest_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
+    guest_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True))
     will_interview: bool = Column(Boolean, default=False)
     email: str = Column(String)
     direct_contact: bool = Column(Boolean, default=False)
@@ -828,7 +828,7 @@ class GuestTravelPlans(MagModel, table=True):
     GuestDetailedTravelPlan: selectin
     """
 
-    guest_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
+    guest_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True))
     modes: str = Column(MultiChoice(c.GUEST_TRAVEL_OPTS), default=c.OTHER)
     modes_text: str = Column(String)
     details: str = Column(String)
@@ -844,7 +844,7 @@ class GuestHospitality(MagModel, table=True):
     GuestGroup: joined
     """
 
-    guest_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
+    guest_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True))
     completed: bool = Column(Boolean, default=False)
 
 
@@ -853,7 +853,7 @@ class GuestMediaRequest(MagModel, table=True):
     GuestGroup: joined
     """
 
-    guest_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
+    guest_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True))
     completed: bool = Column(Boolean, default=False)
 
 
@@ -862,8 +862,8 @@ class GuestDetailedTravelPlan(MagModel, table=True):
     GuestTravelPlans: joined
     """
 
-    travel_plans_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('guest_travel_plans.id'), nullable=True)
-    travel_plans: 'GuestTravelPlans' = Relationship(sa_relationship=relationship('GuestTravelPlans', foreign_keys=travel_plans_id, single_parent=True,
+    travel_plans_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('guest_travel_plans.id'), nullable=True))
+    travel_plans: 'GuestTravelPlans' = Relationship(sa_relationship=relationship('GuestTravelPlans', foreign_keys='GuestDetailedTravelPlan.travel_plans_id', single_parent=True,
                                 backref=backref('detailed_travel_plans', lazy='selectin'), lazy='joined',
                                 cascade='save-update,merge,refresh-expire,expunge'))
     mode: int = Column(Choice(c.GUEST_TRAVEL_OPTS))

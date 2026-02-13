@@ -353,8 +353,8 @@ class Email(MagModel, BaseEmailMixin, table=True):
     AutomatedEmail: joined
     """
     
-    automated_email_id: str | None = Column(
-        Uuid(as_uuid=False), ForeignKey('automated_email.id', ondelete='set null'), nullable=True, default=None, index=True)
+    automated_email_id: str | None = Field(sa_column=Column(
+        Uuid(as_uuid=False), ForeignKey('automated_email.id', ondelete='set null'), nullable=True, default=None, index=True))
 
     fk_id: str | None = Column(Uuid(as_uuid=False), nullable=True)
     ident: str = Column(String)

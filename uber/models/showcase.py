@@ -43,7 +43,7 @@ class IndieJudge(MagModel, ReviewMixin, table=True):
     IndieGameReview: selectin
     """
 
-    admin_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('admin_account.id'))
+    admin_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('admin_account.id')))
     status: int = Column(Choice(c.MIVS_JUDGE_STATUS_OPTS), default=c.UNCONFIRMED)
     assignable_showcases: str = Column(MultiChoice(c.SHOWCASE_GAME_TYPE_OPTS))
     all_games_showcases: str = Column(MultiChoice(c.SHOWCASE_GAME_TYPE_OPTS))
@@ -140,7 +140,7 @@ class IndieStudio(MagModel, table=True):
     IndieGame: selectin
     """
 
-    group_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('group.id'), nullable=True)
+    group_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('group.id'), nullable=True))
     name: str = Column(String, unique=True)
     website: str = Column(String)
     other_links: str = Column(UniqueList)
@@ -328,12 +328,12 @@ class IndieDeveloper(MagModel, table=True):
     IndieStudio: joined
     """
 
-    studio_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('indie_studio.id'))
-    attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), nullable=True)
+    studio_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('indie_studio.id')))
+    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), nullable=True))
 
     gets_emails: bool = Column(Boolean, default=False)
     first_name: str = Column(String)
-    last_name: staticmethod = Column(String)
+    last_name: str = Column(String)
     email: str = Column(String)
     cellphone: str = Column(String)
     agreed_coc: bool = Column(Boolean, default=False)
@@ -368,10 +368,10 @@ class IndieGame(MagModel, ReviewMixin, table=True):
     IndieGameImage: selectin
     """
 
-    studio_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('indie_studio.id'))
-    primary_contact_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('indie_developer.id', ondelete='SET NULL'), nullable=True)
+    studio_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('indie_studio.id')))
+    primary_contact_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('indie_developer.id', ondelete='SET NULL'), nullable=True))
     primary_contact: 'IndieDeveloper' = Relationship(sa_relationship=relationship(IndieDeveloper, backref='arcade_games', lazy='joined',
-                                   foreign_keys=primary_contact_id, cascade='save-update,merge,refresh-expire,expunge'))
+                                   foreign_keys='IndieGame.primary_contact_id', cascade='save-update,merge,refresh-expire,expunge'))
 
     title: str = Column(String)
     brief_description: str = Column(String)
@@ -683,7 +683,7 @@ class IndieGameImage(MagModel, GuidebookImageMixin, table=True):
     IndieGame: joined
     """
     
-    game_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('indie_game.id'))
+    game_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('indie_game.id')))
     description: str = Column(String)
     use_in_promo: bool = Column(Boolean, default=False)
     is_screenshot: bool = Column(Boolean, default=True)
@@ -728,8 +728,8 @@ class IndieGameCode(MagModel, table=True):
     IndieJudge: joined
     """
 
-    game_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('indie_game.id'))
-    judge_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('indie_judge.id'), nullable=True)
+    game_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('indie_game.id')))
+    judge_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('indie_judge.id'), nullable=True))
     code: str = Column(String)
     unlimited_use: bool = Column(Boolean, default=False)
     judge_notes: str = Column(String, admin_only=True) # TODO: Remove?
@@ -745,26 +745,26 @@ class IndieGameReview(MagModel, table=True):
     IndieJudge: joined
     """
 
-    game_id = Column(Uuid(as_uuid=False), ForeignKey('indie_game.id'))
-    judge_id = Column(Uuid(as_uuid=False), ForeignKey('indie_judge.id'))
-    video_status = Column(
+    game_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('indie_game.id')))
+    judge_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('indie_judge.id')))
+    video_status: int = Column(
         Choice(c.MIVS_VIDEO_REVIEW_STATUS_OPTS), default=c.PENDING)
-    game_status = Column(
+    game_status: int = Column(
         Choice(c.MIVS_GAME_REVIEW_STATUS_OPTS), default=c.PENDING)
-    game_status_text = Column(String)
-    game_content_bad = Column(Boolean, default=False)
-    read_how_to_play = Column(Boolean, default=False)
+    game_status_text: str = Column(String)
+    game_content_bad: bool = Column(Boolean, default=False)
+    read_how_to_play: bool = Column(Boolean, default=False)
 
     # 0 = not reviewed, 1-10 score (10 is best)
-    readiness_score = Column(Integer, default=0)
-    design_score = Column(Integer, default=0)
-    enjoyment_score = Column(Integer, default=0)
-    game_review = Column(String)
-    developer_response = Column(String)
-    staff_notes = Column(String)
-    send_to_studio = Column(Boolean, default=False)
+    readiness_score: int = Column(Integer, default=0)
+    design_score: int = Column(Integer, default=0)
+    enjoyment_score: int = Column(Integer, default=0)
+    game_review: str = Column(String)
+    developer_response: str = Column(String)
+    staff_notes: str = Column(String)
+    send_to_studio: bool = Column(Boolean, default=False)
 
-    __table_args__ = (
+    __table_args__: ClassVar = (
         UniqueConstraint('game_id', 'judge_id', name='review_game_judge_uniq'),
     )
 

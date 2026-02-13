@@ -142,8 +142,8 @@ class MITSApplicant(MagModel, table=True):
     MITSTeam: joined
     """
 
-    team_id: str | None = Column(ForeignKey('mits_team.id'))
-    attendee_id: str | None = Column(ForeignKey('attendee.id'), nullable=True)
+    team_id: str | None = Field(sa_column=Column(ForeignKey('mits_team.id')))
+    attendee_id: str | None = Field(sa_column=Column(ForeignKey('attendee.id'), nullable=True))
     primary_contact: bool = Column(Boolean, default=False)
     first_name: str = Column(String)
     last_name: str = Column(String)
@@ -177,7 +177,7 @@ class MITSGame(MagModel, table=True):
     MITSDocument: selectin
     """
 
-    team_id: str | None = Column(ForeignKey('mits_team.id'))
+    team_id: str | None = Field(sa_column=Column(ForeignKey('mits_team.id')))
     name: str = Column(String)
     promo_blurb: str = Column(String)
     description: str = Column(String)
@@ -252,7 +252,7 @@ class MITSPicture(MagModel, GuidebookImageMixin, table=True):
     MITSGame: joined
     """
 
-    game_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('mits_game.id'))
+    game_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('mits_game.id')))
     description: str = Column(String)
 
     @property
@@ -269,7 +269,7 @@ class MITSDocument(MagModel, table=True):
     MITSGame: joined
     """
     
-    game_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('mits_game.id'))
+    game_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('mits_game.id')))
     filename: str = Column(String)
     description: str = Column(String)
 
@@ -287,7 +287,7 @@ class MITSTimes(MagModel, table=True):
     MITSTeam: joined
     """
 
-    team_id: str | None = Column(ForeignKey('mits_team.id'))
+    team_id: str | None = Field(sa_column=Column(ForeignKey('mits_team.id')))
     showcase_availability: str = Column(MultiChoice(c.MITS_SHOWCASE_SCHEDULE_OPTS))
     availability: str = Column(MultiChoice(c.MITS_SCHEDULE_OPTS))
 
@@ -297,7 +297,7 @@ class MITSPanelApplication(MagModel, table=True):
     MITSTeam: joined
     """
 
-    team_id: str | None = Column(ForeignKey('mits_team.id'))
+    team_id: str | None = Field(sa_column=Column(ForeignKey('mits_team.id')))
     name: str = Column(String)
     description: str = Column(String)
     length: int = Column(Choice(c.PANEL_STRICT_LENGTH_OPTS), default=c.SIXTY_MIN)

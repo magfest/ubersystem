@@ -18,8 +18,8 @@ class PrintJob(MagModel, table=True):
     Attendee: joined
     """
     
-    attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
-    admin_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('admin_account.id'), nullable=True)
+    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id')))
+    admin_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('admin_account.id'), nullable=True))
 
     admin_name: str = Column(String)  # Preserve admin's name in case their account is removed
     printer_id: str = Column(String)

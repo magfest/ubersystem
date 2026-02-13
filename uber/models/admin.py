@@ -40,7 +40,7 @@ class AdminAccount(MagModel, table=True):
     PasswordReset: select
     """
 
-    attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), unique=True)
+    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), unique=True))
     access_groups: list['AccessGroup'] = Relationship(sa_relationship=relationship(
         'AccessGroup', backref='admin_accounts', lazy='selectin', cascade='save-update,merge,refresh-expire,expunge',
         secondary='admin_access_group'))
@@ -263,8 +263,8 @@ class AdminAccount(MagModel, table=True):
 
 
 class PasswordReset(MagModel, table=True):
-    admin_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('admin_account.id'), unique=True, nullable=True)
-    attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee_account.id'), unique=True, nullable=True)
+    admin_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('admin_account.id'), unique=True, nullable=True))
+    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee_account.id'), unique=True, nullable=True))
     generated: datetime = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
     hashed: str = Column(String, private=True)
 

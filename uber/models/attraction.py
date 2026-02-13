@@ -146,8 +146,8 @@ class Attraction(MagModel, AttractionMixin, table=True):
     advance_checkin: int = Column(Integer, default=0)
     restriction: int = Column(Choice(_RESTRICTION_OPTS), default=_NONE)
     badge_num_required: bool = Column(Boolean, default=False)
-    department_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('department.id'), nullable=True)
-    owner_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('admin_account.id'), nullable=True)
+    department_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('department.id'), nullable=True))
+    owner_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('admin_account.id'), nullable=True))
 
     owner: 'AdminAccount' = Relationship(sa_relationship=relationship(
         'AdminAccount',
@@ -359,13 +359,13 @@ class AttractionFeature(MagModel, AttractionMixin, table=True):
     description: str = Column(String)
     is_public: bool = Column(Boolean, default=False)
     badge_num_required: bool = Column(Boolean, default=False)
-    attraction_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attraction.id'))
+    attraction_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attraction.id')))
 
     events: list['AttractionEvent'] = Relationship(sa_relationship=relationship(
         'AttractionEvent', backref=backref('feature', lazy='joined'), lazy='selectin',
         order_by='[AttractionEvent.start_time, AttractionEvent.id]'))
 
-    __table_args__ = (
+    __table_args__: ClassVar = (
         UniqueConstraint('name', 'attraction_id'),
         UniqueConstraint('slug', 'attraction_id'),
     )
@@ -487,9 +487,9 @@ class AttractionEvent(MagModel, AttractionMixin, table=True):
     Event: joined
     """
 
-    attraction_feature_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attraction_feature.id'))
-    attraction_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attraction.id'), index=True)
-    event_location_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('event_location.id', ondelete='SET NULL'), nullable=True)
+    attraction_feature_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attraction_feature.id')))
+    attraction_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attraction.id'), index=True))
+    event_location_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('event_location.id', ondelete='SET NULL'), nullable=True))
 
     start_time: datetime = Column(DateTime(timezone=True), default=c.EPOCH)
     duration: int = Column(Integer, default=60)
@@ -497,7 +497,7 @@ class AttractionEvent(MagModel, AttractionMixin, table=True):
     signups: list['AttractionSignup'] = Relationship(sa_relationship=relationship('AttractionSignup', backref=backref('event', lazy='joined'),
                            order_by='AttractionSignup.checkin_time'))
 
-    attendee_signups = association_proxy('signups', 'attendee')
+    attendee_signups: ClassVar = association_proxy('signups', 'attendee')
 
     notifications: list['AttractionNotification'] = Relationship(sa_relationship=relationship('AttractionNotification', backref=backref('event', lazy='joined'),
                                  order_by='AttractionNotification.sent_time'))
@@ -774,9 +774,9 @@ class AttractionSignup(MagModel, table=True):
     AttractionEvent: joined
     """
 
-    attraction_event_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attraction_event.id'))
-    attraction_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attraction.id'))
-    attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
+    attraction_event_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attraction_event.id')))
+    attraction_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attraction.id')))
+    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id')))
 
     signup_time: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(pytz.UTC))
     checkin_time: datetime = Column(DateTime(timezone=True), default=lambda: utcmin.datetime, index=True)
@@ -879,9 +879,9 @@ class AttractionNotification(MagModel, table=True):
     AttractionSignup: joined
     """
 
-    attraction_event_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attraction_event.id'))
-    attraction_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attraction.id'))
-    attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
+    attraction_event_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attraction_event.id')))
+    attraction_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attraction.id')))
+    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id')))
 
     notification_type: int = Column(Choice(Attendee._NOTIFICATION_PREF_OPTS))
     ident: str = Column(String, index=True)
@@ -901,9 +901,9 @@ class AttractionNotificationReply(MagModel, table=True):
     AttractionEvent: joined
     """
 
-    attraction_event_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attraction_event.id'), nullable=True)
-    attraction_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attraction.id'), nullable=True)
-    attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), nullable=True)
+    attraction_event_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attraction_event.id'), nullable=True))
+    attraction_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attraction.id'), nullable=True))
+    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), nullable=True))
 
     notification_type: int = Column(Choice(Attendee._NOTIFICATION_PREF_OPTS))
     from_phonenumber: str = Column(String)

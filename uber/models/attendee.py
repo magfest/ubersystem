@@ -153,18 +153,14 @@ class BadgeInfo(MagModel, table=True):
     Attendee: joined
     """
 
-    attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True, default=None)
+    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True, default=None))
     attendee: 'Attendee' = Relationship(sa_relationship=relationship('Attendee', backref=backref('allocated_badges', cascade='merge,refresh-expire,expunge'),
-                            foreign_keys=attendee_id, lazy='joined',
+                            foreign_keys='BadgeInfo.attendee_id', lazy='joined',
                             cascade='save-update,merge,refresh-expire,expunge', single_parent=True))
     active: bool = Column(Boolean, default=False)
     picked_up: datetime | None = Column(DateTime(timezone=True), nullable=True, default=None)
     reported_lost: datetime | None = Column(DateTime(timezone=True), nullable=True, default=None)
     ident: int = Column(Integer, default=0, index=True)
-
-    __table_args__ = (
-        Index('ix_badge_info_attendee_id', attendee_id.desc()),
-    )
 
     def __repr__(self):
         return f"<BadgeInfo ident='{self.ident}'>"
@@ -206,6 +202,9 @@ class BadgeInfo(MagModel, table=True):
         self.picked_up = self.attendee.checked_in or datetime.now(UTC)
 
 
+Index('ix_badge_info_attendee_id', BadgeInfo.attendee_id.desc())
+
+
 class Attendee(MagModel, TakesPaymentMixin, table=True):
     """
     Group: select
@@ -215,18 +214,18 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     DeptMembership: select
     """
 
-    watchlist_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('watch_list.id', ondelete='set null'), nullable=True, default=None)
-    group_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
+    watchlist_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('watch_list.id', ondelete='set null'), nullable=True))
+    group_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('group.id', ondelete='SET NULL'), nullable=True))
     group: 'Group' = Relationship(sa_relationship=relationship(
         Group, backref=(backref('attendees', lazy='selectin')),
-        foreign_keys=group_id, lazy='select', cascade='save-update,merge,refresh-expire,expunge'))
+        foreign_keys='Attendee.group_id', lazy='select', cascade='save-update,merge,refresh-expire,expunge'))
     
-    badge_pickup_group_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('badge_pickup_group.id', ondelete='SET NULL'), nullable=True)
+    badge_pickup_group_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('badge_pickup_group.id', ondelete='SET NULL'), nullable=True))
     badge_pickup_group: 'BadgePickupGroup' = Relationship(sa_relationship=relationship(
-        'BadgePickupGroup', backref=backref('attendees', lazy='selectin', order_by='Attendee.full_name'), foreign_keys=badge_pickup_group_id,
+        'BadgePickupGroup', backref=backref('attendees', lazy='selectin', order_by='Attendee.full_name'), foreign_keys='Attendee.badge_pickup_group_id',
         cascade='save-update,merge,refresh-expire,expunge', single_parent=True))
 
-    creator_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='set null'), nullable=True)
+    creator_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='set null'), nullable=True))
     creator: 'Attendee' = Relationship(sa_relationship=relationship(
         'Attendee',
         foreign_keys='Attendee.creator_id',
@@ -235,7 +234,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         remote_side='Attendee.id',
         single_parent=True))
 
-    current_attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), nullable=True)
+    current_attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), nullable=True))
     current_attendee: 'Attendee' = Relationship(sa_relationship=relationship(
         'Attendee',
         foreign_keys='Attendee.current_attendee_id',
@@ -263,78 +262,76 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     #
     # The practical result of this is that we must manually set promo_code_id
     # in order for the relationship to be persisted.
-    promo_code_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('promo_code.id'), nullable=True, index=True)
+    promo_code_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('promo_code.id'), nullable=True, index=True))
     promo_code: 'PromoCode' = Relationship(sa_relationship=relationship(
         'PromoCode',
         lazy='select',
         backref=backref('used_by', lazy='selectin', cascade='merge,refresh-expire,expunge'),
-        foreign_keys=promo_code_id,
+        foreign_keys='Attendee.promo_code_id',
         cascade='merge,refresh-expire,expunge'))
     
-    transfer_code: str = Column(String)
+    transfer_code: str = ''
 
-    placeholder: bool = Column(Boolean, default=False, admin_only=True, index=True)
-    first_name: str = Column(String)
-    last_name: str = Column(String)
-    legal_name: str = Column(String)
-    email: str = Column(String)
-    birthdate: date | None = Column(Date, nullable=True, default=None)
-    age_group: int | None = Column(Choice(c.AGE_GROUPS), default=c.AGE_UNKNOWN, nullable=True)
+    placeholder: bool = Field(default=False, index=True)
+    first_name: str = ''
+    last_name: str = ''
+    legal_name: str = ''
+    email: str = ''
+    birthdate: date | None = None
+    age_group: int | None = Field(sa_column=Column(Choice(c.AGE_GROUPS), default=c.AGE_UNKNOWN, nullable=True))
 
-    international: bool = Column(Boolean, default=False)
-    zip_code: str = Column(String)
-    address1: str = Column(String)
-    address2: str = Column(String)
-    city: str = Column(String)
-    region: str = Column(String)
-    country: str = Column(String)
-    ec_name: str = Column(String)
-    ec_phone: str = Column(String)
-    onsite_contact: str = Column(String)
-    no_onsite_contact: bool = Column(Boolean, default=False)
-    cellphone: str = Column(String)
-    no_cellphone: bool = Column(Boolean, default=False)
+    international: bool = False
+    zip_code: str = ''
+    address1: str = ''
+    address2: str = ''
+    city: str = ''
+    region: str = ''
+    country: str = ''
+    ec_name: str = ''
+    ec_phone: str = ''
+    onsite_contact: str = ''
+    no_onsite_contact: bool = False
+    cellphone: str = ''
+    no_cellphone: bool = False
 
-    requested_accessibility_services: bool = Column(Boolean, default=False)
+    requested_accessibility_services: bool = False
 
-    interests: str = Column(MultiChoice(c.INTEREST_OPTS))
-    found_how: str = Column(String)  # TODO: Remove?
-    comments: str = Column(String)  # TODO: Remove?
-    for_review: str = Column(String, admin_only=True)
-    admin_notes: str = Column(String, admin_only=True)
+    interests: str = Field(default='', sa_column=Column(MultiChoice(c.INTEREST_OPTS)))
+    found_how: str = ''
+    comments: str = ''
+    for_review: str = ''
+    admin_notes: str = ''
 
-    public_id: str | None = Column(Uuid(as_uuid=False), default=lambda: str(uuid4()))
-    badge_type: int = Column(Choice(c.BADGE_OPTS), default=c.ATTENDEE_BADGE)
-    badge_status: int = Column(Choice(c.BADGE_STATUS_OPTS), default=c.NEW_STATUS, index=True, admin_only=True)
-    ribbon: str = Column(MultiChoice(c.RIBBON_OPTS), admin_only=True)
-
-    affiliate: str = Column(String)  # TODO: Remove
+    public_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), default=lambda: str(uuid4())))
+    badge_type: int = Field(default=c.ATTENDEE_BADGE, sa_column=Column(Choice(c.BADGE_OPTS)))
+    badge_status: int = Field(default=c.NEW_STATUS, sa_column=Column(Choice(c.BADGE_STATUS_OPTS), index=True, admin_only=True))
+    ribbon: str = Field(default='', sa_column=Column(MultiChoice(c.RIBBON_OPTS), admin_only=True))
 
     # If [[staff_shirt]] is the same as [[shirt]], we only use the shirt column
-    shirt: int = Column(Choice(c.SHIRT_OPTS), default=c.NO_SHIRT)
-    staff_shirt: int = Column(Choice(c.STAFF_SHIRT_OPTS), default=c.NO_SHIRT)
-    num_event_shirts: int = Column(Choice(c.STAFF_EVENT_SHIRT_OPTS, allow_unspecified=True), default=-1)
-    shirt_opt_out: int = Column(Choice(c.SHIRT_OPT_OUT_OPTS), default=c.OPT_IN)
-    can_spam: bool = Column(Boolean, default=False)
-    regdesk_info: str = Column(String, admin_only=True)
-    extra_merch: str = Column(String, admin_only=True)
-    got_merch: bool = Column(Boolean, default=False, admin_only=True)
-    got_staff_merch: bool = Column(Boolean, default=False, admin_only=True)
-    got_swadge: bool = Column(Boolean, default=False, admin_only=True)
-    can_transfer: bool = Column(Boolean, default=False, admin_only=True)
+    shirt: int = Field(default=c.NO_SHIRT, sa_column=Column(Choice(c.SHIRT_OPTS)))
+    staff_shirt: int = Field(default=c.NO_SHIRT, sa_column=Column(Choice(c.STAFF_SHIRT_OPTS)))
+    num_event_shirts: int = Field(default=-1, sa_column=Column(Choice(c.STAFF_EVENT_SHIRT_OPTS, allow_unspecified=True)))
+    shirt_opt_out: int = Field(default=c.OPT_IN, sa_column=Column(Choice(c.SHIRT_OPT_OUT_OPTS)))
+    can_spam: bool = False
+    regdesk_info: str = ''
+    extra_merch: str = ''
+    got_merch: bool = False
+    got_staff_merch: bool = False
+    got_swadge: bool = False
+    can_transfer: bool = False
 
-    reg_station: int | None = Column(Integer, nullable=True, admin_only=True)
-    registered: datetime = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
-    confirmed: datetime | None = Column(DateTime(timezone=True), nullable=True, default=None)
-    checked_in: datetime | None = Column(DateTime(timezone=True), nullable=True)
+    reg_station: int | None
+    registered: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True), server_default=utcnow()))
+    confirmed: datetime | None = Field(sa_column=Column(DateTime(timezone=True), nullable=True, default=None))
+    checked_in: datetime | None = Field(sa_column=Column(DateTime(timezone=True), nullable=True))
 
-    paid: int = Column(Choice(c.PAYMENT_OPTS), default=c.NOT_PAID, index=True, admin_only=True)
-    badge_cost: int | None = Column(Integer, nullable=True, admin_only=True)
-    overridden_price: int | None = Column(Integer, nullable=True, admin_only=True)
-    amount_extra: int = Column(Choice(c.DONATION_TIER_OPTS, allow_unspecified=True), default=0)
-    extra_donation: int = Column(Integer, default=0)
+    paid: int = Field(default=c.NOT_PAID, sa_column=Column(Choice(c.PAYMENT_OPTS), index=True, admin_only=True))
+    badge_cost: int | None
+    overridden_price: int | None
+    amount_extra: int = Field(default=0, sa_column=Column(Choice(c.DONATION_TIER_OPTS, allow_unspecified=True)))
+    extra_donation: int = 0
 
-    badge_printed_name: str = Column(String)
+    badge_printed_name: str = ''
 
     active_receipt: 'ModelReceipt' = Relationship(sa_relationship=relationship(
         'ModelReceipt',
@@ -344,7 +341,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         'ModelReceipt.closed == None)',
         lazy='select',
         uselist=False))
-    default_cost: int | None = Column(Integer, nullable=True)
+    default_cost: int | None
 
     dept_memberships: list['DeptMembership'] = Relationship(sa_relationship=relationship('DeptMembership', backref=backref('attendee', lazy='joined'), lazy='select'))
     dept_membership_requests: list['DeptMembershipRequest'] = Relationship(sa_relationship=relationship('DeptMembershipRequest', backref=backref('attendee', lazy='joined')))
@@ -403,16 +400,16 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
                     'DeptMembership.is_checklist_admin == True)',
         viewonly=True))
 
-    staffing: bool = Column(Boolean, default=False)
-    agreed_to_volunteer_agreement: bool = Column(Boolean, default=False)
-    reviewed_emergency_procedures: bool = Column(Boolean, default=False)
-    reviewed_cash_handling: datetime | None = Column(DateTime(timezone=True), nullable=True, default=None)
-    name_in_credits: str | None = Column(String, nullable=True)
-    walk_on_volunteer: bool = Column(Boolean, default=False)
-    nonshift_minutes: int = Column(Integer, default=0, admin_only=True)
-    past_years: str = Column(String, admin_only=True)
-    can_work_setup: bool = Column(Boolean, default=False, admin_only=True)
-    can_work_teardown: bool = Column(Boolean, default=False, admin_only=True)
+    staffing: bool = False
+    agreed_to_volunteer_agreement: bool = False
+    reviewed_emergency_procedures: bool = False
+    reviewed_cash_handling: datetime | None = Field(sa_column=Column(DateTime(timezone=True), nullable=True, default=None))
+    name_in_credits: str | None
+    walk_on_volunteer: bool = False
+    nonshift_minutes: int = 0
+    past_years: str = ''
+    can_work_setup: bool = False
+    can_work_teardown: bool = False
 
     # TODO: a record of when an attendee is unable to pickup a shirt
     # (which type? swag or staff? prob swag)
@@ -430,12 +427,12 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     indie_developer: 'IndieDeveloper' = Relationship(sa_relationship=relationship(
         'IndieDeveloper', backref=backref('attendee'), uselist=False))
 
-    hotel_eligible: bool = Column(Boolean, default=False, admin_only=True)
+    hotel_eligible: bool = False
     hotel_requests: 'HotelRequests' = Relationship(sa_relationship=relationship('HotelRequests', backref=backref('attendee', lazy='joined'), uselist=False))
     room_assignments: list['RoomAssignment'] = Relationship(sa_relationship=relationship('RoomAssignment', backref=backref('attendee', lazy='joined')))
 
     # The PIN/password used by third party hotel reservation systems
-    hotel_pin: str = Column(String, nullable=True, unique=True)
+    hotel_pin: str | None = Field(nullable=True, unique=True)
 
     # =========================
     # mits
@@ -468,11 +465,11 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         (_NOTIFICATION_TEXT, 'Text'),
         (_NOTIFICATION_NONE, 'None')]
 
-    notification_pref: int = Column(Choice(_NOTIFICATION_PREF_OPTS), default=_NOTIFICATION_EMAIL)
-    attractions_opt_out: bool = Column(Boolean, default=False)
+    notification_pref: int = Field(default=_NOTIFICATION_EMAIL, sa_column=Column(Choice(_NOTIFICATION_PREF_OPTS)))
+    attractions_opt_out: bool = False
 
     attraction_signups: list['AttractionSignup'] = Relationship(sa_relationship=relationship('AttractionSignup', backref=backref('attendee', lazy='joined'), order_by='AttractionSignup.signup_time'))
-    attraction_event_signups = association_proxy('attraction_signups', 'event')
+    attraction_event_signups: ClassVar = association_proxy('attraction_signups', 'event')
     attraction_notifications: list['AttractionNotifications'] = Relationship(sa_relationship=relationship(
         'AttractionNotification', backref=backref('attendee', lazy='joined'), order_by='AttractionNotification.sent_time'))
 
@@ -504,12 +501,12 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         viewonly=True))
 
     _attendee_table_args: ClassVar = [
-        Index('ix_attendee_paid_group_id', paid, group_id),
-        Index('ix_attendee_badge_status_badge_type', badge_status, badge_type),
+        Index('ix_attendee_paid_group_id', 'paid', 'group_id'),
+        Index('ix_attendee_badge_status_badge_type', 'badge_status', 'badge_type'),
     ]
 
-    __table_args__ = tuple(_attendee_table_args)
-    _repr_attr_names = ['full_name']
+    __table_args__: ClassVar = tuple(_attendee_table_args)
+    _repr_attr_names: ClassVar = ['full_name']
 
     def to_dict(self, *args, **kwargs):
         # Kludgey fix for SQLAlchemy breaking our stuff
@@ -2742,7 +2739,7 @@ class FoodRestrictions(MagModel, table=True):
     Attendee: joined
     """
 
-    attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), unique=True)
+    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), unique=True))
     standard: str = Column(MultiChoice(c.FOOD_RESTRICTION_OPTS))
     sandwich_pref: str = Column(MultiChoice(c.SANDWICH_OPTS))
     freeform: str = Column(String)

@@ -31,7 +31,7 @@ class Group(MagModel, TakesPaymentMixin, table=True):
     """
 
     public_id: str | None = Column(Uuid(as_uuid=False), default=lambda: str(uuid4()))
-    shared_with_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
+    shared_with_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('group.id', ondelete='SET NULL'), nullable=True))
     shared_with: 'Group' = Relationship(sa_relationship=relationship(
         'Group',
         foreign_keys='Group.shared_with_id',
@@ -66,18 +66,18 @@ class Group(MagModel, TakesPaymentMixin, table=True):
     status: int = Column(Choice(c.DEALER_STATUS_OPTS), default=c.UNAPPROVED, admin_only=True)
     registered: datetime = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
     approved: datetime | None = Column(DateTime(timezone=True), nullable=True)
-    leader_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', use_alter=True, name='fk_leader', ondelete='SET NULL'),
-                       nullable=True)
-    creator_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), nullable=True)
+    leader_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id', use_alter=True, name='fk_leader', ondelete='SET NULL'),
+                       nullable=True))
+    creator_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), nullable=True))
 
     creator: 'Attendee' = Relationship(sa_relationship=relationship(
         'Attendee',
-        foreign_keys=creator_id,
+        foreign_keys='Group.creator_id',
         backref=backref('created_groups', order_by='Group.name'),
         cascade='save-update,merge,refresh-expire,expunge',
         remote_side='Attendee.id',
         single_parent=True))
-    leader: 'Attendee' = Relationship(sa_relationship=relationship('Attendee', foreign_keys=leader_id, post_update=True, cascade='all'))
+    leader: 'Attendee' = Relationship(sa_relationship=relationship('Attendee', foreign_keys='Group.leader_id', post_update=True, cascade='all'))
     studio: 'IndieStudio' = Relationship(sa_relationship=relationship('IndieStudio', uselist=False, backref='group',
                           cascade='save-update,merge,refresh-expire,expunge'))
     guest: 'GuestGroup' = Relationship(sa_relationship=relationship('GuestGroup', backref=backref('group', lazy='joined'), uselist=False))

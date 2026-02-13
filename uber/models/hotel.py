@@ -72,7 +72,7 @@ class HotelRequests(MagModel, NightsMixin, table=True):
     Attendee: joined
     """
 
-    attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), unique=True)
+    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), unique=True))
     nights: str = Column(MultiChoice(c.NIGHT_OPTS))
     wanted_roommates: str = Column(String)
     unwanted_roommates: str = Column(String)
@@ -127,8 +127,8 @@ class RoomAssignment(MagModel, table=True):
     Room: joined
     """
 
-    room_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('room.id'))
-    attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
+    room_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('room.id')))
+    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id')))
 
 
 class LotteryApplication(MagModel, table=True):
@@ -137,7 +137,7 @@ class LotteryApplication(MagModel, table=True):
     LotteryApplication (parent_application): joined
     """
 
-    attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), unique=True, nullable=True)
+    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), unique=True, nullable=True))
     attendee: 'Attendee' = Relationship(sa_relationship=relationship('Attendee', lazy='joined', backref=backref('lottery_application', uselist=False),
                             cascade='save-update,merge,refresh-expire,expunge',
                             uselist=False))
@@ -148,7 +148,7 @@ class LotteryApplication(MagModel, table=True):
     response_id: int = Column(Integer, response_id_seq, server_default=response_id_seq.next_value(), unique=True)
     status: int = Column(Choice(c.HOTEL_LOTTERY_STATUS_OPTS), default=c.PARTIAL, admin_only=True)
     entry_started: datetime | None = Column(DateTime(timezone=True), nullable=True)
-    entry_metadata: dict[str, Any] = Column(MutableDict.as_mutable(JSONB), server_default='{}', default={})
+    entry_metadata: dict[str, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
     entry_type: int | None = Column(Choice(c.HOTEL_LOTTERY_ENTRY_TYPE_OPTS), nullable=True)
     current_step: int = Column(Integer, default=0)
     last_submitted: datetime | None = Column(DateTime(timezone=True), nullable=True)
@@ -181,7 +181,7 @@ class LotteryApplication(MagModel, table=True):
     booking_url_hidden: bool = Column(Boolean, default=True)
 
     # If this is set then the above values are ignored
-    parent_application_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('lottery_application.id'), nullable=True)
+    parent_application_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('lottery_application.id'), nullable=True))
     parent_application: 'LotteryApplication' = Relationship(sa_relationship=relationship(
         'LotteryApplication',
         lazy='joined',
@@ -190,7 +190,7 @@ class LotteryApplication(MagModel, table=True):
         cascade='save-update,merge,refresh-expire,expunge',
         remote_side='LotteryApplication.id',
         single_parent=True))
-    former_parent_id = Column(Uuid(as_uuid=False), nullable=True)
+    former_parent_id: str | None = Column(Uuid(as_uuid=False), nullable=True)
 
     room_group_name: str = Column(String)
     email_model_name: ClassVar = 'app'

@@ -32,7 +32,7 @@ panel_applicant_application = Table(
 
 
 class EventLocation(MagModel, table=True):
-    department_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('department.id', ondelete='SET NULL'), nullable=True)
+    department_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('department.id', ondelete='SET NULL'), nullable=True))
     name: str = Column(String)
     room: str = Column(String)
     tracks: str = Column(MultiChoice(c.EVENT_TRACK_OPTS))
@@ -85,9 +85,9 @@ class Event(MagModel, table=True):
     EventLocation: joined
     """
 
-    event_location_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('event_location.id', ondelete='SET NULL'), nullable=True)
-    department_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('department.id', ondelete='SET NULL'), nullable=True)
-    attraction_event_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attraction_event.id', ondelete='SET NULL'), nullable=True)
+    event_location_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('event_location.id', ondelete='SET NULL'), nullable=True))
+    department_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('department.id', ondelete='SET NULL'), nullable=True))
+    attraction_event_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attraction_event.id', ondelete='SET NULL'), nullable=True))
     start_time: datetime = Column(DateTime(timezone=True))
     duration: int = Column(Integer, default=60)
     name: str = Column(String, nullable=False)
@@ -165,8 +165,8 @@ class AssignedPanelist(MagModel, table=True):
     Event: joined
     """
 
-    attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='cascade'))
-    event_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('event.id', ondelete='cascade'))
+    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='cascade')))
+    event_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('event.id', ondelete='cascade')))
 
     def __repr__(self):
         if self.attendee:
@@ -182,9 +182,9 @@ class PanelApplication(MagModel, table=True):
     PanelApplicant: selectin
     """
 
-    event_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('event.id', ondelete='SET NULL'), nullable=True)
-    poc_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
-    submitter_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('panel_applicant.id', ondelete='SET NULL'), nullable=True)
+    event_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('event.id', ondelete='SET NULL'), nullable=True))
+    poc_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True))
+    submitter_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('panel_applicant.id', ondelete='SET NULL'), nullable=True))
     name: str = Column(String)
     length: int = Column(Choice(c.PANEL_LENGTH_OPTS), default=c.SIXTY_MIN)
     length_text: str = Column(String)
@@ -339,7 +339,7 @@ class PanelApplicant(MagModel, table=True):
     PanelApplicant: selectin
     """
 
-    attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True)
+    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True))
     submitter: bool = Column(Boolean, default=False)
     first_name: str = Column(String)
     last_name: str = Column(String)
@@ -381,8 +381,8 @@ class PanelApplicant(MagModel, table=True):
 
 
 class EventFeedback(MagModel, table=True):
-    event_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('event.id'))
-    attendee_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='cascade'))
+    event_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('event.id')))
+    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='cascade')))
     headcount_starting: int = Column(Integer, default=0)
     headcount_during: int = Column(Integer, default=0)
     comments: str = Column(String)

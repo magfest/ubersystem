@@ -59,11 +59,11 @@ class ReportTracking(MagModel, table=True):
 
 
 class PageViewTracking(MagModel, table=True):
-    when: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
-    who: str = Column(String)
-    supervisor: str = Column(String)
-    page: str = Column(String)
-    which: str = Column(String)
+    when: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
+    who: str = ''
+    supervisor: str = ''
+    page: str = ''
+    which: str = ''
 
     @property
     def who_repr(self):

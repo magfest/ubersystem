@@ -22,7 +22,7 @@ class ApiToken(MagModel, table=True):
     AdminAccount: joined
     """
 
-    admin_account_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('admin_account.id'))
+    admin_account_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('admin_account.id')))
     token: str | None = Column(Uuid(as_uuid=False), default=lambda: str(uuid.uuid4()), private=True)
     access: int = Column(MultiChoice(c.API_ACCESS_OPTS))
     name: str = Column(String)
@@ -48,7 +48,7 @@ class ApiToken(MagModel, table=True):
 
 
 class ApiJob(MagModel, table=True):
-    admin_id: str | None = Column(Uuid(as_uuid=False), ForeignKey('admin_account.id'), nullable=True)
+    admin_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('admin_account.id'), nullable=True))
     admin_name: str = Column(String)  # Preserve admin's name in case their account is removed
     queued: datetime | None = Column(DateTime(timezone=True), nullable=True, default=None)
     completed: datetime | None = Column(DateTime(timezone=True), nullable=True, default=None)
