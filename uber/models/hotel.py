@@ -10,14 +10,13 @@ from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.types import Boolean, Date, Integer, String, DateTime, Uuid
-from sqlmodel import Field, Relationship
 from typing import Any, ClassVar
 
 from uber.config import c
 from uber.custom_tags import readable_join, datetime_local_filter
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
-from uber.models.types import Choice, default_relationship as relationship, utcnow, DefaultColumn as Column, MultiChoice
+from uber.models.types import Choice, utcnow, DefaultColumn as Column, MultiChoice, DefaultField as Field, DefaultRelationship as Relationship
 from uber.utils import RegistrationCode
 
 log = logging.getLogger(__name__)
@@ -96,7 +95,7 @@ class Room(MagModel, NightsMixin, table=True):
     message: str = Column(String)
     locked_in: bool = Column(Boolean, default=False)
     nights: str = Column(MultiChoice(c.NIGHT_OPTS))
-    created: datetime = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
+    created: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
 
     assignments: list['RoomAssignment'] = Relationship(back_populates="room", sa_relationship_kwargs={'passive_deletes': True})
 
@@ -149,11 +148,11 @@ class LotteryApplication(MagModel, table=True):
     response_id_seq: ClassVar = Sequence('lottery_application_response_id_seq')
     response_id: int = Column(Integer, response_id_seq, server_default=response_id_seq.next_value(), unique=True)
     status: int = Column(Choice(c.HOTEL_LOTTERY_STATUS_OPTS), default=c.PARTIAL, admin_only=True)
-    entry_started: datetime | None = Column(DateTime(timezone=True), nullable=True)
+    entry_started: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     entry_metadata: dict[str, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
     entry_type: int | None = Column(Choice(c.HOTEL_LOTTERY_ENTRY_TYPE_OPTS), nullable=True)
     current_step: int = Column(Integer, default=0)
-    last_submitted: datetime | None = Column(DateTime(timezone=True), nullable=True)
+    last_submitted: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     admin_notes: str = Column(String)
     is_staff_entry: bool = Column(Boolean, default=False)
 
@@ -190,7 +189,7 @@ class LotteryApplication(MagModel, table=True):
                                 'remote_side': 'LotteryApplication.id'})
     group_members: list['LotteryApplication'] = Relationship(
         back_populates="parent_application", sa_relationship_kwargs={'cascade': 'save-update,merge,refresh-expire,expunge'})
-    former_parent_id: str | None = Column(Uuid(as_uuid=False), nullable=True)
+    former_parent_id: str | None = Field(sa_type=Uuid(as_uuid=False), nullable=True)
 
     room_group_name: str = Column(String)
     email_model_name: ClassVar = 'app'

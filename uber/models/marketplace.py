@@ -2,15 +2,14 @@ from uber.config import c
 from uber.custom_tags import email_only, email_to_link
 from uber.models import MagModel
 from uber.decorators import presave_adjustment
-from uber.models.types import Choice, DefaultColumn as Column, default_relationship as relationship, MultiChoice, utcnow
+from uber.models.types import (Choice, DefaultColumn as Column, default_relationship as relationship, utcnow,
+                               DefaultField as Field, DefaultRelationship as Relationship)
 
 from datetime import datetime
 from markupsafe import Markup
 from pytz import UTC
 from sqlalchemy.orm import backref
 from sqlalchemy.types import Boolean, Integer, Uuid, String, DateTime
-from sqlalchemy.schema import ForeignKey
-from sqlmodel import Field, Relationship
 from typing import ClassVar
 
 
@@ -36,8 +35,8 @@ class ArtistMarketplaceApplication(MagModel, table=True):
     accessibility_requests: str = Column(String)
 
     status: int = Column(Choice(c.MARKETPLACE_STATUS_OPTS), default=c.PENDING, admin_only=True)
-    registered: datetime = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
-    accepted: datetime | None = Column(DateTime(timezone=True), nullable=True)
+    registered: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    accepted: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     admin_notes: str = Column(String, admin_only=True)
     overridden_price: int | None = Column(Integer, nullable=True, admin_only=True)
 

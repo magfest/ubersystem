@@ -11,13 +11,12 @@ from sqlalchemy import exists, func, select, CheckConstraint
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.schema import Index
 from sqlalchemy.types import Integer, Uuid, String, DateTime
-from sqlmodel import Field, Relationship
 from typing import ClassVar
 
 from uber.config import c
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
-from uber.models.types import default_relationship as relationship, utcnow, DefaultColumn as Column, Choice
+from uber.models.types import utcnow, DefaultColumn as Column, Choice, DefaultField as Field, DefaultRelationship as Relationship
 from uber.utils import localized_now, RegistrationCode
 
 
@@ -140,7 +139,7 @@ class PromoCodeGroup(MagModel, table=True):
 
     name: str = Column(String)
     code: str = Column(String, admin_only=True)
-    registered: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC)))
+    registered: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
 
     promo_codes: list['PromoCode'] = Relationship(
         back_populates="group", sa_relationship_kwargs={'lazy': 'selectin', 'cascade': 'save-update,merge,refresh-expire,expunge'})
@@ -320,7 +319,7 @@ class PromoCode(MagModel, table=True):
     code: str = Column(String)
     discount: int | None = Column(Integer, nullable=True, default=None)
     discount_type: int = Column(Choice(_DISCOUNT_TYPE_OPTS), default=_FIXED_DISCOUNT)
-    expiration_date: datetime = Column(DateTime(timezone=True), default=c.ESCHATON)
+    expiration_date: datetime = Field(sa_type=DateTime(timezone=True), default=c.ESCHATON)
     uses_allowed: int | None = Column(Integer, nullable=True, default=None)
     cost: int | None = Column(Integer, nullable=True, default=None)
     admin_notes: str = Column(String)

@@ -30,13 +30,13 @@ import sqlalchemy.orm
 from sqlalchemy.orm.attributes import get_history, instance_state
 from sqlalchemy.schema import MetaData, UniqueConstraint
 from sqlalchemy.types import Boolean, Integer, Float, Date, Numeric, DateTime, Uuid, JSON
-from sqlmodel import Field, SQLModel
+from sqlmodel import SQLModel
 
 import uber
 from uber.config import c, create_namespace_uuid
 from uber.errors import HTTPRedirect
 from uber.decorators import cost_property, presave_adjustment, suffix_property, cached_classproperty, classproperty
-from uber.models.types import Choice, DefaultColumn as Column, MultiChoice, utcnow, UniqueList
+from uber.models.types import Choice, MultiChoice, utcnow, UniqueList, DefaultField as Field
 from uber.utils import check_csrf, normalize_email_legacy, create_new_hash, DeptChecklistConf, \
     RegistrationCode, listify
 from uber.payments import ReceiptManager

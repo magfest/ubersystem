@@ -10,9 +10,7 @@ from sqlalchemy import func, or_, select, update
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer, String, Uuid, DateTime
-from sqlmodel import Field, Relationship
 from typing import Any, ClassVar
 
 from uber import utils
@@ -20,7 +18,8 @@ from uber.config import c
 from uber.decorators import presave_adjustment, renderable_data, cached_property, classproperty
 from uber.jinja import JinjaEnv
 from uber.models import MagModel
-from uber.models.types import DefaultColumn as Column, default_relationship as relationship
+from uber.models.types import (DefaultColumn as Column, default_relationship as relationship,
+                               DefaultField as Field, DefaultRelationship as Relationship)
 from uber.utils import normalize_newlines, request_cached_context, groupify
 
 log = logging.getLogger(__name__)
@@ -78,13 +77,13 @@ class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
     needs_approval: bool = Column(Boolean, default=True)
     unapproved_count: int = Column(Integer, default=0)
     currently_sending: bool = Column(Boolean, default=False)
-    last_send_time: datetime | None = Column(DateTime(timezone=True), nullable=True, default=None)
+    last_send_time: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
 
     allow_at_the_con: bool = Column(Boolean, default=False)
     allow_post_con: bool = Column(Boolean, default=False)
 
-    active_after: datetime | None = Column(DateTime(timezone=True), nullable=True, default=None)
-    active_before: datetime | None = Column(DateTime(timezone=True), nullable=True, default=None)
+    active_after: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
+    active_before: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
     revert_changes: dict[str, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
 
     emails: list['Email'] = Relationship(
@@ -357,10 +356,10 @@ class Email(MagModel, BaseEmailMixin, table=True):
     automated_email_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='automated_email.id', nullable=True, index=True)
     automated_email: 'AutomatedEmail' = Relationship(back_populates="emails", sa_relationship_kwargs={'lazy': 'joined'})
 
-    fk_id: str | None = Column(Uuid(as_uuid=False), nullable=True)
+    fk_id: str | None = Field(sa_type=Uuid(as_uuid=False), nullable=True)
     ident: str = Column(String)
     to: str = Column(String)
-    when: str = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    when: str = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
 
     @cached_property
     def fk(self):

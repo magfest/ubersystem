@@ -2,11 +2,11 @@ from datetime import datetime
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.types import Boolean, Integer, Uuid, String, DateTime
-from sqlmodel import Field, Relationship
 from typing import Any
 
 from uber.models import MagModel
-from uber.models.types import DefaultColumn as Column, default_relationship as relationship
+from uber.models.types import (DefaultColumn as Column, default_relationship as relationship,
+                               DefaultField as Field, DefaultRelationship as Relationship)
 
 
 __all__ = ['PrintJob']
@@ -27,8 +27,8 @@ class PrintJob(MagModel, table=True):
     printer_id: str = Column(String)
     reg_station: int | None = Column(Integer, nullable=True)
     print_fee: int = Column(Integer, default=0)
-    queued: datetime | None = Column(DateTime(timezone=True), nullable=True, default=None)
-    printed: datetime | None = Column(DateTime(timezone=True), nullable=True, default=None)
+    queued: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
+    printed: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
     ready: bool = Column(Boolean, default=True)
     errors: str = Column(String)
     is_minor: bool = Column(Boolean)

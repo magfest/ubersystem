@@ -8,15 +8,14 @@ from datetime import datetime, timedelta
 from markupsafe import Markup
 
 from sqlalchemy.types import Boolean, Integer, String, DateTime, Uuid, JSON
-from sqlmodel import Field, Relationship
 from typing import Any, ClassVar
 
 from uber.config import c
 from uber.custom_tags import yesno
 from uber.decorators import presave_adjustment, classproperty
 from uber.models import MagModel
-from uber.models.types import (default_relationship as relationship, Choice, DefaultColumn as Column,
-                               MultiChoice, GuidebookImageMixin)
+from uber.models.types import (Choice, DefaultColumn as Column, MultiChoice, GuidebookImageMixin,
+                               DefaultField as Field, DefaultRelationship as Relationship)
 from uber.utils import filename_extension, slugify
 
 log = logging.getLogger(__name__)
@@ -510,7 +509,7 @@ class GuestMerch(MagModel, table=True):
     checkout_time: int | None = Column(Choice(c.GUEST_MERCH_CHECKOUT_TIMES), nullable=True)
     merch_events: str = Column(String)
     inventory: dict[Any, Any] = Field(sa_type=JSON, default_factory=dict)
-    inventory_updated: datetime | None = Column(DateTime(timezone=True), nullable=True)
+    inventory_updated: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     extra_info: str = Column(String)
     tax_phone: str = Column(String)
 
@@ -904,9 +903,9 @@ class GuestDetailedTravelPlan(MagModel, table=True):
     luggage_needs: str = Column(String)
     contact_email: str = Column(String)
     contact_phone: str = Column(String)
-    arrival_time: datetime = Column(DateTime(timezone=True))
+    arrival_time: datetime = Field(sa_type=DateTime(timezone=True))
     arrival_details: str = Column(String)
-    departure_time: datetime = Column(DateTime(timezone=True))
+    departure_time: datetime = Field(sa_type=DateTime(timezone=True))
     departure_details: str = Column(String)
     extra_details: str = Column(String)
 

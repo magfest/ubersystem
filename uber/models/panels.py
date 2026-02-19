@@ -5,14 +5,13 @@ from pytz import UTC
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
 from sqlalchemy.types import Boolean, Integer, Uuid, String, DateTime
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlmodel import Field, Relationship
 from typing import ClassVar
 
 from uber.config import c
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
-from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
-    MultiChoice, UniqueList
+from uber.models.types import (utcnow, Choice, DefaultColumn as Column, MultiChoice, UniqueList,
+                               DefaultField as Field, DefaultRelationship as Relationship)
 
 
 __all__ = ['AssignedPanelist', 'Event', 'EventLocation', 'EventFeedback', 'PanelApplicant', 'PanelApplication']
@@ -95,7 +94,7 @@ class Event(MagModel, table=True):
     attraction_event_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attraction_event.id', nullable=True, unique=True)
     attraction: 'AttractionEvent' = Relationship(back_populates="schedule_item", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
 
-    start_time: datetime = Column(DateTime(timezone=True))
+    start_time: datetime = Field(sa_type=DateTime(timezone=True))
     duration: int = Column(Integer, default=60)
     name: str = Column(String, nullable=False)
     description: str = Column(String)
@@ -225,9 +224,9 @@ class PanelApplication(MagModel, table=True):
     record: int = Column(Choice(c.LIVESTREAM_OPTS), default=c.OPT_IN)
     panelist_bringing: str = Column(String)
     extra_info: str = Column(String)
-    applied: datetime = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
-    accepted: datetime | None = Column(DateTime(timezone=True), nullable=True)
-    confirmed: datetime | None = Column(DateTime(timezone=True), nullable=True)
+    applied: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    accepted: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
+    confirmed: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     status: int = Column(Choice(c.PANEL_APP_STATUS_OPTS), default=c.PENDING, admin_only=True)
     comments: str = Column(String, admin_only=True)
     tags: str = Column(UniqueList, admin_only=True)

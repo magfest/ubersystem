@@ -88,8 +88,8 @@ class Root:
 
         ribbon = ' / '.join(attendee.ribbon_labels) if attendee.ribbon else ''
 
-        badge.queued = datetime.utcnow()
-        badge.printed = datetime.utcnow()
+        badge.queued = datetime.now(UTC)
+        badge.printed = datetime.now(UTC)
         session.add(attendee)
         session.commit()
 
@@ -203,7 +203,7 @@ class Root:
         else:
             success = True
             message = "Job marked as printed."
-            job.printed = datetime.utcnow()
+            job.printed = datetime.now(UTC)
             session.add(job)
             session.commit()
 

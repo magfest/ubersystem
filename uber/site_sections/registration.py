@@ -381,7 +381,7 @@ class Root:
             if response:
                 response_json = response.json()
                 if req.api_response_successful(response_json):
-                    tracker.resolved = datetime.utcnow()
+                    tracker.resolved = datetime.now(UTC)
                     tracker.response = response_json
                     tracker.internal_error = ''
                     session.add(tracker)
@@ -394,7 +394,7 @@ class Root:
                     error = req.error_message_from_response(response_json)
                     if error != "Not found":
                         return {'success': False, 'message': f"Error checking status of last transaction: {error}"}
-                    tracker.resolved = datetime.utcnow()
+                    tracker.resolved = datetime.now(UTC)
                     session.add(tracker)
                     session.commit()
                     prior_error = terminal_status.get('last_error')
@@ -1456,7 +1456,7 @@ class Root:
             'badges_sold': c.BADGES_SOLD,
             'remaining_badges': c.REMAINING_BADGES,
             'badges_price': c.BADGE_PRICE,
-            'server_current_timestamp': int(datetime.utcnow().timestamp()),
+            'server_current_timestamp': int(datetime.now(UTC).timestamp()),
             'warn_if_server_browser_time_mismatch': c.WARN_IF_SERVER_BROWSER_TIME_MISMATCH
         })
 

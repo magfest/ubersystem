@@ -12,13 +12,14 @@ from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.schema import Column
 from sqlalchemy.sql.expression import FunctionElement
 from sqlalchemy.types import Boolean, Integer, TypeDecorator, String, DateTime, Uuid, JSON
+from sqlmodel import Field, Relationship
 
 from uber.config import c, _config as config
-from uber.utils import url_domain, listify, camel
+from uber.utils import listify
 
 __all__ = [
     'default_relationship', 'relationship', 'utcmin', 'utcnow', 'Choice',
-    'Column', 'DefaultColumn', 'MultiChoice',
+    'Column', 'DefaultColumn', 'DefaultField', 'DefaultRelationship', 'MultiChoice',
     'TakesPaymentMixin', 'GuidebookImageMixin']
 
 
@@ -52,6 +53,41 @@ def DefaultColumn(*args, admin_only=False, private=False, **kwargs):
     return col
 
 
+def DefaultField(*args, private=False, **kwargs):
+    """
+    Returns a SQLModel Field with the given parameters, except that instead
+    of the regular defaults, we've overridden the following defaults if no
+    value is provided for the following parameters:
+
+        Field           Old Default     New Default
+        -----           ------------    -----------
+        nullable        True            False
+        default         None            ''  (only for String fields)
+        server_default  None            <same value as 'default'>
+    """
+    sa_column = kwargs.get('sa_column', None)
+    if sa_column is not None:
+        # DefaultColumn does what we need here
+        return SQLModelField(*args, **kwargs)
+
+    sa_kwargs = kwargs.pop('sa_column_kwargs', {})
+
+    # Not a typo -- some of our kwargs are handled by SQLModel.Field
+    # and others are stored in a dictionary that gets passed to SQLAlchemy
+    kwargs.setdefault('nullable', False)
+    col_type = kwargs.get('sa_type', None)
+    if col_type is String or isinstance(col_type, (String, MultiChoice)):
+        kwargs.setdefault('default', '')
+    
+    default = kwargs.get('default')
+    if isinstance(default, (int, str)):
+        sa_kwargs.setdefault('server_default', str(default))
+    
+    col = SQLModelField(*args, **kwargs)
+    col.private = private
+    return col
+
+
 def default_relationship(*args, **kwargs):
     """
     Returns a SQLAlchemy relationship with the given parameters, except that
@@ -71,13 +107,39 @@ def default_relationship(*args, **kwargs):
     return SQLAlchemy_relationship(*args, **kwargs)
 
 
+def DefaultRelationship(*args, **kwargs):
+    """
+    Returns a SQLModel Relationship with the given parameters, except that
+    instead of the regular defaults, we've overridden the following defaults
+    if no value is provided for the following parameters:
+        cascade now defaults to 'all,delete-orphan'
+        lazy now default to raise
+    """
+    sa_relationship = kwargs.get('sa_relationship', None)
+    if sa_relationship is not None:
+        # default_relationship does what we need here
+        return SQLModelRelationship(*args, **kwargs)
+    
+    sa_kwargs = kwargs.pop('sa_relationship_kwargs', {})
+    if sa_kwargs.get("viewonly", False):
+        # Recent versions of SQLAlchemy won't allow cascades that cause writes
+        # on viewonly relationships.
+        sa_kwargs.setdefault('cascade', 'expunge,refresh-expire,merge')
+    else:
+        sa_kwargs.setdefault('cascade', 'all,delete-orphan')
+    sa_kwargs.setdefault('lazy', 'raise')
+    return SQLModelRelationship(*args, **kwargs, sa_relationship_kwargs=sa_kwargs)
+
+
 # Alias Column and relationship to maintain backwards compatibility
 class SQLAlchemy_Column(Column):
     admin_only = None
 
 Column = DefaultColumn
-SQLAlchemy_relationship, relationship = relationship, default_relationship
+SQLModelField, Field = Field, DefaultField
 
+SQLAlchemy_relationship, relationship = relationship, default_relationship
+SQLModelRelationship, Relationship = Relationship, DefaultRelationship
 
 class utcmax(FunctionElement):
     """

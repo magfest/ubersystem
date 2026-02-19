@@ -11,13 +11,13 @@ from pytz import UTC
 from uber.config import c
 from uber.models import MagModel
 from uber.decorators import presave_adjustment, classproperty
-from uber.models.types import Choice, DefaultColumn as Column, default_relationship as relationship
+from uber.models.types import (Choice, DefaultColumn as Column, default_relationship as relationship,
+                               DefaultField as Field, DefaultRelationship as Relationship)
 from uber.utils import RegistrationCode, get_static_file_path
 
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.types import Integer, Boolean, String, Uuid, DateTime
 from sqlalchemy.schema import UniqueConstraint, Index
-from sqlmodel import Field, Relationship
 from typing import ClassVar
 
 log = logging.getLogger(__name__)
@@ -39,7 +39,7 @@ class ArtShowAgentCode(MagModel, table=True):
     attendee: 'Attendee' = Relationship(back_populates="agent_codes")
     
     code: str = Column(String)
-    cancelled: datetime | None = Column(DateTime(timezone=True), nullable=True)
+    cancelled: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
 
     @hybrid_property
     def normalized_code(self):
@@ -64,8 +64,8 @@ class ArtShowApplication(MagModel, table=True):
     attendee: 'Attendee' = Relationship(
         back_populates="art_show_application", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
     
-    checked_in: datetime | None = Column(DateTime(timezone=True), nullable=True)
-    checked_out: datetime | None = Column(DateTime(timezone=True), nullable=True)
+    checked_in: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
+    checked_out: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     locations: str = Column(String)
     artist_name: str = Column(String)
     artist_id: str = Column(String, admin_only=True)
@@ -691,7 +691,7 @@ class ArtShowPayment(MagModel, table=True):
     
     amount: int = Column(Integer, default=0)
     type: int = Column(Choice(c.ART_SHOW_PAYMENT_OPTS), default=c.STRIPE, admin_only=True)
-    when: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    when: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
 
 
 class ArtShowReceipt(MagModel, table=True):
@@ -706,7 +706,7 @@ class ArtShowReceipt(MagModel, table=True):
         back_populates="art_show_receipts", sa_relationship_kwargs={'lazy': 'joined', 'overlaps': 'art_show_purchases,buyer'})
     
     invoice_num: int = Column(Integer, default=0)
-    closed: datetime | None = Column(DateTime(timezone=True), nullable=True)
+    closed: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
 
     pieces: list['ArtShowPiece'] = Relationship(
         back_populates="receipt",
@@ -777,7 +777,7 @@ class ArtShowBidder(MagModel, table=True):
 
     bidder_num: str = Column(String)
     admin_notes: str = Column(String)
-    signed_up: datetime | None = Column(DateTime(timezone=True), nullable=True)
+    signed_up: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     email_won_bids: bool = Column(Boolean, default=False)
     contact_type: int = Column(Choice(c.ART_SHOW_CONTACT_TYPE_OPTS), default=c.EMAIL)
 

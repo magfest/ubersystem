@@ -117,7 +117,7 @@ def full_date_local(dt):
 
 @JinjaEnv.jinja_export
 def now():
-    return datetime.utcnow()
+    return datetime.now(UTC)
 
 
 @JinjaEnv.jinja_export

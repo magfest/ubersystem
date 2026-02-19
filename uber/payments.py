@@ -1059,7 +1059,7 @@ class RefundRequest(TransactionRequest):
 
             return_response_json = return_response.json()
             self.tracker.response = return_response_json
-            self.tracker.resolved = datetime.utcnow()
+            self.tracker.resolved = datetime.now(UTC)
 
             self.spin_request.log_api_response(return_response_json)
 
@@ -1167,7 +1167,7 @@ class SpinTerminalRequest(TransactionRequest):
         except AttributeError:
             response_json = response
         self.tracker.response = response_json
-        self.tracker.resolved = datetime.utcnow()
+        self.tracker.resolved = datetime.now(UTC)
 
         receipt_items_to_add = self.get_receipt_items_to_add()
         if receipt_items_to_add:
@@ -1191,7 +1191,7 @@ class SpinTerminalRequest(TransactionRequest):
 
             if self.tracker:
                 self.tracker.response = void_response_json
-                self.tracker.resolved = datetime.utcnow()
+                self.tracker.resolved = datetime.now(UTC)
 
             self.log_api_response(void_response_json)
             if self.api_response_successful(void_response_json):

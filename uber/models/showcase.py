@@ -11,15 +11,14 @@ from sqlalchemy import func, case, or_
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.types import Boolean, Integer, String, DateTime, Uuid
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlmodel import Field, Relationship
 from typing import ClassVar
 
 from uber.config import c
 from uber.custom_tags import readable_join, datetime_local_filter
 from uber.decorators import presave_adjustment
 from uber.models import MagModel, Attendee
-from uber.models.types import default_relationship as relationship, utcnow, \
-    Choice, DefaultColumn as Column, MultiChoice, GuidebookImageMixin, UniqueList
+from uber.models.types import (utcnow, Choice, DefaultColumn as Column, MultiChoice, GuidebookImageMixin, UniqueList,
+                               DefaultField as Field, DefaultRelationship as Relationship)
 from uber.utils import localized_now, make_url, remove_opt, slugify
 
 log = logging.getLogger(__name__)
@@ -152,7 +151,7 @@ class IndieStudio(MagModel, table=True):
     status: int = Column(
         Choice(c.MIVS_STUDIO_STATUS_OPTS), default=c.NEW, admin_only=True)
     staff_notes: str = Column(String, admin_only=True)
-    registered: datetime = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
+    registered: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
 
     accepted_core_hours: bool = Column(Boolean, default=False)
     discussion_emails: str = Column(String)
@@ -445,9 +444,9 @@ class IndieGame(MagModel, ReviewMixin, table=True):
     status: int = Column(
         Choice(c.MIVS_GAME_STATUS_OPTS), default=c.NEW, admin_only=True)
     judge_notes: str = Column(String, admin_only=True)
-    registered: datetime = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
-    waitlisted: datetime | None = Column(DateTime(timezone=True), nullable=True)
-    accepted: datetime | None = Column(DateTime(timezone=True), nullable=True)
+    registered: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    waitlisted: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
+    accepted: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
 
     codes: list['IndieGameCode'] = Relationship(back_populates="game", sa_relationship_kwargs={'lazy': 'selectin', 'passive_deletes': True})
     reviews: list['IndieGameReview'] = Relationship(back_populates="game", sa_relationship_kwargs={'passive_deletes': True})

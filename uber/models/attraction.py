@@ -9,14 +9,14 @@ from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.sql import text
 from sqlalchemy.sql.expression import bindparam
 from sqlalchemy.types import Boolean, Integer, Uuid, String, DateTime
-from sqlmodel import Field, Relationship
 from typing import ClassVar
 
 from uber.config import c
 from uber.custom_tags import humanize_timedelta, location_event_name, location_room_name
 from uber.decorators import presave_adjustment, render, classproperty
 from uber.models import MagModel, Attendee
-from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column, utcmin
+from uber.models.types import (default_relationship as relationship, Choice, DefaultColumn as Column, utcmin,
+                               DefaultField as Field, DefaultRelationship as Relationship)
 from uber.utils import evening_datetime, noon_datetime, localized_now, slugify, listify, groupify
 
 
@@ -31,7 +31,7 @@ class AttractionMixin():
     waitlist_available: bool = Column(Boolean, default=True)
     waitlist_slots: int = Column(Integer, default=10)
     signups_open_relative: int = Column(Integer, default=c.DEFAULT_ATTRACTIONS_SIGNUPS_MINUTES)
-    signups_open_time: datetime | None = Column(DateTime(timezone=True), nullable=True)
+    signups_open_time: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     slots: int = Column(Integer, default=1)
 
     @classproperty
@@ -481,7 +481,7 @@ class AttractionEvent(MagModel, AttractionMixin, table=True):
     location: 'EventLocation' = Relationship(
         back_populates="attractions", sa_relationship_kwargs={'lazy': 'joined', 'cascade': 'save-update,merge,refresh-expire,expunge'})
 
-    start_time: datetime = Column(DateTime(timezone=True), default=c.EPOCH)
+    start_time: datetime = Field(sa_type=DateTime(timezone=True), default=c.EPOCH)
     duration: int = Column(Integer, default=60)
 
     schedule_item: 'Event' = Relationship(
@@ -770,8 +770,8 @@ class AttractionSignup(MagModel, table=True):
     attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
     attendee: 'Attendee' = Relationship(back_populates="attraction_signups", sa_relationship_kwargs={'lazy': 'joined'})
 
-    signup_time: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(pytz.UTC))
-    checkin_time: datetime = Column(DateTime(timezone=True), default=lambda: utcmin.datetime, index=True)
+    signup_time: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(pytz.UTC))
+    checkin_time: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: utcmin.datetime, index=True)
     on_waitlist: bool = Column(Boolean, default=False)
 
     notifications: list['AttractionNotification'] = Relationship(
@@ -876,7 +876,7 @@ class AttractionNotification(MagModel, table=True):
     notification_type: int = Column(Choice(Attendee._NOTIFICATION_PREF_OPTS))
     ident: str = Column(String, index=True)
     sid: str = Column(String)
-    sent_time: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(pytz.UTC))
+    sent_time: datetime = Field(sa_type=DateTime(timezone=True), default=lambda: datetime.now(pytz.UTC))
     subject: str = Column(String)
     body: str = Column(String)
 
@@ -908,8 +908,8 @@ class AttractionNotificationReply(MagModel, table=True):
     from_phonenumber: str = Column(String)
     to_phonenumber: str = Column(String)
     sid: str = Column(String, index=True)
-    received_time: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(pytz.UTC))
-    sent_time: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(pytz.UTC))
+    received_time: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(pytz.UTC))
+    sent_time: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(pytz.UTC))
     body: str = Column(String)
 
     @presave_adjustment

@@ -7,13 +7,12 @@ from pytz import UTC
 from sqlalchemy import and_
 from sqlalchemy.types import Boolean, Integer, Uuid, DateTime, String
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlmodel import Field, Relationship
 from typing import ClassVar
 
 from uber.config import c
 from uber.models import MagModel
-from uber.models.types import (default_relationship as relationship, utcnow, Choice, DefaultColumn as Column,
-                               MultiChoice, GuidebookImageMixin)
+from uber.models.types import (utcnow, Choice, DefaultColumn as Column, MultiChoice, GuidebookImageMixin,
+                               DefaultField as Field, DefaultRelationship as Relationship)
 from uber.utils import slugify
 
 
@@ -33,11 +32,11 @@ class MITSTeam(MagModel, table=True):
     showcase_interest: bool | None = Column(Boolean, nullable=True, admin_only=True)
     want_to_sell: bool = Column(Boolean, default=False)
     address: str = Column(String)
-    submitted: datetime | None = Column(DateTime(timezone=True), nullable=True)
+    submitted: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     waiver_signature: str = Column(String)
-    waiver_signed: datetime | None = Column(DateTime(timezone=True), nullable=True)
+    waiver_signed: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
 
-    applied: datetime = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
+    applied: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
     status: int = Column(Choice(c.MITS_APP_STATUS), default=c.PENDING, admin_only=True)
 
     applicants: list['MITSApplicant'] = Relationship(back_populates="team", sa_relationship_kwargs={'passive_deletes': True})
@@ -45,7 +44,7 @@ class MITSTeam(MagModel, table=True):
     schedule: 'MITSTimes' = Relationship(back_populates="team", sa_relationship_kwargs={'passive_deletes': True})
     panel_app: 'MITSPanelApplication' = Relationship(back_populates="team", sa_relationship_kwargs={'passive_deletes': True})
 
-    duplicate_of: str | None = Column(Uuid(as_uuid=False), nullable=True)
+    duplicate_of: str | None = Field(sa_type=Uuid(as_uuid=False), nullable=True)
     deleted: bool = Column(Boolean, default=False)
     # We've found that a lot of people start filling out an application and
     # then instead of continuing their application just start over fresh and

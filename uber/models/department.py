@@ -5,8 +5,7 @@ from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
 from sqlalchemy.sql import text
-from sqlalchemy.types import Boolean, Float, Integer, Time, Uuid, String, DateTime
-from sqlmodel import Field, Relationship
+from sqlalchemy.types import Integer, Time, Uuid, String, DateTime
 from typing import ClassVar
 
 from uber.config import c
@@ -15,7 +14,8 @@ from uber.decorators import presave_adjustment, cached_property, classproperty
 from uber.utils import groupify
 from uber.models import MagModel
 from uber.models.attendee import Attendee
-from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column, UniqueList, MultiChoice
+from uber.models.types import (default_relationship as relationship, Choice, DefaultColumn as Column, MultiChoice,
+                               DefaultField as Field, DefaultRelationship as Relationship)
 
 
 __all__ = [

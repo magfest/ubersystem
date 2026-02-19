@@ -10,8 +10,7 @@ from sqlalchemy import and_, case, exists, func, or_, select, not_
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import subqueryload, aliased, selectinload, joinedload
 from sqlalchemy.schema import ForeignKey, Index, Table, UniqueConstraint
-from sqlalchemy.types import Boolean, Date, Integer, Uuid, String, DateTime
-from sqlmodel import Field, Relationship
+from sqlalchemy.types import Boolean, Integer, Uuid, String, DateTime
 from typing import ClassVar
 
 import uber
@@ -22,7 +21,7 @@ from uber.decorators import predelete_adjustment, presave_adjustment, \
 from uber.models import MagModel
 from uber.models.group import Group
 from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
-    MultiChoice, TakesPaymentMixin
+    MultiChoice, TakesPaymentMixin, DefaultField as Field, DefaultRelationship as Relationship
 from uber.utils import add_opt, get_age_from_birthday, get_age_conf_from_birthday, hour_day_format, \
     localized_now, mask_string, normalize_email, normalize_email_legacy, remove_opt, RegistrationCode, listify, groupify
 
@@ -155,8 +154,8 @@ class BadgeInfo(MagModel, table=True):
     attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
     attendee: 'Attendee' = Relationship(back_populates="allocated_badges", sa_relationship_kwargs={'lazy': 'joined'})
     active: bool = Column(Boolean, default=False)
-    picked_up: datetime | None = Column(DateTime(timezone=True), nullable=True, default=None)
-    reported_lost: datetime | None = Column(DateTime(timezone=True), nullable=True, default=None)
+    picked_up: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
+    reported_lost: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
     ident: int = Column(Integer, default=0, index=True)
 
     def __repr__(self):
@@ -293,7 +292,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     for_review: str = ''
     admin_notes: str = ''
 
-    public_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), default=lambda: str(uuid4())))
+    public_id: str | None = Field(sa_type=Uuid(as_uuid=False), default_factory=lambda: str(uuid4()))
     badge_type: int = Field(default=c.ATTENDEE_BADGE, sa_column=Column(Choice(c.BADGE_OPTS)))
     badge_status: int = Field(default=c.NEW_STATUS, sa_column=Column(Choice(c.BADGE_STATUS_OPTS), index=True, admin_only=True))
     ribbon: str = Field(default='', sa_column=Column(MultiChoice(c.RIBBON_OPTS), admin_only=True))
@@ -312,9 +311,9 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     can_transfer: bool = False
 
     reg_station: int | None
-    registered: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True), server_default=utcnow()))
-    confirmed: datetime | None = Field(sa_column=Column(DateTime(timezone=True), nullable=True, default=None))
-    checked_in: datetime | None = Field(sa_column=Column(DateTime(timezone=True), nullable=True))
+    registered: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    confirmed: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
+    checked_in: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
 
     paid: int = Field(default=c.NOT_PAID, sa_column=Column(Choice(c.PAYMENT_OPTS), index=True, admin_only=True))
     badge_cost: int | None
@@ -436,7 +435,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     staffing: bool = False
     agreed_to_volunteer_agreement: bool = False
     reviewed_emergency_procedures: bool = False
-    reviewed_cash_handling: datetime | None = Field(sa_column=Column(DateTime(timezone=True), nullable=True, default=None))
+    reviewed_cash_handling: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
     name_in_credits: str | None
     walk_on_volunteer: bool = False
     nonshift_minutes: int = 0
@@ -2583,7 +2582,7 @@ class AttendeeAccount(MagModel, table=True):
     PasswordReset: select
     """
 
-    public_id: str | None = Column(Uuid(as_uuid=False), default=lambda: str(uuid4()), nullable=True)
+    public_id: str | None = Field(sa_type=Uuid(as_uuid=False), default_factory=lambda: str(uuid4()), nullable=True)
     email: str = Column(String)
     hashed: str = Column(String, private=True)
     password_reset: 'PasswordReset' = Relationship(
@@ -2715,7 +2714,7 @@ class BadgePickupGroup(MagModel, table=True):
     Attendee: selectin
     """
 
-    public_id: str | None = Column(Uuid(as_uuid=False), default=lambda: str(uuid4()), nullable=True)
+    public_id: str | None = Field(sa_type=Uuid(as_uuid=False), default_factory=lambda: str(uuid4()), nullable=True)
     account_id: str = Column(String)
 
     attendees: list['Attendee'] = Relationship(

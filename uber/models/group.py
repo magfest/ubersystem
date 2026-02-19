@@ -6,10 +6,7 @@ from decimal import Decimal
 from pytz import UTC
 from sqlalchemy import and_, exists, or_, func, select, not_
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import backref
-from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer, Numeric, String, DateTime, Uuid
-from sqlmodel import Field, Relationship
 from typing import ClassVar
 
 from uber.config import c
@@ -17,7 +14,7 @@ from uber.custom_tags import format_currency
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
-    MultiChoice, TakesPaymentMixin
+    MultiChoice, TakesPaymentMixin, DefaultField as Field, DefaultRelationship as Relationship
 from uber.utils import add_opt
 
 
@@ -42,7 +39,7 @@ class Group(MagModel, TakesPaymentMixin, table=True):
         back_populates="table_shares", sa_relationship_kwargs={'foreign_keys': 'Group.shared_with_id', 'remote_side': 'Group.id'})
     table_shares: list['Group'] = Relationship(back_populates="shared_with", sa_relationship_kwargs={'viewonly': True})
 
-    public_id: str | None = Column(Uuid(as_uuid=False), default=lambda: str(uuid4()))
+    public_id: str | None = Field(sa_type=Uuid(as_uuid=False), default_factory=lambda: str(uuid4()))
     name: str = Column(String)
     tables: Decimal = Column(Numeric, default=0)
     zip_code: str = Column(String)
@@ -68,8 +65,8 @@ class Group(MagModel, TakesPaymentMixin, table=True):
     convert_badges: bool = Column(Boolean, default=False, admin_only=True)
     admin_notes: str = Column(String, admin_only=True)
     status: int = Column(Choice(c.DEALER_STATUS_OPTS), default=c.UNAPPROVED, admin_only=True)
-    registered: datetime = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
-    approved: datetime | None = Column(DateTime(timezone=True), nullable=True)
+    registered: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    approved: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     
     attendees: list['Attendee'] = Relationship(
         back_populates="group",

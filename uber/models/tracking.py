@@ -15,7 +15,6 @@ from sqlalchemy.types import Boolean, Integer, DateTime, String, Uuid
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm.exc import NoResultFound
-from sqlmodel import Field, Relationship
 from typing import Any, ClassVar
 
 from uber.serializer import serializer
@@ -24,7 +23,7 @@ from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.admin import AdminAccount
 from uber.models.email import Email
-from uber.models.types import Choice, DefaultColumn as Column, MultiChoice, utcnow
+from uber.models.types import Choice, DefaultColumn as Column, MultiChoice, utcnow, DefaultField as Field
 
 log = logging.getLogger(__name__)
 
@@ -34,7 +33,7 @@ serializer.register(associationproxy._AssociationList, list)
 
 
 class ReportTracking(MagModel, table=True):
-    when: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    when: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
     who: str = Column(String)
     supervisor: str = Column(String)
     page: str = Column(String)
@@ -59,7 +58,7 @@ class ReportTracking(MagModel, table=True):
 
 
 class PageViewTracking(MagModel, table=True):
-    when: datetime = Field(default_factory=lambda: datetime.now(UTC), sa_column=Column(DateTime(timezone=True)))
+    when: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
     who: str = ''
     supervisor: str = ''
     page: str = ''
@@ -111,9 +110,9 @@ class PageViewTracking(MagModel, table=True):
 
 
 class Tracking(MagModel, table=True):
-    fk_id: str = Column(Uuid(as_uuid=False), index=True)
+    fk_id: str = Field(sa_type=Uuid(as_uuid=False), index=True)
     model: str = Column(String)
-    when: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC), index=True)
+    when: datetime = Field(sa_type=DateTime(timezone=True), default=lambda: datetime.now(UTC), index=True)
     who: str = Column(String, index=True)
     supervisor: str = Column(String)
     page: str = Column(String)
@@ -288,12 +287,12 @@ class Tracking(MagModel, table=True):
 class TxnRequestTracking(MagModel, table=True):
     incr_id_seq: ClassVar = Sequence('txn_request_tracking_incr_id_seq')
     incr_id: int = Column(Integer, incr_id_seq, server_default=incr_id_seq.next_value(), unique=True)
-    fk_id: str | None = Column(Uuid(as_uuid=False), nullable=True)
+    fk_id: str | None = Field(sa_type=Uuid(as_uuid=False), nullable=True)
     workstation_num: int = Column(Integer, default=0)
     terminal_id: str = Column(String)
     who: str = Column(String)
-    requested: datetime = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
-    resolved: datetime | None = Column(DateTime(timezone=True), nullable=True)
+    requested: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    resolved: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     success: bool = Column(Boolean, default=False)
     response: dict[Any, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
     internal_error: str = Column(String)

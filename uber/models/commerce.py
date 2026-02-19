@@ -9,7 +9,6 @@ from sqlalchemy.sql.functions import coalesce
 from sqlalchemy.types import Boolean, Integer, String, DateTime, Uuid, JSON
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.mutable import MutableDict
-from sqlmodel import Field, Relationship
 from typing import Any, ClassVar
 
 from uber.config import c
@@ -17,7 +16,8 @@ from uber.custom_tags import format_currency
 from uber.decorators import presave_adjustment, classproperty
 from uber.models import MagModel
 from uber.models.attendee import Attendee
-from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column
+from uber.models.types import (default_relationship as relationship, Choice, DefaultColumn as Column,
+                               DefaultField as Field, DefaultRelationship as Relationship)
 from uber.payments import ReceiptManager
 
 log = logging.getLogger(__name__)
@@ -31,7 +31,7 @@ __all__ = [
 class ArbitraryCharge(MagModel, table=True):
     amount: int = Column(Integer)
     what: str = Column(String)
-    when: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    when: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
     reg_station: int | None = Column(Integer, nullable=True)
 
     _repr_attr_names: ClassVar = ['what']
@@ -61,7 +61,7 @@ class MPointsForCash(MagModel, table=True):
     attendee: 'Attendee' = Relationship(back_populates="mpoints_for_cash")
 
     amount: int = Column(Integer)
-    when: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    when: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
 
 
 class NoShirt(MagModel, table=True):
@@ -79,7 +79,7 @@ class OldMPointExchange(MagModel, table=True):
     attendee: 'Attendee' = Relationship(back_populates="old_mpoint_exchanges")
 
     amount: int = Column(Integer)
-    when: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    when: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
 
 
 class Sale(MagModel, table=True):
@@ -89,7 +89,7 @@ class Sale(MagModel, table=True):
     what: str = Column(String)
     cash: int = Column(Integer, default=0)
     mpoints: int = Column(Integer, default=0)
-    when: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    when: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
     reg_station: int | None = Column(Integer, nullable=True)
     payment_method: int = Column(Choice(c.SALE_OPTS), default=c.MERCH)
 
@@ -109,9 +109,9 @@ class ModelReceipt(MagModel, table=True):
     receipts.
     """
     invoice_num: int = Column(Integer, default=0)
-    owner_id: str = Column(Uuid(as_uuid=False), index=True)
+    owner_id: str = Field(sa_type=Uuid(as_uuid=False), index=True)
     owner_model: str = Column(String)
-    closed: datetime | None = Column(DateTime(timezone=True), nullable=True)
+    closed: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
 
     receipt_txns: list['ReceiptTransaction'] = Relationship(
         back_populates="receipt", sa_relationship_kwargs={'lazy': 'selectin', 'passive_deletes': True})
@@ -371,9 +371,9 @@ class ReceiptTransaction(MagModel, table=True):
     amount: int = Column(Integer)
     txn_total: int = Column(Integer, default=0)
     processing_fee: int = Column(Integer, default=0)
-    added: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    added: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
     on_hold: bool = Column(Boolean, default=False)
-    cancelled: datetime | None = Column(DateTime(timezone=True), nullable=True)
+    cancelled: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     who: str = Column(String)
     desc: str = Column(String)
 
@@ -569,8 +569,8 @@ class ReceiptItem(MagModel, table=True):
     txn_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='receipt_transaction.id', nullable=True)
     receipt_txn: 'ReceiptTransaction' = Relationship(back_populates="receipt_items", sa_relationship_kwargs={'lazy': 'joined'})
     
-    purchaser_id: str | None = Column(Uuid(as_uuid=False), index=True, nullable=True)
-    fk_id: str | None = Column(Uuid(as_uuid=False), index=True, nullable=True)
+    purchaser_id: str | None = Field(sa_type=Uuid(as_uuid=False), index=True, nullable=True)
+    fk_id: str | None = Field(sa_type=Uuid(as_uuid=False), index=True, nullable=True)
     fk_model: str = Column(String)
     department: int = Column(Choice(c.RECEIPT_ITEM_DEPT_OPTS), default=c.OTHER_RECEIPT_ITEM)
     category: int = Column(Choice(c.RECEIPT_CATEGORY_OPTS), default=c.OTHER)
@@ -578,8 +578,8 @@ class ReceiptItem(MagModel, table=True):
     comped: bool = Column(Boolean, default=False)
     reverted: bool = Column(Boolean, default=False)
     count: int = Column(Integer, default=1)
-    added: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
-    closed: datetime | None = Column(DateTime(timezone=True), nullable=True)
+    added: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    closed: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     who: str = Column(String)
     desc: str = Column(String)
     admin_notes: str = Column(String)
@@ -652,8 +652,8 @@ class ReceiptInfo(MagModel, table=True):
     fk_email_id: str = Column(String)
     terminal_id: str = Column(String)
     reference_id: str = Column(String)
-    charged: datetime = Column(DateTime(timezone=True))
-    voided: datetime | None = Column(DateTime(timezone=True), nullable=True)
+    charged: datetime = Field(sa_type=DateTime(timezone=True))
+    voided: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     card_data: dict[str, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
     emv_data: dict[str, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
     txn_info: dict[str, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
@@ -776,7 +776,7 @@ class ReceiptInfo(MagModel, table=True):
 class TerminalSettlement(MagModel, table=True):
     batch_timestamp: str = Column(String)
     batch_who: str = Column(String)
-    requested: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    requested: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
     workstation_num: int = Column(Integer, default=0)
     terminal_id: str = Column(String)
     response: dict[str, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)

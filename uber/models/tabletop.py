@@ -2,11 +2,10 @@ from datetime import datetime
 
 from pytz import UTC
 from sqlalchemy.types import Boolean, DateTime, String, Uuid
-from sqlmodel import Field, Relationship
 from typing import ClassVar
 
 from uber.models import MagModel
-from uber.models.types import default_relationship as relationship, DefaultColumn as Column
+from uber.models.types import DefaultColumn as Column, DefaultField as Field, DefaultRelationship as Relationship
 
 
 __all__ = ['TabletopGame', 'TabletopCheckout']
@@ -45,5 +44,5 @@ class TabletopCheckout(MagModel, table=True):
     attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
     attendee: 'Attendee' = Relationship(back_populates="checkouts", sa_relationship_kwargs={'lazy': 'joined'})
 
-    checked_out: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
-    returned: datetime | None = Column(DateTime(timezone=True), nullable=True)
+    checked_out: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    returned: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
