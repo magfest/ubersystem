@@ -66,9 +66,9 @@
             <i class="fa fa-pencil"></i> View/Edit Registration
         </a>
         {% endif %}
-        {% if attendee.art_show_applications or c.ART_SHOW_OPEN %}
-            {% if attendee.art_show_applications %}
-            <a href="../art_show_applications/edit?id={{ attendee.art_show_applications[0].id }}" class="btn btn-sm btn-warning">
+        {% if attendee.art_show_application or c.ART_SHOW_OPEN %}
+            {% if attendee.art_show_application %}
+            <a href="../art_show_applications/edit?id={{ attendee.art_show_application.id }}" class="btn btn-sm btn-warning">
                 <i class="fa fa-tags"></i>&nbsp; View Art Show App
             </a>
             {% else %}

@@ -28,7 +28,7 @@ from itertools import chain
 import cherrypy
 import signnow_python_sdk
 from sqlalchemy import or_, func
-from sqlalchemy.orm import joinedload, subqueryload
+from sqlalchemy.orm import joinedload, selectinload
 
 import uber
 
@@ -1033,11 +1033,12 @@ class Config(_Overridable):
             from uber.models import Session, AdminAccount, Attendee
             with Session() as session:
                 attrs = Attendee.to_dict_default_attrs + ['admin_account', 'assigned_depts', 'logged_in_name']
-                admin_account = session.query(AdminAccount) \
-                    .filter_by(id=cherrypy.session.get('account_id')) \
-                    .options(subqueryload(AdminAccount.attendee).subqueryload(Attendee.assigned_depts)).one()
-
-                return admin_account.attendee.to_dict(attrs)
+                admin_attendee = session.query(Attendee).join(Attendee.admin_account) \
+                    .filter(AdminAccount.id == cherrypy.session.get('account_id')) \
+                    .options(
+                        joinedload(Attendee.admin_account),
+                        selectinload(Attendee.assigned_depts)).one()
+                return admin_attendee.to_dict(attrs)
         except Exception:
             return {}
 
@@ -2108,27 +2109,6 @@ c.TEARDOWN_NIGHTS = c.NIGHT_DISPLAY_ORDER[1 + c.NIGHT_DISPLAY_ORDER.index(c.CORE
 
 for _attr in ['CORE_NIGHT', 'SETUP_NIGHT', 'TEARDOWN_NIGHT']:
     setattr(c, _attr + '_NAMES', [c.NIGHTS[night] for night in getattr(c, _attr + 'S')])
-
-
-# =============================
-# attendee_tournaments
-#
-# NO LONGER USED.
-#
-# The attendee_tournaments module is no longer used, but has been
-# included for backward compatibility with legacy servers.
-# =============================
-
-c.TOURNAMENT_AVAILABILITY_OPTS = []
-_val = 0
-for _day in range((c.ESCHATON - c.EPOCH).days):
-    for _when in ['Morning (8am-12pm)', 'Afternoon (12pm-6pm)', 'Evening (6pm-10pm)', 'Night (10pm-2am)']:
-        c.TOURNAMENT_AVAILABILITY_OPTS.append([
-            _val,
-            _when + ' of ' + (c.EPOCH + timedelta(days=_day)).strftime('%A %B %d')
-        ])
-        _val += 1
-c.TOURNAMENT_AVAILABILITY_OPTS.append([_val, 'Morning (8am-12pm) of ' + c.ESCHATON.strftime('%A %B %d')])
 
 
 # =============================

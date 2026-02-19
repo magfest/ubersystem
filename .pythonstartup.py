@@ -11,7 +11,7 @@ try:
     initialize_db()
 
     # Make it easier to do session stuff at the command line
-    session = Session().session
+    session = Session()
 
     if c.DEV_BOX:
         admin = session.query(AdminAccount).filter(

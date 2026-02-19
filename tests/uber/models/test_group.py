@@ -11,7 +11,7 @@ from uber.utils import localized_now
 
 @pytest.fixture
 def session(request, monkeypatch):
-    session = Session().session
+    session = Session()
     request.addfinalizer(session.close)
     monkeypatch.setattr(session, 'add', Mock())
     monkeypatch.setattr(session, 'delete', Mock())

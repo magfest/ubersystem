@@ -10,6 +10,7 @@ import bcrypt
 import cherrypy
 from collections import defaultdict
 from sqlalchemy import func, or_
+from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
@@ -2176,7 +2177,14 @@ class Root:
     @log_pageview
     def confirm(self, session, message='', return_to='confirm', undoing_extra='', **params):
         if params.get('id') not in [None, '', 'None']:
-            attendee = session.attendee(params.get('id'))
+            attendee = session.query(Attendee).filter(Attendee.id == params.get('id')).options(
+                selectinload(Attendee.dept_membership_requests),
+                selectinload(Attendee.art_agent_apps),
+                selectinload(Attendee.promo_code_groups),
+                joinedload(Attendee.lottery_application),
+                joinedload(Attendee.art_show_application),
+                joinedload(Attendee.marketplace_application),
+            ).first()
             receipt = session.get_receipt_by_model(attendee)
             if cherrypy.request.method == 'POST':
                 receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, params.copy())
@@ -2284,7 +2292,8 @@ class Root:
             attendee = Attendee()
         else:
             try:
-                attendee = session.attendee(id)
+                attendee = session.query(Attendee).filter(Attendee.id == id).options(
+                    selectinload(Attendee.promo_code_groups)).first()
             except NoResultFound:
                 if is_prereg:
                     attendee = self._get_unsaved(

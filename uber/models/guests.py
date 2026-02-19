@@ -7,16 +7,15 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from markupsafe import Markup
 
-from sqlalchemy.orm import backref
-from sqlalchemy.schema import ForeignKey
-from sqlalchemy.types import Boolean, Integer, String, DateTime, Uuid, JSON
+from sqlalchemy.types import Boolean, DateTime, Uuid, JSON
+from typing import Any, ClassVar
 
 from uber.config import c
 from uber.custom_tags import yesno
 from uber.decorators import presave_adjustment, classproperty
 from uber.models import MagModel
-from uber.models.types import (default_relationship as relationship, Choice, DefaultColumn as Column,
-                               MultiChoice, GuidebookImageMixin)
+from uber.models.types import (Choice, MultiChoice, GuidebookImageMixin, DefaultColumn as Column,
+                               DefaultField as Field, DefaultRelationship as Relationship)
 from uber.utils import filename_extension, slugify
 
 log = logging.getLogger(__name__)
@@ -28,36 +27,57 @@ __all__ = [
     'GuestInterview', 'GuestTravelPlans', 'GuestDetailedTravelPlan', 'GuestHospitality', 'GuestTrack']
 
 
-class GuestGroup(MagModel):
-    group_id = Column(Uuid(as_uuid=False), ForeignKey('group.id'))
-    event_id = Column(Uuid(as_uuid=False), ForeignKey('event.id', ondelete='SET NULL'), nullable=True)
-    group_type = Column(Choice(c.GROUP_TYPE_OPTS), default=c.BAND)
-    num_hotel_rooms = Column(Integer, default=1, admin_only=True)
-    payment = Column(Integer, default=0, admin_only=True)
-    vehicles = Column(Integer, default=1, admin_only=True)
-    estimated_loadin_minutes = Column(Integer, default=c.DEFAULT_LOADIN_MINUTES, admin_only=True)
-    estimated_performance_minutes = Column(Integer, default=c.DEFAULT_PERFORMANCE_MINUTES, admin_only=True)
+class GuestGroup(MagModel, table=True):
+    """
+    Group: joined
+    """
+    
+    group_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='group.id', ondelete='CASCADE', unique=True)
+    group: 'Group' = Relationship(back_populates="guest", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
 
-    wants_mc = Column(Boolean, nullable=True)
-    needs_rehearsal = Column(Choice(c.GUEST_REHEARSAL_OPTS), nullable=True)
-    badges_assigned = Column(Boolean, default=False)
-    info = relationship('GuestInfo', backref=backref('guest', load_on_pending=True), uselist=False)
-    images = relationship(
-        'GuestImage', backref=backref('guest', load_on_pending=True), order_by='GuestImage.id')
-    bio = relationship('GuestBio', backref=backref('guest', load_on_pending=True), uselist=False)
-    taxes = relationship('GuestTaxes', backref=backref('guest', load_on_pending=True), uselist=False)
-    stage_plot = relationship('GuestStagePlot', backref=backref('guest', load_on_pending=True), uselist=False)
-    panel = relationship('GuestPanel', backref=backref('guest', load_on_pending=True), uselist=False)
-    merch = relationship('GuestMerch', backref=backref('guest', load_on_pending=True), uselist=False)
-    tracks = relationship('GuestTrack', backref=backref('guest', load_on_pending=True))
-    charity = relationship('GuestCharity', backref=backref('guest', load_on_pending=True), uselist=False)
-    autograph = relationship('GuestAutograph', backref=backref('guest', load_on_pending=True), uselist=False)
-    interview = relationship('GuestInterview', backref=backref('guest', load_on_pending=True), uselist=False)
-    travel_plans = relationship('GuestTravelPlans', backref=backref('guest', load_on_pending=True), uselist=False)
-    hospitality = relationship('GuestHospitality', backref=backref('guest', load_on_pending=True), uselist=False)
-    media_request = relationship('GuestMediaRequest', backref=backref('guest', load_on_pending=True), uselist=False)
+    event_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='event.id', nullable=True)
+    event: 'Event' = Relationship(back_populates="guest")
 
-    email_model_name = 'guest'
+    group_type: int = Field(sa_column=Column(Choice(c.GROUP_TYPE_OPTS)), default=c.BAND)
+    num_hotel_rooms: int = Field(default=1, admin_only=True)
+    payment: int = Field(default=0, admin_only=True)
+    vehicles: int = Field(default=1, admin_only=True)
+    estimated_loadin_minutes: int = Field(default=c.DEFAULT_LOADIN_MINUTES, admin_only=True)
+    estimated_performance_minutes: int = Field(default=c.DEFAULT_PERFORMANCE_MINUTES, admin_only=True)
+    wants_mc: bool | None = Field(nullable=True)
+    needs_rehearsal: int | None = Field(sa_column=Column(Choice(c.GUEST_REHEARSAL_OPTS), nullable=True))
+    badges_assigned: bool = False
+
+    info: 'GuestInfo' = Relationship(
+        back_populates="guest", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    images: list['GuestImage'] = Relationship(
+        back_populates="guest", sa_relationship_kwargs={'order_by': 'GuestImage.id', 'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    bio: 'GuestBio' = Relationship(
+        back_populates="guest", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    taxes: 'GuestTaxes' = Relationship(
+        back_populates="guest", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    stage_plot: 'GuestStagePlot' = Relationship(
+        back_populates="guest", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    panel: 'GuestPanel' = Relationship(
+        back_populates="guest", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    merch: 'GuestMerch' = Relationship(
+        back_populates="guest", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    tracks: list['GuestTrack'] = Relationship(
+        back_populates="guest", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    charity: 'GuestCharity' = Relationship(
+        back_populates="guest", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    autograph: 'GuestAutograph' = Relationship(
+        back_populates="guest", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    interview: 'GuestInterview' = Relationship(
+        back_populates="guest", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    travel_plans: 'GuestTravelPlans' = Relationship(
+        back_populates="guest", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    hospitality: 'GuestHospitality' = Relationship(
+        back_populates="guest", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    media_request: 'GuestMediaRequest' = Relationship(
+        back_populates="guest", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+
+    email_model_name: ClassVar = 'guest'
 
     def __getattr__(self, name):
         """
@@ -290,21 +310,28 @@ class GuestGroup(MagModel):
         return [header_name, thumbnail_name], [header, thumbnail]
 
 
-class GuestInfo(MagModel):
-    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
-    poc_phone = Column(String)
-    performer_count = Column(Integer, default=0)
-    bringing_vehicle = Column(Boolean, default=False)
-    vehicle_info = Column(String)
-    arrival_time = Column(String)
+class GuestInfo(MagModel, table=True):
+    """
+    GuestGroup: joined
+    """
+
+    guest_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='guest_group.id', ondelete='CASCADE', unique=True)
+    guest: 'GuestGroup' = Relationship(back_populates="info", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
+    
+    poc_phone: str = ''
+    performer_count: int = 0
+    bringing_vehicle: bool = False
+    vehicle_info: str = ''
+    arrival_time: str = ''
 
     @property
     def status(self):
         return "Yes" if self.poc_phone else ""
 
 
-class GuestImage(MagModel, GuidebookImageMixin):
-    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'))
+class GuestImage(MagModel, GuidebookImageMixin, table=True):
+    guest_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='guest_group.id', ondelete='CASCADE')
+    guest: 'GuestGroup' = Relationship(back_populates="images")
 
     @property
     def url(self):
@@ -320,40 +347,58 @@ class GuestImage(MagModel, GuidebookImageMixin):
         return name + '.' + self.pic_extension
 
 
-class GuestBio(MagModel):
-    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
-    desc = Column(String)
-    member_info = Column(String)
-    website = Column(String)
-    facebook = Column(String)
-    twitter = Column(String)
-    instagram = Column(String)
-    twitch = Column(String)
-    bandcamp = Column(String)
-    discord = Column(String)
-    spotify = Column(String)
-    other_social_media = Column(String)
-    teaser_song_url = Column(String)
+class GuestBio(MagModel, table=True):
+    """
+    GuestGroup: joined
+    """
+
+    guest_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='guest_group.id', ondelete='CASCADE', unique=True)
+    guest: 'GuestGroup' = Relationship(back_populates="bio", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
+
+    desc: str = ''
+    member_info: str = ''
+    website: str = ''
+    facebook: str = ''
+    twitter: str = ''
+    instagram: str = ''
+    twitch: str = ''
+    bandcamp: str = ''
+    discord: str = ''
+    spotify: str = ''
+    other_social_media: str = ''
+    teaser_song_url: str = ''
 
     @property
     def status(self):
         return 'Yes' if self.desc else ''
 
 
-class GuestTaxes(MagModel):
-    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
-    w9_sent = Column(Boolean, default=False)
+class GuestTaxes(MagModel, table=True):
+    """
+    GuestGroup: joined
+    """
+
+    guest_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='guest_group.id', ondelete='CASCADE', unique=True)
+    guest: 'GuestGroup' = Relationship(back_populates="taxes", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
+
+    w9_sent: bool = False
 
     @property
     def status(self):
         return str(self.w9_sent)
 
 
-class GuestStagePlot(MagModel):
-    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
-    filename = Column(String)
-    content_type = Column(String)
-    notes = Column(String)
+class GuestStagePlot(MagModel, table=True):
+    """
+    GuestGroup: joined
+    """
+
+    guest_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='guest_group.id', ondelete='CASCADE', unique=True)
+    guest: 'GuestGroup' = Relationship(back_populates="stage_plot", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
+
+    filename: str = ''
+    content_type: str = ''
+    notes: str = ''
 
     @property
     def url(self):
@@ -385,25 +430,37 @@ class GuestStagePlot(MagModel):
         return self.notes
 
 
-class GuestPanel(MagModel):
-    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
-    wants_panel = Column(Choice(c.GUEST_PANEL_OPTS), nullable=True)
-    name = Column(String)
-    length = Column(String)
-    desc = Column(String)
-    tech_needs = Column(MultiChoice(c.TECH_NEED_OPTS))
-    other_tech_needs = Column(String)
+class GuestPanel(MagModel, table=True):
+    """
+    GuestGroup: joined
+    """
+
+    guest_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='guest_group.id', ondelete='CASCADE', unique=True)
+    guest: 'GuestGroup' = Relationship(back_populates="panel", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
+
+    wants_panel: int | None = Field(sa_column=Column(Choice(c.GUEST_PANEL_OPTS), nullable=True))
+    name: str = ''
+    length: str = ''
+    desc: str = ''
+    tech_needs: str = Field(sa_type=MultiChoice(c.TECH_NEED_OPTS), default='')
+    other_tech_needs: str = ''
 
     @property
     def status(self):
         return self.wants_panel_label
 
 
-class GuestTrack(MagModel):
-    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'))
-    filename = Column(String)
-    content_type = Column(String)
-    extension = Column(String)
+class GuestTrack(MagModel, table=True):
+    """
+    GuestGroup: joined
+    """
+
+    guest_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='guest_group.id', ondelete='CASCADE', unique=True)
+    guest: 'GuestGroup' = Relationship(back_populates="tracks", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
+
+    filename: str = ''
+    content_type: str = ''
+    extension: str = ''
 
     @property
     def file(self):
@@ -437,45 +494,51 @@ class GuestTrack(MagModel):
         return os.path.join(c.GUESTS_INVENTORY_DIR, str('track_' + self.id))
 
 
-class GuestMerch(MagModel):
-    _inventory_file_regex = re.compile(r'^(audio|image)(|\-\d+)$')
-    _inventory_filename_regex = re.compile(r'^(audio|image)(|\-\d+)_filename$')
+class GuestMerch(MagModel, table=True):
+    """
+    GuestGroup: joined
+    """
 
-    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
-    selling_merch = Column(Choice(c.GUEST_MERCH_OPTS), nullable=True)
-    delivery_method = Column(Choice(c.GUEST_MERCH_DELIVERY_OPTS), nullable=True)
-    payout_method = Column(Choice(c.GUEST_MERCH_PAYOUT_METHOD_OPTS), nullable=True)
-    paypal_email = Column(String)
-    check_payable = Column(String)
-    check_zip_code = Column(String)
-    check_address1 = Column(String)
-    check_address2 = Column(String)
-    check_city = Column(String)
-    check_region = Column(String)
-    check_country = Column(String)
+    _inventory_file_regex: ClassVar = re.compile(r'^(audio|image)(|\-\d+)$')
+    _inventory_filename_regex: ClassVar = re.compile(r'^(audio|image)(|\-\d+)_filename$')
 
-    arrival_plans = Column(String)
-    checkin_time = Column(Choice(c.GUEST_MERCH_CHECKIN_TIMES), nullable=True)
-    checkout_time = Column(Choice(c.GUEST_MERCH_CHECKOUT_TIMES), nullable=True)
-    merch_events = Column(String)
-    inventory = Column(JSON, default={}, server_default='{}')
-    inventory_updated = Column(DateTime(timezone=True), nullable=True)
-    extra_info = Column(String)
-    tax_phone = Column(String)
+    guest_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='guest_group.id', ondelete='CASCADE', unique=True)
+    guest: 'GuestGroup' = Relationship(back_populates="merch", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
 
-    poc_is_group_leader = Column(Boolean, default=False)
-    poc_first_name = Column(String)
-    poc_last_name = Column(String)
-    poc_phone = Column(String)
-    poc_email = Column(String)
-    poc_zip_code = Column(String)
-    poc_address1 = Column(String)
-    poc_address2 = Column(String)
-    poc_city = Column(String)
-    poc_region = Column(String)
-    poc_country = Column(String)
+    selling_merch: int | None = Field(sa_column=Column(Choice(c.GUEST_MERCH_OPTS), nullable=True))
+    delivery_method: int | None = Field(sa_column=Column(Choice(c.GUEST_MERCH_DELIVERY_OPTS), nullable=True))
+    payout_method: int | None = Field(sa_column=Column(Choice(c.GUEST_MERCH_PAYOUT_METHOD_OPTS), nullable=True))
+    paypal_email: str = ''
+    check_payable: str = ''
+    check_zip_code: str = ''
+    check_address1: str = ''
+    check_address2: str = ''
+    check_city: str = ''
+    check_region: str = ''
+    check_country: str = ''
 
-    handlers = Column(JSON, default=[], server_default='[]')
+    arrival_plans: str = ''
+    checkin_time: int | None = Field(sa_column=Column(Choice(c.GUEST_MERCH_CHECKIN_TIMES), nullable=True))
+    checkout_time: int | None = Field(sa_column=Column(Choice(c.GUEST_MERCH_CHECKOUT_TIMES), nullable=True))
+    merch_events: str = ''
+    inventory: dict[Any, Any] = Field(sa_type=JSON, default_factory=dict)
+    inventory_updated: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
+    extra_info: str = ''
+    tax_phone: str = ''
+
+    poc_is_group_leader: bool = Field(sa_type=Boolean, default=False)
+    poc_first_name: str = ''
+    poc_last_name: str = ''
+    poc_phone: str = ''
+    poc_email: str = ''
+    poc_zip_code: str = ''
+    poc_address1: str = ''
+    poc_address2: str = ''
+    poc_city: str = ''
+    poc_region: str = ''
+    poc_country: str = ''
+
+    handlers: dict[str, Any] = Field(sa_type=JSON, default_factory=dict)
 
     @property
     def full_name(self):
@@ -735,10 +798,16 @@ class GuestMerch(MagModel):
         self.inventory_updated = datetime.now()
 
 
-class GuestCharity(MagModel):
-    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
-    donating = Column(Choice(c.GUEST_CHARITY_OPTS), nullable=True)
-    desc = Column(String)
+class GuestCharity(MagModel, table=True):
+    """
+    GuestGroup: joined
+    """
+
+    guest_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='guest_group.id', ondelete='CASCADE', unique=True)
+    guest: 'GuestGroup' = Relationship(back_populates="charity", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
+
+    donating: int | None = Field(sa_column=Column(Choice(c.GUEST_CHARITY_OPTS), nullable=True))
+    desc: str = ''
 
     @property
     def status(self):
@@ -750,12 +819,18 @@ class GuestCharity(MagModel):
             self.desc = ''
 
 
-class GuestAutograph(MagModel):
-    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
-    num = Column(Integer, default=0)
-    length = Column(Integer, default=60)  # session length in minutes
-    rock_island_autographs = Column(Boolean, nullable=True)
-    rock_island_length = Column(Integer, default=60)  # session length in minutes
+class GuestAutograph(MagModel, table=True):
+    """
+    GuestGroup: joined
+    """
+
+    guest_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='guest_group.id', ondelete='CASCADE', unique=True)
+    guest: 'GuestGroup' = Relationship(back_populates="autograph", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
+
+    num: int = 0
+    length: int = 60  # session length in minutes
+    rock_island_autographs: bool | None = Field(nullable=True)
+    rock_island_length: int = 60  # session length in minutes
 
     @presave_adjustment
     def no_length_if_zero_autographs(self):
@@ -763,11 +838,17 @@ class GuestAutograph(MagModel):
             self.length = 0
 
 
-class GuestInterview(MagModel):
-    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
-    will_interview = Column(Boolean, default=False)
-    email = Column(String)
-    direct_contact = Column(Boolean, default=False)
+class GuestInterview(MagModel, table=True):
+    """
+    GuestGroup: joined
+    """
+
+    guest_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='guest_group.id', ondelete='CASCADE', unique=True)
+    guest: 'GuestGroup' = Relationship(back_populates="interview", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
+
+    will_interview: bool = False
+    email: str = ''
+    direct_contact: bool = False
 
     @presave_adjustment
     def no_details_if_no_interview(self):
@@ -776,45 +857,71 @@ class GuestInterview(MagModel):
             self.direct_contact = False
 
 
-class GuestTravelPlans(MagModel):
-    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
-    modes = Column(MultiChoice(c.GUEST_TRAVEL_OPTS), default=c.OTHER)
-    modes_text = Column(String)
-    details = Column(String)
-    completed = Column(Boolean, default=False)
+class GuestTravelPlans(MagModel, table=True):
+    """
+    GuestGroup: joined
+    GuestDetailedTravelPlan: selectin
+    """
+
+    guest_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='guest_group.id', ondelete='CASCADE', unique=True)
+    guest: 'GuestGroup' = Relationship(back_populates="travel_plans", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
+
+    modes: str = Field(sa_type=MultiChoice(c.GUEST_TRAVEL_OPTS), default=c.OTHER)
+    modes_text: str = ''
+    details: str = ''
+    completed: bool = False
+
+    detailed_travel_plans: list['GuestDetailedTravelPlan'] = Relationship(
+        back_populates="travel_plans",
+        sa_relationship_kwargs={'lazy': 'selectin', 'cascade': 'all,delete-orphan', 'passive_deletes': True})
 
     @property
     def num_detailed_travel_plans(self):
         return len(self.detailed_travel_plans)
 
 
-class GuestHospitality(MagModel):
-    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
-    completed = Column(Boolean, default=False)
+class GuestHospitality(MagModel, table=True):
+    """
+    GuestGroup: joined
+    """
+
+    guest_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='guest_group.id', ondelete='CASCADE', unique=True)
+    guest: 'GuestGroup' = Relationship(back_populates="hospitality", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
+
+    completed: bool = False
 
 
-class GuestMediaRequest(MagModel):
-    guest_id = Column(Uuid(as_uuid=False), ForeignKey('guest_group.id'), unique=True)
-    completed = Column(Boolean, default=False)
+class GuestMediaRequest(MagModel, table=True):
+    """
+    GuestGroup: joined
+    """
+
+    guest_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='guest_group.id', ondelete='CASCADE', unique=True)
+    guest: 'GuestGroup' = Relationship(back_populates="media_request", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
+
+    completed: bool = False
 
 
-class GuestDetailedTravelPlan(MagModel):
-    travel_plans_id = Column(Uuid(as_uuid=False), ForeignKey('guest_travel_plans.id'), nullable=True)
-    travel_plans = relationship('GuestTravelPlans', foreign_keys=travel_plans_id, single_parent=True,
-                                backref=backref('detailed_travel_plans'),
-                                cascade='save-update,merge,refresh-expire,expunge')
-    mode = Column(Choice(c.GUEST_TRAVEL_OPTS))
-    mode_text = Column(String)
-    traveller = Column(String)
-    companions = Column(String)
-    luggage_needs = Column(String)
-    contact_email = Column(String)
-    contact_phone = Column(String)
-    arrival_time = Column(DateTime(timezone=True))
-    arrival_details = Column(String)
-    departure_time = Column(DateTime(timezone=True))
-    departure_details = Column(String)
-    extra_details = Column(String)
+class GuestDetailedTravelPlan(MagModel, table=True):
+    """
+    GuestTravelPlans: joined
+    """
+
+    travel_plans_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='guest_travel_plans.id', ondelete='CASCADE')
+    travel_plans: 'GuestTravelPlans' = Relationship(back_populates="detailed_travel_plans", sa_relationship_kwargs={'lazy': 'joined'})
+    
+    mode: int = Field(sa_column=Column(Choice(c.GUEST_TRAVEL_OPTS)), default=0)
+    mode_text: str = ''
+    traveller: str = ''
+    companions: str = ''
+    luggage_needs: str = ''
+    contact_email: str = ''
+    contact_phone: str = ''
+    arrival_time: datetime = Field(sa_type=DateTime(timezone=True))
+    arrival_details: str = ''
+    departure_time: datetime = Field(sa_type=DateTime(timezone=True))
+    departure_details: str = ''
+    extra_details: str = ''
 
     @classproperty
     def min_arrival_time(self):

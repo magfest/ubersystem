@@ -5,7 +5,7 @@ import cherrypy
 import pytz
 import inspect
 import stripe
-from sqlalchemy.orm import subqueryload
+from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.decorators import ajax, all_renderable, not_site_mappable, public, site_mappable
@@ -26,8 +26,8 @@ class Root:
         if not show_revoked:
             api_tokens = api_tokens.filter(ApiToken.revoked_time == None)  # noqa: E711
         api_tokens = api_tokens.options(
-            subqueryload(ApiToken.admin_account)
-            .subqueryload(AdminAccount.attendee)) \
+            joinedload(ApiToken.admin_account)
+            .selectinload(AdminAccount.attendee)) \
             .order_by(ApiToken.issued_time).all()
         return {
             'message': message,

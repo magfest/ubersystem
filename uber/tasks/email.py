@@ -86,7 +86,7 @@ def send_email(
 
     if original_to:
         body = body.decode('utf-8') if isinstance(body, bytes) else body
-        if isinstance(model, MagModel):
+        if isinstance(model, MagModel, table=True):
             fk_kwargs = {'fk_id': model.id, 'model': model.__class__.__name__}
         elif isinstance(model, Mapping):
             fk_kwargs = {'fk_id': model.get('id', None), 'model': model.get('_model', model.get('__type__', 'n/a'))}
@@ -94,7 +94,7 @@ def send_email(
             fk_kwargs = {'model': 'n/a'}
 
         if automated_email:
-            if isinstance(automated_email, MagModel):
+            if isinstance(automated_email, MagModel, table=True):
                 fk_kwargs['automated_email_id'] = automated_email.id
             elif isinstance(model, Mapping):
                 fk_kwargs['automated_email_id'] = automated_email.get('id', None)

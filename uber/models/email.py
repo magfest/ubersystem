@@ -10,16 +10,15 @@ from sqlalchemy import func, or_, select, update
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import relationship
-from sqlalchemy.schema import ForeignKey
-from sqlalchemy.types import Boolean, Integer, String, Uuid, DateTime
+from sqlalchemy.types import Uuid, DateTime
+from typing import Any, ClassVar
 
 from uber import utils
 from uber.config import c
 from uber.decorators import presave_adjustment, renderable_data, cached_property, classproperty
 from uber.jinja import JinjaEnv
 from uber.models import MagModel
-from uber.models.types import DefaultColumn as Column
+from uber.models.types import DefaultField as Field, DefaultRelationship as Relationship
 from uber.utils import normalize_newlines, request_cached_context, groupify
 
 log = logging.getLogger(__name__)
@@ -29,17 +28,17 @@ __all__ = ['AutomatedEmail', 'Email']
 
 
 class BaseEmailMixin(object):
-    model = Column(String)
+    model: str = ''
 
-    subject = Column(String)
-    body = Column(String)
+    subject: str = ''
+    body: str = ''
 
-    sender = Column(String)
-    cc = Column(String)
-    bcc = Column(String)
-    replyto = Column(String)
+    sender: str = ''
+    cc: str = ''
+    bcc: str = ''
+    replyto: str = ''
 
-    _repr_attr_names = ['subject']
+    _repr_attr_names: ClassVar = ['subject']
 
     @property
     def body_with_body_tag_stripped(self):
@@ -66,27 +65,29 @@ class BaseEmailMixin(object):
             return None
 
 
-class AutomatedEmail(MagModel, BaseEmailMixin):
-    _fixtures = OrderedDict()
-    email_overrides = [] # Used in plugins, list of (ident, key, val) tuples
+class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
+    _fixtures: ClassVar = OrderedDict()
+    email_overrides: ClassVar = [] # Used in plugins, list of (ident, key, val) tuples
 
-    format = Column(String, default='text')
-    ident = Column(String, unique=True)
+    format: str = 'text'
+    ident: str = Field(default='', unique=True)
 
-    approved = Column(Boolean, default=False)
-    needs_approval = Column(Boolean, default=True)
-    unapproved_count = Column(Integer, default=0)
-    currently_sending = Column(Boolean, default=False)
-    last_send_time = Column(DateTime(timezone=True), nullable=True, default=None)
+    approved: bool = False
+    needs_approval: bool = True
+    unapproved_count: int = 0
+    currently_sending: bool = False
+    last_send_time: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
 
-    allow_at_the_con = Column(Boolean, default=False)
-    allow_post_con = Column(Boolean, default=False)
+    allow_at_the_con: bool = False
+    allow_post_con: bool = False
 
-    active_after = Column(DateTime(timezone=True), nullable=True, default=None)
-    active_before = Column(DateTime(timezone=True), nullable=True, default=None)
-    revert_changes = Column(MutableDict.as_mutable(JSONB), default={})
+    active_after: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
+    active_before: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
+    revert_changes: dict[str, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
 
-    emails = relationship('Email', backref='automated_email', order_by='Email.id')
+    emails: list['Email'] = Relationship(
+        back_populates="automated_email",
+        sa_relationship_kwargs={'order_by': 'Email.id'})
 
     @presave_adjustment
     def date_adjustments(self):
@@ -346,18 +347,22 @@ class AutomatedEmail(MagModel, BaseEmailMixin):
         return model_instance and getattr(model_instance, 'email_to_address', False) and self.filter(model_instance)
 
 
-class Email(MagModel, BaseEmailMixin):
-    automated_email_id = Column(
-        Uuid(as_uuid=False), ForeignKey('automated_email.id', ondelete='set null'), nullable=True, default=None, index=True)
+class Email(MagModel, BaseEmailMixin, table=True):
+    """
+    AutomatedEmail: joined
+    """
+    
+    automated_email_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='automated_email.id', nullable=True, index=True)
+    automated_email: 'AutomatedEmail' = Relationship(back_populates="emails", sa_relationship_kwargs={'lazy': 'joined'})
 
-    fk_id = Column(Uuid(as_uuid=False), nullable=True)
-    ident = Column(String)
-    to = Column(String)
-    when = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    fk_id: str | None = Field(sa_type=Uuid(as_uuid=False), nullable=True)
+    ident: str = ''
+    to: str = ''
+    when: str = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
 
     @cached_property
     def fk(self):
-        return self.session.query(self.model_class).filter_by(id=self.fk_id).first() \
+        return self.session.query(self.model_class).filter(self.model_class.id == self.fk_id).first() \
             if self.session and self.fk_id else None
 
     @property

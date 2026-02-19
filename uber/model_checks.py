@@ -26,7 +26,7 @@ from uber.config import c
 from uber.custom_tags import format_currency, full_date_local
 from uber.decorators import prereg_validation, validation
 from uber.models import (AccessGroup, AdminAccount, ApiToken, Attendee, ArtShowApplication, ArtShowPiece,
-                         AttendeeTournament, Attraction, AttractionFeature, ArtShowBidder, DeptRole, Event,
+                         Attraction, AttractionFeature, ArtShowBidder, DeptRole, Event,
                          GuestDetailedTravelPlan, IndieDeveloper, IndieGame, IndieGameCode, IndieJudge, IndieStudio,
                          Job, ArtistMarketplaceApplication, MITSApplicant, MITSDocument, MITSGame, MITSPicture, MITSTeam,
                          PromoCode, PromoCodeGroup, Sale, Session, WatchList)
@@ -270,35 +270,6 @@ def no_dupe_code(promo_code):
 PromoCodeGroup.required = [
     ('name', 'Name')
 ]
-
-# =============================
-# tournaments
-# =============================
-
-AttendeeTournament.required = [
-    ('first_name', 'First Name'),
-    ('last_name', 'Last Name'),
-    ('email', 'Email Address'),
-    ('game', 'Game Title'),
-    ('availability', 'Your Availability'),
-    ('format', 'Tournament Format'),
-    ('experience', 'Past Experience'),
-    ('needs', 'Your Needs'),
-    ('why', '"Why?"'),
-]
-
-
-@validation.AttendeeTournament
-def attendee_tournament_email(app):
-    if not re.match(c.EMAIL_RE, app.email):
-        return 'You did not enter a valid email address'
-
-
-@validation.AttendeeTournament
-def attendee_tournament_cellphone(app):
-    if app.cellphone and invalid_phone_number(app.cellphone):
-        return 'You did not enter a valid cellphone number'
-
 
 @validation.LotteryApplication
 def room_meets_night_requirements(app):

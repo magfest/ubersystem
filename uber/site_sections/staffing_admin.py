@@ -3,6 +3,7 @@ from datetime import datetime
 import cherrypy
 from dateutil import parser as dateparser
 from pytz import UTC
+from sqlalchemy.orm import joinedload, selectinload
 
 from uber.config import c
 from uber.decorators import all_renderable, ajax, ajax_gettable, site_mappable
@@ -20,6 +21,9 @@ def _create_copy_department(from_department):
         # Convert old years' max hours to minutes, this can eventually be removed
         if 'max_consecutive_hours' in from_department:
             setattr(to_department, 'max_consecutive_minutes', int(from_department['max_consecutive_hours']) * 60)
+    to_department.dept_roles = []
+    to_department.job_templates = []
+
     return to_department
 
 
@@ -135,9 +139,15 @@ class Root:
                                            api_token,
                                            "Cannot create a department with the same name as an existing department")
                     to_department = _create_copy_department(from_department)
+                    if shifts_text:
+                        to_department.jobs = []
                     session.add(to_department)
                 else:
-                    to_department = session.query(Department).get(to_department_id)
+                    to_department = session.query(Department).filter(Department.id == to_department_id).options(
+                        selectinload(Department.dept_roles), selectinload(Department.job_templates),
+                        selectinload(Department.jobs)
+                    ).first()
+                    session.add(to_department)
 
                 dept_role_map = _copy_department_roles(to_department, from_department)
                 dept_template_map = _copy_department_templates(to_department, from_department)
@@ -197,7 +207,9 @@ class Root:
 
             for id, name in from_departments:
                 from_department = service.dept.jobs(department_id=id)
-                to_department = session.query(Department).filter_by(name=from_department['name']).first()
+                to_department = session.query(Department).filter_by(name=from_department['name']).options(
+                    selectinload(Department.dept_roles), selectinload(Department.job_templates),
+                ).first()
                 if not to_department:
                     to_department = _create_copy_department(from_department)
                     session.add(to_department)

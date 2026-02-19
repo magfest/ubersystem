@@ -3,10 +3,10 @@ from datetime import datetime, timedelta, time
 import six
 from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
 from sqlalchemy.sql import text
-from sqlalchemy.types import Boolean, Float, Integer, Time, Uuid, String, DateTime
+from sqlalchemy.types import Uuid, DateTime
+from typing import ClassVar
 
 from uber.config import c
 from uber.custom_tags import readable_join
@@ -14,7 +14,8 @@ from uber.decorators import presave_adjustment, cached_property, classproperty
 from uber.utils import groupify
 from uber.models import MagModel
 from uber.models.attendee import Attendee
-from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column, UniqueList, MultiChoice
+from uber.models.types import (default_relationship as relationship, Choice, DefaultColumn as Column, MultiChoice,
+                               DefaultField as Field, DefaultRelationship as Relationship)
 
 
 __all__ = [
@@ -61,44 +62,70 @@ job_template_required_role = Table(
 )
 
 
-class DeptChecklistItem(MagModel):
-    department_id = Column(Uuid(as_uuid=False), ForeignKey('department.id'))
-    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
-    slug = Column(String)
-    comments = Column(String, default='')
+class DeptChecklistItem(MagModel, table=True):
+    """
+    Attendee: joined
+    Department: joined
+    """
 
-    __table_args__ = (
+    department_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='department.id', ondelete='CASCADE')
+    department: 'Department' = Relationship(back_populates="dept_checklist_items", sa_relationship_kwargs={'lazy': 'joined'})
+
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
+    attendee: 'Attendee' = Relationship(back_populates="dept_checklist_items", sa_relationship_kwargs={'lazy': 'joined'})
+
+    slug: str = ''
+    comments: str = ''
+
+    __table_args__: ClassVar = (
         UniqueConstraint('department_id', 'attendee_id', 'slug'),
     )
 
 
-class BulkPrintingRequest(MagModel):
-    department_id = Column(Uuid(as_uuid=False), ForeignKey('department.id'))
-    link = Column(String)
-    copies = Column(Integer)
-    print_orientation = Column(Choice(c.PRINT_ORIENTATION_OPTS), default=c.PORTRAIT)
-    cut_orientation = Column(Choice(c.CUT_ORIENTATION_OPTS), default=c.NONE)
-    color = Column(Choice(c.PRINT_REQUEST_COLOR_OPTS), default=c.BW)
-    paper_type = Column(Choice(c.PRINT_REQUEST_PAPER_TYPE_OPTS), default=c.STANDARD)
-    paper_type_text = Column(String)
-    size = Column(Choice(c.PRINT_REQUEST_SIZE_OPTS), default=c.STANDARD)
-    size_text = Column(String)
-    double_sided = Column(Boolean, default=False)
-    stapled = Column(Boolean, default=False)
-    notes = Column(String)
-    required = Column(Boolean, default=False)
-    link_is_shared = Column(Boolean, default=False)
+class BulkPrintingRequest(MagModel, table=True):
+    department_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='department.id', ondelete='CASCADE')
+
+    link: str = ''
+    copies: int = 0
+    print_orientation: int = Field(sa_column=Column(Choice(c.PRINT_ORIENTATION_OPTS)), default=c.PORTRAIT)
+    cut_orientation: int = Field(sa_column=Column(Choice(c.CUT_ORIENTATION_OPTS)), default=c.NONE)
+    color: int = Field(sa_column=Column(Choice(c.PRINT_REQUEST_COLOR_OPTS)), default=c.BW)
+    paper_type: int = Field(sa_column=Column(Choice(c.PRINT_REQUEST_PAPER_TYPE_OPTS)), default=c.STANDARD)
+    paper_type_text: str = ''
+    size: int = Field(sa_column=Column(Choice(c.PRINT_REQUEST_SIZE_OPTS)), default=c.STANDARD)
+    size_text: str = ''
+    double_sided: bool = False
+    stapled: bool = False
+    notes: str = ''
+    important: bool = False
+    link_is_shared: bool = False
 
 
-class DeptMembership(MagModel):
-    is_dept_head = Column(Boolean, default=False)
-    is_poc = Column(Boolean, default=False)
-    is_checklist_admin = Column(Boolean, default=False)
-    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
-    department_id = Column(Uuid(as_uuid=False), ForeignKey('department.id'))
+class DeptMembership(MagModel, table=True):
+    """
+    Attendee: joined
+    Department: joined
+    DeptRole: selectin
+    """
 
-    __mapper_args__ = {'confirm_deleted_rows': False}
-    __table_args__ = (
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
+    attendee: 'Attendee' = Relationship(back_populates="dept_memberships", sa_relationship_kwargs={'lazy': 'joined'})
+
+    department_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='department.id', ondelete='CASCADE')
+    department: 'Department' = Relationship(
+        back_populates="memberships", sa_relationship_kwargs={'lazy': 'joined', 'overlaps': 'assigned_depts,members'})
+
+    is_dept_head: bool = False
+    is_poc: bool = False
+    is_checklist_admin: bool = False
+
+    dept_roles: list['DeptRole'] = Relationship(
+        back_populates="dept_memberships",
+        sa_relationship_kwargs={
+            'lazy': 'selectin', 'secondary': 'dept_membership_dept_role'})
+
+    __mapper_args__: ClassVar = {'confirm_deleted_rows': False}
+    __table_args__: ClassVar = (
         UniqueConstraint('attendee_id', 'department_id'),
         Index('ix_dept_membership_attendee_id', 'attendee_id'),
         Index('ix_dept_membership_department_id', 'department_id'),
@@ -134,34 +161,58 @@ class DeptMembership(MagModel):
         return readable_join([role.name for role in self.dept_roles])
 
 
-class DeptMembershipRequest(MagModel):
-    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'))
+class DeptMembershipRequest(MagModel, table=True):
+    """
+    Attendee: joined
+    Department: joined
+    """
+
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
+    attendee: 'Attendee' = Relationship(back_populates="dept_membership_requests", sa_relationship_kwargs={'lazy': 'joined'})
 
     # A NULL value for the department_id indicates the attendee is willing
     # to volunteer for any department (they checked "Anything" for
     # "Where do you want to help?").
-    department_id = Column(Uuid(as_uuid=False), ForeignKey('department.id'), nullable=True)
+    department_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='department.id', ondelete='CASCADE', nullable=True)
+    department: 'Department' = Relationship(back_populates="membership_requests", sa_relationship_kwargs={'lazy': 'joined'})
 
-    __mapper_args__ = {'confirm_deleted_rows': False}
-    __table_args__ = (
+    __mapper_args__: ClassVar = {'confirm_deleted_rows': False}
+    __table_args__: ClassVar = (
         UniqueConstraint('attendee_id', 'department_id'),
         Index('ix_dept_membership_request_attendee_id', 'attendee_id'),
         Index('ix_dept_membership_request_department_id', 'department_id'),
     )
 
 
-class DeptRole(MagModel):
-    name = Column(String)
-    description = Column(String)
-    department_id = Column(Uuid(as_uuid=False), ForeignKey('department.id'))
+class DeptRole(MagModel, table=True):
+    """
+    Department: joined
+    """
 
-    dept_memberships = relationship(
-        'DeptMembership',
-        backref='dept_roles',
-        cascade='save-update,merge,refresh-expire,expunge',
-        secondary='dept_membership_dept_role')
+    department_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='department.id', ondelete='CASCADE')
+    department: 'Department' = Relationship(back_populates="dept_roles", sa_relationship_kwargs={'lazy': 'joined'})
 
-    __table_args__ = (
+    name: str = ''
+    description: str = ''
+
+    jobs: list['Job'] = Relationship(
+        back_populates="required_roles",
+        sa_relationship_kwargs={'secondary': 'job_required_role'})
+    job_templates: list['JobTemplate'] = Relationship(
+        back_populates="required_roles",
+        sa_relationship_kwargs={'secondary': 'job_template_required_role'})
+    dept_memberships: list['DeptMembership'] = Relationship(
+        back_populates="dept_roles",
+        sa_relationship_kwargs={'secondary': 'dept_membership_dept_role'})
+    attendees: list['Attendee'] = Relationship(
+        back_populates="dept_roles",
+        sa_relationship_kwargs={
+            'secondaryjoin': 'and_(dept_membership_dept_role.c.dept_role_id == DeptRole.id, '
+                                  'dept_membership_dept_role.c.dept_membership_id == DeptMembership.id)',
+            'secondary': 'join(DeptMembership, dept_membership_dept_role)',
+            'viewonly': True})
+
+    __table_args__: ClassVar = (
         UniqueConstraint('name', 'department_id'),
         Index('ix_dept_role_department_id', 'department_id'),
     )
@@ -200,97 +251,93 @@ class DeptRole(MagModel):
         self._set_relation_ids('dept_memberships', DeptMembership, value)
 
 
-class Department(MagModel):
-    name = Column(String, unique=True)
-    description = Column(String)
-    solicits_volunteers = Column(Boolean, default=True)
-    parent_id = Column(Uuid(as_uuid=False), ForeignKey('department.id'), nullable=True)
-    max_consecutive_minutes = Column(Integer, default=0)
-    from_email = Column(String)
-    manages_panels = Column(Boolean, default=False)
-    handles_cash = Column(Boolean, default=False)
-    panels_desc = Column(String)
+class Department(MagModel, table=True):
+    parent_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='department.id', ondelete='CASCADE', nullable=True)
+    parent: 'Department' = Relationship(back_populates="sub_depts", sa_relationship_kwargs={'remote_side': 'Department.id'})
+    sub_depts: list['Department'] = Relationship(back_populates="parent", sa_relationship_kwargs={'order_by': 'Department.name'})
 
-    jobs = relationship('Job', backref='department')
-    job_templates = relationship('JobTemplate', backref='department')
-    locations = relationship('EventLocation', backref='department')
-    events = relationship('Event', backref='department')
+    name: str = Field(unique=True, default='')
+    description: str = ''
+    solicits_volunteers: bool = True
+    max_consecutive_minutes: int = 0
+    from_email: str = ''
+    manages_panels: bool = False
+    handles_cash: bool = False
+    panels_desc: str = ''
 
-    dept_checklist_items = relationship('DeptChecklistItem', backref='department')
-    dept_roles = relationship('DeptRole', backref='department')
-    dept_heads = relationship(
+    locations: list['EventLocation'] = Relationship(
+        back_populates="department")
+    events: list['Event'] = Relationship(
+        back_populates="department")
+    attractions: list['Attraction'] = Relationship(
+        back_populates="department")
+
+    jobs: list['Job'] = Relationship(back_populates="department",
+                                     sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    job_templates: list['JobTemplate'] = Relationship(back_populates="department",
+                                                      sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    attendees_working_shifts: list['Attendee'] = Relationship(
+        back_populates="depts_where_working",
+        sa_relationship_kwargs={'secondary': 'join(Shift, Job)', 'viewonly': True})
+
+    dept_checklist_items: list['DeptChecklistItem'] = Relationship(
+        back_populates="department", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    dept_roles: list['DeptRole'] = Relationship(back_populates="department",
+                                                sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    dept_heads: list['Attendee'] = Relationship(sa_relationship=relationship(
         'Attendee',
-        backref=backref('headed_depts', order_by='Department.name'),
         primaryjoin='and_('
                     'Department.id == DeptMembership.department_id, '
                     'DeptMembership.is_dept_head == True)',
         secondary='dept_membership',
         order_by='Attendee.full_name',
-        viewonly=True)
-    checklist_admins = relationship(
-        'Attendee',
-        backref=backref('checklist_admin_depts', order_by='Department.name'),
-        primaryjoin='and_('
-                    'Department.id == DeptMembership.department_id, '
-                    'DeptMembership.is_checklist_admin == True)',
-        secondary='dept_membership',
-        order_by='Attendee.full_name',
-        viewonly=True)
-    members_with_inherent_role = relationship(
-        'Attendee',
-        backref=backref('depts_with_inherent_role', order_by='Department.name'),
-        primaryjoin='and_('
-                    'Department.id == DeptMembership.department_id, '
-                    'DeptMembership.has_inherent_role)',
-        secondary='dept_membership',
-        order_by='Attendee.full_name',
-        viewonly=True)
-    members_who_can_admin_checklist = relationship(
-        'Attendee',
-        backref=backref('can_admin_checklist_depts', order_by='Department.name'),
-        primaryjoin='and_('
-                    'Department.id == DeptMembership.department_id, '
-                    'or_('
-                    'DeptMembership.is_checklist_admin == True, '
-                    'DeptMembership.is_dept_head == True))',
-        secondary='dept_membership',
-        order_by='Attendee.full_name',
-        viewonly=True)
-    pocs = relationship(
-        'Attendee',
-        backref=backref('poc_depts', order_by='Department.name'),
-        primaryjoin='and_('
-                    'Department.id == DeptMembership.department_id, '
-                    'DeptMembership.is_poc == True)',
-        secondary='dept_membership',
-        order_by='Attendee.full_name',
-        viewonly=True)
-    members = relationship(
-        'Attendee',
-        backref=backref('assigned_depts', order_by='Department.name', overlaps="dept_memberships,attendee"),
-        cascade='save-update,merge,refresh-expire,expunge',
-        order_by='Attendee.full_name',
-        overlaps="attendee,dept_memberships",
-        secondary='dept_membership')
-    memberships = relationship('DeptMembership', backref=backref('department', overlaps="assigned_depts,members"), overlaps="assigned_depts,members")
-    membership_requests = relationship('DeptMembershipRequest', backref='department')
-    explicitly_requesting_attendees = relationship(
-        'Attendee',
-        backref=backref('explicitly_requested_depts', order_by='Department.name', overlaps="attendee,dept_membership_requests,department,membership_requests"),
-        cascade='save-update,merge,refresh-expire,expunge',
-        secondary='dept_membership_request',
-        order_by='Attendee.full_name',
-        overlaps="membership_requests,department,attendee,dept_membership_requests")
-    requesting_attendees = relationship(
-        'Attendee',
-        backref=backref('requested_depts', order_by='Department.name'),
-        primaryjoin='or_('
-                    'DeptMembershipRequest.department_id == Department.id, '
-                    'DeptMembershipRequest.department_id == None)',
-        secondary='dept_membership_request',
-        order_by='Attendee.full_name',
-        viewonly=True)
-    unassigned_requesting_attendees = relationship(
+        viewonly=True))
+    checklist_admins: list['Attendee'] = Relationship(
+        back_populates="checklist_admin_depts",
+        sa_relationship_kwargs={
+            'primaryjoin': 'and_(Department.id == DeptMembership.department_id, '
+                                'DeptMembership.is_checklist_admin == True)',
+            'secondary': 'dept_membership', 'viewonly': True, 'order_by': 'Attendee.full_name'})
+    members_with_inherent_role: list['Attendee'] = Relationship(
+        sa_relationship_kwargs={
+            'primaryjoin': 'and_(Department.id == DeptMembership.department_id, '
+                                'DeptMembership.has_inherent_role)',
+            'secondary': 'dept_membership', 'viewonly': True, 'order_by': 'Attendee.full_name'})
+    members_who_can_admin_checklist: list['Attendee'] = Relationship(
+        back_populates="can_admin_checklist_depts",
+        sa_relationship_kwargs={
+            'primaryjoin': 'and_(Department.id == DeptMembership.department_id, '
+                                'or_(DeptMembership.is_checklist_admin == True, '
+                                    'DeptMembership.is_dept_head == True))',
+            'secondary': 'dept_membership', 'viewonly': True, 'order_by': 'Attendee.full_name'})
+    pocs: list['Attendee'] = Relationship(
+        back_populates="poc_depts",
+        sa_relationship_kwargs={
+            'primaryjoin': 'and_(Department.id == DeptMembership.department_id, '
+                                'DeptMembership.is_poc == True)',
+            'secondary': 'dept_membership', 'viewonly': True, 'order_by': 'Attendee.full_name'})
+    members: list['Attendee'] = Relationship(
+        back_populates='assigned_depts',
+        sa_relationship_kwargs={'secondary': 'dept_membership', 
+                                'order_by': 'Attendee.full_name', 'overlaps': 'attendee,dept_memberships'})
+    memberships: list['DeptMembership'] = Relationship(
+        back_populates="department",
+        sa_relationship_kwargs={'overlaps': 'assigned_depts,members', 'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    membership_requests: list['DeptMembershipRequest'] = Relationship(
+        back_populates="department",
+        sa_relationship_kwargs={'cascade': 'all', 'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    explicitly_requesting_attendees: list['Attendee'] = Relationship(
+        back_populates="explicitly_requested_depts",
+        sa_relationship_kwargs={
+            'secondary': 'dept_membership_request',
+            'order_by': 'Attendee.full_name', 'overlaps': 'membership_requests,department,attendee,dept_membership_requests'})
+    requesting_attendees: list['Attendee'] = Relationship(
+        back_populates="requested_depts",
+        sa_relationship_kwargs={
+            'primaryjoin': 'or_(DeptMembershipRequest.department_id == Department.id, '
+                               'DeptMembershipRequest.department_id == None)',
+            'secondary': 'dept_membership_request', 'order_by': 'Attendee.full_name', 'viewonly': True})
+    unassigned_requesting_attendees: list['Attendee'] = Relationship(sa_relationship=relationship(
         'Attendee',
         primaryjoin='and_(or_('
                     'DeptMembershipRequest.department_id == Department.id, '
@@ -300,8 +347,8 @@ class Department(MagModel):
                     'DeptMembership.attendee_id == DeptMembershipRequest.attendee_id))))',
         secondary='dept_membership_request',
         order_by='Attendee.full_name',
-        viewonly=True)
-    unassigned_explicitly_requesting_attendees = relationship(
+        viewonly=True))
+    unassigned_explicitly_requesting_attendees: list['Attendee'] = Relationship(sa_relationship=relationship(
         'Attendee',
         primaryjoin='and_('
                     'DeptMembershipRequest.department_id == Department.id, '
@@ -310,13 +357,7 @@ class Department(MagModel):
                     'DeptMembership.attendee_id == DeptMembershipRequest.attendee_id))))',
         secondary='dept_membership_request',
         order_by='Attendee.full_name',
-        viewonly=True)
-    parent = relationship(
-        'Department',
-        backref=backref('sub_depts', order_by='Department.name', cascade='all,delete-orphan'),
-        cascade='save-update,merge,refresh-expire,expunge',
-        remote_side='Department.id',
-        single_parent=True)
+        viewonly=True))
 
     @hybrid_property
     def member_count(self):
@@ -375,7 +416,7 @@ class Department(MagModel):
     @classmethod
     def normalize_name(cls, name):
         return name.lower().replace('_', '').replace(' ', '')
-    
+
     @property
     def dept_roles_choices(self):
         return [(role.id, role.name) for role in self.dept_roles]
@@ -401,35 +442,49 @@ class Department(MagModel):
         return groupify(self.job_templates, 'template_name')
 
 
-class Job(MagModel):
-    _ONLY_MEMBERS = 0
-    _ALL_VOLUNTEERS = 2
-    _VISIBILITY_OPTS = [
+class Job(MagModel, table=True):
+    """
+    Department: joined
+    DeptRole: selectin
+    Shift: selectin
+    JobTemplate: select
+    """
+
+    _ONLY_MEMBERS: ClassVar = 0
+    _ALL_VOLUNTEERS: ClassVar = 2
+    _VISIBILITY_OPTS: ClassVar = [
         (_ONLY_MEMBERS, 'Members of this department'),
         (_ALL_VOLUNTEERS, 'All volunteers')]
 
-    job_template_id = Column(Uuid(as_uuid=False), ForeignKey('job_template.id'), nullable=True)
-    department_id = Column(Uuid(as_uuid=False), ForeignKey('department.id'))
+    job_template_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='job_template.id', nullable=True)
+    template: 'JobTemplate' = Relationship(back_populates="jobs", sa_relationship_kwargs={'lazy': 'select'})
 
-    name = Column(String)
-    description = Column(String)
-    start_time = Column(DateTime(timezone=True))
-    duration = Column(Integer)
-    weight = Column(Float, default=1)
-    slots = Column(Integer)
-    extra15 = Column(Boolean, default=False)
-    visibility = Column(Choice(_VISIBILITY_OPTS), default=_ONLY_MEMBERS)
-    all_roles_required = Column(Boolean, default=True)
+    department_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='department.id', ondelete='CASCADE')
+    department: 'Department' = Relationship(back_populates="jobs", sa_relationship_kwargs={'lazy': 'joined'})
 
-    required_roles = relationship(
-        'DeptRole', backref='jobs', cascade='save-update,merge,refresh-expire,expunge', secondary='job_required_role')
-    shifts = relationship('Shift', backref='job')
+    name: str = ''
+    description: str = ''
+    start_time: datetime = Field(sa_type=DateTime(timezone=True))
+    duration: int = 0
+    weight: float = 1
+    slots: int = 1
+    extra15: bool = False
+    visibility: int = Field(sa_column=Column(Choice(_VISIBILITY_OPTS)), default=_ONLY_MEMBERS)
+    all_roles_required: bool = True
 
-    __table_args__ = (
-        Index('ix_job_department_id', department_id),
+    attendees_working_shifts: list['Attendee'] = Relationship(
+        back_populates="jobs", sa_relationship_kwargs={'secondary': 'shift', 'viewonly': True})
+    required_roles: list['DeptRole'] = Relationship(
+        back_populates="jobs",
+        sa_relationship_kwargs={'lazy': 'selectin', 'secondary': 'job_required_role'})
+    shifts: list['Shift'] = Relationship(back_populates="job",
+                                         sa_relationship_kwargs={'lazy': 'selectin', 'cascade': 'all,delete-orphan', 'passive_deletes': True})
+
+    __table_args__: ClassVar = (
+        Index('ix_job_department_id', 'department_id'),
     )
 
-    _repr_attr_names = ['name']
+    _repr_attr_names: ClassVar = ['name']
 
     @presave_adjustment
     def zero_slots(self):
@@ -472,7 +527,7 @@ class Job(MagModel):
 
     @restricted.expression
     def restricted(cls):
-        return exists([job_required_role.c.dept_role_id]) \
+        return exists(job_required_role.c.dept_role_id) \
             .where(job_required_role.c.job_id == cls.id).label('restricted')
 
     @property
@@ -644,10 +699,10 @@ class Job(MagModel):
             query = query.filter(Attendee.staffing == True)  # noqa: E712
 
         if self.required_roles:
-            query = query.join(Attendee.dept_roles, aliased=True).filter(
+            query = query.join(Attendee.dept_roles).filter(
                 and_(*[DeptRole.id == r.id for r in self.required_roles]))
         else:
-            query = query.join(Attendee.dept_memberships, aliased=True).filter(
+            query = query.join(Attendee.dept_memberships).filter(
                 DeptMembership.department_id == self.department_id)
 
         return query.order_by(order_by).all()
@@ -680,28 +735,36 @@ class Job(MagModel):
                 and self.working_limit_ok(s)]
 
 
-class JobTemplate(MagModel):
-    department_id = Column(Uuid(as_uuid=False), ForeignKey('department.id'))
+class JobTemplate(MagModel, table=True):
+    """
+    Department: joined
+    DeptRole: selectin
+    """
 
-    template_name = Column(String)
-    type = Column(Choice(c.JOB_TEMPLATE_TYPE_OPTS), default=c.FILL_GAPS)
-    name = Column(String)
-    description = Column(String)
-    duration = Column(Integer)
-    weight = Column(Float, default=1)
-    extra15 = Column(Boolean, default=False)
-    visibility = Column(Choice(Job._VISIBILITY_OPTS), default=Job._ONLY_MEMBERS)
-    all_roles_required = Column(Boolean, default=True)
+    department_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='department.id', ondelete='CASCADE')
+    department: 'Department' = Relationship(back_populates="job_templates", sa_relationship_kwargs={'lazy': 'joined'})
 
-    min_slots = Column(Integer)  # Future improvement: a bulk-edit for slots in jobs by time of day
-    days = Column(MultiChoice(c.JOB_DAY_OPTS))
-    open_time = Column(Time, nullable=True)
-    close_time = Column(Time, nullable=True)
-    interval = Column(Integer, nullable=True)
+    template_name: str = ''
+    type: int = Field(sa_column=Column(Choice(c.JOB_TEMPLATE_TYPE_OPTS)), default=c.FILL_GAPS)
+    name: str = ''
+    description: str = ''
+    duration: int = 0
+    weight: float = 1
+    extra15: bool = False
+    visibility: int = Field(sa_column=Column(Choice(Job._VISIBILITY_OPTS)), default=Job._ONLY_MEMBERS)
+    all_roles_required: bool = True
 
-    required_roles = relationship(
-        'DeptRole', backref='job_templates', cascade='save-update,merge,refresh-expire,expunge', secondary='job_template_required_role')
-    jobs = relationship('Job', backref='template', cascade='save-update,merge,refresh-expire,expunge')
+    min_slots: int = 1  # Future improvement: a bulk-edit for slots in jobs by time of day
+    days: str = Field(sa_type=MultiChoice(c.JOB_DAY_OPTS), default='')
+    open_time: time | None = Field(nullable=True)
+    close_time: time | None = Field(nullable=True)
+    interval: int = Field(nullable=True)
+
+    jobs: list['Job'] = Relationship(back_populates="template")
+    required_roles: list['DeptRole'] = Relationship(
+        back_populates="job_templates",
+        sa_relationship_kwargs={
+            'lazy': 'selectin', 'secondary': 'job_template_required_role'})
 
     @presave_adjustment
     def zero_slots(self):
@@ -911,16 +974,25 @@ class JobTemplate(MagModel):
         return cutoff_time
 
 
-class Shift(MagModel):
-    job_id = Column(Uuid(as_uuid=False), ForeignKey('job.id', ondelete='cascade'))
-    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='cascade'))
-    worked = Column(Choice(c.WORKED_STATUS_OPTS), default=c.SHIFT_UNMARKED)
-    rating = Column(Choice(c.RATING_OPTS), default=c.UNRATED)
-    comment = Column(String)
+class Shift(MagModel, table=True):
+    """
+    Attendee: joined
+    Job: joined
+    """
 
-    __table_args__ = (
-        Index('ix_shift_job_id', job_id),
-        Index('ix_shift_attendee_id', attendee_id),
+    job_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='job.id', ondelete='CASCADE')
+    job: 'Job' = Relationship(back_populates="shifts", sa_relationship_kwargs={'lazy': 'joined'})
+
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
+    attendee: 'Attendee' = Relationship(back_populates="shifts", sa_relationship_kwargs={'lazy': 'joined'})
+    
+    worked: int = Field(sa_column=Column(Choice(c.WORKED_STATUS_OPTS)), default=c.SHIFT_UNMARKED)
+    rating: int = Field(sa_column=Column(Choice(c.RATING_OPTS)), default=c.UNRATED)
+    comment: str = ''
+
+    __table_args__: ClassVar = (
+        Index('ix_shift_job_id', 'job_id'),
+        Index('ix_shift_attendee_id', 'attendee_id'),
     )
 
     @property

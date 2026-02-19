@@ -6,19 +6,22 @@ from collections import defaultdict, OrderedDict
 from datetime import timedelta
 from dateutil import parser as dateparser
 
-from sqlalchemy import or_
-from sqlalchemy.orm import subqueryload
+from sqlalchemy import and_
+from sqlalchemy.orm import subqueryload, selectinload
 
 from uber.config import c
 from uber.decorators import all_renderable, csv_file, render
-from uber.models import Attendee, Department, Job
+from uber.models import Attendee, Department, DeptMembership, Job
 
 
 def volunteer_checklists(session):
     attendees = session.query(Attendee) \
         .filter(
             Attendee.staffing == True,  # noqa: E712
-            Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS])) \
+            Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS])).options(
+                selectinload(Attendee.hotel_requests), selectinload(Attendee.food_restrictions),
+                selectinload(Attendee.shifts)
+            ) \
         .order_by(Attendee.full_name, Attendee.id).all()
 
     checklist_items = OrderedDict()
@@ -152,7 +155,11 @@ class Root:
     @csv_file
     def dept_head_contact_info(self, out, session):
         out.writerow(["Full Name", "Email", "Phone", "Department(s)"])
-        for a in session.query(Attendee).filter(Attendee.dept_memberships_as_dept_head.any()).order_by('last_name'):
+        dept_heads = session.query(Attendee).join(DeptMembership,
+                                                  and_(
+                                                      Attendee.id == DeptMembership.attendee_id,
+                                                      DeptMembership.is_dept_head == True))
+        for a in dept_heads.order_by(Attendee.last_name):
             for label in a.assigned_depts_labels:
                 out.writerow([a.full_name, a.email, a.cellphone, label])
 

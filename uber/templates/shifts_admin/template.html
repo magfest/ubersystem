@@ -135,7 +135,7 @@
               var formToSubmit = this;
               event.preventDefault();
               bootbox.confirm({
-                  message: "This will permanently delete this template AND {% if job_template.jobs|length > 1 %}all {{ job_template.jobs|length }} jobs{% else %}the job{% endif %} it controls. Are you sure?",
+                  message: "This will permanently delete this template AND {% if num_jobs > 1 %}all {{ num_jobs }} jobs{% else %}the job{% endif %} it controls. Are you sure?",
                   buttons: {
                       confirm: {
                           label: 'Delete Template and Jobs',
@@ -180,7 +180,7 @@
         </div>
       </div>
     </form>
-    {% if job_template.jobs %}
+    {% if num_jobs %}
     <form method="post" action="delete_template_cascade" class="form-delete-cascade">
       {{ csrf_token() }}
       <input type="hidden" name="id" value="{{ job_template.id }}" />

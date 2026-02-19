@@ -723,7 +723,7 @@ class AuthNetRequestMixin:
     def log_authorizenet_response(self, intent_id, txn_info, card_info):
         from uber.models import ReceiptInfo, ReceiptTransaction, Session
         
-        session = Session().session
+        session = Session()
         matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=intent_id).all()
 
         # AuthNet returns "StringElement" but we want strings
@@ -1059,7 +1059,7 @@ class RefundRequest(TransactionRequest):
 
             return_response_json = return_response.json()
             self.tracker.response = return_response_json
-            self.tracker.resolved = datetime.utcnow()
+            self.tracker.resolved = datetime.now(UTC)
 
             self.spin_request.log_api_response(return_response_json)
 
@@ -1167,7 +1167,7 @@ class SpinTerminalRequest(TransactionRequest):
         except AttributeError:
             response_json = response
         self.tracker.response = response_json
-        self.tracker.resolved = datetime.utcnow()
+        self.tracker.resolved = datetime.now(UTC)
 
         receipt_items_to_add = self.get_receipt_items_to_add()
         if receipt_items_to_add:
@@ -1191,7 +1191,7 @@ class SpinTerminalRequest(TransactionRequest):
 
             if self.tracker:
                 self.tracker.response = void_response_json
-                self.tracker.resolved = datetime.utcnow()
+                self.tracker.resolved = datetime.now(UTC)
 
             self.log_api_response(void_response_json)
             if self.api_response_successful(void_response_json):
@@ -1808,7 +1808,7 @@ class ReceiptManager:
         from uber.tasks.email import send_email
         from uber.decorators import render
 
-        session = Session().session
+        session = Session()
         matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=intent_id).filter(
             ReceiptTransaction.charge_id == '').all()
 

@@ -24,12 +24,12 @@ if alembic_config.config_file_name:
 logger = logging.getLogger('alembic.env')
 
 # Add the model's MetaData object here for "autogenerate" support.
-target_metadata = Session.BaseClass.metadata
+target_metadata = uber.models.MagModel.metadata
 
 
 def include_object(object, name, type_, reflected, compare_to):
     """Exclude alembic's own version tables from alembic's consideration."""
-    return not name.startswith('alembic_version')
+    return not name or not name.startswith('alembic_version')
 
 
 def render_item(type_, obj, autogen_context):

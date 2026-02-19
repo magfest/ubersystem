@@ -1,27 +1,26 @@
 import json
 import math
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from uuid import uuid4
 import logging
 
 from pytz import UTC
 from sqlalchemy import and_, case, exists, func, or_, select, not_
-from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import backref, subqueryload, aliased
-from sqlalchemy.schema import Column as SQLAlchemyColumn, ForeignKey, Index, Table, UniqueConstraint
-from sqlalchemy.types import Boolean, Date, Integer, Uuid, String, DateTime
+from sqlalchemy.orm import subqueryload, aliased, selectinload, joinedload
+from sqlalchemy.schema import ForeignKey, Index, Table, UniqueConstraint
+from sqlalchemy.types import Boolean, Uuid, String, DateTime
+from typing import ClassVar
 
 import uber
 from uber.config import c
 from uber.custom_tags import safe_string, time_day_local, readable_join
-from uber.decorators import predelete_adjustment, presave_adjustment, \
-    render, cached_property, classproperty
+from uber.decorators import presave_adjustment, render, cached_property, classproperty
 from uber.models import MagModel
 from uber.models.group import Group
-from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
-    MultiChoice, TakesPaymentMixin
+from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column, \
+    MultiChoice, TakesPaymentMixin, DefaultField as Field, DefaultRelationship as Relationship
 from uber.utils import add_opt, get_age_from_birthday, get_age_conf_from_birthday, hour_day_format, \
     localized_now, mask_string, normalize_email, normalize_email_legacy, remove_opt, RegistrationCode, listify, groupify
 
@@ -146,19 +145,17 @@ name_suffixes = [
 normalized_name_suffixes = [re.sub(r'[,\.]', '', s.lower()) for s in name_suffixes]
 
 
-class BadgeInfo(MagModel):
-    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True, default=None)
-    attendee = relationship('Attendee', backref=backref('allocated_badges', cascade='merge,refresh-expire,expunge'),
-                            foreign_keys=attendee_id,
-                            cascade='save-update,merge,refresh-expire,expunge', single_parent=True)
-    active = Column(Boolean, default=False)
-    picked_up = Column(DateTime(timezone=True), nullable=True, default=None)
-    reported_lost = Column(DateTime(timezone=True), nullable=True, default=None)
-    ident = Column(Integer, default=0, index=True)
+class BadgeInfo(MagModel, table=True):
+    """
+    Attendee: joined
+    """
 
-    __table_args__ = (
-        Index('ix_badge_info_attendee_id', attendee_id.desc()),
-    )
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
+    attendee: 'Attendee' = Relationship(back_populates="allocated_badges", sa_relationship_kwargs={'lazy': 'joined'})
+    active: bool = False
+    picked_up: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
+    reported_lost: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
+    ident: int = Field(default=0, index=True)
 
     def __repr__(self):
         return f"<BadgeInfo ident='{self.ident}'>"
@@ -200,42 +197,52 @@ class BadgeInfo(MagModel):
         self.picked_up = self.attendee.checked_in or datetime.now(UTC)
 
 
-class Attendee(MagModel, TakesPaymentMixin):
-    watchlist_id = Column(Uuid(as_uuid=False), ForeignKey('watch_list.id', ondelete='set null'), nullable=True, default=None)
-    group_id = Column(Uuid(as_uuid=False), ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
-    group = relationship(
-        Group, backref='attendees', foreign_keys=group_id, cascade='save-update,merge,refresh-expire,expunge')
-    
-    badge_pickup_group_id = Column(Uuid(as_uuid=False), ForeignKey('badge_pickup_group.id', ondelete='SET NULL'), nullable=True)
-    badge_pickup_group = relationship(
-        'BadgePickupGroup', backref=backref('attendees', order_by='Attendee.full_name'), foreign_keys=badge_pickup_group_id,
-        cascade='save-update,merge,refresh-expire,expunge', single_parent=True)
+Index('ix_badge_info_attendee_id', BadgeInfo.attendee_id.desc())
 
-    creator_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='set null'), nullable=True)
-    creator = relationship(
-        'Attendee',
-        foreign_keys='Attendee.creator_id',
-        backref=backref('created_badges', order_by='Attendee.full_name'),
-        cascade='save-update,merge,refresh-expire,expunge',
-        remote_side='Attendee.id',
-        single_parent=True)
 
-    current_attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), nullable=True)
-    current_attendee = relationship(
-        'Attendee',
-        foreign_keys='Attendee.current_attendee_id',
-        backref=backref('old_badges', order_by='Attendee.badge_status', cascade='all,delete-orphan'),
-        cascade='save-update,merge,refresh-expire,expunge',
-        remote_side='Attendee.id',
-        single_parent=True)
+class Attendee(MagModel, TakesPaymentMixin, table=True):
+    """
+    Group: select
+    AdminAccount: select
+    PromoCode: select
+    ModelReceipt: select
+    DeptMembership: select
+    WatchList: select
+    PromoCodeGroup: select
+    """
+
+    watchlist_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='watch_list.id', nullable=True)
+    watch_list: "WatchList" = Relationship(back_populates="attendees", sa_relationship_kwargs={'lazy': 'select'})
+
+    group_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='group.id', nullable=True)
+    group: 'Group' = Relationship(back_populates="attendees", sa_relationship_kwargs={'foreign_keys': 'Attendee.group_id', 'lazy': 'select'})
     
-    active_badge = relationship(
+    badge_pickup_group_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='badge_pickup_group.id', nullable=True)
+    badge_pickup_group: 'BadgePickupGroup' = Relationship(back_populates="attendees")
+
+    creator_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
+    creator: 'Attendee' = Relationship(
+        back_populates="created_badges", sa_relationship_kwargs={'foreign_keys': 'Attendee.creator_id', 'remote_side': 'Attendee.id'})
+    created_badges: list['Attendee'] = Relationship(
+        back_populates="creator",
+        sa_relationship_kwargs={'foreign_keys': 'Attendee.creator_id', 'order_by': 'Attendee.full_name'})
+
+    current_attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
+    current_attendee: 'Attendee' = Relationship(
+        back_populates="old_badges",
+        sa_relationship_kwargs={'foreign_keys': 'Attendee.current_attendee_id', 'remote_side': 'Attendee.id'})
+    old_badges: list['Attendee'] = Relationship(
+        back_populates="current_attendee",
+        sa_relationship_kwargs={'foreign_keys': 'Attendee.current_attendee_id', 'order_by': 'Attendee.badge_status'})
+    
+    allocated_badges: list['BadgeInfo'] = Relationship(
+        back_populates="attendee")
+    active_badge: 'BadgeInfo' = Relationship(sa_relationship=relationship(
         'BadgeInfo',
-        cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_(BadgeInfo.attendee_id == Attendee.id,'
         'BadgeInfo.active == True)',
-        uselist=False,
-        overlaps="allocated_badges,attendee")
+        lazy='joined',
+        overlaps="allocated_badges,attendee"))
 
     # NOTE: The cascade relationships for promo_code do NOT include
     # "save-update". During the preregistration workflow, before an Attendee
@@ -247,302 +254,330 @@ class Attendee(MagModel, TakesPaymentMixin):
     #
     # The practical result of this is that we must manually set promo_code_id
     # in order for the relationship to be persisted.
-    promo_code_id = Column(Uuid(as_uuid=False), ForeignKey('promo_code.id'), nullable=True, index=True)
-    promo_code = relationship(
-        'PromoCode',
-        backref=backref('used_by', cascade='merge,refresh-expire,expunge'),
-        foreign_keys=promo_code_id,
-        cascade='merge,refresh-expire,expunge')
+    promo_code_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='promo_code.id', nullable=True, index=True)
+    promo_code: 'PromoCode' = Relationship(back_populates="used_by", sa_relationship_kwargs={'lazy': 'select'})
     
-    transfer_code = Column(String)
+    transfer_code: str = ''
 
-    placeholder = Column(Boolean, default=False, admin_only=True, index=True)
-    first_name = Column(String)
-    last_name = Column(String)
-    legal_name = Column(String)
-    email = Column(String)
-    birthdate = Column(Date, nullable=True, default=None)
-    age_group = Column(Choice(c.AGE_GROUPS), default=c.AGE_UNKNOWN, nullable=True)
+    placeholder: bool = Field(default=False, index=True)
+    first_name: str = ''
+    last_name: str = ''
+    legal_name: str = ''
+    email: str = ''
+    birthdate: date | None = None
+    age_group: int | None = Field(sa_column=Column(Choice(c.AGE_GROUPS), nullable=True), default=c.AGE_UNKNOWN)
 
-    international = Column(Boolean, default=False)
-    zip_code = Column(String)
-    address1 = Column(String)
-    address2 = Column(String)
-    city = Column(String)
-    region = Column(String)
-    country = Column(String)
-    ec_name = Column(String)
-    ec_phone = Column(String)
-    onsite_contact = Column(String)
-    no_onsite_contact = Column(Boolean, default=False)
-    cellphone = Column(String)
-    no_cellphone = Column(Boolean, default=False)
+    international: bool = False
+    zip_code: str = ''
+    address1: str = ''
+    address2: str = ''
+    city: str = ''
+    region: str = ''
+    country: str = ''
+    ec_name: str = ''
+    ec_phone: str = ''
+    onsite_contact: str = ''
+    no_onsite_contact: bool = False
+    cellphone: str = ''
+    no_cellphone: bool = False
 
-    requested_accessibility_services = Column(Boolean, default=False)
+    requested_accessibility_services: bool = False
 
-    interests = Column(MultiChoice(c.INTEREST_OPTS))
-    found_how = Column(String)  # TODO: Remove?
-    comments = Column(String)  # TODO: Remove?
-    for_review = Column(String, admin_only=True)
-    admin_notes = Column(String, admin_only=True)
+    interests: str = Field(sa_type=MultiChoice(c.INTEREST_OPTS), default='')
+    found_how: str = ''
+    comments: str = ''
+    for_review: str = ''
+    admin_notes: str = ''
 
-    public_id = Column(Uuid(as_uuid=False), default=lambda: str(uuid4()))
-    badge_type = Column(Choice(c.BADGE_OPTS), default=c.ATTENDEE_BADGE)
-    badge_status = Column(Choice(c.BADGE_STATUS_OPTS), default=c.NEW_STATUS, index=True, admin_only=True)
-    ribbon = Column(MultiChoice(c.RIBBON_OPTS), admin_only=True)
-
-    affiliate = Column(String)  # TODO: Remove
+    public_id: str | None = Field(sa_type=Uuid(as_uuid=False), default_factory=lambda: str(uuid4()))
+    badge_type: int = Field(sa_column=Column(Choice(c.BADGE_OPTS)), default=c.ATTENDEE_BADGE)
+    badge_status: int = Field(sa_column=Column(Choice(c.BADGE_STATUS_OPTS), index=True, admin_only=True), default=c.NEW_STATUS)
+    ribbon: str = Field(sa_type=MultiChoice(c.RIBBON_OPTS), default='', admin_only=True)
 
     # If [[staff_shirt]] is the same as [[shirt]], we only use the shirt column
-    shirt = Column(Choice(c.SHIRT_OPTS), default=c.NO_SHIRT)
-    staff_shirt = Column(Choice(c.STAFF_SHIRT_OPTS), default=c.NO_SHIRT)
-    num_event_shirts = Column(Choice(c.STAFF_EVENT_SHIRT_OPTS, allow_unspecified=True), default=-1)
-    shirt_opt_out = Column(Choice(c.SHIRT_OPT_OUT_OPTS), default=c.OPT_IN)
-    can_spam = Column(Boolean, default=False)
-    regdesk_info = Column(String, admin_only=True)
-    extra_merch = Column(String, admin_only=True)
-    got_merch = Column(Boolean, default=False, admin_only=True)
-    got_staff_merch = Column(Boolean, default=False, admin_only=True)
-    got_swadge = Column(Boolean, default=False, admin_only=True)
-    can_transfer = Column(Boolean, default=False, admin_only=True)
+    shirt: int = Field(sa_column=Column(Choice(c.SHIRT_OPTS)), default=c.NO_SHIRT)
+    staff_shirt: int = Field(sa_column=Column(Choice(c.STAFF_SHIRT_OPTS)), default=c.NO_SHIRT)
+    num_event_shirts: int = Field(sa_column=Column(Choice(c.STAFF_EVENT_SHIRT_OPTS, allow_unspecified=True)), default=-1)
+    shirt_opt_out: int = Field(sa_column=Column(Choice(c.SHIRT_OPT_OUT_OPTS)), default=c.OPT_IN)
+    can_spam: bool = False
+    regdesk_info: str = ''
+    extra_merch: str = ''
+    got_merch: bool = False
+    got_staff_merch: bool = False
+    got_swadge: bool = False
+    can_transfer: bool = False
 
-    reg_station = Column(Integer, nullable=True, admin_only=True)
-    registered = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
-    confirmed = Column(DateTime(timezone=True), nullable=True, default=None)
-    checked_in = Column(DateTime(timezone=True), nullable=True)
+    reg_station: int | None
+    registered: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    confirmed: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
+    checked_in: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
 
-    paid = Column(Choice(c.PAYMENT_OPTS), default=c.NOT_PAID, index=True, admin_only=True)
-    badge_cost = Column(Integer, nullable=True, admin_only=True)
-    overridden_price = Column(Integer, nullable=True, admin_only=True)
-    amount_extra = Column(Choice(c.DONATION_TIER_OPTS, allow_unspecified=True), default=0)
-    extra_donation = Column(Integer, default=0)
+    paid: int = Field(sa_column=Column(Choice(c.PAYMENT_OPTS), index=True, admin_only=True), default=c.NOT_PAID)
+    badge_cost: int | None
+    overridden_price: int | None
+    amount_extra: int = Field(sa_column=Column(Choice(c.DONATION_TIER_OPTS, allow_unspecified=True)), default=0)
+    extra_donation: int = 0
 
-    badge_printed_name = Column(String)
+    badge_printed_name: str = ''
 
-    active_receipt = relationship(
+    active_receipt: 'ModelReceipt' = Relationship(sa_relationship=relationship(
         'ModelReceipt',
-        cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_(remote(ModelReceipt.owner_id) == foreign(Attendee.id),'
         'ModelReceipt.owner_model == "Attendee",'
         'ModelReceipt.closed == None)',
-        uselist=False)
-    default_cost = Column(Integer, nullable=True)
+        lazy='select'))
+    default_cost: int | None
 
-    dept_memberships = relationship('DeptMembership', backref='attendee')
-    dept_membership_requests = relationship('DeptMembershipRequest', backref='attendee')
-    anywhere_dept_membership_request = relationship(
-        'DeptMembershipRequest',
-        primaryjoin='and_('
-                    'DeptMembershipRequest.attendee_id == Attendee.id, '
-                    'DeptMembershipRequest.department_id == None)',
-        uselist=False,
-        viewonly=True)
-    dept_roles = relationship(
-        'DeptRole',
-        backref='attendees',
-        secondaryjoin='and_('
-                      'dept_membership_dept_role.c.dept_role_id == DeptRole.id, '
-                      'dept_membership_dept_role.c.dept_membership_id == DeptMembership.id)',
-        secondary='join(DeptMembership, dept_membership_dept_role)',
-        order_by='DeptRole.name',
-        viewonly=True)
-    shifts = relationship('Shift', backref='attendee')
-    jobs = relationship(
-        'Job',
-        backref='attendees_working_shifts',
-        secondary='shift',
-        order_by='Job.name',
-        viewonly=True)
-    jobs_in_assigned_depts = relationship(
-        'Job',
-        backref='attendees_in_dept',
-        secondaryjoin='DeptMembership.department_id == Job.department_id',
-        secondary='dept_membership',
-        order_by='Job.name',
-        viewonly=True)
-    depts_where_working = relationship(
-        'Department',
-        backref='attendees_working_shifts',
-        secondary='join(Shift, Job)',
-        order_by='Department.name',
-        viewonly=True)
-    dept_memberships_with_inherent_role = relationship(
+    created_groups: list['Group'] = Relationship(
+        back_populates="creator",
+        sa_relationship_kwargs={'foreign_keys': 'Group.creator_id', 'order_by': 'Group.name'})
+
+    dept_memberships: list['DeptMembership'] = Relationship(
+        back_populates="attendee",
+        sa_relationship_kwargs={'lazy': 'select', 'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    dept_membership_requests: list['DeptMembershipRequest'] = Relationship(
+        back_populates="attendee", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    assigned_depts: list['Department'] = Relationship(
+        back_populates='members',
+        sa_relationship_kwargs={
+            'order_by': 'Department.name', 'overlaps': 'dept_memberships,attendee',
+            'secondary': 'dept_membership'})
+    dept_roles: list['DeptRole'] = Relationship(
+        back_populates="attendees",
+        sa_relationship_kwargs={
+            'secondaryjoin': 'and_(dept_membership_dept_role.c.dept_role_id == DeptRole.id, '
+                                  'dept_membership_dept_role.c.dept_membership_id == DeptMembership.id)',
+            'secondary': 'join(DeptMembership, dept_membership_dept_role)',
+            'order_by': 'DeptRole.name', 'viewonly': True})
+    shifts: list['Shift'] = Relationship(
+        back_populates="attendee", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    jobs: list['Job'] = Relationship(
+        back_populates="attendees_working_shifts",
+        sa_relationship_kwargs={'secondary': 'shift', 'order_by': 'Job.name', 'viewonly': True})
+    depts_where_working: list['Department'] = Relationship(
+        back_populates="attendees_working_shifts",
+        sa_relationship_kwargs={'secondary': 'join(Shift, Job)', 'order_by': 'Department.name', 'viewonly': True})
+    dept_memberships_with_inherent_role: list['DeptMembership'] = Relationship(sa_relationship=relationship(
         'DeptMembership',
         primaryjoin='and_('
                     'Attendee.id == DeptMembership.attendee_id, '
                     'DeptMembership.has_inherent_role)',
-        viewonly=True)
-    dept_memberships_with_dept_role = relationship(
+        viewonly=True))
+    dept_memberships_with_dept_role: list['DeptMembership'] = Relationship(sa_relationship=relationship(
         'DeptMembership',
         primaryjoin='and_('
                     'Attendee.id == DeptMembership.attendee_id, '
                     'DeptMembership.has_dept_role)',
-        viewonly=True)
-    dept_memberships_with_role = relationship(
+        viewonly=True))
+    dept_memberships_with_role: list['DeptMembership'] = Relationship(sa_relationship=relationship(
         'DeptMembership',
         primaryjoin='and_('
                     'Attendee.id == DeptMembership.attendee_id, '
                     'DeptMembership.has_role)',
-        viewonly=True)
-    dept_memberships_as_dept_head = relationship(
-        'DeptMembership',
-        primaryjoin='and_('
-                    'Attendee.id == DeptMembership.attendee_id, '
-                    'DeptMembership.is_dept_head == True)',
-        viewonly=True)
-    dept_memberships_as_poc = relationship(
-        'DeptMembership',
-        primaryjoin='and_('
-                    'Attendee.id == DeptMembership.attendee_id, '
-                    'DeptMembership.is_poc == True)',
-        viewonly=True)
-    dept_memberships_where_can_admin_checklist = relationship(
+        viewonly=True))
+    dept_memberships_where_can_admin_checklist: list['DeptMembership'] = Relationship(sa_relationship=relationship(
         'DeptMembership',
         primaryjoin='and_('
                     'Attendee.id == DeptMembership.attendee_id, '
                     'or_('
                     'DeptMembership.is_dept_head == True,'
                     'DeptMembership.is_checklist_admin == True))',
-        viewonly=True)
-    dept_memberships_as_checklist_admin = relationship(
+        viewonly=True))
+    dept_memberships_as_checklist_admin: list['DeptMembership'] = Relationship(sa_relationship=relationship(
         'DeptMembership',
         primaryjoin='and_('
                     'Attendee.id == DeptMembership.attendee_id, '
                     'DeptMembership.is_checklist_admin == True)',
-        viewonly=True)
-    pocs_for_depts_where_working = relationship(
-        'Attendee',
-        primaryjoin='Attendee.id == Shift.attendee_id',
-        secondaryjoin='and_('
-                      'DeptMembership.attendee_id == Attendee.id, '
-                      'DeptMembership.is_poc == True)',
-        secondary='join(Shift, Job).join(DeptMembership, '
-                  'DeptMembership.department_id == Job.department_id)',
-        order_by='Attendee.full_name',
-        viewonly=True)
-    dept_heads_for_depts_where_working = relationship(
-        'Attendee',
-        primaryjoin='Attendee.id == Shift.attendee_id',
-        secondaryjoin='and_('
-                      'DeptMembership.attendee_id == Attendee.id, '
-                      'DeptMembership.is_dept_head == True)',
-        secondary='join(Shift, Job).join(DeptMembership, '
-                  'DeptMembership.department_id == Job.department_id)',
-        order_by='Attendee.full_name',
-        viewonly=True)
+        viewonly=True))
 
-    staffing = Column(Boolean, default=False)
-    agreed_to_volunteer_agreement = Column(Boolean, default=False)
-    reviewed_emergency_procedures = Column(Boolean, default=False)
-    reviewed_cash_handling = Column(DateTime(timezone=True), nullable=True, default=None)
-    name_in_credits = Column(String, nullable=True)
-    walk_on_volunteer = Column(Boolean, default=False)
-    nonshift_minutes = Column(Integer, default=0, admin_only=True)
-    past_years = Column(String, admin_only=True)
-    can_work_setup = Column(Boolean, default=False, admin_only=True)
-    can_work_teardown = Column(Boolean, default=False, admin_only=True)
+    checklist_admin_depts: list['Department'] = Relationship(
+        back_populates="checklist_admins",
+        sa_relationship_kwargs={
+            'primaryjoin': 'and_(Department.id == DeptMembership.department_id, '
+                                'DeptMembership.is_checklist_admin == True)',
+            'secondary': 'dept_membership', 'viewonly': True, 'order_by': 'Department.name'})
+    depts_with_inherent_role: list['Department'] = Relationship(
+        back_populates="members_with_inherent_role",
+        sa_relationship_kwargs={
+            'primaryjoin': 'and_(Department.id == DeptMembership.department_id, '
+                                'DeptMembership.has_inherent_role)',
+            'secondary': 'dept_membership',
+            'order_by': 'Department.name', 'viewonly': True})
+    can_admin_checklist_depts: list['Department'] = Relationship(
+        back_populates="members_who_can_admin_checklist",
+        sa_relationship_kwargs={
+            'primaryjoin': 'and_(Department.id == DeptMembership.department_id, '
+                                'or_(DeptMembership.is_checklist_admin == True, '
+                                    'DeptMembership.is_dept_head == True))',
+            'secondary': 'dept_membership', 'viewonly': True, 'order_by': 'Department.name'})
+    poc_depts: list['Department'] = Relationship(
+        back_populates="pocs",
+        sa_relationship_kwargs={
+            'primaryjoin': 'and_(Department.id == DeptMembership.department_id, '
+                                'DeptMembership.is_poc == True)',
+            'secondary': 'dept_membership', 'viewonly': True, 'order_by': 'Department.name'})
+    explicitly_requested_depts: list['Department'] = Relationship(
+        back_populates="explicitly_requesting_attendees",
+        sa_relationship_kwargs={
+            'secondary': 'dept_membership_request', 'order_by': 'Department.name',
+            'overlaps': "attendee,dept_membership_requests,department,membership_requests"})
+    requested_depts: list['Department'] = Relationship(
+        back_populates="requesting_attendees",
+        sa_relationship_kwargs={
+            'primaryjoin': 'or_(DeptMembershipRequest.department_id == Department.id, '
+                               'DeptMembershipRequest.department_id == None)',
+            'secondary': 'dept_membership_request', 'order_by': 'Department.name', 'viewonly': True})
+    
+    staffing: bool = False
+    agreed_to_volunteer_agreement: bool = False
+    reviewed_emergency_procedures: bool = False
+    reviewed_cash_handling: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
+    name_in_credits: str | None
+    walk_on_volunteer: bool = False
+    nonshift_minutes: int = 0
+    past_years: str = ''
+    can_work_setup: bool = False
+    can_work_teardown: bool = False
 
-    # TODO: a record of when an attendee is unable to pickup a shirt
-    # (which type? swag or staff? prob swag)
-    no_shirt = relationship('NoShirt', backref=backref('attendee', load_on_pending=True), uselist=False)
+    admin_account: 'AdminAccount' = Relationship(back_populates="attendee",
+                                                 sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    managers: list['AttendeeAccount'] = Relationship(
+        back_populates="attendees",
+        sa_relationship_kwargs={'secondary': 'attendee_attendee_account'})
 
-    admin_account = relationship('AdminAccount', backref=backref('attendee', load_on_pending=True), uselist=False)
-    food_restrictions = relationship(
-        'FoodRestrictions', backref=backref('attendee', load_on_pending=True), uselist=False)
+    agent_codes: list['ArtShowAgentCode'] = Relationship(back_populates="attendee")
+    art_show_application: 'ArtShowApplication' = Relationship(
+        back_populates="attendee")
+    art_show_receipts: list['ArtShowReceipt'] = Relationship(
+        back_populates="attendee",
+        sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True, 'overlaps': 'art_show_purchases,buyer'})
+    
+    marketplace_application: 'ArtistMarketplaceApplication' = Relationship(
+        back_populates="attendee", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    
+    escalation_tickets: list['EscalationTicket'] = Relationship(
+        back_populates="attendees", sa_relationship_kwargs={'secondary': "attendee_escalation_ticket"})
+    food_restrictions: 'FoodRestrictions' = Relationship(back_populates="attendee",
+                                                         sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
 
-    sales = relationship('Sale', backref='attendee', cascade='save-update,merge,refresh-expire,expunge')
-    mpoints_for_cash = relationship('MPointsForCash', backref='attendee')
-    old_mpoint_exchanges = relationship('OldMPointExchange', backref='attendee')
-    dept_checklist_items = relationship('DeptChecklistItem', backref=backref('attendee', lazy='subquery'))
+    promo_code_groups: list['PromoCodeGroup'] = Relationship(back_populates="buyer", sa_relationship_kwargs={'lazy': 'select'})
 
-    indie_developer = relationship(
-        'IndieDeveloper', backref=backref('attendee', load_on_pending=True), uselist=False)
+    no_shirt: 'NoShirt' = Relationship(back_populates="attendee",
+                                       sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    sales: list['Sale'] = Relationship(back_populates="attendee")
+    mpoints_for_cash: list['MPointsForCash'] = Relationship(back_populates="attendee",
+                                                            sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    old_mpoint_exchanges: list['OldMPointExchange'] = Relationship(
+        back_populates="attendee", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    dept_checklist_items: list['DeptChecklistItem'] = Relationship(
+        back_populates="attendee", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
 
-    hotel_eligible = Column(Boolean, default=False, admin_only=True)
-    hotel_requests = relationship('HotelRequests', backref=backref('attendee', load_on_pending=True), uselist=False)
-    room_assignments = relationship('RoomAssignment', backref=backref('attendee', load_on_pending=True))
+    indie_developer: 'IndieDeveloper' = Relationship(
+        back_populates="attendee")
+
+    hotel_eligible: bool = False
+    hotel_requests: 'HotelRequests' = Relationship(back_populates="attendee",
+                                                   sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    room_assignments: list['RoomAssignment'] = Relationship(back_populates="attendee",
+                                                            sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    lottery_application: 'LotteryApplication' = Relationship(
+        back_populates="attendee")
 
     # The PIN/password used by third party hotel reservation systems
-    hotel_pin = SQLAlchemyColumn(String, nullable=True, unique=True)
+    hotel_pin: str | None = Field(nullable=True, unique=True)
 
     # =========================
     # mits
     # =========================
-    mits_applicants = relationship('MITSApplicant', backref='attendee')
+    mits_applicants: list['MITSApplicant'] = Relationship(
+        back_populates="attendee")
 
     # =========================
     # panels
     # =========================
-    assigned_panelists = relationship('AssignedPanelist', backref='attendee')
-    panel_applicants = relationship('PanelApplicant', backref='attendee', cascade='save-update,merge,refresh-expire,expunge')
-    panel_applications = relationship('PanelApplication', backref='poc')
-    panel_feedback = relationship('EventFeedback', backref='attendee')
-    submitted_panels = relationship(
+    assigned_panelists: list['AssignedPanelist'] = Relationship(back_populates="attendee",
+                                                                sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    panel_applicants: list['PanelApplicant'] = Relationship(
+        back_populates="attendee")
+    panel_applications: list['PanelApplication'] = Relationship(
+        back_populates="poc")
+    submitted_panels: list['PanelApplication'] = Relationship(sa_relationship=relationship(
         'PanelApplication',
         secondary='panel_applicant',
         secondaryjoin='and_(PanelApplicant.id == PanelApplication.submitter_id)',
         primaryjoin='and_(Attendee.id == PanelApplicant.attendee_id, PanelApplicant.submitter == True)',
         viewonly=True
-        )
+        ))
+    panel_feedback: 'EventFeedback' = Relationship(back_populates="attendee",
+                                                   sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
 
     # =========================
     # attractions
     # =========================
-    _NOTIFICATION_EMAIL = 0
-    _NOTIFICATION_TEXT = 1
-    _NOTIFICATION_NONE = 2
-    _NOTIFICATION_PREF_OPTS = [
+    _NOTIFICATION_EMAIL: ClassVar = 0
+    _NOTIFICATION_TEXT: ClassVar = 1
+    _NOTIFICATION_NONE: ClassVar = 2
+    _NOTIFICATION_PREF_OPTS: ClassVar = [
         (_NOTIFICATION_EMAIL, 'Email'),
         (_NOTIFICATION_TEXT, 'Text'),
         (_NOTIFICATION_NONE, 'None')]
 
-    notification_pref = Column(Choice(_NOTIFICATION_PREF_OPTS), default=_NOTIFICATION_EMAIL)
-    attractions_opt_out = Column(Boolean, default=False)
+    notification_pref: int = Field(sa_column=Column(Choice(_NOTIFICATION_PREF_OPTS)), default=_NOTIFICATION_EMAIL)
+    attractions_opt_out: bool = False
 
-    attraction_signups = relationship('AttractionSignup', backref='attendee', order_by='AttractionSignup.signup_time')
-    attraction_event_signups = association_proxy('attraction_signups', 'event')
-    attraction_notifications = relationship(
-        'AttractionNotification', backref='attendee', order_by='AttractionNotification.sent_time')
+    attraction_events: list['AttractionEvent'] = Relationship(
+        back_populates="attendees",
+        sa_relationship_kwargs={
+            'secondary': 'attraction_signup',
+            'overlaps': 'attendee,attraction_signups,event,signups'})
+    attraction_signups: list['AttractionSignup'] = Relationship(
+        back_populates="attendee",
+        sa_relationship_kwargs={'order_by': 'AttractionSignup.signup_time', 'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    attraction_notifications: list['AttractionNotification'] = Relationship(
+        back_populates="attendee",
+        sa_relationship_kwargs={'order_by': 'AttractionNotification.sent_time', 'cascade': 'all,delete-orphan', 'passive_deletes': True})
 
     # =========================
     # tabletop
     # =========================
-    games = relationship('TabletopGame', backref='attendee')
-    checkouts = relationship('TabletopCheckout', backref='attendee')
+    games: list['TabletopGame'] = Relationship(back_populates="attendee",
+                                               sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    checkouts: list['TabletopCheckout'] = Relationship(back_populates="attendee",
+                                                       sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
     
     # =========================
     # badge printing
     # =========================
-    print_requests = relationship('PrintJob', backref='attendee', order_by='desc(PrintJob.last_updated)')
+    print_requests: list['PrintJob'] = Relationship(
+        back_populates="attendee",
+        sa_relationship_kwargs={'order_by': 'desc(PrintJob.last_updated)', 'cascade': 'all,delete-orphan', 'passive_deletes': True})
 
     # =========================
     # art show
     # =========================
-    art_show_bidder = relationship('ArtShowBidder', backref=backref('attendee', load_on_pending=True), uselist=False)
-    art_show_purchases = relationship(
-        'ArtShowPiece',
-        backref='buyer',
-        cascade='save-update,merge,refresh-expire,expunge',
-        secondary='art_show_receipt')
-    art_agent_apps = relationship(
-        'ArtShowApplication',
-        backref='agents',
-        secondaryjoin='and_(ArtShowAgentCode.app_id == ArtShowApplication.id, ArtShowAgentCode.cancelled == None)',
-        secondary='art_show_agent_code',
-        viewonly=True)
+    art_show_bidder: 'ArtShowBidder' = Relationship(back_populates="attendee",
+                                                    sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    art_show_purchases: list['ArtShowPiece'] = Relationship(
+        back_populates="buyer",
+        sa_relationship_kwargs={'secondary': 'art_show_receipt'})
+    art_agent_apps: list['ArtShowApplication'] = Relationship(
+        back_populates="agents",
+        sa_relationship_kwargs={
+            'secondaryjoin': 'and_(ArtShowAgentCode.app_id == ArtShowApplication.id, ArtShowAgentCode.cancelled == None)',
+            'secondary': 'art_show_agent_code', 'viewonly': True
+        })
 
-    _attendee_table_args = [
-        Index('ix_attendee_paid_group_id', paid, group_id),
-        Index('ix_attendee_badge_status_badge_type', badge_status, badge_type),
+    _attendee_table_args: ClassVar = [
+        Index('ix_attendee_paid_group_id', 'paid', 'group_id'),
+        Index('ix_attendee_badge_status_badge_type', 'badge_status', 'badge_type'),
     ]
 
-    __table_args__ = tuple(_attendee_table_args)
-    _repr_attr_names = ['full_name']
+    __table_args__: ClassVar = tuple(_attendee_table_args)
+    _repr_attr_names: ClassVar = ['full_name']
 
     def to_dict(self, *args, **kwargs):
         # Kludgey fix for SQLAlchemy breaking our stuff
         d = super().to_dict(*args, **kwargs)
-        d.pop('attraction_event_signups', None)
         d.pop('receipt_changes', None)
         d['badge_num'] = self.badge_num
         return d
@@ -571,8 +606,8 @@ class Attendee(MagModel, TakesPaymentMixin):
             self.age_group = self.age_group_conf['val']
 
         for attr in ['first_name', 'last_name']:
-            value = getattr(self, attr)
-            if (value.isupper() or value.islower()):
+            value = getattr(self, attr, '')
+            if value and (value.isupper() or value.islower()):
                 setattr(self, attr, value.title())
 
         if self.legal_name and self.full_name == self.legal_name:
@@ -907,7 +942,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             section_list.append('mits_admin')
         if c.MIVS in self.ribbon_ints or self.group and self.group.guest and self.group.guest.group_type == c.MIVS:
             section_list.append('showcase_admin')
-        if self.art_show_applications or self.art_show_bidder or self.art_show_purchases or self.art_agent_apps:
+        if self.art_show_application or self.art_show_bidder or self.art_show_purchases or self.art_agent_apps:
             section_list.append('art_show_admin')
         if self.marketplace_application:
             section_list.append('marketplace_admin')
@@ -1396,7 +1431,7 @@ class Attendee(MagModel, TakesPaymentMixin):
                 email_only(c.REGDESK_EMAIL),
                 " to cancel your badge")
 
-        if self.art_show_applications and self.art_show_applications[0].is_valid:
+        if self.art_show_application and self.art_show_application.is_valid:
             return f"Please contact {email_only(c.ART_SHOW_EMAIL)} to cancel your art show application first."
         if self.art_agent_apps and any(app.is_valid for app in self.art_agent_apps):
             return "Please ask the artist you're agenting for to {} first.".format(
@@ -1626,7 +1661,7 @@ class Attendee(MagModel, TakesPaymentMixin):
             and not self.overridden_price \
             and not self.admin_account \
             and not self.dept_memberships_with_inherent_role \
-            and (not self.art_show_applications or not self.art_show_applications[0].is_valid) \
+            and (not self.art_show_application or not self.art_show_application.is_valid) \
             and (not self.art_agent_apps or not any(app.is_valid for app in self.art_agent_apps)) \
             and (not self.lottery_application or self.lottery_application.status not in self.dq_lottery_statuses)
 
@@ -1637,7 +1672,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
         if self.lottery_application and self.lottery_application.status == c.COMPLETE:
             can_do.append("withdraw your hotel lottery entry")
-        if self.art_show_applications and self.art_show_applications[0].is_valid:
+        if self.art_show_application and self.art_show_application.is_valid:
             can_do.append(f"contact {email_only(c.ART_SHOW_EMAIL)} to cancel your art show application")
         if self.art_agent_apps and any(app.is_valid for app in self.art_agent_apps):
             can_do.append("ask the artist you're agenting for to {} first.".format(
@@ -1751,7 +1786,7 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def donation_swag(self):
         donation_items = [
-            desc for amount, desc in sorted(c.DONATION_TIERS.items()) if amount and self.amount_extra >= amount]
+            desc for amount, desc in sorted(c.DONATION_TIERS.items()) if amount and (self.amount_extra or 0) >= amount]
         extra_donations = ['Extra donation of ${}'.format(self.extra_donation)] if self.extra_donation else []
         return donation_items + extra_donations
 
@@ -1792,7 +1827,7 @@ class Attendee(MagModel, TakesPaymentMixin):
         """
         merch = []
         for amount, desc in sorted(c.DONATION_TIERS.items()):
-            if amount and self.amount_extra >= amount:
+            if amount and (self.amount_extra or 0) >= amount:
                 merch.append(desc)
                 items = c.DONATION_TIER_ITEMS.get(amount, [])
                 if len(items) == 1:
@@ -2073,12 +2108,12 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def weighted_hours(self):
         weighted_hours = sum(s.job.weighted_hours for s in self.shifts)
-        return weighted_hours + self.nonshift_minutes / 60
+        return weighted_hours + (self.nonshift_minutes or 0) / 60
 
     @property
     def unweighted_hours(self):
         unweighted_hours = sum(s.job.real_duration for s in self.shifts) / 60
-        return unweighted_hours + self.nonshift_minutes / 60
+        return unweighted_hours + (self.nonshift_minutes or 0) / 60
 
     def weighted_hours_in(self, department_id):
         if not department_id:
@@ -2093,12 +2128,12 @@ class Attendee(MagModel, TakesPaymentMixin):
     @property
     def worked_hours(self):
         weighted_hours = sum(s.job.weighted_hours for s in self.worked_shifts)
-        return weighted_hours + self.nonshift_minutes / 60
+        return weighted_hours + (self.nonshift_minutes or 0) / 60
 
     @property
     def unweighted_worked_hours(self):
         unweighted_hours = sum(s.job.real_duration / 60 for s in self.worked_shifts)
-        return unweighted_hours + self.nonshift_minutes / 60
+        return unweighted_hours + (self.nonshift_minutes or 0) / 60
 
     def worked_hours_in(self, department_id):
         if not department_id:
@@ -2225,7 +2260,9 @@ class Attendee(MagModel, TakesPaymentMixin):
     def depts_where_can_admin(self):
         if self.admin_account and self.admin_account.full_dept_admin:
             from uber.models.department import Department
-            return self.session.query(Department).order_by(Department.name).all()
+            return self.session.query(Department).options(
+                selectinload(Department.dept_roles), selectinload(Department.job_templates)
+            ).order_by(Department.name).all()
         return self.depts_with_inherent_role
 
     def has_shifts_in(self, department):
@@ -2293,13 +2330,6 @@ class Attendee(MagModel, TakesPaymentMixin):
     def staffer_hotel_eligibility(self):
         if self.badge_type == c.STAFF_BADGE and (self.is_new or self.orig_value_of('badge_type') != c.STAFF_BADGE):
             self.hotel_eligible = True
-
-    @presave_adjustment
-    def staffer_setup_teardown(self):
-        if self.setup_hotel_approved:
-            self.can_work_setup = True
-        if self.teardown_hotel_approved:
-            self.can_work_teardown = True
 
     @property
     def hotel_shifts_required(self):
@@ -2559,19 +2589,26 @@ attendee_attendee_account = Table(
 )
 
 
-class AttendeeAccount(MagModel):
-    public_id = Column(Uuid(as_uuid=False), default=lambda: str(uuid4()), nullable=True)
-    email = Column(String)
-    hashed = Column(String, private=True)
-    password_reset = relationship('PasswordReset', backref='attendee_account', uselist=False)
-    attendees = relationship(
-        'Attendee', backref='managers', order_by='Attendee.registered',
-        cascade='save-update,merge,refresh-expire,expunge',
-        secondary='attendee_attendee_account')
-    imported = Column(Boolean, default=False)
-    unused_years = Column(Integer, default=0)
+class AttendeeAccount(MagModel, table=True):
+    """
+    PasswordReset: select
+    """
 
-    email_model_name = 'account'
+    public_id: str | None = Field(sa_type=Uuid(as_uuid=False), default_factory=lambda: str(uuid4()), nullable=True)
+    email: str = ''
+    hashed: str = Field(default='', private=True)
+    password_reset: 'PasswordReset' = Relationship(
+        back_populates="attendee_account",
+        sa_relationship_kwargs={'lazy': 'select', 'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    attendees: list['Attendee'] = Relationship(
+        back_populates="managers",
+        sa_relationship_kwargs={
+            'order_by': 'Attendee.registered', 
+            'secondary': 'attendee_attendee_account'})
+    imported: bool = False
+    unused_years: int = 0
+
+    email_model_name: ClassVar = 'account'
 
     @presave_adjustment
     def strip_email(self):
@@ -2685,9 +2722,17 @@ class AttendeeAccount(MagModel):
                 and not attendee.current_attendee]
 
 
-class BadgePickupGroup(MagModel):
-    public_id = Column(Uuid(as_uuid=False), default=lambda: str(uuid4()), nullable=True)
-    account_id = Column(String)
+class BadgePickupGroup(MagModel, table=True):
+    """
+    Attendee: selectin
+    """
+
+    public_id: str | None = Field(sa_type=Uuid(as_uuid=False), default_factory=lambda: str(uuid4()), nullable=True)
+    account_id: str = ''
+
+    attendees: list['Attendee'] = Relationship(
+        back_populates="badge_pickup_group",
+        sa_relationship_kwargs={'lazy': 'selectin', 'order_by': 'Attendee.full_name'})
 
     def build_from_account(self, account):
         for attendee in account.attendees:
@@ -2762,11 +2807,17 @@ class BadgePickupGroup(MagModel):
         return [attendee for attendee in self.check_inable_attendees if attendee.age_now_or_at_con < 18]
 
 
-class FoodRestrictions(MagModel):
-    attendee_id = Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), unique=True)
-    standard = Column(MultiChoice(c.FOOD_RESTRICTION_OPTS))
-    sandwich_pref = Column(MultiChoice(c.SANDWICH_OPTS))
-    freeform = Column(String)
+class FoodRestrictions(MagModel, table=True):
+    """
+    Attendee: joined
+    """
+
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE', unique=True)
+    attendee: 'Attendee' = Relationship(back_populates="food_restrictions", sa_relationship_kwargs={'lazy': 'joined'})
+
+    standard: str = Field(sa_type=MultiChoice(c.FOOD_RESTRICTION_OPTS), default='')
+    sandwich_pref: str = Field(sa_type=MultiChoice(c.SANDWICH_OPTS), default='')
+    freeform: str = ''
 
     def __getattr__(self, name):
         try:

@@ -219,8 +219,8 @@ def _prepare_attendees_export(attendees, include_account_ids=False, include_apps
             d['attendee_account_ids'] = [m.id for m in a.managers]
 
         if include_apps:
-            if a.art_show_applications:
-                d['art_show_app'] = a.art_show_applications[0].to_dict(art_show_import_fields)
+            if a.art_show_application:
+                d['art_show_app'] = a.art_show_application.to_dict(art_show_import_fields)
             if a.marketplace_application:
                 d['marketplace_app'] = a.marketplace_application.to_dict(marketplace_import_fields)
 
@@ -1699,7 +1699,7 @@ class PrintJobLookup:
                 if not restart or not errors:
                     results[job.id] = self._build_job_json_data(job)
                     if not dry_run:
-                        job.queued = datetime.utcnow()
+                        job.queued = datetime.now(UTC)
                         session.add(job)
                         session.commit()
 
@@ -1793,7 +1793,7 @@ class PrintJobLookup:
 
             for job in jobs:
                 results[job.id] = self._build_job_json_data(job)
-                job.printed = datetime.utcnow()
+                job.printed = datetime.now(UTC)
                 session.add(job)
                 session.commit()
 
@@ -1839,7 +1839,7 @@ class PrintJobLookup:
                     else:
                         job.errors = error
                 else:
-                    job.printed = datetime.utcnow()
+                    job.printed = datetime.now(UTC)
                 session.add(job)
                 session.commit()
 

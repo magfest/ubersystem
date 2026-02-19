@@ -3,7 +3,7 @@ from uber.decorators import all_renderable, csv_file, log_pageview
 
 from collections import defaultdict
 from sqlalchemy import func, or_, and_
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, lazyload
 
 from uber.custom_tags import format_currency
 from uber.models import ArtShowApplication, ArtShowBidder, ArtShowPiece, ArtShowReceipt, Attendee, ModelReceipt
@@ -252,7 +252,9 @@ class Root:
             ArtShowApplication.status == c.APPROVED
             ).join(ArtShowApplication.active_receipt).outerjoin(ModelReceipt.receipt_items).group_by(
                 ModelReceipt.id).group_by(ArtShowApplication.id).having(
-                    ArtShowApplication.true_default_cost_cents != ModelReceipt.fkless_item_total_sql)
+                    ArtShowApplication.true_default_cost_cents != ModelReceipt.fkless_item_total_sql).options(
+                        lazyload("*")
+                    )
 
         return {
             'apps': apps,
@@ -274,7 +276,7 @@ class Root:
                 ModelReceipt.receipt_txns).join(item_subquery, ArtShowApplication.id == item_subquery.c.owner_id).group_by(
                     ModelReceipt.id).group_by(ArtShowApplication.id).group_by(item_subquery.c.item_total).having(
                         and_((ModelReceipt.payment_total_sql - ModelReceipt.refund_total_sql) != item_subquery.c.item_total,
-                             filter))
+                             filter)).options(lazyload("*"))
 
         if include_no_receipts:
             apps_no_receipts = session.query(ArtShowApplication).outerjoin(
@@ -474,8 +476,8 @@ class Root:
                       ])
 
         for bidder in session.query(ArtShowBidder).join(ArtShowBidder.attendee):
-            if bidder.attendee.badge_status == c.NOT_ATTENDING and bidder.attendee.art_show_applications:
-                address_model = bidder.attendee.art_show_applications[0]
+            if bidder.attendee.badge_status == c.NOT_ATTENDING and bidder.attendee.art_show_application:
+                address_model = bidder.attendee.art_show_application
             else:
                 address_model = bidder.attendee
 
