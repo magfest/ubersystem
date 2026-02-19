@@ -10,7 +10,6 @@ from sqlalchemy import func, or_, select, update
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer, String, Uuid, DateTime
 from sqlmodel import Field, Relationship
@@ -88,7 +87,9 @@ class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
     active_before: datetime | None = Column(DateTime(timezone=True), nullable=True, default=None)
     revert_changes: dict[str, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
 
-    emails: list['Email'] = Relationship(sa_relationship=relationship('Email', backref=backref('automated_email', lazy='joined'), order_by='Email.id'))
+    emails: list['Email'] = Relationship(
+        back_populates="automated_email",
+        sa_relationship_kwargs={'cascade': 'save-update,merge,refresh-expire,expunge', 'order_by': 'Email.id'})
 
     @presave_adjustment
     def date_adjustments(self):
@@ -353,8 +354,8 @@ class Email(MagModel, BaseEmailMixin, table=True):
     AutomatedEmail: joined
     """
     
-    automated_email_id: str | None = Field(sa_column=Column(
-        Uuid(as_uuid=False), ForeignKey('automated_email.id', ondelete='set null'), nullable=True, default=None, index=True))
+    automated_email_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='automated_email.id', nullable=True, index=True)
+    automated_email: 'AutomatedEmail' = Relationship(back_populates="emails", sa_relationship_kwargs={'lazy': 'joined'})
 
     fk_id: str | None = Column(Uuid(as_uuid=False), nullable=True)
     ident: str = Column(String)

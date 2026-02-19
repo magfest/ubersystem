@@ -9,8 +9,7 @@ from pytz import UTC
 from dateutil import parser as dateparser
 from sqlalchemy import exists, func, select, CheckConstraint
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import backref
-from sqlalchemy.schema import Index, ForeignKey
+from sqlalchemy.schema import Index
 from sqlalchemy.types import Integer, Uuid, String, DateTime
 from sqlmodel import Field, Relationship
 from typing import ClassVar
@@ -136,14 +135,15 @@ class PromoCodeGroup(MagModel, table=True):
     PromoCode: selectin
     """
 
+    buyer_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
+    buyer: 'Attendee' = Relationship(back_populates="promo_code_groups", sa_relationship_kwargs={'lazy': 'joined'})
+
     name: str = Column(String)
     code: str = Column(String, admin_only=True)
     registered: datetime = Field(sa_column=Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC)))
-    buyer_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True))
-    buyer: 'Attendee' = Relationship(sa_relationship=relationship(
-        'Attendee', backref='promo_code_groups', lazy='joined',
-        foreign_keys='PromoCodeGroup.buyer_id',
-        cascade='save-update,merge,refresh-expire,expunge'))
+
+    promo_codes: list['PromoCode'] = Relationship(
+        back_populates="group", sa_relationship_kwargs={'lazy': 'selectin', 'cascade': 'save-update,merge,refresh-expire,expunge'})
 
     email_model_name: ClassVar = 'group'
 
@@ -314,6 +314,8 @@ class PromoCode(MagModel, table=True):
         (_FIXED_PRICE, 'Fixed Price'),
         (_PERCENT_DISCOUNT, 'Percent Discount')]
 
+    group_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='promo_code_group.id', nullable=True)
+    group: 'PromoCodeGroup' = Relationship(back_populates="promo_codes", sa_relationship_kwargs={'lazy': 'joined'})
     
     code: str = Column(String)
     discount: int | None = Column(Integer, nullable=True, default=None)
@@ -322,12 +324,10 @@ class PromoCode(MagModel, table=True):
     uses_allowed: int | None = Column(Integer, nullable=True, default=None)
     cost: int | None = Column(Integer, nullable=True, default=None)
     admin_notes: str = Column(String)
-
-    group_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('promo_code_group.id', ondelete='SET NULL'), nullable=True))
-    group: 'PromoCodeGroup' = Relationship(sa_relationship=relationship(
-        PromoCodeGroup, backref=backref('promo_codes', lazy='selectin'), lazy='joined',
-        foreign_keys='PromoCode.group_id',
-        cascade='save-update,merge,refresh-expire,expunge'))
+    
+    used_by: list['Attendee'] = Relationship(
+        back_populates="promo_code", sa_relationship_kwargs={'lazy': 'selectin', 'cascade': 'merge,refresh-expire,expunge'}
+    )
 
     _repr_attr_names: ClassVar = ('code',)
 

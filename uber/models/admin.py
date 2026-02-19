@@ -5,7 +5,6 @@ from pytz import UTC
 from sqlalchemy import Sequence, Uuid, String, DateTime
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
 from sqlalchemy.types import Boolean, Date, Integer
 from sqlmodel import Field, Relationship
@@ -37,29 +36,36 @@ class AdminAccount(MagModel, table=True):
     """
     Attendee: joined
     AccessGroup: selectin
+    ApiToken: select
     PasswordReset: select
     """
 
-    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), unique=True))
-    access_groups: list['AccessGroup'] = Relationship(sa_relationship=relationship(
-        'AccessGroup', backref='admin_accounts', lazy='selectin', cascade='save-update,merge,refresh-expire,expunge',
-        secondary='admin_access_group'))
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE', unique=True)
+    attendee: 'Attendee' = Relationship(
+        back_populates="admin_account", sa_relationship_kwargs={'lazy': 'joined', 'cascade': 'save-update,merge,refresh-expire,expunge'})
+
     hashed: str = Column(String, private=True)
 
-    password_reset: "PasswordReset" = Relationship(sa_relationship=relationship('PasswordReset', backref='admin_account', lazy='select', uselist=False))
-
-    api_tokens: list['ApiToken'] = Relationship(sa_relationship=relationship('ApiToken', backref=backref('admin_account', lazy='joined')))
+    access_groups: list['AccessGroup'] = Relationship(
+        back_populates='admin_accounts',
+        sa_relationship_kwargs={'lazy': 'selectin', 'cascade': 'save-update,merge,refresh-expire,expunge', 'secondary': 'admin_access_group'})
+    password_reset: "PasswordReset" = Relationship(
+        back_populates='admin_account', sa_relationship_kwargs={'lazy': 'select', 'passive_deletes': True})
+    api_tokens: list['ApiToken'] = Relationship(back_populates="admin_account", sa_relationship_kwargs={'passive_deletes': True})
     active_api_tokens: list['ApiToken'] = Relationship(sa_relationship=relationship(
-        'ApiToken',
+        'ApiToken', lazy='select',
         primaryjoin='and_('
                     'AdminAccount.id == ApiToken.admin_account_id, '
                     'ApiToken.revoked_time == None)',
         overlaps="admin_account,api_tokens"))
-
-    judge: 'IndieJudge' = Relationship(sa_relationship=relationship('IndieJudge', uselist=False, backref='admin_account'))
-    print_requests: list['PrintJob'] = Relationship(sa_relationship=relationship('PrintJob', backref='admin_account',
-                                  cascade='save-update,merge,refresh-expire,expunge'))
-    api_jobs: list['ApiJob'] = Relationship(sa_relationship=relationship('ApiJob', backref='admin_account', cascade='save-update,merge,refresh-expire,expunge'))
+    api_jobs: list['ApiJob'] = Relationship(
+        back_populates="admin_account", sa_relationship_kwargs={'cascade': 'save-update,merge,refresh-expire,expunge'})
+    
+    attractions: list['Attraction'] = Relationship(
+        back_populates="owner", sa_relationship_kwargs={'cascade': 'save-update,merge,refresh-expire,expunge', 'order_by': 'Attraction.name'})
+    judge: 'IndieJudge' = Relationship(back_populates="admin_account", sa_relationship_kwargs={'cascade': 'save-update,merge,refresh-expire,expunge'})
+    print_requests: list['PrintJob'] = Relationship(
+        back_populates="admin_account", sa_relationship_kwargs={'cascade': 'save-update,merge,refresh-expire,expunge'})
 
     def __repr__(self):
         return f"<Admin full_name='{self.attendee.full_name}'>"
@@ -263,8 +269,12 @@ class AdminAccount(MagModel, table=True):
 
 
 class PasswordReset(MagModel, table=True):
-    admin_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('admin_account.id'), unique=True, nullable=True))
-    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee_account.id'), unique=True, nullable=True))
+    admin_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='admin_account.id', ondelete='CASCADE', unique=True)
+    admin_account: 'AdminAccount' = Relationship(back_populates="password_reset")
+
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee_account.id', ondelete='CASCADE', unique=True)
+    attendee_account: 'AttendeeAccount' = Relationship(back_populates="password_reset")
+
     generated: datetime = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
     hashed: str = Column(String, private=True)
 
@@ -294,6 +304,10 @@ class AccessGroup(MagModel, table=True):
         (CONTACT, 'Contact Info'),
         (DEPT, 'All Info in Own Dept(s)'),
         (FULL, 'All Info')]
+    
+    admin_accounts: list['AdminAccount'] = Relationship(
+        back_populates='access_groups',
+        sa_relationship_kwargs={'secondary': 'admin_access_group', 'cascade': 'save-update,merge,refresh-expire,expunge'})
 
     name: str = Column(String)
     access: dict[str, int] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
@@ -354,8 +368,9 @@ class WatchList(MagModel, table=True):
     action: str = Column(String)
     expiration: datetime | None = Column(Date, nullable=True, default=None)
     active: bool = Column(Boolean, default=True)
-    attendees: list['Attendee'] = Relationship(sa_relationship=relationship('Attendee', lazy='selectin',
-                             backref=backref('watch_list'), cascade='save-update,merge,refresh-expire,expunge'))
+    attendees: list['Attendee'] = Relationship(
+        back_populates="watch_list",
+        sa_relationship_kwargs={'lazy': 'selectin', 'cascade': 'save-update,merge,refresh-expire,expunge'})
 
     @property
     def full_name(self):
@@ -387,10 +402,10 @@ class EscalationTicket(MagModel, table=True):
     """
     Attendee: selectin
     """
-    attendees: list['Attendee'] = Relationship(sa_relationship=relationship(
-        'Attendee', lazy='selectin', backref='escalation_tickets', order_by='Attendee.full_name',
-        cascade='save-update,merge,refresh-expire,expunge',
-        secondary='attendee_escalation_ticket'))
+    attendees: list['Attendee'] = Relationship(
+        back_populates="escalation_tickets",
+        sa_relationship_kwargs={'lazy': 'selectin', 'order_by': 'Attendee.full_name',
+                                'cascade': 'save-update,merge,refresh-expire,expunge', 'secondary': 'attendee_escalation_ticket'})
     ticket_id_seq: ClassVar = Sequence('escalation_ticket_ticket_id_seq')
     ticket_id: int = Column(Integer, ticket_id_seq, server_default=ticket_id_seq.next_value(), unique=True)
     who: str = Column(String)

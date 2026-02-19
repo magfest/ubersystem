@@ -219,8 +219,8 @@ def _prepare_attendees_export(attendees, include_account_ids=False, include_apps
             d['attendee_account_ids'] = [m.id for m in a.managers]
 
         if include_apps:
-            if a.art_show_applications:
-                d['art_show_app'] = a.art_show_applications[0].to_dict(art_show_import_fields)
+            if a.art_show_application:
+                d['art_show_app'] = a.art_show_application.to_dict(art_show_import_fields)
             if a.marketplace_application:
                 d['marketplace_app'] = a.marketplace_application.to_dict(marketplace_import_fields)
 

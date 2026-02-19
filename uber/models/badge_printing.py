@@ -1,7 +1,6 @@
 from datetime import datetime
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer, Uuid, String, DateTime
 from sqlmodel import Field, Relationship
 from typing import Any
@@ -18,8 +17,11 @@ class PrintJob(MagModel, table=True):
     Attendee: joined
     """
     
-    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id')))
-    admin_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('admin_account.id'), nullable=True))
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
+    attendee: 'Attendee' = Relationship(back_populates="print_requests", sa_relationship_kwargs={'lazy': 'joined'})
+
+    admin_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='admin_account.id', nullable=True)
+    admin_account: "AdminAccount" = Relationship(back_populates="print_requests")
 
     admin_name: str = Column(String)  # Preserve admin's name in case their account is removed
     printer_id: str = Column(String)

@@ -1,8 +1,6 @@
 from datetime import datetime
 
 from pytz import UTC
-from sqlalchemy.orm import backref
-from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, DateTime, String, Uuid
 from sqlmodel import Field, Relationship
 from typing import ClassVar
@@ -15,11 +13,15 @@ __all__ = ['TabletopGame', 'TabletopCheckout']
 
 
 class TabletopGame(MagModel, table=True):
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
+    attendee: 'Attendee' = Relationship(back_populates="games")
+
     code: str = Column(String)
     name: str = Column(String)
-    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id')))
     returned: bool = Column(Boolean, default=False)
-    checkouts: list['TabletopCheckout'] = Relationship(sa_relationship=relationship('TabletopCheckout', order_by='TabletopCheckout.checked_out', backref=backref('game', lazy='joined')))
+
+    checkouts: list['TabletopCheckout'] = Relationship(
+        back_populates="game", sa_relationship_kwargs={'order_by': 'TabletopCheckout.checked_out', 'passive_deletes': True})
 
     _repr_attr_names: ClassVar = ['name']
 
@@ -37,7 +39,11 @@ class TabletopCheckout(MagModel, table=True):
     TabletopGame: joined
     """
 
-    game_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('tabletop_game.id')))
-    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id')))
+    game_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='tabletop_game.id', ondelete='CASCADE')
+    game: 'TabletopGame' = Relationship(back_populates="checkouts", sa_relationship_kwargs={'lazy': 'joined'})
+
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
+    attendee: 'Attendee' = Relationship(back_populates="checkouts", sa_relationship_kwargs={'lazy': 'joined'})
+
     checked_out: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
     returned: datetime | None = Column(DateTime(timezone=True), nullable=True)

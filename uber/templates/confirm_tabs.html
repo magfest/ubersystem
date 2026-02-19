@@ -44,13 +44,13 @@
     </a>
   </li>
 {% endfor %}
-{% for art_show_app in attendee.art_show_applications %}
+{% if attendee.art_show_application %}
   <li class="nav-item{% if 'art_show_applications' in c.PAGE_PATH and not bootstrap5 %} active{% endif %}" role="presentation">
-    <a href="../art_show_applications/edit?id={{ art_show_app.id }}" class="nav-link{% if 'art_show_applications' in c.PAGE_PATH %} active{% endif %}">
-      <i class="fa fa-picture"></i> Art Show Application{% if art_show_app.display_name != art_show_app.attendee.full_name %} ({{ art_show_app.display_name }}){% endif %}
+    <a href="../art_show_applications/edit?id={{ attendee.art_show_application.id }}" class="nav-link{% if 'art_show_applications' in c.PAGE_PATH %} active{% endif %}">
+      <i class="fa fa-picture"></i> Art Show Application{% if attendee.art_show_application.display_name != attendee.art_show_application.attendee.full_name %} ({{ attendee.art_show_application.display_name }}){% endif %}
     </a>
   </li>
-{% endfor %}
+{% endif %}
 {% if attendee.marketplace_application %}
   <li class="nav-item" role="presentation">
     <a href="../marketplace/edit?id={{ attendee.marketplace_application.id }}" class="nav-link{% if 'marketplace' in c.PAGE_PATH %} active{% endif %}">
@@ -84,7 +84,7 @@
 {% if not c.ATTENDEE_ACCOUNTS_ENABLED %}
 <li class="nav-item ms-auto">
   <div class="input-group me-2">
-    {% if c.ART_SHOW_ENABLED and c.ART_SHOW_OPEN and not attendee.art_show_applications %}
+    {% if c.ART_SHOW_ENABLED and c.ART_SHOW_OPEN and not attendee.art_show_application %}
     <a class="p-0" href="../art_show_applications/index?attendee_id={{ attendee.id }}">
       <button type="button" class="btn btn-outline-primary"><i class="fa fa-tags"></i>&nbsp; Apply for Art Show</button>
     </a>
@@ -109,6 +109,3 @@
 </li>
 {% endif %}
 </ul>
-
-{% if not attendee.art_show_applications and c.ART_SHOW_OPEN %}
-{% endif %}

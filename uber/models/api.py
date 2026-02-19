@@ -3,7 +3,6 @@ from datetime import datetime
 
 from pytz import UTC
 from sqlalchemy import String, Uuid, DateTime
-from sqlalchemy.schema import ForeignKey
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.mutable import MutableDict
 from sqlmodel import Field, Relationship
@@ -22,9 +21,11 @@ class ApiToken(MagModel, table=True):
     AdminAccount: joined
     """
 
-    admin_account_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('admin_account.id')))
+    admin_account_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='admin_account.id', ondelete='CASCADE')
+    admin_account: "AdminAccount" = Relationship(back_populates="api_tokens", sa_relationship_kwargs={'lazy': 'joined'})
+
     token: str | None = Column(Uuid(as_uuid=False), default=lambda: str(uuid.uuid4()), private=True)
-    access: int = Column(MultiChoice(c.API_ACCESS_OPTS))
+    access: str = Column(MultiChoice(c.API_ACCESS_OPTS))
     name: str = Column(String)
     description: str = Column(String)
     issued_time: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
@@ -48,7 +49,9 @@ class ApiToken(MagModel, table=True):
 
 
 class ApiJob(MagModel, table=True):
-    admin_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('admin_account.id'), nullable=True))
+    admin_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='admin_account.id', nullable=True)
+    admin_account: "AdminAccount" = Relationship(back_populates="api_jobs")
+
     admin_name: str = Column(String)  # Preserve admin's name in case their account is removed
     queued: datetime | None = Column(DateTime(timezone=True), nullable=True, default=None)
     completed: datetime | None = Column(DateTime(timezone=True), nullable=True, default=None)

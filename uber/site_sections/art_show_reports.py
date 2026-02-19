@@ -476,8 +476,8 @@ class Root:
                       ])
 
         for bidder in session.query(ArtShowBidder).join(ArtShowBidder.attendee):
-            if bidder.attendee.badge_status == c.NOT_ATTENDING and bidder.attendee.art_show_applications:
-                address_model = bidder.attendee.art_show_applications[0]
+            if bidder.attendee.badge_status == c.NOT_ATTENDING and bidder.attendee.art_show_application:
+                address_model = bidder.attendee.art_show_application
             else:
                 address_model = bidder.attendee
 

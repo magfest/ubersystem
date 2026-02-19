@@ -602,7 +602,7 @@ class MagModel(SQLModel):
             if value is None:
                 return  # Totally fine for value to be None
 
-            elif value == '' and isinstance(column.type, (Uuid(as_uuid=False), Float, Numeric, Choice, Integer, DateTime, Date)):
+            elif value == '' and isinstance(column.type, (Uuid, Float, Numeric, Choice, Integer, DateTime, Date)):
                 return None
 
             elif isinstance(column.type, Boolean):
@@ -1031,7 +1031,7 @@ class UberSession(sqlalchemy.orm.Session):
                                                         ).outerjoin(ArtShowBidder).filter(
                                                             or_(Attendee.art_show_bidder != None,  # noqa: E711
                                                                 Attendee.art_show_purchases != None,  # noqa: E711
-                                                                Attendee.art_show_applications != None,  # noqa: E711
+                                                                Attendee.art_show_application != None,  # noqa: E711
                                                                 Attendee.art_agent_apps != None)  # noqa: E711
                                                         ).outerjoin(ArtShowAgentCode).filter(
                                                             ArtShowAgentCode.attendee_id == Attendee.id,
@@ -1399,7 +1399,7 @@ class UberSession(sqlalchemy.orm.Session):
             attendee, message = self.create_or_find_attendee_by_id(**params)
             if message:
                 return attendee, message
-            elif attendee.art_show_applications:
+            elif attendee.art_show_application:
                 return attendee, \
                     'There is already an art show application for that badge!'
 

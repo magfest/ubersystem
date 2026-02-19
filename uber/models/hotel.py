@@ -9,8 +9,6 @@ from sqlalchemy import Sequence, case
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import backref
-from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Date, Integer, String, DateTime, Uuid
 from sqlmodel import Field, Relationship
 from typing import Any, ClassVar
@@ -72,7 +70,9 @@ class HotelRequests(MagModel, NightsMixin, table=True):
     Attendee: joined
     """
 
-    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), unique=True))
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE', unique=True)
+    attendee: 'Attendee' = Relationship(back_populates="hotel_requests", sa_relationship_kwargs={'lazy': 'joined'})
+
     nights: str = Column(MultiChoice(c.NIGHT_OPTS))
     wanted_roommates: str = Column(String)
     unwanted_roommates: str = Column(String)
@@ -97,7 +97,8 @@ class Room(MagModel, NightsMixin, table=True):
     locked_in: bool = Column(Boolean, default=False)
     nights: str = Column(MultiChoice(c.NIGHT_OPTS))
     created: datetime = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
-    assignments: list['RoomAssignment'] = Relationship(sa_relationship=relationship('RoomAssignment', backref=backref('room', lazy='joined')))
+
+    assignments: list['RoomAssignment'] = Relationship(back_populates="room", sa_relationship_kwargs={'passive_deletes': True})
 
     @property
     def email(self):
@@ -127,8 +128,11 @@ class RoomAssignment(MagModel, table=True):
     Room: joined
     """
 
-    room_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('room.id')))
-    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id')))
+    room_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='room.id', ondelete='CASCADE')
+    room: 'Room' = Relationship(back_populates="assignments", sa_relationship_kwargs={'lazy': 'joined'})
+
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
+    attendee: 'Attendee' = Relationship(back_populates="room_assignments", sa_relationship_kwargs={'lazy': 'joined'})
 
 
 class LotteryApplication(MagModel, table=True):
@@ -137,13 +141,11 @@ class LotteryApplication(MagModel, table=True):
     LotteryApplication (parent_application): joined
     """
 
-    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), unique=True, nullable=True))
-    attendee: 'Attendee' = Relationship(sa_relationship=relationship('Attendee', lazy='joined', backref=backref('lottery_application', uselist=False),
-                            cascade='save-update,merge,refresh-expire,expunge',
-                            uselist=False))
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True, unique=True)
+    attendee: 'Attendee' = Relationship(back_populates="lottery_application", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
+
     invite_code: str = Column(String) # Not used for now but we're keeping it for later
     confirmation_num: str = Column(String)
-
     response_id_seq: ClassVar = Sequence('lottery_application_response_id_seq')
     response_id: int = Column(Integer, response_id_seq, server_default=response_id_seq.next_value(), unique=True)
     status: int = Column(Choice(c.HOTEL_LOTTERY_STATUS_OPTS), default=c.PARTIAL, admin_only=True)
@@ -181,15 +183,13 @@ class LotteryApplication(MagModel, table=True):
     booking_url_hidden: bool = Column(Boolean, default=True)
 
     # If this is set then the above values are ignored
-    parent_application_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('lottery_application.id'), nullable=True))
-    parent_application: 'LotteryApplication' = Relationship(sa_relationship=relationship(
-        'LotteryApplication',
-        lazy='joined',
-        foreign_keys='LotteryApplication.parent_application_id',
-        backref=backref('group_members'),
-        cascade='save-update,merge,refresh-expire,expunge',
-        remote_side='LotteryApplication.id',
-        single_parent=True))
+    parent_application_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='lottery_application.id', nullable=True)
+    parent_application: 'LotteryApplication' = Relationship(
+        back_populates="group_members",
+        sa_relationship_kwargs={'lazy': 'joined', 'foreign_keys': 'LotteryApplication.parent_application_id',
+                                'remote_side': 'LotteryApplication.id'})
+    group_members: list['LotteryApplication'] = Relationship(
+        back_populates="parent_application", sa_relationship_kwargs={'cascade': 'save-update,merge,refresh-expire,expunge'})
     former_parent_id: str | None = Column(Uuid(as_uuid=False), nullable=True)
 
     room_group_name: str = Column(String)

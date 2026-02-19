@@ -49,6 +49,7 @@ def load_attendee(session, params):
         attendee = Attendee()
     else:
         attendee = session.query(Attendee).filter(Attendee.id == id).options(
+            selectinload(Attendee.assigned_depts),
             selectinload(Attendee.dept_membership_requests),
             selectinload(Attendee.dept_memberships_with_role),
             selectinload(Attendee.dept_memberships_with_inherent_role),

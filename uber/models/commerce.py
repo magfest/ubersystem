@@ -6,11 +6,9 @@ from pytz import UTC
 from sqlalchemy import func, or_
 
 from sqlalchemy.sql.functions import coalesce
-from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer, String, DateTime, Uuid, JSON
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import backref
 from sqlmodel import Field, Relationship
 from typing import Any, ClassVar
 
@@ -41,13 +39,13 @@ class ArbitraryCharge(MagModel, table=True):
 
 class MerchDiscount(MagModel, table=True):
     """Staffers can apply a single-use discount to any merch purchases."""
-    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), unique=True))
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE', unique=True)
     uses: int = Column(Integer)
 
 
 class MerchPickup(MagModel, table=True):
-    picked_up_by_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id')))
-    picked_up_for_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), unique=True))
+    picked_up_by_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
+    picked_up_for_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', unique=True, nullable=True)
     picked_up_by: 'Attendee' = Relationship(sa_relationship=relationship(
         Attendee,
         primaryjoin='MerchPickup.picked_up_by_id == Attendee.id',
@@ -59,7 +57,9 @@ class MerchPickup(MagModel, table=True):
 
 
 class MPointsForCash(MagModel, table=True):
-    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id')))
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
+    attendee: 'Attendee' = Relationship(back_populates="mpoints_for_cash")
+
     amount: int = Column(Integer)
     when: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
@@ -69,17 +69,23 @@ class NoShirt(MagModel, table=True):
     Used to track when someone tried to pick up a shirt they were owed when we
     were out of stock, so that we can contact them later.
     """
-    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), unique=True))
+
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE', unique=True)
+    attendee: 'Attendee' = Relationship(back_populates="no_shirt")
 
 
 class OldMPointExchange(MagModel, table=True):
-    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id')))
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
+    attendee: 'Attendee' = Relationship(back_populates="old_mpoint_exchanges")
+
     amount: int = Column(Integer)
     when: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
 
 class Sale(MagModel, table=True):
-    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='set null'), nullable=True))
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
+    attendee: 'Attendee' = Relationship(back_populates="sales")
+
     what: str = Column(String)
     cash: int = Column(Integer, default=0)
     mpoints: int = Column(Integer, default=0)
@@ -106,6 +112,11 @@ class ModelReceipt(MagModel, table=True):
     owner_id: str = Column(Uuid(as_uuid=False), index=True)
     owner_model: str = Column(String)
     closed: datetime | None = Column(DateTime(timezone=True), nullable=True)
+
+    receipt_txns: list['ReceiptTransaction'] = Relationship(
+        back_populates="receipt", sa_relationship_kwargs={'lazy': 'selectin', 'passive_deletes': True})
+    receipt_items: list['ReceiptItem'] = Relationship(
+        back_populates="receipt", sa_relationship_kwargs={'lazy': 'selectin', 'passive_deletes': True})
 
     def close_all_items(self, session):
         for item in self.open_receipt_items:
@@ -320,6 +331,7 @@ class ModelReceipt(MagModel, table=True):
 class ReceiptTransaction(MagModel, table=True):
     """
     ModelReceipt: joined
+    ReceiptInfo: select
 
     Transactions have two key properties: whether or not they were done through Stripe,
         and whether they represent a payment or a refund.
@@ -336,20 +348,20 @@ class ReceiptTransaction(MagModel, table=True):
         plus it allows admins to refund Stripe payments per item.
     """
 
-    receipt_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('model_receipt.id', ondelete='SET NULL'), nullable=True))
-    receipt: 'ModelReceipt' = Relationship(sa_relationship=relationship('ModelReceipt', foreign_keys='ReceiptTransaction.receipt_id',
-                           cascade='save-update, merge', lazy='joined',
-                           backref=backref('receipt_txns', lazy='selectin', cascade='save-update, merge')))
-    receipt_info_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('receipt_info.id', ondelete='SET NULL'), nullable=True))
-    receipt_info: 'ReceiptInfo' = Relationship(sa_relationship=relationship('ReceiptInfo', foreign_keys='ReceiptTransaction.receipt_info_id',
-                                cascade='save-update, merge',
-                                backref=backref('receipt_txns', lazy='selectin', cascade='save-update, merge')))
-    refunded_txn_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('receipt_transaction.id', ondelete='SET NULL'), nullable=True))
-    refunded_txn: 'ReceiptTransaction' = Relationship(sa_relationship=relationship('ReceiptTransaction', foreign_keys='ReceiptTransaction.refunded_txn_id',
-                                backref=backref('refund_txns', order_by='ReceiptTransaction.added'),
-                                cascade='save-update,merge,refresh-expire,expunge',
-                                remote_side='ReceiptTransaction.id',
-                                single_parent=True))
+    receipt_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='model_receipt.id', ondelete='CASCADE')
+    receipt: 'ModelReceipt' = Relationship(back_populates="receipt_txns", sa_relationship_kwargs={'lazy': 'joined'})
+    
+    receipt_info_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='receipt_info.id', nullable=True)
+    receipt_info: 'ReceiptInfo' = Relationship(back_populates="receipt_txns", sa_relationship_kwargs={'lazy': 'select'})
+
+    refunded_txn_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='receipt_transaction.id', nullable=True)
+    refunded_txn: 'ReceiptTransaction' = Relationship(
+        back_populates="refund_txns",
+        sa_relationship_kwargs={'foreign_keys': 'ReceiptTransaction.refunded_txn_id', 'remote_side': 'ReceiptTransaction.id'})
+    refund_txns: list['ReceiptTransaction'] = Relationship(
+        back_populates="refunded_txn",
+        sa_relationship_kwargs={'order_by': 'ReceiptTransaction.added', 'cascade': 'save-update,merge,refresh-expire,expunge'})
+    
     refunded: int = Column(Integer, default=0)
     intent_id: str = Column(String)
     charge_id: str = Column(String)
@@ -364,6 +376,9 @@ class ReceiptTransaction(MagModel, table=True):
     cancelled: datetime | None = Column(DateTime(timezone=True), nullable=True)
     who: str = Column(String)
     desc: str = Column(String)
+
+    receipt_items: list['ReceiptItem'] = Relationship(
+        back_populates="receipt_txn", sa_relationship_kwargs={'cascade': 'save-update,merge,refresh-expire,expunge'})
 
     @property
     def available_actions(self):
@@ -548,15 +563,13 @@ class ReceiptItem(MagModel, table=True):
     ReceiptTransaction: joined
     """
 
+    receipt_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='model_receipt.id', ondelete='CASCADE')
+    receipt: 'ModelReceipt' = Relationship(back_populates="receipt_items", sa_relationship_kwargs={'lazy': 'joined'})
+
+    txn_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='receipt_transaction.id', nullable=True)
+    receipt_txn: 'ReceiptTransaction' = Relationship(back_populates="receipt_items", sa_relationship_kwargs={'lazy': 'joined'})
+    
     purchaser_id: str | None = Column(Uuid(as_uuid=False), index=True, nullable=True)
-    receipt_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('model_receipt.id', ondelete='SET NULL'), nullable=True))
-    receipt: 'ModelReceipt' = Relationship(sa_relationship=relationship('ModelReceipt', foreign_keys='ReceiptItem.receipt_id',
-                           cascade='save-update, merge', lazy='joined',
-                           backref=backref('receipt_items', lazy='selectin', cascade='save-update, merge')))
-    txn_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('receipt_transaction.id', ondelete='SET NULL'), nullable=True))
-    receipt_txn: 'ReceiptTransaction' = Relationship(sa_relationship=relationship('ReceiptTransaction', foreign_keys='ReceiptItem.txn_id',
-                               cascade='save-update, merge', lazy='joined',
-                               backref=backref('receipt_items', cascade='save-update, merge')))
     fk_id: str | None = Column(Uuid(as_uuid=False), index=True, nullable=True)
     fk_model: str = Column(String)
     department: int = Column(Choice(c.RECEIPT_ITEM_DEPT_OPTS), default=c.OTHER_RECEIPT_ITEM)
@@ -568,7 +581,7 @@ class ReceiptItem(MagModel, table=True):
     added: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
     closed: datetime | None = Column(DateTime(timezone=True), nullable=True)
     who: str = Column(String)
-    des: str = Column(String)
+    desc: str = Column(String)
     admin_notes: str = Column(String)
     revert_change: dict[str, Any] = Field(sa_type=JSON, default_factory=dict)
 
@@ -646,6 +659,9 @@ class ReceiptInfo(MagModel, table=True):
     txn_info: dict[str, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
     signature: str = Column(String)
     receipt_html: str = Column(String)
+
+    receipt_txns: list['ReceiptTransaction'] = Relationship(
+        back_populates="receipt_info", sa_relationship_kwargs={'lazy': 'selectin', 'cascade': 'save-update,merge,refresh-expire,expunge'})
 
     @property
     def response_code_str(self):

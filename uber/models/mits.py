@@ -5,8 +5,6 @@ from datetime import datetime
 
 from pytz import UTC
 from sqlalchemy import and_
-from sqlalchemy.orm import backref
-from sqlalchemy.schema import ForeignKey
 from sqlalchemy.types import Boolean, Integer, Uuid, DateTime, String
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlmodel import Field, Relationship
@@ -42,10 +40,10 @@ class MITSTeam(MagModel, table=True):
     applied: datetime = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
     status: int = Column(Choice(c.MITS_APP_STATUS), default=c.PENDING, admin_only=True)
 
-    applicants: list['MITSApplicant'] = Relationship(sa_relationship=relationship('MITSApplicant', backref=backref('team', lazy='joined')))
-    games: list['MITSGame'] = Relationship(sa_relationship=relationship('MITSGame', lazy='selectin', backref=backref('team', lazy='joined')))
-    schedule: 'MITSTimes' = Relationship(sa_relationship=relationship('MITSTimes', uselist=False, backref=backref('team', lazy='joined')))
-    panel_app: 'MITSPanelApplication' = Relationship(sa_relationship=relationship('MITSPanelApplication', uselist=False, backref=backref('team', lazy='joined')))
+    applicants: list['MITSApplicant'] = Relationship(back_populates="team", sa_relationship_kwargs={'passive_deletes': True})
+    games: list['MITSGame'] = Relationship(back_populates="team", sa_relationship_kwargs={'passive_deletes': True})
+    schedule: 'MITSTimes' = Relationship(back_populates="team", sa_relationship_kwargs={'passive_deletes': True})
+    panel_app: 'MITSPanelApplication' = Relationship(back_populates="team", sa_relationship_kwargs={'passive_deletes': True})
 
     duplicate_of: str | None = Column(Uuid(as_uuid=False), nullable=True)
     deleted: bool = Column(Boolean, default=False)
@@ -142,8 +140,12 @@ class MITSApplicant(MagModel, table=True):
     MITSTeam: joined
     """
 
-    team_id: str | None = Field(sa_column=Column(ForeignKey('mits_team.id')))
-    attendee_id: str | None = Field(sa_column=Column(ForeignKey('attendee.id'), nullable=True))
+    team_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='mits_team.id', ondelete='CASCADE')
+    team: 'MITSTeam' = Relationship(back_populates="applicants", sa_relationship_kwargs={'lazy': 'joined'})
+
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
+    attendee: 'Attendee' = Relationship(back_populates="mits_applicants")
+
     primary_contact: bool = Column(Boolean, default=False)
     first_name: str = Column(String)
     last_name: str = Column(String)
@@ -177,7 +179,9 @@ class MITSGame(MagModel, table=True):
     MITSDocument: selectin
     """
 
-    team_id: str | None = Field(sa_column=Column(ForeignKey('mits_team.id')))
+    team_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='mits_team.id', ondelete='CASCADE')
+    team: 'MITSTeam' = Relationship(back_populates="games", sa_relationship_kwargs={'lazy': 'joined'})
+
     name: str = Column(String)
     promo_blurb: str = Column(String)
     description: str = Column(String)
@@ -192,8 +196,9 @@ class MITSGame(MagModel, table=True):
     unlicensed: bool = Column(Boolean, default=False)
     professional: bool = Column(Boolean, default=False)
     tournament: bool = Column(Boolean, default=False)
-    pictures: list['MITSPicture'] = Relationship(sa_relationship=relationship('MITSPicture', lazy='selectin', backref=backref('game', lazy='joined')))
-    documents: list['MITSDocument'] = Relationship(sa_relationship=relationship('MITSDocument', lazy='selectin', backref=backref('game', lazy='joined')))
+
+    pictures: list['MITSPicture'] = Relationship(back_populates="game", sa_relationship_kwargs={'passive_deletes': True})
+    documents: list['MITSDocument'] = Relationship(back_populates="game", sa_relationship_kwargs={'passive_deletes': True})
 
     @hybrid_property
     def has_been_accepted(self):
@@ -252,7 +257,9 @@ class MITSPicture(MagModel, GuidebookImageMixin, table=True):
     MITSGame: joined
     """
 
-    game_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('mits_game.id')))
+    game_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='mits_game.id', ondelete='CASCADE')
+    game: 'MITSGame' = Relationship(back_populates="pictures", sa_relationship_kwargs={'lazy': 'joined'})
+
     description: str = Column(String)
 
     @property
@@ -269,7 +276,9 @@ class MITSDocument(MagModel, table=True):
     MITSGame: joined
     """
     
-    game_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('mits_game.id')))
+    game_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='mits_game.id', ondelete='CASCADE')
+    game: 'MITSGame' = Relationship(back_populates="documents", sa_relationship_kwargs={'lazy': 'joined'})
+
     filename: str = Column(String)
     description: str = Column(String)
 
@@ -287,7 +296,9 @@ class MITSTimes(MagModel, table=True):
     MITSTeam: joined
     """
 
-    team_id: str | None = Field(sa_column=Column(ForeignKey('mits_team.id')))
+    team_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='mits_team.id', ondelete='CASCADE', unique=True)
+    team: 'MITSTeam' = Relationship(back_populates="schedule", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
+
     showcase_availability: str = Column(MultiChoice(c.MITS_SHOWCASE_SCHEDULE_OPTS))
     availability: str = Column(MultiChoice(c.MITS_SCHEDULE_OPTS))
 
@@ -297,7 +308,9 @@ class MITSPanelApplication(MagModel, table=True):
     MITSTeam: joined
     """
 
-    team_id: str | None = Field(sa_column=Column(ForeignKey('mits_team.id')))
+    team_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='mits_team.id', ondelete='CASCADE', unique=True)
+    team: 'MITSTeam' = Relationship(back_populates="panel_app", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
+
     name: str = Column(String)
     description: str = Column(String)
     length: int = Column(Choice(c.PANEL_STRICT_LENGTH_OPTS), default=c.SIXTY_MIN)

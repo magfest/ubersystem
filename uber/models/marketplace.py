@@ -24,10 +24,8 @@ class ArtistMarketplaceApplication(MagModel, table=True):
     
     MATCHING_DEALER_FIELDS: ClassVar = ['email_address', 'website', 'name']
 
-    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id')))
-    attendee: 'Attendee' = Relationship(sa_relationship=relationship('Attendee', lazy='joined', backref=backref('marketplace_application', uselist=False),
-                            cascade='save-update,merge,refresh-expire,expunge',
-                            uselist=False))
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE', unique=True)
+    attendee: 'Attendee' = Relationship(back_populates="marketplace_application", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
     name: str = Column(String)
     display_name: str = Column(String)
     email_address: str = Column(String)
@@ -40,15 +38,15 @@ class ArtistMarketplaceApplication(MagModel, table=True):
     status: int = Column(Choice(c.MARKETPLACE_STATUS_OPTS), default=c.PENDING, admin_only=True)
     registered: datetime = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
     accepted: datetime | None = Column(DateTime(timezone=True), nullable=True)
+    admin_notes: str = Column(String, admin_only=True)
+    overridden_price: int | None = Column(Integer, nullable=True, admin_only=True)
+
     receipt_items: list['ReceiptItem'] = Relationship(sa_relationship=relationship('ReceiptItem',
                                  primaryjoin='and_('
                                              'ReceiptItem.fk_model == "ArtistMarketplaceApplication", '
                                              'remote(ReceiptItem.fk_id) == foreign(ArtistMarketplaceApplication.id))',
                                  viewonly=True,
                                  uselist=True))
-
-    admin_notes: str = Column(String, admin_only=True)
-    overridden_price: int | None = Column(Integer, nullable=True, admin_only=True)
 
     email_model_name: ClassVar = 'app'
 

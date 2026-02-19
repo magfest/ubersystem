@@ -8,8 +8,7 @@ from functools import wraps
 from markupsafe import Markup
 from pytz import UTC
 from sqlalchemy import func, case, or_
-from sqlalchemy.orm import backref
-from sqlalchemy.schema import ForeignKey, UniqueConstraint
+from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.types import Boolean, Integer, String, DateTime, Uuid
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlmodel import Field, Relationship
@@ -43,7 +42,9 @@ class IndieJudge(MagModel, ReviewMixin, table=True):
     IndieGameReview: selectin
     """
 
-    admin_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('admin_account.id')))
+    admin_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='admin_account.id', nullable=True, unique=True)
+    admin_account: "AdminAccount" = Relationship(back_populates="judge", sa_relationship_kwargs={'single_parent': True})
+
     status: int = Column(Choice(c.MIVS_JUDGE_STATUS_OPTS), default=c.UNCONFIRMED)
     assignable_showcases: str = Column(MultiChoice(c.SHOWCASE_GAME_TYPE_OPTS))
     all_games_showcases: str = Column(MultiChoice(c.SHOWCASE_GAME_TYPE_OPTS))
@@ -54,8 +55,9 @@ class IndieJudge(MagModel, ReviewMixin, table=True):
     vr_text: str = Column(String)
     staff_notes: str = Column(String)
 
-    codes: list['IndieGameCode'] = Relationship(sa_relationship=relationship('IndieGameCode', lazy='selectin', backref=backref('judge', lazy='joined')))
-    reviews: list['IndieGameReview'] = Relationship(sa_relationship=relationship('IndieGameReview', lazy='selectin', backref=backref('judge', lazy='joined')))
+    codes: list['IndieGameCode'] = Relationship(
+        back_populates="judge", sa_relationship_kwargs={'lazy': 'selectin', 'cascade': 'save-update,merge,refresh-expire,expunge'})
+    reviews: list['IndieGameReview'] = Relationship(back_populates="judge", sa_relationship_kwargs={'lazy': 'selectin', 'passive_deletes': True})
 
     email_model_name: ClassVar = 'judge'
 
@@ -140,7 +142,9 @@ class IndieStudio(MagModel, table=True):
     IndieGame: selectin
     """
 
-    group_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('group.id'), nullable=True))
+    group_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='group.id', nullable=True, unique=True)
+    group: 'Group' = Relationship(back_populates="studio", sa_relationship_kwargs={'single_parent': True})
+
     name: str = Column(String, unique=True)
     website: str = Column(String)
     other_links: str = Column(UniqueList)
@@ -163,12 +167,10 @@ class IndieStudio(MagModel, table=True):
     show_info_updated: bool = Column(Boolean, default=False)
     logistics_updated: bool = Column(Boolean, default=False)
 
-    games: list['IndieGame'] = Relationship(sa_relationship=relationship(
-        'IndieGame', backref=backref('studio', lazy='joined'), lazy='selectin', order_by='IndieGame.title'))
-    developers: list['IndieDeveloper'] = Relationship(sa_relationship=relationship(
-        'IndieDeveloper',
-        backref=backref('studio', lazy='joined'),
-        order_by='IndieDeveloper.last_name'))
+    games: list['IndieGame'] = Relationship(
+        back_populates="studio", sa_relationship_kwargs={'lazy': 'selectin', 'order_by': 'IndieGame.title', 'passive_deletes': True})
+    developers: list['IndieDeveloper'] = Relationship(
+        back_populates="studio", sa_relationship_kwargs={'order_by': 'IndieDeveloper.last_name', 'passive_deletes': True})
 
     email_model_name: ClassVar = 'studio'
 
@@ -328,8 +330,11 @@ class IndieDeveloper(MagModel, table=True):
     IndieStudio: joined
     """
 
-    studio_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('indie_studio.id')))
-    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), nullable=True))
+    studio_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='indie_studio.id', ondelete='CASCADE')
+    studio: 'IndieStudio' = Relationship(back_populates="developers", sa_relationship_kwargs={'lazy': 'joined'})
+
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
+    attendee: 'Attendee' = Relationship(back_populates="indie_developer")
 
     gets_emails: bool = Column(Boolean, default=False)
     first_name: str = Column(String)
@@ -338,6 +343,9 @@ class IndieDeveloper(MagModel, table=True):
     cellphone: str = Column(String)
     agreed_coc: bool = Column(Boolean, default=False)
     agreed_data_policy: bool = Column(Boolean, default=False)
+
+    arcade_games: list['IndieGame'] = Relationship(back_populates="primary_contact",
+                                                   sa_relationship_kwargs={'cascade': 'save-update,merge,refresh-expire,expunge'})
 
     @property
     def email_to_address(self):
@@ -368,10 +376,11 @@ class IndieGame(MagModel, ReviewMixin, table=True):
     IndieGameImage: selectin
     """
 
-    studio_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('indie_studio.id')))
-    primary_contact_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('indie_developer.id', ondelete='SET NULL'), nullable=True))
-    primary_contact: 'IndieDeveloper' = Relationship(sa_relationship=relationship(IndieDeveloper, backref='arcade_games', lazy='joined',
-                                   foreign_keys='IndieGame.primary_contact_id', cascade='save-update,merge,refresh-expire,expunge'))
+    studio_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='indie_studio.id', ondelete='CASCADE')
+    studio: 'IndieStudio' = Relationship(back_populates="games", sa_relationship_kwargs={'lazy': 'joined'})
+
+    primary_contact_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='indie_developer.id', nullable=True)
+    primary_contact: 'IndieDeveloper' = Relationship(back_populates="arcade_games", sa_relationship_kwargs={'lazy': 'joined'})
 
     title: str = Column(String)
     brief_description: str = Column(String)
@@ -440,10 +449,10 @@ class IndieGame(MagModel, ReviewMixin, table=True):
     waitlisted: datetime | None = Column(DateTime(timezone=True), nullable=True)
     accepted: datetime | None = Column(DateTime(timezone=True), nullable=True)
 
-    codes: list['IndieGameCode'] = Relationship(sa_relationship=relationship('IndieGameCode', lazy='selectin', backref=backref('game', lazy='joined')))
-    reviews: list['IndieGameReview'] = Relationship(sa_relationship=relationship('IndieGameReview', backref=backref('game', lazy='joined')))
-    images: list['IndieGameImage'] = Relationship(sa_relationship=relationship(
-        'IndieGameImage', lazy='selectin', backref=backref('game', lazy='joined'), order_by='IndieGameImage.id'))
+    codes: list['IndieGameCode'] = Relationship(back_populates="game", sa_relationship_kwargs={'lazy': 'selectin', 'passive_deletes': True})
+    reviews: list['IndieGameReview'] = Relationship(back_populates="game", sa_relationship_kwargs={'passive_deletes': True})
+    images: list['IndieGameImage'] = Relationship(
+        back_populates="game", sa_relationship_kwargs={'lazy': 'selectin', 'order_by': 'IndieGameImage.id', 'passive_deletes': True})
 
     email_model_name: ClassVar = 'game'
 
@@ -683,7 +692,9 @@ class IndieGameImage(MagModel, GuidebookImageMixin, table=True):
     IndieGame: joined
     """
     
-    game_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('indie_game.id')))
+    game_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='indie_game.id', ondelete='CASCADE')
+    game: 'IndieGame' = Relationship(back_populates="images", sa_relationship_kwargs={'lazy': 'joined'})
+
     description: str = Column(String)
     use_in_promo: bool = Column(Boolean, default=False)
     is_screenshot: bool = Column(Boolean, default=True)
@@ -728,8 +739,12 @@ class IndieGameCode(MagModel, table=True):
     IndieJudge: joined
     """
 
-    game_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('indie_game.id')))
-    judge_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('indie_judge.id'), nullable=True))
+    game_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='indie_game.id', ondelete='CASCADE')
+    game: 'IndieGame' = Relationship(back_populates="codes", sa_relationship_kwargs={'lazy': 'joined'})
+    
+    judge_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='indie_judge.id', nullable=True)
+    judge: 'IndieJudge' = Relationship(back_populates="codes", sa_relationship_kwargs={'lazy': 'joined'})
+
     code: str = Column(String)
     unlimited_use: bool = Column(Boolean, default=False)
     judge_notes: str = Column(String, admin_only=True) # TODO: Remove?
@@ -745,8 +760,12 @@ class IndieGameReview(MagModel, table=True):
     IndieJudge: joined
     """
 
-    game_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('indie_game.id')))
-    judge_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('indie_judge.id')))
+    game_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='indie_game.id', ondelete='CASCADE')
+    game: 'IndieGame' = Relationship(back_populates="reviews", sa_relationship_kwargs={'lazy': 'joined'})
+
+    judge_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='indie_judge.id', ondelete='CASCADE')
+    judge: 'IndieJudge' = Relationship(back_populates="reviews", sa_relationship_kwargs={'lazy': 'joined'})
+
     video_status: int = Column(
         Choice(c.MIVS_VIDEO_REVIEW_STATUS_OPTS), default=c.PENDING)
     game_status: int = Column(

@@ -2,7 +2,6 @@ import re
 from datetime import datetime, timedelta
 
 from pytz import UTC
-from sqlalchemy.orm import backref
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
 from sqlalchemy.types import Boolean, Integer, Uuid, String, DateTime
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -32,15 +31,17 @@ panel_applicant_application = Table(
 
 
 class EventLocation(MagModel, table=True):
-    department_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('department.id', ondelete='SET NULL'), nullable=True))
+    department_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='department.id', nullable=True)
+    department: 'Department' = Relationship(back_populates="locations")
+
     name: str = Column(String)
     room: str = Column(String)
     tracks: str = Column(MultiChoice(c.EVENT_TRACK_OPTS))
 
-    events: list['Event'] = Relationship(sa_relationship=relationship('Event', backref=backref('location', lazy='joined', cascade="save-update,merge"),
-                          cascade="save-update,merge", single_parent=True))
-    attractions: list['AttractionEvent'] = Relationship(sa_relationship=relationship('AttractionEvent', backref=backref('location', lazy='joined', cascade="save-update,merge"),
-                          cascade="save-update,merge", single_parent=True))
+    events: list['Event'] = Relationship(
+        back_populates="location", sa_relationship_kwargs={'cascade': 'save-update,merge,refresh-expire,expunge'})
+    attractions: list['AttractionEvent'] = Relationship(
+        back_populates="location", sa_relationship_kwargs={'cascade': 'save-update,merge,refresh-expire,expunge'})
 
     @property
     def schedule_name(self):
@@ -85,9 +86,15 @@ class Event(MagModel, table=True):
     EventLocation: joined
     """
 
-    event_location_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('event_location.id', ondelete='SET NULL'), nullable=True))
-    department_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('department.id', ondelete='SET NULL'), nullable=True))
-    attraction_event_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attraction_event.id', ondelete='SET NULL'), nullable=True))
+    event_location_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='event_location.id', nullable=True)
+    location: 'EventLocation' = Relationship(back_populates="events", sa_relationship_kwargs={'lazy': 'joined'})
+
+    department_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='department.id', nullable=True)
+    department: 'Department' = Relationship(back_populates="events")
+
+    attraction_event_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attraction_event.id', nullable=True, unique=True)
+    attraction: 'AttractionEvent' = Relationship(back_populates="schedule_item", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
+
     start_time: datetime = Column(DateTime(timezone=True))
     duration: int = Column(Integer, default=60)
     name: str = Column(String, nullable=False)
@@ -95,15 +102,11 @@ class Event(MagModel, table=True):
     public_description: str = Column(String)
     tracks: str = Column(MultiChoice(c.EVENT_TRACK_OPTS))
 
-    assigned_panelists: list['AssignedPanelist'] = Relationship(sa_relationship=relationship('AssignedPanelist', backref=backref('event', lazy='joined')))
-    applications: list['PanelApplication'] = Relationship(sa_relationship=relationship('PanelApplication', backref=backref('event', lazy='joined', cascade="save-update,merge"),
-                                cascade="save-update,merge"))
-    panel_feedback: list['EventFeedback'] = Relationship(sa_relationship=relationship('EventFeedback', backref='event'))
-    guest: 'GuestGroup' = Relationship(sa_relationship=relationship('GuestGroup', backref=backref('event', cascade="save-update,merge"),
-                         cascade='save-update,merge'))
-    attraction: 'AttractionEvent' = Relationship(sa_relationship=relationship('AttractionEvent', backref=backref(
-        'schedule_item', lazy='joined', cascade="save-update,merge", uselist=False
-        ), cascade='save-update,merge'))
+    assigned_panelists: list['AssignedPanelist'] = Relationship(back_populates="event", sa_relationship_kwargs={'passive_deletes': True})
+    applications: list['PanelApplication'] = Relationship(
+        back_populates="event", sa_relationship_kwargs={'cascade': 'save-update,merge,refresh-expire,expunge'})
+    panel_feedback: list['EventFeedback'] = Relationship(back_populates="event", sa_relationship_kwargs={'passive_deletes': True})
+    guest: 'GuestGroup' = Relationship(back_populates="event", sa_relationship_kwargs={'cascade': 'save-update,merge,refresh-expire,expunge'})
 
     @property
     def minutes(self):
@@ -165,8 +168,11 @@ class AssignedPanelist(MagModel, table=True):
     Event: joined
     """
 
-    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='cascade')))
-    event_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('event.id', ondelete='cascade')))
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
+    attendee: 'Attendee' = Relationship(back_populates="assigned_panelists", sa_relationship_kwargs={'lazy': 'joined'})
+
+    event_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='event.id', ondelete='CASCADE')
+    event: 'Event' = Relationship(back_populates="assigned_panelists", sa_relationship_kwargs={'lazy': 'joined'})
 
     def __repr__(self):
         if self.attendee:
@@ -182,9 +188,14 @@ class PanelApplication(MagModel, table=True):
     PanelApplicant: selectin
     """
 
-    event_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('event.id', ondelete='SET NULL'), nullable=True))
-    poc_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True))
-    submitter_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('panel_applicant.id', ondelete='SET NULL'), nullable=True))
+    event_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='event.id', nullable=True)
+    event: 'Event' = Relationship(back_populates="applications", sa_relationship_kwargs={'lazy': 'joined'})
+    
+    poc_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
+    poc: 'Attendee' = Relationship(back_populates="panel_applications")
+
+    submitter_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='panel_applicant.id', nullable=True)
+
     name: str = Column(String)
     length: int = Column(Choice(c.PANEL_LENGTH_OPTS), default=c.SIXTY_MIN)
     length_text: str = Column(String)
@@ -221,9 +232,9 @@ class PanelApplication(MagModel, table=True):
     comments: str = Column(String, admin_only=True)
     tags: str = Column(UniqueList, admin_only=True)
 
-    applicants: list['PanelApplicant'] = Relationship(sa_relationship=relationship('PanelApplicant', lazy='selectin', backref=backref('applications', lazy='selectin'),
-                              cascade='save-update,merge,refresh-expire,expunge',
-                              secondary='panel_applicant_application'))
+    applicants: list['PanelApplicant'] = Relationship(
+        back_populates="applications",
+        sa_relationship_kwargs={'lazy': 'selectin', 'cascade': 'save-update,merge,refresh-expire,expunge', 'secondary': 'panel_applicant_application'})
 
     email_model_name: ClassVar = 'app'
 
@@ -339,7 +350,9 @@ class PanelApplicant(MagModel, table=True):
     PanelApplicant: selectin
     """
 
-    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True))
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='SET NULL', nullable=True)
+    attendee: 'Attendee' = Relationship(back_populates="panel_applicants", sa_relationship_kwargs={'lazy': 'joined'})
+
     submitter: bool = Column(Boolean, default=False)
     first_name: str = Column(String)
     last_name: str = Column(String)
@@ -356,6 +369,10 @@ class PanelApplicant(MagModel, table=True):
     guidebook_bio: str = Column(String)
     display_name: str = Column(String)
     social_media_info: str = Column(String)
+
+    applications: list['PanelApplication'] = Relationship(
+        back_populates="applicants",
+        sa_relationship_kwargs={'lazy': 'selectin', 'cascade': 'save-update,merge,refresh-expire,expunge', 'secondary': 'panel_applicant_application'})
 
     @property
     def has_credentials(self):
@@ -381,8 +398,12 @@ class PanelApplicant(MagModel, table=True):
 
 
 class EventFeedback(MagModel, table=True):
-    event_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('event.id')))
-    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='cascade')))
+    event_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='event.id', ondelete='CASCADE')
+    event: 'Event' = Relationship(back_populates="panel_feedback")
+
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
+    attendee: 'Attendee' = Relationship(back_populates="panel_feedback")
+
     headcount_starting: int = Column(Integer, default=0)
     headcount_during: int = Column(Integer, default=0)
     comments: str = Column(String)

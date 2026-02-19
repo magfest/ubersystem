@@ -15,9 +15,8 @@ from uber.models.types import Choice, DefaultColumn as Column, default_relations
 from uber.utils import RegistrationCode, get_static_file_path
 
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import backref
 from sqlalchemy.types import Integer, Boolean, String, Uuid, DateTime
-from sqlalchemy.schema import ForeignKey, UniqueConstraint, Index
+from sqlalchemy.schema import UniqueConstraint, Index
 from sqlmodel import Field, Relationship
 from typing import ClassVar
 
@@ -32,17 +31,13 @@ class ArtShowAgentCode(MagModel, table=True):
     """
     ArtShowApplication: joined
     """
-    app_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('art_show_application.id')))
-    app: 'ArtShowApplication' = Relationship(sa_relationship=relationship('ArtShowApplication', lazy='joined',
-                       backref=backref('agent_codes', cascade='merge,refresh-expire,expunge'),
-                       foreign_keys='ArtShowAgentCode.app_id',
-                       cascade='merge,refresh-expire,expunge'))
-    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'),
-                         nullable=True))
-    attendee: 'Attendee' = Relationship(sa_relationship=relationship('Attendee',
-                            backref=backref('agent_codes', cascade='merge,refresh-expire,expunge'),
-                            foreign_keys='ArtShowAgentCode.attendee_id',
-                            cascade='merge,refresh-expire,expunge'))
+
+    app_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='art_show_application.id', ondelete='CASCADE')
+    app: 'ArtShowApplication' = Relationship(back_populates="agent_codes", sa_relationship_kwargs={'lazy': 'joined'})
+
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
+    attendee: 'Attendee' = Relationship(back_populates="agent_codes")
+    
     code: str = Column(String)
     cancelled: datetime | None = Column(DateTime(timezone=True), nullable=True)
 
@@ -65,10 +60,10 @@ class ArtShowApplication(MagModel, table=True):
     ModelReceipt: select
     """
     
-    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'),
-                         nullable=True))
-    attendee: 'Attendee' = Relationship(sa_relationship=relationship('Attendee', lazy='joined', foreign_keys='ArtShowApplication.attendee_id', cascade='save-update, merge',
-                            backref=backref('art_show_applications', cascade='save-update, merge')))
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True, unique=True)
+    attendee: 'Attendee' = Relationship(
+        back_populates="art_show_application", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
+    
     checked_in: datetime | None = Column(DateTime(timezone=True), nullable=True)
     checked_out: datetime | None = Column(DateTime(timezone=True), nullable=True)
     locations: str = Column(String)
@@ -108,11 +103,18 @@ class ArtShowApplication(MagModel, table=True):
         primaryjoin='and_(remote(ModelReceipt.owner_id) == foreign(ArtShowApplication.id),'
         'ModelReceipt.owner_model == "ArtShowApplication",'
         'ModelReceipt.closed == None)',
-        lazy='select',
-        uselist=False))
+        lazy='select'))
     default_cost: int = Column(Integer, nullable=True)
 
-    assignments: list['ArtPanelAssignment'] = Relationship(sa_relationship=relationship('ArtPanelAssignment', backref=backref('app', lazy='joined')))
+    agents: list['Attendee'] = Relationship(
+        back_populates="art_agent_apps",
+        sa_relationship_kwargs={
+            'secondaryjoin': 'and_(ArtShowAgentCode.app_id == ArtShowApplication.id, ArtShowAgentCode.cancelled == None)',
+            'secondary': 'art_show_agent_code', 'viewonly': True
+        })
+    art_show_pieces: list['ArtShowPiece'] = Relationship(back_populates="app", sa_relationship_kwargs={'passive_deletes': True})
+    agent_codes: list['ArtShowAgentCode'] = Relationship(back_populates="app", sa_relationship_kwargs={'passive_deletes': True})
+    assignments: list['ArtPanelAssignment'] = Relationship(back_populates="app", sa_relationship_kwargs={'passive_deletes': True})
 
     email_model_name: ClassVar = 'app'
 
@@ -452,21 +454,15 @@ class ArtShowPiece(MagModel, table=True):
     Attendee (buyer): joined
     """
 
-    app_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('art_show_application.id', ondelete='SET NULL'), nullable=True))
-    app: 'ArtShowApplication' = Relationship(sa_relationship=relationship('ArtShowApplication', foreign_keys='ArtShowPiece.app_id',
-                       cascade='save-update, merge', lazy='joined',
-                       backref=backref('art_show_pieces',
-                                       cascade='save-update, merge')))
-    receipt_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('art_show_receipt.id', ondelete='SET NULL'), nullable=True))
-    receipt: 'ArtShowReceipt' = Relationship(sa_relationship=relationship('ArtShowReceipt', foreign_keys='ArtShowPiece.receipt_id',
-                           cascade='save-update, merge',
-                           overlaps="art_show_purchases,buyer",
-                           backref=backref('pieces', lazy='selectin', cascade='save-update, merge', overlaps="art_show_purchases,buyer")))
-    winning_bidder_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('art_show_bidder.id', ondelete='SET NULL'), nullable=True))
-    winning_bidder: 'ArtShowBidder' = Relationship(sa_relationship=relationship('ArtShowBidder', foreign_keys='ArtShowPiece.winning_bidder_id',
-                                  cascade='save-update, merge',
-                                  backref=backref('art_show_pieces',
-                                                  cascade='save-update, merge')))
+    app_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='art_show_application.id', ondelete='CASCADE')
+    app: 'ArtShowApplication' = Relationship(back_populates="art_show_pieces", sa_relationship_kwargs={'lazy': 'joined'})
+    
+    receipt_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='art_show_receipt.id', nullable=True)
+    receipt: 'ArtShowReceipt' = Relationship(back_populates="pieces", sa_relationship_kwargs={'overlaps': 'art_show_purchases,buyer'})
+    
+    winning_bidder_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='art_show_bidder.id', nullable=True)
+    winning_bidder: 'ArtShowBidder' = Relationship(back_populates="art_show_pieces")
+    
     piece_id: int = Column(Integer)
     name: str = Column(String)
     for_sale: bool = Column(Boolean, default=False)
@@ -480,9 +476,12 @@ class ArtShowPiece(MagModel, table=True):
     winning_bid: int | None = Column(Integer, default=0, nullable=True)
     no_quick_sale: bool = Column(Boolean, default=False)
     voice_auctioned: bool = Column(Boolean, default=False)
-
     status: int = Column(Choice(c.ART_PIECE_STATUS_OPTS), default=c.EXPECTED,
                     admin_only=True)
+    
+    buyer: 'Attendee' = Relationship(
+        back_populates="art_show_purchases",
+        sa_relationship_kwargs={'lazy': 'joined', 'secondary': 'art_show_receipt', 'cascade': 'save-update,merge,refresh-expire,expunge'})
 
     @presave_adjustment
     def create_piece_id(self):
@@ -610,7 +609,8 @@ class ArtShowPanel(MagModel, table=True):
     start_label: str = Column(String)
     end_label: str = Column(String)
 
-    assignments: list['ArtPanelAssignment'] = Relationship(sa_relationship=relationship('ArtPanelAssignment', lazy='selectin', backref=backref('panel', lazy='joined')))
+    assignments: list['ArtPanelAssignment'] = Relationship(
+        back_populates="panel", sa_relationship_kwargs={'lazy': 'selectin', 'passive_deletes': True})
 
     __table_args__: ClassVar = (
         UniqueConstraint('gallery', 'surface_type', 'origin_x', 'origin_y', 'terminus_x', 'terminus_y'),
@@ -646,8 +646,12 @@ class ArtPanelAssignment(MagModel, table=True):
     ArtShowPanel: joined
     """
 
-    panel_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('art_show_panel.id')))
-    app_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('art_show_application.id')))
+    app_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='art_show_application.id', ondelete='CASCADE')
+    app: 'ArtShowApplication' = Relationship(back_populates="assignments", sa_relationship_kwargs={'lazy': 'joined'})
+
+    panel_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='art_show_panel.id', ondelete='CASCADE')
+    panel: 'ArtShowPanel' = Relationship(back_populates="assignments", sa_relationship_kwargs={'lazy': 'joined'})
+    
     manual: bool = Column(Boolean, default=False)
     assigned_side: int = Column(Choice(c.ART_SHOW_PANEL_SIDE_OPTS), default=c.START)
 
@@ -682,11 +686,9 @@ class ArtShowPayment(MagModel, table=True):
     ArtShowReceipt: joined
     """
 
-    receipt_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('art_show_receipt.id', ondelete='SET NULL'), nullable=True))
-    receipt: 'ArtShowReceipt' = Relationship(sa_relationship=relationship('ArtShowReceipt', lazy='joined', foreign_keys='ArtShowPayment.receipt_id',
-                           cascade='save-update, merge',
-                           backref=backref('art_show_payments', lazy='selectin',
-                                           cascade='save-update, merge')))
+    receipt_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='art_show_receipt.id', ondelete='CASCADE')
+    receipt: 'ArtShowReceipt' = Relationship(back_populates="art_show_payments", sa_relationship_kwargs={'lazy': 'joined'})
+    
     amount: int = Column(Integer, default=0)
     type: int = Column(Choice(c.ART_SHOW_PAYMENT_OPTS), default=c.STRIPE, admin_only=True)
     when: datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
@@ -699,15 +701,18 @@ class ArtShowReceipt(MagModel, table=True):
     ArtShowPayment: selectin
     """
 
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
+    attendee: 'Attendee' = Relationship(
+        back_populates="art_show_receipts", sa_relationship_kwargs={'lazy': 'joined', 'overlaps': 'art_show_purchases,buyer'})
+    
     invoice_num: int = Column(Integer, default=0)
-    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True))
-    attendee: 'Attendee' = Relationship(sa_relationship=relationship('Attendee', foreign_keys='ArtShowReceipt.attendee_id',
-                            cascade='save-update, merge', lazy='joined',
-                            overlaps="art_show_purchases,buyer",
-                            backref=backref('art_show_receipts',
-                                            cascade='save-update, merge',
-                                            overlaps="art_show_purchases,buyer")))
     closed: datetime | None = Column(DateTime(timezone=True), nullable=True)
+
+    pieces: list['ArtShowPiece'] = Relationship(
+        back_populates="receipt",
+        sa_relationship_kwargs={'lazy': 'selectin', 'cascade': 'save-update,merge,refresh-expire,expunge', 'overlaps': 'art_show_purchases,buyer'})
+    art_show_payments: list['ArtShowPayment'] = Relationship(
+        back_populates="receipt", sa_relationship_kwargs={'lazy': 'selectin', 'passive_deletes': True})
 
     @presave_adjustment
     def add_invoice_num(self):
@@ -766,12 +771,18 @@ class ArtShowBidder(MagModel, table=True):
     Attendee: joined
     """
 
-    attendee_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id', ondelete='SET NULL'), nullable=True))
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
+    attendee: 'Attendee' = Relationship(
+        back_populates="art_show_bidder", sa_relationship_kwargs={'lazy': 'joined', 'cascade': 'save-update,merge,refresh-expire,expunge'})
+
     bidder_num: str = Column(String)
     admin_notes: str = Column(String)
     signed_up: datetime | None = Column(DateTime(timezone=True), nullable=True)
     email_won_bids: bool = Column(Boolean, default=False)
     contact_type: int = Column(Choice(c.ART_SHOW_CONTACT_TYPE_OPTS), default=c.EMAIL)
+
+    art_show_pieces: list['ArtShowPiece'] = Relationship(
+        back_populates="winning_bidder", sa_relationship_kwargs={'cascade': 'save-update,merge,refresh-expire,expunge'})
 
     email_model_name: ClassVar = 'bidder'
 

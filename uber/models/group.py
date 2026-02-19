@@ -30,15 +30,19 @@ class Group(MagModel, TakesPaymentMixin, table=True):
     ModelReceipt: select
     """
 
+    leader_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
+    leader: 'Attendee' = Relationship(sa_relationship=relationship('Attendee', foreign_keys='Group.leader_id', post_update=True, cascade='all'))
+    
+    creator_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
+    creator: 'Attendee' = Relationship(
+        back_populates="created_groups", sa_relationship_kwargs={'foreign_keys': 'Group.creator_id', 'remote_side': 'Attendee.id'})
+    
+    shared_with_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='group.id', nullable=True)
+    shared_with: 'Group' = Relationship(
+        back_populates="table_shares", sa_relationship_kwargs={'foreign_keys': 'Group.shared_with_id', 'remote_side': 'Group.id'})
+    table_shares: list['Group'] = Relationship(back_populates="shared_with", sa_relationship_kwargs={'viewonly': True})
+
     public_id: str | None = Column(Uuid(as_uuid=False), default=lambda: str(uuid4()))
-    shared_with_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('group.id', ondelete='SET NULL'), nullable=True))
-    shared_with: 'Group' = Relationship(sa_relationship=relationship(
-        'Group',
-        foreign_keys='Group.shared_with_id',
-        backref=backref('table_shares', viewonly=True),
-        cascade='save-update,merge,refresh-expire,expunge',
-        remote_side='Group.id',
-        single_parent=True))
     name: str = Column(String)
     tables: Decimal = Column(Numeric, default=0)
     zip_code: str = Column(String)
@@ -66,35 +70,25 @@ class Group(MagModel, TakesPaymentMixin, table=True):
     status: int = Column(Choice(c.DEALER_STATUS_OPTS), default=c.UNAPPROVED, admin_only=True)
     registered: datetime = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
     approved: datetime | None = Column(DateTime(timezone=True), nullable=True)
-    leader_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id', use_alter=True, name='fk_leader', ondelete='SET NULL'),
-                       nullable=True))
-    creator_id: str | None = Field(sa_column=Column(Uuid(as_uuid=False), ForeignKey('attendee.id'), nullable=True))
+    
+    attendees: list['Attendee'] = Relationship(
+        back_populates="group",
+        sa_relationship_kwargs={'foreign_keys': 'Attendee.group_id', 'lazy': 'selectin', 'cascade': 'save-update,merge,refresh-expire,expunge'})
+    studio: 'IndieStudio' = Relationship(back_populates="group", sa_relationship_kwargs={'cascade': 'save-update,merge,refresh-expire,expunge'})
+    guest: 'GuestGroup' = Relationship(back_populates="group", sa_relationship_kwargs={'passive_deletes': True})
 
-    creator: 'Attendee' = Relationship(sa_relationship=relationship(
-        'Attendee',
-        foreign_keys='Group.creator_id',
-        backref=backref('created_groups', order_by='Group.name'),
-        cascade='save-update,merge,refresh-expire,expunge',
-        remote_side='Attendee.id',
-        single_parent=True))
-    leader: 'Attendee' = Relationship(sa_relationship=relationship('Attendee', foreign_keys='Group.leader_id', post_update=True, cascade='all'))
-    studio: 'IndieStudio' = Relationship(sa_relationship=relationship('IndieStudio', uselist=False, backref='group',
-                          cascade='save-update,merge,refresh-expire,expunge'))
-    guest: 'GuestGroup' = Relationship(sa_relationship=relationship('GuestGroup', backref=backref('group', lazy='joined'), uselist=False))
     active_receipt: 'ModelReceipt' = Relationship(sa_relationship=relationship(
         'ModelReceipt',
         cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_(remote(ModelReceipt.owner_id) == foreign(Group.id),'
         'ModelReceipt.owner_model == "Group",'
         'ModelReceipt.closed == None)',
-        lazy='select',
-        uselist=False))
+        lazy='select'))
     terms_conditions_doc: 'SignedDocument' = Relationship(sa_relationship=relationship(
         'SignedDocument',
         cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_(SignedDocument.fk_id == foreign(Group.id),'
         'SignedDocument.model == "Group")',
-        uselist=False,
         overlaps="active_receipt"))
 
     _repr_attr_names: ClassVar = ['name']
