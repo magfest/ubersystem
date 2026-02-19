@@ -5,7 +5,7 @@ from sqlalchemy.types import Boolean, DateTime, String, Uuid
 from typing import ClassVar
 
 from uber.models import MagModel
-from uber.models.types import DefaultColumn as Column, DefaultField as Field, DefaultRelationship as Relationship
+from uber.models.types import DefaultField as Field, DefaultRelationship as Relationship
 
 
 __all__ = ['TabletopGame', 'TabletopCheckout']
@@ -15,12 +15,13 @@ class TabletopGame(MagModel, table=True):
     attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
     attendee: 'Attendee' = Relationship(back_populates="games")
 
-    code: str = Column(String)
-    name: str = Column(String)
-    returned: bool = Column(Boolean, default=False)
+    code: str = ''
+    name: str = ''
+    returned: bool = False
 
     checkouts: list['TabletopCheckout'] = Relationship(
-        back_populates="game", sa_relationship_kwargs={'order_by': 'TabletopCheckout.checked_out', 'passive_deletes': True})
+        back_populates="game", sa_relationship_kwargs={'order_by': 'TabletopCheckout.checked_out',
+                                                       'cascade': 'all,delete-orphan', 'passive_deletes': True})
 
     _repr_attr_names: ClassVar = ['name']
 

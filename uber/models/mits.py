@@ -5,13 +5,13 @@ from datetime import datetime
 
 from pytz import UTC
 from sqlalchemy import and_
-from sqlalchemy.types import Boolean, Integer, Uuid, DateTime, String
+from sqlalchemy.types import Uuid, DateTime
 from sqlalchemy.ext.hybrid import hybrid_property
 from typing import ClassVar
 
 from uber.config import c
 from uber.models import MagModel
-from uber.models.types import (utcnow, Choice, DefaultColumn as Column, MultiChoice, GuidebookImageMixin,
+from uber.models.types import (Choice, MultiChoice, GuidebookImageMixin, DefaultColumn as Column,
                                DefaultField as Field, DefaultRelationship as Relationship)
 from uber.utils import slugify
 
@@ -24,28 +24,32 @@ class MITSTeam(MagModel, table=True):
     MITSGame: selectin
     """
 
-    name: str = Column(String)
-    days_available: int | None = Column(Integer, nullable=True)
-    hours_available: int | None = Column(Integer, nullable=True)
-    concurrent_attendees: int | None = Column(Integer, default=0)
-    panel_interest: bool | None = Column(Boolean, nullable=True, admin_only=True)
-    showcase_interest: bool | None = Column(Boolean, nullable=True, admin_only=True)
-    want_to_sell: bool = Column(Boolean, default=False)
-    address: str = Column(String)
+    name: str = ''
+    days_available: int | None = Field(nullable=True)
+    hours_available: int | None = Field(nullable=True)
+    concurrent_attendees: int = 0
+    panel_interest: bool | None = Field(nullable=True, admin_only=True)
+    showcase_interest: bool | None = Field(nullable=True, admin_only=True)
+    want_to_sell: bool = False
+    address: str = ''
     submitted: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
-    waiver_signature: str = Column(String)
+    waiver_signature: str = ''
     waiver_signed: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
 
     applied: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
-    status: int = Column(Choice(c.MITS_APP_STATUS), default=c.PENDING, admin_only=True)
+    status: int = Field(sa_column=Column(Choice(c.MITS_APP_STATUS), admin_only=True), default=c.PENDING)
 
-    applicants: list['MITSApplicant'] = Relationship(back_populates="team", sa_relationship_kwargs={'passive_deletes': True})
-    games: list['MITSGame'] = Relationship(back_populates="team", sa_relationship_kwargs={'passive_deletes': True})
-    schedule: 'MITSTimes' = Relationship(back_populates="team", sa_relationship_kwargs={'passive_deletes': True})
-    panel_app: 'MITSPanelApplication' = Relationship(back_populates="team", sa_relationship_kwargs={'passive_deletes': True})
+    applicants: list['MITSApplicant'] = Relationship(
+        back_populates="team", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    games: list['MITSGame'] = Relationship(
+        back_populates="team", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    schedule: 'MITSTimes' = Relationship(
+        back_populates="team", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    panel_app: 'MITSPanelApplication' = Relationship(
+        back_populates="team", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
 
     duplicate_of: str | None = Field(sa_type=Uuid(as_uuid=False), nullable=True)
-    deleted: bool = Column(Boolean, default=False)
+    deleted: bool = False
     # We've found that a lot of people start filling out an application and
     # then instead of continuing their application just start over fresh and
     # fill out a new one.  In these cases we mark the application as
@@ -145,15 +149,15 @@ class MITSApplicant(MagModel, table=True):
     attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
     attendee: 'Attendee' = Relationship(back_populates="mits_applicants")
 
-    primary_contact: bool = Column(Boolean, default=False)
-    first_name: str = Column(String)
-    last_name: str = Column(String)
-    email: str = Column(String)
-    cellphone: str = Column(String)
-    contact_method: int = Column(Choice(c.MITS_CONTACT_OPTS), default=c.TEXTING)
+    primary_contact: bool = False
+    first_name: str = ''
+    last_name: str = ''
+    email: str = ''
+    cellphone: str = ''
+    contact_method: int = Field(sa_column=Column(Choice(c.MITS_CONTACT_OPTS)), default=c.TEXTING)
 
-    declined_hotel_space: bool = Column(Boolean, default=False)
-    requested_room_nights: str = Column(MultiChoice(c.MITS_ROOM_NIGHT_OPTS), default='')
+    declined_hotel_space: bool = False
+    requested_room_nights: str = Field(sa_type=MultiChoice(c.MITS_ROOM_NIGHT_OPTS), default='')
 
     email_model_name: ClassVar = 'applicant'
 
@@ -181,23 +185,25 @@ class MITSGame(MagModel, table=True):
     team_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='mits_team.id', ondelete='CASCADE')
     team: 'MITSTeam' = Relationship(back_populates="games", sa_relationship_kwargs={'lazy': 'joined'})
 
-    name: str = Column(String)
-    promo_blurb: str = Column(String)
-    description: str = Column(String)
-    genre: str = Column(String)
-    phase: int = Column(Choice(c.MITS_PHASE_OPTS), default=c.DEVELOPMENT)
-    min_age: int = Column(Choice(c.MITS_AGE_OPTS), default=c.CHILD)
-    age_explanation: str = Column(String)
-    min_players: int = Column(Integer, default=2)
-    max_players: int = Column(Integer, default=4)
-    copyrighted: int | None = Column(Choice(c.MITS_COPYRIGHT_OPTS), nullable=True)
-    personally_own: bool = Column(Boolean, default=False)
-    unlicensed: bool = Column(Boolean, default=False)
-    professional: bool = Column(Boolean, default=False)
-    tournament: bool = Column(Boolean, default=False)
+    name: str = ''
+    promo_blurb: str = ''
+    description: str = ''
+    genre: str = ''
+    phase: int = Field(sa_column=Column(Choice(c.MITS_PHASE_OPTS)), default=c.DEVELOPMENT)
+    min_age: int = Field(sa_column=Column(Choice(c.MITS_AGE_OPTS)), default=c.CHILD)
+    age_explanation: str = ''
+    min_players: int = 2
+    max_players: int = 4
+    copyrighted: int | None = Field(sa_column=Column(Choice(c.MITS_COPYRIGHT_OPTS), nullable=True))
+    personally_own: bool = False
+    unlicensed: bool = False
+    professional: bool = False
+    tournament: bool = False
 
-    pictures: list['MITSPicture'] = Relationship(back_populates="game", sa_relationship_kwargs={'passive_deletes': True})
-    documents: list['MITSDocument'] = Relationship(back_populates="game", sa_relationship_kwargs={'passive_deletes': True})
+    pictures: list['MITSPicture'] = Relationship(
+        back_populates="game", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    documents: list['MITSDocument'] = Relationship(
+        back_populates="game", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
 
     @hybrid_property
     def has_been_accepted(self):
@@ -259,7 +265,7 @@ class MITSPicture(MagModel, GuidebookImageMixin, table=True):
     game_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='mits_game.id', ondelete='CASCADE')
     game: 'MITSGame' = Relationship(back_populates="pictures", sa_relationship_kwargs={'lazy': 'joined'})
 
-    description: str = Column(String)
+    description: str = ''
 
     @property
     def url(self):
@@ -278,8 +284,8 @@ class MITSDocument(MagModel, table=True):
     game_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='mits_game.id', ondelete='CASCADE')
     game: 'MITSGame' = Relationship(back_populates="documents", sa_relationship_kwargs={'lazy': 'joined'})
 
-    filename: str = Column(String)
-    description: str = Column(String)
+    filename: str = ''
+    description: str = ''
 
     @property
     def url(self):
@@ -298,8 +304,8 @@ class MITSTimes(MagModel, table=True):
     team_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='mits_team.id', ondelete='CASCADE', unique=True)
     team: 'MITSTeam' = Relationship(back_populates="schedule", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
 
-    showcase_availability: str = Column(MultiChoice(c.MITS_SHOWCASE_SCHEDULE_OPTS))
-    availability: str = Column(MultiChoice(c.MITS_SCHEDULE_OPTS))
+    showcase_availability: str = Field(sa_type=MultiChoice(c.MITS_SHOWCASE_SCHEDULE_OPTS), default='')
+    availability: str = Field(sa_type=MultiChoice(c.MITS_SCHEDULE_OPTS), default='')
 
 
 class MITSPanelApplication(MagModel, table=True):
@@ -310,10 +316,10 @@ class MITSPanelApplication(MagModel, table=True):
     team_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='mits_team.id', ondelete='CASCADE', unique=True)
     team: 'MITSTeam' = Relationship(back_populates="panel_app", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
 
-    name: str = Column(String)
-    description: str = Column(String)
-    length: int = Column(Choice(c.PANEL_STRICT_LENGTH_OPTS), default=c.SIXTY_MIN)
-    participation_interest: bool = Column(Boolean, default=False)
+    name: str = ''
+    description: str = ''
+    length: int = Field(sa_column=Column(Choice(c.PANEL_STRICT_LENGTH_OPTS)), default=c.SIXTY_MIN)
+    participation_interest: bool = False
 
 
 def add_applicant_restriction():

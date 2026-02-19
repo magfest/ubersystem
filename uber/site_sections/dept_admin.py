@@ -42,7 +42,8 @@ class Root:
         if not department_id or department_id == 'None':
             raise HTTPRedirect('index')
         
-        department = session.department(department_id)
+        department = session.query(Department).filter(
+            Department.id == department_id).options(selectinload(Department.attendees_working_shifts)).first()
         forms = load_forms(params, department, ['DepartmentInfo'])
 
         if cherrypy.request.method == 'POST':

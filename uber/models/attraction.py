@@ -8,14 +8,14 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.sql import text
 from sqlalchemy.sql.expression import bindparam
-from sqlalchemy.types import Boolean, Integer, Uuid, String, DateTime
+from sqlalchemy.types import Uuid, String, DateTime
 from typing import ClassVar
 
 from uber.config import c
 from uber.custom_tags import humanize_timedelta, location_event_name, location_room_name
 from uber.decorators import presave_adjustment, render, classproperty
 from uber.models import MagModel, Attendee
-from uber.models.types import (default_relationship as relationship, Choice, DefaultColumn as Column, utcmin,
+from uber.models.types import (DefaultColumn as Column, default_relationship as relationship, Choice, utcmin,
                                DefaultField as Field, DefaultRelationship as Relationship)
 from uber.utils import evening_datetime, noon_datetime, localized_now, slugify, listify, groupify
 
@@ -26,13 +26,13 @@ __all__ = [
 
 
 class AttractionMixin():
-    populate_schedule: bool = Column(Boolean, default=True)
-    no_notifications: bool = Column(Boolean, default=False)
-    waitlist_available: bool = Column(Boolean, default=True)
-    waitlist_slots: int = Column(Integer, default=10)
-    signups_open_relative: int = Column(Integer, default=c.DEFAULT_ATTRACTIONS_SIGNUPS_MINUTES)
+    populate_schedule: bool = True
+    no_notifications: bool = False
+    waitlist_available: bool = True
+    waitlist_slots: int = 10
+    signups_open_relative: int = c.DEFAULT_ATTRACTIONS_SIGNUPS_MINUTES
     signups_open_time: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
-    slots: int = Column(Integer, default=1)
+    slots: int = 1
 
     @classproperty
     def inherited_cols(cls):
@@ -147,19 +147,20 @@ class Attraction(MagModel, AttractionMixin, table=True):
         secondary='admin_account',
         viewonly=True))
 
-    name: str = Column(String, unique=True)
-    slug: str = Column(String, unique=True)
-    description: str = Column(String)
-    full_description: str = Column(String)
-    is_public: bool = Column(Boolean, default=False)
-    checkin_reminder: int | None = Column(Integer, default=None, nullable=True)
-    advance_checkin: int = Column(Integer, default=0)
-    restriction: int = Column(Choice(_RESTRICTION_OPTS), default=_NONE)
-    badge_num_required: bool = Column(Boolean, default=False)
+    name: str = Field(default='', unique=True)
+    slug: str = Field(default='', unique=True)
+    description: str = ''
+    full_description: str = ''
+    is_public: bool = False
+    checkin_reminder: int | None = Field(default=None, nullable=True)
+    advance_checkin: int = 0
+    restriction: int = Field(sa_column=Column(Choice(_RESTRICTION_OPTS)), default=_NONE)
+    badge_num_required: bool = False
     
     features: list['AttractionFeature'] = Relationship(
         back_populates="attraction",
-        sa_relationship_kwargs={'lazy': 'selectin', 'order_by': '[AttractionFeature.name, AttractionFeature.id]', 'passive_deletes': True})
+        sa_relationship_kwargs={'lazy': 'selectin', 'order_by': '[AttractionFeature.name, AttractionFeature.id]',
+                                'cascade': 'all,delete-orphan', 'passive_deletes': True})
     public_features: list['AttractionFeature'] = Relationship(sa_relationship=relationship(
         'AttractionFeature',
         primaryjoin='and_('
@@ -169,7 +170,8 @@ class Attraction(MagModel, AttractionMixin, table=True):
         order_by='[AttractionFeature.name, AttractionFeature.id]'))
     events: list['AttractionEvent'] = Relationship(
         back_populates="attraction",
-        sa_relationship_kwargs={'order_by': '[AttractionEvent.start_time, AttractionEvent.id]', 'passive_deletes': True})
+        sa_relationship_kwargs={'order_by': '[AttractionEvent.start_time, AttractionEvent.id]',
+                                'cascade': 'all,delete-orphan', 'passive_deletes': True})
     signups: list['AttractionSignup'] = Relationship(
         back_populates="attraction",
         sa_relationship_kwargs={'viewonly': True, 'order_by': '[AttractionSignup.checkin_time, AttractionSignup.id]'})
@@ -339,15 +341,16 @@ class AttractionFeature(MagModel, AttractionMixin, table=True):
     attraction_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attraction.id', ondelete='CASCADE')
     attraction: 'Attraction' = Relationship(back_populates="features", sa_relationship_kwargs={'lazy': 'joined'})
 
-    name: str = Column(String)
-    slug: str = Column(String)
-    description: str = Column(String)
-    is_public: bool = Column(Boolean, default=False)
-    badge_num_required: bool = Column(Boolean, default=False)
+    name: str = ''
+    slug: str = ''
+    description: str = ''
+    is_public: bool = False
+    badge_num_required: bool = False
 
     events: list['AttractionEvent'] = Relationship(
         back_populates="feature",
-        sa_relationship_kwargs={'lazy': 'selectin', 'order_by': '[AttractionEvent.start_time, AttractionEvent.id]', 'passive_deletes': True})
+        sa_relationship_kwargs={'lazy': 'selectin', 'order_by': '[AttractionEvent.start_time, AttractionEvent.id]',
+                                'cascade': 'all,delete-orphan', 'passive_deletes': True})
 
     __table_args__: ClassVar = (
         UniqueConstraint('name', 'attraction_id'),
@@ -479,25 +482,27 @@ class AttractionEvent(MagModel, AttractionMixin, table=True):
 
     event_location_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='event_location.id', nullable=True)
     location: 'EventLocation' = Relationship(
-        back_populates="attractions", sa_relationship_kwargs={'lazy': 'joined', 'cascade': 'save-update,merge,refresh-expire,expunge'})
+        back_populates="attractions", sa_relationship_kwargs={'lazy': 'joined'})
 
     start_time: datetime = Field(sa_type=DateTime(timezone=True), default=c.EPOCH)
-    duration: int = Column(Integer, default=60)
+    duration: int = 60
 
     schedule_item: 'Event' = Relationship(
-        back_populates="attraction", sa_relationship_kwargs={'cascade': 'save-update,merge,refresh-expire,expunge'})
+        back_populates="attraction")
     signups: list['AttractionSignup'] = Relationship(
-        back_populates="event", sa_relationship_kwargs={'order_by': 'AttractionSignup.checkin_time', 'passive_deletes': True})
+        back_populates="event",
+        sa_relationship_kwargs={'order_by': 'AttractionSignup.checkin_time', 'cascade': 'all,delete-orphan', 'passive_deletes': True})
     attendee_signups: ClassVar = association_proxy('signups', 'attendee')
     notifications: list['AttractionNotification'] = Relationship(
-        back_populates="event", sa_relationship_kwargs={'order_by': 'AttractionNotification.sent_time', 'passive_deletes': True})
+        back_populates="event",
+        sa_relationship_kwargs={'order_by': 'AttractionNotification.sent_time', 'cascade': 'all,delete-orphan', 'passive_deletes': True})
     notification_replies: list['AttractionNotificationReply'] = Relationship(
         back_populates="event",
-        sa_relationship_kwargs={'order_by': 'AttractionNotificationReply.sid', 'cascade': 'save-update,merge,refresh-expire,expunge'})
+        sa_relationship_kwargs={'order_by': 'AttractionNotificationReply.sid'})
     attendees: list['Attendee'] = Relationship(
         back_populates="attraction_events",
         sa_relationship_kwargs={
-            'cascade': 'save-update,merge,refresh-expire,expunge', 'secondary': 'attraction_signup',
+            'secondary': 'attraction_signup',
             'order_by': 'attraction_signup.c.signup_time', 'overlaps': 'signups,event,attraction_signups,attendee'})
 
     @presave_adjustment
@@ -762,7 +767,7 @@ class AttractionSignup(MagModel, table=True):
 
     attraction_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attraction.id', ondelete='CASCADE')
     attraction: 'Attraction' = Relationship(
-        back_populates="signups", sa_relationship_kwargs={'lazy': 'joined', 'cascade': 'save-update,merge,refresh-expire,expunge'})
+        back_populates="signups", sa_relationship_kwargs={'lazy': 'joined'})
     
     attraction_event_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attraction_event.id', ondelete='CASCADE')
     event: 'AttractionEvent' = Relationship(back_populates="signups", sa_relationship_kwargs={'lazy': 'joined'})
@@ -772,7 +777,7 @@ class AttractionSignup(MagModel, table=True):
 
     signup_time: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(pytz.UTC))
     checkin_time: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: utcmin.datetime, index=True)
-    on_waitlist: bool = Column(Boolean, default=False)
+    on_waitlist: bool = False
 
     notifications: list['AttractionNotification'] = Relationship(
         back_populates="signup",
@@ -873,12 +878,12 @@ class AttractionNotification(MagModel, table=True):
     attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
     attendee: 'Attendee' = Relationship(back_populates="attraction_notifications", sa_relationship_kwargs={'lazy': 'joined'})
 
-    notification_type: int = Column(Choice(Attendee._NOTIFICATION_PREF_OPTS))
-    ident: str = Column(String, index=True)
-    sid: str = Column(String)
+    notification_type: int = Field(sa_column=Column(Choice(Attendee._NOTIFICATION_PREF_OPTS)), default=0)
+    ident: str = Field(default='', index=True)
+    sid: str = ''
     sent_time: datetime = Field(sa_type=DateTime(timezone=True), default=lambda: datetime.now(pytz.UTC))
-    subject: str = Column(String)
-    body: str = Column(String)
+    subject: str = ''
+    body: str = ''
 
     signup: 'AttractionSignup' = Relationship(
         back_populates="notifications",
@@ -904,13 +909,13 @@ class AttractionNotificationReply(MagModel, table=True):
     attraction_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attraction.id', nullable=True)
     attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
 
-    notification_type: int = Column(Choice(Attendee._NOTIFICATION_PREF_OPTS))
-    from_phonenumber: str = Column(String)
-    to_phonenumber: str = Column(String)
-    sid: str = Column(String, index=True)
+    notification_type: int = Field(sa_column=Column(Choice(Attendee._NOTIFICATION_PREF_OPTS)), default=0)
+    from_phonenumber: str = ''
+    to_phonenumber: str = ''
+    sid: str = Field(default='', index=True)
     received_time: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(pytz.UTC))
     sent_time: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(pytz.UTC))
-    body: str = Column(String)
+    body: str = ''
 
     @presave_adjustment
     def _fix_attraction_id(self):

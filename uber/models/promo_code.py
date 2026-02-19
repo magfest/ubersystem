@@ -57,8 +57,8 @@ class PromoCodeWord(MagModel, table=True):
         (_ADVERB, 'adverb')]
     _PARTS_OF_SPEECH: ClassVar = dict(_PART_OF_SPEECH_OPTS)
 
-    word: str = Column(String)
-    part_of_speech: int = Column(Choice(_PART_OF_SPEECH_OPTS), default=_ADJECTIVE)
+    word: str = ''
+    part_of_speech: int = Field(sa_column=Column(Choice(_PART_OF_SPEECH_OPTS)), default=_ADJECTIVE)
 
     _repr_attr_names: ClassVar = ('word',)
 
@@ -137,12 +137,12 @@ class PromoCodeGroup(MagModel, table=True):
     buyer_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
     buyer: 'Attendee' = Relationship(back_populates="promo_code_groups", sa_relationship_kwargs={'lazy': 'joined'})
 
-    name: str = Column(String)
-    code: str = Column(String, admin_only=True)
+    name: str = ''
+    code: str = ''
     registered: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
 
     promo_codes: list['PromoCode'] = Relationship(
-        back_populates="group", sa_relationship_kwargs={'lazy': 'selectin', 'cascade': 'save-update,merge,refresh-expire,expunge'})
+        back_populates="group", sa_relationship_kwargs={'lazy': 'selectin'})
 
     email_model_name: ClassVar = 'group'
 
@@ -316,13 +316,13 @@ class PromoCode(MagModel, table=True):
     group_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='promo_code_group.id', nullable=True)
     group: 'PromoCodeGroup' = Relationship(back_populates="promo_codes", sa_relationship_kwargs={'lazy': 'joined'})
     
-    code: str = Column(String)
-    discount: int | None = Column(Integer, nullable=True, default=None)
-    discount_type: int = Column(Choice(_DISCOUNT_TYPE_OPTS), default=_FIXED_DISCOUNT)
+    code: str = ''
+    discount: int | None = Field(nullable=True, default=None)
+    discount_type: int = Field(sa_column=Column(Choice(_DISCOUNT_TYPE_OPTS)), default=_FIXED_DISCOUNT)
     expiration_date: datetime = Field(sa_type=DateTime(timezone=True), default=c.ESCHATON)
-    uses_allowed: int | None = Column(Integer, nullable=True, default=None)
-    cost: int | None = Column(Integer, nullable=True, default=None)
-    admin_notes: str = Column(String)
+    uses_allowed: int | None = Field(nullable=True, default=None)
+    cost: int | None = Field(nullable=True, default=None)
+    admin_notes: str = ''
     
     used_by: list['Attendee'] = Relationship(
         back_populates="promo_code", sa_relationship_kwargs={'lazy': 'selectin', 'cascade': 'merge,refresh-expire,expunge'}

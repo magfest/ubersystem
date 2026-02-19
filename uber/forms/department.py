@@ -121,7 +121,8 @@ class BulkPrintingRequestInfo(MagForm):
                                 description="If you want the same content on the front and back, please make sure your document has each page duplicated.")
     stapled = BooleanField("Please staple the pages of this document together.")
     notes = TextAreaField("Additional Information")
-    required = BooleanField("This document is vital to my department.",
-                            description="We will do our best to print all submitted documents, but this will help us prioritize the most important documents to print.")
+    important = BooleanField(
+        "This document is vital to my department.",
+        description="We will do our best to print all submitted documents, but this will help us prioritize the most important documents to print.")
     link_is_shared = BooleanField(
         Markup("<strong>I verify that I have checked the permissions of the link provided and made sure it is publicly accessible.</strong>"))

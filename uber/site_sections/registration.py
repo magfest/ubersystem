@@ -49,10 +49,15 @@ def load_attendee(session, params):
         attendee = Attendee()
     else:
         attendee = session.query(Attendee).filter(Attendee.id == id).options(
+            selectinload(Attendee.promo_code_groups),
+            selectinload(Attendee.allocated_badges),
+            selectinload(Attendee.escalation_tickets),
             selectinload(Attendee.assigned_depts),
             selectinload(Attendee.dept_membership_requests),
             selectinload(Attendee.dept_memberships_with_role),
             selectinload(Attendee.dept_memberships_with_inherent_role),
+            joinedload(Attendee.lottery_application),
+            joinedload(Attendee.watch_list),
             joinedload(Attendee.shifts),
             joinedload(Attendee.panel_applicants),
             joinedload(Attendee.admin_account)).one()
@@ -141,6 +146,8 @@ class Root:
                     'This attendee was the only{} search result'.format('' if invalid else ' valid'))
 
         pages = range(1, int(math.ceil(count / 100)) + 1)
+        attendees = attendees.options(
+            selectinload(Attendee.promo_code_groups), selectinload(Attendee.allocated_badges))
         attendees = attendees[-100 + 100*page: 100*page] if page else []
 
         return {

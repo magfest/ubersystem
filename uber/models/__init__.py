@@ -25,7 +25,7 @@ from sqlalchemy.event import listen
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.ext.hybrid import hybrid_method, hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import Query, joinedload, selectinload, subqueryload, contains_eager, DeclarativeBase, declared_attr, sessionmaker, scoped_session
+from sqlalchemy.orm import Query, joinedload, selectinload, subqueryload, contains_eager, declared_attr, sessionmaker, scoped_session
 import sqlalchemy.orm
 from sqlalchemy.orm.attributes import get_history, instance_state
 from sqlalchemy.schema import MetaData, UniqueConstraint
@@ -129,7 +129,13 @@ def uncamel(s, sep='_'):
     """
     return RE_UNCAMEL.sub(r'{0}\1'.format(sep), s).lower()
 
-DeclarativeBase.metadata = MetaData()
+SQLModel.metadata.naming_convention = {
+    "ix": "ix_%(column_0_label)s",
+    "uq": "uq_%(table_name)s_%(column_0_name)s",
+    "ck": "ck_%(table_name)s_%(constraint_name)s",
+    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+    "pk": "pk_%(table_name)s",
+}
 class MagModel(SQLModel):
     model_config: ClassVar = ConfigDict(ignored_types=(hybrid_method, hybrid_property))
 

@@ -24,7 +24,7 @@ class ApiToken(MagModel, table=True):
     admin_account: "AdminAccount" = Relationship(back_populates="api_tokens", sa_relationship_kwargs={'lazy': 'joined'})
 
     token: str | None = Field(sa_type=Uuid(as_uuid=False), default_factory=lambda: str(uuid.uuid4()), private=True)
-    access: str = Field(sa_column=Column(MultiChoice(c.API_ACCESS_OPTS)))
+    access: str = Field(sa_type=MultiChoice(c.API_ACCESS_OPTS), default='')
     name: str = ''
     description: str = ''
     issued_time: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))

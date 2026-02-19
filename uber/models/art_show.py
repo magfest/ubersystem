@@ -16,7 +16,7 @@ from uber.models.types import (Choice, DefaultColumn as Column, default_relation
 from uber.utils import RegistrationCode, get_static_file_path
 
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.types import Integer, Boolean, String, Uuid, DateTime
+from sqlalchemy.types import Integer, Uuid, DateTime
 from sqlalchemy.schema import UniqueConstraint, Index
 from typing import ClassVar
 
@@ -38,7 +38,7 @@ class ArtShowAgentCode(MagModel, table=True):
     attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
     attendee: 'Attendee' = Relationship(back_populates="agent_codes")
     
-    code: str = Column(String)
+    code: str = ''
     cancelled: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
 
     @hybrid_property
@@ -66,45 +66,44 @@ class ArtShowApplication(MagModel, table=True):
     
     checked_in: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     checked_out: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
-    locations: str = Column(String)
-    artist_name: str = Column(String)
-    artist_id: str = Column(String, admin_only=True)
-    payout_method: int = Column(Choice(c.ARTIST_PAYOUT_METHOD_OPTS), default=c.CHECK)
-    banner_name: str = Column(String)
-    banner_name_ad: str = Column(String)
-    artist_id_ad: str = Column(String, admin_only=True)
-    check_payable: str = Column(String)
-    contact_at_con: str = Column(String)
-    panels: int = Column(Integer, default=0)
-    panels_ad: int = Column(Integer, default=0)
-    tables: int = Column(Integer, default=0)
-    tables_ad: int = Column(Integer, default=0)
-    description: str = Column(String)
-    business_name: str = Column(String)
-    zip_code: str = Column(String)
-    address1: str = Column(String)
-    address2: str = Column(String)
-    city: str = Column(String)
-    region: str = Column(String)
-    country: str = Column(String)
-    paypal_address: str = Column(String) # TODO: Move to AC plugin
-    website: str = Column(String)
-    special_needs: str = Column(String)
-    status: int = Column(Choice(c.ART_SHOW_STATUS_OPTS), default=c.UNAPPROVED)
-    decline_reason: str = Column(String)
-    delivery_method: int = Column(Choice(c.ART_SHOW_DELIVERY_OPTS), default=c.BRINGING_IN)
-    us_only: bool = Column(Boolean, default=False)
-    admin_notes: str = Column(String, admin_only=True)
-    check_in_notes: str = Column(String)
-    overridden_price: int = Column(Integer, nullable=True, admin_only=True)
+    locations: str = ''
+    artist_name: str = ''
+    artist_id: str = ''
+    payout_method: int = Field(sa_column=Column(Choice(c.ARTIST_PAYOUT_METHOD_OPTS)), default=c.CHECK)
+    banner_name: str = ''
+    banner_name_ad: str = ''
+    artist_id_ad: str = ''
+    check_payable: str = ''
+    contact_at_con: str = ''
+    panels: int = 0
+    panels_ad: int = 0
+    tables: int = 0
+    tables_ad: int = 0
+    description: str = ''
+    business_name: str = ''
+    zip_code: str = ''
+    address1: str = ''
+    address2: str = ''
+    city: str = ''
+    region: str = ''
+    country: str = ''
+    paypal_address: str = '' # TODO: Move to AC plugin
+    website: str = ''
+    special_needs: str = ''
+    status: int = Field(sa_column=Column(Choice(c.ART_SHOW_STATUS_OPTS)), default=c.UNAPPROVED)
+    decline_reason: str = ''
+    delivery_method: int = Field(sa_column=Column(Choice(c.ART_SHOW_DELIVERY_OPTS)), default=c.BRINGING_IN)
+    us_only: bool = False
+    admin_notes: str = ''
+    check_in_notes: str = ''
+    overridden_price: int = Field(nullable=True, default=0)
     active_receipt: 'ModelReceipt' = Relationship(sa_relationship=relationship(
         'ModelReceipt',
-        cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_(remote(ModelReceipt.owner_id) == foreign(ArtShowApplication.id),'
         'ModelReceipt.owner_model == "ArtShowApplication",'
         'ModelReceipt.closed == None)',
         lazy='select'))
-    default_cost: int = Column(Integer, nullable=True)
+    default_cost: int | None = Field(nullable=True)
 
     agents: list['Attendee'] = Relationship(
         back_populates="art_agent_apps",
@@ -112,9 +111,12 @@ class ArtShowApplication(MagModel, table=True):
             'secondaryjoin': 'and_(ArtShowAgentCode.app_id == ArtShowApplication.id, ArtShowAgentCode.cancelled == None)',
             'secondary': 'art_show_agent_code', 'viewonly': True
         })
-    art_show_pieces: list['ArtShowPiece'] = Relationship(back_populates="app", sa_relationship_kwargs={'passive_deletes': True})
-    agent_codes: list['ArtShowAgentCode'] = Relationship(back_populates="app", sa_relationship_kwargs={'passive_deletes': True})
-    assignments: list['ArtPanelAssignment'] = Relationship(back_populates="app", sa_relationship_kwargs={'passive_deletes': True})
+    art_show_pieces: list['ArtShowPiece'] = Relationship(
+        back_populates="app", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    agent_codes: list['ArtShowAgentCode'] = Relationship(
+        back_populates="app", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    assignments: list['ArtPanelAssignment'] = Relationship(
+        back_populates="app", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
 
     email_model_name: ClassVar = 'app'
 
@@ -463,25 +465,24 @@ class ArtShowPiece(MagModel, table=True):
     winning_bidder_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='art_show_bidder.id', nullable=True)
     winning_bidder: 'ArtShowBidder' = Relationship(back_populates="art_show_pieces")
     
-    piece_id: int = Column(Integer)
-    name: str = Column(String)
-    for_sale: bool = Column(Boolean, default=False)
-    type: int = Column(Choice(c.ART_PIECE_TYPE_OPTS), default=c.PRINT)
-    gallery: int = Column(Choice(c.ART_PIECE_GALLERY_OPTS), default=c.GENERAL)
-    media: str = Column(String)
-    print_run_num: int | None = Column(Integer, default=0, nullable=True)
-    print_run_total: int | None = Column(Integer, default=0, nullable=True)
-    opening_bid: int | None = Column(Integer, default=0, nullable=True)
-    quick_sale_price: int | None = Column(Integer, default=0, nullable=True)
-    winning_bid: int | None = Column(Integer, default=0, nullable=True)
-    no_quick_sale: bool = Column(Boolean, default=False)
-    voice_auctioned: bool = Column(Boolean, default=False)
-    status: int = Column(Choice(c.ART_PIECE_STATUS_OPTS), default=c.EXPECTED,
-                    admin_only=True)
+    piece_id: int = 1
+    name: str = ''
+    for_sale: bool = False
+    type: int = Field(sa_column=Column(Choice(c.ART_PIECE_TYPE_OPTS)), default=c.PRINT)
+    gallery: int = Field(sa_column=Column(Choice(c.ART_PIECE_GALLERY_OPTS)), default=c.GENERAL)
+    media: str = ''
+    print_run_num: int | None = Field(default=0, nullable=True)
+    print_run_total: int | None = Field(default=0, nullable=True)
+    opening_bid: int | None = Field(default=0, nullable=True)
+    quick_sale_price: int | None = Field(default=0, nullable=True)
+    winning_bid: int | None = Field(default=0, nullable=True)
+    no_quick_sale: bool = False
+    voice_auctioned: bool = False
+    status: int = Field(sa_column=Column(Choice(c.ART_PIECE_STATUS_OPTS)), default=c.EXPECTED)
     
     buyer: 'Attendee' = Relationship(
         back_populates="art_show_purchases",
-        sa_relationship_kwargs={'lazy': 'joined', 'secondary': 'art_show_receipt', 'cascade': 'save-update,merge,refresh-expire,expunge'})
+        sa_relationship_kwargs={'lazy': 'joined', 'secondary': 'art_show_receipt'})
 
     @presave_adjustment
     def create_piece_id(self):
@@ -599,18 +600,19 @@ class ArtShowPanel(MagModel, table=True):
     ArtPanelAssignment: selectin
     """
 
-    gallery: int = Column(Choice(c.ART_PIECE_GALLERY_OPTS), default=c.GENERAL)
-    surface_type: int = Column(Choice(c.ART_SHOW_PANEL_TYPE_OPTS), default=c.PANEL)
-    origin_x: int = Column(Integer, default=0)
-    origin_y: int = Column(Integer, default=0)
-    terminus_x: int = Column(Integer, default=0)
-    terminus_y: int = Column(Integer, default=0)
-    assignable_sides: int = Column(Choice(c.ART_SHOW_PANEL_SIDE_OPTS), default=c.BOTH)
-    start_label: str = Column(String)
-    end_label: str = Column(String)
+    gallery: int = Field(sa_column=Column(Choice(c.ART_PIECE_GALLERY_OPTS)), default=c.GENERAL)
+    surface_type: int = Field(sa_column=Column(Choice(c.ART_SHOW_PANEL_TYPE_OPTS)), default=c.PANEL)
+    origin_x: int = 0
+    origin_y: int = 0
+    terminus_x: int = 0
+    terminus_y: int = 0
+    assignable_sides: int = Field(sa_column=Column(Choice(c.ART_SHOW_PANEL_SIDE_OPTS)), default=c.BOTH)
+    start_label: str = ''
+    end_label: str = ''
 
     assignments: list['ArtPanelAssignment'] = Relationship(
-        back_populates="panel", sa_relationship_kwargs={'lazy': 'selectin', 'passive_deletes': True})
+        back_populates="panel",
+        sa_relationship_kwargs={'lazy': 'selectin', 'cascade': 'all,delete-orphan', 'passive_deletes': True})
 
     __table_args__: ClassVar = (
         UniqueConstraint('gallery', 'surface_type', 'origin_x', 'origin_y', 'terminus_x', 'terminus_y'),
@@ -652,8 +654,8 @@ class ArtPanelAssignment(MagModel, table=True):
     panel_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='art_show_panel.id', ondelete='CASCADE')
     panel: 'ArtShowPanel' = Relationship(back_populates="assignments", sa_relationship_kwargs={'lazy': 'joined'})
     
-    manual: bool = Column(Boolean, default=False)
-    assigned_side: int = Column(Choice(c.ART_SHOW_PANEL_SIDE_OPTS), default=c.START)
+    manual: bool = False
+    assigned_side: int = Field(sa_column=Column(Choice(c.ART_SHOW_PANEL_SIDE_OPTS)), default=c.START)
 
     __table_args__: ClassVar = (
         UniqueConstraint('panel_id', 'assigned_side'),
@@ -689,8 +691,8 @@ class ArtShowPayment(MagModel, table=True):
     receipt_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='art_show_receipt.id', ondelete='CASCADE')
     receipt: 'ArtShowReceipt' = Relationship(back_populates="art_show_payments", sa_relationship_kwargs={'lazy': 'joined'})
     
-    amount: int = Column(Integer, default=0)
-    type: int = Column(Choice(c.ART_SHOW_PAYMENT_OPTS), default=c.STRIPE, admin_only=True)
+    amount: int = 0
+    type: int = Field(sa_column=Column(Choice(c.ART_SHOW_PAYMENT_OPTS)), default=c.STRIPE)
     when: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
 
 
@@ -705,14 +707,14 @@ class ArtShowReceipt(MagModel, table=True):
     attendee: 'Attendee' = Relationship(
         back_populates="art_show_receipts", sa_relationship_kwargs={'lazy': 'joined', 'overlaps': 'art_show_purchases,buyer'})
     
-    invoice_num: int = Column(Integer, default=0)
+    invoice_num: int = 0
     closed: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
 
     pieces: list['ArtShowPiece'] = Relationship(
         back_populates="receipt",
-        sa_relationship_kwargs={'lazy': 'selectin', 'cascade': 'save-update,merge,refresh-expire,expunge', 'overlaps': 'art_show_purchases,buyer'})
+        sa_relationship_kwargs={'lazy': 'selectin', 'overlaps': 'art_show_purchases,buyer'})
     art_show_payments: list['ArtShowPayment'] = Relationship(
-        back_populates="receipt", sa_relationship_kwargs={'lazy': 'selectin', 'passive_deletes': True})
+        back_populates="receipt", sa_relationship_kwargs={'lazy': 'selectin', 'cascade': 'all,delete-orphan', 'passive_deletes': True})
 
     @presave_adjustment
     def add_invoice_num(self):
@@ -773,16 +775,16 @@ class ArtShowBidder(MagModel, table=True):
 
     attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
     attendee: 'Attendee' = Relationship(
-        back_populates="art_show_bidder", sa_relationship_kwargs={'lazy': 'joined', 'cascade': 'save-update,merge,refresh-expire,expunge'})
+        back_populates="art_show_bidder", sa_relationship_kwargs={'lazy': 'joined'})
 
-    bidder_num: str = Column(String)
-    admin_notes: str = Column(String)
+    bidder_num: str = ''
+    admin_notes: str = ''
     signed_up: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
-    email_won_bids: bool = Column(Boolean, default=False)
-    contact_type: int = Column(Choice(c.ART_SHOW_CONTACT_TYPE_OPTS), default=c.EMAIL)
+    email_won_bids: bool = False
+    contact_type: int = Field(sa_column=Column(Choice(c.ART_SHOW_CONTACT_TYPE_OPTS)), default=c.EMAIL)
 
     art_show_pieces: list['ArtShowPiece'] = Relationship(
-        back_populates="winning_bidder", sa_relationship_kwargs={'cascade': 'save-update,merge,refresh-expire,expunge'})
+        back_populates="winning_bidder")
 
     email_model_name: ClassVar = 'bidder'
 

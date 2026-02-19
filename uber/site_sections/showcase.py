@@ -191,7 +191,7 @@ class Root:
     def delete_developer(self, session, id, **params):
         developer = session.indie_developer(id)
         studio = developer.studio
-        if developer.gets_emails and len(studio.primary_contacts) == 1:
+        if developer.receives_emails and len(studio.primary_contacts) == 1:
             raise HTTPRedirect('index?id={}&message={}', studio.id,
                                'You cannot delete the only presenter who receives email updates.')
 
@@ -223,7 +223,7 @@ class Root:
 
         has_leader = False
         badges_remaining = studio.comped_badges
-        developers = sorted(studio.developers, key=lambda d: (not d.gets_emails, d.full_name))
+        developers = sorted(studio.developers, key=lambda d: (not d.receives_emails, d.full_name))
         for dev in developers:
             if not dev.matching_attendee and badges_remaining:
                 dev.comped = True

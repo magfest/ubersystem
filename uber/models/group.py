@@ -6,15 +6,15 @@ from decimal import Decimal
 from pytz import UTC
 from sqlalchemy import and_, exists, or_, func, select, not_
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.types import Boolean, Integer, Numeric, String, DateTime, Uuid
+from sqlalchemy.types import DateTime, Uuid
 from typing import ClassVar
 
 from uber.config import c
 from uber.custom_tags import format_currency
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
-from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
-    MultiChoice, TakesPaymentMixin, DefaultField as Field, DefaultRelationship as Relationship
+from uber.models.types import (Choice, default_relationship as relationship, DefaultColumn as Column, MultiChoice, TakesPaymentMixin,
+                               DefaultField as Field, DefaultRelationship as Relationship)
 from uber.utils import add_opt
 
 
@@ -28,7 +28,7 @@ class Group(MagModel, TakesPaymentMixin, table=True):
     """
 
     leader_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
-    leader: 'Attendee' = Relationship(sa_relationship=relationship('Attendee', foreign_keys='Group.leader_id', post_update=True, cascade='all'))
+    leader: 'Attendee' = Relationship(sa_relationship=relationship('Attendee', foreign_keys='Group.leader_id', post_update=True))
     
     creator_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
     creator: 'Attendee' = Relationship(
@@ -40,50 +40,48 @@ class Group(MagModel, TakesPaymentMixin, table=True):
     table_shares: list['Group'] = Relationship(back_populates="shared_with", sa_relationship_kwargs={'viewonly': True})
 
     public_id: str | None = Field(sa_type=Uuid(as_uuid=False), default_factory=lambda: str(uuid4()))
-    name: str = Column(String)
-    tables: Decimal = Column(Numeric, default=0)
-    zip_code: str = Column(String)
-    address1: str = Column(String)
-    address2: str = Column(String)
-    city: str = Column(String)
-    region: str = Column(String)
-    country:str = Column(String)
-    email_address: str = Column(String)
-    phone: str = Column(String)
-    website: str = Column(String)
-    wares: str = Column(String)
-    categories: str = Column(MultiChoice(c.DEALER_WARES_OPTS))
-    categories_text: str = Column(String)
-    description: str = Column(String)
-    special_needs: str = Column(String)
+    name: str = ''
+    tables: Decimal = 0
+    zip_code: str = ''
+    address1: str = ''
+    address2: str = ''
+    city: str = ''
+    region: str = ''
+    country:str = ''
+    email_address: str = ''
+    phone: str = ''
+    website: str = ''
+    wares: str = ''
+    categories: str = Field(sa_type=MultiChoice(c.DEALER_WARES_OPTS), default='')
+    categories_text: str = ''
+    description: str = ''
+    special_needs: str = ''
 
-    cost: int = Column(Integer, default=0, admin_only=True)
-    auto_recalc: bool = Column(Boolean, default=True, admin_only=True)
+    cost: int = 0
+    auto_recalc: bool = True
 
-    can_add: bool = Column(Boolean, default=False, admin_only=True)
-    is_dealer: bool = Column(Boolean, default=False, admin_only=True)
-    convert_badges: bool = Column(Boolean, default=False, admin_only=True)
-    admin_notes: str = Column(String, admin_only=True)
-    status: int = Column(Choice(c.DEALER_STATUS_OPTS), default=c.UNAPPROVED, admin_only=True)
+    can_add: bool = False
+    is_dealer: bool = False
+    convert_badges: bool = False
+    admin_notes: str = ''
+    status: int = Field(sa_column=Column(Choice(c.DEALER_STATUS_OPTS)), default=c.UNAPPROVED)
     registered: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
     approved: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     
     attendees: list['Attendee'] = Relationship(
         back_populates="group",
-        sa_relationship_kwargs={'foreign_keys': 'Attendee.group_id', 'lazy': 'selectin', 'cascade': 'save-update,merge,refresh-expire,expunge'})
-    studio: 'IndieStudio' = Relationship(back_populates="group", sa_relationship_kwargs={'cascade': 'save-update,merge,refresh-expire,expunge'})
-    guest: 'GuestGroup' = Relationship(back_populates="group", sa_relationship_kwargs={'passive_deletes': True})
+        sa_relationship_kwargs={'foreign_keys': 'Attendee.group_id', 'lazy': 'selectin'})
+    studio: 'IndieStudio' = Relationship(back_populates="group")
+    guest: 'GuestGroup' = Relationship(back_populates="group", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
 
     active_receipt: 'ModelReceipt' = Relationship(sa_relationship=relationship(
         'ModelReceipt',
-        cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_(remote(ModelReceipt.owner_id) == foreign(Group.id),'
         'ModelReceipt.owner_model == "Group",'
         'ModelReceipt.closed == None)',
         lazy='select'))
     terms_conditions_doc: 'SignedDocument' = Relationship(sa_relationship=relationship(
         'SignedDocument',
-        cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_(SignedDocument.fk_id == foreign(Group.id),'
         'SignedDocument.model == "Group")',
         overlaps="active_receipt"))

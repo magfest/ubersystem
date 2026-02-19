@@ -53,7 +53,7 @@ def DefaultColumn(*args, admin_only=False, private=False, **kwargs):
     return col
 
 
-def DefaultField(*args, private=False, **kwargs):
+def DefaultField(*args, admin_only=False, private=False, **kwargs):
     """
     Returns a SQLModel Field with the given parameters, except that instead
     of the regular defaults, we've overridden the following defaults if no
@@ -64,6 +64,12 @@ def DefaultField(*args, private=False, **kwargs):
         nullable        True            False
         default         None            ''  (only for String fields)
         server_default  None            <same value as 'default'>
+
+    We also have an "admin_only" parameter, which is set as an attribute on
+    the column instance, indicating whether the column should be settable by
+    regular attendees filling out one of the registration forms or if only a
+    logged-in admin user should be able to set it. This is deprecated but
+    kept for compatibility with older forms.
     """
     sa_column = kwargs.get('sa_column', None)
     if sa_column is not None:
@@ -82,8 +88,9 @@ def DefaultField(*args, private=False, **kwargs):
     default = kwargs.get('default')
     if isinstance(default, (int, str)):
         sa_kwargs.setdefault('server_default', str(default))
-    
+
     col = SQLModelField(*args, **kwargs)
+    col.admin_only = admin_only
     col.private = private
     return col
 
@@ -94,7 +101,7 @@ def default_relationship(*args, **kwargs):
     instead of the regular defaults, we've overridden the following defaults
     if no value is provided for the following parameters:
         load_on_pending now defaults to True
-        cascade now defaults to 'all,delete-orphan'
+        cascade now defaults to 'save-update,merge,refresh-expire,expunge'
     """
     kwargs.setdefault('load_on_pending', True)
     if kwargs.get("viewonly", False):
@@ -102,7 +109,7 @@ def default_relationship(*args, **kwargs):
         # on viewonly relationships.
         kwargs.setdefault('cascade', 'expunge,refresh-expire,merge')
     else:
-        kwargs.setdefault('cascade', 'all,delete-orphan')
+        kwargs.setdefault('cascade', 'save-update,merge,refresh-expire,expunge')
     kwargs.setdefault('lazy', 'raise')
     return SQLAlchemy_relationship(*args, **kwargs)
 
@@ -112,7 +119,7 @@ def DefaultRelationship(*args, **kwargs):
     Returns a SQLModel Relationship with the given parameters, except that
     instead of the regular defaults, we've overridden the following defaults
     if no value is provided for the following parameters:
-        cascade now defaults to 'all,delete-orphan'
+        cascade now defaults to 'save-update,merge,refresh-expire,expunge'
         lazy now default to raise
     """
     sa_relationship = kwargs.get('sa_relationship', None)
@@ -126,7 +133,7 @@ def DefaultRelationship(*args, **kwargs):
         # on viewonly relationships.
         sa_kwargs.setdefault('cascade', 'expunge,refresh-expire,merge')
     else:
-        sa_kwargs.setdefault('cascade', 'all,delete-orphan')
+        sa_kwargs.setdefault('cascade', 'save-update,merge,refresh-expire,expunge')
     sa_kwargs.setdefault('lazy', 'raise')
     return SQLModelRelationship(*args, **kwargs, sa_relationship_kwargs=sa_kwargs)
 

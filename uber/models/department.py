@@ -5,7 +5,7 @@ from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
 from sqlalchemy.sql import text
-from sqlalchemy.types import Integer, Time, Uuid, String, DateTime
+from sqlalchemy.types import Uuid, DateTime
 from typing import ClassVar
 
 from uber.config import c
@@ -87,17 +87,17 @@ class BulkPrintingRequest(MagModel, table=True):
 
     link: str = ''
     copies: int = 0
-    print_orientation: int = Field(sa_column=Column(Choice(c.PRINT_ORIENTATION_OPTS), default=c.PORTRAIT))
-    cut_orientation: int = Field(sa_column=Column(Choice(c.CUT_ORIENTATION_OPTS), default=c.NONE))
-    color: int = Field(sa_column=Column(Choice(c.PRINT_REQUEST_COLOR_OPTS), default=c.BW))
-    paper_type: int = Field(sa_column=Column(Choice(c.PRINT_REQUEST_PAPER_TYPE_OPTS), default=c.STANDARD))
+    print_orientation: int = Field(sa_column=Column(Choice(c.PRINT_ORIENTATION_OPTS)), default=c.PORTRAIT)
+    cut_orientation: int = Field(sa_column=Column(Choice(c.CUT_ORIENTATION_OPTS)), default=c.NONE)
+    color: int = Field(sa_column=Column(Choice(c.PRINT_REQUEST_COLOR_OPTS)), default=c.BW)
+    paper_type: int = Field(sa_column=Column(Choice(c.PRINT_REQUEST_PAPER_TYPE_OPTS)), default=c.STANDARD)
     paper_type_text: str = ''
-    size: int = Field(sa_column=Column(Choice(c.PRINT_REQUEST_SIZE_OPTS), default=c.STANDARD))
+    size: int = Field(sa_column=Column(Choice(c.PRINT_REQUEST_SIZE_OPTS)), default=c.STANDARD)
     size_text: str = ''
     double_sided: bool = False
     stapled: bool = False
     notes: str = ''
-    required: bool = False
+    important: bool = False
     link_is_shared: bool = False
 
 
@@ -122,7 +122,7 @@ class DeptMembership(MagModel, table=True):
     dept_roles: list['DeptRole'] = Relationship(
         back_populates="dept_memberships",
         sa_relationship_kwargs={
-            'lazy': 'selectin', 'cascade': 'save-update,merge,refresh-expire,expunge', 'secondary': 'dept_membership_dept_role'})
+            'lazy': 'selectin', 'secondary': 'dept_membership_dept_role'})
 
     __mapper_args__: ClassVar = {'confirm_deleted_rows': False}
     __table_args__: ClassVar = (
@@ -197,13 +197,13 @@ class DeptRole(MagModel, table=True):
 
     jobs: list['Job'] = Relationship(
         back_populates="required_roles",
-        sa_relationship_kwargs={'cascade': 'save-update,merge,refresh-expire,expunge', 'secondary': 'job_required_role'})
+        sa_relationship_kwargs={'secondary': 'job_required_role'})
     job_templates: list['JobTemplate'] = Relationship(
         back_populates="required_roles",
-        sa_relationship_kwargs={'cascade': 'save-update,merge,refresh-expire,expunge', 'secondary': 'job_template_required_role'})
+        sa_relationship_kwargs={'secondary': 'job_template_required_role'})
     dept_memberships: list['DeptMembership'] = Relationship(
         back_populates="dept_roles",
-        sa_relationship_kwargs={'cascade': 'save-update,merge,refresh-expire,expunge', 'secondary': 'dept_membership_dept_role'})
+        sa_relationship_kwargs={'secondary': 'dept_membership_dept_role'})
     attendees: list['Attendee'] = Relationship(
         back_populates="dept_roles",
         sa_relationship_kwargs={
@@ -256,7 +256,7 @@ class Department(MagModel, table=True):
     parent: 'Department' = Relationship(back_populates="sub_depts", sa_relationship_kwargs={'remote_side': 'Department.id'})
     sub_depts: list['Department'] = Relationship(back_populates="parent", sa_relationship_kwargs={'order_by': 'Department.name'})
 
-    name: str = Field(sa_column=Column(String, unique=True, default=''))
+    name: str = Field(unique=True, default='')
     description: str = ''
     solicits_volunteers: bool = True
     max_consecutive_minutes: int = 0
@@ -266,20 +266,24 @@ class Department(MagModel, table=True):
     panels_desc: str = ''
 
     locations: list['EventLocation'] = Relationship(
-        back_populates="department", sa_relationship_kwargs={'cascade': 'save-update,merge,refresh-expire,expunge'})
+        back_populates="department")
     events: list['Event'] = Relationship(
-        back_populates="department", sa_relationship_kwargs={'cascade': 'save-update,merge,refresh-expire,expunge'})
+        back_populates="department")
     attractions: list['Attraction'] = Relationship(
-        back_populates="department", sa_relationship_kwargs={'cascade': 'save-update,merge,refresh-expire,expunge'})
+        back_populates="department")
 
-    jobs: list['Job'] = Relationship(back_populates="department", sa_relationship_kwargs={'passive_deletes': True})
-    job_templates: list['JobTemplate'] = Relationship(back_populates="department", sa_relationship_kwargs={'passive_deletes': True})
+    jobs: list['Job'] = Relationship(back_populates="department",
+                                     sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    job_templates: list['JobTemplate'] = Relationship(back_populates="department",
+                                                      sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
     attendees_working_shifts: list['Attendee'] = Relationship(
         back_populates="depts_where_working",
         sa_relationship_kwargs={'secondary': 'join(Shift, Job)', 'viewonly': True})
 
-    dept_checklist_items: list['DeptChecklistItem'] = Relationship(back_populates="department", sa_relationship_kwargs={'passive_deletes': True})
-    dept_roles: list['DeptRole'] = Relationship(back_populates="department", sa_relationship_kwargs={'passive_deletes': True})
+    dept_checklist_items: list['DeptChecklistItem'] = Relationship(
+        back_populates="department", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    dept_roles: list['DeptRole'] = Relationship(back_populates="department",
+                                                sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
     dept_heads: list['Attendee'] = Relationship(sa_relationship=relationship(
         'Attendee',
         primaryjoin='and_('
@@ -314,16 +318,17 @@ class Department(MagModel, table=True):
             'secondary': 'dept_membership', 'viewonly': True, 'order_by': 'Attendee.full_name'})
     members: list['Attendee'] = Relationship(
         back_populates='assigned_depts',
-        sa_relationship_kwargs={'cascade': 'save-update,merge,refresh-expire,expunge', 'secondary': 'dept_membership', 
+        sa_relationship_kwargs={'secondary': 'dept_membership', 
                                 'order_by': 'Attendee.full_name', 'overlaps': 'attendee,dept_memberships'})
     memberships: list['DeptMembership'] = Relationship(
-        back_populates="department", sa_relationship_kwargs={'overlaps': 'assigned_depts,members', 'passive_deletes': True})
+        back_populates="department",
+        sa_relationship_kwargs={'overlaps': 'assigned_depts,members', 'cascade': 'all,delete-orphan', 'passive_deletes': True})
     membership_requests: list['DeptMembershipRequest'] = Relationship(
-        back_populates="department", sa_relationship_kwargs={'cascade': 'all', 'passive_deletes': True})
+        back_populates="department",
+        sa_relationship_kwargs={'cascade': 'all', 'cascade': 'all,delete-orphan', 'passive_deletes': True})
     explicitly_requesting_attendees: list['Attendee'] = Relationship(
         back_populates="explicitly_requested_depts",
         sa_relationship_kwargs={
-            'cascade': 'save-update,merge,refresh-expire,expunge',
             'secondary': 'dept_membership_request',
             'order_by': 'Attendee.full_name', 'overlaps': 'membership_requests,department,attendee,dept_membership_requests'})
     requesting_attendees: list['Attendee'] = Relationship(
@@ -464,15 +469,16 @@ class Job(MagModel, table=True):
     weight: float = 1
     slots: int = 1
     extra15: bool = False
-    visibility: int = Field(sa_column=Column(Choice(_VISIBILITY_OPTS), default=_ONLY_MEMBERS))
+    visibility: int = Field(sa_column=Column(Choice(_VISIBILITY_OPTS)), default=_ONLY_MEMBERS)
     all_roles_required: bool = True
 
     attendees_working_shifts: list['Attendee'] = Relationship(
         back_populates="jobs", sa_relationship_kwargs={'secondary': 'shift', 'viewonly': True})
     required_roles: list['DeptRole'] = Relationship(
         back_populates="jobs",
-        sa_relationship_kwargs={'lazy': 'selectin', 'cascade': 'save-update,merge,refresh-expire,expunge', 'secondary': 'job_required_role'})
-    shifts: list['Shift'] = Relationship(back_populates="job", sa_relationship_kwargs={'lazy': 'selectin', 'passive_deletes': True})
+        sa_relationship_kwargs={'lazy': 'selectin', 'secondary': 'job_required_role'})
+    shifts: list['Shift'] = Relationship(back_populates="job",
+                                         sa_relationship_kwargs={'lazy': 'selectin', 'cascade': 'all,delete-orphan', 'passive_deletes': True})
 
     __table_args__: ClassVar = (
         Index('ix_job_department_id', 'department_id'),
@@ -739,26 +745,26 @@ class JobTemplate(MagModel, table=True):
     department: 'Department' = Relationship(back_populates="job_templates", sa_relationship_kwargs={'lazy': 'joined'})
 
     template_name: str = ''
-    type: int = Field(sa_column=Column(Choice(c.JOB_TEMPLATE_TYPE_OPTS), default=c.FILL_GAPS))
+    type: int = Field(sa_column=Column(Choice(c.JOB_TEMPLATE_TYPE_OPTS)), default=c.FILL_GAPS)
     name: str = ''
     description: str = ''
     duration: int = 0
     weight: float = 1
     extra15: bool = False
-    visibility: int = Field(sa_column=Column(Choice(Job._VISIBILITY_OPTS), default=Job._ONLY_MEMBERS))
+    visibility: int = Field(sa_column=Column(Choice(Job._VISIBILITY_OPTS)), default=Job._ONLY_MEMBERS)
     all_roles_required: bool = True
 
     min_slots: int = 1  # Future improvement: a bulk-edit for slots in jobs by time of day
-    days: str = Field(sa_column=Column(MultiChoice(c.JOB_DAY_OPTS)))
-    open_time: time | None = Field(sa_column=Column(Time, nullable=True))
-    close_time: time | None = Field(sa_column=Column(Time, nullable=True))
-    interval: int = Field(sa_column=Column(Integer, nullable=True))
+    days: str = Field(sa_type=MultiChoice(c.JOB_DAY_OPTS), default='')
+    open_time: time | None = Field(nullable=True)
+    close_time: time | None = Field(nullable=True)
+    interval: int = Field(nullable=True)
 
-    jobs: list['Job'] = Relationship(back_populates="template", sa_relationship_kwargs={'cascade': 'save-update,merge,refresh-expire,expunge'})
+    jobs: list['Job'] = Relationship(back_populates="template")
     required_roles: list['DeptRole'] = Relationship(
         back_populates="job_templates",
         sa_relationship_kwargs={
-            'lazy': 'selectin', 'cascade': 'save-update,merge,refresh-expire,expunge', 'secondary': 'job_template_required_role'})
+            'lazy': 'selectin', 'secondary': 'job_template_required_role'})
 
     @presave_adjustment
     def zero_slots(self):
@@ -980,8 +986,8 @@ class Shift(MagModel, table=True):
     attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
     attendee: 'Attendee' = Relationship(back_populates="shifts", sa_relationship_kwargs={'lazy': 'joined'})
     
-    worked: int = Field(sa_column=Column(Choice(c.WORKED_STATUS_OPTS), default=c.SHIFT_UNMARKED))
-    rating: int = Field(sa_column=Column(Choice(c.RATING_OPTS), default=c.UNRATED))
+    worked: int = Field(sa_column=Column(Choice(c.WORKED_STATUS_OPTS)), default=c.SHIFT_UNMARKED)
+    rating: int = Field(sa_column=Column(Choice(c.RATING_OPTS)), default=c.UNRATED)
     comment: str = ''
 
     __table_args__: ClassVar = (

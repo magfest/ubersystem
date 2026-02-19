@@ -34,9 +34,9 @@ serializer.register(associationproxy._AssociationList, list)
 
 class ReportTracking(MagModel, table=True):
     when: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
-    who: str = Column(String)
-    supervisor: str = Column(String)
-    page: str = Column(String)
+    who: str = ''
+    supervisor: str = ''
+    page: str = ''
     params: dict[str, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
 
     @property
@@ -111,16 +111,16 @@ class PageViewTracking(MagModel, table=True):
 
 class Tracking(MagModel, table=True):
     fk_id: str = Field(sa_type=Uuid(as_uuid=False), index=True)
-    model: str = Column(String)
-    when: datetime = Field(sa_type=DateTime(timezone=True), default=lambda: datetime.now(UTC), index=True)
-    who: str = Column(String, index=True)
-    supervisor: str = Column(String)
-    page: str = Column(String)
-    which: str = Column(String)
-    links: str = Column(String)
-    action: int = Column(Choice(c.TRACKING_OPTS))
-    data: str = Column(String)
-    snapshot: str = Column(String)
+    model: str = ''
+    when: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC), index=True)
+    who: str = Field(default='', index=True)
+    supervisor: str = ''
+    page: str = ''
+    which: str = ''
+    links: str = ''
+    action: int = Field(sa_column=Column(Choice(c.TRACKING_OPTS)))
+    data: str = ''
+    snapshot: str = ''
 
     @property
     def who_repr(self):
@@ -286,16 +286,16 @@ class Tracking(MagModel, table=True):
 
 class TxnRequestTracking(MagModel, table=True):
     incr_id_seq: ClassVar = Sequence('txn_request_tracking_incr_id_seq')
-    incr_id: int = Column(Integer, incr_id_seq, server_default=incr_id_seq.next_value(), unique=True)
+    incr_id: int = Field(sa_column=Column(Integer, incr_id_seq, server_default=incr_id_seq.next_value(), unique=True))
     fk_id: str | None = Field(sa_type=Uuid(as_uuid=False), nullable=True)
-    workstation_num: int = Column(Integer, default=0)
-    terminal_id: str = Column(String)
-    who: str = Column(String)
+    workstation_num: int = 0
+    terminal_id: str = ''
+    who: str = ''
     requested: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
     resolved: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
-    success: bool = Column(Boolean, default=False)
+    success: bool = False
     response: dict[Any, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
-    internal_error: str = Column(String)
+    internal_error: str = ''
 
     @presave_adjustment
     def log_internal_error(self):

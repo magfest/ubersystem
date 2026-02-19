@@ -33,14 +33,14 @@ class EventLocation(MagModel, table=True):
     department_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='department.id', nullable=True)
     department: 'Department' = Relationship(back_populates="locations")
 
-    name: str = Column(String)
-    room: str = Column(String)
-    tracks: str = Column(MultiChoice(c.EVENT_TRACK_OPTS))
+    name: str = ''
+    room: str = ''
+    tracks: str = Field(sa_column=Column(MultiChoice(c.EVENT_TRACK_OPTS)), default='')
 
     events: list['Event'] = Relationship(
-        back_populates="location", sa_relationship_kwargs={'cascade': 'save-update,merge,refresh-expire,expunge'})
+        back_populates="location")
     attractions: list['AttractionEvent'] = Relationship(
-        back_populates="location", sa_relationship_kwargs={'cascade': 'save-update,merge,refresh-expire,expunge'})
+        back_populates="location")
 
     @property
     def schedule_name(self):
@@ -95,17 +95,19 @@ class Event(MagModel, table=True):
     attraction: 'AttractionEvent' = Relationship(back_populates="schedule_item", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
 
     start_time: datetime = Field(sa_type=DateTime(timezone=True))
-    duration: int = Column(Integer, default=60)
-    name: str = Column(String, nullable=False)
-    description: str = Column(String)
-    public_description: str = Column(String)
-    tracks: str = Column(MultiChoice(c.EVENT_TRACK_OPTS))
+    duration: int = 60
+    name: str = False
+    description: str = ''
+    public_description: str = ''
+    tracks: str = Field(sa_column=Column(MultiChoice(c.EVENT_TRACK_OPTS)), default='')
 
-    assigned_panelists: list['AssignedPanelist'] = Relationship(back_populates="event", sa_relationship_kwargs={'passive_deletes': True})
+    assigned_panelists: list['AssignedPanelist'] = Relationship(
+        back_populates="event", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
     applications: list['PanelApplication'] = Relationship(
-        back_populates="event", sa_relationship_kwargs={'cascade': 'save-update,merge,refresh-expire,expunge'})
-    panel_feedback: list['EventFeedback'] = Relationship(back_populates="event", sa_relationship_kwargs={'passive_deletes': True})
-    guest: 'GuestGroup' = Relationship(back_populates="event", sa_relationship_kwargs={'cascade': 'save-update,merge,refresh-expire,expunge'})
+        back_populates="event")
+    panel_feedback: list['EventFeedback'] = Relationship(
+        back_populates="event", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    guest: 'GuestGroup' = Relationship(back_populates="event")
 
     @property
     def minutes(self):
@@ -195,45 +197,45 @@ class PanelApplication(MagModel, table=True):
 
     submitter_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='panel_applicant.id', nullable=True)
 
-    name: str = Column(String)
-    length: int = Column(Choice(c.PANEL_LENGTH_OPTS), default=c.SIXTY_MIN)
-    length_text: str = Column(String)
-    length_reason: str = Column(String)
-    description: str = Column(String)
-    public_description: str = Column(String)
-    unavailable: str = Column(String)
-    available: str = Column(String)
-    affiliations: str = Column(String)
-    past_attendance: str = Column(String)
-    department: str = Column(UniqueList)
-    department_name: str = Column(String)
-    rating: int = Column(Choice(c.PANEL_RATING_OPTS), default=c.UNRATED)
-    granular_rating: str = Column(MultiChoice(c.PANEL_CONTENT_OPTS))
-    presentation: int = Column(Choice(c.PRESENTATION_OPTS))
-    other_presentation: str = Column(String)
-    noise_level: int = Column(Choice(c.NOISE_LEVEL_OPTS))
-    tech_needs: str = Column(MultiChoice(c.TECH_NEED_OPTS))
-    other_tech_needs: str = Column(String)
-    need_tables: bool = Column(Boolean, default=False)
-    tables_desc: str = Column(String)
-    has_cost: bool = Column(Boolean, default=False)
-    is_loud: bool = Column(Boolean, default=False)
-    tabletop: bool = Column(Boolean, default=False)
-    cost_desc: str = Column(String)
-    livestream: int = Column(Choice(c.LIVESTREAM_OPTS), default=c.OPT_IN)
-    record: int = Column(Choice(c.LIVESTREAM_OPTS), default=c.OPT_IN)
-    panelist_bringing: str = Column(String)
-    extra_info: str = Column(String)
+    name: str = ''
+    length: int = Field(sa_column=Column(Choice(c.PANEL_LENGTH_OPTS)), default=c.SIXTY_MIN)
+    length_text: str = ''
+    length_reason: str = ''
+    description: str = ''
+    public_description: str = ''
+    unavailable: str = ''
+    available: str = ''
+    affiliations: str = ''
+    past_attendance: str = ''
+    department: str = Field(sa_type=UniqueList, default='')
+    department_name: str = ''
+    rating: int = Field(sa_column=Column(Choice(c.PANEL_RATING_OPTS)), default=c.UNRATED)
+    granular_rating: str = Field(sa_column=Column(MultiChoice(c.PANEL_CONTENT_OPTS)), default='')
+    presentation: int = Field(sa_column=Column(Choice(c.PRESENTATION_OPTS)))
+    other_presentation: str = ''
+    noise_level: int = Field(sa_column=Column(Choice(c.NOISE_LEVEL_OPTS)))
+    tech_needs: str = Field(sa_column=Column(MultiChoice(c.TECH_NEED_OPTS)), default='')
+    other_tech_needs: str = ''
+    need_tables: bool = False
+    tables_desc: str = ''
+    has_cost: bool = False
+    is_loud: bool = False
+    tabletop: bool = False
+    cost_desc: str = ''
+    livestream: int = Field(sa_column=Column(Choice(c.LIVESTREAM_OPTS)), default=c.OPT_IN)
+    record: int = Field(sa_column=Column(Choice(c.LIVESTREAM_OPTS)), default=c.OPT_IN)
+    panelist_bringing: str = ''
+    extra_info: str = ''
     applied: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
     accepted: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     confirmed: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
-    status: int = Column(Choice(c.PANEL_APP_STATUS_OPTS), default=c.PENDING, admin_only=True)
-    comments: str = Column(String, admin_only=True)
-    tags: str = Column(UniqueList, admin_only=True)
+    status: int = Field(sa_column=Column(Choice(c.PANEL_APP_STATUS_OPTS)), default=c.PENDING, admin_only=True)
+    comments: str = ''
+    tags: str = Field(sa_type=UniqueList, default='')
 
     applicants: list['PanelApplicant'] = Relationship(
         back_populates="applications",
-        sa_relationship_kwargs={'lazy': 'selectin', 'cascade': 'save-update,merge,refresh-expire,expunge', 'secondary': 'panel_applicant_application'})
+        sa_relationship_kwargs={'lazy': 'selectin', 'secondary': 'panel_applicant_application'})
 
     email_model_name: ClassVar = 'app'
 
@@ -352,26 +354,26 @@ class PanelApplicant(MagModel, table=True):
     attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='SET NULL', nullable=True)
     attendee: 'Attendee' = Relationship(back_populates="panel_applicants", sa_relationship_kwargs={'lazy': 'joined'})
 
-    submitter: bool = Column(Boolean, default=False)
-    first_name: str = Column(String)
-    last_name: str = Column(String)
-    email: str = Column(String)
-    cellphone: str = Column(String)
-    communication_pref: str = Column(MultiChoice(c.COMMUNICATION_PREF_OPTS))
-    other_communication_pref: str = Column(String)
-    requested_accessibility_services: bool = Column(Boolean, default=False)
-    pronouns: str = Column(MultiChoice(c.PRONOUN_OPTS))
-    other_pronouns: str = Column(String)
-    occupation: str = Column(String)
-    website: str = Column(String)
-    other_credentials: str = Column(String)
-    guidebook_bio: str = Column(String)
-    display_name: str = Column(String)
-    social_media_info: str = Column(String)
+    submitter: bool = False
+    first_name: str = ''
+    last_name: str = ''
+    email: str = ''
+    cellphone: str = ''
+    communication_pref: str = Field(sa_column=Column(MultiChoice(c.COMMUNICATION_PREF_OPTS)), default='')
+    other_communication_pref: str = ''
+    requested_accessibility_services: bool = False
+    pronouns: str = Field(sa_column=Column(MultiChoice(c.PRONOUN_OPTS)), default='')
+    other_pronouns: str = ''
+    occupation: str = ''
+    website: str = ''
+    other_credentials: str = ''
+    guidebook_bio: str = ''
+    display_name: str = ''
+    social_media_info: str = ''
 
     applications: list['PanelApplication'] = Relationship(
         back_populates="applicants",
-        sa_relationship_kwargs={'lazy': 'selectin', 'cascade': 'save-update,merge,refresh-expire,expunge', 'secondary': 'panel_applicant_application'})
+        sa_relationship_kwargs={'lazy': 'selectin', 'secondary': 'panel_applicant_application'})
 
     @property
     def has_credentials(self):
@@ -403,7 +405,7 @@ class EventFeedback(MagModel, table=True):
     attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
     attendee: 'Attendee' = Relationship(back_populates="panel_feedback")
 
-    headcount_starting: int = Column(Integer, default=0)
-    headcount_during: int = Column(Integer, default=0)
-    comments: str = Column(String)
-    rating: int = Column(Choice(c.PANEL_FEEDBACK_OPTS), default=c.UNRATED)
+    headcount_starting: int = 0
+    headcount_during: int = 0
+    comments: str = ''
+    rating: int = Field(sa_column=Column(Choice(c.PANEL_FEEDBACK_OPTS)), default=c.UNRATED)

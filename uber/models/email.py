@@ -10,7 +10,7 @@ from sqlalchemy import func, or_, select, update
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.types import Boolean, Integer, String, Uuid, DateTime
+from sqlalchemy.types import Uuid, DateTime
 from typing import Any, ClassVar
 
 from uber import utils
@@ -18,8 +18,7 @@ from uber.config import c
 from uber.decorators import presave_adjustment, renderable_data, cached_property, classproperty
 from uber.jinja import JinjaEnv
 from uber.models import MagModel
-from uber.models.types import (DefaultColumn as Column, default_relationship as relationship,
-                               DefaultField as Field, DefaultRelationship as Relationship)
+from uber.models.types import DefaultField as Field, DefaultRelationship as Relationship
 from uber.utils import normalize_newlines, request_cached_context, groupify
 
 log = logging.getLogger(__name__)
@@ -29,15 +28,15 @@ __all__ = ['AutomatedEmail', 'Email']
 
 
 class BaseEmailMixin(object):
-    model: str = Column(String)
+    model: str = ''
 
-    subject: str = Column(String)
-    body: str = Column(String)
+    subject: str = ''
+    body: str = ''
 
-    sender: str = Column(String)
-    cc: str = Column(String)
-    bcc: str = Column(String)
-    replyto: str = Column(String)
+    sender: str = ''
+    cc: str = ''
+    bcc: str = ''
+    replyto: str = ''
 
     _repr_attr_names: ClassVar = ['subject']
 
@@ -70,17 +69,17 @@ class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
     _fixtures: ClassVar = OrderedDict()
     email_overrides: ClassVar = [] # Used in plugins, list of (ident, key, val) tuples
 
-    format: str = Column(String, default='text')
-    ident: str = Column(String, unique=True)
+    format: str = 'text'
+    ident: str = Field(default='', unique=True)
 
-    approved: bool = Column(Boolean, default=False)
-    needs_approval: bool = Column(Boolean, default=True)
-    unapproved_count: int = Column(Integer, default=0)
-    currently_sending: bool = Column(Boolean, default=False)
+    approved: bool = False
+    needs_approval: bool = True
+    unapproved_count: int = 0
+    currently_sending: bool = False
     last_send_time: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
 
-    allow_at_the_con: bool = Column(Boolean, default=False)
-    allow_post_con: bool = Column(Boolean, default=False)
+    allow_at_the_con: bool = False
+    allow_post_con: bool = False
 
     active_after: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
     active_before: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
@@ -88,7 +87,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
 
     emails: list['Email'] = Relationship(
         back_populates="automated_email",
-        sa_relationship_kwargs={'cascade': 'save-update,merge,refresh-expire,expunge', 'order_by': 'Email.id'})
+        sa_relationship_kwargs={'order_by': 'Email.id'})
 
     @presave_adjustment
     def date_adjustments(self):
@@ -357,8 +356,8 @@ class Email(MagModel, BaseEmailMixin, table=True):
     automated_email: 'AutomatedEmail' = Relationship(back_populates="emails", sa_relationship_kwargs={'lazy': 'joined'})
 
     fk_id: str | None = Field(sa_type=Uuid(as_uuid=False), nullable=True)
-    ident: str = Column(String)
-    to: str = Column(String)
+    ident: str = ''
+    to: str = ''
     when: str = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
 
     @cached_property
