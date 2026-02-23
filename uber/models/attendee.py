@@ -1450,7 +1450,7 @@ class Attendee(MagModel, TakesPaymentMixin):
 
     @property
     def needs_pii_consent(self):
-        return self.is_new or self.placeholder or not self.first_name
+        return self.is_new or self.placeholder or self.orig_value_of('placeholder') is True or not self.first_name
 
     @property
     def has_extras(self):
