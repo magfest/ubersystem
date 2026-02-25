@@ -81,10 +81,6 @@ class EventLocation(MagModel, table=True):
 
 
 class Event(MagModel, table=True):
-    """
-    EventLocation: joined
-    """
-
     event_location_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='event_location.id', nullable=True)
     location: 'EventLocation' = Relationship(back_populates="events", sa_relationship_kwargs={'lazy': 'joined'})
 
@@ -164,11 +160,6 @@ class Event(MagModel, table=True):
 
 
 class AssignedPanelist(MagModel, table=True):
-    """
-    Attendee: joined
-    Event: joined
-    """
-
     attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
     attendee: 'Attendee' = Relationship(back_populates="assigned_panelists", sa_relationship_kwargs={'lazy': 'joined'})
 
@@ -184,11 +175,6 @@ class AssignedPanelist(MagModel, table=True):
 
 
 class PanelApplication(MagModel, table=True):
-    """
-    Event: joined
-    PanelApplicant: selectin
-    """
-
     event_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='event.id', nullable=True)
     event: 'Event' = Relationship(back_populates="applications", sa_relationship_kwargs={'lazy': 'joined'})
     
@@ -346,11 +332,6 @@ class PanelApplication(MagModel, table=True):
 
 
 class PanelApplicant(MagModel, table=True):
-    """
-    Attendee: joined
-    PanelApplicant: selectin
-    """
-
     attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='SET NULL', nullable=True)
     attendee: 'Attendee' = Relationship(back_populates="panel_applicants", sa_relationship_kwargs={'lazy': 'joined'})
 

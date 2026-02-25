@@ -94,10 +94,6 @@ class AttractionMixin():
         return same_time_settings, update_attrs
 
 class Attraction(MagModel, AttractionMixin, table=True):
-    """
-    AttractionFeature: selectin
-    """
-
     _NONE: ClassVar = 0
     _PER_FEATURE: ClassVar = 1
     _PER_ATTRACTION: ClassVar = 2
@@ -333,11 +329,6 @@ class Attraction(MagModel, AttractionMixin, table=True):
 
 
 class AttractionFeature(MagModel, AttractionMixin, table=True):
-    """
-    Attraction: joined
-    AttractionEvent: selectin
-    """
-
     attraction_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attraction.id', ondelete='CASCADE')
     attraction: 'Attraction' = Relationship(back_populates="features", sa_relationship_kwargs={'lazy': 'joined'})
 
@@ -467,13 +458,6 @@ class AttractionFeature(MagModel, AttractionMixin, table=True):
 
 
 class AttractionEvent(MagModel, AttractionMixin, table=True):
-    """
-    Attraction: joined
-    AttractionFeature: joined
-    EventLocation: joined
-    Event: joined
-    """
-
     attraction_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attraction.id', ondelete='CASCADE', index=True)
     attraction: 'Attraction' = Relationship(back_populates="events", sa_relationship_kwargs={'lazy': 'joined'})
 
@@ -488,7 +472,7 @@ class AttractionEvent(MagModel, AttractionMixin, table=True):
     duration: int = 60
 
     schedule_item: 'Event' = Relationship(
-        back_populates="attraction")
+        back_populates="attraction", sa_relationship_kwargs={'lazy': 'joined'})
     signups: list['AttractionSignup'] = Relationship(
         back_populates="event",
         sa_relationship_kwargs={'order_by': 'AttractionSignup.checkin_time', 'cascade': 'all,delete-orphan', 'passive_deletes': True})
@@ -759,12 +743,6 @@ class AttractionEvent(MagModel, AttractionMixin, table=True):
 
 
 class AttractionSignup(MagModel, table=True):
-    """
-    Attendee: joined
-    Attraction: joined
-    AttractionEvent: joined
-    """
-
     attraction_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attraction.id', ondelete='CASCADE')
     attraction: 'Attraction' = Relationship(
         back_populates="signups", sa_relationship_kwargs={'lazy': 'joined'})
@@ -864,12 +842,6 @@ class AttractionSignup(MagModel, table=True):
 
 
 class AttractionNotification(MagModel, table=True):
-    """
-    Attendee: joined
-    AttractionEvent: joined
-    AttractionSignup: joined
-    """
-
     attraction_event_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attraction_event.id', ondelete='CASCADE')
     event: 'AttractionEvent' = Relationship(back_populates="notifications", sa_relationship_kwargs={'lazy': 'joined'})
 
@@ -899,10 +871,6 @@ class AttractionNotification(MagModel, table=True):
 
 
 class AttractionNotificationReply(MagModel, table=True):
-    """
-    AttractionEvent: joined
-    """
-
     attraction_event_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attraction_event.id', nullable=True)
     event: 'AttractionEvent' = Relationship(back_populates="notification_replies", sa_relationship_kwargs={'lazy': 'joined'})
     

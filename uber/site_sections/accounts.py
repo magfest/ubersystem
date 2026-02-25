@@ -113,7 +113,7 @@ class Root:
         department_id = None if department_id == 'All' else department_id
         attendee_filters = [Attendee.dept_memberships.any(department_id=department_id)] if department_id else []
         attendees = session.staffers().filter(*attendee_filters).options(
-            selectinload(Attendee.dept_memberships_with_role)
+            selectinload(Attendee.dept_memberships_with_role), joinedload(Attendee.admin_account)
         ).all()
         for attendee in attendees:
             attendee.trusted_here = attendee.trusted_in(department_id) if department_id else attendee.has_role_somewhere

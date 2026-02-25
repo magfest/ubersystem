@@ -34,11 +34,6 @@ class TabletopGame(MagModel, table=True):
 
 
 class TabletopCheckout(MagModel, table=True):
-    """
-    Attendee: joined
-    TabletopGame: joined
-    """
-
     game_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='tabletop_game.id', ondelete='CASCADE')
     game: 'TabletopGame' = Relationship(back_populates="checkouts", sa_relationship_kwargs={'lazy': 'joined'})
 

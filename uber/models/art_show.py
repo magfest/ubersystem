@@ -28,10 +28,6 @@ __all__ = ['ArtShowAgentCode', 'ArtShowApplication', 'ArtShowPiece', 'ArtShowPay
 
 
 class ArtShowAgentCode(MagModel, table=True):
-    """
-    ArtShowApplication: joined
-    """
-
     app_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='art_show_application.id', ondelete='CASCADE')
     app: 'ArtShowApplication' = Relationship(back_populates="agent_codes", sa_relationship_kwargs={'lazy': 'joined'})
 
@@ -55,11 +51,6 @@ class ArtShowAgentCode(MagModel, table=True):
 
 
 class ArtShowApplication(MagModel, table=True):
-    """
-    Attendee: joined
-    ModelReceipt: select
-    """
-    
     attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True, unique=True)
     attendee: 'Attendee' = Relationship(
         back_populates="art_show_application", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
@@ -451,11 +442,6 @@ class ArtShowApplication(MagModel, table=True):
 
 
 class ArtShowPiece(MagModel, table=True):
-    """
-    ArtShowApplication: joined
-    Attendee (buyer): joined
-    """
-
     app_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='art_show_application.id', ondelete='CASCADE')
     app: 'ArtShowApplication' = Relationship(back_populates="art_show_pieces", sa_relationship_kwargs={'lazy': 'joined'})
     
@@ -596,10 +582,6 @@ class ArtShowPiece(MagModel, table=True):
 
 
 class ArtShowPanel(MagModel, table=True):
-    """
-    ArtPanelAssignment: selectin
-    """
-
     gallery: int = Field(sa_column=Column(Choice(c.ART_PIECE_GALLERY_OPTS)), default=c.GENERAL)
     surface_type: int = Field(sa_column=Column(Choice(c.ART_SHOW_PANEL_TYPE_OPTS)), default=c.PANEL)
     origin_x: int = 0
@@ -643,11 +625,6 @@ class ArtShowPanel(MagModel, table=True):
     
 
 class ArtPanelAssignment(MagModel, table=True):
-    """
-    ArtShowApplication: joined
-    ArtShowPanel: joined
-    """
-
     app_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='art_show_application.id', ondelete='CASCADE')
     app: 'ArtShowApplication' = Relationship(back_populates="assignments", sa_relationship_kwargs={'lazy': 'joined'})
 
@@ -684,10 +661,6 @@ class ArtPanelAssignment(MagModel, table=True):
 
 
 class ArtShowPayment(MagModel, table=True):
-    """
-    ArtShowReceipt: joined
-    """
-
     receipt_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='art_show_receipt.id', ondelete='CASCADE')
     receipt: 'ArtShowReceipt' = Relationship(back_populates="art_show_payments", sa_relationship_kwargs={'lazy': 'joined'})
     
@@ -697,12 +670,6 @@ class ArtShowPayment(MagModel, table=True):
 
 
 class ArtShowReceipt(MagModel, table=True):
-    """
-    Attendee: joined
-    ArtShowPiece: selectin
-    ArtShowPayment: selectin
-    """
-
     attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
     attendee: 'Attendee' = Relationship(
         back_populates="art_show_receipts", sa_relationship_kwargs={'lazy': 'joined', 'overlaps': 'art_show_purchases,buyer'})
@@ -769,10 +736,6 @@ class ArtShowReceipt(MagModel, table=True):
 
 
 class ArtShowBidder(MagModel, table=True):
-    """
-    Attendee: joined
-    """
-
     attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
     attendee: 'Attendee' = Relationship(
         back_populates="art_show_bidder", sa_relationship_kwargs={'lazy': 'joined'})

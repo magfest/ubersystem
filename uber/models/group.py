@@ -22,13 +22,9 @@ __all__ = ['Group']
 
 
 class Group(MagModel, TakesPaymentMixin, table=True):
-    """
-    Attendee: selectin
-    ModelReceipt: select
-    """
-
     leader_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
-    leader: 'Attendee' = Relationship(sa_relationship=relationship('Attendee', foreign_keys='Group.leader_id', post_update=True))
+    leader: 'Attendee' = Relationship(sa_relationship=relationship('Attendee', foreign_keys='Group.leader_id',
+                                                                   lazy='select', post_update=True))
     
     creator_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
     creator: 'Attendee' = Relationship(
@@ -68,9 +64,8 @@ class Group(MagModel, TakesPaymentMixin, table=True):
     registered: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
     approved: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     
-    attendees: list['Attendee'] = Relationship(
-        back_populates="group",
-        sa_relationship_kwargs={'foreign_keys': 'Attendee.group_id', 'lazy': 'selectin'})
+    attendees: list['Attendee'] = Relationship(back_populates="group",
+                                               sa_relationship_kwargs={'foreign_keys': 'Attendee.group_id', 'lazy': 'selectin'})
     studio: 'IndieStudio' = Relationship(back_populates="group")
     guest: 'GuestGroup' = Relationship(back_populates="group", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
 

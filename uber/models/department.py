@@ -63,11 +63,6 @@ job_template_required_role = Table(
 
 
 class DeptChecklistItem(MagModel, table=True):
-    """
-    Attendee: joined
-    Department: joined
-    """
-
     department_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='department.id', ondelete='CASCADE')
     department: 'Department' = Relationship(back_populates="dept_checklist_items", sa_relationship_kwargs={'lazy': 'joined'})
 
@@ -102,12 +97,6 @@ class BulkPrintingRequest(MagModel, table=True):
 
 
 class DeptMembership(MagModel, table=True):
-    """
-    Attendee: joined
-    Department: joined
-    DeptRole: selectin
-    """
-
     attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
     attendee: 'Attendee' = Relationship(back_populates="dept_memberships", sa_relationship_kwargs={'lazy': 'joined'})
 
@@ -162,11 +151,6 @@ class DeptMembership(MagModel, table=True):
 
 
 class DeptMembershipRequest(MagModel, table=True):
-    """
-    Attendee: joined
-    Department: joined
-    """
-
     attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
     attendee: 'Attendee' = Relationship(back_populates="dept_membership_requests", sa_relationship_kwargs={'lazy': 'joined'})
 
@@ -185,10 +169,6 @@ class DeptMembershipRequest(MagModel, table=True):
 
 
 class DeptRole(MagModel, table=True):
-    """
-    Department: joined
-    """
-
     department_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='department.id', ondelete='CASCADE')
     department: 'Department' = Relationship(back_populates="dept_roles", sa_relationship_kwargs={'lazy': 'joined'})
 
@@ -443,13 +423,6 @@ class Department(MagModel, table=True):
 
 
 class Job(MagModel, table=True):
-    """
-    Department: joined
-    DeptRole: selectin
-    Shift: selectin
-    JobTemplate: select
-    """
-
     _ONLY_MEMBERS: ClassVar = 0
     _ALL_VOLUNTEERS: ClassVar = 2
     _VISIBILITY_OPTS: ClassVar = [
@@ -736,11 +709,6 @@ class Job(MagModel, table=True):
 
 
 class JobTemplate(MagModel, table=True):
-    """
-    Department: joined
-    DeptRole: selectin
-    """
-
     department_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='department.id', ondelete='CASCADE')
     department: 'Department' = Relationship(back_populates="job_templates", sa_relationship_kwargs={'lazy': 'joined'})
 
@@ -975,11 +943,6 @@ class JobTemplate(MagModel, table=True):
 
 
 class Shift(MagModel, table=True):
-    """
-    Attendee: joined
-    Job: joined
-    """
-
     job_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='job.id', ondelete='CASCADE')
     job: 'Job' = Relationship(back_populates="shifts", sa_relationship_kwargs={'lazy': 'joined'})
 

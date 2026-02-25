@@ -59,6 +59,10 @@ class RedisSession(Session):
         except TypeError:
           # if id not defined pickle can't load None and raise TypeError
           return None
+        except Exception as e:
+            # Keep the entire thread from getting stuck
+            self._delete()
+            raise e
 
     def _save(self, expiration_time):
         pickled_data = pickle.dumps(

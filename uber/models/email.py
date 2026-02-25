@@ -348,10 +348,6 @@ class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
 
 
 class Email(MagModel, BaseEmailMixin, table=True):
-    """
-    AutomatedEmail: joined
-    """
-    
     automated_email_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='automated_email.id', nullable=True, index=True)
     automated_email: 'AutomatedEmail' = Relationship(back_populates="emails", sa_relationship_kwargs={'lazy': 'joined'})
 

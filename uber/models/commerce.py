@@ -94,9 +94,6 @@ class Sale(MagModel, table=True):
 
 class ModelReceipt(MagModel, table=True):
     """
-    ReceiptTransaction: selectin
-    ReceiptItem: selectin
-
     Attendees, groups, and art show apps have a running receipt that has items and transactions added to it dynamically.
 
     Receipt items can be purchases or credits added to the receipt. They do not involve money changing hands.
@@ -328,9 +325,6 @@ class ModelReceipt(MagModel, table=True):
 
 class ReceiptTransaction(MagModel, table=True):
     """
-    ModelReceipt: joined
-    ReceiptInfo: select
-
     Transactions have two key properties: whether or not they were done through Stripe,
         and whether they represent a payment or a refund.
 
@@ -556,11 +550,6 @@ class ReceiptTransaction(MagModel, table=True):
 
 
 class ReceiptItem(MagModel, table=True):
-    """
-    ModelReceipt: joined
-    ReceiptTransaction: joined
-    """
-
     receipt_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='model_receipt.id', ondelete='CASCADE')
     receipt: 'ModelReceipt' = Relationship(back_populates="receipt_items", sa_relationship_kwargs={'lazy': 'joined'})
 
@@ -642,10 +631,6 @@ class ReceiptItem(MagModel, table=True):
 
 
 class ReceiptInfo(MagModel, table=True):
-    """
-    ReceiptTransaction: selectin
-    """
-
     fk_email_model: str = ''
     fk_email_id: str = ''
     terminal_id: str = ''

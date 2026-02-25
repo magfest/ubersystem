@@ -12,10 +12,6 @@ __all__ = ['PrintJob']
 
 
 class PrintJob(MagModel, table=True):
-    """
-    Attendee: joined
-    """
-    
     attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
     attendee: 'Attendee' = Relationship(back_populates="print_requests", sa_relationship_kwargs={'lazy': 'joined'})
 

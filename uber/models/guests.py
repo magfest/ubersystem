@@ -28,10 +28,6 @@ __all__ = [
 
 
 class GuestGroup(MagModel, table=True):
-    """
-    Group: joined
-    """
-    
     group_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='group.id', ondelete='CASCADE', unique=True)
     group: 'Group' = Relationship(back_populates="guest", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
 
@@ -311,10 +307,6 @@ class GuestGroup(MagModel, table=True):
 
 
 class GuestInfo(MagModel, table=True):
-    """
-    GuestGroup: joined
-    """
-
     guest_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='guest_group.id', ondelete='CASCADE', unique=True)
     guest: 'GuestGroup' = Relationship(back_populates="info", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
     
@@ -348,10 +340,6 @@ class GuestImage(MagModel, GuidebookImageMixin, table=True):
 
 
 class GuestBio(MagModel, table=True):
-    """
-    GuestGroup: joined
-    """
-
     guest_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='guest_group.id', ondelete='CASCADE', unique=True)
     guest: 'GuestGroup' = Relationship(back_populates="bio", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
 
@@ -374,10 +362,6 @@ class GuestBio(MagModel, table=True):
 
 
 class GuestTaxes(MagModel, table=True):
-    """
-    GuestGroup: joined
-    """
-
     guest_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='guest_group.id', ondelete='CASCADE', unique=True)
     guest: 'GuestGroup' = Relationship(back_populates="taxes", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
 
@@ -389,10 +373,6 @@ class GuestTaxes(MagModel, table=True):
 
 
 class GuestStagePlot(MagModel, table=True):
-    """
-    GuestGroup: joined
-    """
-
     guest_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='guest_group.id', ondelete='CASCADE', unique=True)
     guest: 'GuestGroup' = Relationship(back_populates="stage_plot", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
 
@@ -431,10 +411,6 @@ class GuestStagePlot(MagModel, table=True):
 
 
 class GuestPanel(MagModel, table=True):
-    """
-    GuestGroup: joined
-    """
-
     guest_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='guest_group.id', ondelete='CASCADE', unique=True)
     guest: 'GuestGroup' = Relationship(back_populates="panel", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
 
@@ -451,10 +427,6 @@ class GuestPanel(MagModel, table=True):
 
 
 class GuestTrack(MagModel, table=True):
-    """
-    GuestGroup: joined
-    """
-
     guest_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='guest_group.id', ondelete='CASCADE', unique=True)
     guest: 'GuestGroup' = Relationship(back_populates="tracks", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
 
@@ -495,10 +467,6 @@ class GuestTrack(MagModel, table=True):
 
 
 class GuestMerch(MagModel, table=True):
-    """
-    GuestGroup: joined
-    """
-
     _inventory_file_regex: ClassVar = re.compile(r'^(audio|image)(|\-\d+)$')
     _inventory_filename_regex: ClassVar = re.compile(r'^(audio|image)(|\-\d+)_filename$')
 
@@ -799,10 +767,6 @@ class GuestMerch(MagModel, table=True):
 
 
 class GuestCharity(MagModel, table=True):
-    """
-    GuestGroup: joined
-    """
-
     guest_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='guest_group.id', ondelete='CASCADE', unique=True)
     guest: 'GuestGroup' = Relationship(back_populates="charity", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
 
@@ -820,10 +784,6 @@ class GuestCharity(MagModel, table=True):
 
 
 class GuestAutograph(MagModel, table=True):
-    """
-    GuestGroup: joined
-    """
-
     guest_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='guest_group.id', ondelete='CASCADE', unique=True)
     guest: 'GuestGroup' = Relationship(back_populates="autograph", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
 
@@ -839,10 +799,6 @@ class GuestAutograph(MagModel, table=True):
 
 
 class GuestInterview(MagModel, table=True):
-    """
-    GuestGroup: joined
-    """
-
     guest_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='guest_group.id', ondelete='CASCADE', unique=True)
     guest: 'GuestGroup' = Relationship(back_populates="interview", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
 
@@ -858,11 +814,6 @@ class GuestInterview(MagModel, table=True):
 
 
 class GuestTravelPlans(MagModel, table=True):
-    """
-    GuestGroup: joined
-    GuestDetailedTravelPlan: selectin
-    """
-
     guest_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='guest_group.id', ondelete='CASCADE', unique=True)
     guest: 'GuestGroup' = Relationship(back_populates="travel_plans", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
 
@@ -881,10 +832,6 @@ class GuestTravelPlans(MagModel, table=True):
 
 
 class GuestHospitality(MagModel, table=True):
-    """
-    GuestGroup: joined
-    """
-
     guest_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='guest_group.id', ondelete='CASCADE', unique=True)
     guest: 'GuestGroup' = Relationship(back_populates="hospitality", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
 
@@ -892,10 +839,6 @@ class GuestHospitality(MagModel, table=True):
 
 
 class GuestMediaRequest(MagModel, table=True):
-    """
-    GuestGroup: joined
-    """
-
     guest_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='guest_group.id', ondelete='CASCADE', unique=True)
     guest: 'GuestGroup' = Relationship(back_populates="media_request", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
 
@@ -903,10 +846,6 @@ class GuestMediaRequest(MagModel, table=True):
 
 
 class GuestDetailedTravelPlan(MagModel, table=True):
-    """
-    GuestTravelPlans: joined
-    """
-
     travel_plans_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='guest_travel_plans.id', ondelete='CASCADE')
     travel_plans: 'GuestTravelPlans' = Relationship(back_populates="detailed_travel_plans", sa_relationship_kwargs={'lazy': 'joined'})
     

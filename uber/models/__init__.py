@@ -28,6 +28,7 @@ from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import Query, joinedload, selectinload, subqueryload, contains_eager, declared_attr, sessionmaker, scoped_session
 import sqlalchemy.orm
 from sqlalchemy.orm.attributes import get_history, instance_state
+from sqlalchemy.orm.collections import InstrumentedList
 from sqlalchemy.schema import MetaData, UniqueConstraint
 from sqlalchemy.types import Boolean, Integer, Float, Date, Numeric, DateTime, Uuid, JSON
 from sqlmodel import SQLModel
@@ -137,7 +138,9 @@ SQLModel.metadata.naming_convention = {
     "pk": "pk_%(table_name)s",
 }
 class MagModel(SQLModel):
-    model_config: ClassVar = ConfigDict(ignored_types=(hybrid_method, hybrid_property))
+    model_config: ClassVar = ConfigDict(
+        extra='allow',
+        ignored_types=(hybrid_method, hybrid_property))
 
     @declared_attr.directive
     def __tablename__(cls) -> str:
@@ -161,10 +164,19 @@ class MagModel(SQLModel):
                 val = val.isoformat()
             elif isinstance(val, uuid.UUID):
                 val = str(val)
-            
-            data[field] = val
+
+            if isinstance(val, InstrumentedList):
+                data[field] = []
+                for model in val:
+                    obj_fields = fields[field] if isinstance(fields, dict) else None
+                    data[field].append(model.to_dict(obj_fields))
+                if data[field] == []:
+                    del data[field]  # Empty instrumented lists are not pickleable
+            else:
+                data[field] = val
+        data['_model'] = self.__class__.__name__
         return data
-    
+
     id: str | None = Field(sa_type=Uuid(as_uuid=False), default_factory=lambda: str(uuid4()), primary_key=True)
     created: datetime = Field(sa_type=DateTime(timezone=True), sa_column_kwargs={'server_default': utcnow()}, default_factory=lambda: datetime.now(UTC))
     last_updated: datetime = Field(sa_type=DateTime(timezone=True), sa_column_kwargs={'server_default': utcnow()}, default_factory=lambda: datetime.now(UTC))
@@ -546,6 +558,8 @@ class MagModel(SQLModel):
 
     @suffix_property
     def _local(self, name, val):
+        if isinstance(val, six.string_types):
+            val = dateparser.parse(val)
         return val.astimezone(c.EVENT_TIMEZONE)
 
     @suffix_property
@@ -556,6 +570,12 @@ class MagModel(SQLModel):
             return [labels[i].get('name', '') for i in ints]
         else:
             return sorted(labels[i] for i in ints)
+        
+    def __setattr__(self, name, value):
+        # Work around an issue in Pydantic where you can't assign extra properties after init
+        if self.__pydantic_extra__ is None:
+            super().__setattr__('__pydantic_extra__', {})
+        return super().__setattr__(name, value)
 
     def __getattr__(self, name):
         suffixed = suffix_property.check(self, name)
@@ -593,7 +613,7 @@ class MagModel(SQLModel):
         except Exception:
             pass
 
-        raise AttributeError(self.__class__.__name__ + '.' + name)
+        return super().__getattr__(name)
 
     def get_tracking_by_instance(self, instance, action, last_only=True):
         from uber.models.tracking import Tracking

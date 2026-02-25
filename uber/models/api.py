@@ -16,10 +16,6 @@ __all__ = ['ApiToken', 'ApiJob']
 
 
 class ApiToken(MagModel, table=True):
-    """
-    AdminAccount: joined
-    """
-
     admin_account_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='admin_account.id', ondelete='CASCADE')
     admin_account: "AdminAccount" = Relationship(back_populates="api_tokens", sa_relationship_kwargs={'lazy': 'joined'})
 

@@ -17,10 +17,6 @@ __all__ = ['ArtistMarketplaceApplication']
 
 
 class ArtistMarketplaceApplication(MagModel, table=True):
-    """
-    Attendee: joined
-    """
-    
     MATCHING_DEALER_FIELDS: ClassVar = ['email_address', 'website', 'name']
 
     attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE', unique=True)

@@ -129,11 +129,6 @@ CheckConstraint(func.trim(PromoCodeWord.word) != '', name='ck_promo_code_word_no
 
 
 class PromoCodeGroup(MagModel, table=True):
-    """
-    Attendee: joined
-    PromoCode: selectin
-    """
-
     buyer_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
     buyer: 'Attendee' = Relationship(back_populates="promo_code_groups", sa_relationship_kwargs={'lazy': 'joined'})
 
@@ -229,8 +224,6 @@ class PromoCodeGroup(MagModel, table=True):
 class PromoCode(MagModel, table=True):
     """
     Promo codes used by attendees to purchase badges at discounted prices.
-    Attendee: selectin
-    PromoCodeGroup: joined
 
     Attributes:
         code (str): The actual textual representation of the promo code. This

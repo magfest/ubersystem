@@ -147,7 +147,8 @@ class Root:
 
         pages = range(1, int(math.ceil(count / 100)) + 1)
         attendees = attendees.options(
-            selectinload(Attendee.promo_code_groups), selectinload(Attendee.allocated_badges))
+            selectinload(Attendee.promo_code_groups),
+            selectinload(Attendee.allocated_badges))
         attendees = attendees[-100 + 100*page: 100*page] if page else []
 
         return {

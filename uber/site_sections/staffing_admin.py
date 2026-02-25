@@ -209,6 +209,7 @@ class Root:
                 from_department = service.dept.jobs(department_id=id)
                 to_department = session.query(Department).filter_by(name=from_department['name']).options(
                     selectinload(Department.dept_roles), selectinload(Department.job_templates),
+                    selectinload(Department.attractions),
                 ).first()
                 if not to_department:
                     to_department = _create_copy_department(from_department)

@@ -33,13 +33,6 @@ admin_access_group = Table(
 
 
 class AdminAccount(MagModel, table=True):
-    """
-    Attendee: joined
-    AccessGroup: selectin
-    ApiToken: select
-    PasswordReset: select
-    """
-
     attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE', unique=True)
     attendee: 'Attendee' = Relationship(back_populates="admin_account", sa_relationship_kwargs={'lazy': 'joined'})
 
@@ -197,6 +190,10 @@ class AdminAccount(MagModel, table=True):
                 return admin_account.judge or 'showcase_judging' in admin_account.read_or_write_access_set
         except Exception:
             return None
+
+    def can_admin_attraction(self, attraction):
+        return self.id == attraction.owner_id or (
+            self.full_dept_admin or self.attendee.has_inherent_role_in(attraction.department_id))
 
     @property
     def api_read(self):
@@ -357,10 +354,6 @@ class AccessGroup(MagModel, table=True):
 
 
 class WatchList(MagModel, table=True):
-    """
-    Attendee: selectin
-    """
-
     first_names: str = ''
     last_name: str = ''
     email: str = ''
@@ -400,9 +393,6 @@ attendee_escalation_ticket = Table(
 
 
 class EscalationTicket(MagModel, table=True):
-    """
-    Attendee: selectin
-    """
     attendees: list['Attendee'] = Relationship(
         back_populates="escalation_tickets",
         sa_relationship_kwargs={'lazy': 'selectin', 'order_by': 'Attendee.full_name',

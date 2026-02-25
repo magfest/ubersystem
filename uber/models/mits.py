@@ -20,10 +20,6 @@ __all__ = ['MITSTeam', 'MITSApplicant', 'MITSGame', 'MITSPicture', 'MITSDocument
 
 
 class MITSTeam(MagModel, table=True):
-    """
-    MITSGame: selectin
-    """
-
     name: str = ''
     days_available: int | None = Field(nullable=True)
     hours_available: int | None = Field(nullable=True)
@@ -139,10 +135,6 @@ class MITSTeam(MagModel, table=True):
 
 
 class MITSApplicant(MagModel, table=True):
-    """
-    MITSTeam: joined
-    """
-
     team_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='mits_team.id', ondelete='CASCADE')
     team: 'MITSTeam' = Relationship(back_populates="applicants", sa_relationship_kwargs={'lazy': 'joined'})
 
@@ -176,12 +168,6 @@ class MITSApplicant(MagModel, table=True):
 
 
 class MITSGame(MagModel, table=True):
-    """
-    MITSTeam: joined
-    MITSPicture: selectin
-    MITSDocument: selectin
-    """
-
     team_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='mits_team.id', ondelete='CASCADE')
     team: 'MITSTeam' = Relationship(back_populates="games", sa_relationship_kwargs={'lazy': 'joined'})
 
@@ -258,10 +244,6 @@ class MITSGame(MagModel, table=True):
 
 
 class MITSPicture(MagModel, GuidebookImageMixin, table=True):
-    """
-    MITSGame: joined
-    """
-
     game_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='mits_game.id', ondelete='CASCADE')
     game: 'MITSGame' = Relationship(back_populates="pictures", sa_relationship_kwargs={'lazy': 'joined'})
 
@@ -277,10 +259,6 @@ class MITSPicture(MagModel, GuidebookImageMixin, table=True):
 
 
 class MITSDocument(MagModel, table=True):
-    """
-    MITSGame: joined
-    """
-    
     game_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='mits_game.id', ondelete='CASCADE')
     game: 'MITSGame' = Relationship(back_populates="documents", sa_relationship_kwargs={'lazy': 'joined'})
 
@@ -297,10 +275,6 @@ class MITSDocument(MagModel, table=True):
 
 
 class MITSTimes(MagModel, table=True):
-    """
-    MITSTeam: joined
-    """
-
     team_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='mits_team.id', ondelete='CASCADE', unique=True)
     team: 'MITSTeam' = Relationship(back_populates="schedule", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
 
@@ -309,10 +283,6 @@ class MITSTimes(MagModel, table=True):
 
 
 class MITSPanelApplication(MagModel, table=True):
-    """
-    MITSTeam: joined
-    """
-
     team_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='mits_team.id', ondelete='CASCADE', unique=True)
     team: 'MITSTeam' = Relationship(back_populates="panel_app", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
 

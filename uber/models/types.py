@@ -110,7 +110,7 @@ def default_relationship(*args, **kwargs):
         kwargs.setdefault('cascade', 'expunge,refresh-expire,merge')
     else:
         kwargs.setdefault('cascade', 'save-update,merge,refresh-expire,expunge')
-    kwargs.setdefault('lazy', 'raise')
+    #kwargs.setdefault('lazy', 'raise')
     return SQLAlchemy_relationship(*args, **kwargs)
 
 
@@ -120,7 +120,6 @@ def DefaultRelationship(*args, **kwargs):
     instead of the regular defaults, we've overridden the following defaults
     if no value is provided for the following parameters:
         cascade now defaults to 'save-update,merge,refresh-expire,expunge'
-        lazy now default to raise
     """
     sa_relationship = kwargs.get('sa_relationship', None)
     if sa_relationship is not None:
@@ -134,7 +133,7 @@ def DefaultRelationship(*args, **kwargs):
         sa_kwargs.setdefault('cascade', 'expunge,refresh-expire,merge')
     else:
         sa_kwargs.setdefault('cascade', 'save-update,merge,refresh-expire,expunge')
-    sa_kwargs.setdefault('lazy', 'raise')
+    #sa_kwargs.setdefault('lazy', 'raise')
     return SQLModelRelationship(*args, **kwargs, sa_relationship_kwargs=sa_kwargs)
 
 

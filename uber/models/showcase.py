@@ -36,11 +36,6 @@ class ReviewMixin:
 
 
 class IndieJudge(MagModel, ReviewMixin, table=True):
-    """
-    IndieGameCode: selectin
-    IndieGameReview: selectin
-    """
-
     admin_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='admin_account.id', nullable=True, unique=True)
     admin_account: "AdminAccount" = Relationship(back_populates="judge", sa_relationship_kwargs={'single_parent': True})
 
@@ -138,10 +133,6 @@ class IndieJudge(MagModel, ReviewMixin, table=True):
 
 
 class IndieStudio(MagModel, table=True):
-    """
-    IndieGame: selectin
-    """
-
     group_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='group.id', nullable=True, unique=True)
     group: 'Group' = Relationship(back_populates="studio", sa_relationship_kwargs={'single_parent': True})
 
@@ -327,10 +318,6 @@ class IndieStudio(MagModel, table=True):
 
 
 class IndieDeveloper(MagModel, table=True):
-    """
-    IndieStudio: joined
-    """
-
     studio_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='indie_studio.id', ondelete='CASCADE')
     studio: 'IndieStudio' = Relationship(back_populates="developers", sa_relationship_kwargs={'lazy': 'joined'})
 
@@ -369,13 +356,6 @@ class IndieDeveloper(MagModel, table=True):
 
 
 class IndieGame(MagModel, ReviewMixin, table=True):
-    """
-    IndieStudio: joined
-    IndieDeveloper: joined
-    IndieGameCode: selectin
-    IndieGameImage: selectin
-    """
-
     studio_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='indie_studio.id', ondelete='CASCADE')
     studio: 'IndieStudio' = Relationship(back_populates="games", sa_relationship_kwargs={'lazy': 'joined'})
 
@@ -689,10 +669,6 @@ class IndieGame(MagModel, ReviewMixin, table=True):
 
 
 class IndieGameImage(MagModel, GuidebookImageMixin, table=True):
-    """
-    IndieGame: joined
-    """
-    
     game_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='indie_game.id', ondelete='CASCADE')
     game: 'IndieGame' = Relationship(back_populates="images", sa_relationship_kwargs={'lazy': 'joined'})
 
@@ -735,11 +711,6 @@ class IndieGameImage(MagModel, GuidebookImageMixin, table=True):
 
 
 class IndieGameCode(MagModel, table=True):
-    """
-    IndieGame: joined
-    IndieJudge: joined
-    """
-
     game_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='indie_game.id', ondelete='CASCADE')
     game: 'IndieGame' = Relationship(back_populates="codes", sa_relationship_kwargs={'lazy': 'joined'})
     
@@ -756,11 +727,6 @@ class IndieGameCode(MagModel, table=True):
 
 
 class IndieGameReview(MagModel, table=True):
-    """
-    IndieGame: joined
-    IndieJudge: joined
-    """
-
     game_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='indie_game.id', ondelete='CASCADE')
     game: 'IndieGame' = Relationship(back_populates="reviews", sa_relationship_kwargs={'lazy': 'joined'})
 

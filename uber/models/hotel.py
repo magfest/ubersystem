@@ -65,10 +65,6 @@ class NightsMixin(object):
 
 
 class HotelRequests(MagModel, NightsMixin, table=True):
-    """
-    Attendee: joined
-    """
-
     attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE', unique=True)
     attendee: 'Attendee' = Relationship(back_populates="hotel_requests", sa_relationship_kwargs={'lazy': 'joined'})
 
@@ -123,11 +119,6 @@ class Room(MagModel, NightsMixin, table=True):
 
 
 class RoomAssignment(MagModel, table=True):
-    """
-    Attendee: joined
-    Room: joined
-    """
-
     room_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='room.id', ondelete='CASCADE')
     room: 'Room' = Relationship(back_populates="assignments", sa_relationship_kwargs={'lazy': 'joined'})
 
@@ -136,11 +127,6 @@ class RoomAssignment(MagModel, table=True):
 
 
 class LotteryApplication(MagModel, table=True):
-    """
-    Attendee: joined
-    LotteryApplication (parent_application): joined
-    """
-
     attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True, unique=True)
     attendee: 'Attendee' = Relationship(back_populates="lottery_application", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
 

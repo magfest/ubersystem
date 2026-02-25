@@ -324,8 +324,7 @@ class Root:
     def delete(self, session, id, message=''):
         if cherrypy.request.method == 'POST':
             attraction = session.query(Attraction).get(id)
-            attendee = session.admin_attendee()
-            if not attendee.can_admin_attraction(attraction):
+            if not session.current_admin_account().can_admin_attraction(attraction):
                 raise HTTPRedirect(
                     'form?id={}&message={}',
                     id,
@@ -567,7 +566,7 @@ class Root:
         message = ''
         if cherrypy.request.method == 'POST':
             feature = session.query(AttractionFeature).get(feature_id)
-            if not session.admin_attendee().can_admin_attraction(feature.attraction):
+            if not session.current_admin_account().can_admin_attraction(feature.attraction):
                 message = "You cannot update rooms for an attraction you don't own"
             else:
                 for event in feature.events:
@@ -584,7 +583,7 @@ class Root:
             event = session.query(AttractionEvent).get(id)
             attraction_id = event.feature.attraction_id
             attraction = session.query(Attraction).get(attraction_id)
-            if not session.admin_attendee().can_admin_attraction(attraction):
+            if not session.current_admin_account().can_admin_attraction(attraction):
                 message = "You cannot delete a event from an attraction you don't own."
             else:
                 session.delete(event)
@@ -593,13 +592,13 @@ class Root:
             return {'error': message}
         
     @ajax
-    def delete_event(self, session, id):
+    def delete_event_cascade(self, session, id):
         message = ''
         if cherrypy.request.method == 'POST':
             event = session.query(AttractionEvent).get(id)
             attraction_id = event.feature.attraction_id
             attraction = session.query(Attraction).get(attraction_id)
-            if not session.admin_attendee().can_admin_attraction(attraction):
+            if not session.current_admin_account().can_admin_attraction(attraction):
                 message = "You cannot delete a event from an attraction you don't own."
             else:
                 if event.schedule_item:
@@ -616,7 +615,7 @@ class Root:
         message = ''
         if cherrypy.request.method == 'POST':
             attraction = session.query(Attraction).get(attraction_id)
-            if not session.admin_attendee().can_admin_attraction(attraction):
+            if not session.current_admin_account().can_admin_attraction(attraction):
                 message = "You cannot delete a feature from an attraction you don't own."
             else:
                 session.delete(feature)
@@ -632,7 +631,7 @@ class Root:
         message = ''
         if cherrypy.request.method == 'POST':
             attraction = session.query(Attraction).get(attraction_id)
-            if not session.admin_attendee().can_admin_attraction(attraction):
+            if not session.current_admin_account().can_admin_attraction(attraction):
                 message = "You cannot delete a feature from an attraction you don't own."
             else:
                 for event in feature.events:
@@ -653,7 +652,7 @@ class Root:
             signup = session.query(AttractionSignup).get(id)
             attraction_id = signup.event.feature.attraction_id
             attraction = session.query(Attraction).get(attraction_id)
-            if not session.admin_attendee().can_admin_attraction(attraction):
+            if not session.current_admin_account().can_admin_attraction(attraction):
                 message = "You cannot cancel a signup for an attraction you don't own."
             elif signup.is_checked_in:
                 message = "You cannot cancel a signup that has already checked in."

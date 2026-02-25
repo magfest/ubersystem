@@ -14,10 +14,10 @@ import uber
 import urllib
 import logging
 import warnings
-import functools
-import inspect
+import six
 
 from collections import defaultdict, OrderedDict
+from collections.abc import Iterable, Mapping, Sized
 from datetime import date, datetime, timedelta, timezone
 from glob import glob
 from os.path import basename
@@ -580,6 +580,41 @@ def groupify(items, keys, val_key=None):
             value = item
         current.append(value)
     return groupified
+
+def is_listy(x):
+    """
+    Return True if `x` is "listy", i.e. a list-like object.
+
+    "Listy" is defined as a sized iterable which is neither a map nor a string:
+
+    >>> is_listy(['a', 'b'])
+    True
+    >>> is_listy(set())
+    True
+    >>> is_listy(iter(['a', 'b']))
+    False
+    >>> is_listy({'a': 'b'})
+    False
+    >>> is_listy('a regular string')
+    False
+
+    Note:
+        Iterables and generators fail the "listy" test because they
+        are not sized.
+
+    Args:
+        x (any value): The object to test.
+
+    Returns:
+        bool: True if `x` is "listy", False otherwise.
+
+    """
+    return (
+        isinstance(x, Sized)
+        and isinstance(x, Iterable)
+        and not isinstance(x, (Mapping, type(b"")))
+        and not isinstance(x, six.string_types)
+    )
 
 # ======================================================================
 # Datetime functions

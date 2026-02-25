@@ -201,16 +201,6 @@ Index('ix_badge_info_attendee_id', BadgeInfo.attendee_id.desc())
 
 
 class Attendee(MagModel, TakesPaymentMixin, table=True):
-    """
-    Group: select
-    AdminAccount: select
-    PromoCode: select
-    ModelReceipt: select
-    DeptMembership: select
-    WatchList: select
-    PromoCodeGroup: select
-    """
-
     watchlist_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='watch_list.id', nullable=True)
     watch_list: "WatchList" = Relationship(back_populates="attendees", sa_relationship_kwargs={'lazy': 'select'})
 
@@ -218,11 +208,12 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     group: 'Group' = Relationship(back_populates="attendees", sa_relationship_kwargs={'foreign_keys': 'Attendee.group_id', 'lazy': 'select'})
     
     badge_pickup_group_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='badge_pickup_group.id', nullable=True)
-    badge_pickup_group: 'BadgePickupGroup' = Relationship(back_populates="attendees")
+    badge_pickup_group: 'BadgePickupGroup' = Relationship(back_populates="attendees", sa_relationship_kwargs={'lazy': 'select'})
 
     creator_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
     creator: 'Attendee' = Relationship(
-        back_populates="created_badges", sa_relationship_kwargs={'foreign_keys': 'Attendee.creator_id', 'remote_side': 'Attendee.id'})
+        back_populates="created_badges",
+        sa_relationship_kwargs={'foreign_keys': 'Attendee.creator_id', 'lazy': 'select', 'remote_side': 'Attendee.id'})
     created_badges: list['Attendee'] = Relationship(
         back_populates="creator",
         sa_relationship_kwargs={'foreign_keys': 'Attendee.creator_id', 'order_by': 'Attendee.full_name'})
@@ -230,13 +221,12 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     current_attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
     current_attendee: 'Attendee' = Relationship(
         back_populates="old_badges",
-        sa_relationship_kwargs={'foreign_keys': 'Attendee.current_attendee_id', 'remote_side': 'Attendee.id'})
+        sa_relationship_kwargs={'foreign_keys': 'Attendee.current_attendee_id', 'lazy': 'select', 'remote_side': 'Attendee.id'})
     old_badges: list['Attendee'] = Relationship(
         back_populates="current_attendee",
         sa_relationship_kwargs={'foreign_keys': 'Attendee.current_attendee_id', 'order_by': 'Attendee.badge_status'})
     
-    allocated_badges: list['BadgeInfo'] = Relationship(
-        back_populates="attendee")
+    allocated_badges: list['BadgeInfo'] = Relationship(back_populates="attendee")
     active_badge: 'BadgeInfo' = Relationship(sa_relationship=relationship(
         'BadgeInfo',
         primaryjoin='and_(BadgeInfo.attendee_id == Attendee.id,'
@@ -336,12 +326,12 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         back_populates="attendee",
         sa_relationship_kwargs={'lazy': 'select', 'cascade': 'all,delete-orphan', 'passive_deletes': True})
     dept_membership_requests: list['DeptMembershipRequest'] = Relationship(
-        back_populates="attendee", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+        back_populates="attendee", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'lazy': 'select', 'passive_deletes': True})
     assigned_depts: list['Department'] = Relationship(
         back_populates='members',
         sa_relationship_kwargs={
             'order_by': 'Department.name', 'overlaps': 'dept_memberships,attendee',
-            'secondary': 'dept_membership'})
+            'lazy': 'select', 'secondary': 'dept_membership'})
     dept_roles: list['DeptRole'] = Relationship(
         back_populates="attendees",
         sa_relationship_kwargs={
@@ -362,6 +352,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         primaryjoin='and_('
                     'Attendee.id == DeptMembership.attendee_id, '
                     'DeptMembership.has_inherent_role)',
+        lazy='select',
         viewonly=True))
     dept_memberships_with_dept_role: list['DeptMembership'] = Relationship(sa_relationship=relationship(
         'DeptMembership',
@@ -439,8 +430,9 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     can_work_setup: bool = False
     can_work_teardown: bool = False
 
-    admin_account: 'AdminAccount' = Relationship(back_populates="attendee",
-                                                 sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    admin_account: 'AdminAccount' = Relationship(
+        back_populates="attendee",
+        sa_relationship_kwargs={'lazy': 'select', 'cascade': 'all,delete-orphan', 'passive_deletes': True})
     managers: list['AttendeeAccount'] = Relationship(
         back_populates="attendees",
         sa_relationship_kwargs={'secondary': 'attendee_attendee_account'})
@@ -456,7 +448,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         back_populates="attendee", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
     
     escalation_tickets: list['EscalationTicket'] = Relationship(
-        back_populates="attendees", sa_relationship_kwargs={'secondary': "attendee_escalation_ticket"})
+        back_populates="attendees", sa_relationship_kwargs={'lazy': 'select', 'secondary': "attendee_escalation_ticket"})
     food_restrictions: 'FoodRestrictions' = Relationship(back_populates="attendee",
                                                          sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
 
@@ -828,13 +820,6 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
             self.session.add(badge)
             self.active_badge = badge
 
-    @property
-    def last_badge_num(self):
-        if self.active_badge:
-            return self.badge_num
-        if self.lost_badges:
-            return self.lost_badges[0].ident
-    
     @property
     def lost_badges(self):
         return [badge for badge in self.allocated_badges if badge.active == False and badge.reported_lost != None]
@@ -2559,11 +2544,6 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     def is_signed_up_for_attraction_feature(self, feature):
         return feature in self.attraction_features
 
-    def can_admin_attraction(self, attraction):
-        if not self.admin_account:
-            return False
-        return self.admin_account.id == attraction.owner_id or self.can_admin_dept_for(attraction.department_id)
-
     # =========================
     # guests
     # =========================
@@ -2590,10 +2570,6 @@ attendee_attendee_account = Table(
 
 
 class AttendeeAccount(MagModel, table=True):
-    """
-    PasswordReset: select
-    """
-
     public_id: str | None = Field(sa_type=Uuid(as_uuid=False), default_factory=lambda: str(uuid4()), nullable=True)
     email: str = ''
     hashed: str = Field(default='', private=True)
@@ -2723,10 +2699,6 @@ class AttendeeAccount(MagModel, table=True):
 
 
 class BadgePickupGroup(MagModel, table=True):
-    """
-    Attendee: selectin
-    """
-
     public_id: str | None = Field(sa_type=Uuid(as_uuid=False), default_factory=lambda: str(uuid4()), nullable=True)
     account_id: str = ''
 
@@ -2808,10 +2780,6 @@ class BadgePickupGroup(MagModel, table=True):
 
 
 class FoodRestrictions(MagModel, table=True):
-    """
-    Attendee: joined
-    """
-
     attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE', unique=True)
     attendee: 'Attendee' = Relationship(back_populates="food_restrictions", sa_relationship_kwargs={'lazy': 'joined'})
 

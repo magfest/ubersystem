@@ -326,7 +326,7 @@ class Root:
         locations = []
 
         event_locations = session.query(EventLocation).options(
-            selectinload(EventLocation.events)
+            selectinload(EventLocation.events), joinedload(EventLocation.department)
         )
 
         if not event_locations.first():
