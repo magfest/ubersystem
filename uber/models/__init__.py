@@ -150,13 +150,16 @@ class MagModel(SQLModel):
     def to_dict(self, fields=None):
         data = {}
         enabled_fields = []
+        disabled_fields = []
+
         if fields:
             if isinstance(fields, str):
                 enabled_fields.append(fields)
             elif isinstance(fields, list):
                 enabled_fields = fields
             elif isinstance(fields, dict):
-                enabled_fields = [x for x in fields.keys() if fields[x]]
+                enabled_fields = [x for x in fields.keys() if fields[x] is True]
+                disabled_fields = [x for x in fields.keys() if fields[x] is False]
 
         for field in (enabled_fields or self.to_dict_default_attrs):
             val = getattr(self, field)
@@ -174,7 +177,12 @@ class MagModel(SQLModel):
                     del data[field]  # Empty instrumented lists are not pickleable
             else:
                 data[field] = val
-        data['_model'] = self.__class__.__name__
+
+        if '_model' not in disabled_fields:
+            data['_model'] = self.__class__.__name__
+        if 'id' not in disabled_fields:
+            data['id'] = self.id
+
         return data
 
     id: str | None = Field(sa_type=Uuid(as_uuid=False), default_factory=lambda: str(uuid4()), primary_key=True)

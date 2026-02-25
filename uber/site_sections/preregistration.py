@@ -968,7 +968,8 @@ class Root:
         for attendee in cart.attendees:
             pending_attendee = session.query(Attendee).filter_by(id=attendee.id).first()
             if pending_attendee:
-                pending_attendee.apply(PreregCart.to_sessionized(attendee), restricted=True)
+                for key, val in PreregCart.to_sessionized(attendee).items():
+                    setattr(pending_attendee, key, val)
                 if attendee.badges and pending_attendee.promo_code_groups:
                     pc_group = pending_attendee.promo_code_groups[0]
                     pc_group.name = attendee.name

@@ -698,12 +698,12 @@ def get_age_from_birthday(birthdate, today=None):
     if not today:
         today = date.today()
 
-    if isinstance(birthdate, str):
-        birthdate_col = Attendee.__table__.columns.get('birthdate')
+    birthdate_col = Attendee.__table__.columns.get('birthdate')
+
+    if isinstance(birthdate, six.string_types):        
         birthdate = Attendee().coerce_column_data(birthdate_col, birthdate)
 
-    if isinstance(today, str):
-        birthdate_col = Attendee.__table__.columns.get('birthdate')
+    if isinstance(today, six.string_types):
         today = Attendee().coerce_column_data(birthdate_col, today)
 
     # int(True) == 1 and int(False) == 0
