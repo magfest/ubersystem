@@ -812,6 +812,8 @@ class DeptChecklistEmailFixture(AutomatedEmailFixture):
         when = [days_before(10, conf.deadline)]
         if conf.email_post_con:
             when.append(after(c.EPOCH))
+        else:
+            when.append(after(c.DEPT_CHECKLIST_START))
 
         AutomatedEmailFixture.__init__(
             self,
@@ -827,9 +829,9 @@ class DeptChecklistEmailFixture(AutomatedEmailFixture):
             extra_data={'conf': conf},
             allow_post_con=conf.email_post_con)
 
-
-for _conf in DeptChecklistConf.instances.values():
-    DeptChecklistEmailFixture(_conf)
+if c.DEPT_CHECKLIST_START:
+    for _conf in DeptChecklistConf.instances.values():
+        DeptChecklistEmailFixture(_conf)
 
 
 # =============================

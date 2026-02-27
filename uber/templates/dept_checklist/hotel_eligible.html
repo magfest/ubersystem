@@ -9,7 +9,7 @@ Please select a department above to view its hotel-eligible staffers.
 
 <div class="center">
     <br/><br/>
-    {% if checklist.relevant %}
+    {% if checklist.relevant and (c.DEPT_CHECKLIST_OPEN or c.DEV_BOX) %}
         {% if checklist.completed %}
             You've already indicated that this list is complete; emails STOPS if you completed this in error.
         {% else %}

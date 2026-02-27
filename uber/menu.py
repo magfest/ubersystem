@@ -110,7 +110,6 @@ c.MENU = MenuItem(name='Root', submenu=[
         MenuItem(name='View/Edit Shift Schedule', href='../shifts_admin/'),
         MenuItem(name='Unfilled Shifts', href='../shifts_admin/unfilled_shifts'),
         MenuItem(name='Departments', href='../dept_admin/'),
-        MenuItem(name='Department Checklists', href='../dept_checklist/overview'),
     ]),
 
     MenuItem(name='People', submenu=[
@@ -134,6 +133,10 @@ c.MENU = MenuItem(name='Root', submenu=[
         MenuItem(name='Badges Sold Graph', href='../statistics/badges_sold'),
     ]),
 ])
+
+
+if c.DEPT_CHECKLIST_OPEN or (c.DEPT_CHECKLIST_START and c.DEV_BOX):
+    c.MENU['Staffing'].append_menu_item(MenuItem(name='Department Checklists', href='../dept_checklist/overview'))
 
 
 if c.ENABLED_INDIES_STR:
