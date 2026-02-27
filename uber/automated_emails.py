@@ -684,82 +684,80 @@ AutomatedEmailFixture(
     ident='badge_confirmation_reminder_last_chance')
 
 
-# Volunteer emails; none of these will be sent unless VOLUNTEER_CHECKLIST_OPEN is set.
-
-StopsEmailFixture(
-    'Please complete your {EVENT_NAME} Staff/Volunteer Checklist',
-    'shifts/created.txt',
-    lambda a: a.staffing,
-    when=after(c.VOLUNTEER_CHECKLIST_OPEN),
-    allow_at_the_con=True,
-    ident='volunteer_checklist_completion_request')
-
-StopsEmailFixture(
-    '{EVENT_NAME} ({EVENT_DATE}) shifts are live!',
-    'shifts/shifts_created.txt',
-    lambda a: (
-        c.AFTER_SHIFTS_CREATED
-        and a.badge_type != c.CONTRACTOR_BADGE
-        and a.takes_shifts
-        and a.registered_local <= c.SHIFTS_CREATED),
-    when=before(c.PREREG_TAKEDOWN),
-    ident='volunteer_shift_signup_notification')
-
-StopsEmailFixture(
-    'Reminder to sign up for {EVENT_NAME} ({EVENT_DATE}) shifts',
-    'shifts/reminder.txt',
-    lambda a: (
-        c.AFTER_SHIFTS_CREATED
-        and a.badge_type != c.CONTRACTOR_BADGE
-        and days_after(14, max(a.registered_local, c.SHIFTS_CREATED))()
-        and a.takes_shifts
-        and not a.shift_minutes),
-    when=before(c.PREREG_TAKEDOWN),
-    ident='volunteer_shift_signup_reminder')
-
-StopsEmailFixture(
-    'Last chance to sign up for {EVENT_NAME} ({EVENT_DATE}) shifts',
-    'shifts/reminder.txt',
-    lambda a: (c.AFTER_SHIFTS_CREATED and a.badge_type != c.CONTRACTOR_BADGE
-               and (not c.PREREG_TAKEDOWN or c.BEFORE_PREREG_TAKEDOWN) and a.takes_shifts and not a.shift_minutes),
-    when=days_before(10, c.EPOCH),
-    ident='volunteer_shift_signup_reminder_last_chance')
-
-StopsEmailFixture(
-    'Still want to volunteer at {EVENT_NAME} ({EVENT_DATE})?',
-    'shifts/volunteer_check.txt',
-    lambda a: (
-        c.VOLUNTEER_CHECKLIST_OPEN
-        and a.badge_type != c.CONTRACTOR_BADGE
-        and c.VOLUNTEER_RIBBON in a.ribbon_ints
-        and a.takes_shifts
-        and a.weighted_hours == 0),
-    when=days_before(28, c.FINAL_EMAIL_DEADLINE),
-    ident='volunteer_still_interested_inquiry')
-
-StopsEmailFixture(
-    'Your {EVENT_NAME} ({EVENT_DATE}) shift schedule',
-    'shifts/schedule.html',
-    lambda a: c.SHIFTS_CREATED and a.weighted_hours and a.badge_type != c.CONTRACTOR_BADGE,
-    allow_at_the_con=True,
-    when=days_before(1, c.FINAL_EMAIL_DEADLINE),
-    ident='volunteer_shift_schedule')
-
-StopsEmailFixture(
-    'Please review your worked shifts for {EVENT_NAME}!',
-    'shifts/shifts_worked.html',
-    lambda a: (a.weighted_hours or a.nonshift_minutes) and a.badge_type != c.CONTRACTOR_BADGE,
-    when=days_after(1, c.ESCHATON),
-    ident='volunteer_shifts_worked',
-    allow_post_con=True)
-
-if c.VOLUNTEER_AGREEMENT_ENABLED:
+if c.VOLUNTEER_CHECKLIST_OPEN:
     StopsEmailFixture(
-        'Reminder: Please agree to terms of {EVENT_NAME} ({EVENT_DATE}) volunteer agreement',
-        'staffing/volunteer_agreement.txt',
-        lambda a: c.VOLUNTEER_CHECKLIST_OPEN and c.VOLUNTEER_AGREEMENT_ENABLED and not a.agreed_to_volunteer_agreement,
-        when=days_before(45, c.FINAL_EMAIL_DEADLINE),
-        ident='volunteer_agreement')
+        'Please complete your {EVENT_NAME} Staff/Volunteer Checklist',
+        'shifts/created.txt',
+        lambda a: a.staffing,
+        when=after(c.VOLUNTEER_CHECKLIST_OPEN),
+        allow_at_the_con=True,
+        ident='volunteer_checklist_completion_request')
+    
+    StopsEmailFixture(
+        'Still want to volunteer at {EVENT_NAME} ({EVENT_DATE})?',
+        'shifts/volunteer_check.txt',
+        lambda a: (a.badge_type != c.CONTRACTOR_BADGE
+            and c.VOLUNTEER_RIBBON in a.ribbon_ints
+            and a.takes_shifts
+            and a.weighted_hours == 0),
+        when=days_before(28, c.FINAL_EMAIL_DEADLINE),
+        ident='volunteer_still_interested_inquiry')
+
+    if c.VOLUNTEER_AGREEMENT_ENABLED:
+        StopsEmailFixture(
+            'Reminder: Please agree to terms of {EVENT_NAME} ({EVENT_DATE}) volunteer agreement',
+            'staffing/volunteer_agreement.txt',
+            lambda a: c.VOLUNTEER_AGREEMENT_ENABLED and not a.agreed_to_volunteer_agreement,
+            when=days_before(45, c.FINAL_EMAIL_DEADLINE),
+            ident='volunteer_agreement')
+
+if c.SHIFTS_CREATED:
+    StopsEmailFixture(
+        '{EVENT_NAME} ({EVENT_DATE}) shifts are live!',
+        'shifts/shifts_created.txt',
+        lambda a: (
+            c.AFTER_SHIFTS_CREATED
+            and a.badge_type != c.CONTRACTOR_BADGE
+            and a.takes_shifts
+            and a.registered_local <= c.SHIFTS_CREATED),
+        when=before(c.PREREG_TAKEDOWN),
+        ident='volunteer_shift_signup_notification')
+
+    StopsEmailFixture(
+        'Reminder to sign up for {EVENT_NAME} ({EVENT_DATE}) shifts',
+        'shifts/reminder.txt',
+        lambda a: (
+            c.AFTER_SHIFTS_CREATED
+            and a.badge_type != c.CONTRACTOR_BADGE
+            and days_after(14, max(a.registered_local, c.SHIFTS_CREATED))()
+            and a.takes_shifts
+            and not a.shift_minutes),
+        when=before(c.PREREG_TAKEDOWN),
+        ident='volunteer_shift_signup_reminder')
+
+    StopsEmailFixture(
+        'Last chance to sign up for {EVENT_NAME} ({EVENT_DATE}) shifts',
+        'shifts/reminder.txt',
+        lambda a: (c.AFTER_SHIFTS_CREATED and a.badge_type != c.CONTRACTOR_BADGE
+                and (not c.PREREG_TAKEDOWN or c.BEFORE_PREREG_TAKEDOWN) and a.takes_shifts and not a.shift_minutes),
+        when=days_before(10, c.EPOCH),
+        ident='volunteer_shift_signup_reminder_last_chance')
+
+    StopsEmailFixture(
+        'Your {EVENT_NAME} ({EVENT_DATE}) shift schedule',
+        'shifts/schedule.html',
+        lambda a: a.weighted_hours and a.badge_type != c.CONTRACTOR_BADGE,
+        allow_at_the_con=True,
+        when=days_before(1, c.FINAL_EMAIL_DEADLINE),
+        ident='volunteer_shift_schedule')
+
+    StopsEmailFixture(
+        'Please review your worked shifts for {EVENT_NAME}!',
+        'shifts/shifts_worked.html',
+        lambda a: (a.weighted_hours or a.nonshift_minutes) and a.badge_type != c.CONTRACTOR_BADGE,
+        when=days_after(1, c.ESCHATON),
+        ident='volunteer_shifts_worked',
+        allow_post_con=True)
 
 
 # For events with customized badges, these emails remind people to let us know what we want on their badges.  We have

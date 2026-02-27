@@ -761,6 +761,8 @@ def restricted(func):
             return func(*args, **kwargs)
 
         if '/staffing/' in c.PAGE_PATH:
+            if c.VOLUNTEER_CHECKLIST_OPEN and c.BEFORE_VOLUNTEER_CHECKLIST_OPEN and not c.DEV_BOX:
+                ajax_or_redirect(func, '../staffing/login?message=', "The volunteer checklist is not open yet.", True)
             if not cherrypy.session.get('staffer_id'):
                 ajax_or_redirect(func, '../staffing/login?message=', "You are not logged in.", True)
 

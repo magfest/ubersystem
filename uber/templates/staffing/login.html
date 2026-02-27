@@ -7,7 +7,12 @@
 {{ "styles/login.css"|serve_static_content }}
 
 <div class="container">
-    {% if c.DEV_BOX or c.AFTER_VOLUNTEER_CHECKLIST_OPEN %}
+    {% if c.DEV_BOX or not c.VOLUNTEER_CHECKLIST_OPEN or c.AFTER_VOLUNTEER_CHECKLIST_OPEN %}
+        {% if c.DEV_BOX and c.VOLUNTEER_CHECKLIST_OPEN and c.BEFORE_VOLUNTEER_CHECKLIST_OPEN %}
+            <div class="alert alert-info">
+            <strong> You are on a development box. Otherwise, the volunteer checklist would be closed and you would not be able to log in. </strong>
+            </div>
+        {% endif %}
         <form class="form-signin" role="form">
             <h2 class="form-signin-heading">Volunteer Login</h2>
             <input type="text" class="form-control" placeholder="First Name" name="first_name" value="{{ first_name }}" required autofocus />
