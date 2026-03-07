@@ -2265,20 +2265,38 @@ _ScopedSession.SessionMixin = UberSession.SessionMixin
 _ScopedSession.session_factory = SessionFactory
 
 class HybridSessionProxy:
-    """
-    A smart proxy that mimics the old Session class behavior.
-    """
     def __getattr__(self, name):
-        """
-        Return thread-scoped session as expected by modern sqlalchemy usage on 'Session.query()'
-        """
         return getattr(_ScopedSession, name)
 
     def __call__(self, *args, **kwargs):
         """
         Create isolated session, to match old behavior on 'with Session() as session'
         """
-        return SessionFactory(*args, **kwargs)
+        try:
+            req = cherrypy.request
+            
+            if 'bind' not in kwargs:
+                if not hasattr(req, 'db_connection'):
+                    req.db_connection = engine.connect()
+                    
+                    def release_connection():
+                        req.db_connection.close()
+                    req.hooks.attach('on_end_request', release_connection)
+                    
+                kwargs['bind'] = req.db_connection
+
+            session = SessionFactory(*args, **kwargs)
+            
+            # If we're already in a session use a nested session rather than opening a new connection
+            if kwargs.get('bind') == getattr(req, 'db_connection', None) and req.db_connection.in_transaction():
+                session.begin_nested()
+
+            return session
+
+        except AttributeError:
+            # We are outside of a web request (e.g., Celery workers, cron jobs, test scripts)
+            # Fall back to standard unmanaged behavior.
+            return SessionFactory(*args, **kwargs)
 
 Session = HybridSessionProxy()
 
