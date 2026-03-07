@@ -1,63 +1,32 @@
 import time
-from opentelemetry import trace, metrics
+import logging
+from opentelemetry import trace, metrics, _logs
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader, ConsoleMetricExporter
+from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
+from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
 from opentelemetry.instrumentation.wsgi import OpenTelemetryMiddleware
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 from opentelemetry.instrumentation.jinja2 import Jinja2Instrumentor
+from opentelemetry.instrumentation.requests import RequestsInstrumentor
 from sqlalchemy import event
 import cherrypy
 import logging
+import psutil
+import os
 
 from uber.config import c
 
 log = logging.getLogger(__name__)
 
-class SpanEventHandler(logging.Handler):
-    """
-    A logging handler that adds log records as events to the current OpenTelemetry span.
-    This ensures that logs emitted during a request are 'attached' to the trace in SigNoz.
-    """
-    def emit(self, record):
-        try:
-            span = trace.get_current_span()
-            if span and span.is_recording():
-                # Mark span status as error for ERROR or higher logs
-                if record.levelno >= logging.ERROR:
-                    span.set_status(trace.Status(trace.StatusCode.ERROR, record.getMessage()))
 
-                msg = self.format(record)
-                
-                # If there's exception info, record it properly
-                if record.exc_info:
-                    span.record_exception(
-                        exception=record.exc_info[1],
-                        attributes={
-                            "log.severity": record.levelname,
-                            "log.message": record.getMessage(),
-                            "log.target": record.name,
-                        }
-                    )
-                else:
-                    span.add_event(
-                        name="log",
-                        attributes={
-                            "log.severity": record.levelname,
-                            "log.message": record.getMessage(),
-                            "log.target": record.name,
-                            "log.formatted": msg
-                        }
-                    )
-        except Exception:
-            pass
-
-
-# Track DB metrics per request
+# Track DB and Resource metrics per request
 import threading
 request_metrics = threading.local()
 
@@ -67,16 +36,21 @@ def get_request_metrics():
             'db_queries': 0,
             'db_rows': 0,
             'db_time': 0.0,
-            'template_time': 0.0
+            'template_time': 0.0,
+            'start_thread_cpu': 0.0,
+            'start_rss': 0
         }
     return request_metrics.data
 
 def reset_request_metrics():
+    process = psutil.Process(os.getpid())
     request_metrics.data = {
         'db_queries': 0,
         'db_rows': 0,
         'db_time': 0.0,
-        'template_time': 0.0
+        'template_time': 0.0,
+        'start_thread_cpu': time.thread_time(),
+        'start_rss': process.memory_info().rss
     }
 
 _initialized = False
@@ -91,33 +65,62 @@ def init_otel():
         print("OpenTelemetry is disabled.")
         return None
 
-    resource = Resource.create({"service.name": c.OTEL.get('server_name')})
-    tracer_provider = TracerProvider(resource=resource)
-    
-    exporter = OTLPSpanExporter(endpoint=c.OTEL.get('endpoint')+"/traces")
-    tracer_provider.add_span_processor(BatchSpanProcessor(exporter))
-    trace.set_tracer_provider(tracer_provider)
+    deployment_environment = c.OTEL.get('server_name')
+    endpoint = c.OTEL.get('endpoint')
+    exporter_url = endpoint + "/traces"
 
-    metric_exporter = OTLPMetricExporter(endpoint=c.OTEL.get('endpoint')+"/metrics")
+    def create_tracer_provider(service_name):
+        resource = Resource.create({
+            "service.name": service_name,
+            "server.name": service_name,
+            "deployment.environment": deployment_environment
+        })
+        provider = TracerProvider(resource=resource)
+        exporter = OTLPSpanExporter(endpoint=exporter_url)
+        provider.add_span_processor(BatchSpanProcessor(exporter))
+        return provider
+
+    # Create separate tracer providers for HTTP, DB, and Jinja to distinguish them in the flamegraph
+    http_provider = create_tracer_provider("http")
+    db_provider = create_tracer_provider("db")
+    jinja_provider = create_tracer_provider("jinja")
+    requests_provider = create_tracer_provider("requests")
+
+    # Set the default global tracer provider to the HTTP one
+    trace.set_tracer_provider(http_provider)
+
+    # Metrics
+    metric_resource = Resource.create({
+        "service.name": "http",
+        "server.name": "http",
+        "deployment.environment": deployment_environment
+    })
+    metric_exporter = OTLPMetricExporter(endpoint=endpoint + "/metrics")
     metric_reader = PeriodicExportingMetricReader(metric_exporter)
-    meter_provider = MeterProvider(resource=resource, metric_readers=[metric_reader])
+    meter_provider = MeterProvider(resource=metric_resource, metric_readers=[metric_reader])
     metrics.set_meter_provider(meter_provider)
 
-    # Instrument Jinja2
-    Jinja2Instrumentor().instrument()
+    # Instrument Jinja2 and Requests with their own providers
+    Jinja2Instrumentor().instrument(tracer_provider=jinja_provider)
+    RequestsInstrumentor().instrument(tracer_provider=requests_provider)
 
-    # Add log events to spans
-    handler = SpanEventHandler()
-    handler.setFormatter(logging.Formatter('%(name)s - %(message)s'))
+    # Configure Logging as OTLP Log Records
+    logger_provider = LoggerProvider(resource=metric_resource)
+    _logs.set_logger_provider(logger_provider)
+    log_exporter = OTLPLogExporter(endpoint=endpoint + "/logs")
+    logger_provider.add_log_record_processor(BatchLogRecordProcessor(log_exporter))
+    
+    # Add handler to bridge python logging to OTel Logs
+    handler = LoggingHandler(level=logging.INFO, logger_provider=logger_provider)
     logging.getLogger().addHandler(handler)
 
     # Define a wrapper middleware for logging
     class LoggingOTelMiddleware(OpenTelemetryMiddleware):
         def __init__(self, app):
-            super().__init__(app, tracer_provider=trace.get_tracer_provider())
+            super().__init__(app, tracer_provider=http_provider)
 
     # Metrics
-    meter = metrics.get_meter(c.OTEL.get('server_name'))
+    meter = metrics.get_meter("http")
     
     request_duration = meter.create_histogram(
         "http.server.duration",
@@ -171,12 +174,60 @@ def init_otel():
             pass
     
     def instrument_engine(engine):
-        SQLAlchemyInstrumentor().instrument(engine=engine)
+        SQLAlchemyInstrumentor().instrument(engine=engine, tracer_provider=db_provider)
         event.listen(engine, "before_cursor_execute", before_cursor_execute)
         event.listen(engine, "after_cursor_execute", after_cursor_execute)
 
+    def set_request_attributes():
+        current_span = trace.get_current_span()
+        if current_span and current_span.is_recording():
+            try:
+                # Construct the full URL for http.url
+                url = cherrypy.request.base + cherrypy.request.path_info
+                full_url = url
+                if cherrypy.request.query_string:
+                    full_url += '?' + cherrypy.request.query_string
+                
+                current_span.set_attribute("http.url", url)
+                current_span.set_attribute("url.full", full_url)
+
+                # Get the Python view function path for http.route
+                handler = cherrypy.request.handler
+                
+                # Unwrap common wrappers
+                while True:
+                    if hasattr(handler, 'callable'):
+                        handler = handler.callable
+                    elif hasattr(handler, 'page_handler'):
+                        handler = handler.page_handler
+                    elif hasattr(handler, '__wrapped__'):
+                        handler = handler.__wrapped__
+                    elif hasattr(handler, 'func') and hasattr(handler, 'args'): # Partial
+                         handler = handler.func
+                    else:
+                        break
+                
+                route = None
+                if handler and not isinstance(handler, tuple):
+                    # If it's a bound method, we want the function itself
+                    if hasattr(handler, '__func__'):
+                        handler = handler.__func__
+                    
+                    # Try to get the fully qualified name
+                    if hasattr(handler, '__module__') and hasattr(handler, '__name__'):
+                        route = f"{handler.__module__}.{handler.__name__}"
+                
+                # Fallback if we couldn't get a proper name or if handler was a tuple/error
+                if not route:
+                    route = cherrypy.request.path_info
+                    
+                current_span.set_attribute("http.route", route)
+            except Exception:
+                pass
+
     def record_otel_metrics():
         data = get_request_metrics()
+        process = psutil.Process(os.getpid())
         
         current_span = trace.get_current_span()
         if current_span:
@@ -184,6 +235,15 @@ def init_otel():
             current_span.set_attribute("db.rows", data['db_rows'])
             current_span.set_attribute("db.time_ms", data['db_time'])
             current_span.set_attribute("template.time_ms", data['template_time'])
+            
+            # Resource usage metrics
+            cpu_delta_ms = (time.thread_time() - data['start_thread_cpu']) * 1000
+            mem_current_rss = process.memory_info().rss
+            mem_delta_bytes = mem_current_rss - data['start_rss']
+            
+            current_span.set_attribute("request.cpu_time_ms", cpu_delta_ms)
+            current_span.set_attribute("process.memory.rss_total_bytes", mem_current_rss)
+            current_span.set_attribute("process.memory.rss_delta_bytes", mem_delta_bytes)
             
             labels = {
                 "method": cherrypy.request.method,
@@ -203,6 +263,7 @@ def init_otel():
                 except Exception:
                     pass
 
+    cherrypy.tools.otel_request_attrs = cherrypy.Tool('before_handler', set_request_attributes, priority=50)
     cherrypy.tools.otel_metrics = cherrypy.Tool('on_end_request', record_otel_metrics, priority=95)
     cherrypy.tools.otel_reset = cherrypy.Tool('on_start_resource', reset_request_metrics, priority=5)
 

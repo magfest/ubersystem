@@ -214,6 +214,7 @@ c.APPCONF['/']['error_page.404'] = error_page_404
 if c.OTEL.get('enabled'):
     c.APPCONF['/']['tools.otel_metrics.on'] = True
     c.APPCONF['/']['tools.otel_reset.on'] = True
+    c.APPCONF['/']['tools.otel_request_attrs.on'] = True
 
 app = cherrypy.tree.mount(Root(), c.CHERRYPY_MOUNT_PATH, c.APPCONF)
 
