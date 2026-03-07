@@ -133,7 +133,13 @@ def register_jsonrpc(service, name=None):
 
 
 jsonrpc_app = _make_jsonrpc_handler(jsonrpc_services)
-cherrypy.tree.mount(jsonrpc_app, c.CHERRYPY_MOUNT_PATH + '/jsonrpc', c.APPCONF)
+app = cherrypy.tree.mount(jsonrpc_app, c.CHERRYPY_MOUNT_PATH + '/jsonrpc', c.APPCONF)
+
+if c.OTEL.get('enabled'):
+    from uber.otel import init_otel
+    otel_instruments = init_otel()
+    if otel_instruments:
+        app.wsgiapp = otel_instruments['OpenTelemetryMiddleware'](app.wsgiapp)
 
 def docstring_format(*args, **kwargs):
     def _decorator(obj):

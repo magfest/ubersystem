@@ -8,6 +8,7 @@ import re
 import logging
 import sqlalchemy
 import threading
+import time
 import traceback
 import uuid
 import zipfile
@@ -590,10 +591,17 @@ def renderable_data(data=None):
 # render using the first template that actually exists in template_name_list
 # Returns a generator that streams the template result to the client
 def render_stream(template_name_list, data=None, encoding='utf-8'):
+    from uber.otel import get_request_metrics
+    start = time.time()
     data = renderable_data(data)
     env = JinjaEnv.env()
     template = env.get_or_select_template(template_name_list)
     rendered = template.generate(data)
+    duration = (time.time() - start) * 1000
+    try:
+        get_request_metrics()['template_time'] += duration
+    except Exception:
+        pass
     if encoding:
         for chunk in rendered:
             yield chunk.encode(encoding)
@@ -602,10 +610,17 @@ def render_stream(template_name_list, data=None, encoding='utf-8'):
 
 # render using the first template that actually exists in template_name_list
 def render(template_name_list, data=None, encoding='utf-8'):
+    from uber.otel import get_request_metrics
+    start = time.time()
     data = renderable_data(data)
     env = JinjaEnv.env()
     template = env.get_or_select_template(template_name_list)
     rendered = template.render(data)
+    duration = (time.time() - start) * 1000
+    try:
+        get_request_metrics()['template_time'] += duration
+    except Exception:
+        pass
     if encoding:
         return rendered.encode(encoding)
     return rendered
