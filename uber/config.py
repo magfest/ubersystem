@@ -1772,6 +1772,7 @@ def _unrepr(d):
 _unrepr(_config['appconf'])
 c.APPCONF = _config['appconf'].dict()
 c.SENTRY = _config['sentry'].dict()
+c.OTEL = _config.get('otel', {'enabled': False, 'endpoint': 'http://localhost:4317', 'sample_rate': 100}).dict() if hasattr(_config.get('otel'), 'dict') else _config.get('otel', {'enabled': False, 'endpoint': 'http://localhost:4317', 'sample_rate': 100})
 c.HSTS = _config['hsts'].dict()
 c.REDISCONF = _config['redis'].dict()
 c.REDIS_PREFIX = c.REDISCONF['prefix']

@@ -15,7 +15,7 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-
+from sqlalchemy import text
 
 
 try:
@@ -24,7 +24,7 @@ except:
     is_sqlite = False
 
 if is_sqlite:
-    op.get_context().connection.execute('PRAGMA foreign_keys=ON;')
+    op.get_context().connection.execute(text('PRAGMA foreign_keys=ON;'))
     utcnow_server_default = "(datetime('now', 'utc'))"
 else:
     utcnow_server_default = "timezone('utc', current_timestamp)"
@@ -58,7 +58,7 @@ def upgrade():
             batch_op.add_column(sa.Column('extra_donation', sa.Integer(), server_default='0', nullable=False))
     else:
         # Because this column used to be in an event plugin, we check for its existence before making it
-        exists = conn.execute("SELECT COLUMN_NAME FROM information_schema.columns where TABLE_NAME = 'attendee' and COLUMN_NAME = 'extra_donation'").fetchall()
+        exists = conn.execute(text("SELECT COLUMN_NAME FROM information_schema.columns where TABLE_NAME = 'attendee' and COLUMN_NAME = 'extra_donation'")).fetchall()
         if not exists:
             op.add_column('attendee', sa.Column('extra_donation', sa.Integer(), server_default='0', nullable=False))
 
