@@ -558,10 +558,12 @@ def timed(prepend_text=''):
         return timed_decorator
 
 
-def sessionized(func):
+def sessionized(func, session_cls=None):
     innermost = inspect.unwrap(func)
     if 'session' not in inspect.getfullargspec(innermost).args:
         return func
+
+    _session_cls = session_cls
 
     @wraps(func)
     def with_session(*args, **kwargs):
@@ -569,7 +571,8 @@ def sessionized(func):
             retval = func(*args, **kwargs)
             return retval
 
-        with uber.models.Session() as session:
+        sess_factory = _session_cls if _session_cls is not None else uber.models.Session
+        with sess_factory() as session:
             try:
                 retval = func(*args, session=session, **kwargs)
                 session.expunge_all()
@@ -805,26 +808,28 @@ def profile(func):
     else:
         return func
 
-def set_renderable(func, public):
+def set_renderable(func, public, readonly=False):
     """
     Return a function that is flagged correctly and is ready to be called by cherrypy as a request
     """
     func.public = getattr(func, 'public', public)
-    new_func = profile(timed(cached_page(sessionized(restricted(renderable(func))))))
+    session_cls = uber.models.ReadonlySession if readonly else None
+    new_func = profile(timed(cached_page(sessionized(restricted(renderable(func)), session_cls=session_cls))))
     new_func.exposed = True
     return new_func
 
 
 class all_renderable:
-    def __init__(self, public=False):
+    def __init__(self, public=False, readonly=False):
         self.public = public
+        self.readonly = readonly
 
     def __call__(self, klass):
         if self.public:
             klass = public(klass)
         for name, func in klass.__dict__.items():
             if hasattr(func, '__call__'):
-                new_func = set_renderable(func, self.public)
+                new_func = set_renderable(func, self.public, readonly=self.readonly)
                 setattr(klass, name, new_func)
         return klass
 

@@ -150,7 +150,7 @@ class RegistrationDataOneYear:
         }
 
 
-@all_renderable()
+@all_renderable(readonly=True)
 class Root:
     def index(self, session):
         counts = defaultdict(OrderedDict)

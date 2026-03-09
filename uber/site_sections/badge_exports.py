@@ -13,7 +13,7 @@ def generate_staff_badges(start_badge, end_badge, out, session):
         badge_type_name='Staff').run(out, session)
 
 
-@all_renderable()
+@all_renderable(readonly=True)
 class Root:
     @xlsx_file
     def printed_badges_attendee(self, out, session):

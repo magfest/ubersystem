@@ -9,7 +9,7 @@ from uber.models import Group, IndieGame, IndieJudge, IndieStudio, GuestGroup
 from uber.utils import localized_now
 
 
-@all_renderable()
+@all_renderable(readonly=True)
 class Root:
     @csv_file
     def everything(self, out, session):

@@ -11,7 +11,7 @@ from uber.models import Group, GuestAutograph, GuestGroup, GuestMerch, GuestTrav
 from uber.utils import convert_to_absolute_url, filename_extension
 
 
-@all_renderable()
+@all_renderable(readonly=True)
 class Root:
     def index(self, session, message=''):
         HTTPRedirect('../group_admin/index')

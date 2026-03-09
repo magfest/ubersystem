@@ -38,7 +38,7 @@ def get_dict_sum(dict_to_sum):
     return sum([dict_to_sum[key] * key for key in dict_to_sum])
 
 
-@all_renderable()
+@all_renderable(readonly=True)
 class Root:
     @log_pageview
     def index(self, session):

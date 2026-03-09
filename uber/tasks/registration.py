@@ -15,7 +15,7 @@ from uber.config import c
 from uber.custom_tags import readable_join
 from uber.decorators import render
 from uber.models import (ApiJob, Attendee, AttendeeAccount, BadgeInfo, BadgePickupGroup, Email, Group, ModelReceipt,
-                         ReceiptInfo, ReceiptItem, ReceiptTransaction, Session, TerminalSettlement)
+                         ReceiptInfo, ReceiptItem, ReceiptTransaction, Session, ReadonlySession, TerminalSettlement)
 from uber.tasks.email import send_email
 from uber.tasks import celery
 from uber.utils import localized_now, TaskUtils, normalize_email, groupify
@@ -163,7 +163,7 @@ def check_placeholder_registrations():
 def check_pending_badges():
     if c.PRE_CON and (c.DEV_BOX or c.SEND_EMAILS) and c.REPORTS_EMAIL:
         subject = c.EVENT_NAME + ' Pending Badges Report for ' + localized_now().strftime('%Y-%m-%d')
-        with Session() as session:
+        with ReadonlySession() as session:
             pending = session.query(Attendee).filter(Attendee.badge_status == c.PENDING_STATUS,
                                                         Attendee.paid != c.PENDING).all()
             if pending and session.no_email(subject):
@@ -176,7 +176,7 @@ def check_pending_badges():
 @celery.schedule(crontab(minute=0, hour='*/6'))
 def check_unassigned_volunteers():
     if c.PRE_CON and (c.DEV_BOX or c.SEND_EMAILS) and c.REPORTS_EMAIL:
-        with Session() as session:
+        with ReadonlySession() as session:
             unassigned = session.query(Attendee).filter(
                 Attendee.is_valid == True,  # noqa: E712
                 Attendee.staffing == True,  # noqa: E712
@@ -195,7 +195,7 @@ def check_near_cap():
         actual_badges_left = c.ATTENDEE_BADGE_STOCK - c.ATTENDEE_BADGE_COUNT
         for badges_left in [int(num) for num in c.BADGES_LEFT_ALERTS]:
             subject = "BADGES SOLD ALERT: {} BADGES LEFT!".format(badges_left)
-            with Session() as session:
+            with ReadonlySession() as session:
                 if not session.query(Email).filter_by(subject=subject).first() and actual_badges_left <= badges_left:
                     body = render('emails/badges_sold_alert.txt', {'badges_left': actual_badges_left}, encoding=None)
                     send_email.delay(c.REPORTS_EMAIL, [c.REGDESK_EMAIL, c.ADMIN_EMAIL], subject, body, model='n/a')

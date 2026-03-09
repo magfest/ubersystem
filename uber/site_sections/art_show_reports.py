@@ -10,7 +10,7 @@ from uber.models import ArtShowApplication, ArtShowBidder, ArtShowPiece, ArtShow
 from uber.utils import localized_now
 
 
-@all_renderable()
+@all_renderable(readonly=True)
 class Root:
     def index(self, session, message=''):
         return {

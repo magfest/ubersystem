@@ -1805,6 +1805,10 @@ if "sqlite" in c.SQLALCHEMY_URL:
 # Set database connections to recycle after 10 minutes
 c.SQLALCHEMY_POOL_RECYCLE = 3600
 
+c.SQLALCHEMY_READONLY_URL = (os.environ.get('SQLALCHEMY_READONLY_URL')
+                             or os.environ.get('DB_READONLY_CONNECTION_STRING')
+                             or c.SQLALCHEMY_URL)
+
 c.PRICE_BUMPS = {}
 c.PRICE_LIMITS = {}
 for _opt, _val in c.BADGE_PRICES['attendee'].items():

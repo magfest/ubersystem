@@ -74,6 +74,14 @@ engine = create_engine(
     pool_recycle=c.SQLALCHEMY_POOL_RECYCLE
 )
 
+readonly_engine = create_engine(
+    c.SQLALCHEMY_READONLY_URL,
+    pool_size=c.SQLALCHEMY_POOL_SIZE,
+    max_overflow=c.SQLALCHEMY_MAX_OVERFLOW,
+    pool_pre_ping=True,
+    pool_recycle=c.SQLALCHEMY_POOL_RECYCLE
+)
+
 RE_UNCAMEL = re.compile(
     r'('  # The whole expression is in a single group
     # Clause 1
@@ -2249,6 +2257,15 @@ SessionFactory = sessionmaker(
     query_cls=UberSession.QuerySubclass
 )
 _ScopedSession = scoped_session(SessionFactory)
+
+ReadonlySessionFactory = sessionmaker(
+    bind=readonly_engine,
+    autoflush=False,
+    autocommit=False,
+    expire_on_commit=False,
+    class_=UberSession,
+    query_cls=UberSession.QuerySubclass
+)
 _ScopedSession.model_mixin = UberSession.model_mixin
 _ScopedSession.all_models = UberSession.all_models
 _ScopedSession.engine = engine
@@ -2273,6 +2290,21 @@ class HybridSessionProxy:
         return SessionFactory(*args, **kwargs)
 
 Session = HybridSessionProxy()
+
+
+def ReadonlySession(*args, **kwargs):
+    """Return a session bound to the read-only replica endpoint.
+
+    Use as a context manager for report/read-heavy pages:
+
+        with ReadonlySession() as session:
+            data = session.query(Attendee).all()
+
+    The session is bound to the CNPG read-only service (or falls back to the
+    primary if SQLALCHEMY_READONLY_URL is not configured).
+    """
+    return ReadonlySessionFactory(*args, **kwargs)
+
 
 def initialize_db():
     """Explicitly create tables."""

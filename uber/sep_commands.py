@@ -8,7 +8,7 @@ from sqlalchemy.orm import subqueryload
 
 from uber.config import c, plugins_dir
 from uber.decorators import timed
-from uber.models import AdminAccount, Attendee, AutomatedEmail, Group, Session
+from uber.models import AdminAccount, Attendee, AutomatedEmail, Group, Session, ReadonlySession
 
 def entry_point(func):
     """
@@ -182,7 +182,7 @@ def insert_admin():
 @entry_point
 def has_admin():
     Session.initialize_db(initialize=True)
-    with Session() as session:
+    with ReadonlySession() as session:
         if session.query(AdminAccount).first() is None:
             print('Could not find any admin accounts', file=sys.stderr)
             sys.exit(1)

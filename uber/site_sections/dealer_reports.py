@@ -6,7 +6,7 @@ from uber.models import Group, ModelReceipt
 from uber.utils import extract_urls
 
 
-@all_renderable()
+@all_renderable(readonly=True)
 class Root:
     @log_pageview
     def dealer_receipt_discrepancies(self, session, only_dealers=False):
