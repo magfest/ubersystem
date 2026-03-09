@@ -8,6 +8,7 @@ import re
 import logging
 import sqlalchemy
 import threading
+import time
 import traceback
 import uuid
 import zipfile
@@ -593,10 +594,17 @@ def renderable_data(data=None):
 # render using the first template that actually exists in template_name_list
 # Returns a generator that streams the template result to the client
 def render_stream(template_name_list, data=None, encoding='utf-8'):
+    from uber.otel import get_request_metrics
+    start = time.time()
     data = renderable_data(data)
     env = JinjaEnv.env()
     template = env.get_or_select_template(template_name_list)
     rendered = template.generate(data)
+    duration = (time.time() - start) * 1000
+    try:
+        get_request_metrics()['template_time'] += duration
+    except Exception:
+        pass
     if encoding:
         for chunk in rendered:
             yield chunk.encode(encoding)
@@ -605,13 +613,23 @@ def render_stream(template_name_list, data=None, encoding='utf-8'):
 
 # render using the first template that actually exists in template_name_list
 def render(template_name_list, data=None, encoding='utf-8'):
-    data = renderable_data(data)
-    env = JinjaEnv.env()
-    template = env.get_or_select_template(template_name_list)
-    rendered = template.render(data)
-    if encoding:
-        return rendered.encode(encoding)
-    return rendered
+    from uber.otel import get_request_metrics
+    from opentelemetry import trace
+    tracer = trace.get_tracer("http")
+    with tracer.start_as_current_span("render_template", attributes={"template.name": str(template_name_list)}):
+        start = time.time()
+        data = renderable_data(data)
+        env = JinjaEnv.env()
+        template = env.get_or_select_template(template_name_list)
+        rendered = template.render(data)
+        duration = (time.time() - start) * 1000
+        try:
+            get_request_metrics()['template_time'] += duration
+        except Exception:
+            pass
+        if encoding:
+            return rendered.encode(encoding)
+        return rendered
 
 
 def render_empty(template_name_list):
@@ -640,54 +658,66 @@ def _remove_tracking_params(kwargs):
 def renderable(func):
     @wraps(func)
     def with_rendering(*args, **kwargs):
-        _remove_tracking_params(kwargs)
-        try:
-            result = func(*args, **kwargs)
-        except CSRFException as e:
-            message = "Your CSRF token is invalid. Please go back and try again."
-            uber.server.log_exception_with_verbose_context(msg=str(e))
-            if not c.DEV_BOX:
-                ajax_or_redirect(func, '../landing/invalid?message=', message)
-        except (AssertionError, ValueError) as e:
-            message = str(e)
-            uber.server.log_exception_with_verbose_context(msg=message)
-            if not c.DEV_BOX:
-                ajax_or_redirect(func, '../landing/invalid?message=', message)
-        except TypeError as e:
-            # Very restrictive pattern so we don't accidentally match legit errors
-            pattern = r"^{}\(\) missing 1 required positional argument: '\S*?id'$".format(func.__name__)
-            if re.fullmatch(pattern, str(e)):
-                # NOTE: We are NOT logging the exception if the user entered an invalid URL
-                message = 'Looks like you tried to access a page without all the query parameters. '\
-                          'Please go back and try again.'
+        from opentelemetry import trace
+        tracer = trace.get_tracer("http")
+        with tracer.start_as_current_span(f"page_handler: {func.__name__}", attributes={"page.handler": f"{func.__module__}.{func.__name__}"}) as span:
+            _remove_tracking_params(kwargs)
+            try:
+                result = func(*args, **kwargs)
+            except CSRFException as e:
+                span.record_exception(e)
+                span.set_status(trace.Status(trace.StatusCode.ERROR, str(e)))
+                message = "Your CSRF token is invalid. Please go back and try again."
+                uber.server.log_exception_with_verbose_context(msg=str(e))
                 if not c.DEV_BOX:
                     ajax_or_redirect(func, '../landing/invalid?message=', message)
-            else:
+            except (AssertionError, ValueError) as e:
+                span.record_exception(e)
+                span.set_status(trace.Status(trace.StatusCode.ERROR, str(e)))
+                message = str(e)
+                uber.server.log_exception_with_verbose_context(msg=message)
+                if not c.DEV_BOX:
+                    ajax_or_redirect(func, '../landing/invalid?message=', message)
+            except TypeError as e:
+                # Very restrictive pattern so we don't accidentally match legit errors
+                pattern = r"^{}\(\) missing 1 required positional argument: '\S*?id'$".format(func.__name__)
+                if re.fullmatch(pattern, str(e)):
+                    # NOTE: We are NOT logging the exception if the user entered an invalid URL
+                    message = 'Looks like you tried to access a page without all the query parameters. '\
+                              'Please go back and try again.'
+                    if not c.DEV_BOX:
+                        ajax_or_redirect(func, '../landing/invalid?message=', message)
+                else:
+                    span.record_exception(e)
+                    span.set_status(trace.Status(trace.StatusCode.ERROR, str(e)))
+                    raise
+            except Exception as e:
+                span.record_exception(e)
+                span.set_status(trace.Status(trace.StatusCode.ERROR, str(e)))
                 raise
-
-        else:
-            try:
-                func_name = func.__name__
-                result['breadcrumb_page_pretty_'] = prettify_breadcrumb(func_name) if func_name != 'index' else 'Home'
-                result['breadcrumb_page_'] = func_name if func_name != 'index' else ''
-            except Exception:
-                pass
-
-            try:
-                result['breadcrumb_section_pretty_'] = prettify_breadcrumb(get_module_name(func))
-                result['breadcrumb_section_'] = get_module_name(func)
-            except Exception:
-                pass
-
-            if c.UBER_SHUT_DOWN and not cherrypy.request.path_info.startswith('/schedule'):
-                return render('closed.html')
-            elif isinstance(result, dict):
-                cp_config = getattr(func, "_cp_config", {})
-                if cp_config.get("response.stream", False):
-                    return render_stream(_get_template_filename(func), result)
-                return render(_get_template_filename(func), result)
             else:
-                return result
+                try:
+                    func_name = func.__name__
+                    result['breadcrumb_page_pretty_'] = prettify_breadcrumb(func_name) if func_name != 'index' else 'Home'
+                    result['breadcrumb_page_'] = func_name if func_name != 'index' else ''
+                except Exception:
+                    pass
+
+                try:
+                    result['breadcrumb_section_pretty_'] = prettify_breadcrumb(get_module_name(func))
+                    result['breadcrumb_section_'] = get_module_name(func)
+                except Exception:
+                    pass
+
+                if c.UBER_SHUT_DOWN and not cherrypy.request.path_info.startswith('/schedule'):
+                    return render('closed.html')
+                elif isinstance(result, dict):
+                    cp_config = getattr(func, "_cp_config", {})
+                    if cp_config.get("response.stream", False):
+                        return render_stream(_get_template_filename(func), result)
+                    return render(_get_template_filename(func), result)
+                else:
+                    return result
 
     return with_rendering
 
