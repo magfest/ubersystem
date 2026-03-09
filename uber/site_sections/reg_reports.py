@@ -27,7 +27,7 @@ def checkins_by_hour_query(session):
             .group_by(date_trunc_hour(Attendee.checked_in)) \
             .order_by(date_trunc_hour(Attendee.checked_in))
 
-@all_renderable()
+@all_renderable(readonly=True)
 class Root:
     def comped_badges(self, session, message='', show='all'):
         regular_comped = session.attendees_with_badges().filter(Attendee.paid == c.NEED_NOT_PAY,

@@ -17,7 +17,7 @@ def label(s):
     return 'size unknown' if s == c.SHIRTS[c.NO_SHIRT] else s
 
 
-@all_renderable()
+@all_renderable(readonly=True)
 class Root:
     def shirt_manufacturing_counts(self, session):
         """

@@ -8,7 +8,7 @@ from sqlalchemy.orm import joinedload
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csv_file, log_pageview, site_mappable
 from uber.errors import HTTPRedirect
-from uber.models import PromoCode, PromoCodeWord, Session
+from uber.models import PromoCode, PromoCodeWord, Session, ReadonlySession
 from uber.utils import check, check_all, localized_now, RegistrationCode
 
 
@@ -36,7 +36,7 @@ class Root:
         text = text.strip()
         words = []
         if text:
-            with Session() as session:
+            with ReadonlySession() as session:
                 old_words = set(s for (s,) in session.query(PromoCodeWord.normalized_word).filter(
                     PromoCodeWord.part_of_speech == part_of_speech).all())
 

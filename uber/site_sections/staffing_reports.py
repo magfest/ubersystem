@@ -53,7 +53,7 @@ def volunteer_checklists(session):
     }
 
 
-@all_renderable()
+@all_renderable(readonly=True)
 class Root:
     def index(self, session):
         attendees = session.staffers().options(subqueryload(Attendee.dept_memberships)).all()

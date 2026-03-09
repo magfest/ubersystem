@@ -9,7 +9,7 @@ from uber.tasks.email import send_email
 from uber.utils import check, validate_model
 
 
-@all_renderable()
+@all_renderable(readonly=True)
 class Root:
     @site_mappable
     def index(self, session, message='', **params):

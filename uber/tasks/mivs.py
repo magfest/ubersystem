@@ -4,7 +4,7 @@ from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.decorators import render
-from uber.models import Email, Session, GuestGroup, Group, IndieStudio, IndieJudge, IndieGame, IndieGameReview
+from uber.models import Email, Session, ReadonlySession, GuestGroup, Group, IndieStudio, IndieJudge, IndieGame, IndieGameReview
 from uber.tasks import celery
 from uber.tasks.email import send_email
 
@@ -73,7 +73,7 @@ def send_mivs_checklist_reminders():
     if not c.PRE_CON:
         return
 
-    with Session() as session:
+    with ReadonlySession() as session:
         studios = session.query(IndieStudio).join(Group).join(GuestGroup)
         for studio in studios:
             if studio.group and studio.group.guest:

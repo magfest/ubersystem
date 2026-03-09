@@ -1772,6 +1772,7 @@ def _unrepr(d):
 _unrepr(_config['appconf'])
 c.APPCONF = _config['appconf'].dict()
 c.SENTRY = _config['sentry'].dict()
+c.OTEL = _config.get('otel', {'enabled': False, 'endpoint': 'http://localhost:4317', 'sample_rate': 100}).dict() if hasattr(_config.get('otel'), 'dict') else _config.get('otel', {'enabled': False, 'endpoint': 'http://localhost:4317', 'sample_rate': 100})
 c.HSTS = _config['hsts'].dict()
 c.REDISCONF = _config['redis'].dict()
 c.REDIS_PREFIX = c.REDISCONF['prefix']
@@ -1804,6 +1805,10 @@ if "sqlite" in c.SQLALCHEMY_URL:
 
 # Set database connections to recycle after 10 minutes
 c.SQLALCHEMY_POOL_RECYCLE = 3600
+
+c.SQLALCHEMY_READONLY_URL = (os.environ.get('SQLALCHEMY_READONLY_URL')
+                             or os.environ.get('DB_READONLY_CONNECTION_STRING')
+                             or c.SQLALCHEMY_URL)
 
 c.PRICE_BUMPS = {}
 c.PRICE_LIMITS = {}

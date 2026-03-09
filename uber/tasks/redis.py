@@ -67,7 +67,7 @@ def update_shirt_counts():
 @celery.schedule(timedelta(minutes=15))
 def update_problem_names():
     return
-    from uber.models import Attendee, Session
+    from uber.models import Attendee, ReadonlySession
 
     posix_regex_list = []
     python_regex_dict = {}
@@ -82,7 +82,7 @@ def update_problem_names():
 
     rsession = c.REDIS_STORE.pipeline()
 
-    with Session() as session:
+    with ReadonlySession() as session:
         attendees = session.query(Attendee).filter(Attendee.badge_printed_name.regexp_match(any_(posix_regex_list),
                                                                                             flags="i")).all()
 

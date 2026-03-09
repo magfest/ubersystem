@@ -9,7 +9,7 @@ from sqlalchemy import or_
 from uber.automated_emails import AutomatedEmailFixture, PanelAppEmailFixture
 from uber.config import c
 from uber.decorators import render
-from uber.models import Email, Session, Tracking, Department, EventLocation, AutomatedEmail
+from uber.models import Email, Session, ReadonlySession, Tracking, Department, EventLocation, AutomatedEmail
 from uber.tasks import celery
 from uber.tasks.email import send_email
 from uber.utils import GuidebookUtils, localized_now, slugify
@@ -79,8 +79,8 @@ def sync_guidebook_models(selected_model, sync_time, id_list):
 def check_deleted_guidebook_models():
     if not c.PRE_CON or not c.GUIDEBOOK_UPDATES_EMAIL:
         return
-    
-    with Session() as session:
+
+    with ReadonlySession() as session:
         subject = f"Deleted Guidebook Items: {localized_now().strftime("%A %-I:%M %p")}"
         last_email = session.query(Email).filter(Email.subject.contains("Deleted Guidebook Items")
                                                  ).order_by(Email.when.desc()).first()
@@ -101,7 +101,7 @@ def check_stale_guidebook_models():
     if not c.AT_THE_CON or not c.GUIDEBOOK_UPDATES_EMAIL or True:
         return
 
-    with Session() as session:
+    with ReadonlySession() as session:
         cl_updates, schedule_updates = GuidebookUtils.get_changed_models(session)
         stale_models = [key for key in cl_updates if cl_updates[key]]
         if schedule_updates:
@@ -152,8 +152,8 @@ def panels_waitlist_unaccepted_panels():
 def setup_panel_emails():
     if not c.PRE_CON:
         return
-    
-    with Session() as session:
+
+    with ReadonlySession() as session:
         panels_depts_query = session.query(Department).filter(Department.manages_panels == True)
 
         panels_depts = panels_depts_query.filter(Department.from_email != '').all()
