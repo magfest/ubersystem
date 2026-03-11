@@ -2322,6 +2322,8 @@ class UberSession(sqlalchemy.orm.Session):
 
     @classmethod
     def model_mixin(cls, model):
+        from sqlmodel.main import get_column_from_field
+
         if model.__name__ in ['SessionMixin', 'QuerySubclass']:
             target = getattr(cls, model.__name__)
         else:
@@ -2340,7 +2342,11 @@ class UberSession(sqlalchemy.orm.Session):
                     attr.table = target.__table__
                     target.__table__.append_column(attr, replace_existing=True)
                 else:
-                    setattr(target, name, attr)
+                    try:
+                        col = get_column_from_field(attr)
+                        setattr(target, name, col)
+                    except AttributeError:
+                        setattr(target, name, attr)
         return target
 
 SessionFactory = sessionmaker(

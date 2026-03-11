@@ -2,6 +2,7 @@ from __future__ import with_statement
 
 import logging
 import sys
+import sqlmodel
 from logging.config import fileConfig
 from alembic import context
 
@@ -37,6 +38,8 @@ def render_item(type_, obj, autogen_context):
     if type_ == 'type':
         if isinstance(obj, Choice):
             return 'sa.Integer()'
+        if isinstance(obj, sqlmodel.sql.sqltypes.AutoString):
+            return 'sa.Unicode()'
     # Default rendering for other objects
     return False
 
