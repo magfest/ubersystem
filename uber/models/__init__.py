@@ -200,7 +200,7 @@ class MagModel(SQLModel):
     last_synced: dict[str, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
 
     required: ClassVar = ()
-    is_actually_old: ClassVar = False  # Set to true to force preview models to return False for `is_new`
+
     _repr_attr_names: ClassVar = ()
 
     def __repr__(self):
@@ -266,7 +266,7 @@ class MagModel(SQLModel):
         try:
             return list(cls.__table__.columns.keys())
         except AttributeError:
-            raise NotImplementedError("to_dict_default_attrs is only availale for tables")
+            raise NotImplementedError("to_dict_default_attrs is only available for tables")
 
     def _invoke_adjustment_callbacks(self, label):
         callbacks = []
@@ -448,10 +448,10 @@ class MagModel(SQLModel):
             self.last_updated = datetime.now(UTC)
 
     def last_synced_dt(self, key):
-        return dateparser.parse(json.loads(self.last_synced.get(key, '"1970/01/01"')))
+        return dateparser.parse(json.loads(self.last_synced.get(key, '"1970/01/01"'))).replace(tzinfo=UTC)
     
     def update_last_synced(self, key, sync_time):
-        self.last_synced[key] = json.dumps(str(UTC.localize(dateparser.parse(sync_time))))
+        self.last_synced[key] = json.dumps(str(dateparser.parse(sync_time)))
 
     @property
     def session(self):
@@ -482,8 +482,8 @@ class MagModel(SQLModel):
         been saved to the database or if it's a new instance which has never
         been saved and thus has no corresponding row in its database table.
         """
-        if self.is_actually_old:
-            return False
+        if getattr(self, 'is_actually_new', False):
+            return True
         return not instance_state(self).persistent
 
     @property
@@ -770,7 +770,7 @@ from uber.models.commerce import *  # noqa: F401,E402,F403
 from uber.models.department import *  # noqa: F401,E402,F403
 from uber.models.email import *  # noqa: F401,E402,F403
 from uber.models.group import *  # noqa: F401,E402,F403
-from uber.models.legal import *  # noqa: F401,E402,F403
+from uber.models.files import *  # noqa: F401,E402,F403
 from uber.models.tracking import *  # noqa: F401,E402,F403
 from uber.models.types import *  # noqa: F401,E402,F403
 from uber.models.api import *  # noqa: F401,E402,F403
@@ -2277,20 +2277,6 @@ class UberSession(sqlalchemy.orm.Session):
                 joinedload(MITSTeam.games),
                 joinedload(MITSTeam.schedule),
             ).order_by(MITSTeam.name)
-
-        def delete_mits_file(self, model):
-            try:
-                os.remove(model.filepath)
-            except Exception:
-                log.error('Unexpected error deleting MITS file {}', model.filepath)
-
-            # Regardless of whether removing the file from the
-            # filesystem succeeded, we still want the delete it from the
-            # database. The most likely cause of failure is if the file
-            # was already deleted or is otherwise not present, so it
-            # wouldn't make sense to keep the database record around.
-            self.delete(model)
-            self.commit()
 
         # =========================
         # panels

@@ -101,9 +101,8 @@
                     <div class="col-sm">{{ form_macros.input(mivs_screenshot.image) }}</div>
                 </div>
                 <div class="row g-3 mb-3">
-                    <div class="col-sm">{{ form_macros.input(mivs_screenshot.description) }}</div>
+                    <div class="col-sm">{{ form_macros.input(mivs_screenshot.image_description) }}</div>
                 </div>
-                {{ form_macros.input(mivs_screenshot.is_screenshot) }}
             </div>
         </div>
         <div class="modal-footer">
@@ -185,7 +184,7 @@
 </div>
 {% endif %}
 
-{% if game.screenshots %}
+{% if mivs_game_screenshots[game.id] %}
 <div
     id="edit-screenshots-{{ game.id }}"
     class="modal fade"
@@ -202,7 +201,7 @@
         </h4>
         </div>
         <div class="modal-body">
-            {% for image in game.screenshots %}
+            {% for image in mivs_game_screenshots[game.id] %}
             {{ form_macros.form_validation(image.id ~ '-form', '../mivs/validate_image') }}
             {% endfor %}
             <div class="table-responsive">
@@ -215,15 +214,15 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% set can_delete_screenshots = not game.submitted or game.screenshots|length > 2 %}
-                    {% for image in game.screenshots %}
+                    {% set can_delete_screenshots = not game.submitted or mivs_game_screenshots[game.id]|length > 2 %}
+                    {% for image in mivs_game_screenshots[game.id] %}
                     {% set mivs_screenshot = image_forms[image.id]['mivs_screenshot'] %}
                         <tr x-data="">
                             <td>
                                 {{ form_macros.input(mivs_screenshot.image, show_label=False, form=image.id ~ "-form") }}
                             </td>
                             <td>
-                                {{ form_macros.input(mivs_screenshot.description, show_label=False, form=image.id ~ "-form") }}
+                                {{ form_macros.input(mivs_screenshot.image_description, show_label=False, form=image.id ~ "-form") }}
                             </td>
                             {% if c.MIVS_SUBMISSIONS_OPEN or c.HAS_SHOWCASE_ADMIN_ACCESS %}
                             <td>
@@ -238,6 +237,7 @@
                                 <form method="post" action="../mivs/delete_screenshot">
                                     {{ csrf_token() }}
                                     <input type="hidden" name="id" value="{{ image.id }}" />
+                                    <input type="hidden" name="studio_id" value="{{ game.studio.id }}" />
                                     <button type="submit" class="btn btn-sm btn-danger"><i class="fa fa-remove"></i></button>
                                 </form>
                                 {% endif %}

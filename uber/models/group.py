@@ -470,14 +470,6 @@ class Group(MagModel, TakesPaymentMixin, table=True):
         return '\n'.join([s for s in physical_address if s])
 
     @property
-    def guidebook_header(self):
-        return ''
-    
-    @property
-    def guidebook_thumbnail(self):
-        return ''
-
-    @property
     def guidebook_edit_link(self):
         return f"../group_admin/form?id={self.id}"
 
@@ -491,10 +483,15 @@ class Group(MagModel, TakesPaymentMixin, table=True):
             'guidebook_subtitle': ', '.join(category_labels),
             'guidebook_desc': self.description,
             'guidebook_location': '',
-            'guidebook_header': '',
-            'guidebook_thumbnail': '',
         }
-    
+
     @property
-    def guidebook_images(self):
-        return ['', ''], ['', '']
+    def guidebook_filename(self):
+        # Lowercase
+        name = self.name.strip().lower()
+
+        # Remove all special characters
+        name = ''.join(s for s in name if s.isalnum() or s == ' ')
+
+        # Remove extra whitespace & replace spaces with underscores
+        return ' '.join(name.split()).replace(' ', '_')

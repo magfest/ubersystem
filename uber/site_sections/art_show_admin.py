@@ -112,7 +112,7 @@ class Root:
             form_list = [form_list]
         
         forms = load_forms(params, app, form_list)
-        errors = validate_model(forms, app, is_admin=True)
+        errors = validate_model(session, forms, app, is_admin=True)
 
         if errors:
             return {"error": errors}
@@ -404,18 +404,18 @@ class Root:
             form_list = [form_list]
         
         forms = load_forms(params, app, form_list, field_prefix=app.id)
-        app_errors = validate_model(forms, app, is_admin=True)
+        app_errors = validate_model(session, forms, app, is_admin=True)
         if app_errors:
             all_errors.update(app_errors)
 
         attendee_forms = load_forms(params, attendee, ['AdminArtistAttendeeInfo'], field_prefix=attendee.id)
-        attendee_errors = validate_model(attendee_forms, attendee, is_admin=True)
+        attendee_errors = validate_model(session, attendee_forms, attendee, is_admin=True)
         if attendee_errors:
             all_errors.update(attendee_errors)
 
         for piece in app.art_show_pieces:
             piece_form = load_forms(params, piece, ['PieceCheckInOut'], field_prefix=piece.id)
-            piece_errors = validate_model(piece_form, piece, is_admin=True)
+            piece_errors = validate_model(session, piece_form, piece, is_admin=True)
             if piece_errors:
                 all_errors.update(piece_errors)
 
@@ -927,12 +927,12 @@ class Root:
             form_list = [form_list]
         
         forms = load_forms(params, bidder, form_list, field_prefix=attendee.id)
-        bidder_errors = validate_model(forms, bidder, is_admin=True)
+        bidder_errors = validate_model(session, forms, bidder, is_admin=True)
         if bidder_errors:
             all_errors.update(bidder_errors)
 
         attendee_forms = load_forms(params, attendee, ['BidderAttendeeInfo'], field_prefix=attendee.id)
-        attendee_errors = validate_model(attendee_forms, attendee, is_admin=True)
+        attendee_errors = validate_model(session, attendee_forms, attendee, is_admin=True)
         if attendee_errors:
             all_errors.update(attendee_errors)
 

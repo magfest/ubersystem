@@ -8,7 +8,8 @@ from sqlalchemy.orm.exc import NoResultFound
 from uber.config import c
 from uber.decorators import ajax, all_renderable, render
 from uber.errors import HTTPRedirect
-from uber.models import GuestMerch, GuestDetailedTravelPlan, GuestTravelPlans, GuestPanel, GuestTrack
+from uber.files import FileService
+from uber.models import GuestMerch, GuestDetailedTravelPlan, GuestTravelPlans, GuestPanel
 from uber.model_checks import mivs_show_info_required_fields
 from uber.utils import check, filename_extension
 from uber.tasks.email import send_email
@@ -39,10 +40,14 @@ def compile_travel_plans_from_params(session, **params):
 class Root:
     def index(self, session, id, message=''):
         guest = session.guest_group(id)
+        guest_bio_pic = None
+        if guest.bio:
+            guest_bio_pic = FileService.get_existing_files(session, guest.bio, and_flags=['bio_pic']),
 
         return {
             'message': message,
             'guest': guest,
+            'guest_bio_pic': guest_bio_pic,
         }
 
     def agreement(self, session, guest_id, message='', **params):
@@ -68,15 +73,17 @@ class Root:
             'message': message
         }
 
-    def bio(self, session, guest_id, message='', **params):
+    def bio(self, session, guest_id, message='', bio_pic=None, **params):
         guest = session.guest_group(guest_id)
-        guest_bio = session.guest_bio(params, restricted=True)
+        guest_bio = session.guest_bio(params)
         if cherrypy.request.method == 'POST':
             if not guest_bio.desc:
-                message = 'Please provide a brief bio for our website'
+                message = 'Please provide a brief bio for our website.'
 
             if not message:
-                message = guest.handle_images_from_params(session, **params)
+                if bio_pic.filename:
+                    file_handler = FileService.file_handler(session, guest_bio)
+                    message = file_handler.process_file_upload(bio_pic, allowed_extensions=c.ALLOWED_BIO_PIC_EXTENSIONS)
 
             if not message:
                 guest.bio = guest_bio
@@ -86,6 +93,7 @@ class Root:
         return {
             'guest': guest,
             'guest_bio': guest.bio or guest_bio,
+            'guest_bio_pic': FileService.get_existing_files(session, guest.bio or guest_bio, and_flags=['bio_pic']),
             'message': message
         }
 
@@ -112,26 +120,22 @@ class Root:
 
     def stage_plot(self, session, guest_id, message='', plot=None, **params):
         guest = session.guest_group(guest_id)
-        guest_stage_plot = session.guest_stage_plot(params, restricted=True)
+        guest_stage_plot = session.guest_stage_plot(params)
         if cherrypy.request.method == 'POST':
             if plot.filename:
-                guest_stage_plot.filename = plot.filename
-                guest_stage_plot.content_type = plot.content_type.value
-                if guest_stage_plot.stage_plot_extension not in c.ALLOWED_STAGE_PLOT_EXTENSIONS:
-                    message = 'Uploaded file type must be one of ' + ', '.join(c.ALLOWED_STAGE_PLOT_EXTENSIONS)
-                else:
-                    with open(guest_stage_plot.fpath, 'wb') as f:
-                        shutil.copyfileobj(plot.file, f)
+                file_handler = FileService.file_handler(session, guest_stage_plot)
+                message = file_handler.process_file_upload(plot, allowed_extensions=c.ALLOWED_STAGE_PLOT_EXTENSIONS)
             elif not params.get('notes'):
                 message = "Please either upload a stage layout or explain your inputs and stage gear needs in the Additional Notes section."
             if not message:
                 guest.stage_plot = guest_stage_plot
                 session.add(guest_stage_plot)
-                raise HTTPRedirect('index?id={}&message={}', guest.id, 'Stage directions uploaded')
+                raise HTTPRedirect('index?id={}&message={}', guest.id, 'Stage directions uploaded!')
 
         return {
             'guest': guest,
             'guest_stage_plot': guest.stage_plot or guest_stage_plot,
+            'stage_plot_file': FileService.get_existing_files(session, guest.stage_plot or guest_stage_plot),
             'message': message
         }
 
@@ -198,9 +202,9 @@ class Root:
 
     @ajax
     def delete_sample_track(self, session, id, **params):
-        track = session.guest_track(id)
-        if track:
-            session.delete(track)
+        track_handler = FileService.from_db_id(session, id)
+        if track_handler:
+            track_handler.delete()
             session.commit()
         return {'success': True, 'message': "Track deleted."}
 
@@ -214,25 +218,22 @@ class Root:
         if guest.autograph:
             autograph_params['id'] = guest.autograph.id
         guest_autograph = session.guest_autograph(autograph_params)
+        existing_tracks = FileService.get_existing_files(session, guest.merch or guest_merch, and_flags=['sample_track'], uselist=True)
         
         group_params = dict()
 
         if cherrypy.request.method == 'POST':
+            file_handlers = []
             sample_tracks = params.get('sample_tracks', [])
             if isinstance(sample_tracks, cherrypy._cpreqbody.Part):
                 sample_tracks = [sample_tracks]
-            if len(guest.tracks) + len(sample_tracks) > 8:
+            if len(existing_tracks) + len(sample_tracks) > 8:
                 message = "Please upload no more than eight sample tracks total."
             else:
-                try:
-                    for track in [track for track in sample_tracks if track.file]:
-                        new_track = GuestTrack(guest_id=guest_id)
-                        new_track.file = track
-                        session.add(new_track)
-                except Exception as e:
-                    session.rollback()
-                    log.error(f'Error uploading sample track for guest {guest.id}: {e}')
-                    message = f"There was an issue with uploading one of your sample tracks. Please try again or contact us at rockisland@magfest.org"
+                for track in [track for track in sample_tracks if track.filename]:
+                    file_handler = FileService.file_handler(session, guest_merch, flags={'sample_track': True})
+                    message = file_handler.process_file_upload(track, delete_existing=False)
+                    file_handlers.append(file_handler)
 
             if not message:
                 message = check(guest_merch)
@@ -276,6 +277,9 @@ class Root:
                 guest.merch = guest_merch
                 session.add(guest_merch)
                 raise HTTPRedirect('index?id={}&message={}', guest.id, 'Your merchandise preferences have been saved')
+            else:
+                for handler in file_handlers:
+                    handler.delete()
         else:
             guest_merch = guest.merch
 
@@ -283,6 +287,7 @@ class Root:
             'guest': guest,
             'guest_merch': guest_merch,
             'guest_autograph': guest.autograph or guest_autograph,
+            'guest_tracks': existing_tracks,
             'group': group_params or guest.group,
             'message': message,
             'agreed_to_ri_faq': guest.group_type in c.ROCK_ISLAND_GROUPS and guest_merch and
@@ -714,12 +719,3 @@ class Root:
         image = session.guest_image(id)
         cherrypy.response.headers['Cache-Control'] = 'no-store'
         return serve_file(image.filepath, name=image.filename, content_type=image.content_type)
-
-    def view_stage_plot(self, session, id):
-        guest = session.guest_group(id)
-        cherrypy.response.headers['Cache-Control'] = 'no-store'
-        return serve_file(
-            guest.stage_plot.fpath,
-            disposition="attachment",
-            name=guest.stage_plot.download_filename,
-            content_type=guest.stage_plot.content_type)

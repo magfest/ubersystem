@@ -182,7 +182,7 @@ class Root:
             params['promo_code_code'] = attendee.promo_code_code
         forms = load_forms(params, attendee, form_list)
 
-        all_errors = validate_model(forms, attendee, is_admin=True)
+        all_errors = validate_model(session, forms, attendee, is_admin=True)
         if all_errors:
             return {"error": all_errors}
 

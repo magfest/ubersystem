@@ -85,8 +85,8 @@
     <div class="modal-dialog modal-xl" role="document">
     <div class="modal-content">
         <div class="modal-body">
-            {% for image in game.screenshots %}
-            <img class="img-fluid" src="{{ image.url }}" />
+            {% for image in submission_images %}
+            {{ image.preview_image }}
             {% endfor %}
         </div>
         <div class="modal-footer">

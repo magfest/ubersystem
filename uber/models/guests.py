@@ -14,7 +14,7 @@ from uber.config import c
 from uber.custom_tags import yesno
 from uber.decorators import presave_adjustment, classproperty
 from uber.models import MagModel
-from uber.models.types import (Choice, MultiChoice, GuidebookImageMixin, DefaultColumn as Column,
+from uber.models.types import (Choice, MultiChoice, DefaultColumn as Column, default_relationship as relationship,
                                DefaultField as Field, DefaultRelationship as Relationship)
 from uber.utils import filename_extension, slugify
 
@@ -23,8 +23,8 @@ log = logging.getLogger(__name__)
 
 __all__ = [
     'GuestGroup', 'GuestInfo', 'GuestBio', 'GuestTaxes', 'GuestStagePlot',
-    'GuestPanel', 'GuestMerch', 'GuestCharity', 'GuestAutograph', 'GuestImage', 'GuestMediaRequest',
-    'GuestInterview', 'GuestTravelPlans', 'GuestDetailedTravelPlan', 'GuestHospitality', 'GuestTrack']
+    'GuestPanel', 'GuestMerch', 'GuestCharity', 'GuestAutograph', 'GuestMediaRequest',
+    'GuestInterview', 'GuestTravelPlans', 'GuestDetailedTravelPlan', 'GuestHospitality']
 
 
 class GuestGroup(MagModel, table=True):
@@ -46,8 +46,6 @@ class GuestGroup(MagModel, table=True):
 
     info: 'GuestInfo' = Relationship(
         back_populates="guest", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
-    images: list['GuestImage'] = Relationship(
-        back_populates="guest", sa_relationship_kwargs={'order_by': 'GuestImage.id', 'cascade': 'all,delete-orphan', 'passive_deletes': True})
     bio: 'GuestBio' = Relationship(
         back_populates="guest", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
     taxes: 'GuestTaxes' = Relationship(
@@ -57,8 +55,6 @@ class GuestGroup(MagModel, table=True):
     panel: 'GuestPanel' = Relationship(
         back_populates="guest", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
     merch: 'GuestMerch' = Relationship(
-        back_populates="guest", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
-    tracks: list['GuestTrack'] = Relationship(
         back_populates="guest", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
     charity: 'GuestCharity' = Relationship(
         back_populates="guest", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
@@ -227,50 +223,7 @@ class GuestGroup(MagModel, table=True):
         if subclass:
             return getattr(subclass, 'status', getattr(subclass, 'id'))
         return ''
-    
-    def handle_images_from_params(self, session, **params):
-        # Designed to let us add required header/thumbnail images for Super MAGFest
-        # Ideally this will be refactored out when this is converted to WTForms
-        message = ''
-        bio_pic = params.get('bio_pic')
-        if bio_pic and bio_pic.filename:
-            new_pic = GuestImage.upload_image(bio_pic, guest_id=self.id)
-            if new_pic.extension not in c.ALLOWED_BIO_PIC_EXTENSIONS:
-                message = 'Bio pic must be one of ' + ', '.join(c.ALLOWED_BIO_PIC_EXTENSIONS)
-            else:
-                if self.bio_pic:
-                    session.delete(self.bio_pic)
-                session.add(new_pic)
-        return message
 
-    @property
-    def sample_tracks(self):
-        html = []
-        for track in self.tracks:
-            html.append(track.file)
-        return Markup('<br/>'.join(html))
-    
-    @property
-    def bio_pic(self):
-        for image in self.images:
-            if not image.is_header and not image.is_thumbnail:
-                return image
-        return ''
-
-    @property
-    def guidebook_header(self):
-        for image in self.images:
-            if image.is_header:
-                return image
-        return ''
-
-    @property
-    def guidebook_thumbnail(self):
-        for image in self.images:
-            if image.is_thumbnail:
-                return image
-        return ''
-    
     @property
     def guidebook_edit_link(self):
         return f"../guests/bio?guest_id={self.id}"
@@ -287,23 +240,11 @@ class GuestGroup(MagModel, table=True):
             'guidebook_subtitle': self.group_type_label,
             'guidebook_desc': self.bio.desc if self.bio else '',
             'guidebook_location': '',
-            'guidebook_header': self.guidebook_images[0][0],
-            'guidebook_thumbnail': self.guidebook_images[0][1],
         }
 
     @property
-    def guidebook_images(self):
-        if not self.images:
-            return ['', ''], ['', '']
-
-        header = self.guidebook_header
-        thumbnail = self.guidebook_thumbnail
-        prepend = slugify(self.group.name if self.group else self.id) + '_'
-
-        header_name = (prepend + header.filename) if header else ''
-        thumbnail_name = (prepend + thumbnail.filename) if thumbnail else ''
-        
-        return [header_name, thumbnail_name], [header, thumbnail]
+    def guidebook_filename(self):
+        return self.normalized_group_name
 
 
 class GuestInfo(MagModel, table=True):
@@ -319,24 +260,6 @@ class GuestInfo(MagModel, table=True):
     @property
     def status(self):
         return "Yes" if self.poc_phone else ""
-
-
-class GuestImage(MagModel, GuidebookImageMixin, table=True):
-    guest_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='guest_group.id', ondelete='CASCADE')
-    guest: 'GuestGroup' = Relationship(back_populates="images")
-
-    @property
-    def url(self):
-        return '../guests/view_image?id={}'.format(self.id)
-
-    @property
-    def filepath(self):
-        return os.path.join(c.GUESTS_BIO_PICS_DIR, str(self.id))
-
-    @property
-    def download_filename(self):
-        name = self.guest.normalized_group_name
-        return name + '.' + self.pic_extension
 
 
 class GuestBio(MagModel, table=True):
@@ -376,37 +299,19 @@ class GuestStagePlot(MagModel, table=True):
     guest_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='guest_group.id', ondelete='CASCADE', unique=True)
     guest: 'GuestGroup' = Relationship(back_populates="stage_plot", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
 
-    filename: str = ''
-    content_type: str = ''
     notes: str = ''
 
-    @property
-    def url(self):
-        if self.uploaded_file:
-            return '../guests/view_stage_plot?id={}'.format(self.guest.id)
-        return ''
-
-    @property
-    def fpath(self):
-        return os.path.join(c.GUESTS_STAGE_PLOTS_DIR, self.id)
-
-    @property
-    def uploaded_file(self):
-        return os.path.exists(self.fpath)
-
-    @property
-    def stage_plot_extension(self):
-        return filename_extension(self.filename)
-
-    @property
-    def download_filename(self):
-        name = self.guest.normalized_group_name
-        return name + '_stage_plot.' + self.stage_plot_extension
+    file: 'File' = Relationship(sa_relationship=relationship(
+        'File',
+        primaryjoin='and_(remote(File.fk_id) == foreign(GuestStagePlot.id),'
+        'File.fk_model == "GuestStagePlot")',
+        lazy='select'))
 
     @property
     def status(self):
-        if self.url:
-            return self.url
+        if self.file:
+            name = self.guest.normalized_group_name
+            return self.file.url + f"&filename={name}_stage_plot"
         return self.notes
 
 
@@ -424,46 +329,6 @@ class GuestPanel(MagModel, table=True):
     @property
     def status(self):
         return self.wants_panel_label
-
-
-class GuestTrack(MagModel, table=True):
-    guest_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='guest_group.id', ondelete='CASCADE', unique=True)
-    guest: 'GuestGroup' = Relationship(back_populates="tracks", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
-
-    filename: str = ''
-    content_type: str = ''
-    extension: str = ''
-
-    @property
-    def file(self):
-        if not self.filename:
-            return ''
-        return Markup(
-            f"""<a href="{self.url}" target="_blank">{self.filename}</a>""")
-
-    @file.setter
-    def file(self, value):
-        import shutil
-        import cherrypy
-
-        if not isinstance(value, cherrypy._cpreqbody.Part):
-            log.error(f"Tried to set music track for guest {self.guest.id} with invalid value type: {type(value)}")
-            return
-
-        self.filename = value.filename
-        self.content_type = value.content_type.value
-        self.extension = value.filename.split('.')[-1].lower()
-
-        with open(self.filepath, 'wb') as f:
-            shutil.copyfileobj(value.file, f)
-
-    @property
-    def url(self):
-        return f"../guests/view_track?id={self.id}"
-
-    @property
-    def filepath(self):
-        return os.path.join(c.GUESTS_INVENTORY_DIR, str('track_' + self.id))
 
 
 class GuestMerch(MagModel, table=True):

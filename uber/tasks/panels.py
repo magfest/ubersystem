@@ -102,7 +102,7 @@ def check_stale_guidebook_models():
         return
 
     with Session() as session:
-        cl_updates, schedule_updates = GuidebookUtils.get_changed_models(session)
+        cl_updates, schedule_updates, image_updates = GuidebookUtils.get_changed_models(session)
         stale_models = [key for key in cl_updates if cl_updates[key]]
         if schedule_updates:
             stale_models.append('Schedule')

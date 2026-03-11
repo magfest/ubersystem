@@ -5,6 +5,7 @@ from sqlalchemy.orm import joinedload
 from uber.config import c
 from uber.custom_tags import humanize_timedelta
 from uber.decorators import all_renderable, csv_file, multifile_zipfile, xlsx_file
+from uber.files import FileService
 from uber.models import Group, IndieGame, IndieJudge, IndieStudio, GuestGroup
 from uber.utils import localized_now
 
@@ -24,6 +25,8 @@ class Root:
             'Screenshot Links', 'Average Score', 'Individual Scores'
         ])
         for game in session.indie_games().filter(IndieGame.showcase_type == c.INDIE_RETRO):
+            game_logo = FileService.get_existing_files(session, game, and_flags=['game_logo'])
+            game_screenshots = FileService.get_existing_files(session, game, and_flags=['retro_screenshot'], uselist=True)
             full_name = game.primary_contact.full_name if game.primary_contact else 'No Primary Contact'
             email = game.primary_contact.email if game.primary_contact else 'N/A'
             out.writerow([
@@ -32,7 +35,7 @@ class Root:
                 game.brief_description, game.publisher_name,
                 ' / '.join(game.genres_labels) + (f'{' / ' if game.genres else ''}Other: {game.genres_text}' if game.genres_text else ''),
                 ' / '.join(game.platforms_labels) + (f'{' / ' if game.platforms else ''}Other: {game.platforms_text}' if game.platforms_text else ''),
-                game.release_date, game.description, c.URL_BASE + game.game_logo_image.url.lstrip('.'),
+                game.release_date, game.description, (c.URL_BASE + game_logo.url) if game_logo else '',
                 game.other_assets, game.link_to_video, game.link_to_game,
                 game.how_to_play, game.link_to_webpage, game.in_person, game.delivery_method_label, game.found_how,
                 'Submitted' if game.submitted else 'Not Submitted',
@@ -40,7 +43,7 @@ class Root:
                 game.registered.strftime('%Y-%m-%d'),
                 'N/A' if not game.accepted else game.accepted.strftime('%Y-%m-%d'),
                 'N/A' if not game.accepted else game.studio.confirm_deadline.strftime('%Y-%m-%d'),
-                '\n'.join(c.URL_BASE + screenshot.url.lstrip('.') for screenshot in game.screenshots),
+                '\n'.join(c.URL_BASE + screenshot.url for screenshot in game_screenshots),
                 str(game.average_score)
             ] + [str(score) for score in game.scores])
 

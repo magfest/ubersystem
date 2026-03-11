@@ -1,5 +1,6 @@
 import os
 
+from collections import defaultdict
 from sqlalchemy import or_
 from sqlalchemy.orm import subqueryload
 
@@ -7,7 +8,8 @@ from uber.config import c
 from uber.custom_tags import time_day_local
 from uber.decorators import all_renderable, csv_file, site_mappable, multifile_zipfile, xlsx_file
 from uber.errors import HTTPRedirect
-from uber.models import Group, GuestAutograph, GuestGroup, GuestMerch, GuestTravelPlans
+from uber.files import FileService
+from uber.models import File, Group, GuestAutograph, GuestGroup, GuestMerch, GuestTravelPlans
 from uber.utils import convert_to_absolute_url, filename_extension
 
 
@@ -37,8 +39,13 @@ class Root:
             'Needs Rehearsal?',
         ])
         for guest in [guest for guest in session.query(GuestGroup).all() if session.admin_can_see_guest_group(guest)]:
-            absolute_pic_url = convert_to_absolute_url(getattr(guest.bio_pic, 'url', ''))
-            absolute_stageplot_url = convert_to_absolute_url(getattr(guest.stage_plot, 'url', ''))
+            absolute_pic_url, absolute_stageplot_url = '', ''
+            if guest.bio:
+                bio_pic_file = FileService.get_existing_files(session, guest.bio, and_flags=['bio_pic'])
+                absolute_pic_url = convert_to_absolute_url(bio_pic_file.url)
+            if guest.stage_plot:
+                stage_plot_file = FileService.get_existing_files(session, guest.stage_plot)
+                absolute_stageplot_url = convert_to_absolute_url(stage_plot_file.url)
             num_panels = 0 if not guest.group or not guest.group.leader or not guest.group.leader.submitted_panels \
                 else len(guest.group.leader.submitted_panels)
 
@@ -117,9 +124,15 @@ class Root:
                 GuestMerch.selling_merch == c.ROCK_ISLAND,
                 GuestGroup.group_id == Group.id).filter(
                 *empty_filter).order_by(Group.name).all()
+        
+        guest_tracks = defaultdict(list)
+        tracks = session.query(File).filter(File.fk_model == 'GuestGroup')
+        for track in tracks:
+            guest_tracks[track.fk_id].append(track.html_link)
 
         return {
             'guest_groups': [guest for guest in guest_groups if session.admin_can_see_guest_group(guest)],
+            'guest_tracks': guest_tracks,
             'only_empty': only_empty
         }
     
