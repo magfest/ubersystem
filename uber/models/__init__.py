@@ -583,7 +583,7 @@ class MagModel(SQLModel):
         # Work around an issue in Pydantic where you can't assign extra properties after init
         if self.__pydantic_extra__ is None:
             super().__setattr__('__pydantic_extra__', {})
-        return super().__setattr__(name, value)
+        super().__setattr__(name, value)
 
     def __getattr__(self, name):
         suffixed = suffix_property.check(self, name)
@@ -596,9 +596,6 @@ class MagModel(SQLModel):
                 multi = self.multichoice_columns[0]
                 if choice in multi.type.choices_dict:
                     return choice in getattr(self, multi.name + '_ints')
-
-        if name.startswith('is_'):
-            return self.__class__.__name__.lower() == name[3:]
 
         if name.startswith('default_') and name.endswith('_cost'):
             if self.active_receipt:
