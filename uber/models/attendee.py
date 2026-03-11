@@ -656,6 +656,8 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
 
     @presave_adjustment
     def _staffing_adjustments(self):
+        import six
+
         if self.is_dept_head:
             self.staffing = True
             if self.paid == c.NOT_PAID:
@@ -665,7 +667,9 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
                 self.staffing = True
 
         if not self.is_new:
-            old_ribbon = map(int, self.orig_value_of('ribbon').split(',')) if self.orig_value_of('ribbon') else []
+            old_ribbon = self.orig_value_of('ribbon')
+            if old_ribbon and isinstance(old_ribbon, six.string_types):
+                old_ribbon = map(int, self.orig_value_of('ribbon').split(','))
             old_staffing = self.orig_value_of('staffing')
 
             if old_staffing and not self.staffing or c.VOLUNTEER_RIBBON not in self.ribbon_ints \
