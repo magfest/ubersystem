@@ -2391,7 +2391,6 @@ def initialize_db():
         log.info(f"Initializing model {str(model)}")
         if not hasattr(Session.SessionMixin, model.__tablename__):
             setattr(Session.SessionMixin, model.__tablename__, _make_getter(model))
-    SQLModel.metadata.create_all(engine)
 cherrypy.engine.subscribe('start', initialize_db, priority=97)
 
 def _attendee_validity_check():
