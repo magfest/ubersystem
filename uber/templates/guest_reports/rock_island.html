@@ -13,7 +13,7 @@
 {% endmacro %}
 
 
-{% macro guest_merch_contact_info(guest_merch) -%}
+{% macro guest_merch_contact_info(guest_merch, guest_tracks) -%}
 <div class="contact-info row row-cols-sm-4">
   <div class="col header-group poc">
     <div class="form-text">Point of Contact Info</div>
@@ -37,7 +37,7 @@
   </div>
   <div class="col header-group sample-tracks">
     <div class="form-text">Sample Tracks</div>
-    <div>{{ guest_merch.guest.sample_tracks|default("No Tracks Uploaded",true) }}</div>
+    <div>{{ guest_tracks|join('<br/>')|default("No Tracks Uploaded",true) }}</div>
   </div>
   <div class="col header-group meet-and-greet">
     <div class="form-text">Meet N Greet Requested</div>
@@ -176,7 +176,7 @@
             {%- endif %}
             <div class="clearfix"></div>
           </h2>
-          {{ guest_merch_contact_info(guest_merch) }}
+          {{ guest_merch_contact_info(guest_merch, guest_tracks[guest.id]) }}
         </div>
         {{ guests_macros.inventory_table_with_err('card-body', suppress_preview=True) }}
       </div>
@@ -196,7 +196,7 @@
       <div class="clearfix"></div>
       {{ empty_filter(only_empty) }}
     </h1>
-    {{ guest_merch_contact_info(guest_merch) }}
+    {{ guest_merch_contact_info(guest_merch, guest_tracks[guest.id]) }}
     {{ guests_macros.inventory_table_with_err(suppress_preview=False) }}
   {% else %}
     <h1>

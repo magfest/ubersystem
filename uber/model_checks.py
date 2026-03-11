@@ -28,7 +28,7 @@ from uber.decorators import prereg_validation, validation
 from uber.models import (AccessGroup, AdminAccount, ApiToken, Attendee, ArtShowApplication, ArtShowPiece,
                          Attraction, AttractionFeature, ArtShowBidder, DeptRole, Event,
                          GuestDetailedTravelPlan, IndieDeveloper, IndieGame, IndieGameCode, IndieJudge, IndieStudio,
-                         Job, ArtistMarketplaceApplication, MITSApplicant, MITSDocument, MITSGame, MITSPicture, MITSTeam,
+                         Job, ArtistMarketplaceApplication, MITSApplicant, MITSGame, MITSTeam,
                          PromoCode, PromoCodeGroup, Sale, Session, WatchList)
 from uber.utils import localized_now, valid_email, get_age_from_birthday, slugify
 from uber.payments import PreregCart
@@ -417,15 +417,9 @@ MITSGame.required = [
 ]
 
 
-MITSDocument.required = [
-    ('description', 'Description')
-]
-
-
 @validation.MITSTeam
 @validation.MITSApplicant
 @validation.MITSGame
-@validation.MITSPicture
 @validation.MITSTimes
 def is_saveable(inst):
     team = inst if isinstance(inst, MITSTeam) else inst.team

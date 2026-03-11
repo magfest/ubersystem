@@ -3,6 +3,7 @@ import cherrypy
 from uber.config import c
 from uber.decorators import all_renderable, ajax, render, site_mappable
 from uber.errors import HTTPRedirect
+from uber.files import FileService
 from uber.forms import load_forms
 from uber.models import IndieGameReview
 from uber.tasks.email import send_email
@@ -53,7 +54,7 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, judge, form_list)
-        all_errors = validate_model(forms, judge)
+        all_errors = validate_model(session, forms, judge)
 
         if all_errors:
             return {"error": all_errors}
@@ -62,6 +63,7 @@ class Root:
 
     def game_review(self, session, message='', **params):
         review = session.indie_game_review(params.get('id'))
+        game_logo = None
 
         form_list = ['GameReview']
         if review.game.showcase_type == c.MIVS:
@@ -70,11 +72,13 @@ class Root:
             game_form_list = ['ArcadeGameInfo', 'ArcadeConsents', 'ArcadeLogistics']
         elif review.game.showcase_type == c.INDIE_RETRO:
             game_form_list = ['RetroGameInfo', 'RetroGameDetails', 'RetroLogistics']
+            game_logo = FileService.get_existing_files(session, review.game, and_flags=['game_logo'])
         else:
             game_form_list = []
 
         forms = load_forms(params, review, form_list)
         game_forms = load_forms({}, review.game, game_form_list, read_only=True)
+        review.judge = session.logged_in_judge()
 
         if cherrypy.request.method == 'POST':
             for form in forms.values():
@@ -96,6 +100,9 @@ class Root:
         return {
             'review': review,
             'game': review.game,
+            'game_logo': game_logo,
+            'submission_images': FileService.get_existing_files(
+                session, review.game, or_flags=['mivs_screenshot', 'arcade_photo', 'retro_screenshot'], uselist=True),
             'message': message,
             'game_code': session.code_for(review.game),
             'forms': forms,
@@ -115,7 +122,7 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, review, form_list)
-        all_errors = validate_model(forms, review)
+        all_errors = validate_model(session, forms, review)
 
         if all_errors:
             return {"error": all_errors}

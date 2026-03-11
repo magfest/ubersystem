@@ -1,10 +1,13 @@
 import json
 import logging
+from collections import defaultdict
 from datetime import datetime
+from sqlalchemy import func, or_
 
 from uber.config import c
 from uber.decorators import all_renderable, ajax, multifile_zipfile, xlsx_file, _set_response_filename
-from uber.models import Event
+from uber.files import FileService
+from uber.models import Event,File
 from uber.utils import filename_safe, localized_now, GuidebookUtils
 from uber.tasks.panels import sync_guidebook_models
 
@@ -14,13 +17,24 @@ log = logging.getLogger(__name__)
 @all_renderable()
 class Root:
     def index(self, session, message=''):
-        cl_updates, schedule_updates = GuidebookUtils.get_changed_models(session)
+        cl_updates, schedule_updates, image_updates = GuidebookUtils.get_changed_models(session)
+
+        image_data = defaultdict(dict)
+        cl_updates_ids = [x.id for xs in cl_updates.values() for x in xs]
+        existing_headers = session.query(File).filter(File.fk_id.in_(cl_updates_ids), File.flags['guidebook_header'].astext == 'true')
+        existing_thumbnails = session.query(File).filter(File.fk_id.in_(cl_updates_ids), File.flags['guidebook_thumbnail'].astext == 'true')
+        for header in existing_headers:
+            image_data[header.fk_id]['guidebook_header'] = header
+        for thumbnail in existing_thumbnails:
+            image_data[thumbnail.fk_id]['guidebook_thumbnail'] = thumbnail
 
         return {
             'message': message,
             'tables': c.GUIDEBOOK_MODELS,
             'schedule_updates': schedule_updates,
             'cl_updates': cl_updates,
+            'image_updates': image_updates,
+            'image_data': image_data,
         }
 
     @ajax
@@ -123,6 +137,10 @@ class Root:
             row = []
             for key, val in c.GUIDEBOOK_PROPERTIES:
                 row.append(model.guidebook_data.get(key, '').replace('\n', '<br/>'))
+
+            files_list = GuidebookUtils.get_guidebook_images(session, model)
+            for filename, file in files_list:
+                row.append(filename)
             rows.append(row + ['', '', ''])
 
         sync_guidebook_models.delay(selected_model, sync_time, id_list)
@@ -138,9 +156,9 @@ class Root:
         written_files = []
 
         for model in query:
-            filenames, files = getattr(model, 'guidebook_images', ['', ''])
+            files_list = GuidebookUtils.get_guidebook_images(session, model)
 
-            for filename, file in zip(filenames, files):
+            for filename, file in files_list:
                 if filename and not filename in written_files:
                     written_files.append(filename)
-                    zip_file.write(getattr(file, 'filepath', getattr(file, 'pic_fpath', None)), filename)
+                    zip_file.write(getattr(file, 'filepath', None), filename)

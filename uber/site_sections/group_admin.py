@@ -11,6 +11,7 @@ from uber.config import c
 from uber.custom_tags import format_currency, readable_join
 from uber.decorators import ajax, any_admin_access, all_renderable, csrf_protected, log_pageview
 from uber.errors import HTTPRedirect
+from uber.files import FileService
 from uber.forms import load_forms
 from uber.models import AdminAccount, Attendee, Email, Event, Group, GuestGroup, PageViewTracking, Tracking
 from uber.utils import check, validate_model, add_opt, SignNowRequest
@@ -189,7 +190,7 @@ class Root:
                 leader.ribbon_ints = group.new_ribbons
                 leader_params = {key[7:]: val for key, val in params.items() if key.startswith('leader_')}
                 leader_forms = load_forms(leader_params, leader, ['PersonalInfo'])
-                all_errors = validate_model(leader_forms, leader, is_admin=True)
+                all_errors = validate_model(session, leader_forms, leader, is_admin=True)
                 if all_errors:
                     session.delete(group)
                     session.commit()
@@ -260,7 +261,7 @@ class Root:
             form_list = [form_list]
         forms = load_forms(params, group, form_list)
 
-        all_errors = validate_model(forms, group, is_admin=True)
+        all_errors = validate_model(session, forms, group, is_admin=True)
         if all_errors:
             return {"error": all_errors}
 
@@ -338,6 +339,10 @@ class Root:
         guest = session.guest_group(params)
         if not session.admin_can_see_guest_group(guest):
             raise HTTPRedirect('index?message={}', 'You cannot view {} groups'.format(guest.group_type_label.lower()))
+        
+        guest_bio_pic = None
+        if guest.bio:
+            guest_bio_pic = FileService.get_existing_files(session, guest.bio, and_flags=['bio_pic'])
 
         if cherrypy.request.method == 'POST':
             if event_id:
@@ -356,5 +361,6 @@ class Root:
 
         return {
             'guest': guest,
+            'guest_bio_pic': guest_bio_pic,
             'message': message,
         }

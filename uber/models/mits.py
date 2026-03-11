@@ -11,12 +11,12 @@ from typing import ClassVar
 
 from uber.config import c
 from uber.models import MagModel
-from uber.models.types import (Choice, MultiChoice, GuidebookImageMixin, DefaultColumn as Column,
+from uber.models.types import (Choice, MultiChoice, DefaultColumn as Column,
                                DefaultField as Field, DefaultRelationship as Relationship)
 from uber.utils import slugify
 
 
-__all__ = ['MITSTeam', 'MITSApplicant', 'MITSGame', 'MITSPicture', 'MITSDocument', 'MITSTimes']
+__all__ = ['MITSTeam', 'MITSApplicant', 'MITSGame', 'MITSTimes']
 
 
 class MITSTeam(MagModel, table=True):
@@ -186,11 +186,6 @@ class MITSGame(MagModel, table=True):
     professional: bool = False
     tournament: bool = False
 
-    pictures: list['MITSPicture'] = Relationship(
-        back_populates="game", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
-    documents: list['MITSDocument'] = Relationship(
-        back_populates="game", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
-
     @hybrid_property
     def has_been_accepted(self):
         return self.team.status == c.ACCEPTED
@@ -198,20 +193,6 @@ class MITSGame(MagModel, table=True):
     @has_been_accepted.expression
     def has_been_accepted(cls):
         return and_(MITSTeam.id == cls.team_id, MITSTeam.status == c.ACCEPTED)
-
-    @property
-    def guidebook_header(self):
-        for image in self.pictures:
-            if image.is_header:
-                return image
-        return ''
-
-    @property
-    def guidebook_thumbnail(self):
-        for image in self.pictures:
-            if image.is_thumbnail:
-                return image
-        return ''
 
     @property
     def guidebook_edit_link(self):
@@ -224,54 +205,7 @@ class MITSGame(MagModel, table=True):
             'guidebook_subtitle': self.team.name,
             'guidebook_desc': self.description,
             'guidebook_location': '',
-            'guidebook_header': self.guidebook_images[0][0],
-            'guidebook_thumbnail': self.guidebook_images[0][1],
         }
-
-    @property
-    def guidebook_images(self):
-        if not self.pictures:
-            return ['', ''], ['', '']
-
-        header = self.guidebook_header
-        thumbnail = self.guidebook_thumbnail
-        prepend = slugify(self.name) + '_'
-
-        header_name = (prepend + header.filename) if header else ''
-        thumbnail_name = (prepend + thumbnail.filename) if thumbnail else ''
-        
-        return [header_name, thumbnail_name], [header, thumbnail]
-
-
-class MITSPicture(MagModel, GuidebookImageMixin, table=True):
-    game_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='mits_game.id', ondelete='CASCADE')
-    game: 'MITSGame' = Relationship(back_populates="pictures", sa_relationship_kwargs={'lazy': 'joined'})
-
-    description: str = ''
-
-    @property
-    def url(self):
-        return '../mits/view_picture?id={}'.format(self.id)
-
-    @property
-    def filepath(self):
-        return os.path.join(c.MITS_PICTURE_DIR, str(self.id))
-
-
-class MITSDocument(MagModel, table=True):
-    game_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='mits_game.id', ondelete='CASCADE')
-    game: 'MITSGame' = Relationship(back_populates="documents", sa_relationship_kwargs={'lazy': 'joined'})
-
-    filename: str = ''
-    description: str = ''
-
-    @property
-    def url(self):
-        return '../mits/download_doc?id={}'.format(self.id)
-
-    @property
-    def filepath(self):
-        return os.path.join(c.MITS_PICTURE_DIR, str(self.id))
 
 
 class MITSTimes(MagModel, table=True):
@@ -327,7 +261,7 @@ def add_applicant_restriction():
         setattr(Session.SessionMixin, method_name, with_applicant)
 
     for name in [
-        'mits_applicant', 'mits_game', 'mits_times', 'mits_picture', 'mits_document', 'mits_panel_application'
+        'mits_applicant', 'mits_game', 'mits_times', 'mits_panel_application'
     ]:
         override_getter(name)
 cherrypy.engine.subscribe('start', add_applicant_restriction, priority=98)

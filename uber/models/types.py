@@ -20,7 +20,7 @@ from uber.utils import listify
 __all__ = [
     'default_relationship', 'relationship', 'utcmin', 'utcnow', 'Choice',
     'Column', 'DefaultColumn', 'DefaultField', 'DefaultRelationship', 'MultiChoice',
-    'TakesPaymentMixin', 'GuidebookImageMixin']
+    'TakesPaymentMixin']
 
 
 def DefaultColumn(*args, admin_only=False, private=False, **kwargs):
@@ -359,46 +359,6 @@ class MultiChoice(UniqueList):
                 return value
             value = ','.join(map(str, vals))
         return value
-
-
-class GuidebookImageMixin():
-    filename: str = Column(String)
-    content_type: str = Column(String)
-    extension: str = Column(String)
-    is_header: bool = Column(Boolean, default=False)
-    is_thumbnail: bool = Column(Boolean, default=False)
-
-    @property
-    def url(self):
-        raise NotImplementedError
-
-    @property
-    def filepath(self):
-        raise NotImplementedError
-
-    @classmethod
-    def upload_image(cls, pic, **kwargs):
-        new_pic = cls(
-            filename=pic.filename,
-            content_type=pic.content_type.value,
-            extension=pic.filename.split('.')[-1].lower()
-            )
-        for key, val in kwargs.items():
-            if hasattr(new_pic, key):
-                setattr(new_pic, key, val)
-
-        with open(new_pic.filepath, 'wb') as f:
-            shutil.copyfileobj(pic.file, f)
-        return new_pic
-
-    def check_image_size(self, size_list=None):
-        if not size_list:
-            size_list = c.GUIDEBOOK_HEADER_SIZE if self.is_header else c.GUIDEBOOK_THUMBNAIL_SIZE
-        try:
-            return Image.open(self.filepath).size == tuple(map(int, size_list))
-        except OSError:
-            # This probably isn't an image at all
-            return
 
 
 class TakesPaymentMixin(object):

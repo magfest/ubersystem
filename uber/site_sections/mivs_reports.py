@@ -5,6 +5,7 @@ from sqlalchemy.orm import joinedload
 from uber.config import c
 from uber.custom_tags import humanize_timedelta
 from uber.decorators import all_renderable, csv_file, multifile_zipfile, xlsx_file
+from uber.files import FileService
 from uber.models import Group, IndieGame, IndieJudge, IndieStudio, GuestGroup
 from uber.utils import localized_now, normalize_newlines
 
@@ -35,6 +36,7 @@ class Root:
             'Screenshot Links', 'Average Score', 'Individual Scores'
         ])
         for game in session.indie_games().filter(IndieGame.showcase_type == c.MIVS):
+            game_screenshots = FileService.get_existing_files(session, game, and_flags=['mivs_screenshot'], uselist=True)
             out.writerow([
                 game.title,
                 game.studio.name,
@@ -61,7 +63,7 @@ class Root:
                 game.registered.strftime('%Y-%m-%d'),
                 'N/A' if not game.accepted else game.accepted.strftime('%Y-%m-%d'),
                 'N/A' if not game.accepted else game.studio.confirm_deadline.strftime('%Y-%m-%d'),
-                '\n'.join(c.URL_BASE + screenshot.url.lstrip('.') for screenshot in game.screenshots),
+                '\n'.join(c.URL_BASE + screenshot.url for screenshot in game_screenshots),
                 str(game.average_score)
             ] + [str(score) for score in game.scores])
 
@@ -95,17 +97,18 @@ class Root:
         for studio in session.query(IndieStudio).join(IndieStudio.group
                                                       ).join(Group.guest).filter(GuestGroup.group_type == c.MIVS):
             for game in studio.confirmed_games:
-                promo_1_url, promo_2_url, header_url, thumbnail_url = '', '', '', '',
-                image_url = c.URL_BASE + "/showcase/view_image?id={}"
-                promo_images = game.best_images
+                promo_1_url, promo_2_url, header_url, thumbnail_url = '', '', '', ''
+                promo_images = FileService.get_existing_files(session, game, and_flags=['use_in_promo'], uselist=True)
+                game_guidebook_header = FileService.get_existing_files(session, game, and_flags=['guidebook_header'])
+                game_guidebook_thumbnail = FileService.get_existing_files(session, game, and_flags=['guidebook_thumbnail'])
                 if promo_images:
-                    promo_1_url = image_url.format(promo_images[0].id)
+                    promo_1_url = c.URL_BASE + promo_images[0].url
                     if len(promo_images) > 1:
-                        promo_2_url = image_url.format(promo_images[1].id)
-                if game.guidebook_header:
-                    header_url = image_url.format(game.guidebook_header.id)
-                if game.guidebook_thumbnail:
-                    thumbnail_url = image_url.format(game.guidebook_thumbnail.id)
+                        promo_2_url = c.URL_BASE + promo_images[1].url
+                if game_guidebook_header:
+                    header_url = c.URL_BASE + game_guidebook_header.url
+                if game_guidebook_thumbnail:
+                    thumbnail_url = c.URL_BASE + game_guidebook_thumbnail.url
 
                 out.writerow([
                     studio.name, game.title, game.showcase_type_label, promo_1_url, promo_2_url, header_url, thumbnail_url,

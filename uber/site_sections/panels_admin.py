@@ -87,7 +87,7 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, app, form_list)
-        all_errors = validate_model(forms, app, is_admin=True)
+        all_errors = validate_model(session, forms, app, is_admin=True)
 
         if all_errors:
             return {"error": all_errors}
@@ -123,7 +123,7 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, panelist, form_list, field_prefix=prefix)
-        all_errors = validate_model(forms, panelist, is_admin=True)
+        all_errors = validate_model(session, forms, panelist, is_admin=True)
 
         if all_errors:
             return {"error": all_errors}

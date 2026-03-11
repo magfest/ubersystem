@@ -78,7 +78,7 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, restrictions, form_list)
-        all_errors = validate_model(forms, restrictions)
+        all_errors = validate_model(session, forms, restrictions)
 
         if all_errors:
             return {"error": all_errors}

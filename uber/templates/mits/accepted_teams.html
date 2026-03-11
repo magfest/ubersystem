@@ -7,16 +7,16 @@
     {% if team.status == c.ACCEPTED %}
       <h3>{{ team.name }}</h3>
       <table class="table table-bordered">
-      <tr><th>Game Name</th><th colwidth="{{ team.pictures|length }}">Game Description</th></tr>
+      <tr><th>Game Name</th><th colwidth="{{ picture_data[team.id]|length }}">Game Description</th></tr>
         {% for game in team.games %}
-          <tr><td>{{ game.name }}</td><td colwidth="{{ team.pictures|length }}">{{ game.description }}</td></tr>
+          <tr><td>{{ game.name }}</td><td colwidth="{{ picture_data[team.id]|length }}">{{ game.description }}</td></tr>
         {% endfor %}
         <tr>
-          {% for picture in team.pictures %}
+          {% for picture in picture_data[team.id] %}
             <td></td>
-            <td>{% if not picture.is_thumbnail %}<a href="{{ picture.url }}" target="_image">{% endif %}
+            <td>{% if not picture.flags.get('guidebook_thumbnail', False) %}<a href="{{ picture.url }}" target="_image">{% endif %}
               <img src="{{ picture.url }}" alt="{{ picture.filename }}" style="max-width: 240px; max-height: 240px;"/>
-              {% if not picture.is_thumbnail %}</a>{% endif %}</td>
+              {% if not picture.flags.get('thumbnail', False) %}</a>{% endif %}</td>
           {% endfor %}
         </tr></table>
     {% endif %}
