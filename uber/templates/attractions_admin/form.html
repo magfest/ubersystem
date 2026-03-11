@@ -660,7 +660,7 @@
   }
 </script>
 
-{%- set can_admin_attraction = admin_account.attendee.can_admin_attraction(attraction) -%}
+{%- set can_admin_attraction = admin_account.can_admin_attraction(attraction) -%}
 {% if can_admin_attraction -%}
   <div id="edit_attraction" class="modal fade" tabindex="-1" role="dialog" style="display: none"
       aria-labelledby="edit_attraction_title">

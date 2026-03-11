@@ -44,7 +44,7 @@ class DeveloperInfo(MagForm):
     last_name = StringField('Last Name', render_kw={'autocomplete': "lname"})
     email = EmailField('Email Address', render_kw={'placeholder': 'test@example.com'})
     cellphone = TelField('Phone Number')
-    gets_emails = BooleanField('I want to receive emails about my studio\'s showcase submissions.')
+    receives_emails = BooleanField('I want to receive emails about my studio\'s showcase submissions.')
     agreed_coc = BooleanField()
     agreed_data_policy = BooleanField()
 

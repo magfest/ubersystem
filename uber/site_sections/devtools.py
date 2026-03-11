@@ -16,7 +16,7 @@ from datetime import datetime
 
 from sqlalchemy.dialects.postgresql.json import JSONB
 from pytz import UTC
-from sqlalchemy.types import Date, Boolean, Integer
+from sqlalchemy.types import DateTime
 from sqlalchemy import text
 
 from uber.decorators import all_renderable, csv_file, public, site_mappable
@@ -234,7 +234,7 @@ class Root:
         db_read_time += time.perf_counter()
 
         return json.dumps({
-            'server_current_timestamp': int(datetime.utcnow().timestamp()),
+            'server_current_timestamp': int(datetime.now(UTC).timestamp()),
             'session_read_count': read_count,
             'session_commit_time': session_commit_time,
             'db_read_time': db_read_time,

@@ -1,7 +1,6 @@
 import re
 import uuid
 from collections import defaultdict
-from collections.abc import Iterable
 from datetime import datetime
 from functools import wraps
 
@@ -16,7 +15,7 @@ from cherrypy import HTTPError
 from dateutil import parser as dateparser
 from time import mktime
 from sqlalchemy import and_, func, or_, not_
-from sqlalchemy.orm import subqueryload
+from sqlalchemy.orm import subqueryload, joinedload, selectinload
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from sqlalchemy.types import Boolean, Date, DateTime
 
@@ -29,7 +28,7 @@ from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, Attr
                          GuestGroup, Room, HotelRequests, RoomAssignment)
 from uber.models.badge_printing import PrintJob
 from uber.serializer import serializer
-from uber.utils import check, check_csrf, normalize_email_legacy, normalize_newlines
+from uber.utils import check, check_csrf, normalize_email_legacy, normalize_newlines, is_listy
 
 log = logging.getLogger(__name__)
 
@@ -77,7 +76,7 @@ def _make_jsonrpc_handler(services, debug=c.DEV_BOX, precall=lambda body: None):
         def success(result):
             response = {'jsonrpc': '2.0', 'id': id, 'result': result}
             log.debug('Returning success message: {}', {
-                'jsonrpc': '2.0', 'id': id, 'result': len(result) if isinstance(result, Iterable) and not isinstance(result, str) else str(result).encode('utf-8')})
+                'jsonrpc': '2.0', 'id': id, 'result': len(result) if is_listy(result) else str(result).encode('utf-8')})
             cherrypy.response.status = 200
             return response
 
@@ -161,13 +160,15 @@ def _attendee_fields_and_query(full, query, only_valid=True):
     if full:
         fields = AttendeeLookup.fields_full
         query = query.options(
-            subqueryload(Attendee.dept_memberships),
-            subqueryload(Attendee.assigned_depts),
-            subqueryload(Attendee.food_restrictions),
-            subqueryload(Attendee.shifts).subqueryload(Shift.job))
+            selectinload(Attendee.dept_memberships).joinedload(DeptMembership.department),
+            selectinload(Attendee.assigned_depts),
+            selectinload(Attendee.dept_roles).joinedload(DeptRole.department),
+            selectinload(Attendee.shifts).joinedload(Shift.job),
+            selectinload(Attendee.food_restrictions),
+            selectinload(Attendee.managers), joinedload(Attendee.group))
     else:
         fields = AttendeeLookup.fields
-        query = query.options(subqueryload(Attendee.dept_memberships))
+        query = query.options(selectinload(Attendee.dept_memberships), selectinload(Attendee.shifts).joinedload(Shift.job),)
     return (fields, query)
 
 
@@ -219,8 +220,8 @@ def _prepare_attendees_export(attendees, include_account_ids=False, include_apps
             d['attendee_account_ids'] = [m.id for m in a.managers]
 
         if include_apps:
-            if a.art_show_applications:
-                d['art_show_app'] = a.art_show_applications[0].to_dict(art_show_import_fields)
+            if a.art_show_application:
+                d['art_show_app'] = a.art_show_application.to_dict(art_show_import_fields)
             if a.marketplace_application:
                 d['marketplace_app'] = a.marketplace_application.to_dict(marketplace_import_fields)
 
@@ -310,7 +311,7 @@ def _parse_datetime(d):
 def _parse_if_datetime(key, val):
     # This should be in the DateTime and Date classes, but they're not defined in this app
     if hasattr(getattr(Attendee, key), 'type') and (
-            isinstance(getattr(Attendee, key).type, DateTime) or isinstance(getattr(Attendee, key).type, sa.types.time) or isinstance(getattr(Attendee, key).type, Date)):
+            isinstance(getattr(Attendee, key).type, DateTime) or isinstance(getattr(Attendee, key).type, Date) or isinstance(getattr(Attendee, key).type, Date)):
         return _parse_datetime(val)
     return val
 
@@ -508,7 +509,6 @@ class MivsLookup:
         with Session() as session:
             judges = session.query(IndieJudge).filter(not_(IndieJudge.status.in_([c.CANCELLED, c.DISQUALIFIED])))
 
-
             for judge in judges:
                 fields = AttendeeLookup.attendee_import_fields + Attendee.import_fields
                 judges_list.append((judge.to_dict(), judge.attendee.to_dict(fields)))
@@ -693,10 +693,16 @@ class AttendeeLookup:
         with Session() as session:
             if full:
                 options = [
-                    subqueryload(Attendee.dept_memberships).subqueryload(DeptMembership.department),
-                    subqueryload(Attendee.dept_roles).subqueryload(DeptRole.department)]
+                    selectinload(Attendee.dept_memberships).joinedload(DeptMembership.department),
+                    selectinload(Attendee.dept_roles).joinedload(DeptRole.department),
+                    selectinload(Attendee.shifts).joinedload(Shift.job),
+                    selectinload(Attendee.food_restrictions),
+                    selectinload(Attendee.managers), joinedload(Attendee.group)
+                    ]
             else:
-                options = []
+                options = [
+                    selectinload(Attendee.shifts).joinedload(Shift.job),
+                ]
 
             email_attendees = []
             if emails:
@@ -867,9 +873,22 @@ class AttendeeAccountLookup:
 
             if not account:
                 raise HTTPError(404, 'No attendee account found with this ID')
+            
+            filters = [Attendee.is_valid == True]
+            if not include_group:
+                filters.append(Attendee.group_id == None)
 
-            attendees_to_export = account.valid_attendees if include_group \
-                else [a for a in account.valid_attendees if not a.group]
+            attendees_to_export = session.query(Attendee).join(Attendee.managers).filter(
+                AttendeeAccount.id == id).filter(*filters).options(
+                selectinload(Attendee.dept_memberships).joinedload(DeptMembership.department),
+                selectinload(Attendee.dept_roles).joinedload(DeptRole.department),
+                selectinload(Attendee.shifts).joinedload(Shift.job),
+                selectinload(Attendee.food_restrictions),
+                selectinload(Attendee.managers),
+                joinedload(Attendee.group),
+                joinedload(Attendee.art_show_application),
+                joinedload(Attendee.marketplace_application)
+            )
 
             attendees = _prepare_attendees_export(attendees_to_export, include_apps=full)
             return {
@@ -900,7 +919,7 @@ class AttendeeAccountLookup:
                 if emails:
                     email_accounts = session.query(AttendeeAccount).filter(
                         AttendeeAccount.email.in_(list(emails.keys()))
-                        ).options(subqueryload(AttendeeAccount.attendees)
+                        ).options(selectinload(AttendeeAccount.attendees)
                                   ).order_by(AttendeeAccount.email, AttendeeAccount.id).all()
 
                 known_emails = set(a.normalized_email for a in email_accounts)
@@ -909,7 +928,7 @@ class AttendeeAccountLookup:
                 id_accounts = []
                 if ids:
                     id_accounts = session.query(AttendeeAccount).filter(
-                        AttendeeAccount.id.in_(ids)).options(subqueryload(AttendeeAccount.attendees)
+                        AttendeeAccount.id.in_(ids)).options(selectinload(AttendeeAccount.attendees)
                                                              ).order_by(AttendeeAccount.email,
                                                                         AttendeeAccount.id).all()
 
@@ -1699,7 +1718,7 @@ class PrintJobLookup:
                 if not restart or not errors:
                     results[job.id] = self._build_job_json_data(job)
                     if not dry_run:
-                        job.queued = datetime.utcnow()
+                        job.queued = datetime.now(UTC)
                         session.add(job)
                         session.commit()
 
@@ -1793,7 +1812,7 @@ class PrintJobLookup:
 
             for job in jobs:
                 results[job.id] = self._build_job_json_data(job)
-                job.printed = datetime.utcnow()
+                job.printed = datetime.now(UTC)
                 session.add(job)
                 session.commit()
 
@@ -1839,7 +1858,7 @@ class PrintJobLookup:
                     else:
                         job.errors = error
                 else:
-                    job.printed = datetime.utcnow()
+                    job.printed = datetime.now(UTC)
                 session.add(job)
                 session.commit()
 

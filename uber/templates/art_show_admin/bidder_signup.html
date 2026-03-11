@@ -110,12 +110,12 @@
       </td>
       {% if c.PREASSIGNED_BADGE_TYPES %}<td>{{ attendee.badge_printed_name }}</td>{% endif %}
       {% if c.NUMBERED_BADGES %}<td>{{ attendee.badge_num }}</td>{% endif %}
-      <td{% if attendee.art_show_applications %} data-order="{{ attendee.art_show_applications[0].display_name }}" data-search="{{ attendee.art_show_applications[0].display_name }}"{% endif %}>
-        {% for app in attendee.art_show_applications %}
-        <a href="form?id={{ app.id }}">{{ app.display_name }}</a>
+      <td{% if attendee.art_show_application %} data-order="{{ attendee.art_show_application.display_name }}" data-search="{{ attendee.art_show_application.display_name }}"{% endif %}>
+        {% if attendee.art_show_application %}
+        <a href="form?id={{ app.id }}">{{ attendee.art_show_application.display_name }}</a>
         {% else %}
         N/A
-        {% endfor %}
+        {% endif %}
       </td>
       <td>
         {% set show_edit_btn = attendee.art_show_bidder and attendee.art_show_bidder.signed_up %}
@@ -182,11 +182,11 @@
       {% if c.PREASSIGNED_BADGE_TYPES %}<td>{{ attendee.badge_printed_name }}</td>{% endif %}
       {% if c.NUMBERED_BADGES %}<td>{{ attendee.badge_num }}</td>{% endif %}
       <td>
-        {% for app in attendee.art_show_applications %}
-        <a href="form?id={{ app.id }}">{{ app.display_name }}</a>
+        {% if attendee.art_show_application %}
+        <a href="form?id={{ app.id }}">{{ attendee.art_show_application.display_name }}</a>
         {% else %}
         N/A
-        {% endfor %}
+        {% endif %}
       </td>
       <td>
         {% set show_edit_btn = attendee.art_show_bidder and attendee.art_show_bidder.signed_up %}

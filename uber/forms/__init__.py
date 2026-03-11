@@ -422,7 +422,10 @@ class MagForm(Form):
                     elif obj_data:
                         formdata[prefixed_name] = getattr(obj, name)
             elif isinstance(field.widget, DateMaskInput) and not field_in_formdata and getattr(obj, name, None):
-                formdata[prefixed_name] = getattr(obj, name).strftime('%m/%d/%Y')
+                obj_date = getattr(obj, name)
+                if isinstance(obj_date, six.string_types):
+                    obj_date = dateparser.parse(obj_date)
+                formdata[prefixed_name] = obj_date.strftime('%m/%d/%Y')
             elif isinstance(field, DateField) and not field_in_formdata and getattr(obj, name, None):
                 formdata[prefixed_name] = str(getattr(obj, name))
             elif isinstance(field.widget, UniqueList) and field_in_formdata and cherrypy.request.method == 'POST':
@@ -465,7 +468,7 @@ class MagForm(Form):
             else:
                 try:
                     setattr(obj, name, field.data)
-                except AttributeError as e:
+                except (AttributeError, ValueError) as e:
                     pass  # Indicates collision between a property name and a field name, like 'badges' for GroupInfo
 
         for model_field_name, aliases in self.field_aliases.items():

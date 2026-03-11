@@ -343,7 +343,7 @@ class Root:
             print_size = f"Custom: {request.size_text}" if request.size == c.CUSTOM else request.size_label
             out.writerow([
                 dept_name, request.link, request.copies, request.print_orientation_label, request.cut_orientation_label,
-                request.color_label, paper_type, print_size, request.double_sided, request.stapled, request.required,
+                request.color_label, paper_type, print_size, request.double_sided, request.stapled, request.important,
                 request.notes, short_datetime_local(request.last_updated)
             ])
     
