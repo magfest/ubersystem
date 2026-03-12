@@ -929,7 +929,7 @@ if c.HOTEL_LOTTERY_STAFF_START or c.HOTEL_LOTTERY_FORM_START:
     )
 
 
-if c.HOTELS_ENABLED:
+if c.HOTELS_ENABLED and c.HOURS_FOR_HOTEL_SPACE:
     AutomatedEmailFixture(
         Attendee,
         'Want volunteer hotel room space at {EVENT_NAME}?',
