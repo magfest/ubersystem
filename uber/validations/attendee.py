@@ -263,7 +263,20 @@ def out_of_badge_type(form, field):
 # OtherInfo
 # =============================
 
-@OtherInfo.new_or_changed('promo_code_code')
+@PreregOtherInfo.new_or_changed('promo_code_code')
+def can_use_promo_code(form, field):
+    if not field.data:
+        return
+    
+    if form.model.badge_type == c.PSEUDO_DEALER_BADGE or getattr(form.model, 'is_dealer', False):
+        raise ValidationError(f"You cannot use a promo code with a {c.DEALER_TERM} registration.")
+    if form.model.badge_type == c.PSEUDO_GROUP_BADGE or getattr(form.model, 'badges', False):
+        raise ValidationError("You cannot use a promo code when buying group badges.")
+    if not getattr(form.model, 'qualifies_for_discounts', True):
+        raise ValidationError("This registration cannot be discounted.")
+
+
+@PreregOtherInfo.new_or_changed('promo_code_code')
 def promo_code_valid(form, field):
     if field.data:
         with Session() as session:
@@ -279,6 +292,7 @@ def promo_code_valid(form, field):
                     raise ValidationError("That promo code has expired.")
                 elif not code.is_unlimited and code.uses_remaining <= 0:
                     raise ValidationError("That promo code has been used already.")
+
 
 PreregOtherInfo.field_validation.required_fields = {
     'requested_depts_ids': ('Please select at least one department to volunteer for, or check "Anywhere".',
@@ -326,6 +340,20 @@ def not_in_range(form, field):
     if not (lower_bound <= int(field.data) <= upper_bound):
         raise ValidationError(f'Badge number {field.data} is out of range for badge type \
                               {c.BADGES[form.model.badge_type]} ({lower_bound} - {upper_bound})')
+
+
+@AdminBadgeFlags.new_or_changed('promo_code_code')
+def promo_code_valid(form, field):
+    if field.data:
+        with Session() as session:
+            code = session.lookup_promo_code(field.data)
+            if not code:
+                group = session.lookup_registration_code(field.data, PromoCodeGroup)
+                if not group:
+                    raise ValidationError("The promo code you entered is invalid.")
+                elif not group.valid_codes:
+                    raise ValidationError(f"There are no more badges left in the group {group.name}.")
+
 
 # =============================
 # CheckInForm
