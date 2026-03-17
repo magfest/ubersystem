@@ -2109,7 +2109,7 @@ class TaskUtils:
         from uber.models import Attendee, AttendeeAccount, DeptMembership, DeptRole
         from functools import partial
 
-        with uber.models.Session() as session:
+        with uber.models.Session(create_savepoint=True) as session:
             service, message, target_url = get_api_service_from_server(import_job.target_server,
                                                                        import_job.api_token)
 

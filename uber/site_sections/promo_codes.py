@@ -36,9 +36,8 @@ class Root:
         text = text.strip()
         words = []
         if text:
-            with Session() as session:
-                old_words = set(s for (s,) in session.query(PromoCodeWord.normalized_word).filter(
-                    PromoCodeWord.part_of_speech == part_of_speech).all())
+            old_words = set(s for (s,) in session.query(PromoCodeWord.normalized_word).filter(
+                PromoCodeWord.part_of_speech == part_of_speech).all())
 
             for word in [s for s in shlex.split(text.replace(',', ' ')) if s]:
                 if PromoCodeWord.normalize_word(word) not in old_words:
