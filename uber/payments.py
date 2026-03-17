@@ -5,6 +5,7 @@ from collections import OrderedDict, defaultdict
 from datetime import datetime, timedelta
 from dateutil.parser import parse
 from uuid import uuid4
+from sqlalchemy.orm import selectinload
 
 import logging
 import cherrypy
@@ -14,7 +15,7 @@ import stripe
 import uber
 from uber.config import c
 from uber.custom_tags import format_currency, email_only
-from uber.utils import report_critical_exception, listify
+from uber.utils import report_critical_exception, listify, is_listy
 import uber.spin_rest_utils as spin_rest_utils
 from uber.decorators import cached_property, classproperty
 
@@ -53,6 +54,7 @@ class PreregCart:
     the payment process is started. This class helps manage them in the session instead.
     """
     def __init__(self, targets=()):
+        log.error(targets)
         self._targets = listify(targets)
         self._current_cost = 0
 
@@ -119,7 +121,7 @@ class PreregCart:
     @classmethod
     def to_sessionized(cls, m, **params):
         from uber.models import Attendee, Group
-        if isinstance(m, Iterable):
+        if is_listy(m):
             return [cls.to_sessionized(t) for t in m]
         elif isinstance(m, dict):
             return m
@@ -147,7 +149,7 @@ class PreregCart:
 
     @classmethod
     def from_sessionized(cls, d):
-        if isinstance(d, Iterable):
+        if is_listy(d):
             return [cls.from_sessionized(t) for t in d]
         elif isinstance(d, dict):
             assert d['_model'] in {'Attendee', 'Group'}
@@ -723,7 +725,7 @@ class AuthNetRequestMixin:
     def log_authorizenet_response(self, intent_id, txn_info, card_info):
         from uber.models import ReceiptInfo, ReceiptTransaction, Session
         
-        session = Session().session
+        session = Session()
         matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=intent_id).all()
 
         # AuthNet returns "StringElement" but we want strings
@@ -1059,7 +1061,7 @@ class RefundRequest(TransactionRequest):
 
             return_response_json = return_response.json()
             self.tracker.response = return_response_json
-            self.tracker.resolved = datetime.utcnow()
+            self.tracker.resolved = datetime.now(UTC)
 
             self.spin_request.log_api_response(return_response_json)
 
@@ -1167,7 +1169,7 @@ class SpinTerminalRequest(TransactionRequest):
         except AttributeError:
             response_json = response
         self.tracker.response = response_json
-        self.tracker.resolved = datetime.utcnow()
+        self.tracker.resolved = datetime.now(UTC)
 
         receipt_items_to_add = self.get_receipt_items_to_add()
         if receipt_items_to_add:
@@ -1191,7 +1193,7 @@ class SpinTerminalRequest(TransactionRequest):
 
             if self.tracker:
                 self.tracker.response = void_response_json
-                self.tracker.resolved = datetime.utcnow()
+                self.tracker.resolved = datetime.now(UTC)
 
             self.log_api_response(void_response_json)
             if self.api_response_successful(void_response_json):
@@ -1808,9 +1810,11 @@ class ReceiptManager:
         from uber.tasks.email import send_email
         from uber.decorators import render
 
-        session = Session().session
-        matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=intent_id).filter(
-            ReceiptTransaction.charge_id == '').all()
+        session = Session()
+        matching_txns = session.query(ReceiptTransaction).filter(
+            ReceiptTransaction.intent_id == intent_id,
+            ReceiptTransaction.charge_id == '').options(
+                selectinload(ReceiptTransaction.receipt_items)).all()
 
         if not matching_txns:
             log.debug(f"Tried to mark payments with intent ID {intent_id} as paid but we couldn't find any!")

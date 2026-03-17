@@ -12,7 +12,7 @@ from uber.utils import check
 
 @pytest.fixture
 def session(request):
-    session = Session().session
+    session = Session()
     request.addfinalizer(session.close)
     check_ranges(session)
     for badge_type, badge_name in [(c.STAFF_BADGE, 'Staff'), (c.CONTRACTOR_BADGE, 'Contractor')]:

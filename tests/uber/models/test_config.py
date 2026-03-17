@@ -44,7 +44,7 @@ class TestPriceLimits:
 
     def test_over_limit_price_bump_before_event(self, monkeypatch):
         monkeypatch.setattr(c, 'EPOCH', localized_now() + timedelta(days=1))
-        session = Session().session
+        session = Session()
         assert c.BADGES_SOLD == 0
 
         with request_cached_context():
@@ -57,7 +57,7 @@ class TestPriceLimits:
     def test_over_limit_price_bump_during_event(self, monkeypatch):
         monkeypatch.setattr(c, 'EPOCH', localized_now() - timedelta(days=1))
 
-        session = Session().session
+        session = Session()
         assert c.BADGES_SOLD == 0
 
         with request_cached_context():
@@ -69,7 +69,7 @@ class TestPriceLimits:
 
     def test_refunded_badge_price_bump_before_event(self, monkeypatch):
         monkeypatch.setattr(c, 'EPOCH', localized_now() + timedelta(days=1))
-        session = Session().session
+        session = Session()
         assert c.BADGES_SOLD == 0
 
         with request_cached_context():
@@ -81,7 +81,7 @@ class TestPriceLimits:
 
     def test_refunded_badge_price_bump_during_event(self, monkeypatch):
         monkeypatch.setattr(c, 'EPOCH', localized_now() - timedelta(days=1))
-        session = Session().session
+        session = Session()
         assert c.BADGES_SOLD == 0
 
         with request_cached_context():
@@ -92,7 +92,7 @@ class TestPriceLimits:
         assert 40 == c.get_attendee_price()
 
     def test_invalid_badge_no_price_bump(self):
-        session = Session().session
+        session = Session()
         assert c.BADGES_SOLD == 0
 
         with request_cached_context():
@@ -103,7 +103,7 @@ class TestPriceLimits:
         assert 40 == c.get_attendee_price()
 
     def test_free_badge_no_price_bump(self):
-        session = Session().session
+        session = Session()
         assert c.BADGES_SOLD == 0
 
         with request_cached_context():
@@ -249,7 +249,7 @@ class TestDealerConfig:
         assert c.DEALER_REG_SOFT_CLOSED
 
     def test_dealer_app(self):
-        session = Session().session
+        session = Session()
         with request_cached_context():
             session.add(Group(tables=1, cost=10, status=c.UNAPPROVED))
             session.commit()
@@ -257,7 +257,7 @@ class TestDealerConfig:
         assert c.DEALER_APPS == 1
 
     def test_waitlisted_dealer_not_app(self):
-        session = Session().session
+        session = Session()
         with request_cached_context():
             session.add(Group(tables=1, cost=10, status=c.WAITLISTED))
             session.commit()
@@ -265,7 +265,7 @@ class TestDealerConfig:
         assert c.DEALER_APPS == 0
 
     def test_free_dealer_no_app(self):
-        session = Session().session
+        session = Session()
         with request_cached_context():
             session.add(Group(tables=1, cost=0, auto_recalc=False, status=c.UNAPPROVED))
             session.commit()
@@ -273,7 +273,7 @@ class TestDealerConfig:
         assert c.DEALER_APPS == 0
 
     def test_not_a_dealer_no_app(self):
-        session = Session().session
+        session = Session()
         with request_cached_context():
             session.add(Group(tables=0, cost=10, status=c.UNAPPROVED))
             session.commit()
