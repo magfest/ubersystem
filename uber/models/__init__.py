@@ -2378,10 +2378,10 @@ class HybridSessionProxy:
 
     def __call__(self, create_savepoint=False, *args, **kwargs):
         """
-        Creates or returns the current session.
+        Creates a new session or returns the current session.
 
         create_savepoint (bool): Flush the current session to the DB and create a savepoint.
-                                 This enables using session.rollback() to undo changes.
+                                 This lets you use session.rollback() to undo only changes made after the savepoint.
                                  This is ignored if we're returning a new session.
         """
         try:
