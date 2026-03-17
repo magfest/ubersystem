@@ -778,7 +778,7 @@ class AttendeeLookup:
         Example `params` dictionary for setting extra parameters:
         <pre>{"placeholder": "yes", "legal_name": "First Last", "cellphone": "5555555555"}</pre>
         """
-        with Session() as session:
+        with Session(create_savepoint=True) as session:
             attendee_query = session.query(Attendee).filter(Attendee.first_name.ilike(first_name),
                                                             Attendee.last_name.ilike(last_name),
                                                             Attendee.email.ilike(email))
@@ -820,7 +820,7 @@ class AttendeeLookup:
         Example:
         <pre>{"first_name": "First", "paid": "doesn't need to", "ribbon": "Volunteer, Panelist"}</pre>
         """
-        with Session() as session:
+        with Session(create_savepoint=True) as session:
             attendee = session.attendee(id, allow_invalid=True)
 
             if not attendee:
