@@ -265,7 +265,7 @@ def out_of_badge_type(form, field):
 
 @PreregOtherInfo.new_or_changed('promo_code_code')
 def can_use_promo_code(form, field):
-    if not field.data:
+    if not field.data or form.model.promo_code:
         return
     
     if form.model.badge_type == c.PSEUDO_DEALER_BADGE or getattr(form.model, 'is_dealer', False):
