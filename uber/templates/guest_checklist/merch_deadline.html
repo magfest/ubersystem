@@ -246,8 +246,8 @@
     <div class="form-group" id="music-sample" style="display:none">
       <label class="col-sm-3 control-label">Sample Tracks</label>
       <div class="col-sm-6">
-        {% for track in guest.tracks %}
-        <div id="track-{{ track.id }}">{{ track.file }} <button type="button" class="btn btn-danger btn-xs" onClick="deleteTrack('{{ track.id }}')"><i class="glyphicon glyphicon-remove"></i></button></div>
+        {% for track in guest_tracks %}
+        <div id="track-{{ track.id }}">{{ track.html_link }} <button type="button" class="btn btn-danger btn-xs" onClick="deleteTrack('{{ track.id }}')"><i class="glyphicon glyphicon-remove"></i></button></div>
         {% endfor %}
         <input type="file" class="file" multiple="true" name="sample_tracks" accept="audio/*">
       </div>

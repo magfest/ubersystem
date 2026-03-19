@@ -17,7 +17,7 @@ from uber.config import c
 from uber.custom_tags import readable_join, datetime_local_filter
 from uber.decorators import presave_adjustment
 from uber.models import MagModel, Attendee
-from uber.models.types import (utcnow, Choice, DefaultColumn as Column, MultiChoice, GuidebookImageMixin, UniqueList,
+from uber.models.types import (utcnow, Choice, DefaultColumn as Column, MultiChoice, UniqueList,
                                DefaultField as Field, DefaultRelationship as Relationship)
 from uber.utils import localized_now, make_url, remove_opt, slugify
 
@@ -26,7 +26,7 @@ log = logging.getLogger(__name__)
 
 __all__ = [
     'IndieJudge', 'IndieStudio', 'IndieDeveloper', 'IndieGame',
-    'IndieGameImage', 'IndieGameCode', 'IndieGameReview']
+    'IndieGameCode', 'IndieGameReview']
 
 
 class ReviewMixin:
@@ -42,7 +42,7 @@ class IndieJudge(MagModel, ReviewMixin, table=True):
     status: int = Field(sa_column=Column(Choice(c.MIVS_JUDGE_STATUS_OPTS)), default=c.UNCONFIRMED)
     assignable_showcases: str = Field(sa_column=Column(MultiChoice(c.SHOWCASE_GAME_TYPE_OPTS)), default='')
     all_games_showcases: str = Field(sa_column=Column(MultiChoice(c.SHOWCASE_GAME_TYPE_OPTS)), default='')
-    no_game_submission: bool | None = True
+    no_game_submission: bool | None = None
     genres: str = Field(sa_column=Column(MultiChoice(c.MIVS_JUDGE_GENRE_OPTS)), default='')
     platforms: str = Field(sa_column=Column(MultiChoice(c.MIVS_PLATFORM_OPTS)), default='')
     platforms_text: str = ''
@@ -112,7 +112,7 @@ class IndieJudge(MagModel, ReviewMixin, table=True):
 
     @property
     def attendee(self):
-        return self.admin_account.attendee
+        return self.admin_account.attendee if self.admin_account else None
 
     @property
     def full_name(self):
@@ -431,9 +431,6 @@ class IndieGame(MagModel, ReviewMixin, table=True):
         back_populates="game", sa_relationship_kwargs={'lazy': 'selectin', 'cascade': 'all,delete-orphan', 'passive_deletes': True})
     reviews: list['IndieGameReview'] = Relationship(
         back_populates="game", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
-    images: list['IndieGameImage'] = Relationship(
-        back_populates="game", sa_relationship_kwargs={'lazy': 'selectin', 'order_by': 'IndieGameImage.id',
-                                                       'cascade': 'all,delete-orphan', 'passive_deletes': True})
 
     email_model_name: ClassVar = 'game'
 
@@ -471,71 +468,24 @@ class IndieGame(MagModel, ReviewMixin, table=True):
     @property
     def href(self):
         return make_url(self.link_to_game)
-    
-    @property
-    def game_logo_image(self):
-        candidates = [img for img in self.images if not img.is_header and not img.is_thumbnail and
-                      not img.is_screenshot and img.description == f'{self.id}_game_logo']
-        if candidates:
-            return candidates[0]
-
-    @property
-    def game_logo(self):
-        if not self.game_logo_image:
-            return ''
-        return self.game_logo_image.image
-
-    @game_logo.setter
-    def game_logo(self, value):
-        if not value or not getattr(value, 'filename', None):
-            return
-
-        import cherrypy
-
-        if not isinstance(value, cherrypy._cpreqbody.Part):
-            log.error(f"Tried to set game_logo for indie game {self.name} with invalid value type: {type(value)}")
-            return
-        
-        if self.game_logo_image:
-            self.session.delete(self.game_logo_image)
-
-        game_logo_image = IndieGameImage(game_id=self.id, description=f"{self.id}_game_logo", is_screenshot=False)
-        game_logo_image.image = value
-        self.session.add(game_logo_image)
-
-    @property
-    def submission_images(self):
-        return [img for img in self.images if not img.is_header and not img.is_thumbnail and img != self.game_logo_image]
-
-    @property
-    def screenshots(self):
-        return [img for img in self.images if img.is_screenshot]
-
-    @property
-    def best_images(self):
-        return [
-            img for img in self.submission_images
-            if img.use_in_promo]
 
     def accepted_image_downloads(self, count=2):
-        all_screenshots = reversed(sorted(
-            self.submission_images,
-            key=lambda img: (
-                img.is_screenshot and img.use_in_promo,
-                img.is_screenshot,
-                img.use_in_promo)))
+        from uber.files import FileService
+        best_images = FileService.get_existing_files(self.session, self, and_flags=['use_in_promo'], uselist=True)
+        guidebook_header = FileService.get_existing_files(self.session, self, and_flags=['guidebook_header'])
+        guidebook_thumbnail = FileService.get_existing_files(self.session, self, and_flags=['guidebook_thumbnail'])
 
-        screenshots = []
-        for i, screenshot in enumerate(all_screenshots):
-            if os.path.exists(screenshot.filepath):
-                screenshots.append(screenshot)
-                if len(screenshots) >= count:
+        download_images = []
+        for image in best_images:
+            if os.path.exists(image.filepath):
+                download_images.append(image)
+                if len(download_images) >= count:
                     break
-        if self.guidebook_header:
-            screenshots.append(self.guidebook_header)
-        if self.guidebook_thumbnail:
-            screenshots.append(self.guidebook_thumbnail)
-        return screenshots
+        if guidebook_header:
+            download_images.append(guidebook_header)
+        if guidebook_thumbnail:
+            download_images.append(guidebook_thumbnail)
+        return download_images
 
     def accepted_image_download_filenames(self, count=2):
         nonchars = re.compile(r'[\W]+')
@@ -545,9 +495,9 @@ class IndieGame(MagModel, ReviewMixin, table=True):
             if os.path.exists(screenshot.filepath):
                 name = '_'.join([s for s in self.title.lower().split() if s])
                 name = nonchars.sub('', name)
-                if screenshot.is_header:
+                if screenshot.flags.get('guidebook_header', False):
                     filename = f'{name}_header.{screenshot.extension.lower()}'
-                elif screenshot.is_thumbnail:
+                elif screenshot.flags.get('guidebook_thumbnail', False):
                     filename = f'{name}_icon.{screenshot.extension.lower()}'
                 else:
                     filename = '{}_{}.{}'.format(
@@ -558,12 +508,10 @@ class IndieGame(MagModel, ReviewMixin, table=True):
         return screenshots + ([''] * ((count + 2) - len(screenshots)))
 
     @property
-    def promo_image(self):
-        return next(
-            iter([img for img in self.images if not img.is_screenshot]), None)
-
-    @property
     def missing_steps(self):
+        from uber.files import FileService
+        screenshots_or_photos = FileService.get_existing_files(
+            self.session, self, or_flags=['mivs_screenshot', 'arcade_photo', 'retro_screenshot'], uselist=True)
         steps = []
         if self.code_type != c.NO_CODE and self.link_to_game:
             if not self.codes:
@@ -573,11 +521,11 @@ class IndieGame(MagModel, ReviewMixin, table=True):
                     and len(self.codes) < c.MIVS_CODES_REQUIRED:
                 steps.append(
                     f'attach at least {c.MIVS_CODES_REQUIRED} codes for our judges')
-        if self.showcase_type == c.MIVS and len(self.screenshots) < 2:
+        if self.showcase_type == c.MIVS and len(screenshots_or_photos) < 2:
             steps.append('upload at least two screenshots')
-        elif self.showcase_type == c.INDIE_RETRO and len(self.screenshots) < 3:
+        elif self.showcase_type == c.INDIE_RETRO and len(screenshots_or_photos) < 3:
             steps.append('upload three to five screenshots')
-        elif len(self.submission_images) < 2:
+        elif len(screenshots_or_photos) < 2:
             steps.append('upload at least two photos')
 
         return steps
@@ -625,18 +573,15 @@ class IndieGame(MagModel, ReviewMixin, table=True):
         return self.status == c.ACCEPTED
 
     @property
-    def guidebook_header(self):
-        for image in self.images:
-            if image.is_header:
-                return image
-        return ''
+    def guidebook_filename(self):
+        # Lowercase
+        name = self.studio.name.strip().lower()
 
-    @property
-    def guidebook_thumbnail(self):
-        for image in self.images:
-            if image.is_thumbnail:
-                return image
-        return ''
+        # Remove all special characters
+        name = ''.join(s for s in name if s.isalnum() or s == ' ')
+
+        # Remove extra whitespace & replace spaces with underscores
+        return ' '.join(name.split()).replace(' ', '_')
 
     @property
     def guidebook_edit_link(self):
@@ -649,65 +594,7 @@ class IndieGame(MagModel, ReviewMixin, table=True):
             'guidebook_subtitle': self.studio.name,
             'guidebook_desc': self.description,
             'guidebook_location': '',
-            'guidebook_header': self.guidebook_images[0][0],
-            'guidebook_thumbnail': self.guidebook_images[0][1],
         }
-
-    @property
-    def guidebook_images(self):
-        if not self.images:
-            return ['', ''], ['', '']
-
-        header = self.guidebook_header
-        thumbnail = self.guidebook_thumbnail
-        prepend = slugify(self.title) + '_'
-
-        header_name = (prepend + header.filename) if header else ''
-        thumbnail_name = (prepend + thumbnail.filename) if thumbnail else ''
-        
-        return [header_name, thumbnail_name], [header, thumbnail]
-
-
-class IndieGameImage(MagModel, GuidebookImageMixin, table=True):
-    game_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='indie_game.id', ondelete='CASCADE')
-    game: 'IndieGame' = Relationship(back_populates="images", sa_relationship_kwargs={'lazy': 'joined'})
-
-    description: str = ''
-    use_in_promo: bool = False
-    is_screenshot: bool = True
-
-    @property
-    def image(self):
-        from markupsafe import Markup
-
-        if not self.filename:
-            return ''
-        return Markup(
-            f"""<a href="{self.url}" target="_blank"><img class="img-fluid" src="{self.url}" /><br/>{self.filename}</a>""")
-
-    @image.setter
-    def image(self, value):
-        import shutil
-        import cherrypy
-
-        if not isinstance(value, cherrypy._cpreqbody.Part):
-            log.error(f"Tried to set image for game {self.game.title} with invalid value type: {type(value)}")
-            return
-
-        self.filename = value.filename
-        self.content_type = value.content_type.value
-        self.extension = value.filename.split('.')[-1].lower()
-
-        with open(self.filepath, 'wb') as f:
-            shutil.copyfileobj(value.file, f)
-
-    @property
-    def url(self):
-        return f"../showcase/view_image?id={self.id}"
-
-    @property
-    def filepath(self):
-        return os.path.join(c.MIVS_GAME_IMAGE_DIR, str(self.id))
 
 
 class IndieGameCode(MagModel, table=True):

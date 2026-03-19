@@ -380,7 +380,7 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, job, form_list)
-        all_errors = validate_model(forms, job, is_admin=True)
+        all_errors = validate_model(session, forms, job, is_admin=True)
 
         if all_errors:
             return {"error": all_errors}
@@ -447,7 +447,7 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, job_template, form_list)
-        all_errors = validate_model(forms, job_template, is_admin=True)
+        all_errors = validate_model(session, forms, job_template, is_admin=True)
 
         if all_errors:
             return {"error": all_errors}

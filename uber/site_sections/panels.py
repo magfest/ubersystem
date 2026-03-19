@@ -150,12 +150,12 @@ class Root:
         num_other_panelists = int(params.get('other_panelists_select', 0))
         panelist_forms = get_other_panelists_forms(num_other_panelists, submitter=PanelApplicant(), **params)
         for index, loaded_forms in panelist_forms.items():
-            errors = validate_model(loaded_forms, PanelApplicant())
+            errors = validate_model(session, loaded_forms, PanelApplicant())
             if errors:
                 all_errors.update(errors)
 
         forms = load_forms(params, PanelApplication(), form_list)
-        panel_errors = validate_model(forms, PanelApplication())
+        panel_errors = validate_model(session, forms, PanelApplication())
         if panel_errors:
             all_errors.update(panel_errors)
 

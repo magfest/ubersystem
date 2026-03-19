@@ -20,8 +20,8 @@
   <h2>{% block form_title %}Stage Layout for {{ guest.group.name }}{% endblock %}</h2>
 
   {% block form_desc %}
-    {% if guest.stage_plot_status %}
-      <a href="{{ guest.stage_plot.url }}">Click here to view the stage layouts you uploaded.</a>
+    {% if stage_plot_file %}
+      <a href="{{ stage_plot_file.url }}">Click here to view the stage layouts you uploaded.</a>
       <br/><br/>
       Need to update something?
     {% endif %}
@@ -44,7 +44,7 @@
       <div class="col-sm-6">
         <input type="file" name="plot" />
       </div>
-      {% if guest.stage_plot and guest.stage_plot.filename %}
+      {% if stage_plot_file %}
       <div class="clearfix"></div>
       <p class="help-block col-sm-6 col-sm-offset-3">Uploading a new file will replace the existing one.</p>
       {% endif %}

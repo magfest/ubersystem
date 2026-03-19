@@ -124,7 +124,7 @@ Index(
     'uq_promo_code_word_normalized_word_part_of_speech',
     func.lower(func.trim(PromoCodeWord.word)),
     PromoCodeWord.part_of_speech,
-    unique=True),
+    unique=True)
 CheckConstraint(func.trim(PromoCodeWord.word) != '', name='ck_promo_code_word_non_empty_word')
 
 

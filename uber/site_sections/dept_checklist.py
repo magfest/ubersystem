@@ -323,7 +323,7 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, request, form_list, field_prefix='new' if request.is_new else request.id)
-        all_errors = validate_model(forms, request, is_admin=True)
+        all_errors = validate_model(session, forms, request, is_admin=True)
 
         if all_errors:
             return {"error": all_errors}

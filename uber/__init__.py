@@ -22,6 +22,7 @@ from uber import sep_commands  # noqa: F401
 from uber import server  # noqa: F401
 from uber import tasks  # noqa: F401
 from uber import validations  # noqa: F401
+from uber import files  # noqa: F401
 from uber.serializer import serializer # noqa: F401
 
 # NOTE: this will decrease the precision of some serialized decimal.Decimals

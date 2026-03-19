@@ -1062,33 +1062,25 @@ class GuidebookUtils():
 
     @classmethod
     def get_guidebook_models(cls, session, selected_model=''):
-        from uber.models import GuestImage, MITSPicture, IndieGameImage
-
         model_cls = cls.parse_guidebook_model(selected_model)
         model_query = session.query(model_cls)
         stale_filters = [model_cls.last_synced['guidebook'] == None,
                         cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < model_cls.last_updated]
 
         if '_band' in selected_model:
-            model_query = model_query.filter_by(group_type=c.BAND).outerjoin(model_cls.images)
-            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < GuestImage.last_updated)
+            model_query = model_query.filter_by(group_type=c.BAND)
         elif '_guest' in selected_model:
-            model_query = model_query.filter_by(group_type=c.GUEST).outerjoin(model_cls.images)
-            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < GuestImage.last_updated)
+            model_query = model_query.filter_by(group_type=c.GUEST)
         elif '_arena' in selected_model:
-            model_query = model_query.filter_by(group_type=c.ARENA).outerjoin(model_cls.images)
-            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < GuestImage.last_updated)
+            model_query = model_query.filter_by(group_type=c.ARENA)
         elif '_sidestage' in selected_model:
-            model_query = model_query.filter_by(group_type=c.SIDE_STAGE).outerjoin(model_cls.images)
-            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < GuestImage.last_updated)
+            model_query = model_query.filter_by(group_type=c.SIDE_STAGE)
         elif '_dealer' in selected_model:
             model_query = model_query.filter(model_cls.status.in_([c.APPROVED])).filter_by(is_dealer=True)
         elif 'IndieGame' in selected_model:
-            model_query = model_query.filter_by(has_been_accepted=True).outerjoin(model_cls.images)
-            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < IndieGameImage.last_updated)
+            model_query = model_query.filter_by(has_been_accepted=True)
         elif 'MITSGame' in selected_model:
-            model_query = model_query.filter_by(has_been_accepted=True).outerjoin(model_cls.pictures)
-            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < MITSPicture.last_updated)
+            model_query = model_query.filter_by(has_been_accepted=True)
             
         return model_query, stale_filters
 
@@ -1097,23 +1089,40 @@ class GuidebookUtils():
         return cast(jsonb_col.astext, DateTime)
     
     @classmethod
+    def get_guidebook_images(cls, session, model):
+        from uber.files import FileService
+
+        header_file = FileService.get_existing_files(session, model, and_flags=['guidebook_header'])
+        thumbnail_file = FileService.get_existing_files(session, model, and_flags=['guidebook_thumbnail'])
+
+        files_list = []
+
+        files_list.append((f"{model.guidebook_filename}_header.{header_file.extension}", header_file) if header_file else ('', ''))
+        files_list.append((f"{model.guidebook_filename}_thumbnail.{thumbnail_file.extension}", thumbnail_file) if thumbnail_file else ('', ''))
+
+        return files_list
+    
+    @classmethod
     def get_changed_models(cls, session):
         """
         Returns a dictionary of changed "custom list" models and a list of changed "sessions" (Events)
         """
-        from uber.models import GuestBio, Event
+        from uber.models import Event
 
-        cl_updates = defaultdict(list)
+        cl_updates, image_updates = defaultdict(list), defaultdict(list)
         for key, label in c.GUIDEBOOK_MODELS:
             model_query, filters = GuidebookUtils.get_guidebook_models(session, key)
             model_query = model_query.filter(or_(*filters))
             for model in model_query:
                 if model.guidebook_data != model.last_synced.get('data', {}).get('guidebook', {}):
                     cl_updates[label].append(model)
-                elif model.guidebook_header and not isinstance(model.guidebook_header, GuestBio):
-                    last_synced = model.last_synced_dt('guidebook')
-                    if model.guidebook_header.last_updated > last_synced or model.guidebook_thumbnail.last_updated > last_synced:
-                        cl_updates[label].append(model)
+                header_file, thumbnail_file = GuidebookUtils.get_guidebook_images(session, model)
+                if header_file[1] and header_file[1].last_updated > model.last_synced_dt('guidebook'):
+                    cl_updates[label].append(model)
+                    image_updates[model.id].append('guidebook_header')
+                if thumbnail_file[1] and thumbnail_file[1].last_updated > model.last_synced_dt('guidebook'):
+                    cl_updates[label].append(model)
+                    image_updates[model.id].append('guidebook_thumbnail')
 
         schedule_updates = []
         schedule_query = session.query(Event).filter(
@@ -1125,24 +1134,32 @@ class GuidebookUtils():
             if event.guidebook_data != event.last_synced.get('data', {}).get('guidebook', {}):
                 schedule_updates.append(event)
         
-        return cl_updates, schedule_updates
+        return cl_updates, schedule_updates, image_updates
 
 
-def validate_model(forms, model, create_preview_model=True, is_admin=False):
+def validate_model(session, forms, model, create_preview_model=True, is_admin=False):
     # Create_preview_model should only be false in the VERY rare case
     # where we are re-checking a model with no changes
 
+    from uber.models import File
+    from uber.files import FileService
+
     all_errors = defaultdict(list)
     rollback_session = None
+    preview_model = model
+    new_objs = []
+    if not preview_model.session:
+        session.add(preview_model)
 
     if create_preview_model:
-        preview_model = model
-        if model.session:
-            rollback_session = model.session.begin_nested()
+        if preview_model in session.new:
+            preview_model.is_actually_new = True
+            new_objs.append(preview_model)
+
+        rollback_session = session.begin_nested()
+
         for form in forms.values():
-            form.populate_obj(preview_model, is_admin=is_admin)
-    else:
-        preview_model = model
+            form.populate_obj(preview_model, is_admin=is_admin, dry_run=True)
 
     for form in forms.values():
         form.is_admin = is_admin
@@ -1152,7 +1169,7 @@ def validate_model(forms, model, create_preview_model=True, is_admin=False):
 
         for key, field in form.field_list:
             extra_validators[key].extend(form.field_validation.get_validations_by_field(key))
-            if field and (model.is_new or getattr(model, key, None) != field.data):
+            if hasattr(model, key) and field and (model.is_new or getattr(model, key) != field.data):
                 extra_validators[key].extend(form.new_or_changed.get_validations_by_field(key))
         valid = form.validate(extra_validators=extra_validators)
         if not valid:
@@ -1161,6 +1178,7 @@ def validate_model(forms, model, create_preview_model=True, is_admin=False):
 
     validations = [uber.model_checks.validation.validations]
     prereg_validations = [uber.model_checks.prereg_validation.validations] if not is_admin else []
+
     for v in validations + prereg_validations:
         for validator in v[model.__class__.__name__].values():
             error = validator(preview_model)
@@ -1170,7 +1188,12 @@ def validate_model(forms, model, create_preview_model=True, is_admin=False):
                 all_errors[''].append(error)
     
     if rollback_session:
-        model.session.rollback()
+        for obj in list(session.new) + new_objs:
+            if isinstance(obj, File):
+                # We have to save files to run some validations on them, this cleans them up
+                file_handler = FileService.file_handler(session, obj)
+                file_handler.delete()
+        session.rollback()
 
     if all_errors:
         return all_errors

@@ -181,7 +181,7 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, location, form_list)
-        all_errors = validate_model(forms, location, is_admin=True)
+        all_errors = validate_model(session, forms, location, is_admin=True)
 
         if all_errors:
             return {"error": all_errors}
@@ -283,7 +283,7 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, event, form_list)
-        all_errors = validate_model(forms, event, is_admin=True)
+        all_errors = validate_model(session, forms, event, is_admin=True)
 
         if all_errors:
             return {"error": all_errors}
