@@ -11,12 +11,12 @@ configobj==5.0.9
 email_validator==2.2.0
 fpdf2==2.8.3
 geopy==2.4.1
+TatSu==5.7.4
 ics==0.7.2
 Jinja2==3.1.6
 ortools==9.14.6206
 phonenumbers==9.0.9
 Pillow==11.3.0
-pockets==0.9.1
 psutil
 pypsutil==0.2.0
 psycopg2-binary==2.9.10
@@ -29,11 +29,11 @@ pytz==2025.2
 pyyaml==6.0.2
 redis==6.2.0
 requests==2.32.4
-residue @ git+https://github.com/magfest/residue.git@7e54dc756de01aa2d0152731ce678303ed88080c
 rpctools @ git+https://github.com/appliedsec/rpctools.git@4e4108c3b7b4b6c482e515b1eeea2d79568cf065
 sentry-sdk==2.32.0
 signnow_python_sdk==2.0.1
-SQLAlchemy==1.4.54
+SQLAlchemy==2.0.46
+sqlmodel==0.0.37
 stripe==9.1.0
 twilio==9.6.5
 uszipcode==1.0.1

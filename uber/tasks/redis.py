@@ -1,13 +1,15 @@
 
 import json
 import re
+import logging
 from dateutil import parser as dateparser
 from datetime import datetime, timedelta
-from pockets.autolog import log
 from sqlalchemy import any_
 
 from uber.config import c, AWSSecretFetcher
 from uber.tasks import celery
+
+log = logging.getLogger(__name__)
 
 
 __all__ = ['expire_processed_saml_assertions', 'set_signnow_key', 'update_shirt_counts', 'update_problem_names']
@@ -21,7 +23,7 @@ def expire_processed_saml_assertions():
     rsession = c.REDIS_STORE.pipeline()
 
     for key, val in c.REDIS_STORE.hscan(c.REDIS_PREFIX + 'processed_saml_assertions')[1].items():
-        if int(val) < datetime.utcnow().timestamp():
+        if int(val) < datetime.now(UTC).timestamp():
             rsession.hdel(c.REDIS_PREFIX + 'processed_saml_assertions', key)
 
     rsession.execute()

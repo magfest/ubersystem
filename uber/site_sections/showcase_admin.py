@@ -1,15 +1,15 @@
 import cherrypy
-from pockets import listify
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, render, site_mappable
 from uber.errors import HTTPRedirect
+from uber.files import FileService
 from uber.forms import load_forms
 from uber.models import AdminAccount, Attendee, IndieJudge, IndieGameReview, IndieStudio, IndieGame
 from uber.tasks.email import send_email
-from uber.utils import check, get_api_service_from_server, normalize_email_legacy, validate_model
+from uber.utils import check, get_api_service_from_server, normalize_email_legacy, validate_model, listify
 
 
 def _process_showcase_type(showcase_type, message=''):
@@ -76,7 +76,7 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, studio, form_list)
-        all_errors = validate_model(forms, studio, is_admin=True)
+        all_errors = validate_model(session, forms, studio, is_admin=True)
 
         if all_errors:
             return {"error": all_errors}
@@ -203,7 +203,7 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, judge, form_list)
-        all_errors = validate_model(forms, judge, is_admin=True)
+        all_errors = validate_model(session, forms, judge, is_admin=True)
 
         if all_errors:
             return {"error": all_errors}
@@ -285,6 +285,7 @@ class Root:
         return {
             'game': game,
             'studio': game.studio,
+            'images': FileService.get_existing_files(session, game, uselist=True),
             'message': message,
             'forms': forms,
             'matching': matching,
@@ -312,7 +313,7 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, game, form_list)
-        all_errors = validate_model(forms, game, is_admin=True)
+        all_errors = validate_model(session, forms, game, is_admin=True)
 
         if all_errors:
             return {"error": all_errors}

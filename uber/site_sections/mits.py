@@ -1,26 +1,28 @@
 import shutil
 from datetime import datetime, timedelta
 from PIL import Image
+import logging
 
 import cherrypy
 from cherrypy.lib.static import serve_file
-from pockets import listify
-from pockets.autolog import log
 from pytz import UTC
 
 from uber.config import c
 from uber.custom_tags import format_image_size, readable_join
 from uber.decorators import ajax, all_renderable, csrf_protected, render
 from uber.errors import HTTPRedirect
-from uber.models import Email, MITSDocument, MITSPicture, MITSTeam
+from uber.files import FileService
+from uber.models import Email, File, MITSTeam
 from uber.tasks.email import send_email
-from uber.utils import check, localized_now, GuidebookUtils
+from uber.utils import check, localized_now, GuidebookUtils, listify
+
+log = logging.getLogger(__name__)
 
 
 @all_renderable(public=True)
 class Root:
     def index(self, session, message='', **params):
-        team = session.mits_team(params, restricted=True)
+        team = session.mits_team(params)
 
         if cherrypy.request.method == 'POST':
             message = check(team)
@@ -60,15 +62,6 @@ class Root:
         team.status = c.PENDING
 
         raise HTTPRedirect('index?message={}', 'Application re-enabled.')
-
-    def view_picture(self, session, id):
-        picture = session.mits_picture(id)
-        return serve_file(picture.filepath, name=picture.filename, content_type=picture.content_type)
-
-    def download_doc(self, session, id):
-        doc = session.mits_document(id)
-        cherrypy.response.headers['Content-Disposition'] = 'attachment; filename="{}"'.format(doc.filename)
-        return serve_file(doc.filepath, name=doc.filename)
 
     def check_if_applied(self, session, message='', **params):
         if cherrypy.request.method == 'POST':
@@ -115,8 +108,8 @@ class Root:
 
     def team(self, session, message='', **params):
         params.pop('id', None)
-        team = session.mits_team(dict(params, id=cherrypy.session.get('mits_team_id', 'None')), restricted=True)
-        applicant = session.mits_applicant(params, restricted=True)
+        team = session.mits_team(dict(params, id=cherrypy.session.get('mits_team_id', 'None')))
+        applicant = session.mits_applicant(params)
 
         if cherrypy.request.method == 'POST':
             if 'no_showcase' in params:
@@ -186,18 +179,21 @@ class Root:
 
     @ajax
     def delete_picture(self, session, id):
-        picture = session.mits_picture(id)
-        session.delete_mits_file(picture)
-        return "Picture deleted"
+        picture_handler = FileService.from_db_id(session, id)
+        if picture_handler:
+            picture_handler.delete()
+            session.commit()
+        return "Picture deleted."
 
     @ajax
     def delete_document(self, session, id):
-        doc = session.mits_document(id)
-        session.delete_mits_file(doc)
-        return "Document deleted"
+        doc_handler = FileService.from_db_id(session, id)
+        if doc_handler:
+            doc_handler.delete()
+            session.commit()
+        return "Document deleted."
 
     def game(self, session, message='', **params):
-        header_pic, thumbnail_pic = None, None
         game = session.mits_game(params, applicant=True)
         header_image = params.get('header_image')
         thumbnail_image = params.get('thumbnail_image')
@@ -205,67 +201,72 @@ class Root:
         if cherrypy.request.method == 'POST':
             documents = params.get('upload_documents', [])
             documents = documents if isinstance(documents, list) else [documents]
-            if not documents[0].filename and not game.documents:
+            existing_documents = FileService.get_existing_files(session, game, and_flags=['document'], uselist=True)
+            file_handlers = []
+
+            if not documents[0].filename and not existing_documents:
                 message = "You must upload at least one rulesbook or other document."
-
-            if not message:
-                # Once you access .file, it's gone, so we need to create
-                # MITSPicture objects BEFORE checking image size
-
-                if header_image and header_image.filename:
-                    message = GuidebookUtils.check_guidebook_image_filetype(header_image)
-                    if not message:
-                        header_pic = MITSPicture.upload_image(header_image, game_id=game.id, is_header=True)
-                        if not header_pic.check_image_size():
-                            message = f"Your header image must be {format_image_size(c.GUIDEBOOK_HEADER_SIZE)}."
-                elif not game.guidebook_header:
-                    message = f"You must upload a {format_image_size(c.GUIDEBOOK_HEADER_SIZE)} header image."
-
-            if not message:
-                if thumbnail_image and thumbnail_image.filename:
-                    message = GuidebookUtils.check_guidebook_image_filetype(thumbnail_image)
-                    if not message:
-                        thumbnail_pic = MITSPicture.upload_image(thumbnail_image, game_id=game.id, is_thumbnail=True)
-                        if not thumbnail_pic.check_image_size():
-                            message = f"Your thumbnail image must be {format_image_size(c.GUIDEBOOK_THUMBNAIL_SIZE)}."
-                elif not game.guidebook_thumbnail:
-                    message = f"You must upload a {format_image_size(c.GUIDEBOOK_THUMBNAIL_SIZE)} thumbnail image."
-
-            if not message:
-                message = check(game)
 
             if not message:
                 pictures = params.get('upload_pictures', [])
                 pictures = pictures if isinstance(pictures, list) else [pictures]
                 for pic in [p for p in pictures if p.filename]:
-                    if pic.filename.split('.')[-1].lower() not in c.GUIDEBOOK_ALLOWED_IMAGE_TYPES:
-                        message = f'Image {pic.filename} is not one of the allowed extensions: '\
-                            f'{readable_join(c.GUIDEBOOK_ALLOWED_IMAGE_TYPES)}.'
+                    file_handler = FileService.file_handler(session, game, flags={'picture': True})
+                    message = file_handler.process_file_upload(pic,
+                                                               allowed_extensions=c.GUIDEBOOK_ALLOWED_IMAGE_TYPES,
+                                                               delete_existing=False)
+                    file_handlers.append(file_handler)
 
             if not message:
                 for doc in [d for d in documents if d.filename]:
-                    new_doc = MITSDocument(game_id=game.id, filename=doc.filename)
-                    with open(new_doc.filepath, 'wb') as f:
-                        shutil.copyfileobj(doc.file, f)
-                    session.add(new_doc)
-                
-                for pic in [p for p in pictures if p.filename]:
-                    new_pic = MITSPicture.upload_image(pic, game_id=game.id)
-                    session.add(new_pic)
-                if header_pic:
-                    if game.guidebook_header:
-                        session.delete(game.guidebook_header)
-                    session.add(header_pic)
-                if thumbnail_pic:
-                    if game.guidebook_thumbnail:
-                        session.delete(game.guidebook_thumbnail)
-                    session.add(thumbnail_pic)
+                    file_handler = FileService.file_handler(session, game, flags={'document': True})
+                    message = file_handler.process_file_upload(doc, delete_existing=False)
+                    file_handlers.append(file_handler)
+
+            if not message:
+                existing_header = FileService.get_existing_files(session, game, and_flags=['guidebook_header'], uselist=False)
+                existing_thumbnail = FileService.get_existing_files(session, game, and_flags=['guidebook_thumbnail'], uselist=False)
+                if not existing_header and not header_image.filename:
+                    message = f"You must upload a {format_image_size(c.GUIDEBOOK_HEADER_SIZE)} header image."
+
+                if not message and not existing_thumbnail and not thumbnail_image.filename:
+                    message = f"You must upload a {format_image_size(c.GUIDEBOOK_THUMBNAIL_SIZE)} thumbnail image."
+
+            if not message and header_image and header_image.filename:
+                file_handler = FileService.file_handler(session, game, flags={'guidebook_header': True})
+                message = file_handler.process_file_upload(header_image,
+                                                            allowed_extensions=c.GUIDEBOOK_ALLOWED_IMAGE_TYPES,
+                                                            delete_existing=False, update_model=game)
+                file_handlers.append(file_handler)
+
+            if not message and thumbnail_image and thumbnail_image.filename:
+                file_handler = FileService.file_handler(session, game, flags={'guidebook_thumbnail': True})
+                message = file_handler.process_file_upload(thumbnail_image,
+                                                            allowed_extensions=c.GUIDEBOOK_ALLOWED_IMAGE_TYPES,
+                                                            delete_existing=False, update_model=game)
+                file_handlers.append(file_handler)
+
+            if not message:
+                message = check(game)
+
+            if message:
+                for handler in file_handlers:
+                    handler.delete()
+            else:
+                for handler in file_handlers:
+                    if handler.file_obj.flags.get('guidebook_header', False) or handler.file_obj.flags.get('guidebook_header', False):
+                        FileService.delete_existing_files(session, handler.file_obj, and_flags=handler.file_obj.true_flags)
+
                 session.add(game)
                 raise HTTPRedirect('index?message={}', 'Game saved')
 
         return {
             'game': game,
             'header_image': params.get('header_image', ''),
+            'game_pictures': FileService.get_existing_files(session, game, and_flags=['picture'], uselist=True),
+            'game_documents': FileService.get_existing_files(session, game, and_flags=['document'], uselist=True),
+            'game_guidebook_header': FileService.get_existing_files(session, game, and_flags=['guidebook_header']),
+            'game_guidebook_thumbnail': FileService.get_existing_files(session, game, and_flags=['guidebook_thumbnail']),
             'message': message
         }
 
@@ -410,6 +411,10 @@ class Root:
             raise HTTPRedirect('index?message={}', 'Your application has been submitted')
 
     def accepted_teams(self, session):
+        teams = session.mits_teams()
+        team_ids = [team.id for team in teams]
+
         return {
-            'teams': session.mits_teams()
+            'teams': session.mits_teams(),
+            'picture_data': FileService.files_by_fk_id(session, team_ids, ['MITSTeam'], and_flags=['picture'])
         }

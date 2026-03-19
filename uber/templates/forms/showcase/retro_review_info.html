@@ -72,7 +72,7 @@
 {% block logo_assets %}
 <div class="col-sm">
     <div class="form-text">{{ retro_game_details.game_logo.label.text }}</div>
-    <a href="{{ game.game_logo_image.url }}" target="_blank">{{ game.game_logo_image.filename }}</a>
+    {% if game_logo %}{{ game_logo.preview_image }}{% endif %}
 </div>
 <div class="col-sm">{{ form_macros.input(retro_game_details.other_assets) }}</div>
 {% endblock %}
@@ -110,8 +110,8 @@
     <div class="modal-dialog modal-xl" role="document">
     <div class="modal-content">
         <div class="modal-body">
-            {% for image in game.screenshots %}
-            <img class="img-fluid" src="{{ image.url }}" />
+            {% for image in submission_images %}
+            {{ image.preview_image }}
             {% endfor %}
         </div>
         <div class="modal-footer">

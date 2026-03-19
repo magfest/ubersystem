@@ -1,12 +1,11 @@
 import re
 from datetime import datetime
-from inspect import signature, getmembers, ismethod
 
 import cherrypy
 import pytz
+import inspect
 import stripe
-from pockets import unwrap
-from sqlalchemy.orm import subqueryload
+from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.decorators import ajax, all_renderable, not_site_mappable, public, site_mappable
@@ -27,8 +26,8 @@ class Root:
         if not show_revoked:
             api_tokens = api_tokens.filter(ApiToken.revoked_time == None)  # noqa: E711
         api_tokens = api_tokens.options(
-            subqueryload(ApiToken.admin_account)
-            .subqueryload(AdminAccount.attendee)) \
+            joinedload(ApiToken.admin_account)
+            .selectinload(AdminAccount.attendee)) \
             .order_by(ApiToken.issued_time).all()
         return {
             'message': message,
@@ -45,11 +44,11 @@ class Root:
         for name in sorted(jsonrpc.keys()):
             service = jsonrpc[name]
             methods = []
-            for method_name, method in getmembers(service, ismethod):
+            for method_name, method in inspect.getmembers(service, inspect.ismethod):
                 if not method_name.startswith('_'):
-                    method = unwrap(method)
+                    method = inspect.unwrap(method)
                     doc = method.__doc__ or ''
-                    args = dict(signature(method).parameters)
+                    args = dict(inspect.signature(method).parameters)
                     if 'self' in args:
                         del args['self']
                     access = getattr(method, 'required_access', set())

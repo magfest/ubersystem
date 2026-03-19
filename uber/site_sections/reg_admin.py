@@ -6,9 +6,8 @@ import math
 import re
 from collections import defaultdict
 from datetime import datetime
-from pockets import groupify
-from residue import CoerceUTF8 as UnicodeText
 from sqlalchemy import or_, func, and_
+from sqlalchemy.types import String
 from sqlalchemy.orm import joinedload, raiseload, subqueryload
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -20,7 +19,7 @@ from uber.models import AdminAccount, ApiJob, ArtShowApplication, Attendee, Grou
     ReceiptInfo, ReceiptTransaction, Tracking, WorkstationAssignment, EscalationTicket
 from uber.site_sections import devtools
 from uber.utils import check, get_api_service_from_server, normalize_email, normalize_email_legacy, valid_email, \
-    TaskUtils, Order
+    TaskUtils, Order, groupify
 from uber.payments import ReceiptManager, RefundRequest
 
 
@@ -40,7 +39,7 @@ def _search(all_processor_txns, text):
 
         return receipt_txns.filter(or_(*id_list)), ''
     
-    for attr in [col for col in ReceiptTransaction().__table__.columns if isinstance(col.type, UnicodeText)]:
+    for attr in [col for col in ReceiptTransaction().__table__.columns if isinstance(col.type, String)]:
         if attr != ReceiptTransaction.desc:
             check_list.append(attr.ilike('%' + text + '%'))
 
@@ -279,15 +278,14 @@ class Root:
 
         other_receipts = set()
         if isinstance(model, Attendee):
-            for app in model.art_show_applications:
-                other_receipt = session.get_receipt_by_model(app, options=options)
-                if other_receipt:
-                    other_receipt.changes = session.query(Tracking).filter(
-                        or_(Tracking.links.like('%model_receipt({})%'
-                                                .format(other_receipt.id)),
-                            and_(Tracking.model == 'ModelReceipt',
-                            Tracking.fk_id == other_receipt.id))).order_by(Tracking.when).all()
-                    other_receipts.add(other_receipt)
+            other_receipt = session.get_receipt_by_model(model.art_show_application, options=options)
+            if other_receipt:
+                other_receipt.changes = session.query(Tracking).filter(
+                    or_(Tracking.links.like('%model_receipt({})%'
+                                            .format(other_receipt.id)),
+                        and_(Tracking.model == 'ModelReceipt',
+                        Tracking.fk_id == other_receipt.id))).order_by(Tracking.when).all()
+                other_receipts.add(other_receipt)
 
         closed_receipts = set()
         closed_receipt_query = session.query(ModelReceipt).filter(ModelReceipt.owner_id == id,
@@ -334,6 +332,7 @@ class Root:
                 c.MANUAL: "Stripe"}
         }
 
+    @not_site_mappable
     def create_receipt(self, session, id='', blank=False):
         try:
             model = session.attendee(id)

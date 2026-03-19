@@ -1,6 +1,6 @@
 import cherrypy
+import logging
 from datetime import datetime
-from pockets.autolog import log
 from pytz import UTC
 from sqlalchemy.orm import subqueryload
 
@@ -12,6 +12,8 @@ from uber.models import Attendee, Group
 from uber.payments import ReceiptManager
 from uber.tasks.email import send_email
 from uber.utils import remove_opt, SignNowRequest
+
+log = logging.getLogger(__name__)
 
 
 def convert_dealer_badge(session, attendee, admin_note=''):

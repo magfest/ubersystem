@@ -5,6 +5,7 @@ from sqlalchemy.orm import joinedload
 from uber.config import c
 from uber.custom_tags import humanize_timedelta
 from uber.decorators import all_renderable, csv_file, multifile_zipfile, xlsx_file
+from uber.files import FileService
 from uber.models import Group, IndieGame, IndieJudge, IndieStudio, GuestGroup
 from uber.utils import localized_now
 
@@ -23,6 +24,7 @@ class Root:
             'Photo Links', 'Average Score', 'Individual Scores'
         ])
         for game in session.indie_games().filter(IndieGame.showcase_type == c.INDIE_ARCADE):
+            game_photos = FileService.get_existing_files(session, game, and_flags=['arcade_photo'], uselist=True)
             full_name = game.primary_contact.full_name if game.primary_contact else 'No Primary Contact'
             email = game.primary_contact.email if game.primary_contact else 'N/A'
             out.writerow([
@@ -39,7 +41,7 @@ class Root:
                 game.registered.strftime('%Y-%m-%d'),
                 'N/A' if not game.accepted else game.accepted.strftime('%Y-%m-%d'),
                 'N/A' if not game.accepted else game.studio.confirm_deadline.strftime('%Y-%m-%d'),
-                '\n'.join(c.URL_BASE + screenshot.url.lstrip('.') for screenshot in game.submission_images),
+                '\n'.join(c.URL_BASE + screenshot.url.lstrip('.') for screenshot in game_photos),
                 str(game.average_score)
             ] + [str(score) for score in game.scores])
 

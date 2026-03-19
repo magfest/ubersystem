@@ -259,11 +259,13 @@
           <tr id="{{ result.id }}">
             {% for key, label in c.GUIDEBOOK_PROPERTIES %}
             <td class="align-middle">
-              {% if key in ['guidebook_header', 'guidebook_thumbnail'] and current_data[key] %}
-                {% if current_data[key] != synced_data[key] or (not result[key].guest_id and result[key].last_updated > result.last_synced_dt('guidebook')) %}
-                <span class="changed"><a href="{{ result[key].url or result[key].pic_url }}" target="_blank">{{ current_data[key] }}</a></span>
-                {% else %}
-                <a href="{{ result[key].url or result[key].pic_url }}" target="_blank">{{ current_data[key] }}</a>
+              {% if key in ['guidebook_header', 'guidebook_thumbnail'] %}
+                {% if image_data[result.id] and image_data[result.id][key] %}
+                  {% if key in image_updates[result.id] %}
+                  <span class="changed"><a href="{{ image_data[result.id][key].url }}" target="_blank">{{ result.guidebook_filename }}_{{ key }}.{{ image_data[result.id][key].extension }}</a></span>
+                  {% else %}
+                  <a href="{{ image_data[result.id][key].url }}" target="_blank">{{ result.guidebook_filename }}_{{ key }}.{{ image_data[result.id][key].extension }}</a>
+                  {% endif %}
                 {% endif %}
               {% else %}
                 {% if current_data[key] != synced_data[key] %}

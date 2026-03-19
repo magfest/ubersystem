@@ -15,7 +15,6 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import residue
 
 
 try:
@@ -32,7 +31,7 @@ else:
 
 def upgrade():
     op.create_table('attendee_tournament',
-    sa.Column('id', residue.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('first_name', sa.Unicode(), server_default='', nullable=False),
     sa.Column('last_name', sa.Unicode(), server_default='', nullable=False),
     sa.Column('email', sa.Unicode(), server_default='', nullable=False),

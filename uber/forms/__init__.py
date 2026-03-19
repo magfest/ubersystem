@@ -3,18 +3,23 @@ import json
 import re
 import six
 import cherrypy
+import logging
 
 from collections import defaultdict, OrderedDict
-from wtforms import Form, StringField, SelectField, SelectMultipleField, IntegerField, BooleanField, DateField, validators, Label
+from wtforms import (Form, Field, StringField, SelectField, SelectMultipleField, IntegerField,
+                     BooleanField, DateField, validators, Label)
 import wtforms.widgets.core as wtforms_widgets
 from wtforms.validators import ValidationError, StopValidation
 from wtforms.utils import unset_value
-from pockets.autolog import log
 from functools import wraps
 
 from uber.config import c
+from uber.files import FileService
 from uber.forms.widgets import DateMaskInput, IntSelect, MultiCheckbox, SwitchInput, Ranking, UniqueList, SelectButtonGroup
+from uber.models import File
 from uber.model_checks import invalid_phone_number
+
+log = logging.getLogger(__name__)
 
 
 def bool_from_text(value):
@@ -382,6 +387,9 @@ class MagForm(Form):
         # We also convert our MultiChoice value (a string) into the list of strings that WTForms expects
         # and convert DOBs into the format that our DateMaskInput expects
         # and process our UniqueList field data if it's been submitted as multiple fields
+        #
+        # This function needs a revisit; we're often using formdata even when a form hasn't been submitted.
+        # We can probably refactor this to use `data` more and depend more on the defaults models have defined.
 
         force_defaults = force_form_defaults and (not obj or obj.is_new) and cherrypy.request.method != 'POST'
 
@@ -420,7 +428,10 @@ class MagForm(Form):
                     elif obj_data:
                         formdata[prefixed_name] = getattr(obj, name)
             elif isinstance(field.widget, DateMaskInput) and not field_in_formdata and getattr(obj, name, None):
-                formdata[prefixed_name] = getattr(obj, name).strftime('%m/%d/%Y')
+                obj_date = getattr(obj, name)
+                if isinstance(obj_date, six.string_types):
+                    obj_date = dateparser.parse(obj_date)
+                formdata[prefixed_name] = obj_date.strftime('%m/%d/%Y')
             elif isinstance(field, DateField) and not field_in_formdata and getattr(obj, name, None):
                 formdata[prefixed_name] = str(getattr(obj, name))
             elif isinstance(field.widget, UniqueList) and field_in_formdata and cherrypy.request.method == 'POST':
@@ -433,6 +444,21 @@ class MagForm(Form):
                         formdata[prefixed_name] = [item['value'] for item in formdata_dict]
                     except json.decoder.JSONDecodeError:
                         log.error(f"Couldn't process data for {prefixed_name}: {formdata[prefixed_name]}")
+            elif isinstance(field, FileUploadField) and obj:
+                # FileUploadFields use our FileService, so they need the object instead of a value
+                # Depending on form construction, this could be the parent object or a file object
+                data[name] = obj
+
+                if field.description_field_name:
+                    if kwargs.get('field_prefix', ''):
+                        description_field_name = f"{kwargs['field_prefix']}-{field.description_field_name}"
+                    else:
+                        description_field_name = field.description_field_name
+
+                    if description_field_name in formdata:
+                        field.description_field_val = formdata.get(description_field_name, '')
+                    elif obj and isinstance(obj, File):
+                        formdata[description_field_name] = obj.description
 
         super().process(formdata, None if force_defaults else obj, data, extra_filters, **kwargs)
 
@@ -444,11 +470,14 @@ class MagForm(Form):
     def bool_list(self):
         return [(key, field) for key, field in self._fields.items() if field.type == 'BooleanField']
 
-    def populate_obj(self, obj, is_admin=False):
+    def populate_obj(self, obj, is_admin=False, dry_run=False):
         """
         Adds alias processing, field locking, and data coercion to populate_obj.
-        Note that we bypass fields' populate_obj except when filling in aliased fields.
+        
+        Note that we bypass fields' populate_obj unless an object does not have an attribute
+        or when filling in aliased fields.
         """
+
         locked_fields = [] if is_admin else self.get_non_admin_locked_fields(obj)
         for name, field in self._fields.items():
             obj_data = getattr(obj, name, None)
@@ -460,11 +489,16 @@ class MagForm(Form):
             column = obj.__table__.columns.get(name)
             if column is not None:
                 setattr(obj, name, obj.coerce_column_data(column, field.data))
-            else:
+            elif hasattr(obj, name):
                 try:
                     setattr(obj, name, field.data)
-                except AttributeError as e:
+                except (AttributeError, ValueError) as e:
                     pass  # Indicates collision between a property name and a field name, like 'badges' for GroupInfo
+            else:
+                try:
+                    field.populate_obj(obj, name, is_admin=is_admin, dry_run=dry_run)
+                except TypeError:
+                    field.populate_obj(obj, name)
 
         for model_field_name, aliases in self.field_aliases.items():
             if model_field_name in locked_fields:
@@ -630,6 +664,126 @@ class SelectAvailableField(SelectField):
             render_kw = other_args[0] if len(other_args) else {}
             yield (value, label, coerced_val == self.data, render_kw)
 
+
+class FileUploadField(Field):
+    """
+    An override of the WTForms FileField and MultipleFileField which uses our file service to upload and retrieve files.
+    Takes all the parameters we pass to FileService, plus an optional name of the field to use for a File object's description.
+
+    Supports an unusual workflow where a form can access and handle a file based on a file's parent object instead of the file
+    itself. This lets you define uploadable files as properties of the parent object's form, rather than needing to define a
+    separate form for each file associated with an object. In these cases, the name of the field is added to the file as a flag.
+    
+    When using parent-object-based forms, be sure that:
+    - The name of the field is distinct from any other file fields associated with the parent object, or there are other flags
+      in file_flags that distinguish them.
+    - Keep delete_existing enabled, UNLESS the files do not need descriptions. If you need multiple files with descriptions under
+      one object, you'll need to pull those out into their own form (see the showcase forms).
+
+    Note that we don't run the validations supplied by FileService, which are only for use with old forms.
+    """
+
+    def __init__(self, label=None, validators=None, multiple=False, file_flags={}, required=False,
+                 delete_existing=True, update_model=None, description_field_name='', show_thumbnail=False, **kwargs):
+        super().__init__(label, validators, **kwargs)
+        self.widget = wtforms_widgets.FileInput(multiple=multiple)
+        self.multiple = multiple
+        self.required = required
+
+        self.file_flags = file_flags
+        self.delete_existing = delete_existing
+        self.update_model = update_model
+        self.show_thumbnail = show_thumbnail
+
+        # Fields can't access other fields, so we set description_field_val when we run `process` on MagForm
+        self.description_field_name = description_field_name
+        self.description_field_val = ''
+
+    def all_file_flags(self, obj):
+        file_flags = self.file_flags
+
+        if not isinstance(obj, File):
+            file_flags[self.short_name] = True
+        return file_flags
+
+    def process_data(self, value):
+        if value and value.session:
+            data_attr = 'preview_image_with_filename' if self.show_thumbnail else 'html_link'
+
+            if isinstance(value, File):
+                file_handler = FileService.file_handler(value.session, value)
+                self.data = getattr(file_handler.file_obj, data_attr)
+            else:
+                file_flags = self.all_file_flags(value)
+                existing_files = FileService.get_existing_files(value.session, value,
+                                                                and_flags=[key for key in file_flags.keys() if file_flags[key]],
+                                                                uselist=self.multiple)
+                if self.multiple:
+                    self.data = '<br/>'.join([getattr(file, data_attr) for file in existing_files])
+                elif existing_files:
+                    self.data = getattr(existing_files, data_attr)
+
+    def process_formdata(self, valuelist):
+        if self.multiple:
+            self.data = valuelist
+        elif valuelist:
+            self.data = valuelist[0]
+
+    def populate_obj(self, obj, name, dry_run=False, **kwargs):
+        file_flags = self.all_file_flags(obj)
+
+        if not self.data or not self.data.filename:
+            if self.description_field_name and obj.session:
+                if isinstance(obj, File):
+                    file_handler = FileService.file_handler(obj.session, obj)
+                else:
+                    existing_file = FileService.get_existing_files(obj.session, obj,
+                                                                   and_flags=[flag for flag in file_flags.keys() if file_flags[flag]])
+                    if existing_file:
+                        file_handler = FileService.file_handler(obj.session, existing_file)
+                    else:
+                        return
+                file_handler.update_file_obj(description=self.description_field_val)
+            return
+
+        delete_existing = False if dry_run else self.delete_existing
+
+        if obj.session:
+            if isinstance(obj, File):
+                if obj.is_new:
+                    # This is a new file, set the proper attributes on it and queue it for upload
+                    obj.flags = file_flags
+                    obj.description = self.description_field_val
+                    new_file_handler = FileService.file_handler(obj.session, obj)
+                else:
+                    if not dry_run:
+                        file_handler = FileService.file_handler(obj.session, obj)
+                        file_handler.delete()
+                    new_file_handler = FileService.from_fk_model_id(obj.session, obj.fk_model, obj.fk_id,
+                                                                    description=self.description_field_val, flags=file_flags)
+            else:
+                new_file_handler = FileService.file_handler(obj.session, obj, description=self.description_field_val, flags=file_flags)
+                obj.session.add(new_file_handler.file_obj)
+                log.error(new_file_handler.file_obj)
+
+            new_file_handler.process_file_upload(self.data, delete_existing=delete_existing,
+                                                 update_model=self.update_model, run_validations=False)
+
+    def pre_validate(self, form):
+        # TODO: Move this, and some other file-upload-related validators, into their own classes
+        if self.required:
+            if isinstance(form.model, File):
+                if form.model.is_new:
+                    existing_file = None
+                else:
+                    existing_file = form.model
+            else:
+                file_flags = self.all_file_flags(form.model)
+                existing_file = FileService.get_existing_files(form.model.session, form.model,
+                                                               and_flags=[flag for flag in file_flags.keys() if file_flags[flag]])
+            if not existing_file and (not self.data or not self.data.filename):
+                raise StopValidation("Please choose a file to upload.")
+        return super().pre_validate(form)
 
 class DictWrapper(dict):
     def getlist(self, arg):

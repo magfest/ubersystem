@@ -16,7 +16,6 @@ depends_on = None
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-import residue
 
 
 try:
@@ -54,12 +53,12 @@ sqlite_reflect_kwargs = {
 
 def upgrade():
     op.create_table('guest_media_request',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('created', residue.UTCDateTime(), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
-    sa.Column('last_updated', residue.UTCDateTime(), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('created', sa.DateTime(timezone=True), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
+    sa.Column('last_updated', sa.DateTime(timezone=True), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
     sa.Column('external_id', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False),
     sa.Column('last_synced', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False),
-    sa.Column('guest_id', residue.UUID(), nullable=False),
+    sa.Column('guest_id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('completed', sa.Boolean(), server_default='False', nullable=False),
     sa.ForeignKeyConstraint(['guest_id'], ['guest_group.id'], name=op.f('fk_guest_media_request_guest_id_guest_group')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_guest_media_request')),

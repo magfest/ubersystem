@@ -1,12 +1,14 @@
 import cherrypy
-from pockets import sluggify
-from pockets.autolog import log
+import logging
 
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csv_file, multifile_zipfile
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, MITSTeam, MITSGame
-from uber.utils import add_opt, check_csrf
+from uber.files import FileService
+from uber.models import Attendee, MITSTeam, MITSGame, File
+from uber.utils import add_opt, check_csrf, slugify
+
+log = logging.getLogger(__name__)
 
 
 @all_renderable()
@@ -28,9 +30,15 @@ class Root:
         raise HTTPRedirect('../mits/team')
 
     def team(self, session, id, message=''):
+        team = session.mits_team(id)
+        game_ids = [game.id for game in team.games]
+        files_query = session.query(File).filter(File.fk_id.in_(game_ids), File.fk_model == 'MITSGame')
+
         return {
             'message': message,
-            'team': session.mits_team(id)
+            'team': team,
+            'team_pictures': files_query.filter(File.flags['picture'].astext == 'true').all(),
+            'team_documents': files_query.filter(File.flags['document'].astext == 'true'). all(),
         }
 
     def set_status(self, session, id, status=None, confirmed=False, csrf_token=None, return_to='index', message=''):
@@ -180,8 +188,9 @@ class Root:
 
     @multifile_zipfile
     def accepted_games_images_zip(self, zip_file, session):
-        query = session.query(MITSGame).filter_by(has_been_accepted=True).outerjoin(MITSGame.pictures)
+        query = session.query(MITSGame).filter_by(has_been_accepted=True)
 
         for game in query:
-            for pic in game.pictures:
-                zip_file.write(pic.filepath, sluggify(pic.game.name) + "_" + pic.filename)
+            pictures = FileService.get_existing_files(session, game, and_flags=['picture'], uselist=True)
+            for pic in pictures:
+                zip_file.write(pic.filepath, slugify(game.name) + "_" + pic.filename)

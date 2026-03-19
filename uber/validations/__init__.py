@@ -3,7 +3,9 @@ from uber.model_checks import invalid_phone_number, invalid_zip_code
 from uber.forms import AddressForm
 from wtforms import validators
 from wtforms.validators import ValidationError, StopValidation
-from pockets.autolog import log
+import logging
+
+log = logging.getLogger(__name__)
 
 
 def placeholder_unassigned_fields(form):

@@ -4,8 +4,7 @@ from datetime import datetime, timedelta
 import cherrypy
 from dateutil import parser as dateparser
 import pytz
-from pockets import listify, sluggify
-from sqlalchemy.orm import subqueryload
+from sqlalchemy.orm import subqueryload, joinedload, selectinload, defaultload
 
 from uber.config import c
 from uber.custom_tags import readable_join
@@ -16,7 +15,7 @@ from uber.models import AdminAccount, Attendee, Attraction, AttractionFeature, A
     utcmin, EventLocation, Department
 from uber.site_sections.attractions import _attendee_for_badge_num
 from uber.tasks.attractions import send_waitlist_notification
-from uber.utils import localized_now, filename_safe, validate_model, get_api_service_from_server
+from uber.utils import localized_now, filename_safe, validate_model, get_api_service_from_server, slugify
 
 
 event_spec = {
@@ -108,7 +107,7 @@ class Root:
             existing_attractions_by_slug = {attraction.slug: attraction for attraction in session.query(Attraction)}
 
             for id, name in sorted(service.attraction.list(), key=lambda t: t[1]):
-                from_slug = sluggify(name)
+                from_slug = slugify(name)
                 existing_attraction = existing_attractions_by_slug.get(from_slug, None)
                 if existing_attraction:
                     existing_attractions.append((id, existing_attraction.name))
@@ -139,7 +138,7 @@ class Root:
                     for from_feature in from_attraction['features']:
                         new_feature = False
 
-                        from_slug = sluggify(from_feature['name'])
+                        from_slug = slugify(from_feature['name'])
                         to_feature = session.query(AttractionFeature).filter(AttractionFeature.slug == from_slug).first()
                         if not to_feature:
                             new_feature = True
@@ -217,7 +216,10 @@ class Root:
         if not attraction_id or attraction_id == 'None':
             raise HTTPRedirect('index')
         
-        attraction = session.attraction(attraction_id)
+        attraction = session.query(Attraction).filter(Attraction.id == attraction_id).options(
+            joinedload(Attraction.department), selectinload(Attraction.events),
+            defaultload(Attraction.features).defaultload(AttractionFeature.events).selectinload(AttractionEvent.signups),
+        ).first()
         
         forms = load_forms(params, attraction, ['AttractionInfo'])
 
@@ -235,15 +237,6 @@ class Root:
                 'form?id={}&message={}',
                 attraction.id,
                 '{} updated successfully.'.format(attraction.name))
-        else:
-            attraction = session.query(Attraction) \
-                .filter_by(id=attraction_id) \
-                .options(
-                    subqueryload(Attraction.department),
-                    subqueryload(Attraction.features)
-                    .subqueryload(AttractionFeature.events)
-                    .subqueryload(AttractionEvent.attendees)) \
-                .order_by(Attraction.id).one()
 
         return {
             'admin_account': session.current_admin_account(),
@@ -265,7 +258,7 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, attraction, form_list)
-        all_errors = validate_model(forms, attraction, is_admin=True)
+        all_errors = validate_model(session, forms, attraction, is_admin=True)
 
         if all_errors:
             return {"error": all_errors}
@@ -331,8 +324,7 @@ class Root:
     def delete(self, session, id, message=''):
         if cherrypy.request.method == 'POST':
             attraction = session.query(Attraction).get(id)
-            attendee = session.admin_attendee()
-            if not attendee.can_admin_attraction(attraction):
+            if not session.current_admin_account().can_admin_attraction(attraction):
                 raise HTTPRedirect(
                     'form?id={}&message={}',
                     id,
@@ -404,7 +396,7 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, feature, form_list)
-        all_errors = validate_model(forms, feature, is_admin=True)
+        all_errors = validate_model(session, forms, feature, is_admin=True)
 
         if all_errors:
             return {"error": all_errors}
@@ -504,7 +496,8 @@ class Root:
                 'form?id={}&message={}', feature.attraction_id, message)
 
         return {
-            'attraction': feature.attraction,
+            'attraction': session.query(Attraction).filter(Attraction.id == feature.attraction_id).options(
+                selectinload(Attraction.events)).first(),
             'feature': feature,
             'event': event,
             'forms': forms,
@@ -524,7 +517,7 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, event, form_list)
-        all_errors = validate_model(forms, event, is_admin=True)
+        all_errors = validate_model(session, forms, event, is_admin=True)
 
         if all_errors:
             return {"error": all_errors}
@@ -573,7 +566,7 @@ class Root:
         message = ''
         if cherrypy.request.method == 'POST':
             feature = session.query(AttractionFeature).get(feature_id)
-            if not session.admin_attendee().can_admin_attraction(feature.attraction):
+            if not session.current_admin_account().can_admin_attraction(feature.attraction):
                 message = "You cannot update rooms for an attraction you don't own"
             else:
                 for event in feature.events:
@@ -590,7 +583,7 @@ class Root:
             event = session.query(AttractionEvent).get(id)
             attraction_id = event.feature.attraction_id
             attraction = session.query(Attraction).get(attraction_id)
-            if not session.admin_attendee().can_admin_attraction(attraction):
+            if not session.current_admin_account().can_admin_attraction(attraction):
                 message = "You cannot delete a event from an attraction you don't own."
             else:
                 session.delete(event)
@@ -599,13 +592,13 @@ class Root:
             return {'error': message}
         
     @ajax
-    def delete_event(self, session, id):
+    def delete_event_cascade(self, session, id):
         message = ''
         if cherrypy.request.method == 'POST':
             event = session.query(AttractionEvent).get(id)
             attraction_id = event.feature.attraction_id
             attraction = session.query(Attraction).get(attraction_id)
-            if not session.admin_attendee().can_admin_attraction(attraction):
+            if not session.current_admin_account().can_admin_attraction(attraction):
                 message = "You cannot delete a event from an attraction you don't own."
             else:
                 if event.schedule_item:
@@ -622,7 +615,7 @@ class Root:
         message = ''
         if cherrypy.request.method == 'POST':
             attraction = session.query(Attraction).get(attraction_id)
-            if not session.admin_attendee().can_admin_attraction(attraction):
+            if not session.current_admin_account().can_admin_attraction(attraction):
                 message = "You cannot delete a feature from an attraction you don't own."
             else:
                 session.delete(feature)
@@ -638,7 +631,7 @@ class Root:
         message = ''
         if cherrypy.request.method == 'POST':
             attraction = session.query(Attraction).get(attraction_id)
-            if not session.admin_attendee().can_admin_attraction(attraction):
+            if not session.current_admin_account().can_admin_attraction(attraction):
                 message = "You cannot delete a feature from an attraction you don't own."
             else:
                 for event in feature.events:
@@ -659,7 +652,7 @@ class Root:
             signup = session.query(AttractionSignup).get(id)
             attraction_id = signup.event.feature.attraction_id
             attraction = session.query(Attraction).get(attraction_id)
-            if not session.admin_attendee().can_admin_attraction(attraction):
+            if not session.current_admin_account().can_admin_attraction(attraction):
                 message = "You cannot cancel a signup for an attraction you don't own."
             elif signup.is_checked_in:
                 message = "You cannot cancel a signup that has already checked in."
@@ -691,9 +684,11 @@ class Root:
             uuid.UUID(id)
             filters = [Attraction.id == id]
         except Exception:
-            filters = [Attraction.slug.startswith(sluggify(id))]
+            filters = [Attraction.slug.startswith(slugify(id))]
 
-        attraction = session.query(Attraction).filter(*filters).first()
+        attraction = session.query(Attraction).filter(*filters).options(
+            joinedload(Attraction.department)
+        ).first()
         if not attraction:
             raise HTTPRedirect('index')
         

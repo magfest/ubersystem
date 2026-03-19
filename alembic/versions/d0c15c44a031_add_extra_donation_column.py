@@ -58,7 +58,7 @@ def upgrade():
             batch_op.add_column(sa.Column('extra_donation', sa.Integer(), server_default='0', nullable=False))
     else:
         # Because this column used to be in an event plugin, we check for its existence before making it
-        exists = conn.execute("SELECT COLUMN_NAME FROM information_schema.columns where TABLE_NAME = 'attendee' and COLUMN_NAME = 'extra_donation'").fetchall()
+        exists = conn.execute(sa.text("SELECT COLUMN_NAME FROM information_schema.columns where TABLE_NAME = 'attendee' and COLUMN_NAME = 'extra_donation'")).fetchall()
         if not exists:
             op.add_column('attendee', sa.Column('extra_donation', sa.Integer(), server_default='0', nullable=False))
 

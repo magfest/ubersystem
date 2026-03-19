@@ -250,7 +250,7 @@
   {%- set is_url = url_field or url_text or url_is_relative or type == 'url' -%}
   {%- set url_field = url_field if url_field else field -%}
   {% if not is_readonly or has_value %}
-    {% call form_group_scaffolding(label if label else field|unfieldify, help if not is_readonly else False, is_required, form_class=form_class, is_admin=is_admin, use_bs5=use_bs5) %}
+    {% call form_group_scaffolding(label if label else field|replace('_', ' ')|title, help if not is_readonly else False, is_required, form_class=form_class, is_admin=is_admin, use_bs5=use_bs5) %}
       {%- if is_readonly -%}
         <div class="form-control-static">
           {%- if type == 'email' -%}
@@ -316,7 +316,7 @@
   {%- set has_other_value = not is_class and other_field and model[other_field] -%}
   {%- set is_other_value_visible = not is_readonly or has_other_value -%}
   {%- set is_wrapped = not is_readonly or has_value or desc -%}
-  {% call form_group_scaffolding(label if label else field|unfieldify, help if not is_readonly else False, is_required, 9, form_class, is_wrapped, is_admin=is_admin) %}
+  {% call form_group_scaffolding(label if label else field|replace('_', ' ')|title, help if not is_readonly else False, is_required, 9, form_class, is_wrapped, is_admin=is_admin) %}
     {%- if desc and not is_admin -%}<p>{{ desc }}</p>{%- endif -%}
 
     {% if not is_readonly or has_value %}

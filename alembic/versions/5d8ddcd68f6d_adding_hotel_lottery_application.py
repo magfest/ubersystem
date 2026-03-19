@@ -17,7 +17,6 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.types import Date
-import residue
 
 
 try:
@@ -55,13 +54,13 @@ sqlite_reflect_kwargs = {
 
 def upgrade():
     op.create_table('lottery_application',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('created', residue.UTCDateTime(), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
-    sa.Column('last_updated', residue.UTCDateTime(), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('created', sa.DateTime(timezone=True), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
+    sa.Column('last_updated', sa.DateTime(timezone=True), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
     sa.Column('external_id', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False),
     sa.Column('last_synced', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False),
-    sa.Column('attendee_id', residue.UUID()),
-    sa.Column('parent_application_id', residue.UUID(), nullable=True),
+    sa.Column('attendee_id', sa.Uuid(as_uuid=False)),
+    sa.Column('parent_application_id', sa.Uuid(as_uuid=False), nullable=True),
     sa.Column('room_group_name', sa.Unicode(), server_default='', nullable=False),
     sa.Column('invite_code', sa.Unicode(), server_default='', nullable=False),
     sa.Column('wants_room', sa.Boolean(), server_default='False', nullable=False),

@@ -1,31 +1,32 @@
 import os
 import re
 import cherrypy
+import logging
 
 from datetime import datetime, timedelta
 from functools import wraps
 from markupsafe import Markup
-from pockets import sluggify
-from pockets.autolog import log
 from pytz import UTC
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import func, case, or_
-from sqlalchemy.schema import ForeignKey, UniqueConstraint
-from sqlalchemy.types import Boolean, Integer
+from sqlalchemy.schema import UniqueConstraint
+from sqlalchemy.types import Boolean, Integer, String, DateTime, Uuid
 from sqlalchemy.ext.hybrid import hybrid_property
+from typing import ClassVar
 
 from uber.config import c
 from uber.custom_tags import readable_join, datetime_local_filter
 from uber.decorators import presave_adjustment
 from uber.models import MagModel, Attendee
-from uber.models.types import default_relationship as relationship, utcnow, \
-    Choice, DefaultColumn as Column, MultiChoice, GuidebookImageMixin, UniqueList
-from uber.utils import localized_now, make_url, remove_opt
+from uber.models.types import (utcnow, Choice, DefaultColumn as Column, MultiChoice, UniqueList,
+                               DefaultField as Field, DefaultRelationship as Relationship)
+from uber.utils import localized_now, make_url, remove_opt, slugify
+
+log = logging.getLogger(__name__)
 
 
 __all__ = [
     'IndieJudge', 'IndieStudio', 'IndieDeveloper', 'IndieGame',
-    'IndieGameImage', 'IndieGameCode', 'IndieGameReview']
+    'IndieGameCode', 'IndieGameReview']
 
 
 class ReviewMixin:
@@ -34,22 +35,26 @@ class ReviewMixin:
         return [r for r in self.reviews if r.game_status != c.PENDING]
 
 
-class IndieJudge(MagModel, ReviewMixin):
-    admin_id = Column(UUID, ForeignKey('admin_account.id'))
-    status = Column(Choice(c.MIVS_JUDGE_STATUS_OPTS), default=c.UNCONFIRMED)
-    assignable_showcases = Column(MultiChoice(c.SHOWCASE_GAME_TYPE_OPTS))
-    all_games_showcases = Column(MultiChoice(c.SHOWCASE_GAME_TYPE_OPTS))
-    no_game_submission = Column(Boolean, nullable=True)
-    genres = Column(MultiChoice(c.MIVS_JUDGE_GENRE_OPTS))
-    platforms = Column(MultiChoice(c.MIVS_PLATFORM_OPTS))
-    platforms_text = Column(UnicodeText)
-    vr_text = Column(UnicodeText)
-    staff_notes = Column(UnicodeText)
+class IndieJudge(MagModel, ReviewMixin, table=True):
+    admin_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='admin_account.id', nullable=True, unique=True)
+    admin_account: "AdminAccount" = Relationship(back_populates="judge", sa_relationship_kwargs={'single_parent': True})
 
-    codes = relationship('IndieGameCode', backref='judge')
-    reviews = relationship('IndieGameReview', backref='judge')
+    status: int = Field(sa_column=Column(Choice(c.MIVS_JUDGE_STATUS_OPTS)), default=c.UNCONFIRMED)
+    assignable_showcases: str = Field(sa_column=Column(MultiChoice(c.SHOWCASE_GAME_TYPE_OPTS)), default='')
+    all_games_showcases: str = Field(sa_column=Column(MultiChoice(c.SHOWCASE_GAME_TYPE_OPTS)), default='')
+    no_game_submission: bool | None = None
+    genres: str = Field(sa_column=Column(MultiChoice(c.MIVS_JUDGE_GENRE_OPTS)), default='')
+    platforms: str = Field(sa_column=Column(MultiChoice(c.MIVS_PLATFORM_OPTS)), default='')
+    platforms_text: str = ''
+    vr_text: str = ''
+    staff_notes: str = ''
 
-    email_model_name = 'judge'
+    codes: list['IndieGameCode'] = Relationship(
+        back_populates="judge", sa_relationship_kwargs={'lazy': 'selectin'})
+    reviews: list['IndieGameReview'] = Relationship(
+        back_populates="judge", sa_relationship_kwargs={'lazy': 'selectin', 'cascade': 'all,delete-orphan', 'passive_deletes': True})
+
+    email_model_name: ClassVar = 'judge'
 
     @presave_adjustment
     def only_one_showcase(self):
@@ -97,8 +102,8 @@ class IndieJudge(MagModel, ReviewMixin):
     @showcases.expression
     def showcases(cls):
         return case(
-            [(cls.assignable_showcases == '', cls.all_games_showcases),
-             (cls.all_games_showcases == '', cls.assignable_showcases)],
+            (cls.assignable_showcases == '', cls.all_games_showcases),
+             (cls.all_games_showcases == '', cls.assignable_showcases),
             else_=cls.assignable_showcases + ',' + cls.all_games_showcases)
 
     @property
@@ -107,7 +112,7 @@ class IndieJudge(MagModel, ReviewMixin):
 
     @property
     def attendee(self):
-        return self.admin_account.attendee
+        return self.admin_account.attendee if self.admin_account else None
 
     @property
     def full_name(self):
@@ -127,38 +132,39 @@ class IndieJudge(MagModel, ReviewMixin):
         return codes_for_game[0] if codes_for_game else ''
 
 
-class IndieStudio(MagModel):
-    group_id = Column(UUID, ForeignKey('group.id'), nullable=True)
-    name = Column(UnicodeText, unique=True)
-    website = Column(UnicodeText)
-    other_links = Column(UniqueList)
+class IndieStudio(MagModel, table=True):
+    group_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='group.id', nullable=True, unique=True)
+    group: 'Group' = Relationship(back_populates="studio", sa_relationship_kwargs={'single_parent': True})
 
-    status = Column(
-        Choice(c.MIVS_STUDIO_STATUS_OPTS), default=c.NEW, admin_only=True)
-    staff_notes = Column(UnicodeText, admin_only=True)
-    registered = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
+    name: str = Field(default='', unique=True)
+    website: str = ''
+    other_links: str = Field(sa_type=UniqueList, default='')
 
-    accepted_core_hours = Column(Boolean, default=False)
-    discussion_emails = Column(UnicodeText)
-    completed_discussion = Column(Boolean, default=False)
-    read_handbook = Column(Boolean, default=False)
-    training_password = Column(UnicodeText)
-    selling_merch = Column(Choice(c.MIVS_MERCH_OPTS), nullable=True)
-    needs_hotel_space = Column(Boolean, nullable=True, admin_only=True)  # "Admin only" preserves null default
-    name_for_hotel = Column(UnicodeText)
-    email_for_hotel = Column(UnicodeText)
-    contact_phone = Column(UnicodeText)
-    show_info_updated = Column(Boolean, default=False)
-    logistics_updated = Column(Boolean, default=False)
+    status: int = Field(sa_column=Choice(c.MIVS_STUDIO_STATUS_OPTS), default=c.NEW)
+    staff_notes: str = ''
+    registered: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
 
-    games = relationship(
-        'IndieGame', backref='studio', order_by='IndieGame.title')
-    developers = relationship(
-        'IndieDeveloper',
-        backref='studio',
-        order_by='IndieDeveloper.last_name')
+    accepted_core_hours: bool = False
+    discussion_emails: str = ''
+    completed_discussion: bool = False
+    read_handbook: bool = False
+    training_password: str = ''
+    selling_merch: int | None = Field(sa_column=Column(Choice(c.MIVS_MERCH_OPTS), nullable=True))
+    needs_hotel_space: bool | None = Field(nullable=True)
+    name_for_hotel: str = ''
+    email_for_hotel: str = ''
+    contact_phone: str = ''
+    show_info_updated: bool = False
+    logistics_updated: bool = False
 
-    email_model_name = 'studio'
+    games: list['IndieGame'] = Relationship(
+        back_populates="studio",
+        sa_relationship_kwargs={'lazy': 'selectin', 'order_by': 'IndieGame.title', 'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    developers: list['IndieDeveloper'] = Relationship(
+        back_populates="studio",
+        sa_relationship_kwargs={'order_by': 'IndieDeveloper.last_name', 'cascade': 'all,delete-orphan', 'passive_deletes': True})
+
+    email_model_name: ClassVar = 'studio'
 
     @property
     def primary_contact_first_names(self):
@@ -281,11 +287,11 @@ class IndieStudio(MagModel):
 
     @property
     def email(self):
-        return [dev.email_to_address for dev in self.developers if dev.gets_emails]
+        return [dev.email_to_address for dev in self.developers if dev.receives_emails]
 
     @property
     def primary_contacts(self):
-        return [dev for dev in self.developers if dev.gets_emails]
+        return [dev for dev in self.developers if dev.receives_emails]
 
     @property
     def submitted_games(self):
@@ -311,17 +317,22 @@ class IndieStudio(MagModel):
         return max(0, self.comped_badges - claimed_count)
 
 
-class IndieDeveloper(MagModel):
-    studio_id = Column(UUID, ForeignKey('indie_studio.id'))
-    attendee_id = Column(UUID, ForeignKey('attendee.id'), nullable=True)
+class IndieDeveloper(MagModel, table=True):
+    studio_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='indie_studio.id', ondelete='CASCADE')
+    studio: 'IndieStudio' = Relationship(back_populates="developers", sa_relationship_kwargs={'lazy': 'joined'})
 
-    gets_emails = Column(Boolean, default=False)
-    first_name = Column(UnicodeText)
-    last_name = Column(UnicodeText)
-    email = Column(UnicodeText)
-    cellphone = Column(UnicodeText)
-    agreed_coc = Column(Boolean, default=False)
-    agreed_data_policy = Column(Boolean, default=False)
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
+    attendee: 'Attendee' = Relationship(back_populates="indie_developer")
+
+    receives_emails: bool = False
+    first_name: str = ''
+    last_name: str = ''
+    email: str = ''
+    cellphone: str = ''
+    agreed_coc: bool = False
+    agreed_data_policy: bool = False
+
+    arcade_games: list['IndieGame'] = Relationship(back_populates="primary_contact")
 
     @property
     def email_to_address(self):
@@ -344,85 +355,84 @@ class IndieDeveloper(MagModel):
         ).first()
 
 
-class IndieGame(MagModel, ReviewMixin):
-    studio_id = Column(UUID, ForeignKey('indie_studio.id'))
-    primary_contact_id = Column(UUID, ForeignKey('indie_developer.id', ondelete='SET NULL'), nullable=True)
-    primary_contact = relationship(IndieDeveloper, backref='arcade_games',
-                                   foreign_keys=primary_contact_id, cascade='save-update,merge,refresh-expire,expunge')
+class IndieGame(MagModel, ReviewMixin, table=True):
+    studio_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='indie_studio.id', ondelete='CASCADE')
+    studio: 'IndieStudio' = Relationship(back_populates="games", sa_relationship_kwargs={'lazy': 'joined'})
 
-    title = Column(UnicodeText)
-    brief_description = Column(UnicodeText)
-    description = Column(UnicodeText)
-    genres = Column(MultiChoice(c.MIVS_GENRE_OPTS))
-    genres_text = Column(UnicodeText)
-    platforms = Column(MultiChoice(c.MIVS_PLATFORM_OPTS + c.INDIE_RETRO_PLATFORM_OPTS))
-    platforms_text = Column(UnicodeText)
-    player_count = Column(UnicodeText)
-    how_to_play = Column(UnicodeText)
-    link_to_video = Column(UnicodeText)
-    link_to_game = Column(UnicodeText)
+    primary_contact_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='indie_developer.id', nullable=True)
+    primary_contact: 'IndieDeveloper' = Relationship(back_populates="arcade_games", sa_relationship_kwargs={'lazy': 'joined'})
 
-    requires_gamepad = Column(Boolean, default=False)
-    is_alumni = Column(Boolean, default=False)
-    content_warning = Column(Boolean, default=False)
-    warning_desc = Column(UnicodeText)
-    photosensitive_warning = Column(Boolean, default=False)
-    has_multiplayer = Column(Boolean, default=False)
-    password_to_game = Column(UnicodeText)
-    code_type = Column(Choice(c.MIVS_CODE_TYPE_OPTS), default=c.NO_CODE)
-    code_instructions = Column(UnicodeText)
-    build_status = Column(
-        Choice(c.MIVS_BUILD_STATUS_OPTS), default=c.PRE_ALPHA)
-    build_notes = Column(UnicodeText)
+    title: str = ''
+    brief_description: str = ''
+    description: str = ''
+    genres: str = Field(sa_column=Column(MultiChoice(c.MIVS_GENRE_OPTS)), default='')
+    genres_text: str = ''
+    platforms: str = Field(sa_column=Column(MultiChoice(c.MIVS_PLATFORM_OPTS + c.INDIE_RETRO_PLATFORM_OPTS)), default='')
+    platforms_text: str = ''
+    player_count: str = ''
+    how_to_play: str = ''
+    link_to_video: str = ''
+    link_to_game: str = ''
 
-    game_hours = Column(UnicodeText)
-    game_hours_text = Column(UnicodeText)
-    game_end_time = Column(Boolean, default=False)
-    floorspace = Column(Choice(c.INDIE_ARCADE_FLOORSPACE_OPTS), nullable=True)
-    floorspace_text = Column(UnicodeText)
-    cabinet_type = Column(Choice(c.INDIE_ARCADE_CABINET_OPTS), nullable=True)
-    cabinet_type_text = Column(UnicodeText)
-    sanitation_requests = Column(UnicodeText)
-    transit_needs = Column(UnicodeText)
-    found_how = Column(UnicodeText)
-    read_faq = Column(UnicodeText)
-    mailing_list = Column(Boolean, default=False)
+    requires_gamepad: bool = False
+    is_alumni: bool = False
+    content_warning: bool = False
+    warning_desc: str = ''
+    photosensitive_warning: bool = False
+    has_multiplayer: bool = False
+    password_to_game: str = ''
+    code_type: int = Field(sa_column=Column(Choice(c.MIVS_CODE_TYPE_OPTS)), default=c.NO_CODE)
+    code_instructions: str = ''
+    build_status: int = Field(sa_column=Column(Choice(c.MIVS_BUILD_STATUS_OPTS)), default=c.PRE_ALPHA)
+    build_notes: str = ''
 
-    publisher_name = Column(UnicodeText)
-    release_date = Column(UnicodeText)
-    other_assets = Column(UnicodeText)
-    in_person = Column(Boolean, default=False)
-    delivery_method = Column(Choice(c.INDIE_RETRO_DELIVERY_OPTS), nullable=True)
+    game_hours: str = ''
+    game_hours_text: str = ''
+    game_end_time: bool = False
+    floorspace: int | None = Field(sa_column=Column(Choice(c.INDIE_ARCADE_FLOORSPACE_OPTS), nullable=True))
+    floorspace_text: str = ''
+    cabinet_type: int | None = Field(sa_column=Column(Choice(c.INDIE_ARCADE_CABINET_OPTS), nullable=True))
+    cabinet_type_text: str = ''
+    sanitation_requests: str = ''
+    transit_needs: str = ''
+    found_how: str = ''
+    read_faq: str = ''
+    mailing_list: bool = False
 
-    agreed_liability = Column(Boolean, default=False)
-    agreed_showtimes = Column(Boolean, default=False)
-    agreed_equipment = Column(Boolean, default=False)
+    publisher_name: str = ''
+    release_date: str = ''
+    other_assets: str = ''
+    in_person: bool = False
+    delivery_method: int | None = Field(sa_column=Column(Choice(c.INDIE_RETRO_DELIVERY_OPTS), nullable=True))
 
-    link_to_promo_video = Column(UnicodeText)
-    link_to_webpage = Column(UnicodeText)
-    link_to_store = Column(UnicodeText)
-    other_social_media = Column(UnicodeText)
+    agreed_liability: bool = False
+    agreed_showtimes: bool = False
+    agreed_equipment: bool = False
 
-    tournament_at_event = Column(Boolean, default=False)
-    tournament_prizes = Column(UnicodeText)
-    multiplayer_game_length = Column(Integer, nullable=True) # Length in minutes
-    leaderboard_challenge = Column(Boolean, default=False)
+    link_to_promo_video: str = ''
+    link_to_webpage: str = ''
+    link_to_store: str = ''
+    other_social_media: str = ''
 
-    showcase_type = Column(Choice(c.SHOWCASE_GAME_TYPE_OPTS), default=c.MIVS)
-    submitted = Column(Boolean, default=False)
-    status = Column(
-        Choice(c.MIVS_GAME_STATUS_OPTS), default=c.NEW, admin_only=True)
-    judge_notes = Column(UnicodeText, admin_only=True)
-    registered = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
-    waitlisted = Column(UTCDateTime, nullable=True)
-    accepted = Column(UTCDateTime, nullable=True)
+    tournament_at_event: bool = False
+    tournament_prizes: str = ''
+    multiplayer_game_length: int = Field(nullable=True) # Length in minutes
+    leaderboard_challenge: bool = False
 
-    codes = relationship('IndieGameCode', backref='game')
-    reviews = relationship('IndieGameReview', backref='game')
-    images = relationship(
-        'IndieGameImage', backref='game', order_by='IndieGameImage.id')
+    showcase_type: int = Field(sa_column=Column(Choice(c.SHOWCASE_GAME_TYPE_OPTS), default=c.MIVS))
+    submitted: bool = False
+    status: int = Field(sa_column=Column(Choice(c.MIVS_GAME_STATUS_OPTS), default=c.NEW))
+    judge_notes: str = ''
+    registered: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    waitlisted: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
+    accepted: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
 
-    email_model_name = 'game'
+    codes: list['IndieGameCode'] = Relationship(
+        back_populates="game", sa_relationship_kwargs={'lazy': 'selectin', 'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    reviews: list['IndieGameReview'] = Relationship(
+        back_populates="game", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+
+    email_model_name: ClassVar = 'game'
 
     @presave_adjustment
     def accepted_time(self):
@@ -458,71 +468,24 @@ class IndieGame(MagModel, ReviewMixin):
     @property
     def href(self):
         return make_url(self.link_to_game)
-    
-    @property
-    def game_logo_image(self):
-        candidates = [img for img in self.images if not img.is_header and not img.is_thumbnail and
-                      not img.is_screenshot and img.description == f'{self.id}_game_logo']
-        if candidates:
-            return candidates[0]
-
-    @property
-    def game_logo(self):
-        if not self.game_logo_image:
-            return ''
-        return self.game_logo_image.image
-
-    @game_logo.setter
-    def game_logo(self, value):
-        if not value or not getattr(value, 'filename', None):
-            return
-
-        import cherrypy
-
-        if not isinstance(value, cherrypy._cpreqbody.Part):
-            log.error(f"Tried to set game_logo for indie game {self.name} with invalid value type: {type(value)}")
-            return
-        
-        if self.game_logo_image:
-            self.session.delete(self.game_logo_image)
-
-        game_logo_image = IndieGameImage(game_id=self.id, description=f"{self.id}_game_logo", is_screenshot=False)
-        game_logo_image.image = value
-        self.session.add(game_logo_image)
-
-    @property
-    def submission_images(self):
-        return [img for img in self.images if not img.is_header and not img.is_thumbnail and img != self.game_logo_image]
-
-    @property
-    def screenshots(self):
-        return [img for img in self.images if img.is_screenshot]
-
-    @property
-    def best_images(self):
-        return [
-            img for img in self.submission_images
-            if img.use_in_promo]
 
     def accepted_image_downloads(self, count=2):
-        all_screenshots = reversed(sorted(
-            self.submission_images,
-            key=lambda img: (
-                img.is_screenshot and img.use_in_promo,
-                img.is_screenshot,
-                img.use_in_promo)))
+        from uber.files import FileService
+        best_images = FileService.get_existing_files(self.session, self, and_flags=['use_in_promo'], uselist=True)
+        guidebook_header = FileService.get_existing_files(self.session, self, and_flags=['guidebook_header'])
+        guidebook_thumbnail = FileService.get_existing_files(self.session, self, and_flags=['guidebook_thumbnail'])
 
-        screenshots = []
-        for i, screenshot in enumerate(all_screenshots):
-            if os.path.exists(screenshot.filepath):
-                screenshots.append(screenshot)
-                if len(screenshots) >= count:
+        download_images = []
+        for image in best_images:
+            if os.path.exists(image.filepath):
+                download_images.append(image)
+                if len(download_images) >= count:
                     break
-        if self.guidebook_header:
-            screenshots.append(self.guidebook_header)
-        if self.guidebook_thumbnail:
-            screenshots.append(self.guidebook_thumbnail)
-        return screenshots
+        if guidebook_header:
+            download_images.append(guidebook_header)
+        if guidebook_thumbnail:
+            download_images.append(guidebook_thumbnail)
+        return download_images
 
     def accepted_image_download_filenames(self, count=2):
         nonchars = re.compile(r'[\W]+')
@@ -532,9 +495,9 @@ class IndieGame(MagModel, ReviewMixin):
             if os.path.exists(screenshot.filepath):
                 name = '_'.join([s for s in self.title.lower().split() if s])
                 name = nonchars.sub('', name)
-                if screenshot.is_header:
+                if screenshot.flags.get('guidebook_header', False):
                     filename = f'{name}_header.{screenshot.extension.lower()}'
-                elif screenshot.is_thumbnail:
+                elif screenshot.flags.get('guidebook_thumbnail', False):
                     filename = f'{name}_icon.{screenshot.extension.lower()}'
                 else:
                     filename = '{}_{}.{}'.format(
@@ -545,12 +508,10 @@ class IndieGame(MagModel, ReviewMixin):
         return screenshots + ([''] * ((count + 2) - len(screenshots)))
 
     @property
-    def promo_image(self):
-        return next(
-            iter([img for img in self.images if not img.is_screenshot]), None)
-
-    @property
     def missing_steps(self):
+        from uber.files import FileService
+        screenshots_or_photos = FileService.get_existing_files(
+            self.session, self, or_flags=['mivs_screenshot', 'arcade_photo', 'retro_screenshot'], uselist=True)
         steps = []
         if self.code_type != c.NO_CODE and self.link_to_game:
             if not self.codes:
@@ -560,11 +521,11 @@ class IndieGame(MagModel, ReviewMixin):
                     and len(self.codes) < c.MIVS_CODES_REQUIRED:
                 steps.append(
                     f'attach at least {c.MIVS_CODES_REQUIRED} codes for our judges')
-        if self.showcase_type == c.MIVS and len(self.screenshots) < 2:
+        if self.showcase_type == c.MIVS and len(screenshots_or_photos) < 2:
             steps.append('upload at least two screenshots')
-        elif self.showcase_type == c.INDIE_RETRO and len(self.screenshots) < 3:
+        elif self.showcase_type == c.INDIE_RETRO and len(screenshots_or_photos) < 3:
             steps.append('upload three to five screenshots')
-        elif len(self.submission_images) < 2:
+        elif len(screenshots_or_photos) < 2:
             steps.append('upload at least two photos')
 
         return steps
@@ -612,18 +573,15 @@ class IndieGame(MagModel, ReviewMixin):
         return self.status == c.ACCEPTED
 
     @property
-    def guidebook_header(self):
-        for image in self.images:
-            if image.is_header:
-                return image
-        return ''
+    def guidebook_filename(self):
+        # Lowercase
+        name = self.studio.name.strip().lower()
 
-    @property
-    def guidebook_thumbnail(self):
-        for image in self.images:
-            if image.is_thumbnail:
-                return image
-        return ''
+        # Remove all special characters
+        name = ''.join(s for s in name if s.isalnum() or s == ' ')
+
+        # Remove extra whitespace & replace spaces with underscores
+        return ' '.join(name.split()).replace(' ', '_')
 
     @property
     def guidebook_edit_link(self):
@@ -636,98 +594,48 @@ class IndieGame(MagModel, ReviewMixin):
             'guidebook_subtitle': self.studio.name,
             'guidebook_desc': self.description,
             'guidebook_location': '',
-            'guidebook_header': self.guidebook_images[0][0],
-            'guidebook_thumbnail': self.guidebook_images[0][1],
         }
 
-    @property
-    def guidebook_images(self):
-        if not self.images:
-            return ['', ''], ['', '']
 
-        header = self.guidebook_header
-        thumbnail = self.guidebook_thumbnail
-        prepend = sluggify(self.title) + '_'
+class IndieGameCode(MagModel, table=True):
+    game_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='indie_game.id', ondelete='CASCADE')
+    game: 'IndieGame' = Relationship(back_populates="codes", sa_relationship_kwargs={'lazy': 'joined'})
+    
+    judge_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='indie_judge.id', nullable=True)
+    judge: 'IndieJudge' = Relationship(back_populates="codes", sa_relationship_kwargs={'lazy': 'joined'})
 
-        header_name = (prepend + header.filename) if header else ''
-        thumbnail_name = (prepend + thumbnail.filename) if thumbnail else ''
-        
-        return [header_name, thumbnail_name], [header, thumbnail]
-
-
-class IndieGameImage(MagModel, GuidebookImageMixin):
-    game_id = Column(UUID, ForeignKey('indie_game.id'))
-    description = Column(UnicodeText)
-    use_in_promo = Column(Boolean, default=False)
-    is_screenshot = Column(Boolean, default=True)
-
-    @property
-    def image(self):
-        from markupsafe import Markup
-
-        if not self.filename:
-            return ''
-        return Markup(
-            f"""<a href="{self.url}" target="_blank"><img class="img-fluid" src="{self.url}" /><br/>{self.filename}</a>""")
-
-    @image.setter
-    def image(self, value):
-        import shutil
-        import cherrypy
-
-        if not isinstance(value, cherrypy._cpreqbody.Part):
-            log.error(f"Tried to set image for game {self.game.title} with invalid value type: {type(value)}")
-            return
-
-        self.filename = value.filename
-        self.content_type = value.content_type.value
-        self.extension = value.filename.split('.')[-1].lower()
-
-        with open(self.filepath, 'wb') as f:
-            shutil.copyfileobj(value.file, f)
-
-    @property
-    def url(self):
-        return f"../showcase/view_image?id={self.id}"
-
-    @property
-    def filepath(self):
-        return os.path.join(c.MIVS_GAME_IMAGE_DIR, str(self.id))
-
-
-class IndieGameCode(MagModel):
-    game_id = Column(UUID, ForeignKey('indie_game.id'))
-    judge_id = Column(UUID, ForeignKey('indie_judge.id'), nullable=True)
-    code = Column(UnicodeText)
-    unlimited_use = Column(Boolean, default=False)
-    judge_notes = Column(UnicodeText, admin_only=True) # TODO: Remove?
+    code: str = ''
+    unlimited_use: bool = False
+    judge_notes: str = ''
 
     @property
     def type_label(self):
         return 'Unlimited-Use' if self.unlimited_use else 'Single-Person'
 
 
-class IndieGameReview(MagModel):
-    game_id = Column(UUID, ForeignKey('indie_game.id'))
-    judge_id = Column(UUID, ForeignKey('indie_judge.id'))
-    video_status = Column(
-        Choice(c.MIVS_VIDEO_REVIEW_STATUS_OPTS), default=c.PENDING)
-    game_status = Column(
-        Choice(c.MIVS_GAME_REVIEW_STATUS_OPTS), default=c.PENDING)
-    game_status_text = Column(UnicodeText)
-    game_content_bad = Column(Boolean, default=False)
-    read_how_to_play = Column(Boolean, default=False)
+class IndieGameReview(MagModel, table=True):
+    game_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='indie_game.id', ondelete='CASCADE')
+    game: 'IndieGame' = Relationship(back_populates="reviews", sa_relationship_kwargs={'lazy': 'joined'})
+
+    judge_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='indie_judge.id', ondelete='CASCADE')
+    judge: 'IndieJudge' = Relationship(back_populates="reviews", sa_relationship_kwargs={'lazy': 'joined'})
+
+    video_status: int = Field(sa_column=Column(Choice(c.MIVS_VIDEO_REVIEW_STATUS_OPTS), default=c.PENDING))
+    game_status: int = Field(sa_column=Column(Choice(c.MIVS_GAME_REVIEW_STATUS_OPTS), default=c.PENDING))
+    game_status_text: str = ''
+    game_content_bad: bool = False
+    read_how_to_play: bool = False
 
     # 0 = not reviewed, 1-10 score (10 is best)
-    readiness_score = Column(Integer, default=0)
-    design_score = Column(Integer, default=0)
-    enjoyment_score = Column(Integer, default=0)
-    game_review = Column(UnicodeText)
-    developer_response = Column(UnicodeText)
-    staff_notes = Column(UnicodeText)
-    send_to_studio = Column(Boolean, default=False)
+    readiness_score: int = 0
+    design_score: int = 0
+    enjoyment_score: int = 0
+    game_review: str = ''
+    developer_response: str = ''
+    staff_notes: str = ''
+    send_to_studio: bool = False
 
-    __table_args__ = (
+    __table_args__: ClassVar = (
         UniqueConstraint('game_id', 'judge_id', name='review_game_judge_uniq'),
     )
 

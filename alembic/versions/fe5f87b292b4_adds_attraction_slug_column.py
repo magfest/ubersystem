@@ -16,9 +16,8 @@ depends_on = None
 import re
 from alembic import op
 import sqlalchemy as sa
-import residue
 from sqlalchemy.sql import table
-from pockets import sluggify
+from uber.utils import slugify
 
 
 try:
@@ -56,7 +55,7 @@ sqlite_reflect_kwargs = {
 
 attraction_table = table(
     'attraction',
-    sa.Column('id', residue.UUID()),
+    sa.Column('id', sa.Uuid(as_uuid=False)),
     sa.Column('name', sa.Unicode()),
     sa.Column('slug', sa.Boolean()),
 )
@@ -64,7 +63,7 @@ attraction_table = table(
 
 attraction_feature_table = table(
     'attraction_feature',
-    sa.Column('id', residue.UUID()),
+    sa.Column('id', sa.Uuid(as_uuid=False)),
     sa.Column('name', sa.Unicode()),
     sa.Column('slug', sa.Boolean()),
 )
@@ -86,7 +85,7 @@ def upgrade():
             attraction_table.update().where(
                 attraction_table.c.id == attraction.id
             ).values(
-                slug=sluggify(attraction.name)
+                slug=slugify(attraction.name)
             )
         )
 
@@ -95,7 +94,7 @@ def upgrade():
             attraction_feature_table.update().where(
                 attraction_feature_table.c.id == feature.id
             ).values(
-                slug=sluggify(feature.name)
+                slug=slugify(feature.name)
             )
         )
 

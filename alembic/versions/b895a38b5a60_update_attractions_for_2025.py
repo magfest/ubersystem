@@ -15,7 +15,8 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import residue
+from sqlalchemy.types import JSON
+from sqlalchemy.ext.mutable import MutableDict
 
 
 try:
@@ -59,15 +60,15 @@ def upgrade():
     op.add_column('attraction', sa.Column('waitlist_available', sa.Boolean(), server_default='True', nullable=False))
     op.add_column('attraction', sa.Column('waitlist_slots', sa.Integer(), server_default='10', nullable=False))
     op.add_column('attraction', sa.Column('signups_open_relative', sa.Integer(), server_default='0', nullable=False))
-    op.add_column('attraction', sa.Column('signups_open_time', residue.UTCDateTime(), nullable=True))
+    op.add_column('attraction', sa.Column('signups_open_time', sa.DateTime(timezone=True), nullable=True))
     op.add_column('attraction', sa.Column('slots', sa.Integer(), server_default='1', nullable=False))
     op.add_column('attraction_event', sa.Column('populate_schedule', sa.Boolean(), server_default='True', nullable=False))
     op.add_column('attraction_event', sa.Column('no_notifications', sa.Boolean(), server_default='False', nullable=False))
     op.add_column('attraction_event', sa.Column('waitlist_available', sa.Boolean(), server_default='True', nullable=False))
     op.add_column('attraction_event', sa.Column('waitlist_slots', sa.Integer(), server_default='10', nullable=False))
     op.add_column('attraction_event', sa.Column('signups_open_relative', sa.Integer(), server_default='0', nullable=False))
-    op.add_column('attraction_event', sa.Column('signups_open_time', residue.UTCDateTime(), nullable=True))
-    op.add_column('attraction_event', sa.Column('event_location_id', residue.UUID(), nullable=True))
+    op.add_column('attraction_event', sa.Column('signups_open_time', sa.DateTime(timezone=True), nullable=True))
+    op.add_column('attraction_event', sa.Column('event_location_id', sa.Uuid(as_uuid=False), nullable=True))
     op.create_foreign_key(op.f('fk_attraction_event_location_id_event_location'), 'attraction_event', 'event_location', ['event_location_id'], ['id'], ondelete='SET NULL')
     op.drop_column('attraction_event', 'signups_open')
     op.drop_column('attraction_event', 'location')
@@ -77,9 +78,9 @@ def upgrade():
     op.add_column('attraction_feature', sa.Column('waitlist_available', sa.Boolean(), server_default='True', nullable=False))
     op.add_column('attraction_feature', sa.Column('waitlist_slots', sa.Integer(), server_default='10', nullable=False))
     op.add_column('attraction_feature', sa.Column('signups_open_relative', sa.Integer(), server_default='0', nullable=False))
-    op.add_column('attraction_feature', sa.Column('signups_open_time', residue.UTCDateTime(), nullable=True))
+    op.add_column('attraction_feature', sa.Column('signups_open_time', sa.DateTime(timezone=True), nullable=True))
     op.add_column('attraction_feature', sa.Column('slots', sa.Integer(), server_default='1', nullable=False))
-    op.add_column('event', sa.Column('attraction_event_id', residue.UUID(), nullable=True))
+    op.add_column('event', sa.Column('attraction_event_id', sa.Uuid(as_uuid=False), nullable=True))
     op.create_foreign_key(op.f('fk_event_attraction_event_id_attraction_event'), 'event', 'attraction_event', ['attraction_event_id'], ['id'], ondelete='SET NULL')
 
 
@@ -112,4 +113,4 @@ def downgrade():
     op.drop_column('attraction', 'no_notifications')
     op.drop_column('attraction', 'populate_schedule')
     op.drop_column('attraction', 'checkin_reminder')
-    op.add_column('attraction', sa.Column('advance_notices', residue.JSON(), server_default='[]', nullable=False))
+    op.add_column('attraction', sa.Column('advance_notices', MutableDict.as_mutable(JSON), server_default='[]', nullable=False))

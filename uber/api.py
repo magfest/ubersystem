@@ -3,28 +3,24 @@ import uuid
 from collections import defaultdict
 from datetime import datetime
 from functools import wraps
-from pockets import is_listy
-from pockets.autolog import log
 
 import cherrypy
 import pytz
 import json
 import six
 import traceback
+import inspect
+import logging
 from cherrypy import HTTPError
 from dateutil import parser as dateparser
-from pockets import unwrap
 from time import mktime
-from residue import UTCDateTime
-from sqlalchemy import and_, func, or_
-from sqlalchemy.orm import subqueryload
+from sqlalchemy import and_, func, or_, not_
+from sqlalchemy.orm import subqueryload, joinedload, selectinload
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
-from sqlalchemy.types import Boolean, Date
-from sqlalchemy.sql.elements import not_
+from sqlalchemy.types import Boolean, Date, DateTime
 
 from uber.barcode import get_badge_num_from_barcode
 from uber.config import c
-from uber.decorators import department_id_adapter
 from uber.errors import CSRFException
 from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, Attraction, AttractionFeature, AttractionEvent,
                          BadgeInfo, Department, DeptMembership,
@@ -32,8 +28,9 @@ from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, Attr
                          GuestGroup, Room, HotelRequests, RoomAssignment)
 from uber.models.badge_printing import PrintJob
 from uber.serializer import serializer
-from uber.utils import check, check_csrf, normalize_email_legacy, normalize_newlines
+from uber.utils import check, check_csrf, normalize_email_legacy, normalize_newlines, is_listy
 
+log = logging.getLogger(__name__)
 
 __version__ = '1.0'
 
@@ -163,13 +160,15 @@ def _attendee_fields_and_query(full, query, only_valid=True):
     if full:
         fields = AttendeeLookup.fields_full
         query = query.options(
-            subqueryload(Attendee.dept_memberships),
-            subqueryload(Attendee.assigned_depts),
-            subqueryload(Attendee.food_restrictions),
-            subqueryload(Attendee.shifts).subqueryload(Shift.job))
+            selectinload(Attendee.dept_memberships).joinedload(DeptMembership.department),
+            selectinload(Attendee.assigned_depts),
+            selectinload(Attendee.dept_roles).joinedload(DeptRole.department),
+            selectinload(Attendee.shifts).joinedload(Shift.job),
+            selectinload(Attendee.food_restrictions),
+            selectinload(Attendee.managers), joinedload(Attendee.group))
     else:
         fields = AttendeeLookup.fields
-        query = query.options(subqueryload(Attendee.dept_memberships))
+        query = query.options(selectinload(Attendee.dept_memberships), selectinload(Attendee.shifts).joinedload(Shift.job),)
     return (fields, query)
 
 
@@ -221,8 +220,8 @@ def _prepare_attendees_export(attendees, include_account_ids=False, include_apps
             d['attendee_account_ids'] = [m.id for m in a.managers]
 
         if include_apps:
-            if a.art_show_applications:
-                d['art_show_app'] = a.art_show_applications[0].to_dict(art_show_import_fields)
+            if a.art_show_application:
+                d['art_show_app'] = a.art_show_application.to_dict(art_show_import_fields)
             if a.marketplace_application:
                 d['marketplace_app'] = a.marketplace_application.to_dict(marketplace_import_fields)
 
@@ -310,9 +309,9 @@ def _parse_datetime(d):
 
 
 def _parse_if_datetime(key, val):
-    # This should be in the UTCDateTime and Date classes, but they're not defined in this app
+    # This should be in the DateTime and Date classes, but they're not defined in this app
     if hasattr(getattr(Attendee, key), 'type') and (
-            isinstance(getattr(Attendee, key).type, UTCDateTime) or isinstance(getattr(Attendee, key).type, Date)):
+            isinstance(getattr(Attendee, key).type, DateTime) or isinstance(getattr(Attendee, key).type, Date) or isinstance(getattr(Attendee, key).type, Date)):
         return _parse_datetime(val)
     return val
 
@@ -371,7 +370,7 @@ def api_auth(*required_access):
     required_access = set(required_access)
 
     def _decorator(fn):
-        inner_func = unwrap(fn)
+        inner_func = inspect.unwrap(fn)
         if getattr(inner_func, 'required_access', None) is not None:
             return fn
         else:
@@ -509,7 +508,6 @@ class MivsLookup:
         judges_list = []
         with Session() as session:
             judges = session.query(IndieJudge).filter(not_(IndieJudge.status.in_([c.CANCELLED, c.DISQUALIFIED])))
-
 
             for judge in judges:
                 fields = AttendeeLookup.attendee_import_fields + Attendee.import_fields
@@ -695,10 +693,16 @@ class AttendeeLookup:
         with Session() as session:
             if full:
                 options = [
-                    subqueryload(Attendee.dept_memberships).subqueryload(DeptMembership.department),
-                    subqueryload(Attendee.dept_roles).subqueryload(DeptRole.department)]
+                    selectinload(Attendee.dept_memberships).joinedload(DeptMembership.department),
+                    selectinload(Attendee.dept_roles).joinedload(DeptRole.department),
+                    selectinload(Attendee.shifts).joinedload(Shift.job),
+                    selectinload(Attendee.food_restrictions),
+                    selectinload(Attendee.managers), joinedload(Attendee.group)
+                    ]
             else:
-                options = []
+                options = [
+                    selectinload(Attendee.shifts).joinedload(Shift.job),
+                ]
 
             email_attendees = []
             if emails:
@@ -774,7 +778,7 @@ class AttendeeLookup:
         Example `params` dictionary for setting extra parameters:
         <pre>{"placeholder": "yes", "legal_name": "First Last", "cellphone": "5555555555"}</pre>
         """
-        with Session() as session:
+        with Session(create_savepoint=True) as session:
             attendee_query = session.query(Attendee).filter(Attendee.first_name.ilike(first_name),
                                                             Attendee.last_name.ilike(last_name),
                                                             Attendee.email.ilike(email))
@@ -816,7 +820,7 @@ class AttendeeLookup:
         Example:
         <pre>{"first_name": "First", "paid": "doesn't need to", "ribbon": "Volunteer, Panelist"}</pre>
         """
-        with Session() as session:
+        with Session(create_savepoint=True) as session:
             attendee = session.attendee(id, allow_invalid=True)
 
             if not attendee:
@@ -869,9 +873,22 @@ class AttendeeAccountLookup:
 
             if not account:
                 raise HTTPError(404, 'No attendee account found with this ID')
+            
+            filters = [Attendee.is_valid == True]
+            if not include_group:
+                filters.append(Attendee.group_id == None)
 
-            attendees_to_export = account.valid_attendees if include_group \
-                else [a for a in account.valid_attendees if not a.group]
+            attendees_to_export = session.query(Attendee).join(Attendee.managers).filter(
+                AttendeeAccount.id == id).filter(*filters).options(
+                selectinload(Attendee.dept_memberships).joinedload(DeptMembership.department),
+                selectinload(Attendee.dept_roles).joinedload(DeptRole.department),
+                selectinload(Attendee.shifts).joinedload(Shift.job),
+                selectinload(Attendee.food_restrictions),
+                selectinload(Attendee.managers),
+                joinedload(Attendee.group),
+                joinedload(Attendee.art_show_application),
+                joinedload(Attendee.marketplace_application)
+            )
 
             attendees = _prepare_attendees_export(attendees_to_export, include_apps=full)
             return {
@@ -902,7 +919,7 @@ class AttendeeAccountLookup:
                 if emails:
                     email_accounts = session.query(AttendeeAccount).filter(
                         AttendeeAccount.email.in_(list(emails.keys()))
-                        ).options(subqueryload(AttendeeAccount.attendees)
+                        ).options(selectinload(AttendeeAccount.attendees)
                                   ).order_by(AttendeeAccount.email, AttendeeAccount.id).all()
 
                 known_emails = set(a.normalized_email for a in email_accounts)
@@ -911,7 +928,7 @@ class AttendeeAccountLookup:
                 id_accounts = []
                 if ids:
                     id_accounts = session.query(AttendeeAccount).filter(
-                        AttendeeAccount.id.in_(ids)).options(subqueryload(AttendeeAccount.attendees)
+                        AttendeeAccount.id.in_(ids)).options(selectinload(AttendeeAccount.attendees)
                                                              ).order_by(AttendeeAccount.email,
                                                                         AttendeeAccount.id).all()
 
@@ -952,7 +969,6 @@ class AttractionLookup:
         with Session() as session:
             return [(id, name) for id, name in session.query(Attraction.id, Attraction.name).order_by(Attraction.name).all()]
 
-    @department_id_adapter
     @api_auth('api_read')
     def features_events(self, attraction_id):
         """
@@ -1044,7 +1060,6 @@ class JobLookup:
         }
     }
 
-    @department_id_adapter
     @api_auth('api_read')
     def lookup(self, department_id, start_time=None, end_time=None):
         """
@@ -1338,7 +1353,6 @@ class DepartmentLookup:
         """
         return c.DEPARTMENTS
 
-    @department_id_adapter
     @api_auth('api_read')
     def members(self, department_id, full=False):
         """
@@ -1367,7 +1381,6 @@ class DepartmentLookup:
                 'members': attendee_fields
             })
 
-    @department_id_adapter
     @api_auth('api_read')
     def jobs(self, department_id):
         """
@@ -1705,7 +1718,7 @@ class PrintJobLookup:
                 if not restart or not errors:
                     results[job.id] = self._build_job_json_data(job)
                     if not dry_run:
-                        job.queued = datetime.utcnow()
+                        job.queued = datetime.now(UTC)
                         session.add(job)
                         session.commit()
 
@@ -1799,7 +1812,7 @@ class PrintJobLookup:
 
             for job in jobs:
                 results[job.id] = self._build_job_json_data(job)
-                job.printed = datetime.utcnow()
+                job.printed = datetime.now(UTC)
                 session.add(job)
                 session.commit()
 
@@ -1845,7 +1858,7 @@ class PrintJobLookup:
                     else:
                         job.errors = error
                 else:
-                    job.printed = datetime.utcnow()
+                    job.printed = datetime.now(UTC)
                 session.add(job)
                 session.commit()
 

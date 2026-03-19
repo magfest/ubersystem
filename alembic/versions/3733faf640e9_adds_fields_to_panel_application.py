@@ -16,7 +16,6 @@ depends_on = None
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.sql import table
-import residue
 from uber.config import c
 
 try:
@@ -53,7 +52,7 @@ sqlite_reflect_kwargs = {
 
 panel_app_helper = table(
         'panel_application',
-        sa.Column('id', residue.UUID(), nullable=False),
+        sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
         sa.Column('length', sa.Unicode()),
         sa.Column('length_text', sa.Unicode()),
         sa.Column('length_reason', sa.Unicode())

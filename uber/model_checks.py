@@ -12,14 +12,13 @@ To perform these validations, call the "check" method on the instance you're val
 on success and a string error message on validation failure.
 """
 import re
+import logging
 from datetime import datetime, timedelta
 from functools import wraps
 from urllib.request import urlopen
 
 import cherrypy
 import phonenumbers
-from pockets.autolog import log
-from pockets import sluggify
 from sqlalchemy import and_, func, or_
 
 from uber.badge_funcs import get_real_badge_type
@@ -27,13 +26,14 @@ from uber.config import c
 from uber.custom_tags import format_currency, full_date_local
 from uber.decorators import prereg_validation, validation
 from uber.models import (AccessGroup, AdminAccount, ApiToken, Attendee, ArtShowApplication, ArtShowPiece,
-                         AttendeeTournament, Attraction, AttractionFeature, ArtShowBidder, DeptRole, Event,
+                         Attraction, AttractionFeature, ArtShowBidder, DeptRole, Event,
                          GuestDetailedTravelPlan, IndieDeveloper, IndieGame, IndieGameCode, IndieJudge, IndieStudio,
-                         Job, ArtistMarketplaceApplication, MITSApplicant, MITSDocument, MITSGame, MITSPicture, MITSTeam,
+                         Job, ArtistMarketplaceApplication, MITSApplicant, MITSGame, MITSTeam,
                          PromoCode, PromoCodeGroup, Sale, Session, WatchList)
-from uber.utils import localized_now, valid_email, get_age_from_birthday
+from uber.utils import localized_now, valid_email, get_age_from_birthday, slugify
 from uber.payments import PreregCart
 
+log = logging.getLogger(__name__)
 
 AccessGroup.required = [('name', 'Name')]
 
@@ -271,35 +271,6 @@ PromoCodeGroup.required = [
     ('name', 'Name')
 ]
 
-# =============================
-# tournaments
-# =============================
-
-AttendeeTournament.required = [
-    ('first_name', 'First Name'),
-    ('last_name', 'Last Name'),
-    ('email', 'Email Address'),
-    ('game', 'Game Title'),
-    ('availability', 'Your Availability'),
-    ('format', 'Tournament Format'),
-    ('experience', 'Past Experience'),
-    ('needs', 'Your Needs'),
-    ('why', '"Why?"'),
-]
-
-
-@validation.AttendeeTournament
-def attendee_tournament_email(app):
-    if not re.match(c.EMAIL_RE, app.email):
-        return 'You did not enter a valid email address'
-
-
-@validation.AttendeeTournament
-def attendee_tournament_cellphone(app):
-    if app.cellphone and invalid_phone_number(app.cellphone):
-        return 'You did not enter a valid cellphone number'
-
-
 @validation.LotteryApplication
 def room_meets_night_requirements(app):
     if app.any_dates_different and (app.entry_type == c.ROOM_ENTRY or 
@@ -446,15 +417,9 @@ MITSGame.required = [
 ]
 
 
-MITSDocument.required = [
-    ('description', 'Description')
-]
-
-
 @validation.MITSTeam
 @validation.MITSApplicant
 @validation.MITSGame
-@validation.MITSPicture
 @validation.MITSTimes
 def is_saveable(inst):
     team = inst if isinstance(inst, MITSTeam) else inst.team
@@ -527,7 +492,7 @@ Attraction.required = [
 @validation.Attraction
 def slug_not_existing(attraction):
     with Session() as session:
-        slug = sluggify(attraction.name)
+        slug = slugify(attraction.name)
         if session.query(Attraction).filter(Attraction.id != attraction.id,
                                             Attraction.slug == slug).first():
             return f"Another attraction has an identical URL to this one ({slug}). \
@@ -542,7 +507,7 @@ AttractionFeature.required = [
 @validation.AttractionFeature
 def slug_not_existing(feature):
     with Session() as session:
-        slug = sluggify(feature.name)
+        slug = slugify(feature.name)
         if session.query(AttractionFeature).filter(AttractionFeature.id != feature.id,
                                                    AttractionFeature.slug == slug).first():
             return f"Another attraction feature has an identical URL to this one ({slug}). \

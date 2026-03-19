@@ -9,7 +9,7 @@
 {% if panelist.other_credentials %}<li><strong>Other Experience</strong>: {{ panelist.other_credentials|linebreaksbr }}</li>{% endif %}
 {% if panelist.guidebook_bio %}<li><strong>Schedule Bio</strong>: {{ panelist.guidebook_bio|linebreaksbr }}</li>{% endif %}
 {% if panelist.display_name %}<li><strong>Display Name</strong>: {{ panelist.display_name }}</li>{% endif %}
-{% if panelist.has_social_media %}
+{% if panelist.social_media_info %}
     <li><strong>Social Media</strong>: {{ panelist.social_media_info|replace(" \n", "; ") }}</li>
 {% endif %}
 {%- endmacro -%}

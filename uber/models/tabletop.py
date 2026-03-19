@@ -1,25 +1,29 @@
 from datetime import datetime
 
 from pytz import UTC
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
-from sqlalchemy.schema import ForeignKey
-from sqlalchemy.types import Boolean
+from sqlalchemy.types import Boolean, DateTime, String, Uuid
+from typing import ClassVar
 
 from uber.models import MagModel
-from uber.models.types import default_relationship as relationship, DefaultColumn as Column
+from uber.models.types import DefaultField as Field, DefaultRelationship as Relationship
 
 
 __all__ = ['TabletopGame', 'TabletopCheckout']
 
 
-class TabletopGame(MagModel):
-    code = Column(UnicodeText)
-    name = Column(UnicodeText)
-    attendee_id = Column(UUID, ForeignKey('attendee.id'))
-    returned = Column(Boolean, default=False)
-    checkouts = relationship('TabletopCheckout', order_by='TabletopCheckout.checked_out', backref='game')
+class TabletopGame(MagModel, table=True):
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
+    attendee: 'Attendee' = Relationship(back_populates="games")
 
-    _repr_attr_names = ['name']
+    code: str = ''
+    name: str = ''
+    returned: bool = False
+
+    checkouts: list['TabletopCheckout'] = Relationship(
+        back_populates="game", sa_relationship_kwargs={'order_by': 'TabletopCheckout.checked_out',
+                                                       'cascade': 'all,delete-orphan', 'passive_deletes': True})
+
+    _repr_attr_names: ClassVar = ['name']
 
     @property
     def checked_out(self):
@@ -29,8 +33,12 @@ class TabletopGame(MagModel):
             pass
 
 
-class TabletopCheckout(MagModel):
-    game_id = Column(UUID, ForeignKey('tabletop_game.id'))
-    attendee_id = Column(UUID, ForeignKey('attendee.id'))
-    checked_out = Column(UTCDateTime, default=lambda: datetime.now(UTC))
-    returned = Column(UTCDateTime, nullable=True)
+class TabletopCheckout(MagModel, table=True):
+    game_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='tabletop_game.id', ondelete='CASCADE')
+    game: 'TabletopGame' = Relationship(back_populates="checkouts", sa_relationship_kwargs={'lazy': 'joined'})
+
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
+    attendee: 'Attendee' = Relationship(back_populates="checkouts", sa_relationship_kwargs={'lazy': 'joined'})
+
+    checked_out: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    returned: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)

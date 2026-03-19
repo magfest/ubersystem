@@ -2,93 +2,86 @@ import math
 from datetime import datetime
 from uuid import uuid4
 
+from decimal import Decimal
 from pytz import UTC
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
-from sqlalchemy import and_, exists, or_, func, select
+from sqlalchemy import and_, exists, or_, func, select, not_
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import backref
-from sqlalchemy.schema import ForeignKey
-from sqlalchemy.sql.expression import not_
-from sqlalchemy.types import Boolean, Integer, Numeric
+from sqlalchemy.types import DateTime, Uuid
+from typing import ClassVar
 
 from uber.config import c
 from uber.custom_tags import format_currency
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
-from uber.models.types import default_relationship as relationship, utcnow, Choice, DefaultColumn as Column, \
-    MultiChoice, TakesPaymentMixin
+from uber.models.types import (Choice, default_relationship as relationship, DefaultColumn as Column, MultiChoice, TakesPaymentMixin,
+                               DefaultField as Field, DefaultRelationship as Relationship)
 from uber.utils import add_opt
 
 
 __all__ = ['Group']
 
 
-class Group(MagModel, TakesPaymentMixin):
-    public_id = Column(UUID, default=lambda: str(uuid4()))
-    shared_with_id = Column(UUID, ForeignKey('group.id', ondelete='SET NULL'), nullable=True)
-    shared_with = relationship(
-        'Group',
-        foreign_keys='Group.shared_with_id',
-        backref=backref('table_shares', viewonly=True),
-        cascade='save-update,merge,refresh-expire,expunge',
-        remote_side='Group.id',
-        single_parent=True)
-    name = Column(UnicodeText)
-    tables = Column(Numeric, default=0)
-    zip_code = Column(UnicodeText)
-    address1 = Column(UnicodeText)
-    address2 = Column(UnicodeText)
-    city = Column(UnicodeText)
-    region = Column(UnicodeText)
-    country = Column(UnicodeText)
-    email_address = Column(UnicodeText)
-    phone = Column(UnicodeText)
-    website = Column(UnicodeText)
-    wares = Column(UnicodeText)
-    categories = Column(MultiChoice(c.DEALER_WARES_OPTS))
-    categories_text = Column(UnicodeText)
-    description = Column(UnicodeText)
-    special_needs = Column(UnicodeText)
+class Group(MagModel, TakesPaymentMixin, table=True):
+    leader_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
+    leader: 'Attendee' = Relationship(sa_relationship=relationship('Attendee', foreign_keys='Group.leader_id',
+                                                                   lazy='select', post_update=True))
+    
+    creator_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
+    creator: 'Attendee' = Relationship(
+        back_populates="created_groups", sa_relationship_kwargs={'foreign_keys': 'Group.creator_id', 'remote_side': 'Attendee.id'})
+    
+    shared_with_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='group.id', nullable=True)
+    shared_with: 'Group' = Relationship(
+        back_populates="table_shares", sa_relationship_kwargs={'foreign_keys': 'Group.shared_with_id', 'remote_side': 'Group.id'})
+    table_shares: list['Group'] = Relationship(back_populates="shared_with", sa_relationship_kwargs={'viewonly': True})
 
-    cost = Column(Integer, default=0, admin_only=True)
-    auto_recalc = Column(Boolean, default=True, admin_only=True)
+    public_id: str | None = Field(sa_type=Uuid(as_uuid=False), default_factory=lambda: str(uuid4()))
+    name: str = ''
+    tables: Decimal = 0
+    zip_code: str = ''
+    address1: str = ''
+    address2: str = ''
+    city: str = ''
+    region: str = ''
+    country:str = ''
+    email_address: str = ''
+    phone: str = ''
+    website: str = ''
+    wares: str = ''
+    categories: str = Field(sa_type=MultiChoice(c.DEALER_WARES_OPTS), default='')
+    categories_text: str = ''
+    description: str = ''
+    special_needs: str = ''
 
-    can_add = Column(Boolean, default=False, admin_only=True)
-    is_dealer = Column(Boolean, default=False, admin_only=True)
-    convert_badges = Column(Boolean, default=False, admin_only=True)
-    admin_notes = Column(UnicodeText, admin_only=True)
-    status = Column(Choice(c.DEALER_STATUS_OPTS), default=c.UNAPPROVED, admin_only=True)
-    registered = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
-    approved = Column(UTCDateTime, nullable=True)
-    leader_id = Column(UUID, ForeignKey('attendee.id', use_alter=True, name='fk_leader', ondelete='SET NULL'),
-                       nullable=True)
-    creator_id = Column(UUID, ForeignKey('attendee.id'), nullable=True)
+    cost: int = 0
+    auto_recalc: bool = True
 
-    creator = relationship(
-        'Attendee',
-        foreign_keys=creator_id,
-        backref=backref('created_groups', order_by='Group.name'),
-        cascade='save-update,merge,refresh-expire,expunge',
-        remote_side='Attendee.id',
-        single_parent=True)
-    leader = relationship('Attendee', foreign_keys=leader_id, post_update=True, cascade='all')
-    studio = relationship('IndieStudio', uselist=False, backref='group', cascade='save-update,merge,refresh-expire,expunge')
-    guest = relationship('GuestGroup', backref='group', uselist=False)
-    active_receipt = relationship(
+    can_add: bool = False
+    is_dealer: bool = False
+    convert_badges: bool = False
+    admin_notes: str = ''
+    status: int = Field(sa_column=Column(Choice(c.DEALER_STATUS_OPTS)), default=c.UNAPPROVED)
+    registered: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    approved: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
+    
+    attendees: list['Attendee'] = Relationship(back_populates="group",
+                                               sa_relationship_kwargs={'foreign_keys': 'Attendee.group_id', 'lazy': 'selectin'})
+    studio: 'IndieStudio' = Relationship(back_populates="group")
+    guest: 'GuestGroup' = Relationship(back_populates="group", sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+
+    active_receipt: 'ModelReceipt' = Relationship(sa_relationship=relationship(
         'ModelReceipt',
-        cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_(remote(ModelReceipt.owner_id) == foreign(Group.id),'
         'ModelReceipt.owner_model == "Group",'
         'ModelReceipt.closed == None)',
-        uselist=False)
-    terms_conditions_doc = relationship(
+        lazy='select'))
+    terms_conditions_doc: 'SignedDocument' = Relationship(sa_relationship=relationship(
         'SignedDocument',
-        cascade='save-update,merge,refresh-expire,expunge',
         primaryjoin='and_(SignedDocument.fk_id == foreign(Group.id),'
         'SignedDocument.model == "Group")',
-        uselist=False)
+        overlaps="active_receipt"))
 
-    _repr_attr_names = ['name']
+    _repr_attr_names: ClassVar = ['name']
 
     @presave_adjustment
     def _cost_and_leader(self):
@@ -308,7 +301,7 @@ class Group(MagModel, TakesPaymentMixin):
     @badges_purchased.expression
     def badges_purchased(cls):
         from uber.models import Attendee
-        return select([func.count(Attendee.id)]
+        return select(func.count(Attendee.id)
                       ).where(and_(Attendee.group_id == cls.id, Attendee.paid == c.PAID_BY_GROUP)
                               ).label('badges_purchased')
 
@@ -392,7 +385,7 @@ class Group(MagModel, TakesPaymentMixin):
     def amount_paid(cls):
         from uber.models import ModelReceipt
 
-        return select([ModelReceipt.payment_total_sql]).outerjoin(ModelReceipt.receipt_txns
+        return select(ModelReceipt.payment_total_sql).outerjoin(ModelReceipt.receipt_txns
                       ).where(and_(ModelReceipt.owner_id == cls.id,
                                    ModelReceipt.owner_model == "Group",
                                    ModelReceipt.closed == None)).label('amount_paid')  # noqa: E711
@@ -405,7 +398,7 @@ class Group(MagModel, TakesPaymentMixin):
     def amount_refunded(cls):
         from uber.models import ModelReceipt
 
-        return select([ModelReceipt.refund_total_sql]).outerjoin(ModelReceipt.receipt_txns
+        return select(ModelReceipt.refund_total_sql).outerjoin(ModelReceipt.receipt_txns
                       ).where(and_(ModelReceipt.owner_id == cls.id,
                                    ModelReceipt.owner_model == "Group")).label('amount_refunded')
 
@@ -477,14 +470,6 @@ class Group(MagModel, TakesPaymentMixin):
         return '\n'.join([s for s in physical_address if s])
 
     @property
-    def guidebook_header(self):
-        return ''
-    
-    @property
-    def guidebook_thumbnail(self):
-        return ''
-
-    @property
     def guidebook_edit_link(self):
         return f"../group_admin/form?id={self.id}"
 
@@ -498,10 +483,15 @@ class Group(MagModel, TakesPaymentMixin):
             'guidebook_subtitle': ', '.join(category_labels),
             'guidebook_desc': self.description,
             'guidebook_location': '',
-            'guidebook_header': '',
-            'guidebook_thumbnail': '',
         }
-    
+
     @property
-    def guidebook_images(self):
-        return ['', ''], ['', '']
+    def guidebook_filename(self):
+        # Lowercase
+        name = self.name.strip().lower()
+
+        # Remove all special characters
+        name = ''.join(s for s in name if s.isalnum() or s == ' ')
+
+        # Remove extra whitespace & replace spaces with underscores
+        return ' '.join(name.split()).replace(' ', '_')

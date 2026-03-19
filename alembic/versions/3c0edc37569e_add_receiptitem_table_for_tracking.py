@@ -15,7 +15,6 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import residue
 
 
 try:
@@ -53,16 +52,16 @@ sqlite_reflect_kwargs = {
 
 def upgrade():
     op.create_table('receipt_item',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('attendee_id', residue.UUID(), nullable=True),
-    sa.Column('group_id', residue.UUID(), nullable=True),
-    sa.Column('txn_id', residue.UUID(), nullable=True),
-    sa.Column('fk_id', residue.UUID(), nullable=True),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('attendee_id', sa.Uuid(as_uuid=False), nullable=True),
+    sa.Column('group_id', sa.Uuid(as_uuid=False), nullable=True),
+    sa.Column('txn_id', sa.Uuid(as_uuid=False), nullable=True),
+    sa.Column('fk_id', sa.Uuid(as_uuid=False), nullable=True),
     sa.Column('model', sa.Unicode(), server_default='', nullable=False),
     sa.Column('txn_type', sa.Integer(), server_default='186441959', nullable=False),
     sa.Column('item_type', sa.Integer(), server_default='224685583', nullable=False),
     sa.Column('amount', sa.Integer(), nullable=False),
-    sa.Column('when', residue.UTCDateTime(), nullable=False),
+    sa.Column('when', sa.DateTime(timezone=True), nullable=False),
     sa.Column('who', sa.Unicode(), server_default='', nullable=False),
     sa.Column('desc', sa.Unicode(), server_default='', nullable=False),
     sa.ForeignKeyConstraint(['attendee_id'], ['attendee.id'], name=op.f('fk_receipt_item_attendee_id_attendee'), ondelete='SET NULL'),

@@ -1,21 +1,21 @@
 from collections import defaultdict
 from datetime import datetime, timedelta
-
+import logging
 import cherrypy
 import json
-from pockets import groupify
-from pockets.autolog import log
 from sqlalchemy import func, literal_column
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, render
 from uber.errors import HTTPRedirect
-from uber.models import AssignedPanelist, Attendee, AutomatedEmail, Event, EventFeedback, \
+from uber.models import AssignedPanelist, Attendee, AutomatedEmail, Event, EventFeedback, EventLocation, Department, \
     PanelApplicant, PanelApplication, GuestGroup
-from uber.utils import add_opt, check, localized_now, validate_model
+from uber.utils import add_opt, check, localized_now, validate_model, groupify
 from uber.forms import load_forms
 from uber.tasks.email import send_email
+
+log = logging.getLogger(__name__)
 
 
 @all_renderable()
@@ -87,7 +87,7 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, app, form_list)
-        all_errors = validate_model(forms, app, is_admin=True)
+        all_errors = validate_model(session, forms, app, is_admin=True)
 
         if all_errors:
             return {"error": all_errors}
@@ -123,7 +123,7 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, panelist, form_list, field_prefix=prefix)
-        all_errors = validate_model(forms, panelist, is_admin=True)
+        all_errors = validate_model(session, forms, panelist, is_admin=True)
 
         if all_errors:
             return {"error": all_errors}
@@ -290,7 +290,8 @@ class Root:
         return {
             'app': app,
             'message': message,
-            'panels': session.query(Event).filter(Event.location.in_(c.PANEL_ROOMS)).order_by('name')
+            'panels': session.query(Event).join(Event.location).join(
+                EventLocation.department).filter(Department.manages_panels == True).order_by('name')
         }
 
     def badges(self, session):
@@ -386,7 +387,8 @@ class Root:
             feedback[fb.event].append(fb)
 
         events = []
-        for event in session.query(Event).filter(Event.location.in_(c.PANEL_ROOMS)).order_by('name'):
+        for event in session.query(Event).join(Event.location).join(
+                EventLocation.department).filter(Department.manages_panels == True).order_by('name'):
             events.append([event, feedback[event]])
 
         for event, fb in feedback.items():

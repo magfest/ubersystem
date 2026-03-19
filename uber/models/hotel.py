@@ -1,25 +1,25 @@
+import logging
 import random
 
 import checkdigit.verhoeff as verhoeff
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, date
 from pytz import UTC
 from markupsafe import Markup
-from pockets.autolog import log
-from residue import CoerceUTF8 as UnicodeText, UTCDateTime, UUID
 from sqlalchemy import Sequence, case
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import backref
-from sqlalchemy.schema import ForeignKey
-from sqlalchemy.types import Boolean, Date, Integer
+from sqlalchemy.types import Date, Integer, DateTime, Uuid
+from typing import Any, ClassVar
 
 from uber.config import c
 from uber.custom_tags import readable_join, datetime_local_filter
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
-from uber.models.types import Choice, default_relationship as relationship, utcnow, DefaultColumn as Column, MultiChoice
+from uber.models.types import Choice, DefaultColumn as Column, MultiChoice, DefaultField as Field, DefaultRelationship as Relationship
 from uber.utils import RegistrationCode
+
+log = logging.getLogger(__name__)
 
 
 __all__ = ['NightsMixin', 'HotelRequests', 'Room', 'RoomAssignment', 'LotteryApplication']
@@ -64,13 +64,15 @@ class NightsMixin(object):
         for mutate in [str.upper, str.lower]})
 
 
-class HotelRequests(MagModel, NightsMixin):
-    attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True)
-    nights = Column(MultiChoice(c.NIGHT_OPTS))
-    wanted_roommates = Column(UnicodeText)
-    unwanted_roommates = Column(UnicodeText)
-    special_needs = Column(UnicodeText)
-    approved = Column(Boolean, default=False, admin_only=True)
+class HotelRequests(MagModel, NightsMixin, table=True):
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE', unique=True)
+    attendee: 'Attendee' = Relationship(back_populates="hotel_requests", sa_relationship_kwargs={'lazy': 'joined'})
+
+    nights: str = Field(sa_type=MultiChoice(c.NIGHT_OPTS), default='')
+    wanted_roommates: str = ''
+    unwanted_roommates: str = ''
+    special_needs: str = ''
+    approved: bool = Field(default=False, admin_only=True)
 
     def decline(self):
         nights = [n for n in self.nights.split(',') if int(n) in c.CORE_NIGHTS]
@@ -84,13 +86,15 @@ class HotelRequests(MagModel, NightsMixin):
         return '<{self.attendee.full_name} Hotel Requests>'.format(self=self)
 
 
-class Room(MagModel, NightsMixin):
-    notes = Column(UnicodeText)
-    message = Column(UnicodeText)
-    locked_in = Column(Boolean, default=False)
-    nights = Column(MultiChoice(c.NIGHT_OPTS))
-    created = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
-    assignments = relationship('RoomAssignment', backref='room')
+class Room(MagModel, NightsMixin, table=True):
+    notes: str = ''
+    message: str = ''
+    locked_in: bool = False
+    nights: str = Field(sa_type=MultiChoice(c.NIGHT_OPTS), default='')
+    created: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+
+    assignments: list['RoomAssignment'] = Relationship(back_populates="room",
+                                                       sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
 
     @property
     def email(self):
@@ -114,77 +118,77 @@ class Room(MagModel, NightsMixin):
             return c.NIGHT_DATES[self.nights_labels[-1]] + timedelta(days=1)
 
 
-class RoomAssignment(MagModel):
-    room_id = Column(UUID, ForeignKey('room.id'))
-    attendee_id = Column(UUID, ForeignKey('attendee.id'))
+class RoomAssignment(MagModel, table=True):
+    room_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='room.id', ondelete='CASCADE')
+    room: 'Room' = Relationship(back_populates="assignments", sa_relationship_kwargs={'lazy': 'joined'})
+
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
+    attendee: 'Attendee' = Relationship(back_populates="room_assignments", sa_relationship_kwargs={'lazy': 'joined'})
 
 
-class LotteryApplication(MagModel):
-    attendee_id = Column(UUID, ForeignKey('attendee.id'), unique=True, nullable=True)
-    attendee = relationship('Attendee', backref=backref('lottery_application', uselist=False),
-                            cascade='save-update,merge,refresh-expire,expunge',
-                            uselist=False)
-    invite_code = Column(UnicodeText) # Not used for now but we're keeping it for later
-    confirmation_num = Column(UnicodeText)
+class LotteryApplication(MagModel, table=True):
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True, unique=True)
+    attendee: 'Attendee' = Relationship(back_populates="lottery_application", sa_relationship_kwargs={'lazy': 'joined', 'single_parent': True})
 
-    response_id_seq = Sequence('lottery_application_response_id_seq')
-    response_id = Column(Integer, response_id_seq, server_default=response_id_seq.next_value(), unique=True)
-    status = Column(Choice(c.HOTEL_LOTTERY_STATUS_OPTS), default=c.PARTIAL, admin_only=True)
-    entry_started = Column(UTCDateTime, nullable=True)
-    entry_metadata = Column(MutableDict.as_mutable(JSONB), server_default='{}', default={})
-    entry_type = Column(Choice(c.HOTEL_LOTTERY_ENTRY_TYPE_OPTS), nullable=True)
-    current_step = Column(Integer, default=0)
-    last_submitted = Column(UTCDateTime, nullable=True)
-    admin_notes = Column(UnicodeText)
-    is_staff_entry = Column(Boolean, default=False)
+    invite_code: str = '' # Not used for now but we're keeping it for later
+    confirmation_num: str = ''
+    response_id_seq: ClassVar = Sequence('lottery_application_response_id_seq')
+    response_id: int = Field(sa_column=Column(Integer, response_id_seq, server_default=response_id_seq.next_value(), unique=True))
+    status: int = Field(sa_column=Column(Choice(c.HOTEL_LOTTERY_STATUS_OPTS), admin_only=True), default=c.PARTIAL)
+    entry_started: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
+    entry_metadata: dict[str, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
+    entry_type: int | None = Field(sa_column=Column(Choice(c.HOTEL_LOTTERY_ENTRY_TYPE_OPTS), nullable=True))
+    current_step: int = 0
+    last_submitted: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
+    admin_notes: str = ''
+    is_staff_entry: bool = False
 
-    legal_first_name = Column(UnicodeText)
-    legal_last_name = Column(UnicodeText)
-    cellphone = Column(UnicodeText)
-    earliest_checkin_date = Column(Date, nullable=True)
-    latest_checkin_date = Column(Date, nullable=True)
-    earliest_checkout_date = Column(Date, nullable=True)
-    latest_checkout_date = Column(Date, nullable=True)
-    selection_priorities = Column(MultiChoice(c.HOTEL_LOTTERY_PRIORITIES_OPTS))
+    legal_first_name: str = ''
+    legal_last_name: str = ''
+    cellphone: str = ''
+    earliest_checkin_date: date | None = Field(sa_type=Date, nullable=True)
+    latest_checkin_date: date | None = Field(sa_type=Date, nullable=True)
+    earliest_checkout_date: date | None = Field(sa_type=Date, nullable=True)
+    latest_checkout_date: date | None = Field(sa_type=Date, nullable=True)
+    selection_priorities: str = Field(sa_type=MultiChoice(c.HOTEL_LOTTERY_PRIORITIES_OPTS), default='')
 
-    hotel_preference = Column(MultiChoice(c.HOTEL_LOTTERY_HOTELS_OPTS))
-    room_type_preference = Column(MultiChoice(c.HOTEL_LOTTERY_ROOM_TYPES_OPTS))
-    wants_ada = Column(Boolean, default=False)
-    ada_requests = Column(UnicodeText)
+    hotel_preference: str = Field(sa_type=MultiChoice(c.HOTEL_LOTTERY_HOTELS_OPTS), default='')
+    room_type_preference: str = Field(sa_type=MultiChoice(c.HOTEL_LOTTERY_ROOM_TYPES_OPTS), default='')
+    wants_ada: bool = False
+    ada_requests: str = ''
 
-    room_opt_out = Column(Boolean, default=False)
-    suite_type_preference = Column(MultiChoice(c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS))
+    room_opt_out: bool = False
+    suite_type_preference: str = Field(sa_type=MultiChoice(c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS), default='')
 
-    terms_accepted = Column(Boolean, default=False)
-    data_policy_accepted = Column(Boolean, default=False)
-    suite_terms_accepted = Column(Boolean, default=False)
-    guarantee_policy_accepted = Column(Boolean, default=False)
-    can_edit = Column(Boolean, default=False)
-    final_status_hidden = Column(Boolean, default=True)
-    booking_url_hidden = Column(Boolean, default=True)
+    terms_accepted: bool = False
+    data_policy_accepted: bool = False
+    suite_terms_accepted: bool = False
+    guarantee_policy_accepted: bool = False
+    can_edit: bool = False
+    final_status_hidden: bool = True
+    booking_url_hidden: bool = True
 
     # If this is set then the above values are ignored
-    parent_application_id = Column(UUID, ForeignKey('lottery_application.id'), nullable=True)
-    parent_application = relationship(
-        'LotteryApplication',
-        foreign_keys='LotteryApplication.parent_application_id',
-        backref=backref('group_members'),
-        cascade='save-update,merge,refresh-expire,expunge',
-        remote_side='LotteryApplication.id',
-        single_parent=True)
-    former_parent_id = Column(UUID, nullable=True)
+    parent_application_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='lottery_application.id', nullable=True)
+    parent_application: 'LotteryApplication' = Relationship(
+        back_populates="group_members",
+        sa_relationship_kwargs={'lazy': 'joined', 'foreign_keys': 'LotteryApplication.parent_application_id',
+                                'remote_side': 'LotteryApplication.id'})
+    group_members: list['LotteryApplication'] = Relationship(
+        back_populates="parent_application")
+    former_parent_id: str | None = Field(sa_type=Uuid(as_uuid=False), nullable=True)
 
-    room_group_name = Column(UnicodeText)
-    email_model_name = 'app'
+    room_group_name: str = ''
+    email_model_name: ClassVar = 'app'
 
-    assigned_hotel = Column(Choice(c.HOTEL_LOTTERY_HOTELS_OPTS), nullable=True)
-    assigned_room_type = Column(Choice(c.HOTEL_LOTTERY_ROOM_TYPES_OPTS), nullable=True)
-    assigned_suite_type = Column(Choice(c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS), nullable=True)
-    assigned_check_in_date = Column(Date, nullable=True)
-    assigned_check_out_date = Column(Date, nullable=True)
-    deposit_cutoff_date = Column(Date, nullable=True)
-    lottery_name = Column(UnicodeText)
-    booking_url = Column(UnicodeText)
+    assigned_hotel: int | None = Field(sa_column=Column(Choice(c.HOTEL_LOTTERY_HOTELS_OPTS), nullable=True))
+    assigned_room_type: int | None = Field(sa_column=Column(Choice(c.HOTEL_LOTTERY_ROOM_TYPES_OPTS), nullable=True))
+    assigned_suite_type: int | None = Field(sa_column=Column(Choice(c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS), nullable=True))
+    assigned_check_in_date: date | None = Field(sa_type=Date, nullable=True)
+    assigned_check_out_date: date | None = Field(sa_type=Date, nullable=True)
+    deposit_cutoff_date: date | None = Field(sa_type=Date, nullable=True)
+    lottery_name: str = ''
+    booking_url: str = ''
 
     @presave_adjustment
     def unset_entry_type(self):
@@ -203,7 +207,7 @@ class LotteryApplication(MagModel):
     @assigned_room_or_suite_type.expression
     def assigned_room_or_suite_type(cls):
         return case(
-            [(cls.assigned_suite_type != None, cls.assigned_suite_type)],  # noqa: E711
+            (cls.assigned_suite_type != None, cls.assigned_suite_type),  # noqa: E711
             else_=cls.assigned_room_type)
 
     @hybrid_property

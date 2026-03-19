@@ -2,18 +2,20 @@ from collections import defaultdict
 from datetime import datetime, timedelta, time
 
 import cherrypy
+import logging
 from sqlalchemy import select, func, literal
-from sqlalchemy.orm import subqueryload
 from sqlalchemy.dialects.postgresql import aggregate_order_by
-from pockets.autolog import log
+from sqlalchemy.orm import selectinload, joinedload, defaultload
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, department_id_adapter, \
+from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, \
     check_can_edit_dept, requires_shifts_admin, site_mappable
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, Department, DeptRole, Job, JobTemplate
 from uber.utils import check, localized_now, redirect_to_allowed_dept, validate_model, date_trunc_day
+
+log = logging.getLogger(__name__)
 
 
 def job_dict(job, shifts=None):
@@ -69,7 +71,6 @@ def update_counts(job, counts):
 
 @all_renderable()
 class Root:
-    @department_id_adapter
     @requires_shifts_admin
     def index(self, session, department_id=None, message='', time=None):
         redirect_to_allowed_dept(session, department_id, 'index')
@@ -86,7 +87,12 @@ class Root:
         if time:
             initial_date = max(initial_date, datetime.strptime(time, "%Y-%m-%dT%H:%M:%S%z"))
 
-        department = session.query(Department).get(department_id) if department_id else None
+        if department_id:
+            department = session.query(Department).filter(Department.id == department_id).options(
+                selectinload(Department.dept_checklist_items), selectinload(Department.job_templates)
+            ).first()
+        else:
+            department = None
         by_start = defaultdict(list)
         times = [c.EPOCH + timedelta(hours=i) for i in range(c.CON_LENGTH)]
 
@@ -115,7 +121,6 @@ class Root:
             'dept_shifts_days': dept_shifts_days,
         }
 
-    @department_id_adapter
     @requires_shifts_admin
     def signups(self, session, department_id=None, message='', toggle_filter=''):
         if not toggle_filter:
@@ -149,7 +154,7 @@ class Root:
                 job_filters.append(Job.restricted == False)  # noqa: E712
             if not show_nonpublic:
                 job_filters.append(Job.department_id.in_(
-                    select([Department.id]).where(
+                    select(Department.id).where(
                         Department.solicits_volunteers == True)))  # noqa: E712
 
             jobs = session.jobs().filter(*job_filters)
@@ -171,7 +176,6 @@ class Root:
             'checklist': department_id and checklist
         }
 
-    @department_id_adapter
     @requires_shifts_admin
     def unfilled_shifts(self, session, department_id=None, message='', toggle_filter=''):
         """
@@ -208,7 +212,7 @@ class Root:
                 job_filters.append(Job.restricted == False)  # noqa: E712
             if not show_nonpublic:
                 job_filters.append(Job.department_id.in_(
-                    select([Department.id]).where(
+                    select(Department.id).where(
                         Department.solicits_volunteers == True)))  # noqa: E712
 
             jobs = session.jobs().filter(*job_filters)
@@ -223,7 +227,6 @@ class Root:
             'jobs': [job_dict(job) for job in jobs],
         }
 
-    @department_id_adapter
     @requires_shifts_admin
     def staffers(self, session, department_id=None, message=''):
         redirect_to_allowed_dept(session, department_id, 'staffers')
@@ -238,14 +241,18 @@ class Root:
         requested_count = 0
 
         if department_id:
-            department = session.query(Department).filter_by(id=department_id).first()
+            department = session.query(Department).filter_by(id=department_id).options(
+                selectinload(Department.unassigned_explicitly_requesting_attendees)
+            ).first()
             if not department:
                 department_id = ''
 
         if department_id != '':
             dept_filter = [] if department_id == None else [  # noqa: E711
                 Attendee.dept_memberships.any(department_id=department_id)]
-            attendees = session.staffers(pending=True).filter(*dept_filter).all()
+            attendees = session.staffers(pending=True).filter(*dept_filter).options(
+                selectinload(Attendee.dept_memberships_with_role)
+            ).all()
             requested_count = None if not department_id else len(
                 [a for a in department.unassigned_explicitly_requesting_attendees if a.is_valid])
             for attendee in attendees:
@@ -320,11 +327,16 @@ class Root:
         if params.get('id') in [None, '', 'None']:
             job = Job()
         else:
-            job = session.job(params.get('id'))
+            job = session.query(Job).filter(Job.id == params.get('id')).options(
+                defaultload(Job.department).selectinload(Department.dept_roles),
+                defaultload(Job.department).selectinload(Department.job_templates)
+            ).first()
             department = job.department
         
         if params.get('department_id'):
-            department = session.department(params['department_id'])
+            department = session.query(Department).filter(Department.id == params['department_id']).options(
+                selectinload(Department.dept_roles), selectinload(Department.job_templates)
+            ).first()
 
         if not department:
             raise HTTPRedirect('index?message={}', "Please select a department.")
@@ -368,7 +380,7 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, job, form_list)
-        all_errors = validate_model(forms, job, is_admin=True)
+        all_errors = validate_model(session, forms, job, is_admin=True)
 
         if all_errors:
             return {"error": all_errors}
@@ -379,15 +391,21 @@ class Root:
     def template(self, session, message='', **params):
         default_depts = session.admin_attendee().depts_where_can_admin
         department = default_depts[0] if default_depts else None
+        num_jobs = 0
 
         if params.get('id') in [None, '', 'None']:
             job_template = JobTemplate()
         else:
-            job_template = session.job_template(params.get('id'))
+            job_template = session.query(JobTemplate).filter(JobTemplate.id == params.get('id')).options(
+                defaultload(JobTemplate.department).selectinload(Department.dept_roles)
+            ).first()
+            num_jobs = session.query(Job).filter(Job.job_template_id == params.get('id')).count()
             department = job_template.department
 
         if params.get('department_id'):
-            department = session.department(params['department_id'])
+            department = session.query(Department).filter(Department.id == params['department_id']).options(
+                selectinload(Department.dept_roles)
+            ).first()
 
         if not department:
             raise HTTPRedirect('index?message={}', "Please select a department.")
@@ -410,6 +428,7 @@ class Root:
 
         return {
             'job_template': job_template,
+            'num_jobs': num_jobs,
             'department': department,
             'forms': forms,
             'message': message,
@@ -428,7 +447,7 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, job_template, form_list)
-        all_errors = validate_model(forms, job_template, is_admin=True)
+        all_errors = validate_model(session, forms, job_template, is_admin=True)
 
         if all_errors:
             return {"error": all_errors}
@@ -547,10 +566,9 @@ class Root:
         else:
             return shift_dict(shift)
 
-
     def summary(self, session):
         departments = defaultdict(lambda: defaultdict(int))
-        for job in session.jobs().options(subqueryload(Job.department)):
+        for job in session.jobs():
             update_counts(job, departments[job.department_name])
             update_counts(job, departments['All Departments Combined'])
 
@@ -559,12 +577,11 @@ class Root:
 
     def all_shifts(self, session):
         departments = session.query(Department).options(
-            subqueryload(Department.jobs)).order_by(Department.name)
+            selectinload(Department.jobs)).order_by(Department.name)
         return {
             'depts': [(d.name, d.jobs) for d in departments]
         }
 
-    @site_mappable
     @csv_file
     def shift_schedule_csv(self, out, session, department_id, day='all', **params):
         filters = []

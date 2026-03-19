@@ -99,15 +99,15 @@
 
     <h3>Pictures</h3>
     <ul>
-    {% for picture in team.pictures|sort(attribute='filename') %}
+    {% for picture in team_pictures|sort(attribute='filename') %}
         <li><a target="_blank" href="{{ picture.url }}" title="{{ picture.description }}">{{ picture.filename }}</a></li>
     {% endfor %}
     </ul>
 
-    {% if team.documents %}
+    {% if team_documents %}
         <h3>Documents</h3>
         <ul>
-        {% for doc in team.documents|sort(attribute='filename') %}
+        {% for doc in team_documents|sort(attribute='filename') %}
             <li><a href="{{ doc.url }}" title="{{ doc.description }}">{{ doc.filename }}</a></li>
         {% endfor %}
         </ul>

@@ -1,6 +1,7 @@
 import json
 import six
 import uuid
+import logging
 from datetime import datetime, timedelta
 from functools import wraps
 from uber.models.admin import PasswordReset
@@ -8,9 +9,8 @@ from uber.models.admin import PasswordReset
 import bcrypt
 import cherrypy
 from collections import defaultdict
-from pockets import listify
-from pockets.autolog import log
 from sqlalchemy import func, or_
+from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
@@ -23,8 +23,10 @@ from uber.models import Attendee, AttendeeAccount, Attraction, BadgePickupGroup,
                         ModelReceipt, ReceiptItem, ReceiptTransaction, Tracking
 from uber.tasks.email import send_email
 from uber.utils import add_opt, remove_opt, check, localized_now, normalize_email, normalize_email_legacy, genpasswd, valid_email, \
-    valid_password, SignNowRequest, validate_model, create_new_hash, get_age_conf_from_birthday, RegistrationCode
+    valid_password, SignNowRequest, validate_model, create_new_hash, get_age_conf_from_birthday, RegistrationCode, listify
 from uber.payments import PreregCart, TransactionRequest, ReceiptManager, RefundRequest
+
+log = logging.getLogger(__name__)
 
 
 def check_if_can_reg(is_dealer_reg=False):
@@ -215,7 +217,7 @@ class Root:
         if not PreregCart.unpaid_preregs:
             raise HTTPRedirect('form?message={}', message) if message else HTTPRedirect('form')
         else:
-            cart = PreregCart(listify(PreregCart.unpaid_preregs.values()))
+            cart = PreregCart(list(PreregCart.unpaid_preregs.values()))
             cart.set_total_cost()
             for attendee in cart.attendees:
                 if attendee.promo_code:
@@ -734,13 +736,13 @@ class Root:
         }
 
     def at_door_confirmation(self, session, message='', qr_code_id='', **params):
-        cart = PreregCart(listify(PreregCart.unpaid_preregs.values()))
+        cart = PreregCart(list(PreregCart.unpaid_preregs.values()))
         registrations_list = []
         account = session.current_attendee_account() if c.ATTENDEE_ACCOUNTS_ENABLED else None
         account_pickup_group = session.query(BadgePickupGroup).filter_by(account_id=account.id).first() if account else None
         pickup_group = None
 
-        if not listify(PreregCart.unpaid_preregs.values()):
+        if not list(PreregCart.unpaid_preregs.values()):
             if qr_code_id:
                 current_pickup_group = session.query(BadgePickupGroup).filter_by(public_id=qr_code_id).first()
                 for attendee in current_pickup_group.attendees:
@@ -813,7 +815,7 @@ class Root:
         }
 
     def process_free_prereg(self, session, message='', **params):
-        cart = PreregCart(listify(PreregCart.unpaid_preregs.values()))
+        cart = PreregCart(list(PreregCart.unpaid_preregs.values()))
         cart.set_total_cost()
         if cart.total_cost <= 0:
             prereg_cart_error = cart.prereg_cart_checks(session)
@@ -858,7 +860,7 @@ class Root:
         if errors:
             return errors
         update_prereg_cart(session)
-        cart = PreregCart(listify(PreregCart.unpaid_preregs.values()))
+        cart = PreregCart(list(PreregCart.unpaid_preregs.values()))
         cart.set_total_cost()
 
         pickup_group_id = None
@@ -893,7 +895,7 @@ class Root:
 
                 forms = load_forms(params, attendee, form_list, checkboxes_present=False)
 
-                all_errors = validate_model(forms, attendee, create_preview_model=False)
+                all_errors = validate_model(session, forms, attendee, create_preview_model=False)
                 if all_errors:
                     message = ' '.join([item for sublist in all_errors.values() for item in sublist])
 
@@ -966,7 +968,8 @@ class Root:
         for attendee in cart.attendees:
             pending_attendee = session.query(Attendee).filter_by(id=attendee.id).first()
             if pending_attendee:
-                pending_attendee.apply(PreregCart.to_sessionized(attendee), restricted=True)
+                for key, val in PreregCart.to_sessionized(attendee).items():
+                    setattr(pending_attendee, key, val)
                 if attendee.badges and pending_attendee.promo_code_groups:
                     pc_group = pending_attendee.promo_code_groups[0]
                     pc_group.name = attendee.name
@@ -2175,7 +2178,15 @@ class Root:
     @log_pageview
     def confirm(self, session, message='', return_to='confirm', undoing_extra='', **params):
         if params.get('id') not in [None, '', 'None']:
-            attendee = session.attendee(params.get('id'))
+            attendee = session.query(Attendee).filter(Attendee.id == params.get('id')).options(
+                selectinload(Attendee.dept_membership_requests),
+                selectinload(Attendee.art_agent_apps),
+                selectinload(Attendee.promo_code_groups),
+                selectinload(Attendee.shifts),
+                joinedload(Attendee.lottery_application),
+                joinedload(Attendee.art_show_application),
+                joinedload(Attendee.marketplace_application),
+            ).first()
             receipt = session.get_receipt_by_model(attendee)
             if cherrypy.request.method == 'POST':
                 receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, params.copy())
@@ -2270,7 +2281,7 @@ class Root:
             form_list = [form_list]
         forms = load_forms(params, group, form_list)
 
-        all_errors = validate_model(forms, group)
+        all_errors = validate_model(session, forms, group)
         if all_errors:
             return {"error": all_errors}
 
@@ -2283,13 +2294,15 @@ class Root:
             attendee = Attendee()
         else:
             try:
-                attendee = session.attendee(id)
+                attendee = session.query(Attendee).filter(Attendee.id == id).options(
+                    selectinload(Attendee.promo_code_groups)).one()
             except NoResultFound:
                 if is_prereg:
                     attendee = self._get_unsaved(
                         id,
                         if_not_found=HTTPRedirect('form?message={}',
                                                   'That preregistration expired or has already been finalized.'))
+                    log.error(attendee)
                 else:
                     return {"error": {'': ["We could not find the badge you're trying to update."]}}
 
@@ -2303,7 +2316,7 @@ class Root:
 
         forms = load_forms(params, attendee, form_list)
 
-        all_errors = validate_model(forms, attendee)
+        all_errors = validate_model(session, forms, attendee)
         if all_errors:
             return {"error": all_errors}
 
@@ -2362,7 +2375,7 @@ class Root:
 
         forms = load_forms(params, attendee, ['BadgeExtras'])
 
-        all_errors = validate_model(forms, attendee)
+        all_errors = validate_model(session, forms, attendee)
         if all_errors:
             # TODO: Make this work with the fields on the upgrade modal instead of flattening it all
             message = ' '.join([item for sublist in all_errors.values() for item in sublist])

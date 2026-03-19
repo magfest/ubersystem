@@ -15,7 +15,6 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import residue
 
 
 try:
@@ -53,19 +52,19 @@ sqlite_reflect_kwargs = {
 
 def upgrade():
     op.create_table('mits_team',
-    sa.Column('id', residue.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('name', sa.Unicode(), server_default='', nullable=False),
     sa.Column('panel_interest', sa.Boolean(), server_default='False', nullable=False),
     sa.Column('want_to_sell', sa.Boolean(), server_default='False', nullable=False),
     sa.Column('address', sa.Unicode(), server_default='', nullable=False),
-    sa.Column('submitted', residue.UTCDateTime(), nullable=True),
-    sa.Column('applied', residue.UTCDateTime(), server_default=sa.text(utcnow_server_default), nullable=False),
+    sa.Column('submitted', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('applied', sa.DateTime(timezone=True), server_default=sa.text(utcnow_server_default), nullable=False),
     sa.Column('status', sa.Integer(), server_default='196944751', nullable=False),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_mits_team'))
     )
     op.create_table('mits_game',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('team_id', residue.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('team_id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('name', sa.Unicode(), server_default='', nullable=False),
     sa.Column('promo_blurb', sa.Unicode(), server_default='', nullable=False),
     sa.Column('description', sa.Unicode(), server_default='', nullable=False),
@@ -81,8 +80,8 @@ def upgrade():
     sa.PrimaryKeyConstraint('id', name=op.f('pk_mits_game'))
     )
     op.create_table('mits_picture',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('team_id', residue.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('team_id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('filename', sa.Unicode(), server_default='', nullable=False),
     sa.Column('content_type', sa.Unicode(), server_default='', nullable=False),
     sa.Column('extension', sa.Unicode(), server_default='', nullable=False),
@@ -91,17 +90,17 @@ def upgrade():
     sa.PrimaryKeyConstraint('id', name=op.f('pk_mits_picture'))
     )
     op.create_table('mits_times',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('team_id', residue.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('team_id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('availability', sa.Unicode(), server_default='', nullable=False),
     sa.Column('multiple_tables', sa.Unicode(), server_default='', nullable=False),
     sa.ForeignKeyConstraint(['team_id'], ['mits_team.id'], name=op.f('fk_mits_times_team_id_mits_team')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_mits_times'))
     )
     op.create_table('mits_applicant',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('team_id', residue.UUID(), nullable=False),
-    sa.Column('attendee_id', residue.UUID(), nullable=True),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('team_id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('attendee_id', sa.Uuid(as_uuid=False), nullable=True),
     sa.Column('primary_contact', sa.Boolean(), server_default='False', nullable=False),
     sa.Column('first_name', sa.Unicode(), server_default='', nullable=False),
     sa.Column('last_name', sa.Unicode(), server_default='', nullable=False),

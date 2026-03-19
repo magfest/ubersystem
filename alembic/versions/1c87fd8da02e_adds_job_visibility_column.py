@@ -16,7 +16,6 @@ depends_on = None
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.sql import table
-import residue
 
 
 
@@ -55,9 +54,9 @@ sqlite_reflect_kwargs = {
 
 dept_membership_request_table = table(
     'dept_membership_request',
-    sa.Column('id', residue.UUID()),
-    sa.Column('attendee_id', residue.UUID()),
-    sa.Column('department_id', residue.UUID()),
+    sa.Column('id', sa.Uuid(as_uuid=False)),
+    sa.Column('attendee_id', sa.Uuid(as_uuid=False)),
+    sa.Column('department_id', sa.Uuid(as_uuid=False)),
 )
 
 

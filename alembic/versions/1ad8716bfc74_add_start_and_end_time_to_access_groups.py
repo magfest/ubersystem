@@ -15,7 +15,6 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import residue
 
 
 try:
@@ -52,8 +51,8 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.add_column('access_group', sa.Column('start_time', residue.UTCDateTime(), nullable=True))
-    op.add_column('access_group', sa.Column('end_time', residue.UTCDateTime(), nullable=True))
+    op.add_column('access_group', sa.Column('start_time', sa.DateTime(timezone=True), nullable=True))
+    op.add_column('access_group', sa.Column('end_time', sa.DateTime(timezone=True), nullable=True))
 
 
 def downgrade():

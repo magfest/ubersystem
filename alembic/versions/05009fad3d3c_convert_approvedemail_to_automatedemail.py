@@ -20,7 +20,6 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import ForeignKey
 from sqlalchemy.sql import table
 from sqlalchemy.types import String
-import residue
 
 
 try:
@@ -57,20 +56,20 @@ sqlite_reflect_kwargs = {
 
 approved_email_table = table(
     'approved_email',
-    sa.Column('id', residue.UUID()),
+    sa.Column('id', sa.Uuid(as_uuid=False)),
     sa.Column('ident', sa.Unicode()),
 )
 
 email_table = table(
     'email',
-    sa.Column('id', residue.UUID()),
+    sa.Column('id', sa.Uuid(as_uuid=False)),
     sa.Column('ident', sa.Unicode()),
-    sa.Column('automated_email_id', residue.UUID(), ForeignKey('automated_email.id')),
+    sa.Column('automated_email_id', sa.Uuid(as_uuid=False), ForeignKey('automated_email.id')),
 )
 
 automated_email_table = table(
     'automated_email',
-    sa.Column('id', residue.UUID()),
+    sa.Column('id', sa.Uuid(as_uuid=False)),
     sa.Column('ident', sa.Unicode()),
     sa.Column('approved', sa.Boolean()),
 )
@@ -114,8 +113,8 @@ def upgrade():
             batch_op.add_column(sa.Column('unapproved_count', sa.Integer(), server_default='0', nullable=False))
             batch_op.add_column(sa.Column('allow_post_con', sa.Boolean(), server_default='False', nullable=False))
             batch_op.add_column(sa.Column('allow_at_the_con', sa.Boolean(), server_default='False', nullable=False))
-            batch_op.add_column(sa.Column('active_after', residue.UTCDateTime(), nullable=True))
-            batch_op.add_column(sa.Column('active_before', residue.UTCDateTime(), nullable=True))
+            batch_op.add_column(sa.Column('active_after', sa.DateTime(timezone=True), nullable=True))
+            batch_op.add_column(sa.Column('active_before', sa.DateTime(timezone=True), nullable=True))
             if 'pk_approved_email' in existing_primarykeys:
                 batch_op.drop_constraint('pk_approved_email', type_='primary')
             if 'approved_email_pkey' in existing_primarykeys:
@@ -138,8 +137,8 @@ def upgrade():
         op.add_column('automated_email', sa.Column('unapproved_count', sa.Integer(), server_default='0', nullable=False))
         op.add_column('automated_email', sa.Column('allow_post_con', sa.Boolean(), server_default='False', nullable=False))
         op.add_column('automated_email', sa.Column('allow_at_the_con', sa.Boolean(), server_default='False', nullable=False))
-        op.add_column('automated_email', sa.Column('active_after', residue.UTCDateTime(), nullable=True))
-        op.add_column('automated_email', sa.Column('active_before', residue.UTCDateTime(), nullable=True))
+        op.add_column('automated_email', sa.Column('active_after', sa.DateTime(timezone=True), nullable=True))
+        op.add_column('automated_email', sa.Column('active_before', sa.DateTime(timezone=True), nullable=True))
         if 'pk_approved_email' in existing_primarykeys:
             op.drop_constraint('pk_approved_email', 'automated_email', type_='primary')
         if 'approved_email_pkey' in existing_primarykeys:
@@ -154,14 +153,14 @@ def upgrade():
             batch_op.alter_column('dest', new_column_name='to')
             batch_op.add_column(sa.Column('bcc', sa.Unicode(), server_default='', nullable=False))
             batch_op.add_column(sa.Column('cc', sa.Unicode(), server_default='', nullable=False))
-            batch_op.add_column(sa.Column('automated_email_id', residue.UUID(), nullable=True))
+            batch_op.add_column(sa.Column('automated_email_id', sa.Uuid(as_uuid=False), nullable=True))
             batch_op.add_column(sa.Column('sender', sa.Unicode(), server_default='', nullable=False))
             batch_op.create_foreign_key(op.f('fk_email_automated_email_id_automated_email'), 'automated_email', ['automated_email_id'], ['id'], ondelete='set null')
     else:
         op.alter_column('email', 'dest', new_column_name='to')
         op.add_column('email', sa.Column('bcc', sa.Unicode(), server_default='', nullable=False))
         op.add_column('email', sa.Column('cc', sa.Unicode(), server_default='', nullable=False))
-        op.add_column('email', sa.Column('automated_email_id', residue.UUID(), nullable=True))
+        op.add_column('email', sa.Column('automated_email_id', sa.Uuid(as_uuid=False), nullable=True))
         op.add_column('email', sa.Column('sender', sa.Unicode(), server_default='', nullable=False))
         op.create_foreign_key(op.f('fk_email_automated_email_id_automated_email'), 'email', 'automated_email', ['automated_email_id'], ['id'], ondelete='set null')
 

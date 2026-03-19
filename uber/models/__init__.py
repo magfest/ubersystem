@@ -3,43 +3,46 @@ import operator
 import os
 import re
 import uuid
-import time
-import traceback
+import inspect
+import logging
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from functools import wraps
 from itertools import chain
+from pydantic import ConfigDict
 from uuid import uuid4
+from types import MethodType
+from typing import Any, ClassVar
 
-import bcrypt
 import cherrypy
 import six
 import sqlalchemy
 from dateutil import parser as dateparser
-from pockets import cached_classproperty, classproperty, listify
-from pockets.autolog import log
 from pytz import UTC
-from residue import check_constraint_naming_convention, declarative_base, JSON, SessionManager, UTCDateTime, UUID
-from sqlalchemy import and_, func, or_
+from sqlalchemy import and_, func, or_, create_engine
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.event import listen
 from sqlalchemy.exc import IntegrityError, NoResultFound
+from sqlalchemy.ext.hybrid import hybrid_method, hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import Query, joinedload, subqueryload
+from sqlalchemy.orm import Query, joinedload, selectinload, subqueryload, contains_eager, declared_attr, sessionmaker, scoped_session
+import sqlalchemy.orm
 from sqlalchemy.orm.attributes import get_history, instance_state
-from sqlalchemy.schema import MetaData
-from sqlalchemy.types import Boolean, Integer, Float, Date, Numeric
-from sqlalchemy.util import immutabledict
+from sqlalchemy.orm.collections import InstrumentedList
+from sqlalchemy.schema import MetaData, UniqueConstraint
+from sqlalchemy.types import Boolean, Integer, Float, Date, Numeric, DateTime, Uuid, JSON
+from sqlmodel import SQLModel
 
 import uber
 from uber.config import c, create_namespace_uuid
 from uber.errors import HTTPRedirect
-from uber.decorators import cost_property, department_id_adapter, presave_adjustment, suffix_property
-from uber.models.types import Choice, DefaultColumn as Column, MultiChoice, utcnow, UniqueList
+from uber.decorators import cost_property, presave_adjustment, suffix_property, cached_classproperty, classproperty
+from uber.models.types import Choice, MultiChoice, utcnow, UniqueList, DefaultField as Field
 from uber.utils import check_csrf, normalize_email_legacy, create_new_hash, DeptChecklistConf, \
-    RegistrationCode, valid_email, valid_password
+    RegistrationCode, listify
 from uber.payments import ReceiptManager
 
+log = logging.getLogger(__name__)
 
 def _make_getter(model):
     def getter(
@@ -68,28 +71,123 @@ def _make_getter(model):
             return inst
     return getter
 
+engine = create_engine(
+    c.SQLALCHEMY_URL,
+    pool_size=c.SQLALCHEMY_POOL_SIZE,
+    max_overflow=c.SQLALCHEMY_MAX_OVERFLOW,
+    pool_pre_ping=True,
+    pool_recycle=c.SQLALCHEMY_POOL_RECYCLE
+)
 
-# Consistent naming conventions are necessary for alembic to be able to
-# reliably upgrade and downgrade versions. For more details, see:
-# http://alembic.zzzcomputing.com/en/latest/naming.html
-naming_convention = {
-    'ix': 'ix_%(column_0_label)s',
-    'uq': 'uq_%(table_name)s_%(column_0_name)s',
-    'fk': 'fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s',
-    'pk': 'pk_%(table_name)s'}
+RE_UNCAMEL = re.compile(
+    r'('  # The whole expression is in a single group
+    # Clause 1
+    r'(?<=[^\sA-Z])'  # Preceded by neither a space nor a capital letter
+    r'[A-Z]+[^a-z\s]*'  # All non-lowercase beginning with a capital letter
+    r'(?=[A-Z][^A-Z\s]*?[a-z]|\s|$)'  # Followed by a capitalized word
+    r'|'
+    # Clause 2
+    r'(?<=[^\s])'  # Preceded by a character that is not a space
+    r'[A-Z][^A-Z\s]*?[a-z]+[^A-Z\s]*'  # Capitalized word
+    r')', re.M | re.U)
 
-if not c.SQLALCHEMY_URL.startswith('sqlite'):
-    naming_convention['unnamed_ck'] = check_constraint_naming_convention
-    naming_convention['ck'] = 'ck_%(table_name)s_%(unnamed_ck)s',
+def uncamel(s, sep='_'):
+    """
+    Convert CamelCase string to underscore_separated (aka snake_case).
 
-metadata = MetaData(naming_convention=immutabledict(naming_convention))
+    A CamelCase word is considered to be any uppercase letter followed by zero
+    or more lowercase letters. Contiguous groups of uppercase letters – like
+    you would find in an acronym – are also considered part of a single word:
 
+    >>> uncamel("Request")
+    'request'
+    >>> uncamel("HTTP")
+    'http'
+    >>> uncamel("HTTPRequest")
+    'http_request'
+    >>> uncamel("xmlHTTPRequest")
+    'xml_http_request'
 
-@declarative_base(metadata=metadata)
-class MagModel:
-    id = Column(UUID, primary_key=True, default=lambda: str(uuid4()))
-    created = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
-    last_updated = Column(UTCDateTime, server_default=utcnow(), default=lambda: datetime.now(UTC))
+    Works on full sentences as well as individual words:
+
+    >>> uncamel("HelloWorld!")
+    'hello_world!'
+    >>> uncamel("Totally works AsExpected, EvenWithWhitespace!")
+    'totally works as_expected, even_with_whitespace!'
+
+    Args:
+        sep (str, optional): String used to separate CamelCase words. Defaults
+            to an underscore "_".
+
+            For example, if you want dash separated words:
+
+            >>> uncamel("XmlHttpRequest", sep="-")
+            'xml-http-request'
+
+    Returns:
+        str: uncamel_cased version of `s`.
+
+    """
+    return RE_UNCAMEL.sub(r'{0}\1'.format(sep), s).lower()
+
+SQLModel.metadata.naming_convention = {
+    "ix": "ix_%(column_0_label)s",
+    "uq": "uq_%(table_name)s_%(column_0_name)s",
+    "ck": "ck_%(table_name)s_%(constraint_name)s",
+    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+    "pk": "pk_%(table_name)s",
+}
+class MagModel(SQLModel):
+    model_config: ClassVar = ConfigDict(
+        extra='allow',
+        ignored_types=(hybrid_method, hybrid_property))
+
+    @declared_attr.directive
+    def __tablename__(cls) -> str:
+        # Convert the model name from camel to snake-case to name the db table
+        return uncamel(cls.__name__)
+    
+    def to_dict(self, fields=None):
+        data = {}
+        enabled_fields = []
+        disabled_fields = []
+
+        if fields:
+            if isinstance(fields, str):
+                enabled_fields.append(fields)
+            elif isinstance(fields, list):
+                enabled_fields = fields
+            elif isinstance(fields, dict):
+                enabled_fields = [x for x in fields.keys() if fields[x] is True]
+                disabled_fields = [x for x in fields.keys() if fields[x] is False]
+
+        for field in (enabled_fields or self.to_dict_default_attrs):
+            val = getattr(self, field)
+            if isinstance(val, (datetime, date)):
+                val = val.isoformat()
+            elif isinstance(val, uuid.UUID):
+                val = str(val)
+
+            if isinstance(val, InstrumentedList):
+                data[field] = []
+                for model in val:
+                    obj_fields = fields[field] if isinstance(fields, dict) else None
+                    data[field].append(model.to_dict(obj_fields))
+                if data[field] == []:
+                    del data[field]  # Empty instrumented lists are not pickleable
+            else:
+                data[field] = val
+
+        if '_model' not in disabled_fields:
+            data['_model'] = self.__class__.__name__
+        if 'id' not in disabled_fields:
+            data['id'] = self.id
+
+        return data
+
+    id: str | None = Field(sa_type=Uuid(as_uuid=False), default_factory=lambda: str(uuid4()), primary_key=True)
+    created: datetime = Field(sa_type=DateTime(timezone=True), sa_column_kwargs={'server_default': utcnow()}, default_factory=lambda: datetime.now(UTC))
+    last_updated: datetime = Field(sa_type=DateTime(timezone=True), sa_column_kwargs={'server_default': utcnow()}, default_factory=lambda: datetime.now(UTC))
 
     """
     The two columns below allow tracking any object in external sources,
@@ -98,11 +196,55 @@ class MagModel:
     dictionary (if there are multiple objects to track in the external service)
     or just strings and datetime objects, respectively.
     """
-    external_id = Column(MutableDict.as_mutable(JSONB), server_default='{}', default={})
-    last_synced = Column(MutableDict.as_mutable(JSONB), server_default='{}', default={})
+    external_id: dict[str, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
+    last_synced: dict[str, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
 
-    required = ()
-    is_actually_old = False  # Set to true to force preview models to return False for `is_new`
+    required: ClassVar = ()
+
+    _repr_attr_names: ClassVar = ()
+
+    def __repr__(self):
+        """
+        Useful string representation for logging.
+
+        Note:
+            __repr__ does NOT return unicode on Python 2, since python decodes
+            it using the default encoding: http://bugs.python.org/issue5876.
+
+        """
+        # If no repr attr names have been set, default to the set of all
+        # unique constraints. This is unordered normally, so we'll order and
+        # use it here.
+        if not self._repr_attr_names:
+            unique_constraint_column_names = [[column.name for column in constraint.columns]
+                                              for constraint in self.__table__.constraints
+                                              if isinstance(constraint, UniqueConstraint)]
+
+            # this flattens the unique constraint list
+            _unique_attrs = chain.from_iterable(unique_constraint_column_names)
+            _primary_keys = [column.name for column in self.__table__.primary_key.columns]
+
+            attr_names = tuple(sorted(set(chain(_unique_attrs,
+                                                _primary_keys))))
+        else:
+            attr_names = self._repr_attr_names
+
+        if not attr_names and hasattr(self, 'id'):
+            # there should be SOMETHING, so use id as a fallback
+            attr_names = ('id',)
+
+        if attr_names:
+            _kwarg_list = ' '.join('%s=%s' % (name, repr(getattr(self, name, 'undefined')))
+                                   for name in attr_names)
+            kwargs_output = ' %s' % _kwarg_list
+        else:
+            kwargs_output = ''
+
+        # specifically using the string interpolation operator and the repr of
+        # getattr so as to avoid any "hilarious" encode errors for non-ascii
+        # characters
+        u = '<%s%s>' % (self.__class__.__name__, kwargs_output)
+        return u if six.PY3 else u.encode('utf-8')
 
     @cached_classproperty
     def NAMESPACE(cls):
@@ -118,6 +260,13 @@ class MagModel:
     @cached_classproperty
     def _class_attrs(cls):
         return {s: getattr(cls, s) for s in cls._class_attr_names}
+
+    @cached_classproperty
+    def to_dict_default_attrs(cls):
+        try:
+            return list(cls.__table__.columns.keys())
+        except AttributeError:
+            raise NotImplementedError("to_dict_default_attrs is only available for tables")
 
     def _invoke_adjustment_callbacks(self, label):
         callbacks = []
@@ -299,10 +448,10 @@ class MagModel:
             self.last_updated = datetime.now(UTC)
 
     def last_synced_dt(self, key):
-        return dateparser.parse(json.loads(self.last_synced.get(key, '"1970/01/01"')))
+        return dateparser.parse(json.loads(self.last_synced.get(key, '"1970/01/01"'))).replace(tzinfo=UTC)
     
     def update_last_synced(self, key, sync_time):
-        self.last_synced[key] = json.dumps(str(UTC.localize(dateparser.parse(sync_time))))
+        self.last_synced[key] = json.dumps(str(dateparser.parse(sync_time)))
 
     @property
     def session(self):
@@ -333,8 +482,8 @@ class MagModel:
         been saved to the database or if it's a new instance which has never
         been saved and thus has no corresponding row in its database table.
         """
-        if self.is_actually_old:
-            return False
+        if getattr(self, 'is_actually_new', False):
+            return True
         return not instance_state(self).persistent
 
     @property
@@ -417,6 +566,8 @@ class MagModel:
 
     @suffix_property
     def _local(self, name, val):
+        if isinstance(val, six.string_types):
+            val = dateparser.parse(val)
         return val.astimezone(c.EVENT_TIMEZONE)
 
     @suffix_property
@@ -427,6 +578,12 @@ class MagModel:
             return [labels[i].get('name', '') for i in ints]
         else:
             return sorted(labels[i] for i in ints)
+        
+    def __setattr__(self, name, value):
+        # Work around an issue in Pydantic where you can't assign extra properties after init
+        if self.__pydantic_extra__ is None:
+            super().__setattr__('__pydantic_extra__', {})
+        super().__setattr__(name, value)
 
     def __getattr__(self, name):
         suffixed = suffix_property.check(self, name)
@@ -439,9 +596,6 @@ class MagModel:
                 multi = self.multichoice_columns[0]
                 if choice in multi.type.choices_dict:
                     return choice in getattr(self, multi.name + '_ints')
-
-        if name.startswith('is_'):
-            return self.__class__.__name__.lower() == name[3:]
 
         if name.startswith('default_') and name.endswith('_cost'):
             if self.active_receipt:
@@ -464,7 +618,7 @@ class MagModel:
         except Exception:
             pass
 
-        raise AttributeError(self.__class__.__name__ + '.' + name)
+        return super().__getattr__(name)
 
     def get_tracking_by_instance(self, instance, action, last_only=True):
         from uber.models.tracking import Tracking
@@ -479,7 +633,7 @@ class MagModel:
             if value is None:
                 return  # Totally fine for value to be None
 
-            elif value == '' and isinstance(column.type, (UUID, Float, Numeric, Choice, Integer, UTCDateTime, Date)):
+            elif value == '' and isinstance(column.type, (Uuid, Float, Numeric, Choice, Integer, DateTime, Date)):
                 return None
 
             elif isinstance(column.type, Boolean):
@@ -513,7 +667,7 @@ class MagModel:
             elif isinstance(column.type, Integer):
                 value = int(float(value))
 
-            elif isinstance(column.type, UTCDateTime):
+            elif isinstance(column.type, DateTime):
                 if isinstance(value, six.string_types):
                     try:
                         value = datetime.strptime(value, c.TIMESTAMP_FORMAT)
@@ -608,7 +762,6 @@ class MagModel:
             return startstr + self.start_time_local.strftime('pm %a - ') + endstr + endtime.strftime(' %a')
 
 
-# Make all of our model classes available from uber.models
 from uber.models.admin import *  # noqa: F401,E402,F403
 from uber.models.promo_code import *  # noqa: F401,E402,F403
 from uber.models.attendee import *  # noqa: F401,E402,F403
@@ -617,12 +770,11 @@ from uber.models.commerce import *  # noqa: F401,E402,F403
 from uber.models.department import *  # noqa: F401,E402,F403
 from uber.models.email import *  # noqa: F401,E402,F403
 from uber.models.group import *  # noqa: F401,E402,F403
-from uber.models.legal import *  # noqa: F401,E402,F403
+from uber.models.files import *  # noqa: F401,E402,F403
 from uber.models.tracking import *  # noqa: F401,E402,F403
 from uber.models.types import *  # noqa: F401,E402,F403
 from uber.models.api import *  # noqa: F401,E402,F403
 from uber.models.hotel import *  # noqa: F401,E402,F403
-from uber.models.attendee_tournaments import *  # noqa: F401,E402,F403
 from uber.models.marketplace import *  # noqa: F401,E402,F403
 from uber.models.showcase import *  # noqa: F401,E402,F403
 from uber.models.mits import *  # noqa: F401,E402,F403
@@ -649,61 +801,16 @@ from uber.models.panels import PanelApplication, PanelApplicant  # noqa: E402
 from uber.models.promo_code import PromoCode, PromoCodeGroup  # noqa: E402
 from uber.models.tracking import Tracking  # noqa: E402
 
+class UberSession(sqlalchemy.orm.Session):
+    engine = engine
+    BaseClass = SQLModel
 
-class Session(SessionManager):
-    # This looks strange, but `sqlalchemy.create_engine` will throw an error
-    # if it's passed arguments that aren't supported by the given DB engine.
-    # For example, SQLite doesn't support either `pool_size` or `max_overflow`,
-    # so if `sqlalchemy_pool_size` or `sqlalchemy_max_overflow` are set with
-    # a value of -1, they are not added to the keyword args.
-    _engine_kwargs = dict((k, v) for (k, v) in [
-        ('pool_size', c.SQLALCHEMY_POOL_SIZE),
-        ('max_overflow', c.SQLALCHEMY_MAX_OVERFLOW),
-        ('pool_pre_ping', True),
-        ('pool_recycle', c.SQLALCHEMY_POOL_RECYCLE)] if v > -1)
-    engine = sqlalchemy.create_engine(c.SQLALCHEMY_URL, **_engine_kwargs)
-
-    @classmethod
-    def initialize_db(cls, modify_tables=False, drop=False, initialize=False):
-        """
-        Initialize the database and optionally create/drop tables.
-
-        Initializes the database connection for use, and attempt to create any
-        tables registered in our metadata which do not actually exist yet in
-        the database.
-
-        This calls the underlying ubersystem function, HOWEVER, in order to
-        actually create any tables, you must specify modify_tables=True.  The
-        reason is, we need to wait for all models from all plugins to insert
-        their mixin data, so we wait until one spot in order to create the
-        database tables.
-
-        Any calls to initialize_db() that do not specify modify_tables=True or
-        drop=True are ignored.
-
-        i.e. anywhere in ubersystem that calls initialize_db() will be ignored.
-        i.e. ubersystem is forcing all calls that don't specify
-        modify_tables=True or drop=True to be ignored.
-
-        Calling initialize_db with modify_tables=False and drop=True will leave
-        you with an empty database.
-
-        Keyword Arguments:
-            modify_tables: If False, this function will not attempt to create
-                any database objects (tables, columns, constraints, etc...)
-                Defaults to False.
-            drop: USE WITH CAUTION: If True, then we will drop any tables in
-                the database. Defaults to False.
-        """
-        for model in cls.all_models():
-            if not hasattr(cls.SessionMixin, model.__tablename__):
-                setattr(cls.SessionMixin, model.__tablename__, _make_getter(model))
-
-        if drop or modify_tables or initialize:
-            super(Session, cls).initialize_db(drop=drop, create=modify_tables)
-            if drop:
-                from uber.migration import stamp
-                stamp('heads' if modify_tables else None)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name, val in self.SessionMixin.__dict__.items():
+            if not name.startswith('__'):
+                assert not hasattr(self, name) and hasattr(val, '__call__')
+                setattr(self, name, MethodType(val, self))
 
     class QuerySubclass(Query):
         @property
@@ -777,7 +884,10 @@ class Session(SessionManager):
         def admin_attendee(self):
             if getattr(cherrypy, 'session', {}).get('account_id', cherrypy.request.admin_account):
                 try:
-                    return self.admin_account(cherrypy.session.get('account_id', cherrypy.request.admin_account)).attendee
+                    return self.query(Attendee).join(Attendee.admin_account).filter(
+                        AdminAccount.id == cherrypy.session.get('account_id', cherrypy.request.admin_account)).options(
+                            contains_eager(Attendee.admin_account)
+                        ).one()
                 except NoResultFound:
                     return
                 
@@ -807,7 +917,10 @@ class Session(SessionManager):
                 return attendee.managers[0]
 
         def logged_in_volunteer(self):
-            return self.attendee(cherrypy.session.get('staffer_id'))
+            return self.query(Attendee).filter(Attendee.id == cherrypy.session.get('staffer_id')).options(
+                selectinload(Attendee.hotel_requests), selectinload(Attendee.food_restrictions),
+                selectinload(Attendee.shifts)
+            ).one()
 
         def admin_has_staffer_access(self, staffer, access="view"):
             admin = self.current_admin_account()
@@ -949,7 +1062,7 @@ class Session(SessionManager):
                                                         ).outerjoin(ArtShowBidder).filter(
                                                             or_(Attendee.art_show_bidder != None,  # noqa: E711
                                                                 Attendee.art_show_purchases != None,  # noqa: E711
-                                                                Attendee.art_show_applications != None,  # noqa: E711
+                                                                Attendee.art_show_application != None,  # noqa: E711
                                                                 Attendee.art_agent_apps != None)  # noqa: E711
                                                         ).outerjoin(ArtShowAgentCode).filter(
                                                             ArtShowAgentCode.attendee_id == Attendee.id,
@@ -989,7 +1102,9 @@ class Session(SessionManager):
             if not department_id:
                 return {'conf': conf, 'relevant': False, 'completed': None}
 
-            department = self.query(Department).get(department_id)
+            department = self.query(Department).filter(Department.id == department_id).options(
+                selectinload(Department.dept_checklist_items)
+            ).first()
             if department:
                 return {
                     'conf': conf,
@@ -1315,7 +1430,7 @@ class Session(SessionManager):
             attendee, message = self.create_or_find_attendee_by_id(**params)
             if message:
                 return attendee, message
-            elif attendee.art_show_applications:
+            elif attendee.art_show_application:
                 return attendee, \
                     'There is already an art show application for that badge!'
 
@@ -1398,7 +1513,7 @@ class Session(SessionManager):
                 Either the matching object of the given model,
                  or None if not found.
             """
-            if isinstance(code, uuid.UUID):
+            if isinstance(code, uuid.Uuid(as_uuid=False)):
                 code = code.hex
 
             normalized_code = RegistrationCode.normalize_code(code)
@@ -1408,10 +1523,10 @@ class Session(SessionManager):
             unambiguous_code = RegistrationCode.disambiguate_code(code)
             clause = or_(model.normalized_code == normalized_code, model.normalized_code == unambiguous_code)
 
-            # Make sure that code is a valid UUID before adding
+            # Make sure that code is a valid Uuid(as_uuid=False) before adding
             # PromoCode.id to the filter clause
             try:
-                promo_code_id = uuid.UUID(normalized_code).hex
+                promo_code_id = uuid.Uuid(as_uuid=False)(normalized_code).hex
             except Exception:
                 pass
             else:
@@ -1647,7 +1762,6 @@ class Session(SessionManager):
                 Attendee.ribbon.contains(c.PANELIST_RIBBON),
                 Attendee.badge_type == c.GUEST_BADGE)).order_by(Attendee.full_name).all()
 
-        @department_id_adapter
         def jobs(self, department_id=None):
             job_filter = {'department_id': department_id} if department_id else {}
 
@@ -1664,7 +1778,6 @@ class Session(SessionManager):
                 {'id': id, 'full_name': full_name.title()}
                 for id, full_name in query.filter_by(staffing=True).order_by(Attendee.full_name)]
 
-        @department_id_adapter
         def dept_heads(self, department_id=None):
             if department_id:
                 return self.query(Department).get(department_id).dept_heads
@@ -2085,14 +2198,15 @@ class Session(SessionManager):
         # ========================
 
         def logged_in_judge(self):
-            judge = self.admin_attendee().admin_account.judge
-            if judge:
-                return judge
-            else:
-                raise HTTPRedirect(
-                    '../accounts/homepage?message={}',
-                    'You have been given judge access but not had a judge entry created for you - '
-                    'please contact a MIVS admin to correct this.')
+            if getattr(cherrypy, 'session', {}).get('account_id'):
+                try:
+                    return self.query(IndieJudge).join(IndieJudge.admin_account).filter(
+                        AdminAccount.id == cherrypy.session.get('account_id')).one()
+                except NoResultFound:
+                    raise HTTPRedirect(
+                        '../accounts/homepage?message={}',
+                        'You have been given judge access but not had a judge entry created for you - '
+                        'please contact a MIVS admin to correct this.')
 
         def code_for(self, game):
             if game.unlimited_code:
@@ -2164,20 +2278,6 @@ class Session(SessionManager):
                 joinedload(MITSTeam.schedule),
             ).order_by(MITSTeam.name)
 
-        def delete_mits_file(self, model):
-            try:
-                os.remove(model.filepath)
-            except Exception:
-                log.error('Unexpected error deleting MITS file {}', model.filepath)
-
-            # Regardless of whether removing the file from the
-            # filesystem succeeded, we still want the delete it from the
-            # database. The most likely cause of failure is if the file
-            # was already deleted or is otherwise not present, so it
-            # wouldn't make sense to keep the database record around.
-            self.delete(model)
-            self.commit()
-
         # =========================
         # panels
         # =========================
@@ -2190,7 +2290,26 @@ class Session(SessionManager):
                 .order_by('first_name', 'last_name')
 
     @classmethod
+    def all_models(cls):
+        def collect_subclasses(klass):
+            subclasses = set()
+            for subclass in klass.__subclasses__():
+                subclasses.add(subclass)
+                subclasses.update(collect_subclasses(subclass))
+            return list(subclasses)
+        return collect_subclasses(cls.BaseClass)
+
+    @classmethod
+    def resolve_model(cls, name):
+        models_by_class = {ModelClass.__name__: ModelClass for ModelClass in cls.all_models()}
+        if name in models_by_class:
+            return models_by_class[name]
+        raise ValueError('Unrecognized model: {}'.format(name))
+
+    @classmethod
     def model_mixin(cls, model):
+        from sqlmodel.main import get_column_from_field
+
         if model.__name__ in ['SessionMixin', 'QuerySubclass']:
             target = getattr(cls, model.__name__)
         else:
@@ -2209,37 +2328,83 @@ class Session(SessionManager):
                     attr.table = target.__table__
                     target.__table__.append_column(attr, replace_existing=True)
                 else:
-                    setattr(target, name, attr)
+                    try:
+                        col = get_column_from_field(attr)
+                        setattr(target, name, col)
+                    except AttributeError:
+                        setattr(target, name, attr)
         return target
 
+SessionFactory = sessionmaker(
+    bind=engine,
+    autoflush=False,
+    autocommit=False,
+    expire_on_commit=False,
+    class_=UberSession,
+    query_cls=UberSession.QuerySubclass
+)
+_ScopedSession = scoped_session(SessionFactory)
+_ScopedSession.model_mixin = UberSession.model_mixin
+_ScopedSession.all_models = UberSession.all_models
+_ScopedSession.resolve_model = UberSession.resolve_model
+_ScopedSession.engine = engine
+_ScopedSession.BaseClass = SQLModel
+_ScopedSession.SessionMixin = UberSession.SessionMixin
+_ScopedSession.session_factory = SessionFactory
 
-def initialize_db(modify_tables=False):
+class HybridSessionProxy:
     """
-    Initialize the session on startup.
-
-    We want to do this only after all other plugins have had a chance to
-    initialize and add their 'mixin' data (i.e. extra columns) into the models.
-
-    Also, it's possible that the DB is still initializing and isn't ready to
-    accept connections, so, if this fails, keep trying until we're able to
-    connect.
-
-    This should be the ONLY spot (except for maintenance tools) in all of core
-    ubersystem or any plugins that attempts to create tables by passing
-    drop=True or modify_tables=True or initialize=True to
-    Session.initialize_db()
+    A smart proxy that mimics the old Session class behavior.
     """
-    for i in range(20):
+    def __getattr__(self, name):
+        """
+        Return thread-scoped session as expected by modern sqlalchemy usage on 'Session.query()'
+        """
+        return getattr(_ScopedSession, name)
+
+    def __call__(self, create_savepoint=False, *args, **kwargs):
+        """
+        Creates a new session or returns the current session.
+
+        create_savepoint (bool): Flush the current session to the DB and create a savepoint.
+                                 This lets you use session.rollback() to undo only changes made after the savepoint.
+                                 This is ignored if we're returning a new session.
+        """
         try:
-            Session.initialize_db(modify_tables=modify_tables, initialize=True)
-            return
-        except KeyboardInterrupt:
-            log.critical('DB initialize: Someone hit Ctrl+C while we were starting up')
-        except Exception:
-            traceback.print_exc()
-        log.info(f"Database initialization failed. (Attempt {i+1} / 20)")
-        time.sleep(i**i)
-cherrypy.engine.subscribe('start', initialize_db, priority=99)
+            req = cherrypy.request
+            
+            if 'bind' not in kwargs:
+                if not hasattr(req, 'db_connection'):
+                    req.db_connection = engine.connect()
+                    
+                    def release_connection():
+                        req.db_connection.close()
+                    req.hooks.attach('on_end_request', release_connection)
+                    
+                kwargs['bind'] = req.db_connection
+
+            session = SessionFactory(*args, **kwargs)
+
+            if create_savepoint and kwargs.get('bind') == getattr(req, 'db_connection', None) and req.db_connection.in_transaction():
+                session.begin_nested()
+
+            return session
+
+        except AttributeError:
+            # We are outside of a web request (e.g., Celery workers, cron jobs, test scripts)
+            # Fall back to standard unmanaged behavior.
+            return SessionFactory(*args, **kwargs)
+
+Session = HybridSessionProxy()
+
+def initialize_db():
+    """Explicitly create tables."""
+    log.info("Initializing DB")
+    for model in Session.all_models():
+        log.info(f"Initializing model {str(model)}")
+        if not hasattr(Session.SessionMixin, model.__tablename__):
+            setattr(Session.SessionMixin, model.__tablename__, _make_getter(model))
+cherrypy.engine.subscribe('start', initialize_db, priority=97)
 
 def _attendee_validity_check():
     orig_getter = Session.SessionMixin.attendee

@@ -5,19 +5,21 @@ from collections import OrderedDict, defaultdict
 from datetime import datetime, timedelta
 from dateutil.parser import parse
 from uuid import uuid4
+from sqlalchemy.orm import selectinload
 
+import logging
 import cherrypy
 import requests
 import stripe
 
-from pockets import cached_property, classproperty, is_listy, listify
-from pockets.autolog import log
-
 import uber
 from uber.config import c
 from uber.custom_tags import format_currency, email_only
-from uber.utils import report_critical_exception
+from uber.utils import report_critical_exception, listify, is_listy
 import uber.spin_rest_utils as spin_rest_utils
+from uber.decorators import cached_property, classproperty
+
+log = logging.getLogger(__name__)
 
 if c.AUTHORIZENET_LOGIN_ID:
     # Importing this library takes ~150MB ram, so we only do it if we need it.
@@ -52,6 +54,7 @@ class PreregCart:
     the payment process is started. This class helps manage them in the session instead.
     """
     def __init__(self, targets=()):
+        log.error(targets)
         self._targets = listify(targets)
         self._current_cost = 0
 
@@ -161,19 +164,19 @@ class PreregCart:
     def from_sessionized_group(cls, d):
         d = dict(d, attendees=[cls.from_sessionized_attendee(a) for a in d.get('attendees', [])])
         badge_count = d.pop('badge_count', 0)
-        g = uber.models.Group(_defer_defaults_=True, **d)
+        g = uber.models.Group(**d)
         g.badge_count = d['badge_count'] = badge_count
         return g
 
     @classmethod
     def from_sessionized_attendee(cls, d):
         if d.get('promo_code'):
-            d = dict(d, promo_code=uber.models.PromoCode(_defer_defaults_=True, **d['promo_code']))
+            d = dict(d, promo_code=uber.models.PromoCode(**d['promo_code']))
 
         # These aren't valid properties on the model, so they're removed and re-added
         name = d.pop('name', '')
         badges = d.pop('badges', 0)
-        a = uber.models.Attendee(_defer_defaults_=True, **d)
+        a = uber.models.Attendee(**d)
         a.name = d['name'] = name
         a.badges = d['badges'] = badges
 
@@ -722,7 +725,7 @@ class AuthNetRequestMixin:
     def log_authorizenet_response(self, intent_id, txn_info, card_info):
         from uber.models import ReceiptInfo, ReceiptTransaction, Session
         
-        session = Session().session
+        session = Session()
         matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=intent_id).all()
 
         # AuthNet returns "StringElement" but we want strings
@@ -1058,7 +1061,7 @@ class RefundRequest(TransactionRequest):
 
             return_response_json = return_response.json()
             self.tracker.response = return_response_json
-            self.tracker.resolved = datetime.utcnow()
+            self.tracker.resolved = datetime.now(UTC)
 
             self.spin_request.log_api_response(return_response_json)
 
@@ -1166,7 +1169,7 @@ class SpinTerminalRequest(TransactionRequest):
         except AttributeError:
             response_json = response
         self.tracker.response = response_json
-        self.tracker.resolved = datetime.utcnow()
+        self.tracker.resolved = datetime.now(UTC)
 
         receipt_items_to_add = self.get_receipt_items_to_add()
         if receipt_items_to_add:
@@ -1190,7 +1193,7 @@ class SpinTerminalRequest(TransactionRequest):
 
             if self.tracker:
                 self.tracker.response = void_response_json
-                self.tracker.resolved = datetime.utcnow()
+                self.tracker.resolved = datetime.now(UTC)
 
             self.log_api_response(void_response_json)
             if self.api_response_successful(void_response_json):
@@ -1208,7 +1211,6 @@ class SpinTerminalRequest(TransactionRequest):
         from uber.models import ReceiptTransaction
         from uber.tasks.registration import send_receipt_email
         from decimal import Decimal
-        from pockets.autolog import log
 
         self.tracker.success = True
 
@@ -1327,7 +1329,6 @@ class SpinTerminalRequest(TransactionRequest):
 
     @handle_api_call
     def check_txn_status(self):
-        from pockets.autolog import log
         log.error(dict(
             spin_rest_utils.txn_status_request_dict(self.payment_type, self.ref_id), **self.base_request))
         return requests.post(spin_rest_utils.get_call_url(self.api_url, 'status'), data=dict(
@@ -1440,19 +1441,23 @@ class ReceiptManager:
         if not receipt and not model:
             return None
 
-        with Session() as session:
-            model = model or session.get_model_by_receipt(receipt)
-            if isinstance(model, Attendee):
-                return model.id
-            elif isinstance(model, Group):
-                if model.leader:
-                    return model.leader.id
-                else:
-                    assigned_badges = [a for a in model.attendees if not a.is_unassigned]
-                    return assigned_badges[0].id if assigned_badges else None
+        if hasattr(model, 'session') and model.session:
+            session = model.session
+        else:
+            from uber.models import Session
+            session = Session()
+        model = model or session.get_model_by_receipt(receipt)
+        if isinstance(model, Attendee):
+            return model.id
+        elif isinstance(model, Group):
+            if model.leader:
+                return model.leader.id
             else:
-                purchaser = getattr(model, 'attendee', None)
-                return purchaser.id if purchaser else None
+                assigned_badges = [a for a in model.attendees if not a.is_unassigned]
+                return assigned_badges[0].id if assigned_badges else None
+        else:
+            purchaser = getattr(model, 'attendee', None)
+            return purchaser.id if purchaser else None
 
     def cancel_and_refund(self, model, exclude_fees=False):
         from uber.models import Attendee, Group, ReceiptItem
@@ -1805,9 +1810,11 @@ class ReceiptManager:
         from uber.tasks.email import send_email
         from uber.decorators import render
 
-        session = Session().session
-        matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=intent_id).filter(
-            ReceiptTransaction.charge_id == '').all()
+        session = Session()
+        matching_txns = session.query(ReceiptTransaction).filter(
+            ReceiptTransaction.intent_id == intent_id,
+            ReceiptTransaction.charge_id == '').options(
+                selectinload(ReceiptTransaction.receipt_items)).all()
 
         if not matching_txns:
             log.debug(f"Tried to mark payments with intent ID {intent_id} as paid but we couldn't find any!")

@@ -13,7 +13,6 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import residue
 
 try:
     is_sqlite = op.get_context().dialect.name == 'sqlite'
@@ -39,8 +38,8 @@ sqlite_reflect_kwargs = {
 
 def upgrade():
     op.create_table('mits_document',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('team_id', residue.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('team_id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('filename', sa.Unicode(), server_default='', nullable=False),
     sa.Column('description', sa.Unicode(), server_default='', nullable=False),
     sa.ForeignKeyConstraint(['team_id'], ['mits_team.id'], name=op.f('fk_mits_document_team_id_mits_team')),
@@ -50,10 +49,10 @@ def upgrade():
     if is_sqlite:
         with op.batch_alter_table('mits_team', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
             batch_op.add_column(sa.Column('deleted', sa.Boolean(), server_default='False', nullable=False))
-            batch_op.add_column(sa.Column('duplicate_of', residue.UUID(), nullable=True))
+            batch_op.add_column(sa.Column('duplicate_of', sa.Uuid(as_uuid=False), nullable=True))
     else:
         op.add_column('mits_team', sa.Column('deleted', sa.Boolean(), server_default='False', nullable=False))
-        op.add_column('mits_team', sa.Column('duplicate_of', residue.UUID(), nullable=True))
+        op.add_column('mits_team', sa.Column('duplicate_of', sa.Uuid(as_uuid=False), nullable=True))
 
 
 def downgrade():

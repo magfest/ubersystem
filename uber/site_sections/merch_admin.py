@@ -1,6 +1,5 @@
 import cherrypy
 import re
-from pockets import listify
 from sqlalchemy import or_
 
 from uber.config import c
@@ -8,7 +7,7 @@ from uber.decorators import ajax, all_renderable, credit_card, public, kiosk_log
 from uber.errors import HTTPRedirect
 from uber.models import ArbitraryCharge, Attendee, BadgeInfo, MerchDiscount, MerchPickup, \
     MPointsForCash, NoShirt, OldMPointExchange
-from uber.utils import check, check_csrf
+from uber.utils import check, check_csrf, listify
 from uber.payments import TransactionRequest
 
 

@@ -93,12 +93,12 @@ class Root:
             all_errors['attendee_id'] = [f"Please enter your confirmation number or confirm that you are not registered for {c.EVENT_NAME}"]
         elif attendee.is_new or c.INDEPENDENT_ART_SHOW:
             attendee_forms = load_forms(params, attendee, ['ArtistAttendeeInfo'])
-            attendee_errors = validate_model(attendee_forms, attendee)
+            attendee_errors = validate_model(session, attendee_forms, attendee)
             if attendee_errors:
                 all_errors.update(attendee_errors)
 
         forms = load_forms(params, app, form_list)
-        app_errors = validate_model(forms, app)
+        app_errors = validate_model(session, forms, app)
 
         if app_errors:
             all_errors.update(app_errors)
@@ -193,7 +193,7 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, piece, form_list, field_prefix='new' if piece.is_new else piece.id)
-        all_errors = validate_model(forms, piece)
+        all_errors = validate_model(session, forms, piece)
 
         if all_errors:
             return {"error": all_errors}

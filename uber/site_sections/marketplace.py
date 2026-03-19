@@ -1,7 +1,7 @@
 import cherrypy
+import logging
 
 from datetime import datetime
-from pockets.autolog import log
 
 from uber.config import c
 from uber.custom_tags import email_only
@@ -12,6 +12,8 @@ from uber.models import Attendee, ArtistMarketplaceApplication
 from uber.tasks.email import send_email
 from uber.utils import check, validate_model
 from uber.payments import TransactionRequest, ReceiptManager, RefundRequest
+
+log = logging.getLogger(__name__)
 
 
 @all_renderable(public=True)
@@ -124,7 +126,7 @@ class Root:
             form_list = [form_list]
         forms = load_forms(params, app, form_list)
 
-        all_errors = validate_model(forms, app, is_admin=False)
+        all_errors = validate_model(session, forms, app, is_admin=False)
         if all_errors:
             return {"error": all_errors}
 

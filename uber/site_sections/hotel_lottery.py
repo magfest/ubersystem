@@ -1,8 +1,8 @@
 import base64
 import uuid
 import cherrypy
+import logging
 from datetime import datetime, timedelta
-from pockets.autolog import log
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
@@ -13,6 +13,8 @@ from uber.forms import load_forms
 from uber.models import Attendee, LotteryApplication
 from uber.tasks.email import send_email
 from uber.utils import RegistrationCode, validate_model, get_age_from_birthday, normalize_email_legacy
+
+log = logging.getLogger(__name__)
 
 
 def _join_room_group(session, application, group_id):
@@ -506,7 +508,7 @@ class Root:
             form_list = [form_list]
         forms = load_forms(params, application, form_list)
 
-        all_errors = validate_model(forms, application)
+        all_errors = validate_model(session, forms, application)
         check_date = params.get('earliest_suite_checkin_date', params.get('earliest_room_checkin_date', ''))
         if attendee.birthdate and check_date and get_age_from_birthday(attendee.birthdate,
                                                                        check_date) < 21:

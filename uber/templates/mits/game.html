@@ -25,7 +25,7 @@
             <input type="file" name="upload_documents" multiple />
         </div>
         <p class="help-block col-sm-9 col-sm-offset-3">
-            {% for doc in game.documents|sort(attribute='filename') %}
+            {% for doc in game_documents|sort(attribute='filename') %}
                 <span id="{{ doc.id }}"
                 {% if loop.first %} class="tooltip-wrapper" data-bs-toggle="tooltip" title="You must always have at least one document uploaded."{% endif %}>
                 <a target="_blank" href="{{ doc.url }}">{{ doc.filename }}</a>
@@ -44,13 +44,13 @@
         <label class="col-sm-3 control-label">Header Image</label>
         <div class="col-sm-6">
             <input type="file" name="header_image" />
-            {% if game.guidebook_header %}
-                {{ picture_manager(game.guidebook_header, False) }}
+            {% if game_guidebook_header %}
+                {{ picture_manager(game_guidebook_header, False) }}
             {% endif %}
         </div>
         <p class="help-block col-sm-9 col-sm-offset-3">
             A {{ c.GUIDEBOOK_HEADER_SIZE|format_image_size }} image to display on the schedule next to your game details.<br/>
-            {% if game.guidebook_header %}Uploading a file will replace the existing image.{% endif %}
+            {% if game_guidebook_header %}Uploading a file will replace the existing image.{% endif %}
         </p>
     </div>
 
@@ -58,13 +58,13 @@
         <label class="col-sm-3 control-label">Thumbnail Image</label>
         <div class="col-sm-6">
             <input type="file" name="thumbnail_image" />
-            {% if game.guidebook_thumbnail %}
-                {{ picture_manager(game.guidebook_thumbnail, False) }}
+            {% if game_guidebook_thumbnail %}
+                {{ picture_manager(game_guidebook_thumbnail, False) }}
             {% endif %}
         </div>
         <p class="help-block col-sm-9 col-sm-offset-3">
             A {{ c.GUIDEBOOK_THUMBNAIL_SIZE|format_image_size }} image to display on the schedule next to your game name.<br/>
-            {% if game.guidebook_thumbnail %}Uploading a file will replace the existing image.{% endif %}
+            {% if game_guidebook_thumbnail %}Uploading a file will replace the existing image.{% endif %}
         </p>
     </div>
 
@@ -75,7 +75,7 @@
         </div>
         <p class="help-block col-sm-9 col-sm-offset-3">
             Optional images of, e.g., game pieces and people playing the game.<br/>
-            {% for pic in game.pictures|rejectattr('is_header')|rejectattr('is_thumbnail')|sort(attribute='filename') %}
+            {% for pic in game_pictures|sort(attribute='filename') %}
                 {{ picture_manager(pic) }}
             {% endfor %}
             <br/>We accept the following image types: {{ c.GUIDEBOOK_ALLOWED_IMAGE_TYPES|readable_join }}.

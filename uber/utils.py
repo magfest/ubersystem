@@ -4,6 +4,7 @@ import importlib
 import math
 import os
 import phonenumbers
+import unicodedata
 import random
 import re
 import string
@@ -11,27 +12,52 @@ import textwrap
 import traceback
 import uber
 import urllib
+import logging
+import warnings
+import six
 
 from collections import defaultdict, OrderedDict
-from datetime import date, datetime, timedelta
+from collections.abc import Iterable, Mapping, Sized
+from datetime import date, datetime, timedelta, timezone
 from glob import glob
 from os.path import basename
 from rpctools.jsonrpc import ServerProxy
 from urllib.parse import urlparse, urljoin
 from uuid import uuid4
 from phonenumbers import PhoneNumberFormat
-from pockets import floor_datetime, listify
-from pockets.autolog import log
 from pytz import UTC
-from sqlalchemy import func, or_, cast, literal
+from sqlalchemy import func, or_, cast, literal, DateTime
 
 from uber.config import c, _config, signnow_sdk, threadlocal
 from uber.errors import CSRFException, HTTPRedirect
+log = logging.getLogger(__name__)
 
 
 # ======================================================================
 # String manipulation
 # ======================================================================
+
+def readable_join(xs, conjunction='and', sep=','):
+    """
+    Accepts a list of strings and separates them with commas as grammatically
+    appropriate with a conjunction before the final entry. For example:
+
+    >>> readable_join(['foo'])
+    'foo'
+    >>> readable_join(['foo', 'bar'])
+    'foo and bar'
+    >>> readable_join(['foo', 'bar', 'baz'])
+    'foo, bar, and baz'
+    >>> readable_join(['foo', 'bar', 'baz'], 'or')
+    'foo, bar, or baz'
+    >>> readable_join(['foo', 'bar', 'baz'], 'but never')
+    'foo, bar, but never baz'
+
+    """
+    if len(xs) > 1:
+        xs = list(xs)
+        xs[-1] = conjunction + ' ' + xs[-1]
+    return (sep + ' ' if len(xs) > 2 else ' ').join(xs)
 
 def filename_extension(s):
     """
@@ -244,6 +270,352 @@ def normalize_phone(phone_number, country='US'):
         PhoneNumberFormat.E164)
 
 
+RE_NONWORD = re.compile(r'[\W_]+')
+def slugify(s):
+    """Convert a string into a URL-friendly slug."""
+    if not s: return ''
+    
+    # Normalize to decompose unicode characters (e.g., 'ñ' -> 'n' + '~')
+    s = unicodedata.normalize('NFKD', s).encode('ascii', 'ignore').decode('ascii')
+    return RE_NONWORD.sub('-', s).lower().strip('-')
+    
+    
+RE_WHITESPACE_GROUP = re.compile(r'(\s+)', re.M | re.U)
+def camel(s, sep='_', lower_initial=False, upper_segments=None,
+          preserve_upper=False):
+    """
+    Convert underscore_separated string (aka snake_case) to CamelCase.
+
+    Works on full sentences as well as individual words:
+
+    >>> camel("hello_world!")
+    'HelloWorld!'
+    >>> camel("Totally works as_expected, even_with_whitespace!")
+    'Totally Works AsExpected, EvenWithWhitespace!'
+
+    Args:
+        sep (string, optional): Delineates segments of `s` that will be
+            CamelCased. Defaults to an underscore "_".
+
+            For example, if you want to CamelCase a dash separated word:
+
+            >>> camel("xml-http-request", sep="-")
+            'XmlHttpRequest'
+
+        lower_initial (bool, int, or list, optional): If True, the initial
+            character of each camelCased word will be lowercase. If False, the
+            initial character of each CamelCased word will be uppercase.
+            Defaults to False:
+
+            >>> camel("http_request http_response")
+            'HttpRequest HttpResponse'
+            >>> camel("http_request http_response", lower_initial=True)
+            'httpRequest httpResponse'
+
+            Optionally, `lower_initial` can be an int or a list of ints,
+            indicating which individual segments of each CamelCased word
+            should start with a lowercase. Supports negative numbers to index
+            segments from the right:
+
+            >>> camel("xml_http_request", lower_initial=0)
+            'xmlHttpRequest'
+            >>> camel("xml_http_request", lower_initial=-1)
+            'XmlHttprequest'
+            >>> camel("xml_http_request", lower_initial=[0, 1])
+            'xmlhttpRequest'
+
+        upper_segments (int or list, optional): Indicates which segments of
+           CamelCased words should be fully uppercased, instead of just
+           capitalizing the first letter.
+
+           Can be an int, indicating a single segment, or a list of ints,
+           indicating multiple segments. Supports negative numbers to index
+           segments from the right.
+
+           `upper_segments` is helpful when dealing with acronyms:
+
+            >>> camel("tcp_socket_id", upper_segments=0)
+            'TCPSocketId'
+            >>> camel("tcp_socket_id", upper_segments=[0, -1])
+            'TCPSocketID'
+            >>> camel("tcp_socket_id", upper_segments=[0, -1], lower_initial=1)
+            'TCPsocketID'
+
+        preserve_upper (bool): If True, existing uppercase characters will
+            not be automatically lowercased. Defaults to False.
+
+            >>> camel("xml_HTTP_reQuest")
+            'XmlHttpRequest'
+            >>> camel("xml_HTTP_reQuest", preserve_upper=True)
+            'XmlHTTPReQuest'
+
+    Returns:
+        str: CamelCased version of `s`.
+
+    """
+    if isinstance(lower_initial, bool):
+        lower_initial = [0] if lower_initial else []
+    else:
+        lower_initial = listify(lower_initial)
+    upper_segments = listify(upper_segments)
+    result = []
+    for word in RE_WHITESPACE_GROUP.split(s):
+        segments = [segment for segment in word.split(sep) if segment]
+        count = len(segments)
+        for i, segment in enumerate(segments):
+            upper = i in upper_segments or (i - count) in upper_segments
+            lower = i in lower_initial or (i - count) in lower_initial
+            if upper and lower:
+                if preserve_upper:
+                    segment = segment[0] + segment[1:].upper()
+                else:
+                    segment = segment[0].lower() + segment[1:].upper()
+            elif upper:
+                segment = segment.upper()
+            elif lower:
+                if not preserve_upper:
+                    segment = segment.lower()
+            elif preserve_upper:
+                segment = segment[0].upper() + segment[1:]
+            else:
+                segment = segment[0].upper() + segment[1:].lower()
+            result.append(segment)
+
+    return "".join(result)
+
+# ======================================================================
+# Collection functions
+# ======================================================================
+    
+# We probably shouldn't do this ever. We should type inputs more strongly.
+# This is here to maintain compatibility with pockets.listify
+def listify(x):
+    """
+    Wraps `x` in a list if it isn't one already. 
+    Preserves None as an empty list.
+    """
+    warnings.warn("ensure_list is deprecated.", stacklevel=2)
+    if x is None:
+        return []
+    
+    if isinstance(x, list):
+        return x
+    
+    # Handle other common sequences (tuples, sets) by converting them
+    if isinstance(x, (tuple, set)):
+        return list(x)
+    
+    # Treat strings, dicts, and scalars as single items
+    return [x]
+
+def groupify(items, keys, val_key=None):
+    """
+    Groups a list of items into nested OrderedDicts based on the given keys.
+
+    Note:
+        On Python 2.6 the return value will use regular dicts instead of
+        OrderedDicts.
+
+    >>> from json import dumps
+    >>>
+    >>> class Reminder:
+    ...   def __init__(self, when, where, what):
+    ...     self.when = when
+    ...     self.where = where
+    ...     self.what = what
+    ...   def __repr__(self):
+    ...     return 'Reminder({0.when}, {0.where}, {0.what})'.format(self)
+    ...
+    >>> reminders = [
+    ...   Reminder('Fri', 'Home', 'Eat cereal'),
+    ...   Reminder('Fri', 'Work', 'Feed Ivan'),
+    ...   Reminder('Sat', 'Home', 'Sleep in'),
+    ...   Reminder('Sat', 'Home', 'Play Zelda'),
+    ...   Reminder('Sun', 'Home', 'Sleep in'),
+    ...   Reminder('Sun', 'Work', 'Reset database')]
+    >>>
+    >>> print(dumps(groupify(reminders, None),
+    ...             indent=2,
+    ...             sort_keys=True,
+    ...             default=repr)) # doctest: +NORMALIZE_WHITESPACE
+    [
+      "Reminder(Fri, Home, Eat cereal)",
+      "Reminder(Fri, Work, Feed Ivan)",
+      "Reminder(Sat, Home, Sleep in)",
+      "Reminder(Sat, Home, Play Zelda)",
+      "Reminder(Sun, Home, Sleep in)",
+      "Reminder(Sun, Work, Reset database)"
+    ]
+    >>>
+    >>> print(dumps(groupify(reminders, 'when'),
+    ...             indent=2,
+    ...             sort_keys=True,
+    ...             default=repr)) # doctest: +NORMALIZE_WHITESPACE
+    {
+      "Fri": [
+        "Reminder(Fri, Home, Eat cereal)",
+        "Reminder(Fri, Work, Feed Ivan)"
+      ],
+      "Sat": [
+        "Reminder(Sat, Home, Sleep in)",
+        "Reminder(Sat, Home, Play Zelda)"
+      ],
+      "Sun": [
+        "Reminder(Sun, Home, Sleep in)",
+        "Reminder(Sun, Work, Reset database)"
+      ]
+    }
+    >>>
+    >>> print(dumps(groupify(reminders, ['when', 'where']),
+    ...             indent=2,
+    ...             sort_keys=True,
+    ...             default=repr)) # doctest: +NORMALIZE_WHITESPACE
+    {
+      "Fri": {
+        "Home": [
+          "Reminder(Fri, Home, Eat cereal)"
+        ],
+        "Work": [
+          "Reminder(Fri, Work, Feed Ivan)"
+        ]
+      },
+      "Sat": {
+        "Home": [
+          "Reminder(Sat, Home, Sleep in)",
+          "Reminder(Sat, Home, Play Zelda)"
+        ]
+      },
+      "Sun": {
+        "Home": [
+          "Reminder(Sun, Home, Sleep in)"
+        ],
+        "Work": [
+          "Reminder(Sun, Work, Reset database)"
+        ]
+      }
+    }
+    >>>
+    >>> print(dumps(groupify(reminders, ['when', 'where'], 'what'),
+    ...             indent=2,
+    ...             sort_keys=True)) # doctest: +NORMALIZE_WHITESPACE
+    {
+      "Fri": {
+        "Home": [
+          "Eat cereal"
+        ],
+        "Work": [
+          "Feed Ivan"
+        ]
+      },
+      "Sat": {
+        "Home": [
+          "Sleep in",
+          "Play Zelda"
+        ]
+      },
+      "Sun": {
+        "Home": [
+          "Sleep in"
+        ],
+        "Work": [
+          "Reset database"
+        ]
+      }
+    }
+    >>>
+    >>> print(dumps(groupify(reminders,
+    ...                      lambda r: '{0.when} - {0.where}'.format(r),
+    ...                      'what'),
+    ...             indent=2,
+    ...             sort_keys=True)) # doctest: +NORMALIZE_WHITESPACE
+    {
+      "Fri - Home": [
+        "Eat cereal"
+      ],
+      "Fri - Work": [
+        "Feed Ivan"
+      ],
+      "Sat - Home": [
+        "Sleep in",
+        "Play Zelda"
+      ],
+      "Sun - Home": [
+        "Sleep in"
+      ],
+      "Sun - Work": [
+        "Reset database"
+      ]
+    }
+
+    Args:
+        items (list): The list of items to arrange in groups.
+        keys (str|callable|list): The key or keys that should be used to group
+            `items`. If multiple keys are given, then each will correspond to
+            an additional level of nesting in the order they are given.
+        val_key (str|callable): A key or callable used to generate the leaf
+            values in the nested OrderedDicts. If `val_key` is `None`, then
+            the item itself is used. Defaults to `None`.
+
+    Returns:
+        OrderedDict: Nested OrderedDicts with `items` grouped by `keys`.
+
+    """
+    warnings.warn("groupify is deprecated.", stacklevel=2)
+    if not keys:
+        return items
+    keys = listify(keys)
+    last_key = keys[-1]
+    is_callable = callable(val_key)
+    groupified = dict()
+    for item in items:
+        current = groupified
+        for key in keys:
+            attr = key(item) if callable(key) else getattr(item, key)
+            if attr not in current:
+                current[attr] = [] if key is last_key else dict()
+            current = current[attr]
+        if val_key:
+            value = val_key(item) if is_callable else getattr(item, val_key)
+        else:
+            value = item
+        current.append(value)
+    return groupified
+
+def is_listy(x):
+    """
+    Return True if `x` is "listy", i.e. a list-like object.
+
+    "Listy" is defined as a sized iterable which is neither a map nor a string:
+
+    >>> is_listy(['a', 'b'])
+    True
+    >>> is_listy(set())
+    True
+    >>> is_listy(iter(['a', 'b']))
+    False
+    >>> is_listy({'a': 'b'})
+    False
+    >>> is_listy('a regular string')
+    False
+
+    Note:
+        Iterables and generators fail the "listy" test because they
+        are not sized.
+
+    Args:
+        x (any value): The object to test.
+
+    Returns:
+        bool: True if `x` is "listy", False otherwise.
+
+    """
+    return (
+        isinstance(x, Sized)
+        and isinstance(x, Iterable)
+        and not isinstance(x, (Mapping, type(b"")))
+        and not isinstance(x, six.string_types)
+    )
+
 # ======================================================================
 # Datetime functions
 # ======================================================================
@@ -252,14 +624,17 @@ def localized_now():
     """
     Returns datetime.now() but localized to the event's timezone.
     """
-    return localize_datetime(datetime.utcnow())
+    return datetime.now(c.EVENT_TIMEZONE)
 
 
 def localize_datetime(dt):
     """
     Converts `dt` to the event's timezone.
     """
-    return dt.replace(tzinfo=UTC).astimezone(c.EVENT_TIMEZONE)
+    # 1. If the datetime is naive (no timezone), assume it is UTC first
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(c.EVENT_TIMEZONE)
 
 
 def hour_day_format(dt):
@@ -276,14 +651,28 @@ def evening_datetime(dt):
     """
     Returns a datetime object for 5pm on the day specified by `dt`.
     """
-    return floor_datetime(dt, timedelta(days=1)) + timedelta(hours=17)
+    dt = dt.replace(microsecond=0)
+    dt_min = datetime.min.replace(tzinfo=dt.tzinfo)
+    secs = (dt - dt_min).total_seconds()
+    nearest_secs = timedelta(days=1).total_seconds()
+    total_delta_secs = secs % nearest_secs
+    delta_days = total_delta_secs // 86400  # (60 * 60 * 24)
+    delta_secs = total_delta_secs % 86400.0  # (60 * 60 * 24)
+    return dt - timedelta(days=delta_days, seconds=delta_secs)  + timedelta(hours=17)
 
 
 def noon_datetime(dt):
     """
     Returns a datetime object for noon on the day given by `dt`.
     """
-    return floor_datetime(dt, timedelta(days=1)) + timedelta(hours=12)
+    dt = dt.replace(microsecond=0)
+    dt_min = datetime.min.replace(tzinfo=dt.tzinfo)
+    secs = (dt - dt_min).total_seconds()
+    nearest_secs = timedelta(days=1).total_seconds()
+    total_delta_secs = secs % nearest_secs
+    delta_days = total_delta_secs // 86400  # (60 * 60 * 24)
+    delta_secs = total_delta_secs % 86400.0  # (60 * 60 * 24)
+    return dt - timedelta(days=delta_days, seconds=delta_secs)  + timedelta(hours=12)
 
 
 def get_age_from_birthday(birthdate, today=None):
@@ -309,12 +698,12 @@ def get_age_from_birthday(birthdate, today=None):
     if not today:
         today = date.today()
 
-    if isinstance(birthdate, str):
-        birthdate_col = Attendee.__table__.columns.get('birthdate')
+    birthdate_col = Attendee.__table__.columns.get('birthdate')
+
+    if isinstance(birthdate, six.string_types):        
         birthdate = Attendee().coerce_column_data(birthdate_col, birthdate)
 
-    if isinstance(today, str):
-        birthdate_col = Attendee.__table__.columns.get('birthdate')
+    if isinstance(today, six.string_types):
         today = Attendee().coerce_column_data(birthdate_col, today)
 
     # int(True) == 1 and int(False) == 0
@@ -657,8 +1046,6 @@ def check_pii_consent(params, attendee=None):
 class GuidebookUtils():
     @classmethod
     def check_guidebook_image_filetype(cls, pic):
-        from uber.custom_tags import readable_join
-
         if pic.filename.split('.')[-1].lower() not in c.GUIDEBOOK_ALLOWED_IMAGE_TYPES:
             return f'Image {pic.filename} is not one of the allowed extensions: '\
                 f'{readable_join(c.GUIDEBOOK_ALLOWED_IMAGE_TYPES)}.'
@@ -675,60 +1062,67 @@ class GuidebookUtils():
 
     @classmethod
     def get_guidebook_models(cls, session, selected_model=''):
-        from uber.models import GuestImage, MITSPicture, IndieGameImage
-
         model_cls = cls.parse_guidebook_model(selected_model)
         model_query = session.query(model_cls)
         stale_filters = [model_cls.last_synced['guidebook'] == None,
                         cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < model_cls.last_updated]
 
         if '_band' in selected_model:
-            model_query = model_query.filter_by(group_type=c.BAND).outerjoin(model_cls.images)
-            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < GuestImage.last_updated)
+            model_query = model_query.filter_by(group_type=c.BAND)
         elif '_guest' in selected_model:
-            model_query = model_query.filter_by(group_type=c.GUEST).outerjoin(model_cls.images)
-            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < GuestImage.last_updated)
+            model_query = model_query.filter_by(group_type=c.GUEST)
         elif '_arena' in selected_model:
-            model_query = model_query.filter_by(group_type=c.ARENA).outerjoin(model_cls.images)
-            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < GuestImage.last_updated)
+            model_query = model_query.filter_by(group_type=c.ARENA)
         elif '_sidestage' in selected_model:
-            model_query = model_query.filter_by(group_type=c.SIDE_STAGE).outerjoin(model_cls.images)
-            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < GuestImage.last_updated)
+            model_query = model_query.filter_by(group_type=c.SIDE_STAGE)
         elif '_dealer' in selected_model:
             model_query = model_query.filter(model_cls.status.in_([c.APPROVED])).filter_by(is_dealer=True)
         elif 'IndieGame' in selected_model:
-            model_query = model_query.filter_by(has_been_accepted=True).outerjoin(model_cls.images)
-            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < IndieGameImage.last_updated)
+            model_query = model_query.filter_by(has_been_accepted=True)
         elif 'MITSGame' in selected_model:
-            model_query = model_query.filter_by(has_been_accepted=True).outerjoin(model_cls.pictures)
-            stale_filters.append(cls.cast_jsonb_to_datetime(model_cls.last_synced['guidebook']) < MITSPicture.last_updated)
+            model_query = model_query.filter_by(has_been_accepted=True)
             
         return model_query, stale_filters
 
     @classmethod
     def cast_jsonb_to_datetime(cls, jsonb_col):
-        from residue import CoerceUTF8 as UnicodeText, UTCDateTime
+        return cast(jsonb_col.astext, DateTime)
+    
+    @classmethod
+    def get_guidebook_images(cls, session, model):
+        from uber.files import FileService
 
-        return cast(cast(jsonb_col, UnicodeText), UTCDateTime)
+        header_file = FileService.get_existing_files(session, model, and_flags=['guidebook_header'])
+        thumbnail_file = FileService.get_existing_files(session, model, and_flags=['guidebook_thumbnail'])
+
+        files_list = []
+
+        files_list.append((f"{model.guidebook_filename}_header.{header_file.extension}", header_file) if header_file else ('', ''))
+        files_list.append((f"{model.guidebook_filename}_thumbnail.{thumbnail_file.extension}", thumbnail_file) if thumbnail_file else ('', ''))
+
+        return files_list
     
     @classmethod
     def get_changed_models(cls, session):
         """
         Returns a dictionary of changed "custom list" models and a list of changed "sessions" (Events)
         """
-        from uber.models import GuestBio, Event
+        from uber.models import Event
 
-        cl_updates = defaultdict(list)
+        cl_updates, image_updates = defaultdict(list), defaultdict(list)
         for key, label in c.GUIDEBOOK_MODELS:
             model_query, filters = GuidebookUtils.get_guidebook_models(session, key)
             model_query = model_query.filter(or_(*filters))
             for model in model_query:
                 if model.guidebook_data != model.last_synced.get('data', {}).get('guidebook', {}):
                     cl_updates[label].append(model)
-                elif model.guidebook_header and not isinstance(model.guidebook_header, GuestBio):
-                    last_synced = model.last_synced_dt('guidebook')
-                    if model.guidebook_header.last_updated > last_synced or model.guidebook_thumbnail.last_updated > last_synced:
-                        cl_updates[label].append(model)
+                header_file, thumbnail_file = GuidebookUtils.get_guidebook_images(session, model)
+                if header_file[1] and header_file[1].last_updated > model.last_synced_dt('guidebook'):
+                    cl_updates[label].append(model)
+                    image_updates[model.id].append('guidebook_header')
+                if thumbnail_file[1] and thumbnail_file[1].last_updated > model.last_synced_dt('guidebook'):
+                    cl_updates[label].append(model)
+                    image_updates[model.id].append('guidebook_thumbnail')
 
         schedule_updates = []
         schedule_query = session.query(Event).filter(
@@ -740,24 +1134,32 @@ class GuidebookUtils():
             if event.guidebook_data != event.last_synced.get('data', {}).get('guidebook', {}):
                 schedule_updates.append(event)
         
-        return cl_updates, schedule_updates
+        return cl_updates, schedule_updates, image_updates
 
 
-def validate_model(forms, model, create_preview_model=True, is_admin=False):
+def validate_model(session, forms, model, create_preview_model=True, is_admin=False):
     # Create_preview_model should only be false in the VERY rare case
     # where we are re-checking a model with no changes
 
+    from uber.models import File
+    from uber.files import FileService
+
     all_errors = defaultdict(list)
     rollback_session = None
+    preview_model = model
+    new_objs = []
+    if not preview_model.session:
+        session.add(preview_model)
 
     if create_preview_model:
-        preview_model = model
-        if model.session:
-            rollback_session = model.session.begin_nested()
+        if preview_model in session.new:
+            preview_model.is_actually_new = True
+            new_objs.append(preview_model)
+
+        rollback_session = session.begin_nested()
+
         for form in forms.values():
-            form.populate_obj(preview_model, is_admin=is_admin)
-    else:
-        preview_model = model
+            form.populate_obj(preview_model, is_admin=is_admin, dry_run=True)
 
     for form in forms.values():
         form.is_admin = is_admin
@@ -767,7 +1169,7 @@ def validate_model(forms, model, create_preview_model=True, is_admin=False):
 
         for key, field in form.field_list:
             extra_validators[key].extend(form.field_validation.get_validations_by_field(key))
-            if field and (model.is_new or getattr(model, key, None) != field.data):
+            if hasattr(model, key) and field and (model.is_new or getattr(model, key) != field.data):
                 extra_validators[key].extend(form.new_or_changed.get_validations_by_field(key))
         valid = form.validate(extra_validators=extra_validators)
         if not valid:
@@ -776,6 +1178,7 @@ def validate_model(forms, model, create_preview_model=True, is_admin=False):
 
     validations = [uber.model_checks.validation.validations]
     prereg_validations = [uber.model_checks.prereg_validation.validations] if not is_admin else []
+
     for v in validations + prereg_validations:
         for validator in v[model.__class__.__name__].values():
             error = validator(preview_model)
@@ -785,7 +1188,12 @@ def validate_model(forms, model, create_preview_model=True, is_admin=False):
                 all_errors[''].append(error)
     
     if rollback_session:
-        model.session.rollback()
+        for obj in list(session.new) + new_objs:
+            if isinstance(obj, File):
+                # We have to save files to run some validations on them, this cleans them up
+                file_handler = FileService.file_handler(session, obj)
+                file_handler.delete()
+        session.rollback()
 
     if all_errors:
         return all_errors
@@ -1689,7 +2097,7 @@ class TaskUtils:
         from uber.models import Attendee, AttendeeAccount, DeptMembership, DeptRole
         from functools import partial
 
-        with uber.models.Session() as session:
+        with uber.models.Session(create_savepoint=True) as session:
             service, message, target_url = get_api_service_from_server(import_job.target_server,
                                                                        import_job.api_token)
 

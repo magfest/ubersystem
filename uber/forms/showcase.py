@@ -3,12 +3,12 @@ from datetime import date
 
 from markupsafe import Markup
 from wtforms import (BooleanField, URLField, EmailField,
-                     HiddenField, SelectField, SelectMultipleField, FileField,
+                     HiddenField, SelectField, SelectMultipleField,
                      StringField, TelField, widgets, TextAreaField)
 from wtforms.validators import ValidationError, StopValidation
 
 from uber.config import c
-from uber.forms import (AddressForm, MultiCheckbox, MagForm, SelectBooleanField, SwitchInput, NumberInputGroup,
+from uber.forms import (FileUploadField, MultiCheckbox, MagForm, SelectBooleanField, SwitchInput, NumberInputGroup,
                         HiddenBoolField, IntegerField, SelectDynamicChoices, UniqueList, SelectButtonGroup)
 from uber.custom_tags import popup_link
 from uber.badge_funcs import get_real_badge_type
@@ -44,7 +44,7 @@ class DeveloperInfo(MagForm):
     last_name = StringField('Last Name', render_kw={'autocomplete': "lname"})
     email = EmailField('Email Address', render_kw={'placeholder': 'test@example.com'})
     cellphone = TelField('Phone Number')
-    gets_emails = BooleanField('I want to receive emails about my studio\'s showcase submissions.')
+    receives_emails = BooleanField('I want to receive emails about my studio\'s showcase submissions.', default=True)
     agreed_coc = BooleanField()
     agreed_data_policy = BooleanField()
 
@@ -124,9 +124,9 @@ class MivsCode(MagForm):
 
 
 class MivsScreenshot(MagForm):
-    description = TextAreaField("Screenshot Description")
-    image = FileField("Image File (max 5MB)", render_kw={'accept': "image/*"})
-    is_screenshot = HiddenBoolField('', default=True)
+    image_description = TextAreaField("Screenshot Description")
+    image = FileUploadField("Image File (max 5MB)", file_flags={'mivs_screenshot': True}, required=True, delete_existing=False,
+                            description_field_name='image_description', show_thumbnail=True, render_kw={'accept': "image/*"})
 
 
 class MivsJudgeInfo(MagForm):
@@ -228,7 +228,8 @@ class ArcadeLogistics(MagForm):
 
 
 class ArcadePhoto(MagForm):
-    image = FileField("Image File (max 5MB)", render_kw={'accept': "image/*"})
+    image = FileUploadField("Image File (max 5MB)", file_flags={'arcade_photo': True}, required=True,
+                            delete_existing=False, show_thumbnail=True, render_kw={'accept': "image/*"})
 
 
 class RetroGameInfo(MagForm):
@@ -254,9 +255,9 @@ class RetroGameDetails(MagForm):
                                description="Let us know if your game is already available or when it will be releasing.")
     description = TextAreaField('Full Description',
                                 description="There are no specific restrictions on what this must include, but please keep it to no more than 4000 characters.")
-    game_logo = FileField("Game Logo (max 5MB)",
-                          description="Please ensure your game logo is a PNG with a transparent background.",
-                          render_kw={'accept': "image/png"})
+    game_logo = FileUploadField("Game Logo (max 5MB)", delete_existing=True, show_thumbnail=True,
+                                description="Please ensure your game logo is a PNG with a transparent background.",
+                                render_kw={'accept': "image/png"})
     other_assets = TextAreaField(
         'Link to Additional Promotional Assets',
         description="Feel free to share any additional screenshots, GIFs, or other promotional assets that you'd like us to take into consideration.")
@@ -287,8 +288,8 @@ class RetroLogistics(MagForm):
 
 
 class RetroScreenshot(MagForm):
-    image = FileField("Image File (max 5MB)", render_kw={'accept': "image/*"})
-    is_screenshot = HiddenBoolField('', default=True)
+    image = FileUploadField("Image File (max 5MB)", file_flags={'retro_screenshot': True}, required=True,
+                            delete_existing=False, show_thumbnail=True, render_kw={'accept': "image/*"})
 
 
 def generate_score_list():

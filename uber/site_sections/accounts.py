@@ -2,12 +2,12 @@ import uuid
 
 import bcrypt
 import cherrypy
-from sqlalchemy.orm import subqueryload
+from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
 from uber.decorators import (ajax, all_renderable, csrf_protected, csv_file,
-                             department_id_adapter, not_site_mappable, render, site_mappable, public)
+                             not_site_mappable, render, site_mappable, public)
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, Attendee, BadgeInfo, PasswordReset, WorkstationAssignment
 from uber.tasks.email import send_email
@@ -46,7 +46,7 @@ class Root:
             'message':  message,
             'accounts': (session.query(AdminAccount)
                          .join(Attendee)
-                         .options(subqueryload(AdminAccount.attendee).subqueryload(Attendee.assigned_depts))
+                         .options(joinedload(AdminAccount.attendee).selectinload(Attendee.assigned_depts))
                          .order_by(Attendee.last_first).all()),
             'all_attendees': attendees,
         }
@@ -109,11 +109,12 @@ class Root:
         raise HTTPRedirect('index?message={}', 'Account deleted')
 
     @site_mappable
-    @department_id_adapter
     def bulk(self, session, department_id=None, **params):
         department_id = None if department_id == 'All' else department_id
         attendee_filters = [Attendee.dept_memberships.any(department_id=department_id)] if department_id else []
-        attendees = session.staffers().filter(*attendee_filters).all()
+        attendees = session.staffers().filter(*attendee_filters).options(
+            selectinload(Attendee.dept_memberships_with_role), joinedload(Attendee.admin_account)
+        ).all()
         for attendee in attendees:
             attendee.trusted_here = attendee.trusted_in(department_id) if department_id else attendee.has_role_somewhere
             attendee.hours_here = attendee.weighted_hours_in(department_id)

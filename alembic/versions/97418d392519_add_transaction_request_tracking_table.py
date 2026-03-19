@@ -17,7 +17,6 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import Sequence, CreateSequence, DropSequence
-import residue
 
 
 try:
@@ -56,13 +55,13 @@ sqlite_reflect_kwargs = {
 def upgrade():
     op.execute(CreateSequence(Sequence('txn_request_tracking_incr_id_seq')))
     op.create_table('txn_request_tracking',
-    sa.Column('id', residue.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('incr_id', sa.Integer(), server_default=sa.text("nextval('txn_request_tracking_incr_id_seq')"), nullable=False, unique=True),
     sa.Column('workstation_num', sa.Integer(), server_default='0', nullable=False),
     sa.Column('terminal_id', sa.Unicode(), server_default='', nullable=False),
     sa.Column('who', sa.Unicode(), server_default='', nullable=False),
-    sa.Column('requested', residue.UTCDateTime(), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
-    sa.Column('resolved', residue.UTCDateTime(), nullable=True),
+    sa.Column('requested', sa.DateTime(timezone=True), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
+    sa.Column('resolved', sa.DateTime(timezone=True), nullable=True),
     sa.Column('success', sa.Boolean(), server_default='False', nullable=False),
     sa.Column('response', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
     sa.Column('internal_error', sa.Unicode(), server_default='', nullable=False),

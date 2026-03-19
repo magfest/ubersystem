@@ -1,8 +1,8 @@
 import pytz
+import logging
 
 from datetime import datetime, timedelta
 from celery.schedules import crontab
-from pockets.autolog import log
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
@@ -12,6 +12,7 @@ from uber.tasks import celery
 from uber.tasks.email import send_email
 from uber.utils import SignNowRequest, localized_now
 
+log = logging.getLogger(__name__)
 
 __all__ = ['check_document_signed', 'convert_declined_groups']
 

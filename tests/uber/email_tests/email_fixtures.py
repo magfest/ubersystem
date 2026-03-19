@@ -8,9 +8,8 @@ from collections import OrderedDict
 from unittest.mock import Mock
 
 import pytest
-from pockets import listify
 
-from uber import decorators, utils
+from uber import utils
 from uber.amazon_ses import AmazonSES
 from uber.automated_emails import AutomatedEmailFixture
 from uber.config import c
@@ -69,15 +68,6 @@ def clear_automated_email_fixtures(monkeypatch):
 def fixed_localized_now(monkeypatch):
     monkeypatch.setattr(utils, 'localized_now', Mock(return_value=NOW))
     return NOW
-
-
-@pytest.fixture
-def render_empty_attendee_template(monkeypatch):
-    def _render_empty(template_name_list):
-        if listify(template_name_list)[0].endswith('.txt'):
-            return '{{ attendee.full_name }}\n{{ c.EVENT_NAME }}\n{{ extra_data }}'
-        return '<html><body>{{ attendee.full_name }}<br>{{ c.EVENT_NAME }}<br>{{ extra_data }}</body></html>'
-    monkeypatch.setattr(decorators, 'render_empty', _render_empty)
 
 
 @pytest.fixture
