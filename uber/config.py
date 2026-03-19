@@ -1034,7 +1034,7 @@ class Config(_Overridable):
             with Session() as session:
                 attrs = Attendee.to_dict_default_attrs + ['admin_account', 'assigned_depts', 'logged_in_name']
                 admin_attendee = session.query(Attendee).join(Attendee.admin_account) \
-                    .filter(AdminAccount.id == cherrypy.session.get('account_id')) \
+                    .filter(AdminAccount.id == cherrypy.session.get('account_id', cherrypy.request.admin_account)) \
                     .options(
                         joinedload(Attendee.admin_account),
                         selectinload(Attendee.assigned_depts)).one()
