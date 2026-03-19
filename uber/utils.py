@@ -749,6 +749,14 @@ def validate_model(forms, model, create_preview_model=True, is_admin=False):
 
     all_errors = defaultdict(list)
     rollback_session = None
+    extra_validators = {}
+
+    for form in forms.values():
+        extra_validators[form] = defaultdict(list)
+        for key, field in form.field_list:
+            extra_validators[form][key].extend(form.field_validation.get_validations_by_field(key))
+            if field and (model.is_new or getattr(model, key, None) != field.data):
+                extra_validators[form][key].extend(form.new_or_changed.get_validations_by_field(key))
 
     if create_preview_model:
         preview_model = model
@@ -763,13 +771,7 @@ def validate_model(forms, model, create_preview_model=True, is_admin=False):
         form.is_admin = is_admin
         form.model = preview_model
 
-        extra_validators = defaultdict(list)
-
-        for key, field in form.field_list:
-            extra_validators[key].extend(form.field_validation.get_validations_by_field(key))
-            if field and (model.is_new or getattr(model, key, None) != field.data):
-                extra_validators[key].extend(form.new_or_changed.get_validations_by_field(key))
-        valid = form.validate(extra_validators=extra_validators)
+        valid = form.validate(extra_validators=extra_validators[form])
         if not valid:
             for key, val in form.errors.items():
                 all_errors[form._prefix + key].extend(map(str, val))
