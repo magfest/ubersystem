@@ -217,15 +217,7 @@ let renderEvent = function (info) {
       return;
     }
 
-    let extraClasses = '';
-    if ({{ c.PANEL_ROOMS|jsonize }}.includes(eventInfo.id)) {
-        extraClasses += ' panel-room';
-    }
-    if ({{ c.MUSIC_ROOMS|jsonize }}.includes(eventInfo.id)) {
-        extraClasses += ' music-room';
-    }
-
-    html = `<h2 class="offset-scroll h6 mb-0 p-1${extraClasses}" id="event-${eventInfo.id}">${eventInfo.title}</h2>`;
+    html = `<h2 class="offset-scroll h6 mb-0 p-1" id="event-${eventInfo.id}">${eventInfo.title}</h2>`;
     return {
       html: html,
     }

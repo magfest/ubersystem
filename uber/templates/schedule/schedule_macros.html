@@ -1,9 +1,3 @@
-{% macro room_class(room) -%}
-{%- set is_panels = room in c.PANEL_ROOMS -%}
-{%- set is_music = room in c.MUSIC_ROOMS
-%} room_{{ room }} {% if is_panels %}panels{% elif is_music %}music{% else %}other{% endif
-%} {% endmacro %}
-
 {% macro format_time(time) -%}
   {% if not time.minute %}
     {{ time|datetime("%-I%p")|lower }}
