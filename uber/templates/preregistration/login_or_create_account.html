@@ -1,5 +1,6 @@
 {% import "forms/account.html" as account_fields with context %}
 {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
+{% if not c.OIDC_ENABLED or c.SSO_EMAIL_DOMAINS %}
 <div class="row justify-content-center">
   <div class="col-10 col-sm-9 col-md-6">
     <form id="account-form">
@@ -162,4 +163,9 @@
       return false;
     });
   </script>
+{% elif c.OIDC_ENABLED and not c.SSO_EMAIL_DOMAINS %}
+<div class="text-center">
+  <a class="btn btn-primary btn-lg" href="../accounts/login{% if original_location %}?original_location={{ original_location }}{% endif %}">Log in with {{ c.OIDC_ACCOUNT_NAME }}</a>
+</div>
+{% endif %}
 {% endif %}

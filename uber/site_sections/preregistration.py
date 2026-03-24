@@ -8,6 +8,7 @@ from uber.models.admin import PasswordReset
 
 import bcrypt
 import cherrypy
+import secrets
 from collections import defaultdict
 from sqlalchemy import func, or_
 from sqlalchemy.orm import selectinload, joinedload
@@ -116,7 +117,7 @@ def check_account(session, email, password, confirm_password, skip_if_logged_in=
 
 def set_up_new_account(session, attendee, email=None):
     email = email or attendee.email
-    token = genpasswd(short=True)
+    token = secrets.token_urlsafe(64)
     account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email_legacy(email)).first()
     if account:
         if account.password_reset:
@@ -127,7 +128,7 @@ def set_up_new_account(session, attendee, email=None):
         session.add_attendee_to_account(attendee, account)
 
     if not account.is_sso_account:
-        session.add(PasswordReset(attendee_account=account, hashed=create_new_hash(token)))
+        session.add(PasswordReset(attendee_account=account, hashed=token))
 
         body = render('emails/accounts/new_account.html', {
                 'attendee': attendee, 'account_email': email, 'token': token}, encoding=None)
@@ -2079,6 +2080,8 @@ class Root:
             local, domain = normalize_email(account_email, split_address=True)
             if domain in c.SSO_EMAIL_DOMAINS:
                 return {'success': False, 'sso_email': True}
+        elif c.OIDC_ENABLED:
+            return {'success': False, 'sso_email': True}
         return {'success': True}
 
     @ajax
@@ -2131,7 +2134,7 @@ class Root:
             else:
                 raise HTTPRedirect('homepage?message={}', "Only full registration admins can see attendee homepages.")
         else:
-            account = session.query(AttendeeAccount).get(cherrypy.session.get('attendee_account_id', cherrypy.request.attendee_account))
+            account = session.query(AttendeeAccount).get(cherrypy.session.get('attendee_account_id', getattr(cherrypy.request, 'attendee_account', None)))
 
         attendees_who_owe_money = {}
         if c.ONLINE_PAYMENT_AVAILABLE:
@@ -2604,11 +2607,13 @@ class Root:
                 success_url = "../landing/index?message=Check your email for a password reset link."
                 sso_url = "../landing/index?message=Please log in via the staff login link!"
             if not account:
-                # Avoid letting attendees de facto search for other attendees by email
                 if c.SSO_EMAIL_DOMAINS:
                     local, domain = normalize_email(account_email, split_address=True)
                     if domain in c.SSO_EMAIL_DOMAINS:
                         raise HTTPRedirect(sso_url)
+                elif c.OIDC_ENABLED:
+                    raise HTTPRedirect(f"../landing/index?message=Please log in with your {c.OIDC_ACCOUNT_NAME} account")
+                # Avoid letting attendees de facto search for other attendees by email
                 raise HTTPRedirect(success_url)
 
             if account.password_reset:
@@ -2618,8 +2623,8 @@ class Root:
             if account.is_sso_account:
                 raise HTTPRedirect(sso_url)
 
-            token = genpasswd(short=True)
-            session.add(PasswordReset(attendee_account=account, hashed=create_new_hash(token)))
+            token = secrets.token_urlsafe(64)
+            session.add(PasswordReset(attendee_account=account, hashed=token))
 
             body = render('emails/accounts/password_reset.html', {
                     'account': account, 'token': token}, encoding=None)
@@ -2644,8 +2649,7 @@ class Root:
             message = 'Invalid link. This link may have already been used or replaced.'
         elif account.password_reset.is_expired:
             message = 'This link has expired. Please use the "forgot password" option to get a new link.'
-        elif bcrypt.hashpw(token.encode('utf-8'),
-                           account.password_reset.hashed.encode('utf-8')) != account.password_reset.hashed.encode('utf-8'):
+        elif token != account.password_reset.hashed:
             message = 'Invalid token. Did you copy the URL correctly?'
 
         if message:

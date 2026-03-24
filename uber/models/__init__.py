@@ -874,7 +874,7 @@ class UberSession(sqlalchemy.orm.Session):
 
     class SessionMixin:
         def current_admin_account(self):
-            if getattr(cherrypy, 'session', {}).get('account_id', cherrypy.request.admin_account):
+            if getattr(cherrypy, 'session', {}).get('account_id', getattr(cherrypy.request, 'admin_account', None)):
                 return self.admin_account(cherrypy.session.get('account_id', cherrypy.request.admin_account))
             
         def current_supervisor_admin(self):
@@ -882,7 +882,7 @@ class UberSession(sqlalchemy.orm.Session):
                 return self.admin_account(cherrypy.session.get('kiosk_supervisor_id'))
 
         def admin_attendee(self):
-            if getattr(cherrypy, 'session', {}).get('account_id', cherrypy.request.admin_account):
+            if getattr(cherrypy, 'session', {}).get('account_id', getattr(cherrypy.request, 'admin_account', None)):
                 try:
                     return self.query(Attendee).join(Attendee.admin_account).filter(
                         AdminAccount.id == cherrypy.session.get('account_id', cherrypy.request.admin_account)).options(
@@ -899,7 +899,7 @@ class UberSession(sqlalchemy.orm.Session):
                     return
 
         def current_attendee_account(self):
-            if c.ATTENDEE_ACCOUNTS_ENABLED and getattr(cherrypy, 'session', {}).get('attendee_account_id', cherrypy.request.attendee_account):
+            if c.ATTENDEE_ACCOUNTS_ENABLED and getattr(cherrypy, 'session', {}).get('attendee_account_id', getattr(cherrypy.request, 'attendee_account', None)):
                 try:
                     return self.attendee_account(cherrypy.session.get('attendee_account_id', cherrypy.request.attendee_account))
                 except sqlalchemy.orm.exc.NoResultFound:
@@ -1916,10 +1916,6 @@ class UberSession(sqlalchemy.orm.Session):
                     Attendee.group_name.ilike('%' + search_text + '%'),
                     Attendee.promo_code_group_name.ilike('%' + search_text + '%'),
                 ]
-
-                # We no longer join AttendeeAccount and I do not want to deal with that right now
-                #if c.ATTENDEE_ACCOUNTS_ENABLED:
-                #    check_list.append(Attendee.primary_account_email.ilike('%' + search_text + '%'))
 
                 for attr in Attendee.searchable_fields:
                     check_list.append(getattr(Attendee, attr).ilike('%' + search_text + '%'))

@@ -37,6 +37,7 @@ class AdminAccount(MagModel, table=True):
     attendee: 'Attendee' = Relationship(back_populates="admin_account", sa_relationship_kwargs={'lazy': 'joined'})
 
     hashed: str = Field(sa_type=String, private=True)
+    sso_id: str = ''
 
     access_groups: list['AccessGroup'] = Relationship(
         back_populates='admin_accounts',
@@ -111,7 +112,7 @@ class AdminAccount(MagModel, table=True):
         try:
             from uber.models import Session
             with Session() as session:
-                id = id or cherrypy.session.get('account_id', cherrypy.request.admin_account)
+                id = id or cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))
                 account = session.admin_account(id)
                 if include_read_only:
                     return account.read_or_write_access_set
@@ -185,7 +186,7 @@ class AdminAccount(MagModel, table=True):
         try:
             from uber.models import Session
             with Session() as session:
-                id = id or cherrypy.session.get('account_id', cherrypy.request.admin_account)
+                id = id or cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))
                 admin_account = session.admin_account(id)
                 return admin_account.judge or 'showcase_judging' in admin_account.read_or_write_access_set
         except Exception:
@@ -275,6 +276,7 @@ class PasswordReset(MagModel, table=True):
 
     generated: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
     hashed: str = Column(String, private=True)
+    token: str = Column(String, private=True)
 
     @property
     def is_expired(self):

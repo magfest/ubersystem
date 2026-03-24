@@ -667,9 +667,9 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
                 self.staffing = True
 
         if not self.is_new:
-            old_ribbon = self.orig_value_of('ribbon')
-            if old_ribbon and isinstance(old_ribbon, six.string_types):
-                old_ribbon = map(int, self.orig_value_of('ribbon').split(','))
+            old_ribbon = self.orig_value_of('ribbon') or []
+            if old_ribbon:
+                old_ribbon = [int(i) for i in str(self.orig_value_of('ribbon')).split(',')]
             old_staffing = self.orig_value_of('staffing')
 
             if old_staffing and not self.staffing or c.VOLUNTEER_RIBBON not in self.ribbon_ints \
@@ -2576,6 +2576,7 @@ attendee_attendee_account = Table(
 class AttendeeAccount(MagModel, table=True):
     public_id: str | None = Field(sa_type=Uuid(as_uuid=False), default_factory=lambda: str(uuid4()), nullable=True)
     email: str = ''
+    sso_id: str = ''
     hashed: str = Field(default='', private=True)
     password_reset: 'PasswordReset' = Relationship(
         back_populates="attendee_account",
@@ -2611,6 +2612,8 @@ class AttendeeAccount(MagModel, table=True):
         if c.SSO_EMAIL_DOMAINS:
             local, domain = normalize_email(self.email, split_address=True)
             return domain in c.SSO_EMAIL_DOMAINS
+        elif c.OIDC_ENABLED:
+            return True
 
     @property
     def has_dealer(self):

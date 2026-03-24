@@ -180,17 +180,15 @@ class Root:
 
     @public
     def login(self, session, message='', original_location=None, **params):
+        redirect_url = ''
+        if original_location:
+            redirect_url = c.URL_BASE + create_valid_user_supplied_redirect_url(original_location, default_url='/accounts/homepage')
+
         if c.OIDC_ENABLED:
-            redirect_url = c.URL_ROOT + create_valid_user_supplied_redirect_url(original_location, default_url='/accounts/homepage')
             cherrypy.tools.oidc.redirect_to_keycloak(target_url=redirect_url)
         if c.SAML_SETTINGS:
             from uber.utils import prepare_saml_request
             from onelogin.saml2.auth import OneLogin_Saml2_Auth
-
-            if original_location:
-                redirect_url = c.URL_ROOT + create_valid_user_supplied_redirect_url(original_location, default_url='')
-            else:
-                redirect_url = ''
 
             req = prepare_saml_request(cherrypy.request)
             auth = OneLogin_Saml2_Auth(req, c.SAML_SETTINGS)
@@ -223,8 +221,12 @@ class Root:
 
     @public
     def homepage(self, session, message=''):
-        if not cherrypy.session.get('account_id', cherrypy.request.admin_account):
-            raise HTTPRedirect('login?message={}', 'You are not logged in', save_location=True)
+        if not cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None)):
+            message = "You are not logged in."
+            if c.OIDC_ENABLED or c.SAML_SETTINGS:
+                if cherrypy.session.get('attendee_account_id', getattr(cherrypy.request, 'attendee_account', None)):
+                    raise HTTPRedirect('../landing/index?message={}', "You do have admin access.", save_location=True)
+            raise HTTPRedirect('login?message={}', message, save_location=True)
 
         reg_station_id = cherrypy.session.get('reg_station', '')
         workstation_assignment = session.query(WorkstationAssignment).filter_by(
@@ -241,7 +243,7 @@ class Root:
     @public
     @not_site_mappable
     def attendees(self, session, query=''):
-        if not cherrypy.session.get('account_id', cherrypy.request.admin_account):
+        if not cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None)):
             raise HTTPRedirect('login?message={}', 'You are not logged in', save_location=True)
 
         attendees = session.access_query_matrix()[query].limit(c.ROW_LOAD_LIMIT).all() if query else None
@@ -252,6 +254,7 @@ class Root:
 
     @public
     def logout(self):
+        # TODO: Make this handle ALL logouts
         id_token = ""
         if "session_token" in cherrypy.request.cookie:
             id_token = cherrypy.request.cookie['session_token'].value
@@ -270,7 +273,7 @@ class Root:
             token_hint = ""
             if id_token:
                 token_hint = f"id_token_hint={id_token}&"
-            redirect_to = f"{c.URL_ROOT}/landing/index"
+            redirect_to = f"{c.URL_BASE}/landing/index"
             raise HTTPRedirect(f"{c.OIDC_LOGOUT_URL}?{token_hint}post_logout_redirect_uri={redirect_to}")
         else:
             raise HTTPRedirect('login?message={}', 'You have been logged out.')

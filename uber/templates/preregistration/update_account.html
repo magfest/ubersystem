@@ -16,7 +16,11 @@
     </div>
     <div class="col-4">
         <br/>
+        {% if homepage_account.is_sso_account or c.OIDC_ENABLED and not c.SSO_EMAIL_DOMAINS %}
+        <a href="../accounts/logout" class="btn btn-danger pull-right">
+        {% else %}
         <a href="../preregistration/logout" class="btn btn-danger pull-right">
+        {% endif %}
             <i class="fa fa-log-out"></i> Log Out
         </a>
     </div>

@@ -4,7 +4,6 @@ from datetime import datetime
 import cherrypy
 import pytz
 import inspect
-import stripe
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
@@ -12,7 +11,6 @@ from uber.decorators import ajax, all_renderable, not_site_mappable, public, sit
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, ApiJob, ApiToken
 from uber.utils import check
-from uber.payments import ReceiptManager
 
 
 @all_renderable()
@@ -143,37 +141,3 @@ class Root:
         session.commit()
 
         raise HTTPRedirect('api_jobs?message={}', message or 'Incomplete API jobs requeued.')
-
-    @public
-    @not_site_mappable
-    def stripe_webhook_handler(self):
-        if not cherrypy.request or not cherrypy.request.body:
-            cherrypy.response.status = 400
-            return "Request required"
-        sig_header = cherrypy.request.headers.get('Stripe-Signature', '')
-        payload = cherrypy.request.body.read()
-        event = None
-
-        try:
-            event = stripe.Webhook.construct_event(
-                payload, sig_header, c.STRIPE_ENDPOINT_SECRET
-            )
-        except ValueError:
-            cherrypy.response.status = 400
-            return "Invalid payload: " + payload
-        except stripe.error.SignatureVerificationError:
-            cherrypy.response.status = 400
-            return "Invalid signature: " + sig_header
-
-        if not event:
-            cherrypy.response.status = 400
-            return "No event"
-
-        if event and event['type'] == 'payment_intent.succeeded':
-            payment_intent = event['data']['object']
-            matching_txns = ReceiptManager.mark_paid_from_stripe_intent(payment_intent)
-            if not matching_txns:
-                cherrypy.response.status = 400
-                return "No matching Stripe transactions"
-            cherrypy.response.status = 200
-            return "Payments marked complete for payment intent ID " + payment_intent['id']

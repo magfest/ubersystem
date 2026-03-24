@@ -1,15 +1,19 @@
 import time
+import bcrypt
 import cherrypy
 import threading
 import requests
 import traceback
 import logging
+import secrets
 from jose import jwt, jwk
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
 from uber.errors import HTTPRedirect
-from uber.models import Attendee, AccessGroup, Session
+from uber.decorators import render
+from uber.models import Attendee, AdminAccount, AttendeeAccount, AccessGroup, Session, PasswordReset
+from uber.tasks.email import send_email
 from uber.utils import normalize_email_legacy
 
 log = logging.getLogger(__name__)
@@ -20,6 +24,30 @@ class OIDC(cherrypy.Tool):
         self.key_fetch_time = 0
         self.jwks_keys = {}
         self.key_lock = threading.Lock()
+        self.error = ''
+
+    def send_claim_token(self, session, attendee_account=None, admin_account=None):
+        if not attendee_account and not admin_account:
+            return
+
+        if attendee_account and attendee_account.password_reset:
+            session.delete(attendee_account.password_reset)
+        elif admin_account and admin_account.password_reset:
+            session.delete(admin_account.password_reset)
+
+        email = attendee_account.email if attendee_account else admin_account.attendee.email
+
+        token = secrets.token_urlsafe(64)
+        session.add(PasswordReset(attendee_account=attendee_account, admin_account=admin_account, token=token))
+        body = render('emails/accounts/new_sso_account.html', {
+            'attendee_account': attendee_account, 'admin_account': admin_account, 'token': token}, encoding=None)
+        send_email.delay(
+            c.ADMIN_EMAIL,
+            email,
+            c.EVENT_NAME + ' Account Setup',
+            body,
+            format='html',
+            model=(attendee_account or admin_account).to_dict('id'))
         
     def _fetch_key(self, kid):
         """
@@ -34,6 +62,7 @@ class OIDC(cherrypy.Tool):
                     return None
                 self.key_fetch_time = time.time()
                 oidc_config = requests.get(c.OIDC_METADATA_URL).json()
+                log.error(oidc_config)
                 jwks_uri = oidc_config['jwks_uri']
                 
                 keys = requests.get(jwks_uri).json()['keys']
@@ -78,55 +107,142 @@ class OIDC(cherrypy.Tool):
         
     def _get_admin_account_for_claims(self, claims):
         if not claims:
-            return None
-        email = claims.get('email', None)
-        if not email:
-            return None
+            return
+        
+        sso_id = claims.get('sub', None)
+        if not sso_id:
+            self.error = "No account ID provided. Please contact your developer."
+            return
+
+        email_verified = claims.get('email_verified', None)
+        claim_token = claims.get('claim_token', None)
 
         with Session() as session:
-            matching_attendee = session.query(Attendee).filter_by(
-                is_valid=True, normalized_email=normalize_email_legacy(email)).first()
+            claimed_account = session.query(AdminAccount).filter(AdminAccount.sso_id == sso_id).first()
+            if claimed_account:
+                return claimed_account.id
 
-            try:
-                admin_account = session.get_admin_account_by_email(email)
-            except:
-                if c.DEV_BOX:
-                    if not matching_attendee:
-                        matching_attendee = Attendee(placeholder=True, email=email)
-                        session.add(matching_attendee)
-                        session.commit()
+            if not claim_token:
+                return
 
-                    admin_account, pwd = session.create_admin_account(matching_attendee, generate_pwd=False)
-                    all_access_group = session.query(AccessGroup).filter_by(name="All Access").first()
-                    if not all_access_group:
-                        all_access_group = AccessGroup(
-                            name='All Access',
-                            access={section: '5' for section in c.ADMIN_PAGES}
-                        )
-                        session.add(all_access_group)
+            claim_token_account = session.query(AdminAccount).join(AdminAccount.password_reset).filter(
+                PasswordReset.hashed == claim_token).first()
+            
+            if not claim_token_account:
+                return
+            
+            if claim_token_account.sso_id:
+                self.error = "This admin account has already been claimed."
+                return
+            
+            if email_verified is False:
+                self.error = f"Please verify the email on your {c.OIDC_ACCOUNT_NAME} account to claim your admin account."
+                return
+            
+            if not claim_token_account.password_reset or claim_token_account.password_reset.is_expired:
+                attendee_account = claim_token_account.password_reset.attendee_account if claim_token_account.password_reset else None
+                self.send_claim_token(session, attendee_account, claim_token_account)
+                self.error = "This claim link has expired. Please check your email inbox for a new claim link."
+                return
+            
+            claim_token_account.sso_id = sso_id
+            return claim_token_account.id
 
-                    admin_account.access_groups.append(all_access_group)
-                    session.commit()
-            return admin_account.id
-    
     def _get_attendee_account_for_claims(self, claims):
         if not claims:
             return None
-        email = claims.get('email', None)
-        if not email:
-            return None
-        
+
+        sso_id = claims.get('sub', None)
+        if not sso_id:
+            self.error = "No account ID provided. Please contact your developer."
+            return
+
+        claim_token = claims.get('claim_token', None)
+        email_verified = claims.get('email_verified', None)
+        claim_token_account = None
+
         with Session() as session:
-            try:
-                account = session.get_attendee_account_by_email(email)
-            except NoResultFound:
-                all_matching_attendees = session.query(Attendee).filter_by(
-                    normalized_email=normalize_email_legacy(email)).all()
-                if all_matching_attendees:
-                    account = session.create_attendee_account(email)
-                    for attendee in all_matching_attendees:
-                        session.add_attendee_to_account(attendee, account)
-            return account.id
+            claimed_account = session.query(AttendeeAccount).filter(AttendeeAccount.sso_id == sso_id).first()
+            if claim_token:
+                claim_token_account = session.query(AttendeeAccount).join(AttendeeAccount.password_reset).filter(
+                    PasswordReset.hashed == claim_token).first()
+                
+                if not claim_token_account:
+                    admin_claim_account = session.query(AdminAccount).join(AdminAccount.password_reset).filter(
+                        PasswordReset.hashed == claim_token).first()
+                    if not admin_claim_account:
+                        self.error = "Invalid claim link. This link may have already been used or replaced."
+                        return
+                    elif claimed_account:
+                        return claimed_account.id
+                    else:
+                        new_account = self._init_accounts_from_claims(session, claims)
+                        return getattr(new_account, 'id')
+                
+                if claim_token_account.sso_id:
+                    if claim_token_account.sso_id == sso_id:
+                        return claim_token_account.id
+                    self.error = "This account has already been claimed."
+                    return
+                
+                if email_verified is False:
+                    self.error = f"Please verify the email on your {c.OIDC_ACCOUNT_NAME} account to claim your account."
+                    return
+
+                if not claim_token_account.password_reset or claim_token_account.password_reset.is_expired:
+                    admin_account = claim_token_account.password_reset.admin_account if claim_token_account.password_reset else None
+                    self.send_claim_token(session, claim_token_account, admin_account)
+                    self.error = "This claim link has expired. Please check your email inbox for a new claim link."
+                    return
+                
+                claim_token_account.sso_id = sso_id
+
+            if claimed_account:
+                if claim_token_account:
+                    for attendee in claim_token_account:
+                        session.add_attendee_to_account(attendee, claimed_account)
+                    session.delete(claim_token_account)
+                return claimed_account.id
+            elif not claim_token_account:
+                new_account = self._init_accounts_from_claims(session, claims)
+                return getattr(new_account, 'id')
+            return claim_token_account
+
+    def _init_accounts_from_claims(self, session, claims):
+        roles = claims.get('realm_access', {}).get('roles', [])
+        email = claims.get('workspace_email', claims.get('email', ''))
+        sso_id = claims.get('sub', None)
+
+        attendee_account = AttendeeAccount(email=email, sso_id=sso_id)
+        session.add(attendee_account)
+        if email and c.DEV_BOX and ('staff' in roles or 'all-access' in roles):
+            # If it's the first login from this account on a test server, and we're staff,
+            # auto-provision an attendee and admin account
+            matching_attendee = session.query(Attendee).filter_by(
+                is_valid=True, normalized_email=normalize_email_legacy(email)).first()
+            if not matching_attendee:
+                matching_attendee = Attendee(placeholder=True, email=email,
+                                             first_name=claims.get('given_name', 'Test'),
+                                             last_name=claims.get('family_name', 'Staff'))
+                session.add(matching_attendee)
+            session.add_attendee_to_account(matching_attendee, attendee_account)
+            session.commit()
+
+            admin_account = matching_attendee.admin_account
+            if not admin_account:
+                admin_account, pwd = session.create_admin_account(matching_attendee, generate_pwd=False)
+                all_access_group = session.query(AccessGroup).filter_by(name="All Access").first()
+                if not all_access_group:
+                    all_access_group = AccessGroup(
+                        name='All Access',
+                        access={section: '5' for section in c.ADMIN_PAGES}
+                    )
+                    session.add(all_access_group)
+
+                admin_account.access_groups.append(all_access_group)
+            admin_account.sso_id = sso_id
+            session.commit()
+        return attendee_account
     
     def _exchange_code_for_tokens(self, code):
         """
@@ -176,8 +292,8 @@ class OIDC(cherrypy.Tool):
         if not tokens:
             return None
         claims = self._verify_token(tokens.get('id_token', None))
-        cherrypy.request.admin_account = self._get_admin_account_for_claims(claims)
         cherrypy.request.attendee_account = self._get_attendee_account_for_claims(claims)
+        cherrypy.request.admin_account = self._get_admin_account_for_claims(claims) if not self.error else None
         
         if cherrypy.request.admin_account or cherrypy.request.attendee_account:
             cherrypy.response.cookie['session_token'] = tokens['id_token']
@@ -213,11 +329,13 @@ class OIDC(cherrypy.Tool):
     def do_before_request(self):
         token = cherrypy.request.cookie['session_token'].value if 'session_token' in cherrypy.request.cookie else None
         refresh_token = cherrypy.request.cookie['refresh_token'].value if 'refresh_token' in cherrypy.request.cookie else None
+        if not token and not refresh_token:
+            return
         claims = self._verify_token(token)
         if refresh_token and not claims:
-            claims = self.handle_login(refresh_token=refresh_token)
-            
-        cherrypy.request.admin_account = self._get_admin_account_for_claims(claims)
-        cherrypy.request.attendee_account = self._get_attendee_account_for_claims(claims)
+            self.handle_login(refresh_token=refresh_token)
+        else:
+            cherrypy.request.attendee_account = self._get_attendee_account_for_claims(claims)
+            cherrypy.request.admin_account = self._get_admin_account_for_claims(claims) if not self.error else None
             
 cherrypy.tools.oidc = OIDC()
