@@ -170,17 +170,18 @@ def requires_account(models=None):
                 admin_account_id = cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))
                 attendee_account_id = cherrypy.session.get('attendee_account_id', getattr(cherrypy.request, 'attendee_account', None))
                 message = ''
-                if not models and not attendee_account_id and c.PAGE_PATH != '/preregistration/homepage':
-                    # These should all be pages like the prereg form
+                if c.LOCAL_ACCOUNTS_DISABLED and admin_account_id is None and attendee_account_id is None:
+                    ajax_or_redirect(func, '../accounts/login?message=', message, True)
+                elif attendee_account_id is None and admin_account_id is None:
+                    message = 'You must log in to view this page.'
+                    message_add = ''
                     if c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form']:
                         message_add = 'register'
-                    else:
+                    elif c.PAGE_PATH != '/preregistration/homepage' and not models and 'staffing' not in c.PAGE_PATH:
                         message_add = 'fill out this application'
-                    message = 'Please log in or create an account to {}!'.format(message_add)
+                    if message_add:
+                        message = f'Please log in or create an account to {message_add}!'
                     ajax_or_redirect(func, '../landing/index?message=', message, True)
-                elif attendee_account_id is None and admin_account_id is None or \
-                        attendee_account_id is None and c.PAGE_PATH == '/preregistration/homepage':
-                    message = 'You must log in to view this page.'
                 elif kwargs.get('id') and models:
                     model_list = [models] if not isinstance(models, list) else models
                     attendee, error, model_id = None, None, None
@@ -759,11 +760,7 @@ def restricted(func):
         if not getattr(cherrypy.request, 'admin_account', getattr(cherrypy.request, 'attendee_account', None)):
             cherrypy.tools.oidc.redirect_to_keycloak()
 
-        if '/staffing/' in c.PAGE_PATH:
-            if not cherrypy.session.get('staffer_id'):
-                ajax_or_redirect(func, '../staffing/login?message=', "You are not logged in.", True)
-
-        elif cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None)) is None:
+        if cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None)) is None:
             if getattr(func, 'kiosk_login', None):
                 if not cherrypy.session.get('kiosk_supervisor_id'):
                     cherrypy.session.pop('kiosk_operator_id', None)

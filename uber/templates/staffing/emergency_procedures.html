@@ -12,6 +12,7 @@
 {% if not attendee.reviewed_emergency_procedures %}
     <form method="post" action="emergency_procedures">
         {{ csrf_token() }}
+        <input type="hidden" name="id" value="{{ attendee.id }}" />
         <label for="reviewed_procedures">
           I have reviewed these procedures: <input type="checkbox" id="reviewed_procedures" name="reviewed_procedures" />
         </label>

@@ -1007,8 +1007,6 @@ class Config(_Overridable):
         via the meta tag for everything except these pages.
         """
         index_pages = ['/landing/', '/landing/index', '/pregistration/form', '/accounts/login']
-        if c.SHIFTS_CREATED:
-            index_pages.append('/staffing/login')
         if c.TRANSFERABLE_BADGE_TYPES:
             index_pages.append('/preregistration/start_badge_transfer')
         if not c.ATTENDEE_ACCOUNTS_ENABLED:
@@ -1044,18 +1042,6 @@ class Config(_Overridable):
 
     @request_cached_property
     @dynamic
-    def CURRENT_VOLUNTEER(self):
-        try:
-            from uber.models import Session, Attendee
-            with Session() as session:
-                attrs = Attendee.to_dict_default_attrs + ['logged_in_name']
-                attendee = session.logged_in_volunteer()
-                return attendee.to_dict(attrs)
-        except Exception:
-            return {}
-        
-    @request_cached_property
-    @dynamic
     def CURRENT_KIOSK_SUPERVISOR(self):
         try:
             from uber.models import Session
@@ -1075,6 +1061,10 @@ class Config(_Overridable):
                 return attendee.to_dict()
         except Exception:
             return {}
+        
+    @property
+    def LOCAL_ACCOUNTS_DISABLED(self):
+        return c.OIDC_ENABLED and not c.SSO_EMAIL_DOMAINS
 
     @request_cached_property
     @dynamic

@@ -2222,7 +2222,10 @@ class Root:
             else:
                 message = 'Your information has been updated'
 
-            page = ('badge_updated?id=' + attendee.id + '&') if return_to == 'confirm' else (return_to + '?')
+            if return_to == 'confirm':
+                page = ('badge_updated?id=' + attendee.id + '&')
+            else:
+                page = (return_to + '?') if '?' not in return_to else (return_to + '&')
             if attendee.is_valid:
                 if not receipt:
                     receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
@@ -2237,7 +2240,7 @@ class Root:
 
         attendee.placeholder = placeholder
         if not message and attendee.placeholder:
-            message = 'You are not yet registered!  You must fill out this form to complete your registration.'
+            message = 'You are not yet registered! Please fill out this form to complete your registration.'
         elif not message and not c.ATTENDEE_ACCOUNTS_ENABLED and attendee.badge_status == c.COMPLETED_STATUS:
             message = 'You are already registered but you may update your information with this form.'
 
@@ -2500,6 +2503,9 @@ class Root:
         if not c.ONLINE_PAYMENT_AVAILABLE:
             raise HTTPRedirect('confirm?id={}&message={}', id, "Please go to Registration to pay for this badge.")
         attendee = session.attendee(id)
+        receipt = session.get_receipt_by_model(attendee, who='non-admin', create_if_none="DEFAULT")
+        if not receipt.current_amount_owed:
+            raise HTTPRedirect('confirm?id={}', attendee.id)
         return {
             'attendee': attendee,
             'receipt': session.get_receipt_by_model(attendee, who='non-admin', create_if_none="DEFAULT"),
@@ -2684,8 +2690,7 @@ class Root:
     def guest_food(self, session, id):
         attendee = session.attendee(id)
         assert attendee.badge_type == c.GUEST_BADGE, 'This form is for guests only'
-        cherrypy.session['staffer_id'] = attendee.id
-        raise HTTPRedirect('../staffing/food_restrictions')
+        raise HTTPRedirect('../staffing/food_restrictions?id={}', id)
 
     def credit_card_retry(self):
         return {}

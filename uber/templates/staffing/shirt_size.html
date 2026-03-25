@@ -48,8 +48,9 @@
 {% endif %}
 <div class="col-12 col-sm-6">
 <form method="post" action="shirt_size" id="shirt_size" class="form-inline">
-    <div class="row g-3 row-cols-auto">
     {{ csrf_token() }}
+    <input type="hidden" name="id" value="{{ attendee.id }}" />
+    <div class="row g-3 row-cols-auto">
     <div class="col mb-3">
         <label class="form-text">
             Shirt Opt In/Out

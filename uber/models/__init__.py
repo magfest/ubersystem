@@ -915,12 +915,12 @@ class UberSession(sqlalchemy.orm.Session):
                 return logged_in_account
             elif len(attendee.managers) == 1:
                 return attendee.managers[0]
-
-        def logged_in_volunteer(self):
-            return self.query(Attendee).filter(Attendee.id == cherrypy.session.get('staffer_id')).options(
+            
+        def volunteer_from_id(self, id):
+            return self.query(Attendee).filter(Attendee.id == id).options(
                 selectinload(Attendee.hotel_requests), selectinload(Attendee.food_restrictions),
                 selectinload(Attendee.shifts)
-            ).one()
+            ).first()
 
         def admin_has_staffer_access(self, staffer, access="view"):
             admin = self.current_admin_account()
@@ -1118,8 +1118,8 @@ class UberSession(sqlalchemy.orm.Session):
                     'completed': attendee.checklist_item_for_slug(conf.slug)
                 }
 
-        def jobs_for_signups(self, all=False):
-            jobs = self.logged_in_volunteer().possible
+        def jobs_for_signups(self, id, all=False):
+            jobs = self.volunteer_from_id(id).possible
             restricted_minutes = set()
             for job in jobs:
                 if job.required_roles:
@@ -1319,6 +1319,8 @@ class UberSession(sqlalchemy.orm.Session):
             return "", c.TERMINAL_ID_TABLE[lookup_key]
 
         def get_receipt_by_model(self, model, include_closed=False, who='', create_if_none="", options=[]):
+            if not model:
+                return
             receipt_select = self.query(ModelReceipt).filter_by(owner_id=model.id, owner_model=model.__class__.__name__)
             if not include_closed:
                 receipt_select = receipt_select.filter(ModelReceipt.closed == None)  # noqa: E711

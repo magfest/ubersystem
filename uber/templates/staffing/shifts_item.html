@@ -4,7 +4,7 @@
     <li>
         {{ macros.checklist_image(attendee.shifts) }}
         {% if attendee.shift_prereqs_complete %}
-            <a href="shifts">Sign up</a>
+            <a href="shifts?id={{ attendee.id }}">Sign up</a>
         {% else %}
             Sign up
         {% endif %}

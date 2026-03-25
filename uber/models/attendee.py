@@ -608,7 +608,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         if self.promo_code and self.promo_code_groups:
             self.promo_code = None
         
-        if self.group and not self.is_group_save:
+        if self.group and not getattr(self, 'is_group_save', False):
             self.group.presave_adjustments()
 
     @presave_adjustment
@@ -2692,6 +2692,11 @@ class AttendeeAccount(MagModel, table=True):
         return sorted([attendee for attendee in self.attendees if
                        attendee.badge_status == c.NEW_STATUS and attendee.paid == c.PENDING],
                        key=lambda a: a.first_name)
+
+    @property
+    def volunteering_attendees(self):
+        return [attendee for attendee in self.attendees if attendee.has_badge
+                and attendee.staffing and attendee.badge_type != c.CONTRACTOR_BADGE]
 
     @property
     def invalid_attendees(self):

@@ -12,6 +12,7 @@ We wish to run a credits roll for our amazing volunteers. Enter your name below 
 
 <form method="post" action="credits">
     {{ csrf_token() }}
+    <input type="hidden" name="id" value="{{ attendee.id }}" />
     <input type="text" name="name_in_credits" value="{{ attendee.name_in_credits or '' }}" placeholder="N/A" />
     <span class="help-block">By entering a name I acknowledge that if I give an inappropriate name, my first and last name will be used instead.</span><br/>
     <input class="btn btn-primary" type="submit" value="Save" />
