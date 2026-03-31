@@ -27,6 +27,7 @@ from uuid import uuid4
 from phonenumbers import PhoneNumberFormat
 from pytz import UTC
 from sqlalchemy import func, or_, cast, literal, DateTime
+from sqlalchemy.orm import make_transient
 
 from uber.config import c, _config, signnow_sdk, threadlocal
 from uber.errors import CSRFException, HTTPRedirect
@@ -1194,6 +1195,9 @@ def validate_model(session, forms, model, create_preview_model=True, is_admin=Fa
                 file_handler = FileService.file_handler(session, obj)
                 file_handler.delete()
         session.rollback()
+
+        for obj in new_objs:
+            make_transient(obj)
 
     if all_errors:
         return all_errors
