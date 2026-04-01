@@ -570,8 +570,7 @@ def volunteer_placeholder(a): return a.staffing and a.placeholder and a.register
                                                     a.badge_type not in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]
 
 
-# TODO: Add an email for MIVS judges, an email for non-Guest or Band guest group badges,
-# and an email for group-leader-created badges
+# TODO: Add an email for MIVS judges, an email for non-Guest or Band guest group badges
 def generic_placeholder(a): return a.placeholder and (not deferred_attendee_placeholder(a)
                                                       and not panelist_placeholder(a) and not guest_placeholder(a)
                                                       and not band_placeholder(a) and not dealer_placeholder(a)

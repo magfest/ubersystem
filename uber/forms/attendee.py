@@ -241,11 +241,18 @@ class BadgeFlags(MagForm):
             locked_fields.append('placeholder')
 
         return locked_fields
+    
+    def placeholder_label(self):
+        if c.ATTENDEE_ACCOUNTS_ENABLED:
+            return "This person will fill out their own information."
+        return "Email this person to fill out their details."
 
 
 class AdminBadgeFlags(BadgeFlags):
     dynamic_choices_fields = {'group_membership': lambda: AdminBadgeFlags.get_valid_groups()}
 
+    create_account = BooleanField('Create an account and send this person an email to claim their badge.',
+                                  description="If checked, this takes effect immediately on badge creation.")
     can_transfer = BooleanField('Make this attendee\'s badge always transferable.')
     transfer_code = StringField('Transfer Code')
     badge_status = SelectField('Badge Status', coerce=int, choices=c.BADGE_STATUS_OPTS)

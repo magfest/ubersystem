@@ -41,7 +41,7 @@ class Root:
 
         post_login_url = cherrypy.request.cookie['post_login_url'].value if 'post_login_url' in cherrypy.request.cookie else None
         
-        if cherrypy.request.admin_account and c.AT_THE_CON:
+        if getattr(cherrypy.request, 'admin_account', None) and c.AT_THE_CON:
             raise HTTPRedirect(post_login_url or '../accounts/homepage')
         elif cherrypy.request.attendee_account:
             raise HTTPRedirect(post_login_url or '../preregistration/homepage')

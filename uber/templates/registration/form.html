@@ -7,6 +7,7 @@
 
 {% include "check_in.html" %}
 {% set can_check_in = (c.AT_THE_CON or c.BADGE_PICKUP_ENABLED) and not attendee.checked_in and not attendee.cannot_check_in_reason and (not receipt or not receipt.current_amount_owed) %}
+{% include "registration/no_attendee_account.html" %}
 
 <div class="d-flex justify-content-between">
     <div class="d-flex gap-1">

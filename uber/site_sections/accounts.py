@@ -5,6 +5,7 @@ import cherrypy
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.exc import NoResultFound
 
+from uber.auth import OIDC
 from uber.config import c
 from uber.decorators import (ajax, all_renderable, csrf_protected, csv_file,
                              not_site_mappable, render, site_mappable, public)
@@ -63,12 +64,12 @@ class Root:
 
             account = session.admin_account(params)
 
-            if account.is_new and not c.SAML_SETTINGS:
+            if account.is_new and not c.SAML_SETTINGS and not c.OIDC_ENABLED:
                 if c.AT_OR_POST_CON:
                     if not password:
-                        message = 'You must enter a password'
+                        message = 'You must enter a password.'
                     elif params.get("check-password", "") != password:
-                        message = 'Your password and password confirmation do not match'
+                        message = 'Your password and password confirmation do not match.'
                     password = password
                 else:
                     password = genpasswd()
@@ -78,24 +79,36 @@ class Root:
 
             message = message or check(account)
         if not message:
-            message = 'Account settings uploaded'
+            message = 'Account settings uploaded.'
             attendee = session.attendee(account.attendee_id)  # dumb temporary hack, will fix later with tests
             account.attendee = attendee
             session.add(account)
             if account.is_new and not c.AT_OR_POST_CON:
-                message = 'Account created'
+                message = 'Account created.'
                 session.commit()
-                body = render('emails/accounts/new_account.txt', {
-                    'account': account,
-                    'password': password,
-                    'creator': AdminAccount.admin_name()
-                }, encoding=None)
-                send_email.delay(
-                    c.ADMIN_EMAIL,
-                    attendee.email,
-                    'New ' + c.EVENT_NAME + ' Admin Account',
-                    body,
-                    model=attendee.to_dict('id'))
+                if c.LOCAL_ACCOUNTS_DISABLED and not attendee.managers:
+                    new_account = session.create_attendee_account(attendee.email)
+                    session.add(new_account)
+                    session.add_attendee_to_account(attendee, new_account)
+                    if attendee.group and attendee.id == attendee.group.leader_id:
+                        for group_member in attendee.group:
+                            if not group_member.is_unassigned and group_member != attendee:
+                                session.add_attendee_to_account(group_member, new_account)
+                    session.commit()
+                    OIDC.send_claim_token(session, new_account, account)
+                    return {'success': True, 'message': "Account created and claim email sent."}
+                else:
+                    body = render('emails/accounts/new_account.txt', {
+                        'account': account,
+                        'password': password,
+                        'creator': AdminAccount.admin_name()
+                    }, encoding=None)
+                    send_email.delay(
+                        c.ADMIN_EMAIL,
+                        attendee.email,
+                        'New ' + c.EVENT_NAME + ' Admin Account',
+                        body,
+                        model=attendee.to_dict('id'))
             session.commit()
             return {'success': True, 'message': message}
         else:
@@ -329,7 +342,7 @@ class Root:
 
         if updater_password is not None:
             new_password = new_password.strip()
-            updater_account = session.admin_account(cherrypy.session.get('account_id', cherrypy.request.admin_account))
+            updater_account = session.admin_account(cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None)))
             if not new_password:
                 message = 'New password is required'
             elif not valid_password(updater_password, updater_account):
@@ -357,12 +370,12 @@ class Root:
             csrf_token=None,
             confirm_password=None):
 
-        if not cherrypy.session.get('account_id', cherrypy.request.admin_account):
+        if not cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None)):
             raise HTTPRedirect('login?message={}', 'You are not logged in', save_location=True)
 
         if old_password is not None:
             new_password = new_password.strip()
-            account = session.admin_account(cherrypy.session.get('account_id', cherrypy.request.admin_account))
+            account = session.admin_account(cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None)))
             if not new_password:
                 message = 'New password is required'
             elif not valid_password(old_password, account):

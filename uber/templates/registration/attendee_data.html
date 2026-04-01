@@ -83,6 +83,10 @@ if($.field('return_to')) {
   </div>
 {% endset %}
 
+<div class="mt-3">
+{% include "registration/no_attendee_account.html" %}
+</div>
+
 {% if not attendee.is_new %}
 <div class="row g-3 mt-1 mb-3">
   <div class="col">

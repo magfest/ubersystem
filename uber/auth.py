@@ -10,6 +10,7 @@ from jose import jwt, jwk
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
+from uber.custom_tags import email_only
 from uber.errors import HTTPRedirect
 from uber.decorators import render
 from uber.models import Attendee, AdminAccount, AttendeeAccount, AccessGroup, Session, PasswordReset
@@ -26,7 +27,8 @@ class OIDC(cherrypy.Tool):
         self.key_lock = threading.Lock()
         self.error = ''
 
-    def send_claim_token(self, session, attendee_account=None, admin_account=None):
+    @classmethod
+    def send_claim_token(cls, session, attendee_account=None, admin_account=None):
         if not attendee_account and not admin_account:
             return
 
@@ -141,7 +143,7 @@ class OIDC(cherrypy.Tool):
             
             if not claim_token_account.password_reset or claim_token_account.password_reset.is_expired:
                 attendee_account = claim_token_account.password_reset.attendee_account if claim_token_account.password_reset else None
-                self.send_claim_token(session, attendee_account, claim_token_account)
+                OIDC.send_claim_token(session, attendee_account, claim_token_account)
                 self.error = "This claim link has expired. Please check your email inbox for a new claim link."
                 return
             
@@ -191,11 +193,17 @@ class OIDC(cherrypy.Tool):
 
                 if not claim_token_account.password_reset or claim_token_account.password_reset.is_expired:
                     admin_account = claim_token_account.password_reset.admin_account if claim_token_account.password_reset else None
-                    self.send_claim_token(session, claim_token_account, admin_account)
+                    OIDC.send_claim_token(session, claim_token_account, admin_account)
                     self.error = "This claim link has expired. Please check your email inbox for a new claim link."
                     return
                 
                 claim_token_account.sso_id = sso_id
+                for attendee in claim_token_account.attendees:
+                    if attendee.admin_account:
+                        if attendee.admin_account.sso_id and attendee.admin_account.sso_id != sso_id:
+                            self.error = f"Your account has been set up incorrectly. Please contact us at {email_only(c.CONTACT_EMAIL)}."
+                        attendee.admin_account.sso_id = sso_id
+                        session.add(attendee.admin_account)
 
             if claimed_account:
                 if claim_token_account:
@@ -213,7 +221,8 @@ class OIDC(cherrypy.Tool):
         email = claims.get('workspace_email', claims.get('email', ''))
         sso_id = claims.get('sub', None)
 
-        attendee_account = AttendeeAccount(email=email, sso_id=sso_id)
+        attendee_account = session.create_attendee_account(email)
+        attendee_account.sso_id = sso_id
         session.add(attendee_account)
         if email and c.DEV_BOX and ('staff' in roles or 'all-access' in roles):
             # If it's the first login from this account on a test server, and we're staff,
@@ -295,7 +304,7 @@ class OIDC(cherrypy.Tool):
         cherrypy.request.attendee_account = self._get_attendee_account_for_claims(claims)
         cherrypy.request.admin_account = self._get_admin_account_for_claims(claims) if not self.error else None
         
-        if cherrypy.request.admin_account or cherrypy.request.attendee_account:
+        if getattr(cherrypy.request, 'admin_account', None) or cherrypy.request.attendee_account:
             cherrypy.response.cookie['session_token'] = tokens['id_token']
             cherrypy.response.cookie['session_token']['path'] = '/'
             cherrypy.response.cookie['session_token']['max-age'] = tokens['expires_in']

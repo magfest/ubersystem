@@ -1,7 +1,7 @@
 import json
 import math
 import os
-import pytz
+import secrets
 import re
 import shutil
 from datetime import datetime, timedelta
@@ -16,6 +16,7 @@ from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.exc import NoResultFound
 
+from uber.auth import OIDC
 from uber.config import c
 from uber.custom_tags import format_currency, readable_join
 from uber.decorators import ajax, ajax_gettable, any_admin_access, all_renderable, attendee_view, \
@@ -23,13 +24,15 @@ from uber.decorators import ajax, ajax_gettable, any_admin_access, all_renderabl
     requires_account, site_mappable, public
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
-from uber.models import (Attendee, AdminAccount, BadgeInfo, Email, EscalationTicket, Group, Job, PageViewTracking, TxnRequestTracking,
+from uber.models import (Attendee, AttendeeAccount, AdminAccount, BadgeInfo, Email, EscalationTicket, Group, Job, PageViewTracking,
+                         TxnRequestTracking, PasswordReset,
                          PrintJob, PromoCode, PromoCodeGroup, ReportTracking, Sale, Session, Shift, Tracking, ReceiptTransaction,
                          WorkstationAssignment)
 from uber.site_sections.preregistration import check_if_can_reg
 from uber.utils import add_opt, check, check_pii_consent, get_page, hour_day_format, \
-    localized_now, Order, validate_model
+    localized_now, Order, validate_model, normalize_email_legacy
 from uber.payments import TransactionRequest, ReceiptManager, SpinTerminalRequest
+from uber.tasks.email import send_email
 
 
 def check_atd(func):
@@ -95,6 +98,32 @@ def save_attendee(session, attendee, params):
         message = session.add_promo_code_to_attendee(attendee, params.get('promo_code_code'))
 
     return message
+
+
+def create_new_account(session, attendee):
+    new_account = session.create_attendee_account(attendee.email)
+    session.add(new_account)
+    session.add_attendee_to_account(attendee, new_account)
+    if attendee.group and attendee.id == attendee.group.leader_id:
+        for group_member in attendee.group:
+            if not group_member.is_unassigned and group_member != attendee:
+                session.add_attendee_to_account(group_member, new_account)
+    session.commit()
+    if c.LOCAL_ACCOUNTS_DISABLED:
+        OIDC.send_claim_token(session, new_account)
+    elif not new_account.is_sso_account:
+        token = secrets.token_urlsafe(64)
+        session.add(PasswordReset(attendee_account=new_account, hashed=token))
+
+        body = render('emails/accounts/new_account.html', {
+                'attendee': attendee, 'account_email': new_account.email, 'token': token}, encoding=None)
+        send_email.delay(
+            c.ADMIN_EMAIL,
+            new_account.email,
+            c.EVENT_NAME + ' Account Setup',
+            body,
+            format='html',
+            model=new_account.to_dict('id'))
 
 
 @all_renderable()
@@ -200,7 +229,7 @@ class Root:
             if old:
                 return {"warning": render('registration/duplicate.html', {'attendee': old}, encoding=None),
                         "button_text": "Yes, I'm sure this is someone else!"}
-
+        
         return {"success": True}
 
     @ajax
@@ -235,11 +264,26 @@ class Root:
 
     @log_pageview
     def form(self, session, message='', return_to='', **params):
+        """
+        email matches existing account
+        email doesn't match existing account
+        pending status
+
+        if new badge and placeholder checked: second checkbox to make account + send claim email
+        """
         attendee = load_attendee(session, params)
 
         reg_station_id = cherrypy.session.get('reg_station', '')
         workstation_assignment = session.query(WorkstationAssignment
                                                ).filter_by(reg_station_id=reg_station_id or -1).first()
+        
+        matching_account = None
+        attendee_claimed = None
+        if c.ATTENDEE_ACCOUNTS_ENABLED and c.LOCAL_ACCOUNTS_DISABLED and not attendee.is_new and attendee.is_valid:
+            if not attendee.managers:
+                matching_account = session.query(AttendeeAccount).filter(
+                    AttendeeAccount.normalized_email == normalize_email_legacy(attendee.email)).first()
+            attendee_claimed = any([account for account in attendee.managers if account.sso_claimed])
 
         if cherrypy.request.method == 'POST':
             message = save_attendee(session, attendee, params)
@@ -249,6 +293,8 @@ class Root:
                 if attendee.is_new and c.ADMIN_BADGES_NEED_APPROVAL and not session.current_admin_account().full_registration_admin:
                     attendee.badge_status = c.PENDING_STATUS
                     message += ' as a pending badge'
+                elif attendee.create_account:
+                    create_new_account(session, attendee)
 
                 stay_on_form = params.get('save_return_to_search', False) is False
                 session.add(attendee)
@@ -289,6 +335,8 @@ class Root:
         return {
             'message':    message,
             'attendee':   attendee,
+            'attendee_claimed': attendee_claimed,
+            'matching_account': matching_account,
             'forms': forms,
             'return_to':  return_to,
             'no_badge_num': params.get('no_badge_num'),
@@ -303,6 +351,57 @@ class Root:
             'workstation_assignment': workstation_assignment,
             'receipt': receipt,
         }  # noqa: E711
+
+    @ajax
+    @attendee_view
+    def add_new_account(self, session, id, **params):
+        attendee = session.attendee(id)
+        if attendee.managers:
+            return {'success': False, 'message': "This attendee already has an account."}
+        matching_account = session.query(AttendeeAccount).filter(
+            AttendeeAccount.normalized_email == normalize_email_legacy(attendee.email)).first()
+        if matching_account:
+            return {'success': False, 'message': f"An account with the email {attendee.email} already exists."}
+        if attendee.has_sso_email:
+            return {'success': False, 'message': f"This attendee will receive an account the first time they log in."}
+        
+        create_new_account(session, attendee)
+        return {'success': True, 'message': "New account email sent!"}
+
+    @ajax
+    @attendee_view
+    def check_account_email(self, session, account_email, **params):
+        existing_account = session.query(AttendeeAccount).filter(
+            AttendeeAccount.normalized_email == normalize_email_legacy(account_email)).first()
+        if not existing_account:
+            return {'success': False, 'message': f"There is no account under the email {account_email}."}
+        return {'success': True, 'account_id': existing_account.id}
+    
+    @ajax
+    @attendee_view
+    def add_existing_account(self, session, id, account_id, email, **params):
+        attendee = session.attendee(id)
+        account = session.attendee_account(account_id)
+        if attendee.managers:
+            return {'success': False, 'message': "This attendee already has an account."}
+        session.add_attendee_to_account(attendee, account)
+        if attendee.group and attendee.id == attendee.group.leader_id:
+            for group_member in attendee.group:
+                if not group_member.is_unassigned and group_member != attendee:
+                    session.add_attendee_to_account(group_member, account)
+        session.commit()
+        if email:
+            body = render('emails/accounts/attendee_added.html', {'account': account, 'attendee': attendee}, encoding=None)
+            send_email.delay(
+                c.ADMIN_EMAIL,
+                account.email,
+                'New Badge Added to Your ' + c.EVENT_NAME + ' Account',
+                body,
+                format='html',
+                model=account.to_dict('id'))
+        return {'success': True,
+                'message': f"Attendee added to account {account.email}{' and the account owner has been notified' if email else ''}!"}
+            
 
     @ajax
     def start_terminal_payment(self, session, model_id='', pickup_group_id='', **params):

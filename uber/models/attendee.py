@@ -741,6 +741,14 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         if c.ATTENDEE_ACCOUNTS_ENABLED and self.email and not self.managers:
             self.session.match_attendee_to_account(self)
 
+    @property
+    def has_sso_email(self):
+        if c.SSO_EMAIL_DOMAINS:
+            local, domain = normalize_email(self.email, split_address=True)
+            return domain in c.SSO_EMAIL_DOMAINS
+        elif c.OIDC_ENABLED:
+            return True
+
     @hybrid_property
     def times_printed(self):
         return len([job.id for job in self.print_requests if job.printed])
@@ -2614,6 +2622,10 @@ class AttendeeAccount(MagModel, table=True):
             return domain in c.SSO_EMAIL_DOMAINS
         elif c.OIDC_ENABLED:
             return True
+        
+    @property
+    def sso_claimed(self):
+        return self.sso_id != ''
 
     @property
     def has_dealer(self):

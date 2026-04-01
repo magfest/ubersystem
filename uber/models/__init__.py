@@ -875,7 +875,7 @@ class UberSession(sqlalchemy.orm.Session):
     class SessionMixin:
         def current_admin_account(self):
             if getattr(cherrypy, 'session', {}).get('account_id', getattr(cherrypy.request, 'admin_account', None)):
-                return self.admin_account(cherrypy.session.get('account_id', cherrypy.request.admin_account))
+                return self.admin_account(cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None)))
             
         def current_supervisor_admin(self):
             if getattr(cherrypy, 'session', {}).get('kiosk_supervisor_id'):
@@ -885,7 +885,7 @@ class UberSession(sqlalchemy.orm.Session):
             if getattr(cherrypy, 'session', {}).get('account_id', getattr(cherrypy.request, 'admin_account', None)):
                 try:
                     return self.query(Attendee).join(Attendee.admin_account).filter(
-                        AdminAccount.id == cherrypy.session.get('account_id', cherrypy.request.admin_account)).options(
+                        AdminAccount.id == cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))).options(
                             contains_eager(Attendee.admin_account)
                         ).one()
                 except NoResultFound:

@@ -166,7 +166,8 @@
       var callback = function(response) {
         if(response && response['error']) {
           $optout.prop('checked', !isOptedOut)
-          showErrorMessage(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error']);
+          setTimeout(function(){ hideMessageBox() }, 3000);
         } else {
           var message = isOptedOut ?
             'Attraction signups disabled':
@@ -198,7 +199,8 @@
       var callback = function(response) {
         if(response && response['error']) {
           $optout.prop('checked', !isOptedOut)
-          showErrorMessage(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error']);
+          setTimeout(function(){ hideMessageBox() }, 3000);
         } else {
           $("#message-alert").addClass("alert-success").show().children('span').html('Communication prefs updated', '', {timeOut: 3000});
         }
@@ -236,12 +238,14 @@
             $('#' + eventId + ' .remaining-slots').text(response['remaining_slots']);
             callback(response);
           } else {
-            showErrorMessage(response['error'] || 'Error signing up for event', '', {timeOut: 3000});
+            showErrorMessage(response['error'] || 'Error signing up for event');
+            setTimeout(function(){ hideMessageBox() }, 3000);
             callback(false);
           }
         },
         error: function(response, status, statusText) {
-          showErrorMessage('Error signing up for event', '', {timeOut: 3000});
+          showErrorMessage('Error signing up for event');
+          setTimeout(function(){ hideMessageBox() }, 3000);
           callback(false);
         }
       });
@@ -310,7 +314,8 @@
 
       var callback = function(response) {
         if(response && response['error']) {
-          showErrorMessage(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error']);
+          setTimeout(function(){ hideMessageBox() }, 3000);
         } else {
           $signup.fadeOut();
           $("#message-alert").addClass("alert-success").show().children('span').html('Signup for ' + eventLabel + ' successfully cancelled', '', {timeOut: 3000});

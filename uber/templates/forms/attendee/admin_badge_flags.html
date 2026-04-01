@@ -121,6 +121,12 @@ get noBadgeNumText() { return this.preassignedBadge() ? 'Use next available badg
         <div class="form-text">Placeholder</div>
         <div>{{ form_macros.input(badge_flags.placeholder, admin_text="You will only need to fill out their name and email address.", **{'x-model.boolean':'badge_placeholder'}) }}</div>
     </div>
+    {% if attendee.is_new and c.ATTENDEE_ACCOUNTS_ENABLED and (c.CURRENT_ADMIN.admin_account.full_registration_admin or not c.ADMIN_BADGES_NEED_APPROVAL) %}
+    <div class="col-sm">
+        <div class="form-text">Create Account</div>
+        <div>{{ form_macros.input(badge_flags.create_account, admin_text="If checked, this takes effect immediately on badge creation.") }}</div>
+    </div>
+    {% endif %}
     {% if c.TRANSFERABLE_BADGE_TYPES|length > 0 %}
         {% set transfer_admin_text %}
             {% if attendee.is_inherently_transferable %}
