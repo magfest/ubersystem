@@ -64,7 +64,6 @@ class OIDC(cherrypy.Tool):
                     return None
                 self.key_fetch_time = time.time()
                 oidc_config = requests.get(c.OIDC_METADATA_URL).json()
-                log.error(oidc_config)
                 jwks_uri = oidc_config['jwks_uri']
                 
                 keys = requests.get(jwks_uri).json()['keys']

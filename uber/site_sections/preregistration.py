@@ -11,7 +11,7 @@ import cherrypy
 import secrets
 from collections import defaultdict
 from sqlalchemy import func, or_
-from sqlalchemy.orm import selectinload, joinedload
+from sqlalchemy.orm import selectinload, joinedload, make_transient
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
@@ -891,12 +891,15 @@ class Root:
 
             used_codes = defaultdict(int)
             for attendee in cart.attendees:
+                session.add(attendee)
                 used_codes[attendee.promo_code_code] += 1
                 form_list = ['BadgeExtras'] # Re-check purchase limits
 
                 forms = load_forms(params, attendee, form_list, checkboxes_present=False)
 
                 all_errors = validate_model(session, forms, attendee, create_preview_model=False)
+                session.expunge(attendee)
+                make_transient(attendee)
                 if all_errors:
                     message = ' '.join([item for sublist in all_errors.values() for item in sublist])
 
