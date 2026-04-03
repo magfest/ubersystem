@@ -64,8 +64,12 @@ def _copy_department_templates(to_department, from_department):
 
 def _copy_department_shifts(service, to_department, from_department, dept_role_map, dept_template_map):
     from_config = service.config.info()
-    FROM_EPOCH = c.EVENT_TIMEZONE.localize(datetime.strptime(from_config.get('SHIFTS_EPOCH', from_config['EPOCH']), '%Y-%m-%d %H:%M:%S.%f'))
-    EPOCH_DELTA = c.SHIFTS_EPOCH - FROM_EPOCH
+    if from_config.get('SHIFTS_EPOCH'):
+        FROM_EPOCH = c.EVENT_TIMEZONE.localize(datetime.strptime(from_config['SHIFTS_EPOCH'], '%Y-%m-%d %H:%M:%S.%f'))
+        EPOCH_DELTA = c.SHIFTS_EPOCH - FROM_EPOCH
+    else:
+        FROM_EPOCH = from_config['EPOCH']
+        EPOCH_DELTA = c.EPOCH - FROM_EPOCH
 
     for from_job in from_department['jobs']:
         to_job = Job(
