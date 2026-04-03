@@ -1,27 +1,116 @@
 {% extends "base.html" %}
+{% import "forms/account.html" as account_fields with context %}
+
 {% block backlink %}
 {% if c.ATTENDEE_ACCOUNTS_ENABLED or c.HAS_REGISTRATION_ACCESS or c.HAS_GROUP_ADMIN_ACCESS %}
+<nav class="navbar navbar-expand-lg">
+    <div class="container-fluid">
+        <div class="badge bg-dark">Logged in as: {{ homepage_account.email }}</div>
+        <div class="d-flex justify-content-end gap-2">
+            {% if c.HAS_REGISTRATION_ACCESS and attendee and not attendee.is_new %}
+            <a class="btn btn-secondary btn-sm" href="../registration/form?id={{ attendee.id }}">Admin Form</a>
+            {% elif c.HAS_GROUP_ADMIN_ACCESS and group and not group.is_new %}
+            <a class="btn btn-secondary btn-sm" href="../group_admin/form?id={{ group.id }}">Admin Form</a>
+            {% elif c.HAS_MARKETPLACE_ADMIN_ACCESS and app and not app.is_new and 'marketplace' in c.PAGE_PATH %}
+            <a class="btn btn-secondary btn-sm" href="../marketplace_admin/form?id={{ app.id }}">Admin Form</a>
+            {% elif c.HAS_ART_SHOW_ADMIN_ACCESS and app and not app.is_new %}
+            <a class="btn btn-secondary btn-sm" href="../art_show_admin/form?id={{ app.id }}">Admin Form</a>
+            {% elif c.HAS_HOTEL_LOTTERY_ADMIN_ACCESS and application and not application.is_new and 'hotel_lottery' in c.PAGE_PATH %}
+            <a class="btn btn-secondary btn-sm" href="../hotel_lottery_admin/form?id={{ application.id }}">Admin Form</a>
+            {% elif c.CURRENT_ADMIN %}
+            <a href="../accounts/homepage" class="btn btn-secondary btn-sm">Admin Area</a>
+            {% endif %}
+            {% if c.ATTENDEE_ACCOUNTS_ENABLED and (logged_in_account or homepage_account) %}
+            {% if c.PAGE_PATH != '/preregistration/homepage' %}<a class="btn btn-info btn-sm" href="../preregistration/homepage">Homepage</a>{% endif %}
+            {% if homepage_account and (not homepage_account.is_sso_account or c.LOCAL_ACCOUNTS_DISABLED) %}
+            <button class="btn btn-warning btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#account_settings">
+                <i class="fa fa-cog"></i> Account Settings
+            </button>
+            {% endif %}
+            <a class="btn btn-danger btn-sm" href="#" onClick="warnOrLogout()">Logout</a>
+            {% endif %}
+        </div>
+    </div>
+</nav>
+<div
+    id="account_settings"
+    class="modal fade"
+    tabindex="-1"
+    role="dialog"
+    aria-labelledby="account_settings_title"
+    style="display: none">
+<div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+    <div class="modal-header">
+        <h4 class="modal-title" id="account_settings_title">
+        <i class="fa fa-cog"></i> Account Settings
+        </h4>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    </div>
+        <div class="modal-body">
+            <form method="post" action="update_account">
+            {{ csrf_token() }}
+            <input type="hidden" name="id" value="{{ homepage_account.id }}" />
+            <input type="hidden" name="return_to" value="..{{ c.PAGE_PATH }}?{{ c.QUERY_STRING_NO_MSG }}" />
+            {% if homepage_account.is_sso_account and c.OIDC_ENABLED %}
+            <div class="row g-3">
+                <div class="col-sm">
+                    <label for="email" class="form-text">Account Notifications Email</label>
+                    <input type="email" name="account_email" id="account_email" value="{{ homepage_account.email }}" class="form-control" placeholder="Account email address" required>
+                    <p class="form-text">This is the email we'll use to send notifications about your {{ c.EVENT_NAME_AND_YEAR }} account. Changing this does not affect your {{ c.OIDC_ACCOUNT_NAME }} account email or login.</p>
+                </div>
+            </div>
+            {% else %}
+            <div class="row g-3 mb-3">
+                <div class="col-sm">
+                    <label for="current_password" class="form-text">Current Password</label>
+                <input type="password" name="current_password" id="current_password" value="" class="form-control" placeholder="Enter account password to make changes" required>
+                </div>
+            </div>
+            <hr>
+            <div class="row g-3 mb-3">
+                <div class="col-sm">
+                    <label for="email" class="form-text">Account Email</label>
+                    <input type="email" name="account_email" id="account_email" value="{{ homepage_account.email }}" class="form-control" placeholder="Account email address" required>
+                </div>
+            </div>
+            <div class="row g-3 mb-3">
+                <div class="col-sm">
+                    <label for="new-password" class="form-text">New Password</label>
+                    <input type="password" name="new_password" id="new-password" value="" class="form-control" placeholder="Leave blank to keep current password">
+                    {{ account_fields.password_help }}
+                </div>
+                <div class="col-sm">
+                    <label for="confirm-password" class="form-text">Confirm New Password</label>
+                    <input type="password" name="confirm_password" id="confirm-password" value="" class="form-control" placeholder="Leave blank to keep current password">
+                </div>
+            </div>
+            {% endif %}
+            <button type="submit" class="btn btn-primary" id="accountUpdateButton">
+            Update Account Info
+            </button>
+        </form>
+    </div>
+    </div>
+</div>
+</div>
+{% else %}
 <div class="pull-right" style="padding-top:5px;">
     {% if c.HAS_REGISTRATION_ACCESS and attendee and not attendee.is_new %}
-    <a class="btn btn-outline-secondary" href="../registration/form?id={{ attendee.id }}">Admin Form</a>
+    <a class="btn btn-secondary btn-sm" href="../registration/form?id={{ attendee.id }}">Admin Form</a>
     {% elif c.HAS_GROUP_ADMIN_ACCESS and group and not group.is_new %}
-    <a class="btn btn-outline-secondary" href="../group_admin/form?id={{ group.id }}">Admin Form</a>
+    <a class="btn btn-secondary btn-sm" href="../group_admin/form?id={{ group.id }}">Admin Form</a>
     {% elif c.HAS_MARKETPLACE_ADMIN_ACCESS and app and not app.is_new and 'marketplace' in c.PAGE_PATH %}
-    <a class="btn btn-outline-secondary" href="../marketplace_admin/form?id={{ app.id }}">Admin Form</a>
+    <a class="btn btn-secondary btn-sm" href="../marketplace_admin/form?id={{ app.id }}">Admin Form</a>
     {% elif c.HAS_ART_SHOW_ADMIN_ACCESS and app and not app.is_new %}
-    <a class="btn btn-outline-secondary" href="../art_show_admin/form?id={{ app.id }}">Admin Form</a>
+    <a class="btn btn-secondary btn-sm" href="../art_show_admin/form?id={{ app.id }}">Admin Form</a>
     {% elif c.HAS_HOTEL_LOTTERY_ADMIN_ACCESS and application and not application.is_new and 'hotel_lottery' in c.PAGE_PATH %}
-    <a class="btn btn-outline-secondary" href="../hotel_lottery_admin/form?id={{ application.id }}">Admin Form</a>
+    <a class="btn btn-secondary btn-sm" href="../hotel_lottery_admin/form?id={{ application.id }}">Admin Form</a>
     {% elif c.CURRENT_ADMIN %}
-    <a href="../accounts/homepage" class="btn btn-outline-secondary">Admin Area</a>
-    {% endif %}
-    {% if c.ATTENDEE_ACCOUNTS_ENABLED and logged_in_account and not account and c.PAGE_PATH != '/preregistration/homepage' %}
-    <a class="btn btn-info" href="../preregistration/homepage">Homepage</a>
-    {% endif %}
-    {% if c.ATTENDEE_ACCOUNTS_ENABLED and logged_in_account %}
-    <a class="btn btn-danger" href="#" onClick="warnOrLogout()">Logout</a>
+    <a href="../accounts/homepage" class="btn btn-secondary  btn-sm">Admin Area</a>
     {% endif %}
 </div>
+{% endif %}
 <script type="text/javascript">
 warnOrLogout = function() {
     if (typeof(warnBeforeLogout) !== 'undefined') {
@@ -30,16 +119,10 @@ warnOrLogout = function() {
     } else { window.location = "../accounts/logout"; }
 }
 </script>
-{% endif %}
 {% endblock %}
 
 {% block masthead %}
 <div class="masthead"><span class='{{ "visually-hidden" if bootstrap5 else "hidden" }}'>{{ c.ORGANIZATION_NAME }}</span></div>
-{% if homepage_account %}
-<div class="text-center card-body">{% include "preregistration/update_account.html" %}</div>
-{% elif logged_in_account %}
-<div class="text-center card-body">You are currently logged in as <strong>{{ logged_in_account.email }}</strong>.</div>
-{% endif %}
 {% endblock %}
 
 {% block footer %}

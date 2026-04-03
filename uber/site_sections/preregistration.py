@@ -2576,13 +2576,23 @@ class Root:
 
         message = ''
         account = session.attendee_account(id)
+        return_to = params.get('return_to', '../preregistration/homepage')
+        page = (return_to + '?message=') if '?' not in return_to else (return_to + '&message=')
+
+        if c.LOCAL_ACCOUNTS_DISABLED:
+            message = valid_email(params.get('account_email'))
+            if not message:
+                account.email = params.get('account_email')
+                message = 'Account email updated.'
+            raise HTTPRedirect(f'{page}{message}')
+
         password = params.get('current_password')
 
         if not password:
             message = 'Please enter your current password to make changes to your account.'
         elif not bcrypt.hashpw(password.encode('utf-8'),
                                account.hashed.encode('utf-8')) == account.hashed.encode('utf-8'):
-            message = 'Incorrect password'
+            message = 'Incorrect password.'
 
         if not message:
             if params.get('new_password') == '':
@@ -2599,7 +2609,7 @@ class Root:
                 account.hashed = create_new_hash(new_password)
             account.email = params.get('account_email')
             message = 'Account information updated successfully.'
-        raise HTTPRedirect('homepage?message={}', message)
+        raise HTTPRedirect(f'{page}{message}')
 
     def reset_password(self, session, **params):
         if 'account_email' in params:
