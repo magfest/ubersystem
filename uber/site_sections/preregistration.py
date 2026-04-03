@@ -950,7 +950,8 @@ class Root:
 
             receipt_email = session.current_attendee_account().email \
                 if c.ATTENDEE_ACCOUNTS_ENABLED else cart.receipt_email
-            charge = TransactionRequest(receipt_email=receipt_email,
+            charge = TransactionRequest(account=session.current_attendee_account(),
+                                        receipt_email=receipt_email,
                                         description=cart.description,
                                         amount=sum([receipt.current_amount_owed for receipt in receipts]),
                                         who='non-admin')
@@ -1024,7 +1025,8 @@ class Root:
 
     @ajax
     def submit_authnet_charge(self, session, ref_id, amount, email, desc, customer_id, token_desc, token_val, **params):
-        charge = TransactionRequest(receipt_email=email, description=desc, amount=amount, customer_id=customer_id)
+        charge = TransactionRequest(account=session.current_attendee_account(), receipt_email=email,
+                                    description=desc, amount=amount, customer_id=customer_id)
         error = charge.send_authorizenet_txn(token_desc=token_desc, token_val=token_val, intent_id=ref_id,
                                              first_name=params.get('first_name', ''),
                                              last_name=params.get('last_name', ''))
@@ -1429,7 +1431,8 @@ class Root:
         group = session.group(id)
         receipt = session.get_receipt_by_model(group, who='non-admin', create_if_none="DEFAULT")
         charge_desc = "{}: {}".format(group.name, receipt.charge_description_list)
-        charge = TransactionRequest(receipt, group.email, charge_desc, who='non-admin')
+        charge = TransactionRequest(receipt, account=session.current_attendee_account(),
+                                    receipt_email=group.email, description=charge_desc, who='non-admin')
 
         message = charge.prepare_payment()
         if message:
@@ -2411,7 +2414,8 @@ class Root:
         if c.AUTHORIZENET_LOGIN_ID:
             # Authorize.net doesn't actually have a concept of pending transactions,
             # so there's no transaction to resume. Create a new one.
-            new_txn_request = TransactionRequest(txn.receipt, attendee.email, txn.desc, txn.amount)
+            new_txn_request = TransactionRequest(txn.receipt, account=session.current_attendee_account(),
+                                                 receipt_email=attendee.email, description=txn.desc, amount=txn.amount)
             stripe_intent = new_txn_request.generate_payment_intent()
             txn.intent_id = stripe_intent.id
             session.commit()
@@ -2451,7 +2455,8 @@ class Root:
                 receipt_email = group.leader.email
             elif group.attendees:
                 receipt_email = group.attendees[0].email
-            new_txn_request = TransactionRequest(txn.receipt, receipt_email, txn.desc, txn.amount)
+            new_txn_request = TransactionRequest(txn.receipt, account=session.current_attendee_account(),
+                                                 receipt_email=receipt_email, description=txn.desc, amount=txn.amount)
             stripe_intent = new_txn_request.generate_payment_intent()
             txn.intent_id = stripe_intent.id
             session.commit()
@@ -2477,7 +2482,8 @@ class Root:
         receipt = session.model_receipt(receipt_id)
         attendee = session.attendee(id)
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
-        charge = TransactionRequest(receipt, attendee.email, charge_desc, who='non-admin')
+        charge = TransactionRequest(receipt, account=session.current_attendee_account(),
+                                    receipt_email=attendee.email, description=charge_desc, who='non-admin')
 
         message = charge.prepare_payment()
         if message:
@@ -2556,7 +2562,8 @@ class Root:
         session.commit()
 
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
-        charge = TransactionRequest(receipt, attendee.email, charge_desc, who='non-admin')
+        charge = TransactionRequest(receipt, account=session.current_attendee_account(),
+                                    receipt_email=attendee.email, description=charge_desc, who='non-admin')
 
         message = charge.prepare_payment()
         if message:

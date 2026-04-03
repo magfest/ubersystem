@@ -105,7 +105,7 @@ def create_new_account(session, attendee):
     session.add(new_account)
     session.add_attendee_to_account(attendee, new_account)
     if attendee.group and attendee.id == attendee.group.leader_id:
-        for group_member in attendee.group:
+        for group_member in attendee.group.attendees:
             if not group_member.is_unassigned and group_member != attendee:
                 session.add_attendee_to_account(group_member, new_account)
     session.commit()
@@ -386,7 +386,7 @@ class Root:
             return {'success': False, 'message': "This attendee already has an account."}
         session.add_attendee_to_account(attendee, account)
         if attendee.group and attendee.id == attendee.group.leader_id:
-            for group_member in attendee.group:
+            for group_member in attendee.group.attendees:
                 if not group_member.is_unassigned and group_member != attendee:
                     session.add_attendee_to_account(group_member, account)
         session.commit()
@@ -1214,7 +1214,8 @@ class Root:
         attendee = session.attendee(id)
         receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
-        charge = TransactionRequest(receipt, attendee.email, charge_desc)
+        charge = TransactionRequest(receipt, account=session.current_attendee_account(),
+                                    receipt_email=attendee.email, description=charge_desc)
         message = charge.prepare_payment()
 
         if message:
@@ -1349,7 +1350,8 @@ class Root:
         attendee = session.attendee(id)
         receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
-        charge = TransactionRequest(receipt, attendee.email, charge_desc)
+        charge = TransactionRequest(receipt, account=session.current_attendee_account(),
+                                    receipt_email=attendee.email, description=charge_desc)
 
         message = charge.prepare_payment(payment_method=c.MANUAL)
         if message:

@@ -91,7 +91,7 @@ class Root:
                     session.add(new_account)
                     session.add_attendee_to_account(attendee, new_account)
                     if attendee.group and attendee.id == attendee.group.leader_id:
-                        for group_member in attendee.group:
+                        for group_member in attendee.group.attendees:
                             if not group_member.is_unassigned and group_member != attendee:
                                 session.add_attendee_to_account(group_member, new_account)
                     session.commit()
