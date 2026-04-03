@@ -68,7 +68,7 @@ def _copy_department_shifts(service, to_department, from_department, dept_role_m
         FROM_EPOCH = c.EVENT_TIMEZONE.localize(datetime.strptime(from_config['SHIFTS_EPOCH'], '%Y-%m-%d %H:%M:%S.%f'))
         EPOCH_DELTA = c.SHIFTS_EPOCH - FROM_EPOCH
     else:
-        FROM_EPOCH = from_config['EPOCH']
+        FROM_EPOCH = c.EVENT_TIMEZONE.localize(datetime.strptime(from_config['EPOCH'], '%Y-%m-%d %H:%M:%S.%f'))
         EPOCH_DELTA = c.EPOCH - FROM_EPOCH
 
     for from_job in from_department['jobs']:
