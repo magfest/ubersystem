@@ -150,7 +150,7 @@ class Root:
                 if shifts_text:
                     _copy_department_shifts(service, to_department, from_department, dept_role_map, dept_template_map)
 
-                message = '{}{}successfully imported from {}'.format(to_department.name, shifts_text, uri)
+                message = '{}{} successfully imported from {}'.format(to_department.name, shifts_text, uri)
                 raise HTTPRedirect('import_shifts?target_server={}&api_token={}&message={}',
                                    target_server, api_token, message)
 

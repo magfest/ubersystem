@@ -1512,6 +1512,13 @@ class PanelAppEmailFixture(AutomatedEmailFixture):
 
 if c.PANELS_START:
     PanelAppEmailFixture(
+        'Your {EVENT_NAME} Panel Application Has Been Received: {{ app.name }}',
+        'panels/application.html',
+        lambda a: True,
+        needs_approval=False,
+        ident='panel_received')
+
+    PanelAppEmailFixture(
         'Your {EVENT_NAME} Panel Application Has Been Accepted: {{ app.name }}',
         'panels/panel_app_accepted.txt',
         lambda app: app.status == c.ACCEPTED and app.department in c.EMAILLESS_PANEL_DEPTS,
