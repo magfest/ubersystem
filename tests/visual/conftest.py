@@ -316,13 +316,6 @@ def test_data(visual_db_engine):
     )
     from uber.config import c
 
-    # Outside a real CherryPy request the thread-local serving object has no
-    # 'session' attribute, causing presave_adjustments (assign_creator) to blow
-    # up when it calls cherrypy.session.get('account_id').  Seed it with an
-    # empty dict so the proxy resolves cleanly.
-    import cherrypy
-    cherrypy._serving.session = {}
-
     data = {}
 
     with Session() as session:
