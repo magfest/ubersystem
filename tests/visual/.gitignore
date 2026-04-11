@@ -1,2 +1,6 @@
 # Generated per-run screenshots and diff images — do not commit
 results/
+
+# Baseline screenshots are stored as GitHub Actions artifacts, not in git
+baselines/*.jpg
+baselines/*.png

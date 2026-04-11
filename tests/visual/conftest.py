@@ -45,11 +45,46 @@ def pytest_addoption(parser):
         default=False,
         help='Save current screenshots as new baselines instead of comparing.',
     )
+    parser.addoption(
+        '--visual-chunk',
+        default=None,
+        metavar='CHUNK',
+        help='Run only the named route chunk (see route_manifest.ROUTE_CHUNKS).',
+    )
 
 
 @pytest.fixture(scope='session')
 def update_baselines(request):
     return request.config.getoption('--update-baselines')
+
+
+def pytest_collection_modifyitems(config, items):
+    """Deselect tests that don't belong to the requested --visual-chunk."""
+    chunk = config.getoption('--visual-chunk', default=None)
+    if not chunk:
+        return
+
+    from tests.visual.route_manifest import ROUTE_CHUNKS
+    if chunk not in ROUTE_CHUNKS:
+        raise ValueError(
+            f'Unknown --visual-chunk {chunk!r}. '
+            f'Valid chunks: {sorted(ROUTE_CHUNKS)}'
+        )
+
+    sections = ROUTE_CHUNKS[chunk]
+    selected, deselected = [], []
+    for item in items:
+        # Test node IDs look like:
+        #   test_visual_routes.py::test_admin_route_visual[section__handler]
+        if '[' in item.nodeid:
+            label = item.nodeid.split('[', 1)[1].rstrip(']')
+            section = label.split('__')[0]
+            (selected if section in sections else deselected).append(item)
+        else:
+            selected.append(item)
+
+    config.hook.pytest_deselected(items=deselected)
+    items[:] = selected
 
 
 # ---------------------------------------------------------------------------

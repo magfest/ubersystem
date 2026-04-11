@@ -8,6 +8,9 @@ on:
   workflow_dispatch:
 
 jobs:
+  # ---------------------------------------------------------------------------
+  # Unit + integration tests
+  # ---------------------------------------------------------------------------
   test:
     runs-on: ubuntu-latest
     permissions:
@@ -49,63 +52,195 @@ jobs:
           DATABASE_URL: postgresql://test_uber:test_uber@localhost:5432/test_uber
         run: python3 -m pytest tests/uber/ -x --timeout=300 -q
 
-  visual-regression:
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+  # ---------------------------------------------------------------------------
+  # Visual: capture current screenshots (runs on every push and every PR)
+  # The uploaded artifact becomes the baseline for future PRs targeting this branch.
+  # ---------------------------------------------------------------------------
+  visual-capture:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: write
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build visual test image
-        run: docker build -f Dockerfile.visual -t ubersystem-visual .
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.visual
+          tags: ubersystem-visual
+          load: true
+          cache-from: type=gha,scope=visual-image
+          cache-to: type=gha,mode=max,scope=visual-image
 
       - name: Create output directories
-        run: mkdir -p tests/visual/results
+        run: mkdir -p tests/visual/baselines tests/visual/results
 
-      - name: Run visual regression tests
+      - name: Capture screenshots
         run: |
           docker run --rm \
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v ${{ github.workspace }}/tests/visual/baselines:/app/tests/visual/baselines \
             -v ${{ github.workspace }}/tests/visual/results:/app/tests/visual/results \
             ubersystem-visual \
-            python3 -m pytest tests/visual/ --timeout=300 -v --tb=short
+            python3 -m pytest tests/visual/ --update-baselines --timeout=300 -q
 
-      - name: Upload diff screenshots on failure
-        if: failure()
+      - name: Upload screenshots
         uses: actions/upload-artifact@v4
         with:
-          name: visual-regression-diffs
-          path: tests/visual/results/
-          retention-days: 7
+          name: visual-screenshots
+          path: tests/visual/baselines/
+          retention-days: 90
+          if-no-files-found: warn
 
-  visual-update-baselines:
-    if: github.event_name == 'workflow_dispatch'
+  # ---------------------------------------------------------------------------
+  # Visual: compare each chunk against the target branch (PRs only)
+  # Runs in parallel — one job per chunk.
+  # ---------------------------------------------------------------------------
+  visual-compare:
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
+      actions: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        chunk:
+          - registration-badges
+          - art-hotel
+          - staffing-departments
+          - events-games
+          - admin-misc
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Build visual test image
-        run: docker build -f Dockerfile.visual -t ubersystem-visual .
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Update baselines
+      - name: Build visual test image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.visual
+          tags: ubersystem-visual
+          load: true
+          cache-from: type=gha,scope=visual-image
+          cache-to: type=gha,mode=max,scope=visual-image
+
+      - name: Create output directories
+        run: mkdir -p tests/visual/baselines tests/visual/results
+
+      - name: Download target branch baselines
+        id: baselines
+        run: |
+          mkdir -p /tmp/baseline-download
+          FOUND=false
+          TARGET="${{ github.base_ref || github.event.inputs.base_ref || 'main' }}"
+          for RUN_ID in $(gh run list \
+              --workflow tests.yaml \
+              --branch "$TARGET" \
+              --limit 5 \
+              --json databaseId \
+              --jq '.[].databaseId'); do
+            if gh run download "$RUN_ID" \
+                --name visual-screenshots \
+                --dir /tmp/baseline-download 2>/dev/null; then
+              mv /tmp/baseline-download/visual-screenshots/* tests/visual/baselines/
+              FOUND=true
+              echo "Restored baselines from run $RUN_ID on $TARGET"
+              break
+            fi
+          done
+          echo "found=$FOUND" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Compare chunk against target branch
+        if: steps.baselines.outputs.found == 'true'
         run: |
           docker run --rm \
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v ${{ github.workspace }}/tests/visual/baselines:/app/tests/visual/baselines \
+            -v ${{ github.workspace }}/tests/visual/results:/app/tests/visual/results \
             ubersystem-visual \
-            python3 -m pytest tests/visual/ --update-baselines --timeout=300 -v
+            python3 -m pytest tests/visual/ \
+              --visual-chunk ${{ matrix.chunk }} \
+              --timeout=300 -q --tb=short
 
-      - name: Commit updated baselines
-        uses: stefanzweifel/git-auto-commit-action@v5
+      - name: Upload comparison results
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          commit_message: "Update visual regression baselines"
-          file_pattern: tests/visual/baselines/*.png
+          name: visual-diff-${{ matrix.chunk }}
+          path: tests/visual/results/
+          retention-days: 30
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  # Visual: aggregate diffs across all chunks and post a PR comment
+  # ---------------------------------------------------------------------------
+  visual-report:
+    if: always() && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    needs: [visual-compare]
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Download all diff artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: visual-diff-*
+          path: artifacts/
+          merge-multiple: false
+
+      - name: Generate report
+        run: python3 tests/visual/generate_report.py artifacts/ > /tmp/report_body.md
+
+      - name: Post or update PR comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('/tmp/report_body.md', 'utf8');
+            const marker = '<!-- visual-regression-report -->';
+            const pr = context.payload.pull_request.number;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr,
+            });
+
+            const existing = comments.find(c => c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+              console.log(`Updated comment ${existing.id}`);
+            } else {
+              const { data: created } = await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr,
+                body,
+              });
+              console.log(`Created comment ${created.id}`);
+            }

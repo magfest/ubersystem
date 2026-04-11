@@ -13,6 +13,7 @@ Run:
 
 import dataclasses
 import io
+import json
 import re
 from pathlib import Path
 
@@ -25,6 +26,9 @@ from tests.visual.visual_config import (
     DIFF_THRESHOLD,
     NETWORK_IDLE_TIMEOUT,
     RESULTS_DIR,
+    SCREENSHOT_EXT,
+    SCREENSHOT_FORMAT,
+    SCREENSHOT_QUALITY,
 )
 
 
@@ -34,6 +38,21 @@ from tests.visual.visual_config import (
 
 def _sanitize_label(label: str) -> str:
     return re.sub(r'[^\w.-]', '_', label)
+
+
+def _record_diff(label: str, ratio: float) -> None:
+    """Append a diff entry to RESULTS_DIR/diffs.json (sorted by ratio desc)."""
+    diffs_file = RESULTS_DIR / 'diffs.json'
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    diffs: list[dict] = []
+    if diffs_file.exists():
+        try:
+            diffs = json.loads(diffs_file.read_text())
+        except Exception:
+            pass
+    diffs.append({'label': label, 'ratio': ratio})
+    diffs.sort(key=lambda d: d['ratio'], reverse=True)
+    diffs_file.write_text(json.dumps(diffs, indent=2))
 
 
 def _screenshot_route(page, base_url: str, route: RouteSpec) -> bytes:
@@ -52,7 +71,7 @@ def _screenshot_route(page, base_url: str, route: RouteSpec) -> bytes:
 
     page.wait_for_load_state('networkidle', timeout=NETWORK_IDLE_TIMEOUT)
 
-    return page.screenshot(full_page=True)
+    return page.screenshot(full_page=True, type=SCREENSHOT_FORMAT, quality=SCREENSHOT_QUALITY)
 
 
 def _pixel_diff_ratio(img_a_bytes: bytes, img_b_bytes: bytes) -> tuple[float, bytes]:
@@ -153,9 +172,9 @@ def _run_visual_test(route: RouteSpec, page, base_url: str, update_baselines: bo
         pytest.skip(route.skip)
 
     label = _sanitize_label(route.label)
-    baseline_path = BASELINE_DIR / f'{label}.png'
-    result_path = RESULTS_DIR / f'{label}.png'
-    diff_path = RESULTS_DIR / f'{label}.diff.png'
+    baseline_path = BASELINE_DIR / f'{label}{SCREENSHOT_EXT}'
+    result_path = RESULTS_DIR / f'{label}{SCREENSHOT_EXT}'
+    diff_path = RESULTS_DIR / f'{label}.diff.png'  # PNG for lossless diff clarity
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -177,6 +196,7 @@ def _run_visual_test(route: RouteSpec, page, base_url: str, update_baselines: bo
 
     if ratio > DIFF_THRESHOLD:
         diff_path.write_bytes(diff_png)
+        _record_diff(route.label, ratio)
         pct = ratio * 100
         threshold_pct = DIFF_THRESHOLD * 100
         pytest.fail(

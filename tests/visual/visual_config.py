@@ -27,3 +27,8 @@ VIEWPORT_HEIGHT = 900
 
 # Milliseconds to wait for network idle before screenshotting
 NETWORK_IDLE_TIMEOUT = 10_000
+
+# Screenshot format — JPEG reduces artifact storage significantly vs PNG
+SCREENSHOT_FORMAT = 'jpeg'
+SCREENSHOT_EXT = '.jpg'
+SCREENSHOT_QUALITY = 85

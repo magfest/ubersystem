@@ -1302,6 +1302,49 @@ ADMIN_ROUTES  = [r for r in ALL_ROUTES if r.auth == 'admin'  and not r.skip]
 
 
 # ---------------------------------------------------------------------------
+# Parallel CI chunks — each chunk is a frozenset of section name prefixes
+# (the part of route.label before the first '__').
+# Jobs in tests.yaml run one chunk each; together they cover ALL_ROUTES.
+# ---------------------------------------------------------------------------
+
+ROUTE_CHUNKS: dict[str, frozenset[str]] = {
+    'registration-badges': frozenset([
+        'registration', 'preregistration', 'reg_admin', 'reg_reports',
+        'badge_printing', 'badge_exports', 'promo_codes', 'barcode',
+    ]),
+    'art-hotel': frozenset([
+        'art_show_admin', 'art_show_applications', 'art_show_reports',
+        'hotel_lottery', 'hotel_lottery_admin', 'hotel_reports',
+    ]),
+    'staffing-departments': frozenset([
+        'staffing', 'staffing_admin', 'staffing_reports',
+        'shifts_admin', 'dept_admin', 'dept_checklist',
+        'security_admin', 'accounts',
+    ]),
+    'events-games': frozenset([
+        'attractions', 'attractions_admin',
+        'panels', 'panels_admin',
+        'mits', 'mits_admin',
+        'mivs', 'mivs_judging', 'mivs_reports',
+        'showcase', 'showcase_admin', 'showcase_judging',
+        'schedule', 'schedule_reports',
+        'indie_arcade', 'indie_arcade_reports',
+        'indie_retro', 'indie_retro_reports',
+        'tabletop_checkins',
+        'guests', 'guest_admin', 'guest_reports', 'band_admin',
+    ]),
+    'admin-misc': frozenset([
+        'email_admin', 'group_admin',
+        'dealer_admin', 'dealer_reports',
+        'marketplace', 'marketplace_admin',
+        'merch_admin', 'merch_reports',
+        'budget', 'devtools', 'api', 'statistics',
+        'other_reports', 'landing', 'index', 'services', 'saml',
+    ]),
+}
+
+
+# ---------------------------------------------------------------------------
 # Data routes — require an existing database object.
 # Query strings use Python format-string templates resolved at test time
 # against the ``test_data`` fixture dict, e.g. ``'id={attendee_id}'``.
