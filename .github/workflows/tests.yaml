@@ -82,7 +82,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install system dependencies
-        run: apt-get install -y --no-install-recommends libxml2-dev libxmlsec1-dev pkg-config curl
+        run: apt-get update && apt-get install -y --no-install-recommends libxml2-dev libxmlsec1-dev pkg-config curl
 
       - name: Install uv
         run: curl -LsSf https://astral.sh/uv/install.sh | sh && echo "$HOME/.cargo/bin" >> $GITHUB_PATH
@@ -147,7 +147,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install system dependencies
-        run: apt-get install -y --no-install-recommends libxml2-dev libxmlsec1-dev pkg-config curl
+        run: apt-get update && apt-get install -y --no-install-recommends libxml2-dev libxmlsec1-dev pkg-config curl
 
       - name: Install uv
         run: curl -LsSf https://astral.sh/uv/install.sh | sh && echo "$HOME/.cargo/bin" >> $GITHUB_PATH
