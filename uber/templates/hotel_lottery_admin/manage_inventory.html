@@ -1,0 +1,62 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Manage Room Inventory{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+
+<div class="mb-3">
+  <a href="edit_inventory_item" class="btn btn-primary">Add Inventory Item</a>
+</div>
+
+{% if inventory %}
+<table class="table table-hover">
+  <thead>
+    <tr>
+      <th>Hotel</th>
+      <th>Type</th>
+      <th>Name</th>
+      <th>Quantity</th>
+      <th>Assigned</th>
+      <th>Capacity</th>
+      <th>Min Capacity</th>
+      <th>Price</th>
+      <th>Staff Price</th>
+      <th>Vault Reference</th>
+      <th>Active</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in inventory %}
+    <tr{% if not item.active %} class="text-muted"{% endif %}>
+      <td>{{ item.hotel.name if item.hotel else 'Unknown' }}</td>
+      <td>
+        {% if item.is_suite %}
+          <span class="badge bg-info">Suite</span>
+          {{ item.suite_type.name if item.suite_type else '' }}
+        {% else %}
+          <span class="badge bg-secondary">Room</span>
+          {{ item.room_type.name if item.room_type else '' }}
+        {% endif %}
+      </td>
+      <td>{{ item.name }}</td>
+      <td>{{ item.quantity }}</td>
+      <td>{{ assigned_per_block.get(item.id|string, 0) }}</td>
+      <td>{{ item.capacity }}</td>
+      <td>{{ item.min_capacity }}</td>
+      <td>{{ item.price or '-' }}</td>
+      <td>{{ item.staff_price or '-' }}</td>
+      <td>{{ item.vault_reference or '' }}</td>
+      <td>{{ 'Yes' if item.active else 'No' }}</td>
+      <td><a href="edit_inventory_item?id={{ item.id }}" class="btn btn-sm btn-outline-primary">Edit</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="card card-body text-center text-muted">
+  No inventory items configured. <a href="edit_inventory_item">Add one</a>.
+</div>
+{% endif %}
+
+{% endblock content %}

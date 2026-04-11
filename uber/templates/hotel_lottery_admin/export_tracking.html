@@ -1,0 +1,58 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Export Tracking{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+
+<table class="table table-hover">
+  <thead>
+    <tr>
+      <th>Hotel</th>
+      <th>Total Bookings</th>
+      <th>Last Export</th>
+      <th>Last Confirmation Import</th>
+      <th>Changed Since Export</th>
+      <th>Missing Confirmation #</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for hotel in hotels %}
+    <tr>
+      <td>{{ hotel.hotel_name }}</td>
+      <td>{{ hotel.total_bookings }}</td>
+      <td>{{ hotel.last_export.exported_at|datetime_local if hotel.last_export else 'Never' }}</td>
+      <td>{{ hotel.last_import.exported_at|datetime_local if hotel.last_import else 'Never' }}</td>
+      <td>
+        {% if hotel.dirty_count > 0 %}
+          <span class="text-warning fw-bold">{{ hotel.dirty_count }}</span>
+        {% else %}
+          0
+        {% endif %}
+      </td>
+      <td>
+        {% if hotel.missing_confirmation > 0 %}
+          <span class="text-danger fw-bold">{{ hotel.missing_confirmation }}</span>
+        {% else %}
+          0
+        {% endif %}
+      </td>
+      <td>
+        {% if hotel.total_bookings == 0 %}
+          <span class="badge bg-light text-dark">No bookings</span>
+        {% elif not hotel.last_export %}
+          <span class="badge bg-danger">Not exported</span>
+        {% elif hotel.dirty_count > 0 %}
+          <span class="badge bg-warning text-dark">Pending changes</span>
+        {% elif hotel.missing_confirmation > 0 %}
+          <span class="badge bg-info">Awaiting confirmations</span>
+        {% else %}
+          <span class="badge bg-success">Complete</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% endblock content %}

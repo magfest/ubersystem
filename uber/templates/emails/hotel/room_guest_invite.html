@@ -1,0 +1,14 @@
+{% extends "emails/base.html" %}{% block body %}
+<p>Hello {{ app.attendee.first_name }},</p>
+
+<p>{{ leader.group_leader_name }} has invited you to join their {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}
+"{{ leader.room_group_name }}" for the {{ c.EVENT_NAME }} hotel lottery.</p>
+
+<p>To accept this invite, click the link below:</p>
+
+<p><a href="{{ c.URL_BASE }}/hotel_lottery/accept_invite?token={{ token }}">Accept Invite</a></p>
+
+<p>This invite will expire in 7 days. If you do not wish to join this group, you can simply ignore this email.</p>
+
+<p>If you have any questions, please contact us at {{ c.HOTEL_LOTTERY_EMAIL }}.</p>
+{% endblock %}

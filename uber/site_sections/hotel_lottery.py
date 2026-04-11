@@ -1,4 +1,5 @@
 import base64
+import json
 import uuid
 import cherrypy
 import logging
@@ -7,10 +8,12 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
 from uber.custom_tags import readable_join
-from uber.decorators import all_renderable, ajax, requires_account, render
+from uber.decorators import all_renderable, ajax, ajax_gettable, requires_account, render
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
+from sqlalchemy import func
 from uber.models import Attendee, LotteryApplication
+from uber.models.hotel import HotelRoomInventory, InventoryPartitionBlock
 from uber.tasks.email import send_email
 from uber.utils import RegistrationCode, validate_model, get_age_from_birthday, normalize_email_legacy
 
@@ -623,12 +626,21 @@ class Root:
         if cherrypy.request.method == 'POST':
             pass
 
+        # Query pending outbound invites sent by this leader
+        pending_invites = []
+        if application.room_group_name and not application.parent_application:
+            pending_invites = session.query(LotteryApplication).filter(
+                LotteryApplication.invited_by_id == application.id,
+                LotteryApplication.invite_status == c.INVITE_PENDING,
+            ).all()
+
         return {
             'id': application.id,
             'homepage_account': session.get_attendee_account_by_attendee(application.attendee),
             'forms': forms,
             'message': message,
             'application': application,
+            'pending_invites': pending_invites,
             'create': params.get('create'),
             'action': params.get('action', ''),
             'new_conf': True if params.get('new_conf', "False") != "False" else False,
@@ -699,7 +711,7 @@ class Root:
         if new_leader not in application.valid_group_members:
             raise HTTPRedirect('index?attendee_id={}&message={}', application.attendee.id,
                                f"{new_leader.attendee.full_name} is not a member of your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}")
-        elif application.locked and not (application.finalized and not application.final_status_hidden):
+        elif application.locked:
             raise HTTPRedirect('index?id={}&message={}', application.id,
                                "You cannot transfer group leadership at this time.")
 
@@ -707,9 +719,9 @@ class Root:
         defaults = LotteryApplication().to_dict()
 
         for attr in ['earliest_checkin_date', 'latest_checkin_date', 'earliest_checkout_date', 'latest_checkout_date',
-                     'selection_priorities', 'hotel_preference', 'room_type_preference', 'wants_ada', 'ada_requests',
+                     'hotel_preference', 'room_type_preference', 'wants_ada', 'ada_requests',
                      'room_opt_out', 'suite_type_preference', 'suite_terms_accepted', 'guarantee_policy_accepted',
-                     'assigned_hotel', 'assigned_room_type', 'assigned_suite_type', 'assigned_check_in_date',
+                     'assigned_inventory_id', 'assigned_check_in_date',
                      'assigned_check_out_date', 'deposit_cutoff_date', 'lottery_name', 'booking_url', 'room_group_name',
                      'status', 'entry_type', 'current_step']:
             setattr(new_leader, attr, leader_entry.get(attr))
@@ -842,7 +854,7 @@ class Root:
     def leave_group(self, session, id=None, message="", **params):
         application = session.lottery_application(id)
 
-        if application.locked and not (application.finalized and not application.final_status_hidden):
+        if application.locked:
             raise HTTPRedirect('index?id={}&message={}', application.id,
                                f"You cannot leave your {c.HOTEL_LOTTERY_GROUP_TERM.lower()} at this time.")
 
@@ -884,7 +896,7 @@ class Root:
 
         if not application.status in [c.AWARDED, c.SECURED]:
             message = f"{you_str} entry does not have a room or suite award."
-        if not application.booking_url or application.booking_url_hidden:
+        if not application.booking_url:
             message = f"{you_str} entry is still being processed and the booking link is not available yet."
 
         if application.parent_application:
@@ -935,4 +947,550 @@ class Root:
             'application': application,
             'message': message,
         }
+
+    def secure_room(self, session, id, message='', **params):
+        application = session.lottery_application(id)
+
+        if application.parent_application:
+            raise HTTPRedirect('index?attendee_id={}&message={}', application.attendee.id,
+                               f"Only the leader of your {c.HOTEL_LOTTERY_GROUP_TERM.lower()} may secure the room.")
+        if application.status not in (c.AWARDED, c.SECURED):
+            raise HTTPRedirect('index?attendee_id={}&message={}', application.attendee.id,
+                               "Your entry does not have a room award to secure.")
+        if not c.VAULT_ENABLED:
+            raise HTTPRedirect('index?attendee_id={}&message={}', application.attendee.id,
+                               "Credit card collection is not currently available.")
+
+        return {
+            'application': application,
+            'message': message,
+        }
+
+    @ajax
+    def create_vault_session(self, session, id):
+        """Create a PCI Vault capture session and return the iframe URL."""
+        application = session.lottery_application(id)
+
+        if application.status not in (c.AWARDED, c.SECURED):
+            return {'error': 'This entry is not in a state that can be secured.'}
+
+        inventory_item = application.assigned_inventory
+        vault_reference = inventory_item.vault_reference if inventory_item else f"hotel_{application.assigned_hotel_id}"
+
+        from uber.vault import create_capture_session, get_capture_iframe_url
+        capture = create_capture_session(
+            reference=vault_reference,
+            webhook_metadata={'application_id': application.id},
+        )
+        iframe_url = get_capture_iframe_url(
+            endpoint_id=capture['unique_id'],
+            secret=capture['secret'],
+            reference=vault_reference,
+        )
+        return {'success': True, 'iframe_url': iframe_url}
+
+    @ajax
+    def save_card_token(self, session, id, token, last_four='', card_type='', **params):
+        """Save just the card token without requiring address or changing status."""
+        from pytz import UTC
+        application = session.lottery_application(id)
+
+        if application.status not in (c.AWARDED, c.SECURED):
+            return {'error': 'This entry is not in a state that can be secured.'}
+        if not token:
+            return {'error': 'No card token received.'}
+
+        application.cc_token = token
+        application.cc_last_four = last_four
+        application.cc_card_type = card_type
+        application.cc_captured_at = datetime.now(UTC)
+
+        session.add(application)
+        session.commit()
+        return {'success': True}
+
+    @ajax
+    def secure_room_callback(self, session, id, token, last_four='', card_type='', **params):
+        from pytz import UTC
+        application = session.lottery_application(id)
+
+        if application.status not in (c.AWARDED, c.SECURED):
+            return {'error': 'This entry is not in a state that can be secured.'}
+        if not token:
+            return {'error': 'No card token received.'}
+
+        # Require billing address
+        address1 = params.get('address1', '').strip()
+        city = params.get('city', '').strip()
+        region = params.get('region', '').strip()
+        zip_code = params.get('zip_code', '').strip()
+        country = params.get('country', '').strip()
+
+        if not all([address1, city, region, zip_code, country]):
+            return {'error': 'Please fill in all required billing address fields.'}
+
+        application.cc_token = token
+        application.cc_last_four = last_four
+        application.cc_card_type = card_type
+        application.cc_captured_at = datetime.now(UTC)
+        application.status = c.SECURED
+
+        application.address1 = address1
+        application.address2 = params.get('address2', '').strip()
+        application.city = city
+        application.region = region
+        application.zip_code = zip_code
+        application.country = country
+        application.hotel_rewards_number = params.get('hotel_rewards_number', '').strip()
+
+        # Handle date choice: accept assigned dates or request waitlist
+        from dateutil import parser as dateparser
+        date_choice = params.get('date_choice', 'accept')
+        if date_choice == 'waitlist':
+            requested_ci = params.get('requested_checkin', '')
+            requested_co = params.get('requested_checkout', '')
+            try:
+                if requested_ci:
+                    new_ci = dateparser.parse(requested_ci).date()
+                    if new_ci <= application.assigned_check_in_date:
+                        application.earliest_checkin_date = new_ci
+                if requested_co:
+                    new_co = dateparser.parse(requested_co).date()
+                    if new_co >= application.assigned_check_out_date:
+                        application.latest_checkout_date = new_co
+            except (ValueError, OverflowError):
+                return {'error': 'Invalid date format.'}
+        else:
+            # Accept: set requested dates to match assigned — no waitlist
+            application.earliest_checkin_date = application.assigned_check_in_date
+            application.latest_checkout_date = application.assigned_check_out_date
+
+        # Also secure all group members
+        for member in application.group_members:
+            member.status = c.SECURED
+            session.add(member)
+
+        session.add(application)
+        session.commit()
+        return {'success': True}
+
+    @ajax_gettable
+    def vault_webhook(self, session, **params):
+        """Webhook called by PCI Vault after a card is captured.
+
+        Updates card metadata from the webhook payload. Structure:
+        {
+          "metadata": {"application_id": "..."},
+          "token_info": {
+            "token": "...",
+            "safe_data": "{\"card_holder\": ..., \"last_four\": ..., \"card_type\": ...}",
+            "card_metadata": {"issuer": [{"brand": ..., "issuing_bank": ..., ...}]},
+            ...
+          }
+        }
+        """
+        # Verify webhook secret
+        import hmac
+        webhook_secret = cherrypy.request.headers.get('X-PCIVault-Webhook-Secret', '')
+        if not c.VAULT_WEBHOOK_SECRET or not hmac.compare_digest(webhook_secret, c.VAULT_WEBHOOK_SECRET):
+            cherrypy.response.status = 403
+            return {'error': 'Invalid webhook secret'}
+
+        # Parse JSON body
+        try:
+            body = json.loads(cherrypy.request.body.read())
+        except Exception:
+            cherrypy.response.status = 400
+            return {'error': 'Invalid JSON body'}
+
+        metadata = body.get('metadata', {})
+        application_id = metadata.get('application_id', '')
+        token_info = body.get('token_info', {})
+        token = token_info.get('token', '')
+
+        if not token or not application_id:
+            cherrypy.response.status = 400
+            return {'error': 'Missing token or application_id'}
+
+        application = session.query(LotteryApplication).get(application_id)
+        if not application:
+            cherrypy.response.status = 404
+            return {'error': 'Application not found'}
+
+        # Only update if the token matches what we have stored
+        if application.cc_token != token:
+            return {'success': True}
+
+        # Parse safe_data (JSON string with card holder, last four, etc.)
+        try:
+            safe_data = json.loads(token_info.get('safe_data', '{}'))
+        except (json.JSONDecodeError, TypeError):
+            safe_data = {}
+
+        if safe_data.get('last_four'):
+            application.cc_last_four = safe_data['last_four']
+        if safe_data.get('card_type'):
+            application.cc_card_type = safe_data['card_type']
+        if safe_data.get('card_holder'):
+            application.cc_card_holder = safe_data['card_holder']
+        if safe_data.get('expiry'):
+            application.cc_card_expiry = safe_data['expiry']
+
+        # Parse issuer metadata
+        card_metadata = token_info.get('card_metadata', {})
+        issuers = card_metadata.get('issuer', [])
+        if issuers and isinstance(issuers, list):
+            issuer = issuers[0]
+            if issuer.get('brand'):
+                application.cc_issuer_brand = issuer['brand']
+            if issuer.get('issuing_bank'):
+                application.cc_issuer_bank = issuer['issuing_bank']
+            if issuer.get('country_name'):
+                application.cc_issuer_country = issuer['country_name']
+            if issuer.get('card_type'):
+                application.cc_issuer_card_type = issuer['card_type']
+            if issuer.get('card_level'):
+                application.cc_issuer_card_level = issuer['card_level']
+
+        session.add(application)
+        session.commit()
+
+        return {'success': True}
+
+    def edit_room(self, session, id, message='', **params):
+        application = session.lottery_application(id)
+
+        if application.parent_application:
+            raise HTTPRedirect('index?attendee_id={}&message={}', application.attendee.id,
+                               f"Only the leader of your {c.HOTEL_LOTTERY_GROUP_TERM.lower()} may edit the room.")
+        if application.status not in [c.AWARDED, c.SECURED]:
+            raise HTTPRedirect('index?attendee_id={}&message={}', application.attendee.id,
+                               "Your entry does not have a room award to edit.")
+
+        if cherrypy.request.method == "POST":
+            if application.export_locked:
+                raise HTTPRedirect('edit_room?id={}&message={}', id,
+                                   'Your room details have been exported to the hotel and cannot be changed. '
+                                   'Please contact us for assistance.')
+
+            from dateutil import parser as dateparser
+            from datetime import timedelta as td
+
+            new_check_in = params.get('assigned_check_in_date')
+            new_check_out = params.get('assigned_check_out_date')
+            special_requests = params.get('special_requests', '')
+
+            # Availability check with partial confirmation + waitlist
+            if new_check_in and new_check_out and application.assigned_inventory:
+                new_ci = dateparser.parse(new_check_in).date()
+                new_co = dateparser.parse(new_check_out).date()
+                inv = application.assigned_inventory
+                nq_map = inv.night_quantity_map
+
+                # Compute partition-aware capacity
+                part_id = application.partition_id
+                if part_id:
+                    pb = session.query(InventoryPartitionBlock).filter_by(
+                        partition_id=part_id, inventory_id=inv.id).first()
+                    partition_cap = pb.quantity if pb else 0
+                else:
+                    total_partitioned = session.query(
+                        func.coalesce(func.sum(InventoryPartitionBlock.quantity), 0)
+                    ).filter(InventoryPartitionBlock.inventory_id == str(inv.id)).scalar()
+
+                available_nights = []
+                unavailable_nights = []
+                day = new_ci
+                while day < new_co:
+                    block_qty = nq_map.get(day, inv.quantity) if nq_map else inv.quantity
+                    if part_id:
+                        capacity = min(partition_cap, block_qty)
+                    else:
+                        capacity = max(0, block_qty - total_partitioned)
+
+                    part_filter = (LotteryApplication.partition_id == part_id) if part_id else (LotteryApplication.partition_id == None)
+                    assigned_count = session.query(LotteryApplication).filter(
+                        LotteryApplication.assigned_inventory_id == application.assigned_inventory_id,
+                        LotteryApplication.status.in_(c.HOTEL_LOTTERY_AWARD_STATUSES),
+                        LotteryApplication.entry_type != c.GROUP_ENTRY,
+                        LotteryApplication.id != application.id,
+                        LotteryApplication.assigned_check_in_date <= day,
+                        LotteryApplication.assigned_check_out_date > day,
+                        part_filter,
+                    ).count()
+                    if assigned_count >= capacity:
+                        unavailable_nights.append(day)
+                    else:
+                        available_nights.append(day)
+                    day += td(days=1)
+
+                # Determine the confirmed contiguous range (must include current assigned range)
+                confirmed_ci = application.assigned_check_in_date
+                confirmed_co = application.assigned_check_out_date
+
+                # Extend check-in earlier if those nights are available
+                if new_ci < confirmed_ci:
+                    d = confirmed_ci - td(days=1)
+                    while d >= new_ci and d in available_nights:
+                        confirmed_ci = d
+                        d -= td(days=1)
+
+                # Extend check-out later if those nights are available
+                if new_co > confirmed_co:
+                    d = confirmed_co
+                    while d < new_co and d in available_nights:
+                        confirmed_co = d + td(days=1)
+                        d += td(days=1)
+
+                application.assigned_check_in_date = confirmed_ci
+                application.assigned_check_out_date = confirmed_co
+
+                # Set requested dates to the full desired range (for waitlist tracking)
+                application.earliest_checkin_date = new_ci
+                application.latest_checkout_date = new_co
+
+                # Update group members' dates
+                for member in application.group_members:
+                    member.assigned_check_in_date = confirmed_ci
+                    member.assigned_check_out_date = confirmed_co
+                    session.add(member)
+
+                # Build redirect message
+                if unavailable_nights:
+                    wl_strs = [d.strftime('%a %-m/%-d') for d in unavailable_nights]
+                    message = (f"Confirmed: {confirmed_ci.strftime('%a %-m/%-d')} – "
+                               f"{confirmed_co.strftime('%a %-m/%-d')}. "
+                               f"Waitlisted: {', '.join(wl_strs)}. "
+                               f"You'll be notified if availability opens up.")
+                else:
+                    message = 'Room details updated.'
+            else:
+                if new_check_in:
+                    application.assigned_check_in_date = dateparser.parse(new_check_in).date()
+                if new_check_out:
+                    application.assigned_check_out_date = dateparser.parse(new_check_out).date()
+
+            application.special_requests = special_requests
+            application.hotel_rewards_number = params.get('hotel_rewards_number', '').strip()
+
+            # Address fields
+            application.address1 = params.get('address1', '').strip()
+            application.address2 = params.get('address2', '').strip()
+            application.city = params.get('city', '').strip()
+            application.region = params.get('region', '').strip()
+            application.zip_code = params.get('zip_code', '').strip()
+            application.country = params.get('country', '').strip()
+
+            session.add(application)
+            session.commit()
+            if not message:
+                message = 'Room details updated.'
+            raise HTTPRedirect('index?attendee_id={}&message={}', application.attendee.id, message)
+
+        # Get room capacity for guest invite limit
+        inventory_item = application.assigned_inventory
+        max_guests = inventory_item.capacity - 1 if inventory_item else 3
+
+        return {
+            'application': application,
+            'max_guests': max_guests,
+            'vault_enabled': c.VAULT_ENABLED,
+            'message': message,
+        }
+
+    def invite_room_guest(self, session, id, email='', **params):
+        application = session.lottery_application(id)
+        message = ''
+
+        if application.parent_application:
+            message = f"Only the leader of your {c.HOTEL_LOTTERY_GROUP_TERM.lower()} may invite guests."
+        elif application.status not in [c.AWARDED, c.SECURED]:
+            message = "Your entry does not have a room award."
+        elif not email:
+            message = "Please enter an email address."
+        else:
+            normalized = email.strip().lower()
+            guest_attendee = session.query(Attendee).filter(
+                func.lower(Attendee.email) == normalized
+            ).first()
+
+            if not guest_attendee:
+                message = "No attendee found with that email address."
+            elif guest_attendee.id == application.attendee_id:
+                message = "You cannot invite yourself."
+            else:
+                guest_app = getattr(guest_attendee, 'lottery_application', None)
+
+                if guest_app and guest_app.parent_application_id:
+                    message = "That attendee is already in a room group."
+                elif guest_app and guest_app.status in [c.AWARDED, c.SECURED] and not guest_app.parent_application:
+                    message = "That attendee already has their own room award."
+                else:
+                    if not guest_app:
+                        guest_app = LotteryApplication(
+                            attendee_id=guest_attendee.id,
+                            status=c.COMPLETE,
+                            entry_type=c.GROUP_ENTRY,
+                            legal_first_name=guest_attendee.legal_first_name,
+                            legal_last_name=guest_attendee.legal_last_name,
+                            cellphone=guest_attendee.cellphone,
+                        )
+                        session.add(guest_app)
+                        session.flush()
+
+                    inventory_item = application.assigned_inventory
+                    max_guests = inventory_item.capacity - 1 if inventory_item else 3
+                    if len(application.valid_group_members) >= max_guests:
+                        message = "This room is at capacity."
+                    else:
+                        guest_app.parent_application_id = application.id
+                        guest_app.status = application.status
+                        session.add(guest_app)
+                        session.commit()
+                        raise HTTPRedirect('edit_room?id={}&message={}', id, 'Guest added to your room.')
+
+        raise HTTPRedirect('edit_room?id={}&message={}', id, message)
+
+    def remove_room_guest(self, session, id, member_id, **params):
+        application = session.lottery_application(id)
+        member = session.lottery_application(member_id)
+
+        if member.parent_application_id != application.id:
+            raise HTTPRedirect('edit_room?id={}&message={}', id, 'That attendee is not in your room group.')
+
+        member.parent_application_id = None
+        member.status = c.COMPLETE
+        session.add(member)
+        session.commit()
+        raise HTTPRedirect('edit_room?id={}&message={}', id, 'Guest removed from your room.')
+
+    @requires_account(Attendee)
+    def send_room_invite(self, session, id, email='', **params):
+        application = session.lottery_application(id)
+        message = ''
+
+        if application.parent_application:
+            message = f"Only the leader of a {c.HOTEL_LOTTERY_GROUP_TERM.lower()} may send invites."
+        elif not application.room_group_name:
+            message = f"You must create a {c.HOTEL_LOTTERY_GROUP_TERM.lower()} before sending invites."
+        else:
+            inventory_item = application.assigned_inventory
+            max_group = inventory_item.capacity - 1 if inventory_item else 3
+            if len(application.valid_group_members) >= max_group:
+                message = f"Your {c.HOTEL_LOTTERY_GROUP_TERM.lower()} is full."
+            elif not email:
+                message = "Please enter an email address."
+            else:
+                normalized = normalize_email_legacy(email)
+                guest_attendee = session.query(Attendee).filter(
+                    Attendee.normalized_email == normalized
+                ).first()
+
+                if not guest_attendee:
+                    message = "No attendee found with that email address. Please check the address and try again."
+                else:
+                    guest_app = getattr(guest_attendee, 'lottery_application', None)
+                    if not guest_app:
+                        guest_app = LotteryApplication(
+                            attendee_id=guest_attendee.id,
+                            status=c.COMPLETE,
+                            entry_type=c.GROUP_ENTRY,
+                            legal_first_name=guest_attendee.legal_first_name,
+                            legal_last_name=guest_attendee.legal_last_name,
+                            cellphone=guest_attendee.cellphone,
+                        )
+                        session.add(guest_app)
+                        session.flush()
+                    if guest_app.id == application.id:
+                        message = "You cannot invite yourself."
+                    elif guest_app.parent_application_id:
+                        message = f"That attendee is already in a {c.HOTEL_LOTTERY_GROUP_TERM.lower()}."
+                    elif guest_app.invite_status == c.INVITE_PENDING:
+                        message = "That attendee already has a pending invite."
+                    else:
+                        token = str(uuid.uuid4())
+                        guest_app.invite_token = token
+                        guest_app.invited_by_id = application.id
+                        guest_app.invite_status = c.INVITE_PENDING
+                        guest_app.invite_expires_at = datetime.now() + timedelta(days=7)
+                        session.add(guest_app)
+                        session.commit()
+
+                        # Send invite email
+                        from uber.decorators import render
+                        body = render('emails/hotel/room_guest_invite.html', {
+                            'app': guest_app,
+                            'leader': application,
+                            'token': token,
+                        }, encoding=None)
+                        send_email.delay(
+                            c.HOTEL_LOTTERY_EMAIL,
+                            guest_attendee.email_to_address,
+                            f'{c.EVENT_NAME} Hotel {c.HOTEL_LOTTERY_GROUP_TERM} Invite from {application.group_leader_name}',
+                            body,
+                            format='html',
+                            model=guest_app.to_dict('id'))
+
+                        raise HTTPRedirect('room_group?id={}&message={}', id,
+                                           f'Invite sent to {email}.')
+
+        raise HTTPRedirect('room_group?id={}&message={}', id, message)
+
+    @requires_account(Attendee)
+    def accept_invite(self, session, token, attendee_id=None, **params):
+        if not token:
+            raise HTTPRedirect('../preregistration/homepage?message={}', 'Invalid invite link.')
+
+        guest_app = session.query(LotteryApplication).filter_by(invite_token=token).first()
+        if not guest_app:
+            raise HTTPRedirect('../preregistration/homepage?message={}', 'Invite not found or already used.')
+
+        if guest_app.invite_status != c.INVITE_PENDING:
+            raise HTTPRedirect('../preregistration/homepage?message={}',
+                               f'This invite has been {guest_app.invite_status_label.lower()}.')
+
+        if guest_app.invite_expires_at and guest_app.invite_expires_at < datetime.now():
+            guest_app.invite_status = c.INVITE_EXPIRED
+            session.add(guest_app)
+            session.commit()
+            raise HTTPRedirect('../preregistration/homepage?message={}', 'This invite has expired.')
+
+        leader_app = session.lottery_application(guest_app.invited_by_id)
+
+        if cherrypy.request.method == 'POST':
+            if guest_app.parent_application_id:
+                raise HTTPRedirect('../preregistration/homepage?message={}',
+                                   f'You are already in a {c.HOTEL_LOTTERY_GROUP_TERM.lower()}.')
+
+            msg, _ = _join_room_group(session, guest_app, leader_app.id)
+            if msg:
+                raise HTTPRedirect('accept_invite?token={}&message={}', token, msg)
+
+            guest_app.invite_status = c.INVITE_ACCEPTED
+            guest_app.invite_token = ''
+            session.add(guest_app)
+            session.commit()
+            raise HTTPRedirect('index?attendee_id={}&message={}', guest_app.attendee.id,
+                               f'You have joined {leader_app.room_group_name}!')
+
+        return {
+            'guest_app': guest_app,
+            'leader_app': leader_app,
+            'token': token,
+        }
+
+    @requires_account(Attendee)
+    def cancel_invite(self, session, id, invite_app_id, **params):
+        application = session.lottery_application(id)
+        invite_app = session.lottery_application(invite_app_id)
+
+        if str(invite_app.invited_by_id) != str(application.id):
+            raise HTTPRedirect('room_group?id={}&message={}', id, 'That invite does not belong to your group.')
+
+        invite_app.invite_status = c.INVITE_CANCELLED
+        invite_app.invite_token = ''
+        invite_app.invited_by_id = None
+        session.add(invite_app)
+        session.commit()
+        raise HTTPRedirect('room_group?id={}&message={}', id, 'Invite cancelled.')
 

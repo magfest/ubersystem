@@ -18,7 +18,7 @@
                     </button>
                     {% endif %}
                 </form>
-                {% if app_editable or application.finalized and not application.final_status_hidden %}
+                {% if app_editable or application.finalized %}
                 <form method="post" action="transfer_leadership" class="make-leader">
                     <input type="hidden" name="id" value="{{ application.id }}">
                     {{ csrf_token() }}

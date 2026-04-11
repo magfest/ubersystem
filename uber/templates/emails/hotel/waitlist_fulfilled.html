@@ -1,0 +1,24 @@
+{% extends "emails/base.html" %}{% block body %}
+<p>Hello {{ app.attendee.first_name }},</p>
+
+<p>Great news! Additional room nights have become available for the {{ c.EVENT_NAME }} hotel lottery,
+and your dates have been updated.</p>
+
+<p><strong>Your updated room dates:</strong></p>
+<ul>
+  <li><strong>Check-in:</strong> {{ app.assigned_check_in_date.strftime("%B %-d, %Y") }}</li>
+  <li><strong>Check-out:</strong> {{ app.assigned_check_out_date.strftime("%B %-d, %Y") }}</li>
+  <li><strong>Hotel:</strong> {{ app.assigned_hotel.name if app.assigned_hotel else 'TBD' }}</li>
+</ul>
+
+{% if app.has_waitlist_request %}
+<p>You are still on the waitlist for additional nights. We'll notify you if more availability opens up.</p>
+{% else %}
+<p>All of your requested nights have been confirmed.</p>
+{% endif %}
+
+<p>You can review your room details at any time by visiting your
+<a href="{{ c.URL_BASE }}/hotel_lottery/edit_room?id={{ app.id }}">room details page</a>.</p>
+
+<p>If you have any questions, please contact us at {{ c.HOTEL_LOTTERY_EMAIL }}.</p>
+{% endblock %}

@@ -2,75 +2,270 @@
 {% block title %}Hotel Lottery Inventory{% endblock %}
 {% block content %}
 
-{% macro inventory_table(inventory, room_type_lookup, display_hotel=True) %}
-    {% for hotel_id in inventory.keys() %}
-    {% set room_list = inventory[hotel_id] %}
-    <tr>
-        <td{% if not display_hotel %} class="d-none"{% endif %}>{{ hotel_lookup[hotel_id|int]['name'] }}</td>
+{% include 'hotel_lottery_admin/nav.html' %}
 
-        {% if room_list %}
-        {% set first_row = room_list[0] %}
-        <td>{{ room_type_lookup[first_row['room_type']]['name'] }}</td>
-        <td>{{ first_row['quantity'] }}</td>
-        <td>{{ first_row[c.PROCESSED] }}</td>
-        <td>{{ first_row[c.AWARDED] }}</td>
-        <td>{{ first_row[c.SECURED] }}</td>
-        <td>{{ first_row['quantity']|default(0) - first_row[c.PROCESSED]|default(0) - first_row[c.AWARDED]|default(0) - first_row[c.SECURED]|default(0) }}</td>
-        {% else %}
-        <td colspan="6">No Inventory</td>
-        {% endif %}
-    </tr>
-    {% for room in room_list %}
-        {% if not loop.first %}
-        <tr>
-            <td{% if not display_hotel %} class="d-none"{% endif %}></td>
-            <td>{{ room_type_lookup[room['room_type']]['name'] }}</td>
-            <td>{{ room['quantity'] }}</td>
-            <td>{{ room[c.PROCESSED] }}</td>
-            <td>{{ room[c.AWARDED] }}</td>
-            <td>{{ room[c.SECURED] }}</td>
-            <td>{{ room['quantity']|default(0) - room[c.PROCESSED]|default(0) - room[c.AWARDED]|default(0) - room[c.SECURED]|default(0) }}</td>
-        </tr>
-        {% endif %}
+<ul class="nav nav-tabs mb-3">
+  <li class="nav-item">
+    <a class="nav-link{% if current_partition == 'all' %} active{% endif %}" href="hotel_inventory?partition=all">All</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link{% if current_partition == 'default' %} active{% endif %}" href="hotel_inventory?partition=default">Default</a>
+  </li>
+  {% for p in partitions %}
+  <li class="nav-item">
+    <a class="nav-link{% if current_partition == p.id|string %} active{% endif %}" href="hotel_inventory?partition={{ p.id }}">{{ p.name }}</a>
+  </li>
+  {% endfor %}
+</ul>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="mb-0">
+    Hotel Lottery Inventory -- {{ now_localized()|datetime("%m/%d/%Y, %-I:%M%p") }}
+  </h2>
+  <button type="button" class="btn btn-outline-primary" onclick="processWaitlist()">
+    <i class="fa fa-list-check"></i> Process Waitlist
+  </button>
+</div>
+
+{% macro inventory_table(inventory, is_suite=False) %}
+{% for hotel, room_list in inventory.items() %}
+  {% for room in room_list %}
+  <tr>
+    {% if loop.first %}
+    <td rowspan="{{ room_list|length }}" class="align-middle fw-bold">{{ hotel.name if hotel else 'Unknown' }}</td>
+    {% endif %}
+    <td>{{ room.room_type.name if room.room_type else '' }}{% if room.inventory.name %} <small class="text-muted">({{ room.inventory.name }})</small>{% endif %}</td>
+    <td class="text-center">{{ room.quantity }}</td>
+    <td class="text-center">
+      {% if room.total_assigned > 0 %}
+      <a href="#" class="assignee-link" data-inventory-id="{{ room.inventory.id }}" data-night="" data-title="{{ (room.room_type.name if room.room_type else 'Block')|e }}">{{ room.total_assigned }}</a>
+      {% else %}0{% endif %}
+    </td>
+    <td class="text-center">{{ room[c.PROCESSED]|default(0) }}</td>
+    <td class="text-center">{{ room[c.AWARDED]|default(0) }}</td>
+    <td class="text-center">{{ room[c.SECURED]|default(0) }}</td>
+    {% for nd in room.nights %}
+    <td class="text-center{% if nd.remaining <= 0 and nd.available > 0 %} table-danger{% elif nd.remaining <= 0 %} table-secondary{% endif %}">
+      {% if nd.assigned > 0 %}
+      <a href="#" class="assignee-link" data-inventory-id="{{ room.inventory.id }}" data-night="{{ nd.night.isoformat() }}" data-title="{{ (room.room_type.name if room.room_type else 'Block')|e }} – {{ nd.night.strftime('%a %-m/%-d') }}">{{ nd.assigned }}</a>
+      {% else %}0{% endif %}/{{ nd.available }}
+      {% if nd.waitlisted %}<br><small class="text-warning" title="{{ nd.waitlisted }} waitlisted">{{ nd.waitlisted }} wl</small>{% endif %}
+    </td>
     {% endfor %}
-    {% endfor %}
+  </tr>
+  {% endfor %}
+{% endfor %}
 {% endmacro %}
 
-<h2 class="mb-3">
-    Hotel Lottery Inventory -- {{ now_localized()|datetime("%m/%d/%Y, %-I:%M%p") }}
-    <small><a href="index">Back to Lottery Entries</a></small>
-</h2>
-
 <h3>Standard Rooms</h3>
-<table class="table table-bordered bg-body" style="margin: 20px; width: calc(100% - 40px);">
+<div class="table-responsive">
+<table class="table table-bordered table-sm bg-body">
     <thead>
         <tr>
             <th>Hotel</th>
             <th>Room Type</th>
-            <th>Quantity</th>
-            <th>Assigned</th>
+            <th>Default Qty</th>
+            <th>Total Assigned</th>
+            <th>Processed</th>
             <th>Awarded</th>
             <th>Secured</th>
-            <th>Remaining</th>
+            {% for night in event_nights %}
+            <th class="text-center">{{ night.strftime('%a %-m/%-d') }}</th>
+            {% endfor %}
         </tr>
     </thead>
-    {{ inventory_table(room_inventory, room_lookup) }}
+    <tbody>
+    {{ inventory_table(room_inventory) }}
+    </tbody>
 </table>
+</div>
 
+{% if suite_inventory %}
 <h3>Suites</h3>
-<table class="table table-bordered bg-body" style="margin: 20px; width: calc(100% - 40px);">
+<div class="table-responsive">
+<table class="table table-bordered table-sm bg-body">
     <thead>
         <tr>
-            <th class="d-none">Hotel</th>
+            <th>Hotel</th>
             <th>Suite Type</th>
-            <th>Quantity</th>
-            <th>Assigned</th>
+            <th>Default Qty</th>
+            <th>Total Assigned</th>
+            <th>Processed</th>
             <th>Awarded</th>
             <th>Secured</th>
-            <th>Remaining</th>
+            {% for night in event_nights %}
+            <th class="text-center">{{ night.strftime('%a %-m/%-d') }}</th>
+            {% endfor %}
         </tr>
     </thead>
-    {{ inventory_table(suite_inventory, suite_lookup, display_hotel=False) }}
+    <tbody>
+    {{ inventory_table(suite_inventory, is_suite=True) }}
+    </tbody>
 </table>
+</div>
+{% endif %}
+
+{% if chart_data %}
+<h3 class="mt-4">Inventory Charts</h3>
+<div class="row">
+<div class="col-12 mb-3">
+  <div class="card card-body">
+    <h5>All Hotels – Combined</h5>
+    <canvas id="chart_total"></canvas>
+  </div>
+</div>
+{% for hotel_name, data in chart_data.items() %}
+{% if hotel_name != '_total' %}
+<div class="col-md-6 mb-3">
+  <div class="card card-body">
+    <h5>{{ hotel_name }}</h5>
+    <canvas id="chart_{{ loop.index }}"></canvas>
+  </div>
+</div>
+{% endif %}
+{% endfor %}
+</div>
+{% endif %}
+
+<!-- Assignees Modal -->
+<div class="modal fade" id="assigneesModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="assignees-title">Assigned Attendees</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="assignees-loading" class="text-center py-3">Loading...</div>
+        <div id="assignees-content" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script>
+var currentPartition = {{ current_partition|tojson }};
+
+function processWaitlist() {
+    if (!confirm('Process the waitlist? This will randomly assign available nights to waitlisted attendees.')) return;
+    $.ajax({
+        method: 'POST',
+        url: 'process_waitlist',
+        dataType: 'json',
+        data: { csrf_token: csrf_token },
+        success: function(json) {
+            if (json.success) {
+                alert(json.message);
+                location.reload();
+            } else {
+                alert(json.error || 'An error occurred.');
+            }
+        }
+    });
+}
+
+function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(str));
+    return div.innerHTML;
+}
+
+function showAssignees(inventoryId, nightDate, title) {
+    document.getElementById('assignees-title').textContent = 'Assigned: ' + title;
+    document.getElementById('assignees-loading').style.display = '';
+    document.getElementById('assignees-content').style.display = 'none';
+    new bootstrap.Modal(document.getElementById('assigneesModal')).show();
+    $.ajax({
+        method: 'POST',
+        url: 'inventory_assignees',
+        dataType: 'json',
+        data: { inventory_id: inventoryId, night_date: nightDate, partition: currentPartition, csrf_token: csrf_token },
+        success: function(json) {
+            document.getElementById('assignees-loading').style.display = 'none';
+            var container = document.getElementById('assignees-content');
+            container.textContent = '';
+            if (json.assignees && json.assignees.length) {
+                var table = document.createElement('table');
+                table.className = 'table table-sm table-hover';
+                var thead = table.createTHead();
+                var hrow = thead.insertRow();
+                ['Name', 'Conf #', 'Status', 'Check-in', 'Check-out', 'Partition'].forEach(function(h) {
+                    var th = document.createElement('th');
+                    th.textContent = h;
+                    hrow.appendChild(th);
+                });
+                var tbody = table.createTBody();
+                json.assignees.forEach(function(a) {
+                    var row = tbody.insertRow();
+                    var nameCell = row.insertCell();
+                    var nameLink = document.createElement('a');
+                    nameLink.href = '../registration/form?id=' + encodeURIComponent(a.attendee_id);
+                    nameLink.target = '_blank';
+                    nameLink.textContent = a.name;
+                    nameCell.appendChild(nameLink);
+
+                    var confCell = row.insertCell();
+                    var confLink = document.createElement('a');
+                    confLink.href = 'form?id=' + encodeURIComponent(a.app_id);
+                    confLink.textContent = a.conf_num;
+                    confCell.appendChild(confLink);
+
+                    row.insertCell().textContent = a.status;
+                    row.insertCell().textContent = a.check_in;
+                    row.insertCell().textContent = a.check_out;
+                    row.insertCell().textContent = a.partition || '\u2014';
+                });
+                container.appendChild(table);
+            } else {
+                var p = document.createElement('p');
+                p.className = 'text-muted text-center';
+                p.textContent = 'No assignees found.';
+                container.appendChild(p);
+            }
+            container.style.display = '';
+        }
+    });
+}
+
+function renderChart(canvasId, data) {
+    new Chart(document.getElementById(canvasId), {
+        type: 'bar',
+        data: {
+            labels: nightLabels,
+            datasets: [
+                { label: 'Assigned', data: data.assigned, backgroundColor: 'rgba(54, 162, 235, 0.7)' },
+                { label: 'Available', data: data.available, backgroundColor: 'rgba(200, 200, 200, 0.5)' },
+                { label: 'Waitlisted', data: data.waitlisted, backgroundColor: 'rgba(255, 159, 64, 0.7)' }
+            ]
+        },
+        options: {
+            responsive: true,
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+}
+
+$(document).on('click', '.assignee-link', function(e) {
+    e.preventDefault();
+    var el = $(this);
+    showAssignees(el.data('inventory-id'), el.data('night'), el.data('title'));
+});
+
+// Render charts
+{% if chart_data %}
+var nightLabels = [{% for night in event_nights %}"{{ night.strftime('%a %-m/%-d') }}"{{ "," if not loop.last }}{% endfor %}];
+
+{% if chart_data._total is defined %}
+renderChart('chart_total', {{ chart_data._total|tojson }});
+{% endif %}
+
+{% for hotel_name, data in chart_data.items() %}
+{% if hotel_name != '_total' %}
+renderChart('chart_{{ loop.index }}', {{ data|tojson }});
+{% endif %}
+{% endfor %}
+{% endif %}
+</script>
 
 {% endblock content %}

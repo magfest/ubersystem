@@ -1,0 +1,151 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}{{ 'Edit' if item.id else 'Add' }} Inventory Item{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+
+<h2>{{ 'Edit' if item.id else 'Add' }} Inventory Item</h2>
+
+<div class="mb-3">
+  <a href="manage_inventory" class="btn btn-outline-secondary">Back to Inventory</a>
+</div>
+
+<form method="post" action="edit_inventory_item" class="card card-body" style="max-width: 600px;">
+  {{ csrf_token() }}
+  {% if item.id %}
+  <input type="hidden" name="id" value="{{ item.id }}" />
+  {% endif %}
+
+  <div class="mb-3">
+    <label for="hotel" class="form-label">Hotel</label>
+    <select class="form-select" name="hotel" id="hotel" required>
+      <option value="">-- Select Hotel --</option>
+      {% for hotel in hotels %}
+      <option value="{{ hotel.id }}" {% if item.hotel_id == hotel.id|string %}selected{% endif %}>{{ hotel.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Is Suite?</label>
+    <select class="form-select" name="is_suite" id="is_suite" onchange="toggleTypeFields()">
+      <option value="false" {% if not item.is_suite %}selected{% endif %}>No (Standard Room)</option>
+      <option value="true" {% if item.is_suite %}selected{% endif %}>Yes (Suite)</option>
+    </select>
+  </div>
+
+  <div class="mb-3" id="room_type_div">
+    <label for="room_type" class="form-label">Room Type</label>
+    <select class="form-select" name="room_type" id="room_type">
+      <option value="">-- Select Room Type --</option>
+      {% for room_type in room_types %}
+      <option value="{{ room_type.id }}" {% if item.room_type_id == room_type.id|string %}selected{% endif %}>{{ room_type.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="mb-3" id="suite_type_div" style="display: none;">
+    <label for="suite_type" class="form-label">Suite Type</label>
+    <select class="form-select" name="suite_type" id="suite_type">
+      <option value="">-- Select Suite Type --</option>
+      {% for suite_type in suite_types %}
+      <option value="{{ suite_type.id }}" {% if item.suite_type_id == suite_type.id|string %}selected{% endif %}>{{ suite_type.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="mb-3">
+    <label for="name" class="form-label">Display Name</label>
+    <input type="text" class="form-control" name="name" id="name" value="{{ item.name or '' }}" required />
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col">
+      <label for="quantity" class="form-label">Default Quantity</label>
+      <input type="number" class="form-control" name="quantity" id="quantity" value="{{ item.quantity }}" min="0" required />
+      <div class="form-text">Fallback quantity when per-night quantities are not set.</div>
+    </div>
+    <div class="col">
+      <label for="capacity" class="form-label">Capacity</label>
+      <input type="number" class="form-control" name="capacity" id="capacity" value="{{ item.capacity }}" min="1" required />
+    </div>
+    <div class="col">
+      <label for="min_capacity" class="form-label">Min Capacity</label>
+      <input type="number" class="form-control" name="min_capacity" id="min_capacity" value="{{ item.min_capacity }}" min="1" required />
+    </div>
+  </div>
+
+  {% if event_nights %}
+  <div class="mb-3">
+    <label class="form-label">Per-Night Quantities</label>
+    <div class="form-text mb-2">Set available rooms for each night. Leave blank to use the default quantity above.</div>
+    <div class="row g-2">
+      {% for night in event_nights %}
+      <div class="col-auto">
+        <label class="form-label small">{{ night.strftime('%a %-m/%-d') }}</label>
+        <input type="number" class="form-control form-control-sm" style="width: 80px;"
+               name="night_qty_{{ night.isoformat() }}"
+               value="{{ item.night_quantity_map.get(night, '') if item.id else '' }}"
+               min="0" placeholder="{{ item.quantity }}" />
+      </div>
+      {% endfor %}
+    </div>
+    <div class="mt-2">
+      <button type="button" class="btn btn-sm btn-outline-secondary" onclick="fillNightQuantities()">
+        Fill all from default
+      </button>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="mb-3">
+    <label for="info_url" class="form-label">Info Page URL</label>
+    <input type="url" class="form-control" name="info_url" id="info_url" value="{{ item.info_url or '' }}" placeholder="https://example.com/room-details" />
+    <div class="form-text">Link to an informational page about this room type (photos, amenities, etc). Shown to attendees on their room assignment.</div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col">
+      <label for="price" class="form-label">Price</label>
+      <input type="text" class="form-control" name="price" id="price" value="{{ item.price or '' }}" placeholder="e.g., $199/night" />
+    </div>
+    <div class="col">
+      <label for="staff_price" class="form-label">Staff Price</label>
+      <input type="text" class="form-control" name="staff_price" id="staff_price" value="{{ item.staff_price or '' }}" placeholder="e.g., $149/night" />
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <label for="vault_reference" class="form-label">Vault Reference</label>
+    <input type="text" class="form-control" name="vault_reference" id="vault_reference" value="{{ item.vault_reference or '' }}" placeholder="e.g., gaylord-national" />
+    <div class="form-text">PCI Vault reference used to group cards for this hotel. All room types in the same hotel should share the same reference.</div>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Active</label>
+    <select class="form-select" name="active">
+      <option value="true" {% if item.active or not item.id %}selected{% endif %}>Yes</option>
+      <option value="false" {% if item.id and not item.active %}selected{% endif %}>No</option>
+    </select>
+  </div>
+
+  <button type="submit" class="btn btn-primary">Save</button>
+</form>
+
+<script>
+function toggleTypeFields() {
+  var isSuite = document.getElementById('is_suite').value === 'true';
+  document.getElementById('room_type_div').style.display = isSuite ? 'none' : '';
+  document.getElementById('suite_type_div').style.display = isSuite ? '' : 'none';
+}
+toggleTypeFields();
+
+function fillNightQuantities() {
+  var qty = document.getElementById('quantity').value;
+  document.querySelectorAll('input[name^="night_qty_"]').forEach(function(input) {
+    input.value = qty;
+  });
+}
+</script>
+
+{% endblock content %}

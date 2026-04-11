@@ -5,6 +5,7 @@ import checkdigit.verhoeff as verhoeff
 from datetime import timedelta, datetime, date
 from pytz import UTC
 from markupsafe import Markup
+import sqlalchemy as sa
 from sqlalchemy import Sequence, case
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -22,7 +23,10 @@ from uber.utils import RegistrationCode
 log = logging.getLogger(__name__)
 
 
-__all__ = ['NightsMixin', 'HotelRequests', 'Room', 'RoomAssignment', 'LotteryApplication']
+__all__ = ['NightsMixin', 'HotelRequests', 'Room', 'RoomAssignment', 'LotteryApplication',
+           'HotelRoomInventory', 'InventoryNightQuantity', 'InventoryPartition', 'InventoryPartitionBlock',
+           'LotteryRun', 'HotelExportLog',
+           'LotteryHotel', 'LotteryRoomType']
 
 
 def _night(name):
@@ -66,7 +70,7 @@ class NightsMixin(object):
 
 class HotelRequests(MagModel, NightsMixin, table=True):
     attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE', unique=True)
-    attendee: 'Attendee' = Relationship(back_populates="hotel_requests", sa_relationship_kwargs={'lazy': 'joined'})
+    attendee: 'Attendee' = Relationship(back_populates="hotel_requests")
 
     nights: str = Field(sa_type=MultiChoice(c.NIGHT_OPTS), default='')
     wanted_roommates: str = ''
@@ -150,23 +154,19 @@ class LotteryApplication(MagModel, table=True):
     latest_checkin_date: date | None = Field(sa_type=Date, nullable=True)
     earliest_checkout_date: date | None = Field(sa_type=Date, nullable=True)
     latest_checkout_date: date | None = Field(sa_type=Date, nullable=True)
-    selection_priorities: str = Field(sa_type=MultiChoice(c.HOTEL_LOTTERY_PRIORITIES_OPTS), default='')
-
-    hotel_preference: str = Field(sa_type=MultiChoice(c.HOTEL_LOTTERY_HOTELS_OPTS), default='')
-    room_type_preference: str = Field(sa_type=MultiChoice(c.HOTEL_LOTTERY_ROOM_TYPES_OPTS), default='')
+    hotel_preference: str = ''  # Comma-separated LotteryHotel UUIDs
+    room_type_preference: str = ''  # Comma-separated LotteryRoomType UUIDs
     wants_ada: bool = False
     ada_requests: str = ''
 
     room_opt_out: bool = False
-    suite_type_preference: str = Field(sa_type=MultiChoice(c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS), default='')
+    suite_type_preference: str = ''  # Comma-separated LotteryRoomType UUIDs (suites)
 
     terms_accepted: bool = False
     data_policy_accepted: bool = False
     suite_terms_accepted: bool = False
     guarantee_policy_accepted: bool = False
     can_edit: bool = False
-    final_status_hidden: bool = True
-    booking_url_hidden: bool = True
 
     # If this is set then the above values are ignored
     parent_application_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='lottery_application.id', nullable=True)
@@ -175,20 +175,73 @@ class LotteryApplication(MagModel, table=True):
         sa_relationship_kwargs={'lazy': 'joined', 'foreign_keys': 'LotteryApplication.parent_application_id',
                                 'remote_side': 'LotteryApplication.id'})
     group_members: list['LotteryApplication'] = Relationship(
-        back_populates="parent_application")
+        back_populates="parent_application",
+        sa_relationship_kwargs={'foreign_keys': 'LotteryApplication.parent_application_id'})
     former_parent_id: str | None = Field(sa_type=Uuid(as_uuid=False), nullable=True)
 
     room_group_name: str = ''
     email_model_name: ClassVar = 'app'
 
-    assigned_hotel: int | None = Field(sa_column=Column(Choice(c.HOTEL_LOTTERY_HOTELS_OPTS), nullable=True))
-    assigned_room_type: int | None = Field(sa_column=Column(Choice(c.HOTEL_LOTTERY_ROOM_TYPES_OPTS), nullable=True))
-    assigned_suite_type: int | None = Field(sa_column=Column(Choice(c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS), nullable=True))
+    assigned_inventory_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='hotel_room_inventory.id', nullable=True)
+    assigned_inventory: 'HotelRoomInventory' = Relationship(
+        sa_relationship_kwargs={'foreign_keys': 'LotteryApplication.assigned_inventory_id', 'lazy': 'joined',
+                                'overlaps': 'assigned_applications'})
+    partition_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='inventory_partition.id', nullable=True)
+    partition: 'InventoryPartition' = Relationship(
+        sa_relationship_kwargs={'foreign_keys': 'LotteryApplication.partition_id', 'lazy': 'joined'})
+    export_locked: bool = False
+
+    # Email-based room guest invite fields
+    invite_token: str = ''
+    invited_by_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='lottery_application.id', nullable=True)
+    invited_by: 'LotteryApplication' = Relationship(
+        sa_relationship_kwargs={'foreign_keys': 'LotteryApplication.invited_by_id',
+                                'remote_side': 'LotteryApplication.id'})
+    invite_status: int = Field(sa_column=Column(Choice(c.HOTEL_INVITE_STATUS_OPTS), default=c.NO_INVITE))
+    invite_expires_at: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     assigned_check_in_date: date | None = Field(sa_type=Date, nullable=True)
     assigned_check_out_date: date | None = Field(sa_type=Date, nullable=True)
     deposit_cutoff_date: date | None = Field(sa_type=Date, nullable=True)
     lottery_name: str = ''
     booking_url: str = ''
+
+    # Credit card vaulting (PCI Vault tokens, NOT card data)
+    cc_token: str | None = Field(nullable=True)
+    cc_last_four: str | None = Field(nullable=True)
+    cc_card_type: str | None = Field(nullable=True)
+    cc_card_holder: str | None = Field(nullable=True)
+    cc_card_expiry: str | None = Field(nullable=True)
+    cc_issuer_brand: str | None = Field(nullable=True)
+    cc_issuer_bank: str | None = Field(nullable=True)
+    cc_issuer_country: str | None = Field(nullable=True)
+    cc_issuer_card_type: str | None = Field(nullable=True)
+    cc_issuer_card_level: str | None = Field(nullable=True)
+    cc_captured_at: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
+
+    # Billing address for hotel booking
+    address1: str = ''
+    address2: str = ''
+    city: str = ''
+    region: str = ''
+    zip_code: str = ''
+    country: str = ''
+
+    # Hotel confirmation and post-award fields
+    hotel_confirmation_number: str | None = Field(nullable=True)
+    special_requests: str = ''
+    hotel_rewards_number: str = ''
+    last_modified_at: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
+
+    # Link to the lottery run that assigned this room
+    lottery_run_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='lottery_run.id', nullable=True)
+
+    @presave_adjustment
+    def update_last_modified(self):
+        dominated_fields = ['assigned_check_in_date', 'assigned_check_out_date', 'special_requests',
+                            'assigned_inventory_id',
+                            'address1', 'address2', 'city', 'region', 'zip_code', 'country']
+        if any(getattr(self, f) != self.orig_value_of(f) for f in dominated_fields):
+            self.last_modified_at = datetime.now(UTC)
 
     @presave_adjustment
     def unset_entry_type(self):
@@ -200,15 +253,81 @@ class LotteryApplication(MagModel, table=True):
         if not self.confirmation_num and self.status not in [c.WITHDRAWN, c.DISQUALIFIED]:
             self.confirmation_num = self.generate_confirmation_num()
 
-    @hybrid_property
-    def assigned_room_or_suite_type(self):
-        return self.assigned_suite_type or self.assigned_room_type
+    @property
+    def assigned_hotel(self):
+        return self.assigned_inventory.hotel if self.assigned_inventory else None
 
-    @assigned_room_or_suite_type.expression
-    def assigned_room_or_suite_type(cls):
-        return case(
-            (cls.assigned_suite_type != None, cls.assigned_suite_type),  # noqa: E711
-            else_=cls.assigned_room_type)
+    @property
+    def assigned_hotel_id(self):
+        return self.assigned_inventory.hotel_id if self.assigned_inventory else None
+
+    @property
+    def assigned_room_type(self):
+        if self.assigned_inventory and not self.assigned_inventory.is_suite:
+            return self.assigned_inventory.room_type
+        return None
+
+    @property
+    def assigned_room_type_id(self):
+        if self.assigned_inventory and not self.assigned_inventory.is_suite:
+            return self.assigned_inventory.room_type_id
+        return None
+
+    @property
+    def assigned_suite_type(self):
+        if self.assigned_inventory and self.assigned_inventory.is_suite:
+            return self.assigned_inventory.suite_type
+        return None
+
+    @property
+    def assigned_suite_type_id(self):
+        if self.assigned_inventory and self.assigned_inventory.is_suite:
+            return self.assigned_inventory.suite_type_id
+        return None
+
+    @property
+    def assigned_room_or_suite_type(self):
+        return self.assigned_inventory.room_or_suite_type if self.assigned_inventory else None
+
+    @property
+    def assigned_room_or_suite_type_id(self):
+        return self.assigned_inventory.room_or_suite_type_id if self.assigned_inventory else None
+
+    @property
+    def hotel_preference_labels(self):
+        """Return list of hotel names from preference UUIDs."""
+        from sqlalchemy import inspect as sa_inspect
+        session = sa_inspect(self).session
+        if not session or not self.hotel_preference:
+            return []
+        ids = [x.strip() for x in self.hotel_preference.split(',') if x.strip()]
+        hotels = session.query(LotteryHotel).filter(LotteryHotel.id.in_(ids)).all()
+        hotel_map = {str(h.id): h.name for h in hotels}
+        return [hotel_map[i] for i in ids if i in hotel_map]
+
+    @property
+    def room_type_preference_labels(self):
+        """Return list of room type names from preference UUIDs."""
+        from sqlalchemy import inspect as sa_inspect
+        session = sa_inspect(self).session
+        if not session or not self.room_type_preference:
+            return []
+        ids = [x.strip() for x in self.room_type_preference.split(',') if x.strip()]
+        room_types = session.query(LotteryRoomType).filter(LotteryRoomType.id.in_(ids)).all()
+        rt_map = {str(rt.id): rt.name for rt in room_types}
+        return [rt_map[i] for i in ids if i in rt_map]
+
+    @property
+    def suite_type_preference_labels(self):
+        """Return list of suite type names from preference UUIDs."""
+        from sqlalchemy import inspect as sa_inspect
+        session = sa_inspect(self).session
+        if not session or not self.suite_type_preference:
+            return []
+        ids = [x.strip() for x in self.suite_type_preference.split(',') if x.strip()]
+        suite_types = session.query(LotteryRoomType).filter(LotteryRoomType.id.in_(ids)).all()
+        st_map = {str(st.id): st.name for st in suite_types}
+        return [st_map[i] for i in ids if i in st_map]
 
     @hybrid_property
     def normalized_code(self):
@@ -291,10 +410,7 @@ class LotteryApplication(MagModel, table=True):
     @property
     def award_status_str(self):
         app_or_parent = self.parent_application if self.entry_type == c.GROUP_ENTRY else self
-        if not c.HOTEL_LOTTERY_ROOM_INVENTORY or self.final_status_hidden and not self.status in [c.SECURED, c.CANCELLED]:
-            return ''
-        if not self.finalized and (
-                not c.HOTEL_LOTTERY_FORM_WAITLIST or not self.qualifies_for_first_round or c.BEFORE_HOTEL_LOTTERY_FORM_WAITLIST):
+        if not self.finalized:
             return ''
         if self.staff_award_status_str:
             return self.staff_award_status_str
@@ -325,10 +441,7 @@ class LotteryApplication(MagModel, table=True):
         elif app_or_parent.assigned_hotel:
             return f"Congratulations! {you_str} entry for the {c.EVENT_NAME_AND_YEAR} {room_type} lottery was chosen."
         else:
-            base_str = f"Unfortunately, {you_str.lower()} entry for the {c.EVENT_NAME_AND_YEAR} hotel lottery was not chosen"
-            if c.HOTEL_LOTTERY_FORM_WAITLIST and not app_or_parent.finalized and c.AFTER_HOTEL_LOTTERY_FORM_WAITLIST:
-                return base_str + " in the first round of the lottery."
-            return base_str + "."
+            return f"Unfortunately, {you_str.lower()} entry for the {c.EVENT_NAME_AND_YEAR} hotel lottery was not chosen."
 
     @property
     def can_reenter(self):
@@ -340,9 +453,7 @@ class LotteryApplication(MagModel, table=True):
 
     @property
     def locked(self):
-        return self.current_lottery_closed or (
-            self.qualifies_for_first_round and c.AFTER_HOTEL_LOTTERY_FORM_WAITLIST
-        ) or (self.finalized and not self.final_status_hidden)
+        return self.current_lottery_closed or self.finalized
 
     @property
     def declined(self):
@@ -353,14 +464,9 @@ class LotteryApplication(MagModel, table=True):
         return self.status in [c.COMPLETE, c.PROCESSED] or self.finalized
 
     @property
-    def qualifies_for_first_round(self):
-        if c.HOTEL_LOTTERY_FORM_WAITLIST:
-            return self.complete_or_processed and self.last_submitted and self.last_submitted < c.HOTEL_LOTTERY_FORM_WAITLIST
-
-    @property
     def booking_url_ready(self):
         app_or_parent = self.parent_application if self.entry_type == c.GROUP_ENTRY else self
-        return app_or_parent.booking_url and not app_or_parent.booking_url_hidden
+        return bool(app_or_parent.booking_url)
 
     @property
     def group_status_str(self):
@@ -429,7 +535,7 @@ class LotteryApplication(MagModel, table=True):
     @property
     def homepage_link(self):
         entry_text = 'Suite Lottery Entry' if self.entry_type == c.SUITE_ENTRY else 'Room Lottery Entry'
-        if self.status in [c.COMPLETE, c.PROCESSED] or self.finalized and self.final_status_hidden:
+        if self.status in [c.COMPLETE, c.PROCESSED]:
             prepend = "View " if c.ATTENDEE_ACCOUNTS_ENABLED else ""
             return f'index?attendee_id={self.attendee.id}', f'{prepend}{entry_text}'
         elif self.finalized:
@@ -468,6 +574,22 @@ class LotteryApplication(MagModel, table=True):
         return Markup("Suites require a three-night minimum, including <em>both</em> Friday <em>and</em> Saturday.")
 
     @property
+    def waitlisted_checkin_nights(self):
+        if not self.earliest_checkin_date or not self.assigned_check_in_date:
+            return 0
+        return max(0, (self.assigned_check_in_date - self.earliest_checkin_date).days)
+
+    @property
+    def waitlisted_checkout_nights(self):
+        if not self.latest_checkout_date or not self.assigned_check_out_date:
+            return 0
+        return max(0, (self.latest_checkout_date - self.assigned_check_out_date).days)
+
+    @property
+    def has_waitlist_request(self):
+        return self.waitlisted_checkin_nights > 0 or self.waitlisted_checkout_nights > 0
+
+    @property
     def shortest_check_in_out_dates(self):
         return (self.latest_checkin_date or self.earliest_checkin_date), (
             self.earliest_checkout_date or self.latest_checkout_date)
@@ -484,5 +606,206 @@ class LotteryApplication(MagModel, table=True):
         # Group members can't see ADA info or check-in name, so we don't want to email them if those are the only changes
         return self.any_dates_different or self.hotel_preference != self.orig_value_of('hotel_preference') or \
                self.room_type_preference != self.orig_value_of('room_type_preference') or \
-               self.suite_type_preference != self.orig_value_of('suite_type_preference') or \
-               self.selection_priorities != self.orig_value_of('selection_priorities')
+               self.suite_type_preference != self.orig_value_of('suite_type_preference')
+
+
+class LotteryHotel(MagModel, table=True):
+    name: str = ''
+    export_name: str = ''
+    description: str = ''
+    description_right: str = ''
+    footnote: str = ''
+    active: bool = True
+
+
+class LotteryRoomType(MagModel, table=True):
+    name: str = ''
+    export_name: str = ''
+    description: str = ''
+    description_right: str = ''
+    footnote: str = ''
+    capacity: int = 4
+    min_capacity: int = 1
+    is_suite: bool = False
+    active: bool = True
+
+
+class InventoryPartition(MagModel, table=True):
+    name: str = ''
+    description: str = ''
+    active: bool = True
+
+    blocks: list['InventoryPartitionBlock'] = Relationship(
+        back_populates="partition",
+        sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+
+
+class InventoryPartitionBlock(MagModel, table=True):
+    __table_args__ = (
+        sa.UniqueConstraint('partition_id', 'inventory_id', name='uq_partition_inventory'),
+    )
+
+    partition_id: str = Field(sa_type=Uuid(as_uuid=False), foreign_key='inventory_partition.id')
+    partition: 'InventoryPartition' = Relationship(
+        back_populates="blocks",
+        sa_relationship_kwargs={'foreign_keys': 'InventoryPartitionBlock.partition_id'})
+    inventory_id: str = Field(sa_type=Uuid(as_uuid=False), foreign_key='hotel_room_inventory.id')
+    inventory: 'HotelRoomInventory' = Relationship(
+        sa_relationship_kwargs={'foreign_keys': 'InventoryPartitionBlock.inventory_id'})
+    quantity: int = 0
+
+
+class InventoryNightQuantity(MagModel, table=True):
+    __table_args__ = (
+        sa.UniqueConstraint('inventory_id', 'night_date', name='uq_inventory_night'),
+    )
+
+    inventory_id: str = Field(sa_type=Uuid(as_uuid=False), foreign_key='hotel_room_inventory.id')
+    inventory: 'HotelRoomInventory' = Relationship(
+        back_populates="night_quantities",
+        sa_relationship_kwargs={'foreign_keys': 'InventoryNightQuantity.inventory_id'})
+    night_date: date = Field(sa_type=Date)
+    quantity: int = 0
+
+
+class HotelRoomInventory(MagModel, table=True):
+    hotel_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='lottery_hotel.id', nullable=True)
+    hotel: 'LotteryHotel' = Relationship(
+        sa_relationship_kwargs={'foreign_keys': 'HotelRoomInventory.hotel_id', 'lazy': 'joined'})
+    room_type_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='lottery_room_type.id', nullable=True)
+    room_type: 'LotteryRoomType' = Relationship(
+        sa_relationship_kwargs={'foreign_keys': 'HotelRoomInventory.room_type_id', 'lazy': 'joined'})
+    suite_type_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='lottery_room_type.id', nullable=True)
+    suite_type: 'LotteryRoomType' = Relationship(
+        sa_relationship_kwargs={'foreign_keys': 'HotelRoomInventory.suite_type_id', 'lazy': 'joined'})
+    quantity: int = 0  # Default quantity; per-night overrides in night_quantities
+    capacity: int = 2
+    min_capacity: int = 1
+    name: str = ''
+    is_suite: bool = False
+    active: bool = True
+    vault_reference: str | None = Field(nullable=True)
+    info_url: str = ''
+    price: str = ''
+    staff_price: str = ''
+
+    night_quantities: list['InventoryNightQuantity'] = Relationship(
+        back_populates="inventory",
+        sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    assigned_applications: list['LotteryApplication'] = Relationship(
+        sa_relationship_kwargs={'foreign_keys': 'LotteryApplication.assigned_inventory_id',
+                                'overlaps': 'assigned_inventory'})
+    partition_blocks: list['InventoryPartitionBlock'] = Relationship(
+        sa_relationship_kwargs={'foreign_keys': 'InventoryPartitionBlock.inventory_id',
+                                'overlaps': 'inventory'})
+
+    @property
+    def room_or_suite_type(self):
+        return self.suite_type if self.is_suite else self.room_type
+
+    @property
+    def room_or_suite_type_id(self):
+        return self.suite_type_id if self.is_suite else self.room_type_id
+
+    @property
+    def night_quantity_map(self):
+        """Return {date: quantity} dict from night_quantities."""
+        return {nq.night_date: nq.quantity for nq in self.night_quantities}
+
+    def quantity_for_night(self, night_date):
+        """Return quantity for a specific night, falling back to default quantity."""
+        nq_map = self.night_quantity_map
+        if nq_map:
+            return nq_map.get(night_date, 0)
+        return self.quantity
+
+    def to_inventory_dict(self):
+        nq_map = self.night_quantity_map
+        return {
+            "id": str(self.id),
+            "hotel_id": str(self.hotel_id),
+            "capacity": self.capacity,
+            "min_capacity": self.min_capacity,
+            "room_type": str(self.room_or_suite_type_id),
+            "quantity": self.quantity,
+            "night_quantities": {d.isoformat(): q for d, q in nq_map.items()} if nq_map else {},
+            "name": self.name,
+        }
+
+    @staticmethod
+    def get_inventory(session, is_suite=False, active_only=True):
+        query = session.query(HotelRoomInventory).filter_by(is_suite=is_suite)
+        if active_only:
+            query = query.filter_by(active=True)
+        return [inv.to_inventory_dict() for inv in query.all()]
+
+    @staticmethod
+    def price_range_for_hotel(session, hotel_id, is_suite=False):
+        """Return (price_range, staff_price_range) strings for all active inventory at a hotel."""
+        items = session.query(HotelRoomInventory).filter_by(
+            hotel_id=hotel_id, active=True, is_suite=is_suite
+        ).all()
+        return HotelRoomInventory._compute_price_range(items)
+
+    @staticmethod
+    def price_range_for_room_type(session, room_type_id, is_suite=False):
+        """Return (price_range, staff_price_range) strings for all active inventory of a room type."""
+        fk = HotelRoomInventory.suite_type_id if is_suite else HotelRoomInventory.room_type_id
+        items = session.query(HotelRoomInventory).filter(
+            fk == room_type_id, HotelRoomInventory.active == True
+        ).all()
+        return HotelRoomInventory._compute_price_range(items)
+
+    @staticmethod
+    def _compute_price_range(items):
+        prices = [inv.price for inv in items if inv.price]
+        staff_prices = [inv.staff_price for inv in items if inv.staff_price]
+        return (
+            HotelRoomInventory._format_range(prices),
+            HotelRoomInventory._format_range(staff_prices),
+        )
+
+    @staticmethod
+    def _format_range(values):
+        if not values:
+            return ''
+        unique = sorted(set(values))
+        if len(unique) == 1:
+            return unique[0]
+        return f"{unique[0]}\u2013{unique[-1]}"
+
+
+class LotteryRun(MagModel, table=True):
+    name: str = ''
+    status: int = Field(sa_column=Column(Choice(c.LOTTERY_RUN_STATUS_OPTS), default=c.LOTTERY_PENDING))
+    run_at: datetime | None = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    awarded_at: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
+    reverted_at: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
+
+    # Run parameters stored for audit
+    lottery_group: str = 'attendee'
+    lottery_type: str = 'room'
+    cutoff: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
+    hotel_filter: str | None = Field(nullable=True)
+    room_type_filter: str | None = Field(nullable=True)
+    inventory_filter: str | None = Field(nullable=True)
+    partition_filter: str | None = Field(nullable=True)
+
+    # Results summary
+    entries_considered: int = 0
+    rooms_assigned: int = 0
+    rooms_available_before: int = 0
+
+    applications: list['LotteryApplication'] = Relationship(
+        sa_relationship_kwargs={'backref': 'lottery_run'})
+
+
+class HotelExportLog(MagModel, table=True):
+    hotel_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='lottery_hotel.id', nullable=True)
+    hotel: 'LotteryHotel' = Relationship(
+        sa_relationship_kwargs={'foreign_keys': 'HotelExportLog.hotel_id', 'lazy': 'joined'})
+    export_type: str = ''
+    exported_at: datetime | None = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    exported_by: str = ''
+    record_count: int = 0
+    notes: str = ''

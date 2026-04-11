@@ -157,6 +157,36 @@
                 
                 {% include 'hotel_lottery/room_group_members.html' with context %}
 
+                {% if application.valid_group_members|length < 3 %}
+                <div class="card card-body mb-3">
+                    <h5>Invite by Email</h5>
+                    <p>Enter an attendee's email address to send them a group invite.</p>
+                    <form method="post" action="send_room_invite" class="row g-2 align-items-end">
+                        {{ csrf_token() }}
+                        <input type="hidden" name="id" value="{{ application.id }}">
+                        <div class="col-auto">
+                            <input type="email" class="form-control" name="email" placeholder="attendee@example.com" required />
+                        </div>
+                        <div class="col-auto">
+                            <button type="submit" class="btn btn-primary">Send Invite</button>
+                        </div>
+                    </form>
+                    {% if pending_invites %}
+                    <div class="mt-2">
+                        <strong>Pending Invites:</strong>
+                        <ul class="list-unstyled mb-0">
+                        {% for inv_app in pending_invites %}
+                            <li>
+                                {{ inv_app.attendee.email if inv_app.attendee else 'Unknown' }}
+                                <a href="cancel_invite?id={{ application.id }}&invite_app_id={{ inv_app.id }}" class="btn btn-sm btn-outline-danger ms-2">Cancel</a>
+                            </li>
+                        {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
                 <div class="row g-3 mb-3">
                     <div class="col-sm">
                         <form method="post" action="save_group" id="update-group">

@@ -1712,26 +1712,6 @@ def create_hour_opts(start_hour, end_hour, step, prefix=''):
             return opt_list
 
 
-def build_hotel_inventory(inventory_type, room_types):
-    hotel_inventory = []
-    hotel_inventory_config = _config['hotel_lottery'].get(inventory_type, {})
-    for key, item in c.HOTEL_LOTTERY_HOTELS.items():
-        hotel_enum, _ = item
-        for room_type_key, quantity in hotel_inventory_config.get(key, {}).items():
-            room_type_enum, room_type = room_types.get(room_type_key)
-            if not room_type:
-                raise ValueError(f"Could not locate hotel room_type {room_type_key}")
-            capacity = room_type.get(f'{key}_capacity', room_type['capacity'])
-            min_capacity = room_type.get(f'{key}_min_capacity', room_type['min_capacity'])
-            hotel_inventory.append({
-                "id": str(hotel_enum),
-                "capacity": int(capacity),
-                "min_capacity": int(min_capacity),
-                "room_type": str(room_type_enum),
-                "quantity": int(quantity),
-                "name": room_type_key,
-            })
-    return hotel_inventory
     
 
 c = Config()
@@ -2007,22 +1987,7 @@ c.WRISTBAND_COLORS = defaultdict(lambda: c.WRISTBAND_COLORS[c.DEFAULT_WRISTBAND]
 c.SAME_NUMBER_REPEATED = r'^(\d)\1+$'
 
 c.HOTEL_LOTTERY = _config.get('hotel_lottery', {})
-for key in ["hotels", "room_types", "suite_room_types", "priorities"]:
-    opts = []
-    dictionary = {}
-    for name, item in c.HOTEL_LOTTERY.get(key, {}).items():
-        if isinstance(item, dict):
-            item.__hash__ = lambda x: hash(x.name + x.description)
-            base_key = f"HOTEL_LOTTERY_{name.upper()}"
-            dict_key = int(sha512(base_key.encode()).hexdigest()[:7], 16)
-            setattr(c, base_key, dict_key)
-            opts.append((dict_key, item))
-            dictionary[name] = (dict_key, item)
-    setattr(c, f"HOTEL_LOTTERY_{key.upper()}_OPTS", opts)
-    setattr(c, f"HOTEL_LOTTERY_{key.upper()}", dictionary)
 
-c.HOTEL_LOTTERY_ROOM_INVENTORY = build_hotel_inventory('hotel_room_inventory', c.HOTEL_LOTTERY_ROOM_TYPES)
-c.HOTEL_LOTTERY_SUITE_INVENTORY = build_hotel_inventory('hotel_suite_inventory', c.HOTEL_LOTTERY_SUITE_ROOM_TYPES)
 c.HOTEL_LOTTERY_AWARD_STATUSES = [c.PROCESSED, c.AWARDED, c.SECURED]
 
 # Allows 0-9, a-z, A-Z, and a handful of punctuation characters

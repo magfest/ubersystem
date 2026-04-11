@@ -13,7 +13,6 @@ def get_common_required_fields(check_func):
     return {
         'earliest_checkin_date': ("Please enter your preferred check-in date.", 'earliest_checkin_date', check_func),
         'latest_checkout_date': ("Please enter your preferred check-out date.", 'latest_checkout_date', check_func),
-        'selection_priorities': ("Please rank your priorities for selecting a hotel room.", 'selection_priorities', check_func),
     }
 
 
@@ -57,11 +56,9 @@ def check_required_room_steps(form):
 
     room_step = int(form.model.current_step) if form.model.current_step else 0
 
-    if room_step < c.HOTEL_LOTTERY_FORM_STEPS.get('room_selection_pref', 9999):
-        optional_list.append('selection_priorities')
     if room_step < c.HOTEL_LOTTERY_FORM_STEPS.get('room_hotel_type', 9999):
         optional_list.extend(['room_type_preference', 'hotel_preference'])
-    elif not c.HOTEL_LOTTERY_HOTELS_OPTS:
+    elif hasattr(form, 'hotel_preference') and not form.hotel_preference.choices:
         optional_list.append('hotel_preference')
     if room_step < c.HOTEL_LOTTERY_FORM_STEPS.get('room_dates', 9999):
         optional_list.extend(['earliest_checkin_date', 'latest_checkout_date'])
@@ -153,19 +150,11 @@ def before_preferred_checkout(form, field):
                                 is earlier than your preferred check-out date.")
 
 
-@RoomLottery.field_validation('selection_priorities')
-def all_options_ranked(form, field):
-    if field.data and len(field.data) < len(c.HOTEL_LOTTERY_PRIORITIES_OPTS):
-        raise ValidationError("Please rank all priorities for selecting a hotel room.")
-
-
 def check_required_suite_steps(form):
     optional_list = []
 
     suite_step = int(form.model.current_step) if form.model.current_step else 0
 
-    if suite_step < c.HOTEL_LOTTERY_FORM_STEPS.get('suite_selection_pref', 9999):
-        optional_list.append('selection_priorities')
     if suite_step < c.HOTEL_LOTTERY_FORM_STEPS.get('suite_hotel_type', 9999) or form.room_opt_out.data:
         optional_list.extend(['room_type_preference', 'hotel_preference'])
     if suite_step < c.HOTEL_LOTTERY_FORM_STEPS.get('suite_type', 9999):
@@ -199,7 +188,7 @@ SuiteLottery.field_validation.validations['latest_checkout_date']['optional'] = 
 
 
 lottery_form_fields = ['earliest_checkin_date', 'latest_checkin_date', 'earliest_checkout_date', 'latest_checkout_date',
-                      'room_type_preference', 'hotel_preference', 'selection_priorities', 'suite_terms_accepted',
+                      'room_type_preference', 'hotel_preference', 'suite_terms_accepted',
                       'suite_type_preference']
 
 

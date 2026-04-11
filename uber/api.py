@@ -25,7 +25,8 @@ from uber.errors import CSRFException
 from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, Attraction, AttractionFeature, AttractionEvent,
                          BadgeInfo, Department, DeptMembership,
                          DeptRole, Event, IndieJudge, IndieStudio, Job, Session, Shift, Group,
-                         GuestGroup, Room, HotelRequests, RoomAssignment)
+                         GuestGroup, Room, HotelRequests, RoomAssignment, LotteryApplication)
+from uber.models.hotel import HotelExportLog, HotelRoomInventory
 from uber.models.badge_printing import PrintJob
 from uber.serializer import serializer
 from uber.utils import check, check_csrf, normalize_email_legacy, normalize_newlines, is_listy
@@ -1602,6 +1603,137 @@ class HotelLookup:
             "order": c.NIGHT_DISPLAY_ORDER,
             "names": c.NIGHT_NAMES
         }
+
+    @api_auth('api_read')
+    def export_room_bookings(self, hotel):
+        """
+        Export room booking data including PCI Vault tokens (NOT raw card numbers).
+        Creates an export log entry for tracking.
+        """
+        with Session() as session:
+            query = session.query(LotteryApplication).filter(
+                LotteryApplication.status == c.SECURED,
+                LotteryApplication.entry_type != c.GROUP_ENTRY,
+            )
+            if not hotel:
+                return "You must provide a hotel argument"
+            hotel_inv_ids = [str(inv.id) for inv in
+                             session.query(HotelRoomInventory).filter_by(hotel_id=hotel).all()]
+            query = query.filter(LotteryApplication.assigned_inventory_id.in_(hotel_inv_ids))
+
+            bookings = []
+            hotels_exported = set()
+            for app in query.order_by(LotteryApplication.assigned_inventory_id).all():
+                guests = []
+                for member in app.valid_group_members:
+                    guests.append({
+                        'legal_first_name': member.legal_first_name,
+                        'legal_last_name': member.legal_last_name,
+                        'cellphone': member.cellphone,
+                        'email': member.email,
+                        'address1': member.address1,
+                        'address2': member.address2,
+                        'city': member.city,
+                        'region': member.region,
+                        'zip_code': member.zip_code,
+                        'country': member.country,
+                    })
+
+                suite_type_label = app.assigned_suite_type.name if app.assigned_suite_type else None
+                room_type_label = app.assigned_room_type.name if app.assigned_room_type else None
+
+                bookings.append({
+                    'lottery_application_id': app.id,
+                    'confirmation_num': app.confirmation_num,
+                    'response_id': app.response_id,
+                    'assigned_hotel': app.assigned_hotel.name if app.assigned_hotel else '',
+                    'assigned_hotel_id': str(app.assigned_hotel_id) if app.assigned_hotel_id else None,
+                    'assigned_room_type': room_type_label,
+                    'assigned_suite_type': suite_type_label,
+                    'assigned_check_in_date': str(app.assigned_check_in_date) if app.assigned_check_in_date else None,
+                    'assigned_check_out_date': str(app.assigned_check_out_date) if app.assigned_check_out_date else None,
+                    'cc_token': app.cc_token,
+                    'hotel_confirmation_number': app.hotel_confirmation_number,
+                    'legal_first_name': app.legal_first_name,
+                    'legal_last_name': app.legal_last_name,
+                    'cellphone': app.cellphone,
+                    'email': app.email,
+                    'address1': app.address1,
+                    'address2': app.address2,
+                    'city': app.city,
+                    'region': app.region,
+                    'zip_code': app.zip_code,
+                    'country': app.country,
+                    'wants_ada': app.wants_ada,
+                    'ada_requests': app.ada_requests,
+                    'special_requests': app.special_requests,
+                    'guests': guests,
+                    'last_modified_at': str(app.last_modified_at) if app.last_modified_at else None,
+                    'cc_captured_at': str(app.cc_captured_at) if app.cc_captured_at else None,
+                })
+                if app.assigned_hotel_id:
+                    hotels_exported.add(app.assigned_hotel_id)
+
+            # Log the export
+            for hotel_id in hotels_exported:
+                log_entry = HotelExportLog(
+                    hotel_id=hotel_id,
+                    export_type='room_export',
+                    record_count=len([b for b in bookings if b['assigned_hotel_id'] == hotel_id]),
+                )
+                session.add(log_entry)
+            session.commit()
+
+            return bookings
+
+    @api_auth('api_update')
+    def import_confirmation_numbers(self, mappings=None):
+        """
+        Import hotel confirmation numbers for room bookings.
+        Accepts a JSON array of {confirmation_num: str, hotel_confirmation_number: str}.
+        """
+        if not mappings:
+            return {'error': 'No mappings provided.'}
+
+        if isinstance(mappings, str):
+            mappings = json.loads(mappings)
+
+        results = []
+        with Session() as session:
+            hotels_imported = set()
+            for mapping in mappings:
+                conf_num = mapping.get('confirmation_num')
+                hotel_conf = mapping.get('hotel_confirmation_number')
+
+                if not conf_num or not hotel_conf:
+                    results.append({'confirmation_num': conf_num, 'status': 'error', 'message': 'Missing required fields.'})
+                    continue
+
+                app = session.query(LotteryApplication).filter(
+                    LotteryApplication.confirmation_num == conf_num
+                ).one_or_none()
+
+                if not app:
+                    results.append({'confirmation_num': conf_num, 'status': 'error', 'message': 'Application not found.'})
+                    continue
+
+                app.hotel_confirmation_number = hotel_conf
+                session.add(app)
+                results.append({'confirmation_num': conf_num, 'status': 'success'})
+                if app.assigned_hotel_id:
+                    hotels_imported.add(app.assigned_hotel_id)
+
+            # Log the import
+            for hotel_id in hotels_imported:
+                log_entry = HotelExportLog(
+                    hotel_id=hotel_id,
+                    export_type='confirmation_import',
+                    record_count=len([r for r in results if r['status'] == 'success']),
+                )
+                session.add(log_entry)
+            session.commit()
+
+        return {'results': results}
 
 
 @all_api_auth('api_read')

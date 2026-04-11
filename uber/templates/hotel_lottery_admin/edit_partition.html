@@ -1,0 +1,74 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}{{ 'Edit' if partition.id else 'Add' }} Partition{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+
+<h2>{{ 'Edit' if partition.id else 'Add' }} Inventory Partition</h2>
+
+<div class="mb-3">
+  <a href="manage_partitions" class="btn btn-outline-secondary">Back to Partitions</a>
+</div>
+
+{% if message %}<div class="alert alert-info">{{ message }}</div>{% endif %}
+
+<form method="post" action="edit_partition" class="card card-body" style="max-width: 800px;">
+  {{ csrf_token() }}
+  {% if partition.id %}
+  <input type="hidden" name="id" value="{{ partition.id }}" />
+  {% endif %}
+
+  <div class="mb-3">
+    <label for="name" class="form-label">Name</label>
+    <input type="text" class="form-control" name="name" id="name" value="{{ partition.name }}" required />
+  </div>
+
+  <div class="mb-3">
+    <label for="description" class="form-label">Description</label>
+    <textarea class="form-control" name="description" id="description" rows="2">{{ partition.description }}</textarea>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Active</label>
+    <select class="form-select" name="active">
+      <option value="true" {% if partition.active or not partition.id %}selected{% endif %}>Yes</option>
+      <option value="false" {% if partition.id and not partition.active %}selected{% endif %}>No</option>
+    </select>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Block Allocations</label>
+    <div class="form-text mb-2">Set how many rooms from each inventory block this partition can use. Leave blank or 0 to exclude a block.</div>
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th>Hotel</th>
+          <th>Type</th>
+          <th>Block Name</th>
+          <th>Block Total</th>
+          <th>Partition Qty</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for inv in inventory_blocks %}
+        <tr>
+          <td>{{ inv.hotel.name if inv.hotel else 'Unknown' }}</td>
+          <td>{{ inv.room_or_suite_type.name if inv.room_or_suite_type else '' }}{% if inv.is_suite %} <span class="badge bg-info">Suite</span>{% endif %}</td>
+          <td>{{ inv.name }}</td>
+          <td>{{ inv.quantity }}</td>
+          <td>
+            <input type="number" class="form-control form-control-sm" style="width: 80px;"
+                   name="block_qty_{{ inv.id }}"
+                   value="{{ existing_blocks.get(inv.id|string, '') }}"
+                   min="0" placeholder="0" />
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <button type="submit" class="btn btn-primary">Save</button>
+</form>
+
+{% endblock content %}

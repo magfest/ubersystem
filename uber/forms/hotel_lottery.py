@@ -16,6 +16,47 @@ def html_format_date(dt):
     return dt.astimezone(c.EVENT_TIMEZONE).strftime('%Y-%m-%d')
 
 
+def _hotel_ranking_choices(is_suite=False):
+    from uber.models import Session
+    from uber.models.hotel import LotteryHotel, HotelRoomInventory
+    with Session() as session:
+        hotels = session.query(LotteryHotel).filter_by(active=True).order_by(LotteryHotel.name).all()
+        choices = []
+        for hotel in hotels:
+            price, staff_price = HotelRoomInventory.price_range_for_hotel(session, hotel.id, is_suite=is_suite)
+            choices.append((str(hotel.id), {
+                "name": hotel.name,
+                "price": price,
+                "staff_price": staff_price,
+                "description": hotel.description,
+                "description_right": hotel.description_right,
+                "footnote": hotel.footnote,
+            }))
+        return choices
+
+
+def _room_type_ranking_choices(is_suite=False):
+    from uber.models import Session
+    from uber.models.hotel import LotteryRoomType, HotelRoomInventory
+    with Session() as session:
+        room_types = session.query(LotteryRoomType).filter_by(
+            active=True, is_suite=is_suite
+        ).order_by(LotteryRoomType.name).all()
+        choices = []
+        for rt in room_types:
+            price, staff_price = HotelRoomInventory.price_range_for_room_type(
+                session, rt.id, is_suite=is_suite)
+            choices.append((str(rt.id), {
+                "name": rt.name,
+                "price": price,
+                "staff_price": staff_price,
+                "description": rt.description,
+                "description_right": rt.description_right,
+                "footnote": rt.footnote,
+            }))
+        return choices
+
+
 class LotteryInfo(MagForm):
     legal_first_name = StringField('First Name on ID')
     legal_last_name = StringField('Last Name on ID')
@@ -53,12 +94,16 @@ class LotteryRoomGroup(MagForm):
 
 class RoomLottery(MagForm):
     field_validation = CustomValidation()
+    dynamic_choices_fields = {
+        'hotel_preference': lambda: _hotel_ranking_choices(is_suite=False),
+        'room_type_preference': lambda: _room_type_ranking_choices(is_suite=False),
+    }
 
     current_step = HiddenField('Current Step')
     entry_type = HiddenField('Entry Type')
     hotel_preference = SelectMultipleField(
-        'Hotels', coerce=int, choices=c.HOTEL_LOTTERY_HOTELS_OPTS,
-        widget=Ranking(c.HOTEL_LOTTERY_HOTELS_OPTS))
+        'Hotels', coerce=str, choices=[],
+        widget=Ranking([]))
     earliest_checkin_date = DateField(
         'Preferred Check-In Date',
         render_kw={'min': html_format_date(c.HOTEL_LOTTERY_CHECKIN_START),
@@ -74,43 +119,71 @@ class RoomLottery(MagForm):
         render_kw={'min': html_format_date(c.HOTEL_LOTTERY_CHECKOUT_START),
                    'max': html_format_date(c.HOTEL_LOTTERY_CHECKOUT_END)})
     room_type_preference = SelectMultipleField(
-        'Room Types', coerce=int, choices=c.HOTEL_LOTTERY_ROOM_TYPES_OPTS,
-        widget=Ranking(c.HOTEL_LOTTERY_ROOM_TYPES_OPTS))
-    selection_priorities = SelectMultipleField(
-        'Preference Priorities', coerce=int, choices=c.HOTEL_LOTTERY_PRIORITIES_OPTS,
-        widget=Ranking(c.HOTEL_LOTTERY_PRIORITIES_OPTS))
+        'Room Types', coerce=str, choices=[],
+        widget=Ranking([]))
     wants_ada = BooleanField('I would like to request an ADA room.', default=False)
     ada_requests = TextAreaField('Requested Accommodations')
 
 
 class SuiteLottery(RoomLottery):
+    dynamic_choices_fields = {
+        'hotel_preference': lambda: _hotel_ranking_choices(is_suite=True),
+        'room_type_preference': lambda: _room_type_ranking_choices(is_suite=False),
+        'suite_type_preference': lambda: _room_type_ranking_choices(is_suite=True),
+    }
+
     suite_type_preference = SelectMultipleField(
-        'Suite Room Types', coerce=int, choices=c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS,
-        widget=Ranking(c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS))
+        'Suite Room Types', coerce=str, choices=[],
+        widget=Ranking([]))
     suite_terms_accepted = BooleanField(
         f'I agree, understand and will comply with the {c.EVENT_NAME} suite policies.', default=False)
     hotel_preference = SelectMultipleField(
-        'Hotels', coerce=int, choices=c.HOTEL_LOTTERY_HOTELS_OPTS, widget=Ranking(c.HOTEL_LOTTERY_HOTELS_OPTS))
+        'Hotels', coerce=str, choices=[], widget=Ranking([]))
     room_type_preference = SelectMultipleField(
-        'Room Types', coerce=int, choices=c.HOTEL_LOTTERY_ROOM_TYPES_OPTS, widget=Ranking(c.HOTEL_LOTTERY_ROOM_TYPES_OPTS))
+        'Room Types', coerce=str, choices=[], widget=Ranking([]))
     room_opt_out = BooleanField('I do NOT want to enter the room lottery.')
     
     def room_opt_out_label(self):
         return Markup('I do NOT want to enter the room lottery. <strong>I understand that this means I will not be eligible for a room award if my entry is not chosen for the suite lottery.</strong>')
 
-def nullable_int(val):
-    val = int(val)
-    if val <= 0:
-        return None
-    return val
+def _inventory_block_choices():
+    from uber.models import Session
+    from uber.models.hotel import HotelRoomInventory
+    with Session() as session:
+        blocks = session.query(HotelRoomInventory).filter_by(active=True).all()
+        choices = [('', "N/A")]
+        for b in sorted(blocks, key=lambda x: (x.hotel.name if x.hotel else '', x.name)):
+            hotel_name = b.hotel.name if b.hotel else 'Unknown'
+            type_name = b.room_or_suite_type.name if b.room_or_suite_type else ''
+            label = f"{hotel_name} - {type_name}"
+            if b.name and b.name != type_name:
+                label += f" ({b.name})"
+            choices.append((str(b.id), label))
+        return choices
+
+
+def _partition_choices():
+    from uber.models import Session
+    from uber.models.hotel import InventoryPartition
+    with Session() as session:
+        partitions = session.query(InventoryPartition).filter_by(active=True).order_by(InventoryPartition.name).all()
+        choices = [('', "None")]
+        for p in partitions:
+            choices.append((str(p.id), p.name))
+        return choices
+
 
 class LotteryAdminInfo(SuiteLottery):
+    dynamic_choices_fields = {
+        **SuiteLottery.dynamic_choices_fields,
+        'assigned_inventory_id': _inventory_block_choices,
+        'partition_id': _partition_choices,
+    }
+
     response_id = IntegerField('Response ID', render_kw={'readonly': "true"})
     current_step = IntegerField('Current Step')
     confirmation_num = StringField('Confirmation Number', render_kw={'readonly': "true"})
     can_edit = BooleanField(f'Make this application editable even after its lottery is closed.')
-    final_status_hidden = BooleanField(f"This application's final award status is hidden.")
-    booking_url_hidden = BooleanField(f"This application's booking URL is hidden.")
     is_staff_entry = BooleanField(f'This application is entered into the staff lottery.')
     legal_first_name = LotteryInfo.legal_first_name
     legal_last_name = LotteryInfo.legal_last_name
@@ -124,9 +197,9 @@ class LotteryAdminInfo(SuiteLottery):
     data_policy_accepted = BooleanField('Agreed to Data Policies', render_kw={'readonly': "true"})
     guarantee_policy_accepted = BooleanField('Acknowledged Payment Guarantee Policy', render_kw={'readonly': "true"})
     suite_terms_accepted = BooleanField(f'Agreed to Suite Policies', render_kw={'readonly': "true"})
-    assigned_hotel = SelectField('Assigned Hotel', coerce=nullable_int, choices=[(0, "N/A")] + [(x[0],x[1]['name']) for x in c.HOTEL_LOTTERY_HOTELS_OPTS])
-    assigned_room_type = SelectField('Assigned Hotel Room Type', coerce=nullable_int, choices=[(0, "N/A")] + [(x[0],x[1]['name']) for x in c.HOTEL_LOTTERY_ROOM_TYPES_OPTS])
-    assigned_suite_type = SelectField('Assigned Suite Room Type', coerce=nullable_int, choices=[(0, "N/A")] + [(x[0],x[1]['name']) for x in c.HOTEL_LOTTERY_SUITE_ROOM_TYPES_OPTS])
+    assigned_inventory_id = SelectField('Assigned Inventory Block', coerce=str, choices=[('', "N/A")])
+    partition_id = SelectField('Partition', coerce=str, choices=[('', "None")])
     assigned_check_in_date = DateField('Assigned Check-In Date')
     assigned_check_out_date = DateField('Assigned Check-Out Date')
+    hotel_rewards_number = StringField('Hotel Rewards Number')
     booking_url = StringField('Booking URL')

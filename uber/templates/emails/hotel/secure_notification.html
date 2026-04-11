@@ -16,8 +16,8 @@
 
 <strong>Reservation Details</strong>
 <ul>
-    <li><strong>Hotel</strong>: {{ app_or_parent.assigned_hotel_label['name'] }}</li>
-    <li><strong>Room Type</strong>: {{ app_or_parent.assigned_suite_type_label['name'] if app_or_parent.assigned_suite_type else app_or_parent.assigned_room_type_label['name'] }}</li>
+    <li><strong>Hotel</strong>: {{ app_or_parent.assigned_hotel.name if app_or_parent.assigned_hotel else '' }}</li>
+    <li><strong>Room Type</strong>: {{ app_or_parent.assigned_suite_type.name if app_or_parent.assigned_suite_type else (app_or_parent.assigned_room_type.name if app_or_parent.assigned_room_type else '') }}</li>
     <li><strong>Check-In/Out</strong>: {{ app_or_parent.assigned_check_in_date.strftime("%B %-d") }} to {{ app_or_parent.assigned_check_out_date.strftime("%B %-d") }}</li>
     {% if not app.parent_application and app.wants_ada %}<li><strong>Requested Accommodations</strong>: {{ app.ada_requests }}</li>{% endif %}
     {% if not app.parent_application %}

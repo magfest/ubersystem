@@ -276,7 +276,7 @@ wants_ada: {{ room_or_suite_lottery.wants_ada.data|tojson }},
 
             {% block hotel_and_room_type_ranking_form %}
             <div class="hotel_and_room_type_ranking">
-            {% if c.HOTEL_LOTTERY_HOTELS_OPTS %}
+            {% if room_or_suite_lottery.hotel_preference.choices|length > 1 %}
             {{ form_macros.input(room_or_suite_lottery.hotel_preference) }}
             {% endif %}
             {{ form_macros.input(room_or_suite_lottery.room_type_preference) }}
@@ -301,44 +301,6 @@ wants_ada: {{ room_or_suite_lottery.wants_ada.data|tojson }},
 {% endblock %}
 
 {% block priorities %}
-{% if 'room_selection_pref' in c.HOTEL_LOTTERY_FORM_STEPS or 'suite_selection_pref' in c.HOTEL_LOTTERY_FORM_STEPS %}
-<div class="accordion-item">
-    <h3 class="accordion-header" id="step-{{ steps.counter }}-header">
-        <button class="accordion-button{% if steps.counter != 1 %} collapsed{% endif %}" disabled type="button" id="step-{{ steps.counter }}-button" data-bs-toggle="collapse" data-bs-target="#step-{{ steps.counter }}" aria-expanded="true" aria-controls="step-{{ steps.counter }}">
-            Step {{ steps.counter }}: Ranking Preference Priorities
-        </button>
-    </h3>
-    <div id="step-{{ steps.counter }}" class="accordion-collapse collapse{% if steps.counter == 1 %} show{% endif %}" aria-labelledby="step-{{ steps.counter }}-header">
-        <div class="accordion-body">
-            {% block priorities_desc %}
-            <p>
-                Rank the options below from top to bottom to determine how we'll prioritize your ranked choices and preferred dates.
-                This ranking only applies if your entry has multiple options for a given category, as we can only work within the options that you specify as acceptable.
-            </p>
-            <p>We ask that you rank all priorities even if you haven't selected multiple options for all categories{% if 'suite_lottery' in forms %} or if you are opting out of a standard room entry{% endif %}, in case you come back and change your entry later.</p>
-            {% include 'hotel_lottery/priorities_example.html' with context %}
-            {% endblock %}
-            {% block priorities_form %}
-            {{ form_macros.input(room_or_suite_lottery.selection_priorities) }}
-
-            {% if not read_only and application.current_step <= steps.counter %}
-            <div class="row justify-content-end">
-                <div class="col col-auto">
-                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="current_step" value="{{ steps.counter }}">Save and Continue{% if suite %} to Suite Lottery{% endif %}</button>
-                </div>
-            </div>
-            {% endif %}
-            {% if not read_only and application.status != c.COMPLETE %}
-            <div class="collapse text-end" id="step-{{ steps.counter }}-save-reminder">
-                <em>Scroll down to your current step and click "Save and Continue" to save changes.</em>
-            </div>
-            {% endif %}
-            {% endblock %}
-        </div>
-    </div>
-</div>
-{% if steps.update({'counter': steps.counter + 1}) %}{% endif %}
-{% endif %}
 {% endblock %}
 
 </div>
