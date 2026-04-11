@@ -16,6 +16,8 @@ Run with: pytest -m slow
 Skip with: pytest -m "not slow"
 """
 
+import os
+
 import pytest
 import sqlalchemy
 from alembic import command
@@ -36,8 +38,10 @@ def migration_db(postgres_container):
     The test_uber user is a superuser in the default Postgres Docker image,
     so it can CREATE and DROP databases.
     """
-    # Connect to the default "test_uber" DB to issue CREATE DATABASE
-    base_url = postgres_container.get_connection_url()
+    # When DATABASE_URL is injected (e.g. GitHub Actions services), use it
+    # directly; otherwise ask the testcontainer for its URL.
+    base_url = os.environ.get('DATABASE_URL') or postgres_container.get_connection_url()
+
     admin_engine = sqlalchemy.create_engine(
         base_url,
         isolation_level='AUTOCOMMIT',
@@ -50,8 +54,11 @@ def migration_db(postgres_container):
 
     admin_engine.dispose()
 
-    # Build URL pointing at the new DB (replace only the database name, not the username)
-    migration_url = base_url.rsplit('/test_uber', 1)[0] + '/test_migrations'
+    # Build URL pointing at the new DB by replacing the database name component.
+    # Works for both testcontainer URLs and injected DATABASE_URLs.
+    from urllib.parse import urlparse, urlunparse
+    parsed = urlparse(base_url)
+    migration_url = urlunparse(parsed._replace(path='/test_migrations'))
     migration_engine = sqlalchemy.create_engine(migration_url, poolclass=NullPool)
 
     yield migration_engine
