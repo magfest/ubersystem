@@ -293,22 +293,23 @@ jobs:
             // image pasting in the GitHub web UI).
             // ----------------------------------------------------------------
             async function uploadImage(filePath, filename) {
-              const data = fs.readFileSync(filePath);
-              const url  = `https://uploads.github.com/repos/${owner}/${repo}/issues/${pr}/assets?name=${encodeURIComponent(filename)}`;
+              const data     = fs.readFileSync(filePath);
+              const url      = `https://uploads.github.com/repos/${owner}/${repo}/issues/${pr}/assets?name=${encodeURIComponent(filename)}`;
+              const formData = new FormData();
+              // GitHub's issue-asset upload requires multipart/form-data;
+              // omit Content-Type header so fetch sets it with the correct boundary.
+              formData.append('asset', new Blob([data], { type: 'image/png' }), filename);
               const resp = await fetch(url, {
                 method:  'POST',
-                headers: {
-                  'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
-                  'Content-Type':  'image/png',
-                },
-                body: data,
+                headers: { 'Authorization': `Bearer ${process.env.GITHUB_TOKEN}` },
+                body: formData,
               });
               if (!resp.ok) {
                 const text = await resp.text();
                 throw new Error(`Upload failed (${resp.status}): ${text}`);
               }
               const json = await resp.json();
-              // GitHub returns the embeddable URL in the `url` field
+              // GitHub returns the embeddable CDN URL in the `url` field
               return json.url || json.browser_download_url;
             }
 
