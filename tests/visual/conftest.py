@@ -19,6 +19,7 @@ container) so they can commit data without interfering with SAVEPOINT isolation.
 import warnings
 warnings.filterwarnings('ignore', message=r'invalid escape sequence', category=SyntaxWarning)
 
+import os
 import socket
 import threading
 import time
@@ -93,6 +94,10 @@ def pytest_collection_modifyitems(config, items):
 
 @pytest.fixture(scope='session')
 def visual_postgres_container():
+    if os.environ.get('DATABASE_URL'):
+        yield None
+        return
+
     from testcontainers.postgres import PostgresContainer
 
     with PostgresContainer(
@@ -107,13 +112,13 @@ def visual_postgres_container():
 @pytest.fixture(scope='session')
 def visual_db_engine(visual_postgres_container):
     """
-    Create all tables in the visual-test Postgres container and patch the
-    uber Session infrastructure to point at it.
+    Create all tables and patch uber Session to point at the visual-test DB.
+    Uses DATABASE_URL env var when provided (CI), otherwise the testcontainer.
     """
     import uber.models as models
     from sqlmodel import SQLModel
 
-    url = visual_postgres_container.get_connection_url()
+    url = os.environ.get('DATABASE_URL') or visual_postgres_container.get_connection_url()
     engine = sqlalchemy.create_engine(url, poolclass=NullPool)
 
     orig_engine = models.engine

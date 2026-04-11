@@ -39,13 +39,15 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-          cache: pip
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
 
       - name: Install system dependencies
         run: sudo apt-get install -y libxml2-dev libxmlsec1-dev pkg-config
 
       - name: Install Python dependencies
-        run: pip install -r requirements.txt -r requirements_test.txt
+        run: uv pip install --system -r requirements.txt -r requirements_test.txt
 
       - name: Run unit + integration tests
         env:
@@ -53,73 +55,49 @@ jobs:
         run: python3 -m pytest tests/uber/ -x --timeout=300 -q
 
   # ---------------------------------------------------------------------------
-  # Visual: build the test image once and share it across all visual jobs
-  # ---------------------------------------------------------------------------
-  visual-build:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build visual test image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile.visual
-          tags: ubersystem-visual:latest
-          load: true
-          cache-from: type=gha,scope=visual-image
-          cache-to: type=gha,mode=max,scope=visual-image
-
-      - name: Export image
-        run: docker save ubersystem-visual:latest | gzip > /tmp/image.tar.gz
-
-      - name: Upload image artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-image-visual
-          path: /tmp/image.tar.gz
-          retention-days: 1
-
-  # ---------------------------------------------------------------------------
   # Visual: capture current screenshots (every push and every PR)
   # ---------------------------------------------------------------------------
   visual-capture:
-    needs: [visual-build]
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright/python:v1.50.0-noble
     permissions:
       contents: read
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test_uber
+          POSTGRES_PASSWORD: test_uber
+          POSTGRES_DB: test_uber
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Download image
-        uses: actions/download-artifact@v4
-        with:
-          name: docker-image-visual
-          path: /tmp/
+      - name: Install system dependencies
+        run: apt-get install -y --no-install-recommends libxml2-dev libxmlsec1-dev pkg-config curl
 
-      - name: Load image
-        run: docker load < /tmp/image.tar.gz
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh && echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install Python dependencies
+        run: uv pip install --system -r requirements.txt -r requirements_test_visual.txt
 
       - name: Create output directories
         run: mkdir -p tests/visual/baselines tests/visual/results
 
       - name: Capture screenshots
-        run: |
-          docker run --rm \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            -v ${{ github.workspace }}/tests/visual/baselines:/app/tests/visual/baselines \
-            -v ${{ github.workspace }}/tests/visual/results:/app/tests/visual/results \
-            ubersystem-visual:latest \
-            python3 -m pytest tests/visual/ --update-baselines --timeout=300 -q
+        env:
+          DATABASE_URL: postgresql://test_uber:test_uber@postgres/test_uber
+          UBER_CONFIG_FILES: test-defaults.ini
+        run: python3 -m pytest tests/visual/ --update-baselines --timeout=300 -q
 
       - name: Upload screenshots
         uses: actions/upload-artifact@v4
@@ -134,11 +112,25 @@ jobs:
   # ---------------------------------------------------------------------------
   visual-compare:
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
-    needs: [visual-build]
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright/python:v1.50.0-noble
     permissions:
       contents: read
       actions: read
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test_uber
+          POSTGRES_PASSWORD: test_uber
+          POSTGRES_DB: test_uber
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     strategy:
       fail-fast: false
@@ -154,14 +146,14 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Download image
-        uses: actions/download-artifact@v4
-        with:
-          name: docker-image-visual
-          path: /tmp/
+      - name: Install system dependencies
+        run: apt-get install -y --no-install-recommends libxml2-dev libxmlsec1-dev pkg-config curl
 
-      - name: Load image
-        run: docker load < /tmp/image.tar.gz
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh && echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install Python dependencies
+        run: uv pip install --system -r requirements.txt -r requirements_test_visual.txt
 
       - name: Create output directories
         run: mkdir -p tests/visual/baselines tests/visual/results
@@ -169,7 +161,6 @@ jobs:
       - name: Download target branch baselines
         id: baselines
         run: |
-          mkdir -p /tmp/baseline-download
           FOUND=false
           TARGET="${{ github.base_ref || 'main' }}"
           for RUN_ID in $(gh run list \
@@ -188,20 +179,43 @@ jobs:
             fi
           done
           echo "found=$FOUND" >> $GITHUB_OUTPUT
+          [ "$FOUND" != "true" ] && echo "No artifact found for $TARGET — will capture from target branch"
         env:
           GH_TOKEN: ${{ github.token }}
 
-      - name: Compare chunk against target branch
-        if: steps.baselines.outputs.found == 'true'
+      # First-run fallback: capture baselines from the target branch code.
+      # Checks out the target branch into /tmp/target and runs --update-baselines.
+      - name: Capture target branch baselines (first-run fallback)
+        if: steps.baselines.outputs.found != 'true'
+        env:
+          DATABASE_URL: postgresql://test_uber:test_uber@postgres/test_uber
+          UBER_CONFIG_FILES: test-defaults.ini
+          GH_TOKEN: ${{ github.token }}
         run: |
-          docker run --rm \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            -v ${{ github.workspace }}/tests/visual/baselines:/app/tests/visual/baselines \
-            -v ${{ github.workspace }}/tests/visual/results:/app/tests/visual/results \
-            ubersystem-visual:latest \
-            python3 -m pytest tests/visual/ \
-              --visual-chunk ${{ matrix.chunk }} \
-              --timeout=300 -q --tb=short
+          TARGET="${{ github.base_ref || 'main' }}"
+          git fetch origin "$TARGET"
+          mkdir -p /tmp/target
+          git --work-tree=/tmp/target checkout FETCH_HEAD -- .
+          uv pip install --system \
+            -r /tmp/target/requirements.txt \
+            -r /tmp/target/requirements_test_visual.txt \
+            --quiet
+          PYTHONPATH=/tmp/target python3 -m pytest /tmp/target/tests/visual/ \
+            --visual-chunk ${{ matrix.chunk }} \
+            --update-baselines --timeout=300 -q \
+            --rootdir=/tmp/target
+          cp /tmp/target/tests/visual/baselines/* tests/visual/baselines/ 2>/dev/null || true
+          # Restore current branch deps
+          uv pip install --system -r requirements.txt -r requirements_test_visual.txt --quiet
+
+      - name: Compare chunk against target branch
+        env:
+          DATABASE_URL: postgresql://test_uber:test_uber@postgres/test_uber
+          UBER_CONFIG_FILES: test-defaults.ini
+        run: |
+          python3 -m pytest tests/visual/ \
+            --visual-chunk ${{ matrix.chunk }} \
+            --timeout=300 -q --tb=short
 
       - name: Upload comparison results
         if: always()
@@ -261,13 +275,11 @@ jobs:
                 comment_id: existing.id,
                 body,
               });
-              console.log(`Updated comment ${existing.id}`);
             } else {
-              const { data: created } = await github.rest.issues.createComment({
+              await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: pr,
                 body,
               });
-              console.log(`Created comment ${created.id}`);
             }
