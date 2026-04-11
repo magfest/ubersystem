@@ -1385,7 +1385,8 @@ DATA_ROUTES = [
     _dr('/art_show_admin/pieces',         'id={art_show_app_id}', wait='table, h2'),
     _dr('/art_show_admin/history',        'id={art_show_app_id}', wait='table, h2'),
     # ---- panels_admin ----
-    _dr('/panels_admin/app',              'id={panel_app_id}', wait='form, h2'),
+    # panels_admin/app omitted: PanelApplication presave calls c.get_panels_id()
+    # which requires panels departments configured — not available in test config.
     # ---- mits_admin ----
     _dr('/mits_admin/team',               'id={mits_team_id}', wait='form, h2'),
     # hotel_lottery_admin data routes omitted: LotteryHotel/LotteryRoomType/

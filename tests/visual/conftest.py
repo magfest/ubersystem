@@ -312,7 +312,7 @@ def test_data(visual_db_engine):
     """
     from uber.models import (
         Session, Attendee, Group, Department, DeptRole, WatchList,
-        ArtShowApplication, MITSTeam, PanelApplication,
+        ArtShowApplication, MITSTeam,
     )
     from uber.config import c
 
@@ -369,12 +369,6 @@ def test_data(visual_db_engine):
         session.add(art_app)
         session.flush()
         data['art_show_app_id'] = str(art_app.id)
-
-        # ---- PanelApplication ----------------------------------------
-        panel_app = PanelApplication(name='Visual Test Panel')
-        session.add(panel_app)
-        session.flush()
-        data['panel_app_id'] = str(panel_app.id)
 
         # ---- MITSTeam ------------------------------------------------
         mits_team = MITSTeam(name='Visual Test MITS Team')
