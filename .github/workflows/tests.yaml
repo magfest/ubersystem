@@ -60,7 +60,7 @@ jobs:
   visual-capture:
     runs-on: ubuntu-latest
     container:
-      image: mcr.microsoft.com/playwright/python:v1.50.0-noble
+      image: mcr.microsoft.com/playwright/python:v1.58.0-noble
     permissions:
       contents: read
 
@@ -114,7 +114,7 @@ jobs:
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     container:
-      image: mcr.microsoft.com/playwright/python:v1.50.0-noble
+      image: mcr.microsoft.com/playwright/python:v1.58.0-noble
     permissions:
       contents: read
       actions: read
@@ -197,9 +197,11 @@ jobs:
           git fetch origin "$TARGET"
           mkdir -p /tmp/target
           git --work-tree=/tmp/target checkout FETCH_HEAD -- .
+          # Install target branch app deps only — skip playwright since it must
+          # match the container image and is already installed.
           uv pip install --system \
             -r /tmp/target/requirements.txt \
-            -r /tmp/target/requirements_test_visual.txt \
+            -r /tmp/target/requirements_test.txt \
             --quiet
           PYTHONPATH=/tmp/target python3 -m pytest /tmp/target/tests/visual/ \
             --visual-chunk ${{ matrix.chunk }} \
@@ -207,7 +209,7 @@ jobs:
             --rootdir=/tmp/target
           cp /tmp/target/tests/visual/baselines/* tests/visual/baselines/ 2>/dev/null || true
           # Restore current branch deps
-          uv pip install --system -r requirements.txt -r requirements_test_visual.txt --quiet
+          uv pip install --system -r requirements.txt -r requirements_test.txt --quiet
 
       - name: Compare chunk against target branch
         env:
