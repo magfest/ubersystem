@@ -17,8 +17,10 @@ from pathlib import Path
 DIFF_THRESHOLD_PCT = 0.2   # must match visual_config.DIFF_THRESHOLD * 100
 MARKER = '<!-- visual-regression-report -->'
 MAX_SCREENSHOT_HEIGHT = 1500   # crop very tall pages so composites stay manageable
+MAX_PANEL_WIDTH = 640          # scale each panel down to this width; keeps composite ≤ ~1.5 MB
 HEADER_HEIGHT = 44             # px for the BEFORE / AFTER label bar
 SEPARATOR_WIDTH = 6            # px between the two panels
+COMPOSITE_QUALITY = 82         # JPEG quality for the composite (good balance of size vs clarity)
 
 
 # ---------------------------------------------------------------------------
@@ -60,24 +62,35 @@ def _draw_header(draw, x: int, width: int, height: int, text: str,
     draw.text((tx, ty), text, fill=fg, font=font)
 
 
+def _resize_panel(img, max_width: int, max_height: int):
+    """Crop height then scale down to max_width, preserving aspect ratio."""
+    from PIL import Image
+
+    if img.height > max_height:
+        img = img.crop((0, 0, img.width, max_height))
+    if img.width > max_width:
+        scale = max_width / img.width
+        new_h = max(1, int(img.height * scale))
+        img = img.resize((max_width, new_h), Image.LANCZOS)
+    return img
+
+
 def create_composite(before_path: Path, after_path: Path,
                      output_path: Path, label: str, ratio: float) -> None:
     """
-    Build a side-by-side PNG with:
+    Build a side-by-side JPEG with:
       - a blue  header bar (left):  "BEFORE  —  {label}  ({pct}% changed)"
       - a red   header bar (right): "AFTER"
-      - the two screenshots cropped to MAX_SCREENSHOT_HEIGHT
+      - both screenshots scaled to MAX_PANEL_WIDTH wide, cropped to MAX_SCREENSHOT_HEIGHT
+
+    Saved as JPEG at COMPOSITE_QUALITY to stay well under GitHub's 10 MB upload limit.
     """
     from PIL import Image, ImageDraw
 
-    before = Image.open(before_path).convert('RGB')
-    after  = Image.open(after_path).convert('RGB')
-
-    # Crop very long pages
-    if before.height > MAX_SCREENSHOT_HEIGHT:
-        before = before.crop((0, 0, before.width, MAX_SCREENSHOT_HEIGHT))
-    if after.height > MAX_SCREENSHOT_HEIGHT:
-        after  = after.crop((0, 0, after.width,  MAX_SCREENSHOT_HEIGHT))
+    before = _resize_panel(Image.open(before_path).convert('RGB'),
+                           MAX_PANEL_WIDTH, MAX_SCREENSHOT_HEIGHT)
+    after  = _resize_panel(Image.open(after_path).convert('RGB'),
+                           MAX_PANEL_WIDTH, MAX_SCREENSHOT_HEIGHT)
 
     # Pad the shorter panel so both are the same height
     max_h = max(before.height, after.height)
@@ -109,9 +122,11 @@ def create_composite(before_path: Path, after_path: Path,
     composite.paste(before, (0, HEADER_HEIGHT))
     composite.paste(after,  (before.width + SEPARATOR_WIDTH, HEADER_HEIGHT))
 
+    # Save as JPEG — composite is ~1286×1544 px which is well under 10 MB at this quality
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    composite.save(str(output_path), 'PNG', optimize=True)
-    print(f'  Composite: {output_path}', file=sys.stderr)
+    composite.save(str(output_path), 'JPEG', quality=COMPOSITE_QUALITY, optimize=True)
+    size_kb = output_path.stat().st_size // 1024
+    print(f'  Composite: {output_path}  ({size_kb} KB)', file=sys.stderr)
 
 
 # ---------------------------------------------------------------------------
@@ -148,7 +163,7 @@ def main(artifacts_dir: str = 'artifacts',
             after  = Path(artifacts_dir) / f'visual-diff-{chunk}' / f'{label}.jpg'
 
             if before.exists() and after.exists():
-                filename = f'{label}.composite.png'
+                filename = f'{label}.composite.jpg'
                 try:
                     create_composite(before, after, composites_path / filename,
                                      label, diff['ratio'])

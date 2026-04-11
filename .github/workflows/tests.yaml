@@ -298,7 +298,7 @@ jobs:
               const formData = new FormData();
               // GitHub's issue-asset upload requires multipart/form-data;
               // omit Content-Type header so fetch sets it with the correct boundary.
-              formData.append('asset', new Blob([data], { type: 'image/png' }), filename);
+              formData.append('asset', new Blob([data], { type: 'image/jpeg' }), filename);
               const resp = await fetch(url, {
                 method:  'POST',
                 headers: { 'Authorization': `Bearer ${process.env.GITHUB_TOKEN}` },
