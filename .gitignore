@@ -40,3 +40,4 @@ uber.ini
 ssl-cert.pem
 ssl-key.pem
 celerybeat-schedule
+tests/visual/baselines

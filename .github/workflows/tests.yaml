@@ -13,19 +13,41 @@ jobs:
     permissions:
       contents: read
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test_uber
+          POSTGRES_PASSWORD: test_uber
+          POSTGRES_DB: test_uber
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Build test image
-        run: docker build --target test -t ubersystem-test .
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+
+      - name: Install system dependencies
+        run: sudo apt-get install -y libxml2-dev libxmlsec1-dev pkg-config
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt -r requirements_test.txt
 
       - name: Run unit + integration tests
-        run: |
-          docker run --rm \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            ubersystem-test \
-            python3 -m pytest tests/uber/ -x --timeout=300 -q
+        env:
+          DATABASE_URL: postgresql://test_uber:test_uber@localhost:5432/test_uber
+        run: python3 -m pytest tests/uber/ -x --timeout=300 -q
 
   visual-regression:
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'

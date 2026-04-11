@@ -1,3 +1,4 @@
+import os
 import re
 import warnings
 from datetime import timedelta
@@ -40,6 +41,15 @@ def extract_message_from_html(html):
 
 @pytest.fixture(scope='session')
 def postgres_container():
+    """
+    Starts a testcontainers Postgres instance, or yields None when
+    DATABASE_URL is already set in the environment (e.g. GitHub Actions
+    services).  Nothing in this fixture is started when DATABASE_URL is set.
+    """
+    if os.environ.get('DATABASE_URL'):
+        yield None
+        return
+
     from testcontainers.postgres import PostgresContainer
 
     with PostgresContainer("postgres:16-alpine",
@@ -64,14 +74,15 @@ def redis_container():
 @pytest.fixture(scope='session')
 def db_engine(postgres_container):
     """
-    Create a SQLAlchemy engine pointing at the testcontainer Postgres,
-    patch the uber Session infrastructure to use it, create all tables,
-    and register session listeners.
+    Create a SQLAlchemy engine pointing at the testcontainer Postgres (or a
+    pre-existing Postgres when DATABASE_URL is set), patch the uber Session
+    infrastructure to use it, create all tables, and register session
+    listeners.
     """
     import uber.models as models
     from sqlmodel import SQLModel
 
-    url = postgres_container.get_connection_url()
+    url = os.environ.get('DATABASE_URL') or postgres_container.get_connection_url()
     # NullPool: each connect() opens a real connection and close() truly closes
     # it, preventing stale sessions from previous tests from interfering.
     test_engine = sqlalchemy.create_engine(url, poolclass=NullPool)
