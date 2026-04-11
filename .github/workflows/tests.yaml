@@ -265,57 +265,70 @@ jobs:
       - name: Generate composites and report data
         run: python3 tests/visual/generate_report.py artifacts/ composites/
 
+      # Upload images via curl — Node.js FormData/Blob sends zero-byte bodies
+      # with the undici fetch implementation, causing GitHub to return 422 "Bad Size".
+      # curl's native multipart support is battle-tested and produces correct output.
+      - name: Upload composite images to GitHub
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR="${{ github.event.pull_request.number }}"
+          REPO="${{ github.repository }}"
+          BASE_URL="https://uploads.github.com/repos/${REPO}/issues/${PR}/assets"
+
+          echo '{}' > composites/upload_urls.json
+
+          for img in composites/*.jpg; do
+            [ -f "$img" ] || continue
+            name=$(basename "$img")
+            size=$(stat -c%s "$img")
+            echo "Uploading $name (${size} bytes)..."
+
+            response=$(curl -sS -w '\n%{http_code}' -X POST \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -F "asset=@${img};type=image/jpeg" \
+              "${BASE_URL}?name=${name}")
+
+            http_code=$(echo "$response" | tail -1)
+            body=$(echo "$response" | head -n -1)
+            echo "  HTTP ${http_code}: ${body}"
+
+            if [ "$http_code" = "201" ]; then
+              url=$(echo "$body" | jq -r '.url // empty')
+              if [ -n "$url" ]; then
+                jq --arg k "$name" --arg v "$url" '.[$k]=$v' \
+                  composites/upload_urls.json > /tmp/urls_tmp.json \
+                  && mv /tmp/urls_tmp.json composites/upload_urls.json
+                echo "  -> $url"
+              fi
+            fi
+          done
+
+          echo "--- upload_urls.json ---"
+          cat composites/upload_urls.json
+
       - name: Post or update PR comment
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const fs   = require('fs');
-            const path = require('path');
+            const fs = require('fs');
 
             const MARKER = '<!-- visual-regression-report -->';
-            const pr     = context.payload.pull_request.number;
-            const owner  = context.repo.owner;
-            const repo   = context.repo.repo;
+            const pr    = context.payload.pull_request.number;
+            const owner = context.repo.owner;
+            const repo  = context.repo.repo;
 
-            // ----------------------------------------------------------------
-            // Read report data produced by generate_report.py
-            // ----------------------------------------------------------------
-            const reportData = JSON.parse(
-              fs.readFileSync('composites/report_data.json', 'utf8')
+            const reportData = JSON.parse(fs.readFileSync('composites/report_data.json', 'utf8'));
+            const uploadUrls = JSON.parse(
+              fs.existsSync('composites/upload_urls.json')
+                ? fs.readFileSync('composites/upload_urls.json', 'utf8')
+                : '{}'
             );
             const { has_changes, total_changed, composites, top_50 } = reportData;
 
-            // ----------------------------------------------------------------
-            // Upload each composite image to GitHub's issue-asset store and
-            // collect the embeddable URLs (same mechanism as drag-and-drop
-            // image pasting in the GitHub web UI).
-            // ----------------------------------------------------------------
-            async function uploadImage(filePath, filename) {
-              const data     = fs.readFileSync(filePath);
-              const url      = `https://uploads.github.com/repos/${owner}/${repo}/issues/${pr}/assets?name=${encodeURIComponent(filename)}`;
-              const formData = new FormData();
-              // GitHub's issue-asset upload requires multipart/form-data;
-              // omit Content-Type header so fetch sets it with the correct boundary.
-              formData.append('asset', new Blob([data], { type: 'image/jpeg' }), filename);
-              const resp = await fetch(url, {
-                method:  'POST',
-                headers: { 'Authorization': `Bearer ${process.env.GITHUB_TOKEN}` },
-                body: formData,
-              });
-              if (!resp.ok) {
-                const text = await resp.text();
-                throw new Error(`Upload failed (${resp.status}): ${text}`);
-              }
-              const json = await resp.json();
-              // GitHub returns the embeddable CDN URL in the `url` field
-              return json.url || json.browser_download_url;
-            }
-
-            // ----------------------------------------------------------------
-            // Build the comment body
-            // ----------------------------------------------------------------
             let body = `${MARKER}\n## Visual Regression\n\n`;
 
             if (!has_changes) {
@@ -324,29 +337,19 @@ jobs:
               const routeWord = total_changed === 1 ? 'route' : 'routes';
               body += `**${total_changed} ${routeWord} changed** (threshold: 0.2%):\n\n`;
 
-              // --- Top-5 side-by-side composite images ---
+              // Top-5 side-by-side composite images
               for (const comp of composites) {
-                const filePath = `composites/${comp.filename}`;
-                if (!fs.existsSync(filePath)) {
-                  console.log(`Skipping missing composite: ${filePath}`);
-                  continue;
-                }
-                let imageUrl = null;
-                try {
-                  imageUrl = await uploadImage(filePath, comp.filename);
-                } catch (err) {
-                  console.error(`Image upload failed for ${comp.filename}: ${err.message}`);
-                }
                 const pct = (comp.ratio * 100).toFixed(2);
                 body += `### \`${comp.label}\` — ${pct}% changed\n\n`;
+                const imageUrl = uploadUrls[comp.filename];
                 if (imageUrl) {
                   body += `![${comp.label} before/after](${imageUrl})\n\n`;
                 } else {
-                  body += `*(image upload failed — see \`visual-diff-${comp.chunk}\` artifact)*\n\n`;
+                  body += `*(image unavailable — see \`visual-diff-${comp.chunk}\` artifact)*\n\n`;
                 }
               }
 
-              // --- Top-50 table ---
+              // Top-50 table
               const tableCount = Math.min(total_changed, 50);
               body += `---\n\n### All Changed Routes`;
               body += total_changed > 50
@@ -362,22 +365,18 @@ jobs:
               }
             }
 
-            // ----------------------------------------------------------------
-            // Post or update the PR comment
-            // ----------------------------------------------------------------
             const { data: comments } = await github.rest.issues.listComments({
               owner, repo, issue_number: pr,
             });
-
             const existing = comments.find(c => c.body && c.body.includes(MARKER));
             if (existing) {
               await github.rest.issues.updateComment({
                 owner, repo, comment_id: existing.id, body,
               });
-              console.log(`Updated existing comment ${existing.id}`);
+              console.log(`Updated comment ${existing.id}`);
             } else {
               await github.rest.issues.createComment({
                 owner, repo, issue_number: pr, body,
               });
-              console.log('Created new comment');
+              console.log('Created comment');
             }
