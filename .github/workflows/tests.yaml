@@ -238,7 +238,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
-      contents: read
+      contents: write   # needed to push composite images to visual-regression-images branch
 
     steps:
       - name: Checkout Code
@@ -265,48 +265,65 @@ jobs:
       - name: Generate composites and report data
         run: python3 tests/visual/generate_report.py artifacts/ composites/
 
-      # Upload images via curl — Node.js FormData/Blob sends zero-byte bodies
-      # with the undici fetch implementation, causing GitHub to return 422 "Bad Size".
-      # curl's native multipart support is battle-tested and produces correct output.
-      - name: Upload composite images to GitHub
+      # Push composite images to the visual-regression-images orphan branch so they
+      # get stable raw.githubusercontent.com URLs that render inline in GitHub comments.
+      # The uploads.github.com issue-assets endpoint rejects GITHUB_TOKEN with 422
+      # regardless of encoding, so git push is the reliable alternative.
+      - name: Push composite images to visual-regression-images branch
         if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           PR="${{ github.event.pull_request.number }}"
+          RUN_ID="${{ github.run_id }}"
           REPO="${{ github.repository }}"
-          BASE_URL="https://uploads.github.com/repos/${REPO}/issues/${PR}/assets"
+          WORKSPACE="$GITHUB_WORKSPACE"
 
-          echo '{}' > composites/upload_urls.json
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
 
-          for img in composites/*.jpg; do
+          # Work in a temp clone so we don't disturb the main checkout
+          WORK_DIR=$(mktemp -d)
+          git clone --depth=1 --no-single-branch \
+            "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" \
+            "$WORK_DIR"
+          cd "$WORK_DIR"
+
+          # Checkout or create the dedicated images branch
+          if git checkout visual-regression-images 2>/dev/null; then
+            echo "Checked out existing visual-regression-images branch"
+          else
+            git checkout --orphan visual-regression-images
+            git rm -rf . > /dev/null 2>&1 || true
+            echo "Created new orphan visual-regression-images branch"
+          fi
+
+          # Copy composites under pr-{PR}/{run_id}/
+          mkdir -p "pr-${PR}/${RUN_ID}"
+          cp "${WORKSPACE}"/composites/*.jpg "pr-${PR}/${RUN_ID}/" 2>/dev/null || true
+
+          git add "pr-${PR}/${RUN_ID}/"
+          if git diff --cached --quiet; then
+            echo "No composites to commit"
+          else
+            git commit -m "Visual regression composites — PR ${PR} run ${RUN_ID}"
+            git push origin visual-regression-images
+          fi
+
+          # Build upload_urls.json mapping filename -> raw CDN URL
+          echo '{}' > "${WORKSPACE}/composites/upload_urls.json"
+          for img in "pr-${PR}/${RUN_ID}"/*.jpg; do
             [ -f "$img" ] || continue
             name=$(basename "$img")
-            size=$(stat -c%s "$img")
-            echo "Uploading $name (${size} bytes)..."
-
-            response=$(curl -sS -w '\n%{http_code}' -X POST \
-              -H "Authorization: Bearer ${GH_TOKEN}" \
-              -F "asset=@${img};type=image/jpeg" \
-              "${BASE_URL}?name=${name}")
-
-            http_code=$(echo "$response" | tail -1)
-            body=$(echo "$response" | head -n -1)
-            echo "  HTTP ${http_code}: ${body}"
-
-            if [ "$http_code" = "201" ]; then
-              url=$(echo "$body" | jq -r '.url // empty')
-              if [ -n "$url" ]; then
-                jq --arg k "$name" --arg v "$url" '.[$k]=$v' \
-                  composites/upload_urls.json > /tmp/urls_tmp.json \
-                  && mv /tmp/urls_tmp.json composites/upload_urls.json
-                echo "  -> $url"
-              fi
-            fi
+            url="https://raw.githubusercontent.com/${REPO}/visual-regression-images/${img}"
+            jq --arg k "$name" --arg v "$url" '.[$k]=$v' \
+              "${WORKSPACE}/composites/upload_urls.json" > /tmp/urls_tmp.json \
+              && mv /tmp/urls_tmp.json "${WORKSPACE}/composites/upload_urls.json"
+            echo "  $name -> $url"
           done
 
           echo "--- upload_urls.json ---"
-          cat composites/upload_urls.json
+          cat "${WORKSPACE}/composites/upload_urls.json"
 
       - name: Post or update PR comment
         if: github.event_name == 'pull_request'
