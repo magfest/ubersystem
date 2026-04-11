@@ -197,6 +197,9 @@ def _run_visual_test(route: RouteSpec, page, base_url: str, update_baselines: bo
     if ratio > DIFF_THRESHOLD:
         diff_path.write_bytes(diff_png)
         _record_diff(route.label, ratio)
+        # Copy baseline alongside result so the diff artifact has both before/after
+        baseline_copy_path = RESULTS_DIR / f'{label}.baseline{SCREENSHOT_EXT}'
+        baseline_copy_path.write_bytes(baseline)
         pct = ratio * 100
         threshold_pct = DIFF_THRESHOLD * 100
         pytest.fail(
