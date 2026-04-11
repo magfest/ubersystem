@@ -53,10 +53,9 @@ jobs:
         run: python3 -m pytest tests/uber/ -x --timeout=300 -q
 
   # ---------------------------------------------------------------------------
-  # Visual: capture current screenshots (runs on every push and every PR)
-  # The uploaded artifact becomes the baseline for future PRs targeting this branch.
+  # Visual: build the test image once and share it across all visual jobs
   # ---------------------------------------------------------------------------
-  visual-capture:
+  visual-build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -73,10 +72,42 @@ jobs:
         with:
           context: .
           file: Dockerfile.visual
-          tags: ubersystem-visual
+          tags: ubersystem-visual:latest
           load: true
           cache-from: type=gha,scope=visual-image
           cache-to: type=gha,mode=max,scope=visual-image
+
+      - name: Export image
+        run: docker save ubersystem-visual:latest | gzip > /tmp/image.tar.gz
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-visual
+          path: /tmp/image.tar.gz
+          retention-days: 1
+
+  # ---------------------------------------------------------------------------
+  # Visual: capture current screenshots (every push and every PR)
+  # ---------------------------------------------------------------------------
+  visual-capture:
+    needs: [visual-build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Download image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image-visual
+          path: /tmp/
+
+      - name: Load image
+        run: docker load < /tmp/image.tar.gz
 
       - name: Create output directories
         run: mkdir -p tests/visual/baselines tests/visual/results
@@ -87,7 +118,7 @@ jobs:
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v ${{ github.workspace }}/tests/visual/baselines:/app/tests/visual/baselines \
             -v ${{ github.workspace }}/tests/visual/results:/app/tests/visual/results \
-            ubersystem-visual \
+            ubersystem-visual:latest \
             python3 -m pytest tests/visual/ --update-baselines --timeout=300 -q
 
       - name: Upload screenshots
@@ -99,11 +130,11 @@ jobs:
           if-no-files-found: warn
 
   # ---------------------------------------------------------------------------
-  # Visual: compare each chunk against the target branch (PRs only)
-  # Runs in parallel — one job per chunk.
+  # Visual: compare each chunk against target branch (PRs only, parallel)
   # ---------------------------------------------------------------------------
   visual-compare:
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    needs: [visual-build]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -123,18 +154,14 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build visual test image
-        uses: docker/build-push-action@v5
+      - name: Download image
+        uses: actions/download-artifact@v4
         with:
-          context: .
-          file: Dockerfile.visual
-          tags: ubersystem-visual
-          load: true
-          cache-from: type=gha,scope=visual-image
-          cache-to: type=gha,mode=max,scope=visual-image
+          name: docker-image-visual
+          path: /tmp/
+
+      - name: Load image
+        run: docker load < /tmp/image.tar.gz
 
       - name: Create output directories
         run: mkdir -p tests/visual/baselines tests/visual/results
@@ -144,7 +171,7 @@ jobs:
         run: |
           mkdir -p /tmp/baseline-download
           FOUND=false
-          TARGET="${{ github.base_ref || github.event.inputs.base_ref || 'main' }}"
+          TARGET="${{ github.base_ref || 'main' }}"
           for RUN_ID in $(gh run list \
               --workflow tests.yaml \
               --branch "$TARGET" \
@@ -171,7 +198,7 @@ jobs:
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v ${{ github.workspace }}/tests/visual/baselines:/app/tests/visual/baselines \
             -v ${{ github.workspace }}/tests/visual/results:/app/tests/visual/results \
-            ubersystem-visual \
+            ubersystem-visual:latest \
             python3 -m pytest tests/visual/ \
               --visual-chunk ${{ matrix.chunk }} \
               --timeout=300 -q --tb=short
@@ -186,7 +213,7 @@ jobs:
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
-  # Visual: aggregate diffs across all chunks and post a PR comment
+  # Visual: aggregate diffs and post a PR comment
   # ---------------------------------------------------------------------------
   visual-report:
     if: always() && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')

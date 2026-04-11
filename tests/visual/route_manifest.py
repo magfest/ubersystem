@@ -1388,10 +1388,6 @@ DATA_ROUTES = [
     _dr('/panels_admin/app',              'id={panel_app_id}', wait='form, h2'),
     # ---- mits_admin ----
     _dr('/mits_admin/team',               'id={mits_team_id}', wait='form, h2'),
-    # ---- hotel_lottery_admin ----
-    _dr('/hotel_lottery_admin/edit_hotel',         'id={lottery_hotel_id}',     wait='form, h2'),
-    _dr('/hotel_lottery_admin/edit_room_type',     'id={lottery_room_type_id}', wait='form, h2'),
-    _dr('/hotel_lottery_admin/edit_inventory_item', 'id={lottery_inventory_id}', wait='form, h2'),
-    _dr('/hotel_lottery_admin/edit_partition',     'id={lottery_partition_id}', wait='form, h2'),
-    _dr('/hotel_lottery_admin/lottery_run_detail', 'id={lottery_run_id}',       wait='table, h2'),
+    # hotel_lottery_admin data routes omitted: LotteryHotel/LotteryRoomType/
+    # HotelRoomInventory/InventoryPartition/LotteryRun models not yet implemented.
 ]

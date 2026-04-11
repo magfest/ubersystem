@@ -308,8 +308,6 @@ def test_data(visual_db_engine):
     from uber.models import (
         Session, Attendee, Group, Department, DeptRole, WatchList,
         ArtShowApplication, MITSTeam, PanelApplication,
-        LotteryHotel, LotteryRoomType, HotelRoomInventory,
-        InventoryPartition, LotteryRun,
     )
     from uber.config import c
 
@@ -378,39 +376,6 @@ def test_data(visual_db_engine):
         session.add(mits_team)
         session.flush()
         data['mits_team_id'] = str(mits_team.id)
-
-        # ---- Hotel lottery objects -----------------------------------
-        hotel = LotteryHotel(name='Visual Test Hotel', export_name='VTH')
-        session.add(hotel)
-        session.flush()
-        data['lottery_hotel_id'] = str(hotel.id)
-
-        room_type = LotteryRoomType(
-            name='Visual Test Room Type', export_name='VTRT',
-        )
-        session.add(room_type)
-        session.flush()
-        data['lottery_room_type_id'] = str(room_type.id)
-
-        inventory = HotelRoomInventory(
-            hotel_id=hotel.id,
-            room_type_id=room_type.id,
-            name='Visual Test Room',
-            quantity=10,
-        )
-        session.add(inventory)
-        session.flush()
-        data['lottery_inventory_id'] = str(inventory.id)
-
-        partition = InventoryPartition(name='Visual Test Partition')
-        session.add(partition)
-        session.flush()
-        data['lottery_partition_id'] = str(partition.id)
-
-        lottery_run = LotteryRun(name='Visual Test Run')
-        session.add(lottery_run)
-        session.flush()
-        data['lottery_run_id'] = str(lottery_run.id)
 
         session.commit()
 
