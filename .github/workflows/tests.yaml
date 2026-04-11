@@ -192,6 +192,7 @@ jobs:
           UBER_CONFIG_FILES: test-defaults.ini
           GH_TOKEN: ${{ github.token }}
         run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           TARGET="${{ github.base_ref || 'main' }}"
           git fetch origin "$TARGET"
           mkdir -p /tmp/target
