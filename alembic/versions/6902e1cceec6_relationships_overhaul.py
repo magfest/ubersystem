@@ -18,6 +18,28 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 
+def _constraint_exists(table_name, constraint_name):
+    """Check if a constraint exists on a table (handles fresh DB vs migrated DB)."""
+    conn = op.get_bind()
+    result = conn.execute(sa.text(
+        "SELECT 1 FROM information_schema.table_constraints "
+        "WHERE table_name = :table AND constraint_name = :constraint"
+    ), {"table": table_name, "constraint": constraint_name})
+    return result.fetchone() is not None
+
+
+def safe_drop_constraint(constraint_name, table_name, **kwargs):
+    """Drop a constraint only if it exists."""
+    if _constraint_exists(table_name, constraint_name):
+        op.drop_constraint(constraint_name, table_name, **kwargs)
+
+
+def safe_create_unique_constraint(constraint_name, table_name, columns, **kwargs):
+    """Create a unique constraint only if it doesn't already exist."""
+    if not _constraint_exists(table_name, constraint_name):
+        op.create_unique_constraint(constraint_name, table_name, columns, **kwargs)
+
+
 try:
     is_sqlite = op.get_context().dialect.name == 'sqlite'
 except Exception:
@@ -65,7 +87,7 @@ def upgrade():
     op.drop_constraint(op.f('fk_art_show_agent_code_app_id_art_show_application'), 'art_show_agent_code', type_='foreignkey')
     op.create_foreign_key(op.f('fk_art_show_agent_code_attendee_id_attendee'), 'art_show_agent_code', 'attendee', ['attendee_id'], ['id'])
     op.create_foreign_key(op.f('fk_art_show_agent_code_app_id_art_show_application'), 'art_show_agent_code', 'art_show_application', ['app_id'], ['id'], ondelete='CASCADE')
-    op.create_unique_constraint(op.f('uq_art_show_application_attendee_id'), 'art_show_application', ['attendee_id'])
+    safe_create_unique_constraint(op.f('uq_art_show_application_attendee_id'), 'art_show_application', ['attendee_id'])
     op.drop_constraint(op.f('fk_art_show_application_attendee_id_attendee'), 'art_show_application', type_='foreignkey')
     op.create_foreign_key(op.f('fk_art_show_application_attendee_id_attendee'), 'art_show_application', 'attendee', ['attendee_id'], ['id'])
     op.alter_column('art_show_bidder', 'attendee_id',
@@ -92,7 +114,7 @@ def upgrade():
                nullable=False)
     op.drop_constraint(op.f('fk_art_show_receipt_attendee_id_attendee'), 'art_show_receipt', type_='foreignkey')
     op.create_foreign_key(op.f('fk_art_show_receipt_attendee_id_attendee'), 'art_show_receipt', 'attendee', ['attendee_id'], ['id'], ondelete='CASCADE')
-    op.create_unique_constraint(op.f('uq_artist_marketplace_application_attendee_id'), 'artist_marketplace_application', ['attendee_id'])
+    safe_create_unique_constraint(op.f('uq_artist_marketplace_application_attendee_id'), 'artist_marketplace_application', ['attendee_id'])
     op.drop_constraint(op.f('fk_artist_marketplace_application_attendee_id_attendee'), 'artist_marketplace_application', type_='foreignkey')
     op.create_foreign_key(op.f('fk_artist_marketplace_application_attendee_id_attendee'), 'artist_marketplace_application', 'attendee', ['attendee_id'], ['id'], ondelete='CASCADE')
     op.drop_constraint(op.f('fk_attendee_group_id_group'), 'attendee', type_='foreignkey')
@@ -104,16 +126,21 @@ def upgrade():
     op.create_foreign_key(op.f('fk_attendee_group_id_group'), 'attendee', 'group', ['group_id'], ['id'])
     op.create_foreign_key(op.f('fk_attendee_creator_id_attendee'), 'attendee', 'attendee', ['creator_id'], ['id'])
     op.drop_column('attendee', 'affiliate')
-    op.drop_constraint(op.f('attraction_name_key'), 'attraction', type_='unique')
-    op.create_unique_constraint(op.f('uq_attraction_name'), 'attraction', ['name'])
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    attraction_constraints = {c['name'] for c in inspector.get_unique_constraints('attraction')}
+    if 'attraction_name_key' in attraction_constraints:
+        safe_drop_constraint(op.f('attraction_name_key'), 'attraction', type_='unique')
+    if 'uq_attraction_name' not in attraction_constraints:
+        safe_create_unique_constraint(op.f('uq_attraction_name'), 'attraction', ['name'])
     op.drop_constraint(op.f('fk_attraction_event_location_id_event_location'), 'attraction_event', type_='foreignkey')
     op.drop_constraint(op.f('fk_attraction_event_attraction_id_attraction'), 'attraction_event', type_='foreignkey')
     op.drop_constraint(op.f('fk_attraction_event_attraction_feature_id_attraction_feature'), 'attraction_event', type_='foreignkey')
     op.create_foreign_key(op.f('fk_attraction_event_attraction_id_attraction'), 'attraction_event', 'attraction', ['attraction_id'], ['id'], ondelete='CASCADE')
     op.create_foreign_key(op.f('fk_attraction_event_attraction_feature_id_attraction_feature'), 'attraction_event', 'attraction_feature', ['attraction_feature_id'], ['id'], ondelete='CASCADE')
     op.create_foreign_key(op.f('fk_attraction_event_event_location_id_event_location'), 'attraction_event', 'event_location', ['event_location_id'], ['id'])
-    op.drop_constraint(op.f('attraction_feature_name_attraction_id_key'), 'attraction_feature', type_='unique')
-    op.create_unique_constraint(op.f('uq_attraction_feature_name'), 'attraction_feature', ['name', 'attraction_id'])
+    safe_drop_constraint(op.f('attraction_feature_name_attraction_id_key'), 'attraction_feature', type_='unique')
+    safe_create_unique_constraint(op.f('uq_attraction_feature_name'), 'attraction_feature', ['name', 'attraction_id'])
     op.drop_constraint(op.f('fk_attraction_feature_attraction_id_attraction'), 'attraction_feature', type_='foreignkey')
     op.create_foreign_key(op.f('fk_attraction_feature_attraction_id_attraction'), 'attraction_feature', 'attraction', ['attraction_id'], ['id'], ondelete='CASCADE')
     op.drop_constraint(op.f('fk_attraction_notification_attraction_event_id_attraction_event'), 'attraction_notification', type_='foreignkey')
@@ -134,8 +161,8 @@ def upgrade():
     op.drop_constraint(op.f('fk_bulk_printing_request_department_id_department'), 'bulk_printing_request', type_='foreignkey')
     op.create_foreign_key(op.f('fk_bulk_printing_request_department_id_department'), 'bulk_printing_request', 'department', ['department_id'], ['id'], ondelete='CASCADE')
     op.drop_column('bulk_printing_request', 'required')
-    op.drop_constraint(op.f('department_name_key'), 'department', type_='unique')
-    op.create_unique_constraint(op.f('uq_department_name'), 'department', ['name'])
+    safe_drop_constraint(op.f('department_name_key'), 'department', type_='unique')
+    safe_create_unique_constraint(op.f('uq_department_name'), 'department', ['name'])
     op.drop_constraint(op.f('fk_department_parent_id_department'), 'department', type_='foreignkey')
     op.create_foreign_key(op.f('fk_department_parent_id_department'), 'department', 'department', ['parent_id'], ['id'], ondelete='CASCADE')
     op.drop_constraint(op.f('fk_dept_checklist_item_department_id_department'), 'dept_checklist_item', type_='foreignkey')
@@ -154,7 +181,7 @@ def upgrade():
     op.create_foreign_key(op.f('fk_dept_role_department_id_department'), 'dept_role', 'department', ['department_id'], ['id'], ondelete='CASCADE')
     op.drop_constraint(op.f('fk_email_automated_email_id_automated_email'), 'email', type_='foreignkey')
     op.create_foreign_key(op.f('fk_email_automated_email_id_automated_email'), 'email', 'automated_email', ['automated_email_id'], ['id'])
-    op.create_unique_constraint(op.f('uq_event_attraction_event_id'), 'event', ['attraction_event_id'])
+    safe_create_unique_constraint(op.f('uq_event_attraction_event_id'), 'event', ['attraction_event_id'])
     op.drop_constraint(op.f('fk_event_department_id_department'), 'event', type_='foreignkey')
     op.drop_constraint(op.f('fk_event_location_id_event_location'), 'event', type_='foreignkey')
     op.drop_constraint(op.f('fk_event_attraction_event_id_attraction_event'), 'event', type_='foreignkey')
@@ -182,7 +209,7 @@ def upgrade():
                nullable=False)
     op.drop_constraint(op.f('fk_guest_detailed_travel_plan_travel_plans_id_guest_tra_6ad4'), 'guest_detailed_travel_plan', type_='foreignkey')
     op.create_foreign_key(op.f('fk_guest_detailed_travel_plan_travel_plans_id_guest_travel_plans'), 'guest_detailed_travel_plan', 'guest_travel_plans', ['travel_plans_id'], ['id'], ondelete='CASCADE')
-    op.create_unique_constraint(op.f('uq_guest_group_group_id'), 'guest_group', ['group_id'])
+    safe_create_unique_constraint(op.f('uq_guest_group_group_id'), 'guest_group', ['group_id'])
     op.drop_constraint(op.f('fk_guest_group_group_id_group'), 'guest_group', type_='foreignkey')
     op.drop_constraint(op.f('fk_guest_group_event_id_event'), 'guest_group', type_='foreignkey')
     op.create_foreign_key(op.f('fk_guest_group_group_id_group'), 'guest_group', 'group', ['group_id'], ['id'], ondelete='CASCADE')
@@ -205,7 +232,7 @@ def upgrade():
     op.create_foreign_key(op.f('fk_guest_stage_plot_guest_id_guest_group'), 'guest_stage_plot', 'guest_group', ['guest_id'], ['id'], ondelete='CASCADE')
     op.drop_constraint(op.f('fk_guest_taxes_guest_id_guest_group'), 'guest_taxes', type_='foreignkey')
     op.create_foreign_key(op.f('fk_guest_taxes_guest_id_guest_group'), 'guest_taxes', 'guest_group', ['guest_id'], ['id'], ondelete='CASCADE')
-    op.create_unique_constraint(op.f('uq_guest_track_guest_id'), 'guest_track', ['guest_id'])
+    safe_create_unique_constraint(op.f('uq_guest_track_guest_id'), 'guest_track', ['guest_id'])
     op.drop_constraint(op.f('fk_guest_track_guest_id_guest_group'), 'guest_track', type_='foreignkey')
     op.create_foreign_key(op.f('fk_guest_track_guest_id_guest_group'), 'guest_track', 'guest_group', ['guest_id'], ['id'], ondelete='CASCADE')
     op.drop_constraint(op.f('fk_guest_travel_plans_guest_id_guest_group'), 'guest_travel_plans', type_='foreignkey')
@@ -231,8 +258,8 @@ def upgrade():
     op.alter_column('indie_judge', 'admin_id',
                existing_type=sa.UUID(),
                nullable=True)
-    op.create_unique_constraint(op.f('uq_indie_judge_admin_id'), 'indie_judge', ['admin_id'])
-    op.create_unique_constraint(op.f('uq_indie_studio_group_id'), 'indie_studio', ['group_id'])
+    safe_create_unique_constraint(op.f('uq_indie_judge_admin_id'), 'indie_judge', ['admin_id'])
+    safe_create_unique_constraint(op.f('uq_indie_studio_group_id'), 'indie_studio', ['group_id'])
     op.drop_constraint(op.f('fk_job_department_id_department'), 'job', type_='foreignkey')
     op.create_foreign_key(op.f('fk_job_department_id_department'), 'job', 'department', ['department_id'], ['id'], ondelete='CASCADE')
     op.drop_constraint(op.f('fk_job_template_department_id_department'), 'job_template', type_='foreignkey')
@@ -253,12 +280,12 @@ def upgrade():
     op.create_foreign_key(op.f('fk_mits_document_game_id_mits_game'), 'mits_document', 'mits_game', ['game_id'], ['id'], ondelete='CASCADE')
     op.drop_constraint(op.f('fk_mits_game_team_id_mits_team'), 'mits_game', type_='foreignkey')
     op.create_foreign_key(op.f('fk_mits_game_team_id_mits_team'), 'mits_game', 'mits_team', ['team_id'], ['id'], ondelete='CASCADE')
-    op.create_unique_constraint(op.f('uq_mits_panel_application_team_id'), 'mits_panel_application', ['team_id'])
+    safe_create_unique_constraint(op.f('uq_mits_panel_application_team_id'), 'mits_panel_application', ['team_id'])
     op.drop_constraint(op.f('fk_mits_panel_application_team_id_mits_team'), 'mits_panel_application', type_='foreignkey')
     op.create_foreign_key(op.f('fk_mits_panel_application_team_id_mits_team'), 'mits_panel_application', 'mits_team', ['team_id'], ['id'], ondelete='CASCADE')
     op.drop_constraint(op.f('fk_mits_picture_game_id_mits_game'), 'mits_picture', type_='foreignkey')
     op.create_foreign_key(op.f('fk_mits_picture_game_id_mits_game'), 'mits_picture', 'mits_game', ['game_id'], ['id'], ondelete='CASCADE')
-    op.create_unique_constraint(op.f('uq_mits_times_team_id'), 'mits_times', ['team_id'])
+    safe_create_unique_constraint(op.f('uq_mits_times_team_id'), 'mits_times', ['team_id'])
     op.drop_constraint(op.f('fk_mits_times_team_id_mits_team'), 'mits_times', type_='foreignkey')
     op.create_foreign_key(op.f('fk_mits_times_team_id_mits_team'), 'mits_times', 'mits_team', ['team_id'], ['id'], ondelete='CASCADE')
     op.drop_constraint(op.f('fk_no_shirt_attendee_id_attendee'), 'no_shirt', type_='foreignkey')
@@ -315,13 +342,13 @@ def upgrade():
     op.create_foreign_key(op.f('fk_tabletop_checkout_attendee_id_attendee'), 'tabletop_checkout', 'attendee', ['attendee_id'], ['id'], ondelete='CASCADE')
     op.drop_constraint(op.f('fk_tabletop_game_attendee_id_attendee'), 'tabletop_game', type_='foreignkey')
     op.create_foreign_key(op.f('fk_tabletop_game_attendee_id_attendee'), 'tabletop_game', 'attendee', ['attendee_id'], ['id'], ondelete='CASCADE')
-    op.drop_constraint(op.f('txn_request_tracking_incr_id_key'), 'txn_request_tracking', type_='unique')
-    op.create_unique_constraint(op.f('uq_txn_request_tracking_incr_id'), 'txn_request_tracking', ['incr_id'])
+    safe_drop_constraint(op.f('txn_request_tracking_incr_id_key'), 'txn_request_tracking', type_='unique')
+    safe_create_unique_constraint(op.f('uq_txn_request_tracking_incr_id'), 'txn_request_tracking', ['incr_id'])
 
 
 def downgrade():
-    op.drop_constraint(op.f('uq_txn_request_tracking_incr_id'), 'txn_request_tracking', type_='unique')
-    op.create_unique_constraint(op.f('txn_request_tracking_incr_id_key'), 'txn_request_tracking', ['incr_id'], postgresql_nulls_not_distinct=False)
+    safe_drop_constraint(op.f('uq_txn_request_tracking_incr_id'), 'txn_request_tracking', type_='unique')
+    safe_create_unique_constraint(op.f('txn_request_tracking_incr_id_key'), 'txn_request_tracking', ['incr_id'], postgresql_nulls_not_distinct=False)
     op.drop_constraint(op.f('fk_tabletop_game_attendee_id_attendee'), 'tabletop_game', type_='foreignkey')
     op.create_foreign_key(op.f('fk_tabletop_game_attendee_id_attendee'), 'tabletop_game', 'attendee', ['attendee_id'], ['id'])
     op.drop_constraint(op.f('fk_tabletop_checkout_attendee_id_attendee'), 'tabletop_checkout', type_='foreignkey')
@@ -378,12 +405,12 @@ def downgrade():
     op.create_foreign_key(op.f('fk_no_shirt_attendee_id_attendee'), 'no_shirt', 'attendee', ['attendee_id'], ['id'])
     op.drop_constraint(op.f('fk_mits_times_team_id_mits_team'), 'mits_times', type_='foreignkey')
     op.create_foreign_key(op.f('fk_mits_times_team_id_mits_team'), 'mits_times', 'mits_team', ['team_id'], ['id'])
-    op.drop_constraint(op.f('uq_mits_times_team_id'), 'mits_times', type_='unique')
+    safe_drop_constraint(op.f('uq_mits_times_team_id'), 'mits_times', type_='unique')
     op.drop_constraint(op.f('fk_mits_picture_game_id_mits_game'), 'mits_picture', type_='foreignkey')
     op.create_foreign_key(op.f('fk_mits_picture_game_id_mits_game'), 'mits_picture', 'mits_game', ['game_id'], ['id'])
     op.drop_constraint(op.f('fk_mits_panel_application_team_id_mits_team'), 'mits_panel_application', type_='foreignkey')
     op.create_foreign_key(op.f('fk_mits_panel_application_team_id_mits_team'), 'mits_panel_application', 'mits_team', ['team_id'], ['id'])
-    op.drop_constraint(op.f('uq_mits_panel_application_team_id'), 'mits_panel_application', type_='unique')
+    safe_drop_constraint(op.f('uq_mits_panel_application_team_id'), 'mits_panel_application', type_='unique')
     op.drop_constraint(op.f('fk_mits_game_team_id_mits_team'), 'mits_game', type_='foreignkey')
     op.create_foreign_key(op.f('fk_mits_game_team_id_mits_team'), 'mits_game', 'mits_team', ['team_id'], ['id'])
     op.drop_constraint(op.f('fk_mits_document_game_id_mits_game'), 'mits_document', type_='foreignkey')
@@ -404,8 +431,8 @@ def downgrade():
     op.create_foreign_key(op.f('fk_job_template_department_id_department'), 'job_template', 'department', ['department_id'], ['id'])
     op.drop_constraint(op.f('fk_job_department_id_department'), 'job', type_='foreignkey')
     op.create_foreign_key(op.f('fk_job_department_id_department'), 'job', 'department', ['department_id'], ['id'])
-    op.drop_constraint(op.f('uq_indie_studio_group_id'), 'indie_studio', type_='unique')
-    op.drop_constraint(op.f('uq_indie_judge_admin_id'), 'indie_judge', type_='unique')
+    safe_drop_constraint(op.f('uq_indie_studio_group_id'), 'indie_studio', type_='unique')
+    safe_drop_constraint(op.f('uq_indie_judge_admin_id'), 'indie_judge', type_='unique')
     op.alter_column('indie_judge', 'admin_id',
                existing_type=sa.UUID(),
                nullable=False)
@@ -431,7 +458,7 @@ def downgrade():
     op.create_foreign_key(op.f('fk_guest_travel_plans_guest_id_guest_group'), 'guest_travel_plans', 'guest_group', ['guest_id'], ['id'])
     op.drop_constraint(op.f('fk_guest_track_guest_id_guest_group'), 'guest_track', type_='foreignkey')
     op.create_foreign_key(op.f('fk_guest_track_guest_id_guest_group'), 'guest_track', 'guest_group', ['guest_id'], ['id'])
-    op.drop_constraint(op.f('uq_guest_track_guest_id'), 'guest_track', type_='unique')
+    safe_drop_constraint(op.f('uq_guest_track_guest_id'), 'guest_track', type_='unique')
     op.drop_constraint(op.f('fk_guest_taxes_guest_id_guest_group'), 'guest_taxes', type_='foreignkey')
     op.create_foreign_key(op.f('fk_guest_taxes_guest_id_guest_group'), 'guest_taxes', 'guest_group', ['guest_id'], ['id'])
     op.drop_constraint(op.f('fk_guest_stage_plot_guest_id_guest_group'), 'guest_stage_plot', type_='foreignkey')
@@ -454,7 +481,7 @@ def downgrade():
     op.drop_constraint(op.f('fk_guest_group_group_id_group'), 'guest_group', type_='foreignkey')
     op.create_foreign_key(op.f('fk_guest_group_event_id_event'), 'guest_group', 'event', ['event_id'], ['id'], ondelete='SET NULL')
     op.create_foreign_key(op.f('fk_guest_group_group_id_group'), 'guest_group', 'group', ['group_id'], ['id'])
-    op.drop_constraint(op.f('uq_guest_group_group_id'), 'guest_group', type_='unique')
+    safe_drop_constraint(op.f('uq_guest_group_group_id'), 'guest_group', type_='unique')
     op.drop_constraint(op.f('fk_guest_detailed_travel_plan_travel_plans_id_guest_travel_plans'), 'guest_detailed_travel_plan', type_='foreignkey')
     op.create_foreign_key(op.f('fk_guest_detailed_travel_plan_travel_plans_id_guest_tra_6ad4'), 'guest_detailed_travel_plan', 'guest_travel_plans', ['travel_plans_id'], ['id'])
     op.alter_column('guest_detailed_travel_plan', 'travel_plans_id',
@@ -482,7 +509,7 @@ def downgrade():
     op.create_foreign_key(op.f('fk_event_attraction_event_id_attraction_event'), 'event', 'attraction_event', ['attraction_event_id'], ['id'], ondelete='SET NULL')
     op.create_foreign_key(op.f('fk_event_location_id_event_location'), 'event', 'event_location', ['event_location_id'], ['id'], ondelete='SET NULL')
     op.create_foreign_key(op.f('fk_event_department_id_department'), 'event', 'department', ['department_id'], ['id'], ondelete='SET NULL')
-    op.drop_constraint(op.f('uq_event_attraction_event_id'), 'event', type_='unique')
+    safe_drop_constraint(op.f('uq_event_attraction_event_id'), 'event', type_='unique')
     op.drop_constraint(op.f('fk_email_automated_email_id_automated_email'), 'email', type_='foreignkey')
     op.create_foreign_key(op.f('fk_email_automated_email_id_automated_email'), 'email', 'automated_email', ['automated_email_id'], ['id'], ondelete='SET NULL')
     op.drop_constraint(op.f('fk_dept_role_department_id_department'), 'dept_role', type_='foreignkey')
@@ -501,8 +528,8 @@ def downgrade():
     op.create_foreign_key(op.f('fk_dept_checklist_item_department_id_department'), 'dept_checklist_item', 'department', ['department_id'], ['id'])
     op.drop_constraint(op.f('fk_department_parent_id_department'), 'department', type_='foreignkey')
     op.create_foreign_key(op.f('fk_department_parent_id_department'), 'department', 'department', ['parent_id'], ['id'])
-    op.drop_constraint(op.f('uq_department_name'), 'department', type_='unique')
-    op.create_unique_constraint(op.f('department_name_key'), 'department', ['name'], postgresql_nulls_not_distinct=False)
+    safe_drop_constraint(op.f('uq_department_name'), 'department', type_='unique')
+    safe_create_unique_constraint(op.f('department_name_key'), 'department', ['name'], postgresql_nulls_not_distinct=False)
     op.add_column('bulk_printing_request', sa.Column('required', sa.BOOLEAN(), server_default=sa.text('false'), autoincrement=False, nullable=False))
     op.drop_constraint(op.f('fk_bulk_printing_request_department_id_department'), 'bulk_printing_request', type_='foreignkey')
     op.create_foreign_key(op.f('fk_bulk_printing_request_department_id_department'), 'bulk_printing_request', 'department', ['department_id'], ['id'])
@@ -523,16 +550,16 @@ def downgrade():
     op.create_foreign_key(op.f('fk_attraction_notification_attraction_event_id_attraction_event'), 'attraction_notification', 'attraction_event', ['attraction_event_id'], ['id'])
     op.drop_constraint(op.f('fk_attraction_feature_attraction_id_attraction'), 'attraction_feature', type_='foreignkey')
     op.create_foreign_key(op.f('fk_attraction_feature_attraction_id_attraction'), 'attraction_feature', 'attraction', ['attraction_id'], ['id'])
-    op.drop_constraint(op.f('uq_attraction_feature_name'), 'attraction_feature', type_='unique')
-    op.create_unique_constraint(op.f('attraction_feature_name_attraction_id_key'), 'attraction_feature', ['name', 'attraction_id'], postgresql_nulls_not_distinct=False)
+    safe_drop_constraint(op.f('uq_attraction_feature_name'), 'attraction_feature', type_='unique')
+    safe_create_unique_constraint(op.f('attraction_feature_name_attraction_id_key'), 'attraction_feature', ['name', 'attraction_id'], postgresql_nulls_not_distinct=False)
     op.drop_constraint(op.f('fk_attraction_event_event_location_id_event_location'), 'attraction_event', type_='foreignkey')
     op.drop_constraint(op.f('fk_attraction_event_attraction_feature_id_attraction_feature'), 'attraction_event', type_='foreignkey')
     op.drop_constraint(op.f('fk_attraction_event_attraction_id_attraction'), 'attraction_event', type_='foreignkey')
     op.create_foreign_key(op.f('fk_attraction_event_attraction_feature_id_attraction_feature'), 'attraction_event', 'attraction_feature', ['attraction_feature_id'], ['id'])
     op.create_foreign_key(op.f('fk_attraction_event_attraction_id_attraction'), 'attraction_event', 'attraction', ['attraction_id'], ['id'])
     op.create_foreign_key(op.f('fk_attraction_event_location_id_event_location'), 'attraction_event', 'event_location', ['event_location_id'], ['id'], ondelete='SET NULL')
-    op.drop_constraint(op.f('uq_attraction_name'), 'attraction', type_='unique')
-    op.create_unique_constraint(op.f('attraction_name_key'), 'attraction', ['name'], postgresql_nulls_not_distinct=False)
+    safe_drop_constraint(op.f('uq_attraction_name'), 'attraction', type_='unique')
+    safe_create_unique_constraint(op.f('attraction_name_key'), 'attraction', ['name'], postgresql_nulls_not_distinct=False)
     op.add_column('attendee', sa.Column('affiliate', sa.VARCHAR(), server_default=sa.text("''::character varying"), autoincrement=False, nullable=False))
     op.drop_constraint(op.f('fk_attendee_creator_id_attendee'), 'attendee', type_='foreignkey')
     op.drop_constraint(op.f('fk_attendee_group_id_group'), 'attendee', type_='foreignkey')
@@ -544,7 +571,7 @@ def downgrade():
     op.create_foreign_key(op.f('fk_attendee_group_id_group'), 'attendee', 'group', ['group_id'], ['id'], ondelete='SET NULL')
     op.drop_constraint(op.f('fk_artist_marketplace_application_attendee_id_attendee'), 'artist_marketplace_application', type_='foreignkey')
     op.create_foreign_key(op.f('fk_artist_marketplace_application_attendee_id_attendee'), 'artist_marketplace_application', 'attendee', ['attendee_id'], ['id'])
-    op.drop_constraint(op.f('uq_artist_marketplace_application_attendee_id'), 'artist_marketplace_application', type_='unique')
+    safe_drop_constraint(op.f('uq_artist_marketplace_application_attendee_id'), 'artist_marketplace_application', type_='unique')
     op.drop_constraint(op.f('fk_art_show_receipt_attendee_id_attendee'), 'art_show_receipt', type_='foreignkey')
     op.create_foreign_key(op.f('fk_art_show_receipt_attendee_id_attendee'), 'art_show_receipt', 'attendee', ['attendee_id'], ['id'], ondelete='SET NULL')
     op.alter_column('art_show_receipt', 'attendee_id',
@@ -571,7 +598,7 @@ def downgrade():
                nullable=True)
     op.drop_constraint(op.f('fk_art_show_application_attendee_id_attendee'), 'art_show_application', type_='foreignkey')
     op.create_foreign_key(op.f('fk_art_show_application_attendee_id_attendee'), 'art_show_application', 'attendee', ['attendee_id'], ['id'], ondelete='SET NULL')
-    op.drop_constraint(op.f('uq_art_show_application_attendee_id'), 'art_show_application', type_='unique')
+    safe_drop_constraint(op.f('uq_art_show_application_attendee_id'), 'art_show_application', type_='unique')
     op.drop_constraint(op.f('fk_art_show_agent_code_app_id_art_show_application'), 'art_show_agent_code', type_='foreignkey')
     op.drop_constraint(op.f('fk_art_show_agent_code_attendee_id_attendee'), 'art_show_agent_code', type_='foreignkey')
     op.create_foreign_key(op.f('fk_art_show_agent_code_app_id_art_show_application'), 'art_show_agent_code', 'art_show_application', ['app_id'], ['id'])

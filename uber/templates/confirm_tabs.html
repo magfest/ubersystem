@@ -70,7 +70,7 @@
 <li class="nav-item" role="presentation">
   <a href="../hotel_lottery/index?attendee_id={{ attendee.id }}" class="nav-link{% if 'hotel_lottery' in c.PAGE_PATH %} active{% endif %}">
     <span class="fa fa-hotel"></span>
-    {% if attendee.lottery_application and attendee.lottery_application.finalized and not attendee.lottery_application.final_status_hidden %}
+    {% if attendee.lottery_application and attendee.lottery_application.finalized %}
       Hotel Lottery Results
     {% elif attendee.lottery_application and attendee.lottery_application.complete_or_processed %}
       {% set app_or_parent = attendee.lottery_application.parent_application if attendee.lottery_application.entry_type == c.GROUP_ENTRY else attendee.lottery_application %}

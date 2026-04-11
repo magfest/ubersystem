@@ -4,6 +4,8 @@
 {% block title %}Lottery Application{% if id != "None" and application.attendee %} for {{ application.attendee_name }}{% endif %}{% endblock %}
 {% block content %}
 
+{% include 'hotel_lottery_admin/nav.html' %}
+
 {{ macros.nav_menu(
     application, c.PAGE_PATH,
     "../hotel_lottery_admin/form?id={id}", "Application Data", True,
@@ -98,7 +100,6 @@
 {% endif %}
 
 <div class="row g-3 mb-3">
-    <div class="col-sm">{{ form_macros.input(lottery_admin_info.final_status_hidden) }}</div>
     <div class="col-sm">{{ form_macros.input(lottery_admin_info.can_edit) }}</div>
     <div class="col-sm">{{ form_macros.input(lottery_admin_info.is_staff_entry) }}</div>
 </div>
@@ -115,7 +116,10 @@
 
 <div class="row g-sm-3 mb-3">
     <div class="col-sm">
-        {{ form_macros.input(lottery_admin_info.assigned_hotel) }}
+        {{ form_macros.input(lottery_admin_info.assigned_inventory_id) }}
+    </div>
+    <div class="col-sm">
+        {{ form_macros.input(lottery_admin_info.partition_id) }}
     </div>
     <div class="col-sm">
         {{ form_macros.input(lottery_admin_info.assigned_check_in_date) }}
@@ -127,15 +131,29 @@
 
 <div class="row g-sm-3 mb-3">
     <div class="col-sm">
-        {% call form_macros.input(lottery_admin_info.booking_url) %}
-        {{ form_macros.input(lottery_admin_info.booking_url_hidden) }}
-        {% endcall %}
+        {{ form_macros.input(lottery_admin_info.booking_url) }}
     </div>
     <div class="col-sm">
-        {{ form_macros.input(lottery_admin_info.assigned_room_type) }}
+        {{ form_macros.input(lottery_admin_info.hotel_rewards_number) }}
     </div>
     <div class="col-sm">
-        {{ form_macros.input(lottery_admin_info.assigned_suite_type) }}
+        <label class="form-label">Hotel Confirmation #</label>
+        <input type="text" class="form-control" name="hotel_confirmation_number"
+               value="{{ application.hotel_confirmation_number or '' }}" />
+    </div>
+    <div class="col-sm">
+        <label class="form-label">Export Lock</label>
+        {% if application.export_locked %}
+        <div>
+            <span class="badge bg-warning"><i class="fa fa-lock"></i> Locked</span>
+            <button type="button" class="btn btn-sm btn-outline-danger ms-2"
+                    onclick="$.post('unlock_application', {id: '{{ application.id }}', csrf_token: csrf_token}, function() { location.reload(); })">
+                Unlock
+            </button>
+        </div>
+        {% else %}
+        <div><span class="badge bg-secondary">Not Locked</span></div>
+        {% endif %}
     </div>
 </div>
 
@@ -199,9 +217,6 @@
 
 {{ form_macros.input(lottery_admin_info.hotel_preference) }}
 {{ form_macros.input(lottery_admin_info.room_type_preference) }}
-{% if 'room_selection_pref' in c.HOTEL_LOTTERY_FORM_STEPS or 'suite_selection_pref' in c.HOTEL_LOTTERY_FORM_STEPS %}
-{{ form_macros.input(lottery_admin_info.selection_priorities) }}
-{% endif %}
 
 <div class="row g-3 mb-3">
     <div class="col-sm">

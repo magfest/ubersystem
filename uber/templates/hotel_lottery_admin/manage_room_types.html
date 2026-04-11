@@ -1,0 +1,76 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Manage Room Types{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+
+<div class="mb-3">
+  <a href="edit_room_type" class="btn btn-primary">Add Room Type</a>
+</div>
+
+{% set standard_types = room_types|selectattr('is_suite', 'false')|list %}
+{% set suite_types = room_types|selectattr('is_suite')|list %}
+
+{% if standard_types %}
+<h4>Standard Room Types</h4>
+<table class="table table-hover mb-4">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Export Name</th>
+      <th>Capacity</th>
+      <th>Min Capacity</th>
+      <th>Active</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for rt in standard_types %}
+    <tr{% if not rt.active %} class="text-muted"{% endif %}>
+      <td>{{ rt.name }}</td>
+      <td>{{ rt.export_name or '-' }}</td>
+      <td>{{ rt.capacity }}</td>
+      <td>{{ rt.min_capacity }}</td>
+      <td>{{ 'Yes' if rt.active else 'No' }}</td>
+      <td><a href="edit_room_type?id={{ rt.id }}" class="btn btn-sm btn-outline-primary">Edit</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{% if suite_types %}
+<h4>Suite Types</h4>
+<table class="table table-hover mb-4">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Export Name</th>
+      <th>Capacity</th>
+      <th>Min Capacity</th>
+      <th>Active</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for rt in suite_types %}
+    <tr{% if not rt.active %} class="text-muted"{% endif %}>
+      <td>{{ rt.name }}</td>
+      <td>{{ rt.export_name or '-' }}</td>
+      <td>{{ rt.capacity }}</td>
+      <td>{{ rt.min_capacity }}</td>
+      <td>{{ 'Yes' if rt.active else 'No' }}</td>
+      <td><a href="edit_room_type?id={{ rt.id }}" class="btn btn-sm btn-outline-primary">Edit</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{% if not room_types %}
+<div class="card card-body text-center text-muted">
+  No room types configured. <a href="edit_room_type">Add one</a>.
+</div>
+{% endif %}
+
+{% endblock content %}

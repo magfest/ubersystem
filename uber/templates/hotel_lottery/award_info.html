@@ -1,7 +1,11 @@
 <h3>{{ 'Suite' if app_or_parent.assigned_suite_type else 'Room' }} Award Information</h3>
 <ul class="list-group list-group-flush">
-    <li class="list-group-item"><strong>{{ app_or_parent.assigned_hotel_label['name'] }}</strong></li>
-    <li class="list-group-item">{{ app_or_parent.assigned_suite_type_label['name'] if app_or_parent.assigned_suite_type else app_or_parent.assigned_room_type_label['name'] }}</li>
+    <li class="list-group-item"><strong>{{ app_or_parent.assigned_hotel.name if app_or_parent.assigned_hotel else '' }}</strong></li>
+    <li class="list-group-item">{{ app_or_parent.assigned_suite_type.name if app_or_parent.assigned_suite_type else (app_or_parent.assigned_room_type.name if app_or_parent.assigned_room_type else '') }}
+      {% if app_or_parent.assigned_inventory and app_or_parent.assigned_inventory.info_url %}
+        — <a href="{{ app_or_parent.assigned_inventory.info_url }}" target="_blank">View room details</a>
+      {% endif %}
+    </li>
     <li class="list-group-item">{{ app_or_parent.assigned_check_in_date.strftime("%B %-d") }} to {{ app_or_parent.assigned_check_out_date.strftime("%B %-d") }}</li>
     {% if not application.parent_application and application.wants_ada %}<li class="list-group-item"><em>Requested Accommodations</em>: {{ application.ada_requests }}</li>{% endif %}
 </ul>
@@ -30,7 +34,7 @@
             <td>{{ member.cellphone }}</td>
             <td>{{ member.email }}</td>
             <td>
-                {% if app_editable or application.finalized and not application.final_status_hidden %}
+                {% if app_editable or application.finalized %}
                 <form method="post" action="transfer_leadership" class="make-leader">
                     <input type="hidden" name="id" value="{{ application.id }}">
                     {{ csrf_token() }}

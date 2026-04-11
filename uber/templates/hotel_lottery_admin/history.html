@@ -2,6 +2,8 @@
 {% import 'macros.html' as macros with context %}
 {% block title %}Lottery Application History for {{ application.attendee_name }}{% endblock %}
 {% block content %}
+{% include 'hotel_lottery_admin/nav.html' %}
+
 {{ macros.nav_menu(
     application, c.PAGE_PATH,
     "../hotel_lottery_admin/form?id={id}", "Application Data", True,

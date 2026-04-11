@@ -5,7 +5,6 @@ import hmac
 import logging
 import base64
 import boto3
-import os
 
 from botocore.exceptions import ClientError
 from datetime import datetime
@@ -18,10 +17,12 @@ log = logging.getLogger(__name__)
 
 class AmazonSES:
     def __init__(self, region="us-east-1"):
-        os.environ["AWS_ACCESS_KEY_ID"] = c.AWS_ACCESS_KEY
-        os.environ["AWS_SECRET_ACCESS_KEY"] = c.AWS_SECRET_KEY
+        kwargs = {'region_name': region}
+        if c.AWS_ACCESS_KEY and c.AWS_SECRET_KEY:
+            kwargs['aws_access_key_id'] = c.AWS_ACCESS_KEY
+            kwargs['aws_secret_access_key'] = c.AWS_SECRET_KEY
 
-        self._client = boto3.client('ses', region_name=region)
+        self._client = boto3.client('ses', **kwargs)
 
     def sendEmail(self, source, toAddresses, message, replyToAddresses=None, returnPath=None, ccAddresses=None, bccAddresses=None):
         params = { 'Source': source }

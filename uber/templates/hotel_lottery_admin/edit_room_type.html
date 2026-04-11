@@ -1,0 +1,75 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}{{ 'Edit' if room_type.id else 'Add' }} Room Type{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+
+<h2>{{ 'Edit' if room_type.id else 'Add' }} Room Type</h2>
+
+<div class="mb-3">
+  <a href="manage_room_types" class="btn btn-outline-secondary">Back to Room Types</a>
+</div>
+
+<form method="post" action="edit_room_type" class="card card-body" style="max-width: 700px;">
+  {{ csrf_token() }}
+  {% if room_type.id %}
+  <input type="hidden" name="id" value="{{ room_type.id }}" />
+  {% endif %}
+
+  <div class="mb-3">
+    <label for="name" class="form-label">Room Type Name</label>
+    <input type="text" class="form-control" name="name" id="name" value="{{ room_type.name or '' }}" required />
+  </div>
+
+  <div class="mb-3">
+    <label for="export_name" class="form-label">Export Name</label>
+    <input type="text" class="form-control" name="export_name" id="export_name" value="{{ room_type.export_name or '' }}" />
+    <div class="form-text">Name used when exporting data. Leave blank to use the room type name.</div>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Is Suite?</label>
+    <select class="form-select" name="is_suite">
+      <option value="false" {% if not room_type.is_suite %}selected{% endif %}>No (Standard Room Type)</option>
+      <option value="true" {% if room_type.is_suite %}selected{% endif %}>Yes (Suite Type)</option>
+    </select>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col">
+      <label for="capacity" class="form-label">Capacity</label>
+      <input type="number" class="form-control" name="capacity" id="capacity" value="{{ room_type.capacity }}" min="1" required />
+    </div>
+    <div class="col">
+      <label for="min_capacity" class="form-label">Min Capacity</label>
+      <input type="number" class="form-control" name="min_capacity" id="min_capacity" value="{{ room_type.min_capacity }}" min="1" required />
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <label for="description" class="form-label">Description (Left)</label>
+    <textarea class="form-control" name="description" id="description" rows="3">{{ room_type.description or '' }}</textarea>
+  </div>
+
+  <div class="mb-3">
+    <label for="description_right" class="form-label">Description (Right)</label>
+    <textarea class="form-control" name="description_right" id="description_right" rows="3">{{ room_type.description_right or '' }}</textarea>
+  </div>
+
+  <div class="mb-3">
+    <label for="footnote" class="form-label">Footnote</label>
+    <input type="text" class="form-control" name="footnote" id="footnote" value="{{ room_type.footnote or '' }}" />
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Active</label>
+    <select class="form-select" name="active">
+      <option value="true" {% if room_type.active or not room_type.id %}selected{% endif %}>Yes</option>
+      <option value="false" {% if room_type.id and not room_type.active %}selected{% endif %}>No</option>
+    </select>
+  </div>
+
+  <button type="submit" class="btn btn-primary">Save</button>
+</form>
+
+{% endblock content %}
