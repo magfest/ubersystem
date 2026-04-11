@@ -1,9 +1,12 @@
 from datetime import datetime
 
+import cherrypy
+import pytest
+
 from tests.uber.conftest import admin_attendee, extract_message_from_html, GET, POST
 from uber.config import c
 from uber.models import Session
-from uber.site_sections import budget
+from uber.site_sections import promo_codes
 
 
 assert admin_attendee
@@ -14,19 +17,21 @@ assert POST
 class TestGeneratePromoCodes(object):
 
     def _generate_promo_codes_response(self, **params):
-        response = budget.Root().generate_promo_codes(**params)
+        response = promo_codes.Root().generate_promo_codes(**params)
         if isinstance(response, bytes):
             response = response.decode('utf-8')
         response = response.strip()
         assert response.startswith('<!DOCTYPE HTML>')
         return response
 
-    def test_GET(self, GET, admin_attendee):
+    def test_GET(self, GET, admin_attendee, monkeypatch):
+        monkeypatch.setattr(cherrypy.request, 'path_info', '/promo_codes/generate_promo_codes')
         response = self._generate_promo_codes_response()
         message = extract_message_from_html(response)
         assert message == ''
 
-    def test_POST_expiration_date(self, POST, csrf_token, admin_attendee):
+    def test_POST_expiration_date(self, POST, csrf_token, admin_attendee, monkeypatch):
+        monkeypatch.setattr(cherrypy.request, 'path_info', '/promo_codes/generate_promo_codes')
         self._generate_promo_codes_response(
             is_single_promo_code=1,
             count=1,

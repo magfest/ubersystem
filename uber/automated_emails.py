@@ -43,7 +43,7 @@ class AutomatedEmailFixture:
             subqueryload(Attendee.shifts).subqueryload(Shift.job),
             subqueryload(Attendee.assigned_depts),
             subqueryload(Attendee.dept_membership_requests),
-            subqueryload(Attendee.checklist_admin_depts).subqueryload(Department.dept_checklist_items),
+
             subqueryload(Attendee.dept_memberships),
             subqueryload(Attendee.dept_memberships_with_role),
             subqueryload(Attendee.depts_where_working),
@@ -861,14 +861,12 @@ if c.HOTEL_LOTTERY_STAFF_START:
 
 
 if c.HOTEL_LOTTERY_FORM_START:
-    earliest_hotel_deadline = c.HOTEL_LOTTERY_FORM_WAITLIST if c.HOTEL_LOTTERY_FORM_WAITLIST else c.HOTEL_LOTTERY_FORM_DEADLINE
-
     AutomatedEmailFixture(
         Attendee,
         'Did you want to enter the {EVENT_NAME} {EVENT_YEAR} hotel lottery?',
         'hotel/enter_lottery.html',
         lambda a: a.hotel_lottery_eligible and not a.lottery_application and days_after(1, a.registered)(),
-        when=[days_before(7, earliest_hotel_deadline)],
+        when=[days_before(7, c.HOTEL_LOTTERY_FORM_DEADLINE)],
         sender=c.HOTEL_LOTTERY_EMAIL,
         ident='enter_hotel_lottery')
 
@@ -876,7 +874,7 @@ if c.HOTEL_LOTTERY_FORM_START:
         'Last chance to complete your hotel lottery entry',
         'hotel/lottery_reminder.html',
         lambda a: a.status == c.PARTIAL and days_after(1, a.entry_started)(),
-        when=[days_before(3, earliest_hotel_deadline)],
+        when=[days_before(3, c.HOTEL_LOTTERY_FORM_DEADLINE)],
         ident='hotel_lottery_reminder',
     )
 
@@ -885,25 +883,16 @@ if c.HOTEL_LOTTERY_STAFF_START or c.HOTEL_LOTTERY_FORM_START:
     HotelLotteryEmailFixture(
         f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Notification',
         'hotel/award_notification.html',
-        lambda a: a.status == c.AWARDED and not a.final_status_hidden and a.booking_url_ready,
+        lambda a: a.status == c.AWARDED and a.booking_url_ready,
         ident='hotel_lottery_awarded'
     )
 
     HotelLotteryEmailFixture(
         f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Notification',
         'hotel/reject_notification.html',
-        lambda a: a.status == c.REJECTED and not a.final_status_hidden,
+        lambda a: a.status == c.REJECTED,
         ident='hotel_lottery_rejected'
     )
-
-    if c.HOTEL_LOTTERY_FORM_WAITLIST:
-        HotelLotteryEmailFixture(
-            f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Notification',
-            'hotel/reject_notification.html',
-            lambda a: a.status == c.COMPLETE and a.qualifies_for_first_round,
-            when=[after(c.HOTEL_LOTTERY_FORM_WAITLIST)],
-            ident='hotel_lottery_first_round_rejected'
-        )
 
     HotelLotteryEmailFixture(
         f'Reminder to confirm your {c.EVENT_NAME_AND_YEAR} hotel reservation',

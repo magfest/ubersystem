@@ -200,7 +200,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
                 session.add(automated_email.reconcile(fixture))
                 if not fixture.template_plugin_name or not fixture.template_url:
                     fixture.update_template_plugin_info()
-            session.flush()
+            session.commit()
 
             if not cleanup:
                 return

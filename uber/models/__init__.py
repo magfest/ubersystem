@@ -272,9 +272,11 @@ class MagModel(SQLModel):
         callbacks = []
         for name, attr in self._class_attrs.items():
             if hasattr(attr, '__call__') and hasattr(attr, label):
-                callbacks.append(getattr(self, name))
-        callbacks.sort(key=lambda f: getattr(f, label))
-        for function in callbacks:
+                # Use sort key from the class attr (which has the decorator attribute),
+                # not from the bound method (which may have been monkeypatched to a plain function).
+                callbacks.append((getattr(attr, label), getattr(self, name)))
+        callbacks.sort(key=lambda x: x[0])
+        for _, function in callbacks:
             function()
 
     def presave_adjustments(self):
@@ -1214,18 +1216,17 @@ class UberSession(sqlalchemy.orm.Session):
                 Attendee.is_valid == True  # noqa: E712
             )
 
-            if attendees:
-                statuses = defaultdict(lambda: six.MAXSIZE, {
-                    c.COMPLETED_STATUS: 0,
-                    c.NEW_STATUS: 1,
-                    c.REFUNDED_STATUS: 2,
-                    c.DEFERRED_STATUS: 3,
-                    c.WATCHED_STATUS: 4,
-                    c.UNAPPROVED_DEALER_STATUS: 5,
-                    c.NOT_ATTENDING: 6})
+            statuses = defaultdict(lambda: six.MAXSIZE, {
+                c.COMPLETED_STATUS: 0,
+                c.NEW_STATUS: 1,
+                c.REFUNDED_STATUS: 2,
+                c.DEFERRED_STATUS: 3,
+                c.WATCHED_STATUS: 4,
+                c.UNAPPROVED_DEALER_STATUS: 5,
+                c.NOT_ATTENDING: 6})
 
-                attendees = sorted(
-                    attendees, key=lambda a: statuses[a.badge_status])
+            attendees = sorted(attendees, key=lambda a: statuses[a.badge_status])
+            if attendees:
                 return attendees[0]
 
             raise ValueError('Attendee not found')
@@ -1513,7 +1514,7 @@ class UberSession(sqlalchemy.orm.Session):
                 Either the matching object of the given model,
                  or None if not found.
             """
-            if isinstance(code, uuid.Uuid(as_uuid=False)):
+            if isinstance(code, uuid.UUID):
                 code = code.hex
 
             normalized_code = RegistrationCode.normalize_code(code)
@@ -1523,10 +1524,9 @@ class UberSession(sqlalchemy.orm.Session):
             unambiguous_code = RegistrationCode.disambiguate_code(code)
             clause = or_(model.normalized_code == normalized_code, model.normalized_code == unambiguous_code)
 
-            # Make sure that code is a valid Uuid(as_uuid=False) before adding
-            # PromoCode.id to the filter clause
+            # Make sure that code is a valid UUID before adding PromoCode.id to the filter clause
             try:
-                promo_code_id = uuid.Uuid(as_uuid=False)(normalized_code).hex
+                promo_code_id = uuid.UUID(normalized_code).hex
             except Exception:
                 pass
             else:
@@ -2351,6 +2351,7 @@ _ScopedSession.engine = engine
 _ScopedSession.BaseClass = SQLModel
 _ScopedSession.SessionMixin = UberSession.SessionMixin
 _ScopedSession.session_factory = SessionFactory
+_ScopedSession.QuerySubclass = UberSession.QuerySubclass
 
 class HybridSessionProxy:
     """
@@ -2405,6 +2406,7 @@ def initialize_db():
         if not hasattr(Session.SessionMixin, model.__tablename__):
             setattr(Session.SessionMixin, model.__tablename__, _make_getter(model))
 cherrypy.engine.subscribe('start', initialize_db, priority=97)
+
 
 def _attendee_validity_check():
     orig_getter = Session.SessionMixin.attendee

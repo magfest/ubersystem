@@ -30,6 +30,7 @@ def create_events():
             session.delete(event)
 
 
+@pytest.mark.skip(reason="schedule.Root().csv() was removed")
 def test_csv(create_events, admin_attendee):
     response = schedule.Root().csv()
     if isinstance(response, bytes):
@@ -42,6 +43,7 @@ def test_csv(create_events, admin_attendee):
         'Allow Waitlist (Optional)'
 
 
+@pytest.mark.skip(reason="schedule.Root().schedule_tsv() was removed")
 def test_schedule_tsv(create_events):
     response = schedule.Root().schedule_tsv()
     if isinstance(response, bytes):

@@ -9,12 +9,12 @@ from unittest.mock import Mock
 
 import pytest
 
-from uber import utils
+from uber import decorators, utils
 from uber.amazon_ses import AmazonSES
 from uber.automated_emails import AutomatedEmailFixture
 from uber.config import c
 from uber.models import Attendee, AutomatedEmail, Session
-from uber.utils import after, before
+from uber.utils import after, before, listify
 
 
 NOW = c.EVENT_TIMEZONE.localize(datetime(year=2016, month=8, day=10, hour=12, tzinfo=None))
@@ -71,6 +71,15 @@ def fixed_localized_now(monkeypatch):
 
 
 @pytest.fixture
+def render_empty_attendee_template(monkeypatch):
+    def _render_empty(template_name_list):
+        if listify(template_name_list)[0].endswith('.txt'):
+            return '{{ attendee.full_name }}\n{{ c.EVENT_NAME }}\n{{ extra_data }}'
+        return '<html><body>{{ attendee.full_name }}<br>{{ c.EVENT_NAME }}<br>{{ extra_data }}</body></html>'
+    monkeypatch.setattr(decorators, 'render_empty', _render_empty)
+
+
+@pytest.fixture
 def create_test_attendees():
     """
     Creates 5 test attendees with ids 000...000 through 000...004.
@@ -83,6 +92,7 @@ def create_test_attendees():
                 last_name=s,
                 email='{}@example.com'.format(s))
             session.add(attendee)
+        session.commit()
 
 
 @pytest.fixture
@@ -113,6 +123,7 @@ def send_emails_for_automated_email_fixture(create_test_attendees, automated_ema
             session.add(attendee)
             assert automated_email.send_to(attendee, delay=False)
             assert automated_email.send_to(attendee, delay=False)
+        session.commit()
 
 
 @pytest.fixture

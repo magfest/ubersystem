@@ -6,7 +6,9 @@ from uber.utils import localized_now
 
 
 def test_hotel_shifts_required(monkeypatch):
-    monkeypatch.setattr(c, 'SHIFTS_CREATED', localized_now())
+    now = localized_now()
+    monkeypatch.setattr(c, 'SHIFTS_CREATED', now)
+    monkeypatch.setattr(c, 'VOLUNTEER_CHECKLIST_OPEN', now)
     assert not Attendee().hotel_shifts_required
     monkeypatch.setattr(Attendee, 'takes_shifts', True)
     monkeypatch.setattr(Attendee, 'hotel_nights', [c.THURSDAY, c.FRIDAY])
@@ -17,6 +19,7 @@ def test_hotel_shifts_required(monkeypatch):
 
 def test_hotel_shifts_required_preshifts(monkeypatch):
     monkeypatch.setattr(c, 'SHIFTS_CREATED', '')
+    monkeypatch.setattr(c, 'VOLUNTEER_CHECKLIST_OPEN', '')
     monkeypatch.setattr(Attendee, 'takes_shifts', True)
     monkeypatch.setattr(Attendee, 'hotel_nights', [c.THURSDAY, c.FRIDAY])
     assert not Attendee().hotel_shifts_required
@@ -59,7 +62,12 @@ def test_legal_first_name(first, last, legal, expected):
 class TestHotelRequests:
 
     @pytest.fixture(autouse=True)
-    def hotel_request_unapproved_setup_teardown(self):
+    def no_assign_creator(self, monkeypatch):
+        """Patch out assign_creator which requires a live DB session (calls self.session.admin_attendee())."""
+        monkeypatch.setattr(Attendee, 'assign_creator', lambda self: None)
+
+    @pytest.fixture(autouse=True)
+    def hotel_request_unapproved_setup_teardown(self, no_assign_creator):
         # create an Attendee and HotelRequest for nights before and after the event, but don't approve the request yet
         hr = HotelRequests()
         hr.nights = ','.join(map(str, [c.WEDNESDAY, c.THURSDAY, c.MONDAY]))

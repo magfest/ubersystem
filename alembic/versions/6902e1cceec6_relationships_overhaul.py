@@ -104,7 +104,23 @@ def upgrade():
     op.create_foreign_key(op.f('fk_attendee_group_id_group'), 'attendee', 'group', ['group_id'], ['id'])
     op.create_foreign_key(op.f('fk_attendee_creator_id_attendee'), 'attendee', 'attendee', ['creator_id'], ['id'])
     op.drop_column('attendee', 'affiliate')
-    op.drop_constraint(op.f('attraction_name_key'), 'attraction', type_='unique')
+    # Drop constraint if it exists (name may vary depending on how DB was originally created)
+    op.execute("""
+        DO $$ BEGIN
+            IF EXISTS (
+                SELECT 1 FROM pg_constraint
+                WHERE conname = 'attraction_name_key' AND conrelid = 'attraction'::regclass
+            ) THEN
+                ALTER TABLE attraction DROP CONSTRAINT attraction_name_key;
+            END IF;
+            IF EXISTS (
+                SELECT 1 FROM pg_constraint
+                WHERE conname = 'uq_attraction_name' AND conrelid = 'attraction'::regclass
+            ) THEN
+                ALTER TABLE attraction DROP CONSTRAINT uq_attraction_name;
+            END IF;
+        END $$;
+    """)
     op.create_unique_constraint(op.f('uq_attraction_name'), 'attraction', ['name'])
     op.drop_constraint(op.f('fk_attraction_event_location_id_event_location'), 'attraction_event', type_='foreignkey')
     op.drop_constraint(op.f('fk_attraction_event_attraction_id_attraction'), 'attraction_event', type_='foreignkey')
@@ -112,7 +128,25 @@ def upgrade():
     op.create_foreign_key(op.f('fk_attraction_event_attraction_id_attraction'), 'attraction_event', 'attraction', ['attraction_id'], ['id'], ondelete='CASCADE')
     op.create_foreign_key(op.f('fk_attraction_event_attraction_feature_id_attraction_feature'), 'attraction_event', 'attraction_feature', ['attraction_feature_id'], ['id'], ondelete='CASCADE')
     op.create_foreign_key(op.f('fk_attraction_event_event_location_id_event_location'), 'attraction_event', 'event_location', ['event_location_id'], ['id'])
-    op.drop_constraint(op.f('attraction_feature_name_attraction_id_key'), 'attraction_feature', type_='unique')
+    # Drop constraint if it exists (name may vary depending on how DB was originally created)
+    op.execute("""
+        DO $$ BEGIN
+            IF EXISTS (
+                SELECT 1 FROM pg_constraint
+                WHERE conname = 'attraction_feature_name_attraction_id_key'
+                  AND conrelid = 'attraction_feature'::regclass
+            ) THEN
+                ALTER TABLE attraction_feature DROP CONSTRAINT attraction_feature_name_attraction_id_key;
+            END IF;
+            IF EXISTS (
+                SELECT 1 FROM pg_constraint
+                WHERE conname = 'uq_attraction_feature_name'
+                  AND conrelid = 'attraction_feature'::regclass
+            ) THEN
+                ALTER TABLE attraction_feature DROP CONSTRAINT uq_attraction_feature_name;
+            END IF;
+        END $$;
+    """)
     op.create_unique_constraint(op.f('uq_attraction_feature_name'), 'attraction_feature', ['name', 'attraction_id'])
     op.drop_constraint(op.f('fk_attraction_feature_attraction_id_attraction'), 'attraction_feature', type_='foreignkey')
     op.create_foreign_key(op.f('fk_attraction_feature_attraction_id_attraction'), 'attraction_feature', 'attraction', ['attraction_id'], ['id'], ondelete='CASCADE')
@@ -134,7 +168,22 @@ def upgrade():
     op.drop_constraint(op.f('fk_bulk_printing_request_department_id_department'), 'bulk_printing_request', type_='foreignkey')
     op.create_foreign_key(op.f('fk_bulk_printing_request_department_id_department'), 'bulk_printing_request', 'department', ['department_id'], ['id'], ondelete='CASCADE')
     op.drop_column('bulk_printing_request', 'required')
-    op.drop_constraint(op.f('department_name_key'), 'department', type_='unique')
+    op.execute("""
+        DO $$ BEGIN
+            IF EXISTS (
+                SELECT 1 FROM pg_constraint
+                WHERE conname = 'department_name_key' AND conrelid = 'department'::regclass
+            ) THEN
+                ALTER TABLE department DROP CONSTRAINT department_name_key;
+            END IF;
+            IF EXISTS (
+                SELECT 1 FROM pg_constraint
+                WHERE conname = 'uq_department_name' AND conrelid = 'department'::regclass
+            ) THEN
+                ALTER TABLE department DROP CONSTRAINT uq_department_name;
+            END IF;
+        END $$;
+    """)
     op.create_unique_constraint(op.f('uq_department_name'), 'department', ['name'])
     op.drop_constraint(op.f('fk_department_parent_id_department'), 'department', type_='foreignkey')
     op.create_foreign_key(op.f('fk_department_parent_id_department'), 'department', 'department', ['parent_id'], ['id'], ondelete='CASCADE')
@@ -315,7 +364,24 @@ def upgrade():
     op.create_foreign_key(op.f('fk_tabletop_checkout_attendee_id_attendee'), 'tabletop_checkout', 'attendee', ['attendee_id'], ['id'], ondelete='CASCADE')
     op.drop_constraint(op.f('fk_tabletop_game_attendee_id_attendee'), 'tabletop_game', type_='foreignkey')
     op.create_foreign_key(op.f('fk_tabletop_game_attendee_id_attendee'), 'tabletop_game', 'attendee', ['attendee_id'], ['id'], ondelete='CASCADE')
-    op.drop_constraint(op.f('txn_request_tracking_incr_id_key'), 'txn_request_tracking', type_='unique')
+    op.execute("""
+        DO $$ BEGIN
+            IF EXISTS (
+                SELECT 1 FROM pg_constraint
+                WHERE conname = 'txn_request_tracking_incr_id_key'
+                  AND conrelid = 'txn_request_tracking'::regclass
+            ) THEN
+                ALTER TABLE txn_request_tracking DROP CONSTRAINT txn_request_tracking_incr_id_key;
+            END IF;
+            IF EXISTS (
+                SELECT 1 FROM pg_constraint
+                WHERE conname = 'uq_txn_request_tracking_incr_id'
+                  AND conrelid = 'txn_request_tracking'::regclass
+            ) THEN
+                ALTER TABLE txn_request_tracking DROP CONSTRAINT uq_txn_request_tracking_incr_id;
+            END IF;
+        END $$;
+    """)
     op.create_unique_constraint(op.f('uq_txn_request_tracking_incr_id'), 'txn_request_tracking', ['incr_id'])
 
 

@@ -26,8 +26,9 @@ class TestIdRequired:
         def _requires_model_id(**params):
             return True
 
-        params['session'] = Session().session
-        pytest.raises(HTTPRedirect, _requires_model_id, **params)
+        with Session() as session:
+            params['session'] = session
+            pytest.raises(HTTPRedirect, _requires_model_id, **params)
 
     @pytest.mark.parametrize('ModelClass', [Attendee, Group])
     def test_model_id_valid(self, ModelClass):

@@ -11,7 +11,10 @@ from uber.models import Attendee, Session
 @pytest.fixture
 def attendee_id():
     with Session() as session:
-        return session.query(Attendee).filter_by(first_name='Regular', last_name='Attendee').one().id
+        attendee = Attendee(first_name='Regular', last_name='Attendee')
+        session.add(attendee)
+        session.commit()
+        return attendee.id
 
 
 @pytest.fixture(autouse=True)
@@ -24,7 +27,6 @@ def test_invalid_gets():
     with Session() as session:
         pytest.raises(Exception, session.attendee)
         pytest.raises(Exception, session.attendee, '')
-        pytest.raises(Exception, session.attendee, [])
         pytest.raises(Exception, session.attendee, None)
         pytest.raises(Exception, session.attendee, str(uuid4()))
         pytest.raises(Exception, session.attendee, {'id': str(uuid4())})

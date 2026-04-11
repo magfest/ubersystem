@@ -667,9 +667,11 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
                 self.staffing = True
 
         if not self.is_new:
-            old_ribbon = self.orig_value_of('ribbon')
-            if old_ribbon and isinstance(old_ribbon, six.string_types):
-                old_ribbon = map(int, self.orig_value_of('ribbon').split(','))
+            old_ribbon_str = self.orig_value_of('ribbon')
+            if old_ribbon_str and isinstance(old_ribbon_str, six.string_types):
+                old_ribbon = list(map(int, old_ribbon_str.split(',')))
+            else:
+                old_ribbon = []
             old_staffing = self.orig_value_of('staffing')
 
             if old_staffing and not self.staffing or c.VOLUNTEER_RIBBON not in self.ribbon_ints \
@@ -2320,6 +2322,13 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         if self.badge_type == c.STAFF_BADGE and (self.is_new or self.orig_value_of('badge_type') != c.STAFF_BADGE):
             self.hotel_eligible = True
 
+    @presave_adjustment
+    def staffer_setup_teardown(self):
+        if self.setup_hotel_approved:
+            self.can_work_setup = True
+        if self.teardown_hotel_approved:
+            self.can_work_teardown = True
+
     @property
     def hotel_shifts_required(self):
         return bool(c.VOLUNTEER_CHECKLIST_OPEN and self.hotel_nights and not self.is_dept_head and self.takes_shifts)
@@ -2484,7 +2493,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
             The last name, if there is no legal name or if the legal name
                 is just one word
         """
-        legal_name = re.sub(r'\s+', ' ', self.legal_name.strip())
+        legal_name = re.sub(r'\s+', ' ', (self.legal_name or '').strip())
         if legal_name and ' ' in legal_name:
             legal_first_name = re.sub(r'\s+', ' ', self.legal_first_name.strip())
 

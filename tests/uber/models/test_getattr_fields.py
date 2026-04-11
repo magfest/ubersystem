@@ -4,7 +4,7 @@ import pytest
 from pytz import UTC
 
 from uber.config import c
-from uber.models import AdminAccount, Attendee
+from uber.models import Attendee
 
 
 def test_ints():
@@ -28,7 +28,5 @@ def test_local():
 def test_multi_checks():
     pytest.raises(AttributeError, lambda: Attendee().CONSOLE)
     pytest.raises(AttributeError, lambda: Attendee().NOT_A_REAL_CHOICE)
-
-    assert not AdminAccount().PEOPLE
-    assert AdminAccount(access='{},{}'.format(c.PEOPLE, c.STUFF)).PEOPLE
-    assert not AdminAccount(access='{},{}'.format(c.PEOPLE, c.STUFF)).ACCOUNTS
+    # AdminAccount access system now uses JSONB access_groups (not bit-flag access column);
+    # the old PEOPLE/STUFF/ACCOUNTS attribute lookups are no longer supported

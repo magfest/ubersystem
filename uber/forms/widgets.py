@@ -141,7 +141,7 @@ class DateMaskInput(TextInput):
         if(!dateFormat) {
             function dateFormat(input) {
                 const first_month = input.substring(0, 1);
-                if ((/^-?\d+$/.test(first_month)) == false) {
+                if ((/^-?\\d+$/.test(first_month)) == false) {
                 return '99/99/9999';
                 }
                 if (!['0','1'].includes(first_month)) {
@@ -149,7 +149,7 @@ class DateMaskInput(TextInput):
                 }
                 if (input.length == 4 && input.substring(2, 3) == '/') {
                 const first_day = input.substring(3, 4);
-                if ((/^-?\d+$/.test(first_day)) == false) {
+                if ((/^-?\\d+$/.test(first_day)) == false) {
                     return '99/99/9999';
                 }
                 if (!['0','1','2','3'].includes(first_day)) {
@@ -342,7 +342,7 @@ class Ranking():
         return extra_info
     
     def __call__(self, field, choices=None, show_staff_rates=False, **kwargs):
-        choices = choices or self.choices or [('', {"name": "Error", "description": "No choices are configured"})]
+        choices = choices or self.choices or field.choices or [('', {"name": "Error", "description": "No choices are configured"})]
         id = kwargs.pop('id', field.id) or "ranking"
         selected_choices = field.data if isinstance(field.data, list) else [str(field.data)]
         read_only = 'readonly' in kwargs and kwargs['readonly']

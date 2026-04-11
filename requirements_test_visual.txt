@@ -1,0 +1,4 @@
+-r requirements_test.txt
+playwright>=1.42
+pixelmatch>=0.3
+Pillow>=11.0

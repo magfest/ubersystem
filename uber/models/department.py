@@ -64,10 +64,10 @@ job_template_required_role = Table(
 
 class DeptChecklistItem(MagModel, table=True):
     department_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='department.id', ondelete='CASCADE')
-    department: 'Department' = Relationship(back_populates="dept_checklist_items", sa_relationship_kwargs={'lazy': 'joined'})
+    department: 'Department' = Relationship(back_populates="dept_checklist_items")
 
     attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
-    attendee: 'Attendee' = Relationship(back_populates="dept_checklist_items", sa_relationship_kwargs={'lazy': 'joined'})
+    attendee: 'Attendee' = Relationship(back_populates="dept_checklist_items")
 
     slug: str = ''
     comments: str = ''

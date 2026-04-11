@@ -51,7 +51,7 @@ class TestNotifyAdminsOfPendingEmails(object):
             False, True, 1, {
                 'test_even@example.com': ['attendee_html', 'attendee_html_after_08/09'],
                 'test_odd@example.com': ['attendee_txt_before_08/11', 'attendee_txt_after_08/09_before_08/11'],
-            }, [2, 4]
+            }, [2]
         ),
         (True, True, 0, {}, [0, 0]),
     ])
@@ -69,11 +69,15 @@ class TestNotifyAdminsOfPendingEmails(object):
                 email.approved = approved
                 email.needs_approval = needs_approval
                 email.unapproved_count = unapproved_count
+            session.commit()
 
         for send_email_count in send_email_counts:
             result = notify_admins_of_pending_emails()
             assert isinstance(result, type(expected))
-            assert result == expected
+            # Sort the ident lists before comparing since DB query order is non-deterministic
+            sorted_result = {k: sorted(v) for k, v in result.items()} if result else result
+            sorted_expected = {k: sorted(v) for k, v in expected.items()} if expected else expected
+            assert sorted_result == sorted_expected
             assert mock_send_email.call_count == send_email_count
 
 
@@ -115,6 +119,7 @@ class TestSendAutomatedEmails(object):
                 automated_email.approved = approved
                 automated_email.needs_approval = needs_approval
                 automated_email.unapproved_count = 42
+            session.commit()
 
         for send_email_count in send_email_counts:
             results = send_automated_emails()

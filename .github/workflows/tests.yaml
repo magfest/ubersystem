@@ -1,0 +1,89 @@
+---
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build test image
+        run: docker build --target test -t ubersystem-test .
+
+      - name: Run unit + integration tests
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            ubersystem-test \
+            python3 -m pytest tests/uber/ -x --timeout=300 -q
+
+  visual-regression:
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build visual test image
+        run: docker build -f Dockerfile.visual -t ubersystem-visual .
+
+      - name: Create output directories
+        run: mkdir -p tests/visual/results
+
+      - name: Run visual regression tests
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v ${{ github.workspace }}/tests/visual/baselines:/app/tests/visual/baselines \
+            -v ${{ github.workspace }}/tests/visual/results:/app/tests/visual/results \
+            ubersystem-visual \
+            python3 -m pytest tests/visual/ --timeout=300 -v --tb=short
+
+      - name: Upload diff screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-regression-diffs
+          path: tests/visual/results/
+          retention-days: 7
+
+  visual-update-baselines:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build visual test image
+        run: docker build -f Dockerfile.visual -t ubersystem-visual .
+
+      - name: Update baselines
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v ${{ github.workspace }}/tests/visual/baselines:/app/tests/visual/baselines \
+            ubersystem-visual \
+            python3 -m pytest tests/visual/ --update-baselines --timeout=300 -v
+
+      - name: Commit updated baselines
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Update visual regression baselines"
+          file_pattern: tests/visual/baselines/*.png

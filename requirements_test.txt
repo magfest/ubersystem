@@ -1,4 +1,8 @@
 -r requirements.txt
 pytest>=3.0.1
+pytest-timeout
 mock>=1.0.1,<1.1
 coverage>=3.6
+hypothesis
+testcontainers[postgres]
+factory-boy

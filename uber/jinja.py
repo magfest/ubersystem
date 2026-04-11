@@ -62,6 +62,7 @@ class MultiPathEnvironment(jinja2.Environment):
         loaded_templates = self._templates_loaded_for_current_request
         unused_files = [s for s in matching_files if s not in loaded_templates]
         filename = unused_files[0] if unused_files else matching_files[-1]
+        loaded_templates.add(filename)
 
         cache_key = filename
         if self.cache is not None:

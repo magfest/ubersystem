@@ -1,7 +1,9 @@
-import os
 import re
-import shutil
-from datetime import date, timedelta
+import warnings
+from datetime import timedelta
+
+# Suppress SyntaxWarning from rpctools before the import chain loads it.
+warnings.filterwarnings('ignore', message=r'invalid escape sequence', category=SyntaxWarning)
 
 import cherrypy
 import pytest
@@ -11,32 +13,13 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 
 from uber.config import c
-from uber.models import Attendee, Department, DeptMembership, DeptRole, Job, PromoCode, Session, WatchList, \
-    initialize_db, register_session_listeners
+from uber.models import Session
 from uber.utils import localized_now
-
-
-try:
-    TEST_DB_FILE = c.TEST_DB_FILE
-except AttributeError:
-    TEST_DB_FILE = '/tmp/uber.db'
 
 
 deadline_not_reached = localized_now() + timedelta(days=1)
 deadline_has_passed = localized_now() - timedelta(days=1)
 
-def patch_session(Session, request):
-    orig_engine, orig_factory = Session.engine, Session.session_factory
-    request.addfinalizer(lambda: setattr(Session, 'engine', orig_engine))
-    request.addfinalizer(lambda: setattr(Session, 'session_factory', orig_factory))
-
-    name = Session.__module__.split('.')[0]
-    db_path = '/tmp/{}.db'.format(name)
-    Session.engine = sqlalchemy.create_engine('sqlite+pysqlite:///' + db_path, poolclass=NullPool)
-    event.listen(Session.engine, 'connect', lambda conn, record: conn.execute('pragma foreign_keys=ON'))
-    Session.session_factory = sessionmaker(bind=Session.engine, autoflush=False, autocommit=False,
-                                           query_cls=Session.QuerySubclass)
-    Session.initialize_db(drop=True)
 
 def assert_unique(x):
     assert len(x) == len(set(x))
@@ -49,6 +32,171 @@ def monkeypatch_db_column(column, patched_config_value):
 def extract_message_from_html(html):
     match = re.search(r"var message = '(.*)';", html)
     return match.group(1) if match else None
+
+
+# ---------------------------------------------------------------------------
+# Testcontainer fixtures (session-scoped — started once, shared across tests)
+# ---------------------------------------------------------------------------
+
+@pytest.fixture(scope='session')
+def postgres_container():
+    from testcontainers.postgres import PostgresContainer
+
+    with PostgresContainer("postgres:16-alpine",
+                           username="test_uber",
+                           password="test_uber",
+                           dbname="test_uber") as pg:
+        yield pg
+
+
+@pytest.fixture(scope='session')
+def redis_container():
+    from testcontainers.redis import RedisContainer
+
+    with RedisContainer("redis:7-alpine") as redis:
+        yield redis
+
+
+# ---------------------------------------------------------------------------
+# Database engine + schema (session-scoped)
+# ---------------------------------------------------------------------------
+
+@pytest.fixture(scope='session')
+def db_engine(postgres_container):
+    """
+    Create a SQLAlchemy engine pointing at the testcontainer Postgres,
+    patch the uber Session infrastructure to use it, create all tables,
+    and register session listeners.
+    """
+    import uber.models as models
+    from sqlmodel import SQLModel
+
+    url = postgres_container.get_connection_url()
+    # NullPool: each connect() opens a real connection and close() truly closes
+    # it, preventing stale sessions from previous tests from interfering.
+    test_engine = sqlalchemy.create_engine(url, poolclass=NullPool)
+
+    # --- Patch the module-level engine and session factory -----------------
+    orig_engine = models.engine
+    orig_factory = models.SessionFactory
+    orig_scoped_engine = models._ScopedSession.engine
+    orig_scoped_factory = models._ScopedSession.session_factory
+
+    models.engine = test_engine
+
+    models.SessionFactory = sessionmaker(
+        bind=test_engine,
+        autoflush=False,
+        autocommit=False,
+        expire_on_commit=False,
+        class_=models.UberSession,
+        query_cls=models.UberSession.QuerySubclass,
+    )
+
+    # Update the scoped session registry so Session.query() etc. work
+    models._ScopedSession.session_factory.configure(bind=test_engine)
+    models._ScopedSession.engine = test_engine
+    models._ScopedSession.session_factory = models.SessionFactory
+
+    # --- Create all tables -------------------------------------------------
+    SQLModel.metadata.create_all(test_engine)
+
+    # --- Register model getters on SessionMixin ----------------------------
+    models.initialize_db()
+
+    # --- Register presave / tracking listeners -----------------------------
+    models.register_session_listeners()
+
+    yield test_engine
+
+    # --- Teardown: restore originals ---------------------------------------
+    SQLModel.metadata.drop_all(test_engine)
+    test_engine.dispose()
+
+    models.engine = orig_engine
+    models.SessionFactory = orig_factory
+    models._ScopedSession.engine = orig_scoped_engine
+    models._ScopedSession.session_factory = orig_scoped_factory
+
+
+# ---------------------------------------------------------------------------
+# Per-test database isolation via transaction rollback
+# ---------------------------------------------------------------------------
+
+@pytest.fixture(autouse=True)
+def db(db_engine):
+    """
+    Wrap every test in a transaction that is rolled back after the test.
+
+    Uses the SQLAlchemy 2.0 "join session into external transaction" pattern.
+    The key is ``join_transaction_mode="create_savepoint"`` which makes
+    session.commit() commit a SAVEPOINT instead of the real transaction.
+
+    See: https://docs.sqlalchemy.org/en/20/orm/session_transaction.html
+         #joining-a-session-into-an-external-transaction-such-as-for-test-suites
+    """
+    import uber.models as models
+
+    connection = db_engine.connect()
+    transaction = connection.begin()
+
+    # Patch SessionFactory to bind to our transactional connection.
+    # join_transaction_mode="create_savepoint" ensures that when test code
+    # calls session.commit(), it only commits a savepoint, not the real txn.
+    test_session_factory = sessionmaker(
+        bind=connection,
+        autoflush=False,
+        autocommit=False,
+        expire_on_commit=False,
+        class_=models.UberSession,
+        query_cls=models.UberSession.QuerySubclass,
+        join_transaction_mode="create_savepoint",
+    )
+
+    orig_factory = models.SessionFactory
+    models.SessionFactory = test_session_factory
+    models._ScopedSession.session_factory = test_session_factory
+
+    # HybridSessionProxy.__call__ (used by Session()) checks cherrypy.request.db_connection.
+    # Outside a real CherryPy request the attribute persists across tests on the thread-local.
+    # Pre-set it to the test connection so that Session() calls use the test transaction
+    # instead of opening a new real connection that bypasses rollback isolation.
+    had_db_connection = hasattr(cherrypy.request, 'db_connection')
+    old_db_connection = getattr(cherrypy.request, 'db_connection', None)
+    cherrypy.request.db_connection = connection
+
+    yield connection
+
+    # Rollback the outer transaction — all test changes are discarded
+    transaction.rollback()
+    connection.close()
+
+    # Clear the request-level cache (threadlocal) so properties like BADGES_SOLD
+    # don't bleed cached values from one test into the next.
+    from uber.utils import request_cached_context
+    request_cached_context._clear_cache()
+
+    # Restore original factory
+    models.SessionFactory = orig_factory
+    models._ScopedSession.session_factory = orig_factory
+
+    # Restore CherryPy request db_connection
+    if not had_db_connection:
+        try:
+            del cherrypy.request.db_connection
+        except AttributeError:
+            pass
+    else:
+        cherrypy.request.db_connection = old_db_connection
+
+
+# ---------------------------------------------------------------------------
+# CherryPy / HTTP fixtures
+# ---------------------------------------------------------------------------
+
+@pytest.fixture(autouse=True)
+def cp_session():
+    cherrypy.session = {}
 
 
 @pytest.fixture()
@@ -71,198 +219,59 @@ def csrf_token(monkeypatch):
 
 @pytest.fixture()
 def admin_attendee():
+    from uber.models import Attendee
+
     with Session() as session:
         session.insert_test_admin_account()
 
     with Session() as session:
         attendee = session.query(Attendee).filter(
-            Attendee.email == 'magfest@example.com').one()
+            Attendee.email == c.TEST_ADMIN_EMAIL).one()
         cherrypy.session['account_id'] = attendee.admin_account.id
         yield attendee
         cherrypy.session['account_id'] = None
-        session.delete(attendee)
 
+
+# ---------------------------------------------------------------------------
+# Config / mode fixtures
+# ---------------------------------------------------------------------------
 
 @pytest.fixture
-def clear_price_bumps(request, monkeypatch):
+def clear_price_bumps(monkeypatch):
     monkeypatch.setattr(c, 'PRICE_BUMPS', {})
 
 
 @pytest.fixture(autouse=True)
-def patch_send_email_delay(request, monkeypatch):
+def patch_send_email_delay(monkeypatch):
     from uber.tasks import email as email_tasks
     monkeypatch.setattr(email_tasks.send_email, 'delay', email_tasks.send_email)
 
 
-@pytest.fixture(scope='session', autouse=True)
-def init_db(request):
-    if os.path.exists(TEST_DB_FILE):
-        os.remove(TEST_DB_FILE)
-    patch_session(Session, request)
-    initialize_db(modify_tables=True)
-    register_session_listeners()
-    with Session() as session:
-        session.add(Attendee(
-            placeholder=True,
-            first_name='Regular',
-            last_name='Volunteer',
-            ribbon=c.VOLUNTEER_RIBBON,
-            staffing=True
-        ))
-        session.add(Attendee(
-            placeholder=True,
-            first_name='Regular',
-            last_name='Attendee'
-        ))
-
-        d_arcade_trusted_dept_role = DeptRole(name='Trusted', description='Trusted in Arcade')
-        d_arcade = Department(name='Arcade', description='Arcade', dept_roles=[d_arcade_trusted_dept_role])
-
-        d_console_trusted_dept_role = DeptRole(name='Trusted', description='Trusted in Console')
-        d_console = Department(name='Console', description='Console', dept_roles=[d_console_trusted_dept_role])
-        session.add_all([d_arcade, d_arcade_trusted_dept_role, d_console, d_console_trusted_dept_role])
-
-        assigned_depts = {
-            'One': [d_arcade],
-            'Two': [d_console],
-            'Three': [d_arcade, d_console],
-            'Four': [d_arcade, d_console],
-            'Five': []
-        }
-        trusted_depts = {
-            'One': [],
-            'Two': [],
-            'Three': [],
-            'Four': [d_arcade, d_console],
-            'Five': []
-        }
-
-        for name in ['One', 'Two', 'Three', 'Four', 'Five']:
-            dept_memberships = []
-            for dept in assigned_depts[name]:
-                is_trusted = dept in trusted_depts[name]
-                dept_memberships.append(DeptMembership(
-                    department_id=dept.id,
-                    dept_roles=(dept.dept_roles if is_trusted else [])
-                ))
-            session.add_all(dept_memberships)
-
-            session.add(Attendee(
-                placeholder=True,
-                first_name=name,
-                last_name=name,
-                paid=c.NEED_NOT_PAY,
-                badge_type=c.STAFF_BADGE,
-                dept_memberships=dept_memberships
-            ))
-
-            session.add(Attendee(
-                placeholder=True,
-                first_name=name,
-                last_name=name,
-                paid=c.NEED_NOT_PAY,
-                badge_type=c.CONTRACTOR_BADGE
-            ))
-            session.commit()
-
-        session.add(WatchList(
-            first_names='Banned, Alias, Nickname',
-            last_name='Attendee',
-            email='banned@mailinator.com',
-            birthdate=date(1980, 7, 10),
-            action='Action', reason='Reason'
-        ))
-
-        session.add(Job(
-            name='Job One',
-            start_time=c.EPOCH,
-            slots=1,
-            weight=1,
-            duration=2,
-            department=d_arcade,
-            extra15=True
-        ))
-        session.add(Job(
-            name='Job Two',
-            start_time=c.EPOCH + timedelta(hours=1),
-            slots=1,
-            weight=1,
-            duration=2,
-            department=d_arcade
-        ))
-        session.add(Job(
-            name='Job Three',
-            start_time=c.EPOCH + timedelta(hours=2),
-            slots=1,
-            weight=1,
-            duration=2,
-            department=d_arcade
-        ))
-        session.add(Job(
-            name='Job Four',
-            start_time=c.EPOCH,
-            slots=2,
-            weight=1,
-            duration=2,
-            department=d_console,
-            extra15=True
-        ))
-        session.add(Job(
-            name='Job Five',
-            start_time=c.EPOCH + timedelta(hours=2),
-            slots=1,
-            weight=1,
-            duration=2,
-            department=d_console
-        ))
-        session.add(Job(
-            name='Job Six',
-            start_time=c.EPOCH,
-            slots=1,
-            weight=1,
-            duration=2,
-            department=d_console,
-            required_roles=[d_console_trusted_dept_role]
-        ))
-
-        session.add(PromoCode(code='ten percent off', discount=10,
-                              discount_type=PromoCode._PERCENT_DISCOUNT))
-        session.add(PromoCode(code='ten dollars off', discount=10,
-                              discount_type=PromoCode._FIXED_DISCOUNT))
-        session.add(PromoCode(code='ten dollar badge', discount=10,
-                              discount_type=PromoCode._FIXED_PRICE))
-        session.add(PromoCode(code='free badge', discount=0, uses_allowed=100))
-
-        session.commit()
-
-
-@pytest.fixture(autouse=True)
-def db(request, init_db):
-    shutil.copy(TEST_DB_FILE, TEST_DB_FILE + '.backup')
-    request.addfinalizer(lambda: shutil.move(TEST_DB_FILE + '.backup', TEST_DB_FILE))
-
-
-@pytest.fixture(autouse=True)
-def cp_session():
-    cherrypy.session = {}
+@pytest.fixture
+def at_con(monkeypatch):
+    monkeypatch.setattr(c, 'AT_THE_CON', True)
 
 
 @pytest.fixture
-def at_con(monkeypatch): monkeypatch.setattr(c, 'AT_THE_CON', True)
+def post_con(monkeypatch):
+    monkeypatch.setattr(c, 'POST_CON', True)
 
 
 @pytest.fixture
-def shifts_created(monkeypatch): monkeypatch.setattr(c, 'SHIFTS_CREATED', localized_now())
+def shifts_created(monkeypatch):
+    monkeypatch.setattr(c, 'SHIFTS_CREATED', localized_now())
 
 
 @pytest.fixture
-def shifts_not_created(monkeypatch): monkeypatch.setattr(c, 'SHIFTS_CREATED', '')
+def shifts_not_created(monkeypatch):
+    monkeypatch.setattr(c, 'SHIFTS_CREATED', '')
 
 
 @pytest.fixture
-def before_printed_badge_deadline(monkeypatch): monkeypatch.setattr(c, 'PRINTED_BADGE_DEADLINE', deadline_not_reached)
+def before_printed_badge_deadline(monkeypatch):
+    monkeypatch.setattr(c, 'PRINTED_BADGE_DEADLINE', deadline_not_reached)
 
 
 @pytest.fixture
-def after_printed_badge_deadline(monkeypatch): monkeypatch.setattr(c, 'PRINTED_BADGE_DEADLINE', deadline_has_passed)
-
+def after_printed_badge_deadline(monkeypatch):
+    monkeypatch.setattr(c, 'PRINTED_BADGE_DEADLINE', deadline_has_passed)

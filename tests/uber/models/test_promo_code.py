@@ -7,7 +7,15 @@ from mock import Mock
 from uber.models import Attendee, Group, PromoCode, Session
 from uber.config import c
 from uber.payments import PreregCart
-from uber.utils import check
+from uber.utils import check, RegistrationCode
+
+
+def check_msg(model, **kwargs):
+    """Normalize check() output: strip leading 'ERROR: ' prefix for test assertions."""
+    result = check(model, **kwargs)
+    if result and result.startswith('ERROR: '):
+        return result[7:]
+    return result
 
 
 next_week = datetime.now(pytz.UTC) + timedelta(days=7)
@@ -52,10 +60,11 @@ class TestPromoCodeAdjustments:
 
     @pytest.mark.parametrize('code', [None, '', '   ', 0])
     def test_empty_code_auto_generated(self, code, monkeypatch):
-        monkeypatch.setattr(PromoCode, 'generate_random_code', Mock())
+        mock_gen = Mock(return_value='MOCK-CODE')
+        monkeypatch.setattr(RegistrationCode, 'generate_random_code', mock_gen)
         promo_code = PromoCode(code=code)
         promo_code._attribute_adjustments()
-        assert PromoCode.generate_random_code.called
+        assert mock_gen.called
 
     @pytest.mark.parametrize('code,expected', [
         ('asdf', 'asdf'),
@@ -70,6 +79,20 @@ class TestPromoCodeAdjustments:
 
 class TestPromoCodeUse:
 
+    @pytest.fixture(autouse=True)
+    def seed_promo_codes(self):
+        """Create the named promo codes used by test_discount."""
+        codes_to_create = [
+            PromoCode(code='ten dollars off', discount=10, discount_type=PromoCode._FIXED_DISCOUNT, uses_allowed=100),
+            PromoCode(code='ten percent off', discount=10, discount_type=PromoCode._PERCENT_DISCOUNT, uses_allowed=100),
+            PromoCode(code='ten dollar badge', discount=10, discount_type=PromoCode._FIXED_PRICE, uses_allowed=100),
+            PromoCode(code='free badge', discount=None, discount_type=PromoCode._FIXED_DISCOUNT, uses_allowed=100),
+        ]
+        with Session() as session:
+            for pc in codes_to_create:
+                session.add(pc)
+            session.commit()
+
     @pytest.mark.parametrize('code,badge_cost,attr,value', [
         ('ten dollars off', 30, 'overridden_price', 30),
         ('ten percent off', 36, 'overridden_price', 36),
@@ -77,10 +100,10 @@ class TestPromoCodeUse:
         ('free badge', 0, 'paid', c.NEED_NOT_PAY)])
     def test_discount(self, code, badge_cost, attr, value):
         attendee = Attendee()
-        assert attendee.badge_cost == 40
+        assert attendee.calculate_badge_cost() == 40
         with Session() as session:
-            attendee.promo_code = session.promo_code(code=code)
-            assert attendee.badge_cost == badge_cost
+            attendee.promo_code = session.lookup_promo_code(code)
+            assert attendee.calculate_badge_cost(use_promo_code=True) == badge_cost
             attendee._use_promo_code()
             assert getattr(attendee, attr) == value
             attendee.promo_code = None
@@ -96,7 +119,7 @@ class TestPromoCodeModelChecks:
         (0, None),
         (10, None)])
     def test_valid_discount(self, discount, message):
-        assert message == check(PromoCode(discount=discount, uses_allowed=1))
+        assert message == check_msg(PromoCode(discount=discount, uses_allowed=1))
 
     @pytest.mark.parametrize('uses_allowed,message', [
         ('a lot', "What you entered for the number of uses allowed isn't even a number."),
@@ -106,19 +129,19 @@ class TestPromoCodeModelChecks:
         (0, None),
         (10, None)])
     def test_valid_uses_allowed(self, uses_allowed, message):
-        assert message == check(PromoCode(discount=1, uses_allowed=uses_allowed))
+        assert message == check_msg(PromoCode(discount=1, uses_allowed=uses_allowed))
 
     @pytest.mark.parametrize('uses_allowed', [None, 0, ''])
     @pytest.mark.parametrize('discount', [None, 0, ''])
     def test_no_unlimited_free_badges(self, discount, uses_allowed):
-        assert check(PromoCode(
+        assert check_msg(PromoCode(
             discount=discount,
             uses_allowed=uses_allowed)) == 'Unlimited-use, free-badge promo codes are not allowed.'
 
     @pytest.mark.parametrize('discount', [100, 101, 200])
     @pytest.mark.parametrize('uses_allowed', [None, 0, ''])
     def test_no_unlimited_100_percent_discount(self, discount, uses_allowed):
-        assert check(PromoCode(
+        assert check_msg(PromoCode(
             discount=discount,
             discount_type=PromoCode._PERCENT_DISCOUNT,
             uses_allowed=uses_allowed)) == 'Unlimited-use, free-badge promo codes are not allowed.'
@@ -126,10 +149,18 @@ class TestPromoCodeModelChecks:
     @pytest.mark.parametrize('uses_allowed', [None, 0, ''])
     @pytest.mark.parametrize('discount', [c.BADGE_PRICE, c.BADGE_PRICE + 1])
     def test_no_unlimited_full_badge_discount(self, discount, uses_allowed):
-        assert check(PromoCode(
+        assert check_msg(PromoCode(
             discount=discount,
             discount_type=PromoCode._FIXED_DISCOUNT,
             uses_allowed=uses_allowed)) == 'Unlimited-use, free-badge promo codes are not allowed.'
+
+    @pytest.fixture(autouse=True)
+    def seed_existing_codes(self):
+        """Create promo codes that test_no_dupe_code tries to duplicate."""
+        with Session() as session:
+            for code in ['ten percent off', 'ten dollars off', 'ten dollar badge', 'free badge']:
+                session.add(PromoCode(code=code, discount=1, uses_allowed=100))
+            session.commit()
 
     @pytest.mark.parametrize('code', [
         'ten percent off',
@@ -141,7 +172,7 @@ class TestPromoCodeModelChecks:
         '  TEN   DOLLAR     BADGE ',
         '  FREE   BADGE    '])
     def test_no_dupe_code(self, code):
-        assert check(PromoCode(discount=1, code=code)) == \
+        assert check_msg(PromoCode(discount=1, code=code)) == \
             'The code you entered already belongs to another promo code. Note that promo codes are not case sensitive.'
 
 
@@ -155,8 +186,9 @@ class TestAttendeePromoCodeModelChecks:
             promo_code=promo_code,
             placeholder=True,
             first_name='First',
-            last_name='Last')
-        assert check(attendee, prereg=True) == "You can't apply a promo code after you've paid or if you're in a group."
+            last_name='Last',
+            email='test@example.com')
+        assert check_msg(attendee, prereg=True) == "You can't apply a promo code after you've paid or if you're in a group."
 
     def test_promo_code_is_useful_overridden_price(self):
         promo_code = PromoCode(discount=1, expiration_date=next_week)
@@ -165,8 +197,9 @@ class TestAttendeePromoCodeModelChecks:
             promo_code=promo_code,
             placeholder=True,
             first_name='First',
-            last_name='Last')
-        assert check(attendee, prereg=True) == \
+            last_name='Last',
+            email='test@example.com')
+        assert check_msg(attendee, prereg=True) == \
             "You already have a special badge price, you can't use a promo code on top of that."
 
     def test_promo_code_is_useful_special_price(self, monkeypatch):
@@ -176,8 +209,9 @@ class TestAttendeePromoCodeModelChecks:
             promo_code=promo_code,
             placeholder=True,
             first_name='First',
-            last_name='Last')
-        assert check(attendee, prereg=True) == \
+            last_name='Last',
+            email='test@example.com')
+        assert check_msg(attendee, prereg=True) == \
             "That promo code doesn't make your badge any cheaper. You may already have other discounts."
 
     def test_promo_code_does_not_help_one_day_badge(self, monkeypatch):
@@ -188,8 +222,9 @@ class TestAttendeePromoCodeModelChecks:
             promo_code=promo_code,
             placeholder=True,
             first_name='First',
-            last_name='Last')
-        assert check(attendee, prereg=True) == \
+            last_name='Last',
+            email='test@example.com')
+        assert check_msg(attendee, prereg=True) == \
             "You can't apply a promo code to a one day badge."
 
     def test_promo_code_does_not_help_dealer(self, monkeypatch):
@@ -201,9 +236,10 @@ class TestAttendeePromoCodeModelChecks:
             promo_code=promo_code,
             placeholder=True,
             first_name='First',
-            last_name='Last')
-        assert check(attendee, prereg=True) == \
-            "You can't apply a promo code to a dealer registration."
+            last_name='Last',
+            email='test@example.com')
+        assert check_msg(attendee, prereg=True) == \
+            "You can't apply a promo code to a Dealer registration."
 
     def test_promo_code_does_not_help_minor(self, monkeypatch):
         promo_code = PromoCode(discount=1, expiration_date=next_week)
@@ -212,8 +248,9 @@ class TestAttendeePromoCodeModelChecks:
             promo_code=promo_code,
             placeholder=True,
             first_name='First',
-            last_name='Last')
-        assert check(attendee, prereg=True) == \
+            last_name='Last',
+            email='test@example.com')
+        assert check_msg(attendee, prereg=True) == \
             "You are already receiving an age based discount, you can't use a promo code on top of that."
 
     def test_promo_code_not_is_expired(self):
@@ -223,8 +260,9 @@ class TestAttendeePromoCodeModelChecks:
             promo_code=promo_code,
             placeholder=True,
             first_name='First',
-            last_name='Last')
-        assert check(attendee, prereg=True) == 'That promo code is expired.'
+            last_name='Last',
+            email='test@example.com')
+        assert check_msg(attendee, prereg=True) == 'That promo code is expired.'
 
     def test_promo_code_has_uses_remaining(self):
         promo_code = PromoCode(uses_allowed=1, expiration_date=next_week)
@@ -232,7 +270,8 @@ class TestAttendeePromoCodeModelChecks:
             promo_code=promo_code,
             placeholder=True,
             first_name='First',
-            last_name='Last')
+            last_name='Last',
+            email='test@example.com')
         PreregCart.unpaid_preregs[sess.id] = PreregCart.to_sessionized(sess)
         sess.promo_code = None
         sess.promo_code_id = None
@@ -242,9 +281,10 @@ class TestAttendeePromoCodeModelChecks:
             promo_code=promo_code,
             placeholder=True,
             first_name='First',
-            last_name='Last')
+            last_name='Last',
+            email='test@example.com')
 
-        assert check(attendee, prereg=True) == 'That promo code has been used too many times.'
+        assert check_msg(attendee, prereg=True) == 'That promo code has been used too many times.'
 
 
 class TestPromoCodeSessionMixin:
@@ -254,11 +294,13 @@ class TestPromoCodeSessionMixin:
     def disambiguated_promo_code(self):
         with Session() as session:
             session.add(PromoCode(id=self.disambiguated_promo_code_id, code='012568', uses_allowed=100))
+            session.commit()
 
         with Session() as session:
             promo_code = session.query(PromoCode).filter(PromoCode.id == self.disambiguated_promo_code_id).one()
             yield promo_code
             session.delete(promo_code)
+            session.commit()
 
     def test_lookup_promo_code(self, disambiguated_promo_code):
         promo_code_id = disambiguated_promo_code.id
@@ -320,7 +362,7 @@ class TestPromoCodeSessionMixin:
         ('', '', None, ''),
         ('012568', '', disambiguated_promo_code_id, '012568'),
         ('olzsgb', '', disambiguated_promo_code_id, '012568'),
-        ('NONEXISTENT', 'The promo code you entered is invalid.', None, '')
+        ('NONEXISTENT', 'The promo code you entered (NONEXISTENT) is invalid.', None, '')
     ])
     def test_add_promo_code_to_attendee(
             self,

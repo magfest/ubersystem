@@ -14,6 +14,20 @@ from uber.models import AdminAccount, Attendee, ApiToken, Session
 assert csrf_token
 
 
+def _setup_admin_access(monkeypatch, admin_access):
+    """Monkeypatch AdminAccount api_* properties.
+
+    AdminAccount access is now via AccessGroup objects, not a bitfield. This helper
+    sets the class-level api_read/api_update/etc. properties so tests can control
+    access without creating real AccessGroup records.
+    """
+    access_map = {int_val: 'api_' + label.lower() for int_val, label in c.API_ACCESS_OPTS}
+    has_props = {access_map[v] for v in admin_access if v in access_map}
+    for prop_name in ['api_read', 'api_update', 'api_create', 'api_delete']:
+        has = prop_name in has_props
+        monkeypatch.setattr(AdminAccount, prop_name, property(lambda self, h=has: h))
+
+
 VALID_API_TOKEN = '39074db3-9295-447a-b831-8cbaa93a0522'
 
 
@@ -73,12 +87,12 @@ class TestAuthByToken(object):
 
     @pytest.mark.parametrize('token_access,required_access,expected', [
         ([], [], None),
-        ([], [c.API_READ], (403, ACCESS_ERR)),
-        ([], [c.API_READ, c.API_UPDATE], (403, ACCESS_ERR)),
+        ([], ['api_read'], (403, ACCESS_ERR)),
+        ([], ['api_read', 'api_update'], (403, ACCESS_ERR)),
         ([c.API_READ], [], None),
-        ([c.API_READ], [c.API_READ], None),
-        ([c.API_READ], [c.API_READ, c.API_UPDATE], (403, ACCESS_ERR)),
-        ([c.API_READ, c.API_UPDATE], [c.API_READ, c.API_UPDATE], None),
+        ([c.API_READ], ['api_read'], None),
+        ([c.API_READ], ['api_read', 'api_update'], (403, ACCESS_ERR)),
+        ([c.API_READ, c.API_UPDATE], ['api_read', 'api_update'], None),
     ])
     def test_insufficient_access(self, monkeypatch, session, api_token, token_access, required_access, expected):
         api_token.access = ','.join(map(str, token_access))
@@ -119,17 +133,15 @@ class TestAuthBySession(object):
 
     @pytest.mark.parametrize('admin_access,required_access,expected', [
         ([], [], None),
-        ([], [c.API_READ], (403, ACCESS_ERR)),
-        ([], [c.API_READ, c.API_UPDATE], (403, ACCESS_ERR)),
+        ([], ['api_read'], (403, ACCESS_ERR)),
+        ([], ['api_read', 'api_update'], (403, ACCESS_ERR)),
         ([c.API_READ], [], None),
-        ([c.API_READ], [c.API_READ], None),
-        ([c.API_READ], [c.API_READ, c.API_UPDATE], (403, ACCESS_ERR)),
-        ([c.API_READ, c.API_UPDATE], [c.API_READ, c.API_UPDATE], None),
+        ([c.API_READ], ['api_read'], None),
+        ([c.API_READ], ['api_read', 'api_update'], (403, ACCESS_ERR)),
+        ([c.API_READ, c.API_UPDATE], ['api_read', 'api_update'], None),
     ])
     def test_insufficient_access(self, monkeypatch, session, admin_account, admin_access, required_access, expected):
-        admin_account.access = ','.join(map(str, admin_access))
-        session.commit()
-        session.refresh(admin_account)
+        _setup_admin_access(monkeypatch, admin_access)
         monkeypatch.setitem(cherrypy.session, 'account_id', admin_account.id)
         monkeypatch.setitem(cherrypy.session, 'csrf_token', '74c18d5c-1a92-40f0-b5f3-924d46efafe4')
         monkeypatch.setitem(cherrypy.request.headers, 'CSRF-Token', '74c18d5c-1a92-40f0-b5f3-924d46efafe4')
@@ -142,12 +154,12 @@ class TestApiAuth(object):
 
     TEST_REQUIRED_ACCESS = [
         ([], [], False),
-        ([], [c.API_READ], True),
-        ([], [c.API_READ, c.API_UPDATE], True),
+        ([], ['api_read'], True),
+        ([], ['api_read', 'api_update'], True),
         ([c.API_READ], [], False),
-        ([c.API_READ], [c.API_READ], False),
-        ([c.API_READ], [c.API_READ, c.API_UPDATE], True),
-        ([c.API_READ, c.API_UPDATE], [c.API_READ, c.API_UPDATE], False),
+        ([c.API_READ], ['api_read'], False),
+        ([c.API_READ], ['api_read', 'api_update'], True),
+        ([c.API_READ, c.API_UPDATE], ['api_read', 'api_update'], False),
     ]
 
     @pytest.mark.parametrize('admin_access,required_access,expected', TEST_REQUIRED_ACCESS)
@@ -157,9 +169,7 @@ class TestApiAuth(object):
         def _func():
             return 'SUCCESS'
 
-        admin_account.access = ','.join(map(str, admin_access))
-        session.commit()
-        session.refresh(admin_account)
+        _setup_admin_access(monkeypatch, admin_access)
         monkeypatch.setitem(cherrypy.session, 'account_id', admin_account.id)
         monkeypatch.setitem(cherrypy.session, 'csrf_token', '74c18d5c-1a92-40f0-b5f3-924d46efafe4')
         monkeypatch.setitem(cherrypy.request.headers, 'CSRF-Token', '74c18d5c-1a92-40f0-b5f3-924d46efafe4')
@@ -199,12 +209,12 @@ class TestAllApiAuth(object):
 
     TEST_REQUIRED_ACCESS = [
         ([], [], False),
-        ([], [c.API_READ], True),
-        ([], [c.API_READ, c.API_UPDATE], True),
+        ([], ['api_read'], True),
+        ([], ['api_read', 'api_update'], True),
         ([c.API_READ], [], False),
-        ([c.API_READ], [c.API_READ], False),
-        ([c.API_READ], [c.API_READ, c.API_UPDATE], True),
-        ([c.API_READ, c.API_UPDATE], [c.API_READ, c.API_UPDATE], False),
+        ([c.API_READ], ['api_read'], False),
+        ([c.API_READ], ['api_read', 'api_update'], True),
+        ([c.API_READ, c.API_UPDATE], ['api_read', 'api_update'], False),
     ]
 
     @pytest.mark.parametrize('admin_access,required_access,expected', TEST_REQUIRED_ACCESS)
@@ -221,9 +231,7 @@ class TestAllApiAuth(object):
 
         service = Service()
 
-        admin_account.access = ','.join(map(str, admin_access))
-        session.commit()
-        session.refresh(admin_account)
+        _setup_admin_access(monkeypatch, admin_access)
         monkeypatch.setitem(cherrypy.session, 'account_id', admin_account.id)
         monkeypatch.setitem(cherrypy.session, 'csrf_token', '74c18d5c-1a92-40f0-b5f3-924d46efafe4')
         monkeypatch.setitem(cherrypy.request.headers, 'CSRF-Token', '74c18d5c-1a92-40f0-b5f3-924d46efafe4')

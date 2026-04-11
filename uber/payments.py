@@ -95,12 +95,18 @@ class PreregCart:
 
         promo_code_count = 0
 
+        def _promo_code_id(promo_code_data):
+            """Get promo code id from either a dict or a PromoCode object."""
+            if isinstance(promo_code_data, dict):
+                return promo_code_data.get('id')
+            return getattr(promo_code_data, 'id', None)
+
         targets = [t for t in cls.unpaid_preregs.values() if '_model' in t]
         for target in targets:
             if target['_model'] == 'Attendee':
                 if target.get('id') not in attendees_with_promo_code \
                         and target.get('promo_code') \
-                        and target['promo_code'].get('id') == id:
+                        and _promo_code_id(target['promo_code']) == id:
                     attendees_with_promo_code.add(target.get('id'))
                     promo_code_count += 1
 
@@ -108,7 +114,7 @@ class PreregCart:
                 for attendee in target.get('attendees', []):
                     if attendee.get('id') not in attendees_with_promo_code \
                             and attendee.get('promo_code') \
-                            and attendee['promo_code'].get('id') == id:
+                            and _promo_code_id(attendee['promo_code']) == id:
                         attendees_with_promo_code.add(attendee.get('id'))
                         promo_code_count += 1
 
@@ -203,18 +209,21 @@ class PreregCart:
         target_email = None
 
         for model in self.models:
-            if get_age_from_birthday(model.birthdate, c.NOW_OR_AT_CON) >= 18:
+            birthdate = getattr(model, 'birthdate', None)
+            if birthdate is not None and get_age_from_birthday(birthdate, c.NOW_OR_AT_CON) >= 18:
                 maybe_purchasers.append(model)
         
         maybe_purchasers = maybe_purchasers or [m for m in self.models]
 
         if c.ATTENDEE_ACCOUNTS_ENABLED:
             with Session() as session:
-                target_email = session.current_attendee_account().email
+                account = session.current_attendee_account()
+                target_email = account.email if account else None
 
-            for purchaser in maybe_purchasers:
-                if purchaser.email == target_email:
-                    return purchaser
+            if target_email:
+                for purchaser in maybe_purchasers:
+                    if purchaser.email == target_email:
+                        return purchaser
                 
         paid_purchasers = [p for p in maybe_purchasers if p.total_cost > 0]
         if paid_purchasers:

@@ -1,0 +1,76 @@
+# syntax = docker/dockerfile:1.4.0
+#
+# Dedicated image for visual regression tests.
+# Uses the official Playwright Python image (Ubuntu-based) which ships with
+# all the glibc dependencies Chromium needs.
+#
+# Build:
+#   docker build -f Dockerfile.visual -t ubersystem-visual .
+#
+# Run (baseline generation):
+#   docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+#              -v $(pwd)/tests/visual/baselines:/app/tests/visual/baselines \
+#              ubersystem-visual --update-baselines
+#
+# Run (comparison):
+#   docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+#              -v $(pwd)/tests/visual/baselines:/app/tests/visual/baselines \
+#              -v $(pwd)/tests/visual/results:/app/tests/visual/results \
+#              ubersystem-visual
+
+ARG PLAYWRIGHT_VERSION=v1.47.0
+FROM mcr.microsoft.com/playwright/python:${PLAYWRIGHT_VERSION}-noble
+
+ARG PLUGINS="[]"
+ARG PLUGIN_NAMES="[]"
+
+WORKDIR /app
+ENV PYTHONPATH=/app
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PATH=/root/.local/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Install system dependencies needed by ubersystem (xmlsec, jq, etc.)
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
+        git \
+        jq \
+        curl \
+        pkg-config \
+        libxml2-dev \
+        libxmlsec1-dev \
+        libxmlsec1-openssl \
+        build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+ADD https://astral.sh/uv/install.sh /tmp/install-uv.sh
+RUN sh /tmp/install-uv.sh && rm /tmp/install-uv.sh
+
+# Install Python dependencies (Ubuntu uses standard lxml wheels)
+ADD requirements.txt /app/
+RUN uv pip install --system -r requirements.txt
+
+# Install test + visual dependencies, then Playwright browser
+ADD requirements_test.txt /app/
+RUN uv pip install --system -r requirements_test.txt
+RUN uv pip install --system 'playwright>=1.44'
+RUN playwright install chromium --with-deps
+
+# Plugin support (same as main Dockerfile)
+COPY --chmod=755 uber-wrapper.sh /usr/local/bin/
+
+RUN <<EOF cat >> PLUGINS.json
+$PLUGINS
+EOF
+
+RUN jq -r '.[] | "git clone --depth 1 --branch \(.branch|@sh) \(.repo|@sh) \(.path|@sh)"' PLUGINS.json > install_plugins.sh && \
+    chmod +x install_plugins.sh && \
+    ./install_plugins.sh
+ENV uber_plugins=$PLUGIN_NAMES
+
+ADD . /app
+ENV UBER_CONFIG_FILES=test-defaults.ini
+
+CMD ["python3", "-m", "pytest", "tests/visual/", \
+     "--timeout=120", "-v", "--tb=short", \
+     "-n", "4", "--dist=load"]

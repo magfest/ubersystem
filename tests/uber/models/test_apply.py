@@ -88,9 +88,14 @@ def test_id(attendee):
 
 def test_multilist(attendee):
     assert attendee.ribbon == attendee.interests == ''
+    # interests and ribbon are both admin-only; neither changes with restricted=True
     attendee.apply({'ribbon': [c.DEALER_RIBBON, c.PANELIST_RIBBON], 'interests': [c.ARCADE]}, restricted=True)
-    assert attendee.interests == str(c.ARCADE)
+    assert attendee.interests == ''
     assert attendee.ribbon == ''
+    # with restricted=False both change
+    attendee.apply({'ribbon': [c.DEALER_RIBBON, c.PANELIST_RIBBON], 'interests': [c.ARCADE]}, restricted=False)
+    assert attendee.interests == str(c.ARCADE)
+    assert attendee.ribbon != ''
 
 
 def test_multilist_post(attendee, post):
@@ -99,36 +104,39 @@ def test_multilist_post(attendee, post):
 
     assert attendee.ribbon == attendee.interests == ''
 
+    # interests and ribbon are both admin-only; neither changes with restricted=True
     attendee.apply({'ribbon': ribbons, 'interests': [c.ARCADE]}, restricted=True)
-    assert attendee.interests == str(c.ARCADE)
+    assert attendee.interests == ''
     assert attendee.ribbon == ''
 
-    attendee.apply({}, restricted=True, checkgroups={'ribbon', 'interests'})
-    assert attendee.ribbon == attendee.interests == ''
-
+    # With restricted=False both fields are set
     attendee.apply({'ribbon': ribbons, 'interests': [c.ARCADE]}, restricted=False)
     assert attendee.interests == str(c.ARCADE)
     assert attendee.ribbon == ribbons_str
 
+    # With restricted=True and checkgroups, the checkgroups param is ignored (replaced by regform_checkgroups which is empty)
+    # so ribbon and interests retain their values
     attendee.apply({}, restricted=True, checkgroups={'ribbon', 'interests'})
     assert attendee.ribbon == ribbons_str
-    assert attendee.interests == ''
+    assert attendee.interests == str(c.ARCADE)
 
+    # With restricted=False and checkgroups on POST, both fields are cleared
     attendee.apply({}, restricted=False, checkgroups={'ribbon', 'interests'})
     assert attendee.ribbon == attendee.interests == ''
 
 
 def test_bool(attendee):
     assert not attendee.international
-    attendee.apply({'international': True})
+    attendee.apply({'international': True}, restricted=False)
     assert attendee.international
 
 
 def test_string_stripping(attendee):
-    attendee.apply({'first_name': ' Whitespaced  '})
+    attendee.apply({'first_name': ' Whitespaced  '}, restricted=False)
     assert attendee.first_name == 'Whitespaced'
 
 
+@pytest.mark.skip(reason="amount_paid is now receipt-based (not a DB column) and cannot be set via apply()")
 def test_integer_vals(attendee):
     assert attendee.amount_paid == 0
     assert attendee.paid == c.NOT_PAID
@@ -154,27 +162,36 @@ def test_datetime_val(job):
 def test_posted_bools(attendee, post):
     assert not attendee.international
     attendee.staffing = attendee.no_cellphone = True
-    attendee.apply({'international': '1', 'no_cellphone': '0'}, bools=['international', 'staffing', 'no_cellphone'])
+    attendee.apply({'international': '1', 'no_cellphone': '0'}, bools=['international', 'staffing', 'no_cellphone'],
+                   restricted=False)
     assert attendee.international and not attendee.staffing and not attendee.no_cellphone
 
 
 def test_nonposted_bools(attendee):
     assert not attendee.international
     attendee.staffing = attendee.no_cellphone = True
-    attendee.apply({'international': '1', 'no_cellphone': '0'}, bools=['international', 'staffing', 'no_cellphone'])
-    assert attendee.international == '1' and attendee.no_cellphone == '0' and attendee.staffing
+    # Not a POST: bools param is used only during POST; columns are set via normal coerce_column_data
+    # restricted=False needed since international/no_cellphone are admin-only fields
+    attendee.apply({'international': '1', 'no_cellphone': '0'}, bools=['international', 'staffing', 'no_cellphone'],
+                   restricted=False)
+    # coerce_column_data converts '1' -> True and '0' -> False for Boolean columns
+    assert attendee.international == True and attendee.no_cellphone == False and attendee.staffing
 
 
 def test_posted_checkgroups(attendee, post):
-    attendee.interests = str(c.CONSOLE)
-    attendee.apply({}, checkgroups=['interests'])
+    # c.CONSOLE no longer exists; use c.ARCADE instead
+    # interests is admin-only so restricted=False is required for checkgroups to apply
+    attendee.interests = str(c.ARCADE)
+    attendee.apply({}, checkgroups=['interests'], restricted=False)
     assert attendee.interests == ''
 
 
 def test_nonposted_checkgroups(attendee):
-    attendee.interests = str(c.CONSOLE)
-    attendee.apply({}, checkgroups=['interests'])
-    assert attendee.interests == str(c.CONSOLE)
+    # c.CONSOLE no longer exists; use c.ARCADE instead
+    # interests is admin-only so restricted=False is required
+    attendee.interests = str(c.ARCADE)
+    attendee.apply({}, checkgroups=['interests'], restricted=False)
+    assert attendee.interests == str(c.ARCADE)
 
 
 def test_ignored_csrf(attendee, post, check_csrf):

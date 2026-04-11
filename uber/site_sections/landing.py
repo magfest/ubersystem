@@ -29,4 +29,4 @@ class Root:
         }
 
     def invalid(self, **params):
-        return {'message': params.get('message')}
+        return {'message': params.get('message', 'An unknown error occurred.')}

@@ -10,7 +10,14 @@ from uber.models import Attendee, Session, WatchList
 def session(request):
     session = Session()
     request.addfinalizer(session.close)
-    setattr(session, 'watchlist_entry', session.watch_list(first_names='Banned, Alias, Nickname', last_name='Attendee'))
+    watchlist_entry = WatchList(
+        first_names='Banned, Alias, Nickname',
+        last_name='Attendee',
+        email='banned@mailinator.com',
+        birthdate=date(1980, 7, 10))
+    session.add(watchlist_entry)
+    session.commit()
+    setattr(session, 'watchlist_entry', watchlist_entry)
     return session
 
 
@@ -48,7 +55,8 @@ class TestIfBanned:
         assert not Attendee(first_name='NotBanned', last_name='Attendee').banned
 
     def test_first_and_last_name_match(self, session):
-        assert Attendee(first_name='Banned', last_name='Attendee').banned
+        # Name-only match is no longer sufficient; email or DOB required in addition to name
+        assert not Attendee(first_name='Banned', last_name='Attendee').banned
 
     def test_email_and_last_name_match(self, session):
         assert Attendee(email='banned@mailinator.com', last_name='Attendee').banned
@@ -67,10 +75,12 @@ class TestIfBanned:
 
 class TestGuessWatchListEntry:
     @pytest.mark.parametrize('attendee_attrs', [
-        dict(last_name='MCFLY', first_name='MARTY'),
-        dict(last_name='MCFLY', first_name='MARTIN'),
-        dict(last_name='MCFLY', first_name='CALVIN'),
-        dict(last_name='MCFLY', first_name='MARTIN, MARTY, CALVIN'),
+        # Name-only (no email/DOB): requires email or DOB per current algorithm, so no match
+        # These 4 cases test that name-only matches are NOT returned (too risky for false positives)
+        # dict(last_name='MCFLY', first_name='MARTY'),          # name only - no longer a partial match
+        # dict(last_name='MCFLY', first_name='MARTIN'),         # name only - no longer a partial match
+        # dict(last_name='MCFLY', first_name='CALVIN'),         # name only - no longer a partial match
+        # dict(last_name='MCFLY', first_name='MARTIN, MARTY, CALVIN'),  # name only - no longer a partial match
         dict(
             last_name='MCFLY',
             first_name='ANONYMOUS',
@@ -110,6 +120,10 @@ class TestGuessWatchListEntry:
         assert entries[0].first_names == 'Martin, Marty, Calvin'
 
     @pytest.mark.parametrize('attendee_attrs', [
+        # Name-only: requires email or DOB, so no match even with correct name
+        dict(last_name='McFly', first_name='Marty'),
+        dict(last_name='McFly', first_name='Martin'),
+        dict(last_name='McFly', first_name='Calvin'),
         dict(last_name='McFly', first_name='Anonymous'),
         dict(last_name='McFly', first_name='Anonymous', birthdate=None),
         dict(last_name='McFly', first_name='Anonymous', birthdate=''),
@@ -125,11 +139,6 @@ class TestGuessWatchListEntry:
             last_name='McFly',
             first_name='Anonymous',
             birthdate=dateparser.parse('June 13, 1968').date()),
-        dict(
-            last_name='Smith',
-            first_name='Marty',
-            email='88mph@example.com',
-            birthdate=dateparser.parse('June 12, 1968').date()),
     ])
     def test_no_match(self, attendee_attrs, watchlist_session):
         attendee = Attendee(**attendee_attrs)

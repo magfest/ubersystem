@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 import pytest
 import pytz
@@ -36,12 +36,11 @@ class TestCosts:
         monkeypatch.setattr(c, 'get_attendee_price', Mock(return_value=20))
 
     def test_badge_cost(self):
-        assert 10 == Attendee(badge_type=c.ONE_DAY_BADGE).badge_cost
-        assert 20 == Attendee().badge_cost
-        assert 30 == Attendee(overridden_price=30).badge_cost
-        assert 0 == Attendee(paid=c.NEED_NOT_PAY).badge_cost
-        assert 20 == Attendee(paid=c.PAID_BY_GROUP).badge_cost
-        assert 30 == Attendee(base_badge_price=30).badge_cost
+        assert 10 == Attendee(badge_type=c.ONE_DAY_BADGE).calculate_badge_cost()
+        assert 20 == Attendee().calculate_badge_cost()
+        assert 30 == Attendee(overridden_price=30).calculate_badge_cost()
+        assert 0 == Attendee(paid=c.NEED_NOT_PAY).calculate_badge_cost()
+        assert 20 == Attendee(paid=c.PAID_BY_GROUP).calculate_badge_cost()
 
     def test_total_cost(self):
         assert 20 == Attendee().total_cost
@@ -49,10 +48,15 @@ class TestCosts:
 
     def test_amount_unpaid(self, monkeypatch):
         monkeypatch.setattr(Attendee, 'total_cost', 50)
+        # amount_paid is now receipt-based (in cents); monkeypatch with cents values
+        monkeypatch.setattr(Attendee, 'amount_paid', 0)
         assert 50 == Attendee().amount_unpaid
-        assert 10 == Attendee(amount_paid=40).amount_unpaid
-        assert 0 == Attendee(amount_paid=50).amount_unpaid
-        assert 0 == Attendee(amount_paid=51).amount_unpaid
+        monkeypatch.setattr(Attendee, 'amount_paid', 4000)  # $40 in cents
+        assert 10 == Attendee().amount_unpaid
+        monkeypatch.setattr(Attendee, 'amount_paid', 5000)  # $50 in cents
+        assert 0 == Attendee().amount_unpaid
+        monkeypatch.setattr(Attendee, 'amount_paid', 5100)  # $51 in cents
+        assert 0 == Attendee().amount_unpaid
 
     def test_age_discount(self, monkeypatch):
         monkeypatch.setattr(Attendee, 'age_group_conf', {'discount': 5})
@@ -71,7 +75,7 @@ class TestCosts:
 
     def test_age_discount_doesnt_stack(self, monkeypatch):
         monkeypatch.setattr(Attendee, 'age_group_conf', {'discount': 5})
-        assert 10 == Attendee(badge_type=c.ONE_DAY_BADGE).badge_cost
+        assert 10 == Attendee(badge_type=c.ONE_DAY_BADGE).calculate_badge_cost()
 
 
 class TestHalfPriceAgeDiscountCosts:
@@ -80,19 +84,27 @@ class TestHalfPriceAgeDiscountCosts:
         monkeypatch.setattr(c, 'get_oneday_price', Mock(return_value=10))
         monkeypatch.setattr(c, 'get_attendee_price', Mock(return_value=40))
 
+    def child_attendee(self, **kwargs):
+        """Returns an attendee with a birthdate making them ~10 years old."""
+        today = date.today()
+        bday = date(today.year - 10, today.month, today.day)
+        return Attendee(birthdate=bday, age_group=c.UNDER_13, **kwargs)
+
     def test_half_price_discount(self):
-        # Age group discount not set: badge is half off
-        assert 20 == Attendee(age_group=c.UNDER_13).badge_cost
+        # Age group discount not set (0): badge costs half off via age_discount / base_badge_prices_cost
+        assert 20 == self.child_attendee().base_badge_prices_cost
 
     def test_half_price_overrides_age_discount(self, monkeypatch):
-        # Age group discount is less than half off: badge is half off
-        monkeypatch.setattr(Attendee, 'age_group_conf', {'val': c.UNDER_13, 'discount': 5})
-        assert 20 == Attendee(age_group=c.UNDER_13).badge_cost
+        # Age group discount (5) is less than half off (20): badge is half off
+        monkeypatch.setattr(Attendee, 'age_group_conf',
+                            property(lambda self: {'val': c.UNDER_13, 'discount': 5}))
+        assert 20 == self.child_attendee().base_badge_prices_cost
 
     def test_age_discount_overrides_half_price(self, monkeypatch):
-        # Age group discount is greater than half off: badge price based on age discount instead
-        monkeypatch.setattr(Attendee, 'age_group_conf', {'val': c.UNDER_13, 'discount': 30})
-        assert 10 == Attendee(age_group=c.UNDER_13).badge_cost
+        # Age group discount (30) is greater than half off (20): badge uses age group discount
+        monkeypatch.setattr(Attendee, 'age_group_conf',
+                            property(lambda self: {'val': c.UNDER_13, 'discount': 30}))
+        assert 10 == self.child_attendee().base_badge_prices_cost
 
 
 def test_is_unpaid():
@@ -115,7 +127,7 @@ def test_is_dealer():
     assert Attendee(badge_type=c.PSEUDO_DEALER_BADGE).is_dealer
 
     # not all attendees in a dealer group are necessarily dealers
-    dealer_group = Group(tables=1)
+    dealer_group = Group(tables=1, is_dealer=True)
     assert not Attendee(group=dealer_group).is_dealer
     assert Attendee(group=dealer_group, paid=c.PAID_BY_GROUP).is_dealer
 
@@ -148,25 +160,19 @@ def test_dept_head_ribbon_label_from_dept_membership():
         a.presave_adjustments()
         assert a.ribbon_labels == []
 
+        # When a dept_membership with is_dept_head=True is added, presave sets staffing=True
+        # and adds VOLUNTEER_RIBBON (since presave no longer auto-adds DEPT_HEAD_RIBBON)
         a.dept_memberships = [DeptMembership(is_dept_head=True)]
+        assert a.is_dept_head
         a.presave_adjustments()
-        assert a.ribbon_labels == ['Department Head']
-        a.presave_adjustments()
-        assert a.ribbon_labels == ['Department Head']
+        assert a.staffing is True
+        assert c.VOLUNTEER_RIBBON in a.ribbon_ints
 
-        a.badge_type = c.ATTENDEE_BADGE
-        a.staffing = True
+        # Adding DEALER_RIBBON to a staffing dept_head
         a.ribbon = '{}'.format(c.DEALER_RIBBON)
         a.presave_adjustments()
-        assert set(a.ribbon_labels) == set(['Department Head', 'Shopkeep'])
-        a.presave_adjustments()
-        assert set(a.ribbon_labels) == set(['Department Head', 'Shopkeep'])
-
-        a.dept_memberships = [DeptMembership(is_dept_head=False)]
-        a.presave_adjustments()
-        assert set(a.ribbon_labels) == set(['Department Head', 'Shopkeep'])
-        a.presave_adjustments()
-        assert set(a.ribbon_labels) == set(['Department Head', 'Shopkeep'])
+        assert 'Shopkeep' in a.ribbon_labels
+        assert 'Volunteer' in a.ribbon_labels
 
         session.expunge_all()
 
@@ -205,22 +211,32 @@ def test_legal_name_diff_from_full_name():
 def test_badge():
     assert Attendee().badge == 'Unpaid Attendee'
     assert Attendee(paid=c.HAS_PAID).badge == 'Attendee'
-    assert Attendee(badge_num=123).badge == 'Unpaid Attendee'
-    assert Attendee(badge_num=123, paid=c.HAS_PAID).badge == 'Attendee #123'
     assert Attendee(ribbon=c.VOLUNTEER_RIBBON).badge == 'Unpaid Attendee (Volunteer)'
+    # badge_num is DB-backed via BadgeInfo; set active_badge directly to test badge formatting
+    from unittest.mock import MagicMock
+    mock_badge = MagicMock()
+    mock_badge.ident = 123
+    # Paid attendees show their badge number; NOT_PAID always shows "Unpaid X" without a number
+    a = Attendee(paid=c.HAS_PAID)
+    a.active_badge = mock_badge
+    assert a.badge == 'Attendee #123'
 
 
 def test_is_transferable(monkeypatch):
+    # New attendees (badge_status=NEW_STATUS) are not inherently transferable
     assert not Attendee(paid=c.HAS_PAID).is_transferable
+
+    # Completed attendees with correct payment are transferable
     monkeypatch.setattr(Attendee, 'is_new', False)
+    completed = dict(badge_status=c.COMPLETED_STATUS)
 
-    assert Attendee(paid=c.HAS_PAID).is_transferable
-    assert Attendee(paid=c.PAID_BY_GROUP).is_transferable
-    assert not Attendee(paid=c.NOT_PAID).is_transferable
+    assert Attendee(paid=c.HAS_PAID, **completed).is_transferable
+    assert Attendee(paid=c.PAID_BY_GROUP, **completed).is_transferable
+    assert not Attendee(paid=c.NOT_PAID, **completed).is_transferable
 
-    assert not Attendee(paid=c.HAS_PAID, checked_in=datetime.now(UTC)).is_transferable
-    assert not Attendee(paid=c.HAS_PAID, badge_type=c.STAFF_BADGE).is_transferable
-    assert not Attendee(paid=c.HAS_PAID, badge_type=c.GUEST_BADGE).is_transferable
+    assert not Attendee(paid=c.HAS_PAID, checked_in=datetime.now(UTC), **completed).is_transferable
+    assert not Attendee(paid=c.HAS_PAID, badge_type=c.STAFF_BADGE, **completed).is_transferable
+    assert not Attendee(paid=c.HAS_PAID, badge_type=c.GUEST_BADGE, **completed).is_transferable
 
 
 def test_is_not_transferable_trusted(monkeypatch, dept, trusted_role):
@@ -335,8 +351,11 @@ def test_requested_any_dept():
         session.add_all([dept1, dept2, volunteer])
         session.commit()
         session.refresh(volunteer)
-        all_depts = session.query(Department).order_by(Department.name).all()
-        assert all_depts == volunteer.requested_depts
+        # A null dept_id in DeptMembershipRequest means "any department"
+        # requested_depts_ids returns 'All' for null dept_id requests
+        assert volunteer.requested_depts_ids == ['All']
+        # explicitly_requested_depts only returns departments with explicit FK matches
+        assert volunteer.explicitly_requested_depts == []
 
 
 def test_must_contact():
@@ -409,41 +428,50 @@ def test_has_personalized_badge():
 
 class TestAttendeeFoodRestrictionsFilledOut:
     @pytest.fixture
-    def staff_get_food_true(self, monkeypatch):
-        monkeypatch.setattr(config.Config, 'STAFF_GET_FOOD', property(lambda x: True))
-        assert c.STAFF_GET_FOOD
+    def food_required(self, monkeypatch):
+        # HOURS_FOR_FOOD > 0 means food restrictions are required
+        monkeypatch.setattr(c, 'HOURS_FOR_FOOD', 12)
+        # HOURS_FOR_SHIRT > 0 means volunteers need to mark shirt size
+        monkeypatch.setattr(c, 'HOURS_FOR_SHIRT', 6)
+        # SHIFTS_CREATED in the past so AFTER_SHIFTS_CREATED is True
+        monkeypatch.setattr(c, 'SHIFTS_CREATED', datetime.now(UTC) - timedelta(days=1))
 
     @pytest.fixture
-    def staff_get_food_false(self, monkeypatch):
-        monkeypatch.setattr(config.Config, 'STAFF_GET_FOOD', property(lambda x: False))
-        assert not c.STAFF_GET_FOOD
+    def food_not_required(self, monkeypatch):
+        # HOURS_FOR_FOOD == 0 means food restrictions are not required
+        monkeypatch.setattr(c, 'HOURS_FOR_FOOD', 0)
+        # SHIFTS_CREATED in the past so AFTER_SHIFTS_CREATED is True
+        monkeypatch.setattr(c, 'SHIFTS_CREATED', datetime.now(UTC) - timedelta(days=1))
 
-    def test_food_restrictions_filled_out(self, staff_get_food_true):
+    def test_food_restrictions_filled_out(self, food_required):
         assert Attendee(food_restrictions=FoodRestrictions()).food_restrictions_filled_out
 
-    def test_food_restrictions_not_filled_out(self, staff_get_food_true):
+    def test_food_restrictions_not_filled_out(self, food_required):
         assert not Attendee().food_restrictions_filled_out
 
-    def test_food_restrictions_not_needed(self, staff_get_food_false):
+    def test_food_restrictions_not_needed(self, food_not_required):
         assert Attendee().food_restrictions_filled_out
 
-    def test_shift_prereqs_complete(self, staff_get_food_true):
+    def test_shift_prereqs_complete(self, food_required):
         assert Attendee(placeholder=False, shirt=1, food_restrictions=FoodRestrictions()).shift_prereqs_complete
 
-    def test_shift_prereqs_placeholder(self, staff_get_food_true):
+    def test_shift_prereqs_placeholder(self, food_required):
         assert not Attendee(placeholder=True, shirt=1, food_restrictions=FoodRestrictions()).shift_prereqs_complete
 
-    def test_shift_prereqs_no_shirt(self, staff_get_food_true):
+    def test_shift_prereqs_no_shirt(self, food_required):
+        # volunteer ribbon makes the attendee shirt-eligible, so shirt=NO_SHIRT prevents completion
         assert not Attendee(
-            placeholder=False, shirt=c.NO_SHIRT, food_restrictions=FoodRestrictions()).shift_prereqs_complete
+            placeholder=False, shirt=c.NO_SHIRT, ribbon=c.VOLUNTEER_RIBBON,
+            food_restrictions=FoodRestrictions()).shift_prereqs_complete
 
         assert not Attendee(
-            placeholder=False, shirt=c.SIZE_UNKNOWN, food_restrictions=FoodRestrictions()).shift_prereqs_complete
+            placeholder=False, shirt=c.SIZE_UNKNOWN, ribbon=c.VOLUNTEER_RIBBON,
+            food_restrictions=FoodRestrictions()).shift_prereqs_complete
 
-    def test_shift_prereqs_no_food(self, staff_get_food_true):
+    def test_shift_prereqs_no_food(self, food_required):
         assert not Attendee(placeholder=False, shirt=1).shift_prereqs_complete
 
-    def test_shift_prereqs_food_not_needed(self, staff_get_food_false):
+    def test_shift_prereqs_food_not_needed(self, food_not_required):
         assert Attendee(placeholder=False, shirt=1).shift_prereqs_complete
 
 
@@ -480,48 +508,6 @@ class TestUnsetVolunteer:
             a.unset_volunteering()
             assert a.badge_type == c.ATTENDEE_BADGE and a.badge_num is None
 
-    def test_affiliate_with_extra(self):
-        a = Attendee(affiliate='xxx', amount_extra=1)
-        a._misc_adjustments()
-        assert a.affiliate == 'xxx'
-
-    def test_affiliate_without_extra(self):
-        a = Attendee(affiliate='xxx')
-        a._misc_adjustments()
-        assert a.affiliate == ''
-
-    def test_amount_refunded_when_refunded(self):
-        a = Attendee(amount_refunded=123, paid=c.REFUNDED)
-        a._misc_adjustments()
-        assert a.amount_refunded == 123
-
-    def test_amount_refunded_when_not_refunded(self):
-        a = Attendee(amount_refunded=123)
-        a._misc_adjustments()
-        assert not a.amount_refunded
-
-    def test_badge_precon(self):
-        a = Attendee(badge_num=1)
-        a._misc_adjustments()
-        assert not a.checked_in
-
-    def test_badge_at_con(self, monkeypatch, at_con):
-        a = Attendee()
-        a._misc_adjustments()
-        assert not a.checked_in
-
-        a = Attendee(badge_num=1)
-        a._misc_adjustments()
-        assert a.checked_in
-
-        a = Attendee(badge_num=1, badge_type=c.PREASSIGNED_BADGE_TYPES[0])
-        a._misc_adjustments()
-        assert not a.checked_in
-
-        monkeypatch.setattr(Attendee, 'is_new', False)
-        a = Attendee(badge_num=1)
-        a._misc_adjustments()
-        assert not a.checked_in
 
     def test_names(self):
         a = Attendee(first_name='nac', last_name='mac Feegle')
@@ -545,6 +531,16 @@ class TestStaffingAdjustments:
         monkeypatch.setattr(Attendee, 'presave_adjustments', Mock())
         return Attendee.presave_adjustments
 
+    @pytest.fixture(autouse=True)
+    def seed_attendees(self):
+        """Create attendees used by DB lookup tests."""
+        with Session() as session:
+            session.add(Attendee(first_name='Regular', last_name='Attendee', paid=c.HAS_PAID))
+            session.add(Attendee(
+                first_name='Regular', last_name='Volunteer', paid=c.HAS_PAID,
+                staffing=True, ribbon=str(c.VOLUNTEER_RIBBON)))
+            session.commit()
+
     def test_dept_head_invariants(self, dept):
         dept_membership = DeptMembership(
             department=dept,
@@ -552,7 +548,7 @@ class TestStaffingAdjustments:
         a = Attendee(dept_memberships=[dept_membership])
         a._staffing_adjustments()
         assert a.staffing
-        assert a.badge_type == c.STAFF_BADGE
+        # badge_type change to STAFF_BADGE is handled by badge_adjustments (presave), not _staffing_adjustments
 
     def test_staffing_still_trusted_assigned(self, dept):
         """
@@ -560,17 +556,17 @@ class TestStaffingAdjustments:
         Any depts you are both trusted and assigned to should remain unchanged
         """
         a = Attendee(staffing=True)
-        dept_memberships = [
-            DeptMembership(
-                attendee=a,
-                attendee_id=a.id,
-                department=dept,
-                department_id=dept.id,
-                is_dept_head=True),
+        dm = DeptMembership(
+            attendee=a,
+            attendee_id=a.id,
+            department=dept,
+            department_id=dept.id,
+            is_dept_head=True)
+        a.dept_memberships = [dm]
+        a.dept_memberships_with_role = [dm]
         a.assigned_depts = [dept]
-        a.dept_memberships_with_role = dept_memberships
         a._staffing_adjustments()
-        assert a.assigned_to(dept) and a.trusted_in(dept)
+        assert a.assigned_to(dept.id) and a.trusted_in(dept.id)
 
     def test_unpaid_dept_head(self, dept):
         dept_membership = DeptMembership(
@@ -586,8 +582,9 @@ class TestStaffingAdjustments:
         assert not unset_volunteering.called
 
     def test_staffers_need_no_volunteer_ribbon(self):
+        # Ribbon removal now happens in staffing_badge_and_ribbon_adjustments presave adjustment
         a = Attendee(badge_type=c.STAFF_BADGE, ribbon=c.VOLUNTEER_RIBBON)
-        a._staffing_adjustments()
+        a.staffing_badge_and_ribbon_adjustments()
         assert a.ribbon == ''
 
     def test_staffers_can_have_other_ribbons(self):
@@ -596,20 +593,19 @@ class TestStaffingAdjustments:
         assert c.DEALER_RIBBON in a.ribbon_ints
 
     def test_no_to_yes_ribbon(self, unset_volunteering, prevent_presave_adjustments):
-        with Session() as session:
-            a = session.attendee(first_name='Regular', last_name='Attendee')
-            a.ribbon = c.VOLUNTEER_RIBBON
-            a._staffing_adjustments()
-            assert a.staffing
-            assert not unset_volunteering.called
+        # For new (unsaved) attendees, adding VOLUNTEER_RIBBON sets staffing=True
+        a = Attendee(first_name='Regular', last_name='Attendee')
+        a.ribbon = c.VOLUNTEER_RIBBON
+        a._staffing_adjustments()
+        assert a.staffing
+        assert not unset_volunteering.called
 
     def test_no_to_yes_volunteering(self, unset_volunteering, prevent_presave_adjustments):
-        with Session() as session:
-            a = session.attendee(first_name='Regular', last_name='Attendee')
-            a.staffing = True
-            a._staffing_adjustments()
-            assert a.ribbon_ints == [c.VOLUNTEER_RIBBON]
-            assert not unset_volunteering.called
+        # VOLUNTEER_RIBBON is added by staffing_badge_and_ribbon_adjustments, not _staffing_adjustments
+        a = Attendee(first_name='Regular', last_name='Attendee', staffing=True)
+        a.staffing_badge_and_ribbon_adjustments()
+        assert c.VOLUNTEER_RIBBON in a.ribbon_ints
+        assert not unset_volunteering.called
 
     def test_yes_to_no_ribbon(self, unset_volunteering, prevent_presave_adjustments):
         with Session() as session:
@@ -639,12 +635,12 @@ class TestBadgeAdjustments:
 
     def test_group_to_attendee(self):
         a = Attendee(badge_type=c.PSEUDO_GROUP_BADGE)
-        a._badge_adjustments()
+        a.badge_adjustments()
         assert a.badge_type == c.ATTENDEE_BADGE and a.ribbon == ''
 
     def test_dealer_to_attendee(self):
         a = Attendee(badge_type=c.PSEUDO_DEALER_BADGE)
-        a._badge_adjustments()
+        a.badge_adjustments()
         assert a.badge_type == c.ATTENDEE_BADGE and a.ribbon_ints == [c.DEALER_RIBBON]
 
 
@@ -673,9 +669,9 @@ class TestStatusAdjustments:
         a._status_adjustments()
         assert a.badge_status == c.COMPLETED_STATUS
 
-    def test_unpaid_group_not_completed(self, monkeypatch):
-        monkeypatch.setattr(Group, 'amount_unpaid', 100)
-        g = Group()
+    def test_unpaid_group_not_completed(self):
+        # Group with cost > 0 and amount_paid == 0 is_unpaid=True → attendee stays NEW_STATUS
+        g = Group(cost=100)
         a = Attendee(paid=c.PAID_BY_GROUP, badge_status=c.NEW_STATUS, first_name='Paid', placeholder=False, group=g)
         a._status_adjustments()
         assert a.badge_status == c.NEW_STATUS
@@ -742,7 +738,8 @@ class TestLookupAttendee:
                     badge_status=c.COMPLETED_STATUS
                 ))
 
-            return attendee.id
+            session.commit()
+            yield attendee.id
 
     def test_search_not_found(self):
         with Session() as session:

@@ -20,6 +20,7 @@ class TestAutomatedEmailFixture(object):
     def test_empty_ident(self, clear_automated_email_fixtures, render_empty_attendee_template, ident):
         AutomatedEmailFixture(Attendee, 'subject', 'template.txt', lambda x: True, ident)
 
+    @pytest.mark.skip(reason="Duplicate ident assertion removed from AutomatedEmailFixture; plugins can intentionally override idents")
     def test_duplicate_ident(self, clear_automated_email_fixtures, render_empty_attendee_template):
         AutomatedEmailFixture(Attendee, 'subject', 'template.txt', lambda x: True, 'ident')
         with pytest.raises(AssertionError):
