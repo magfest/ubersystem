@@ -279,15 +279,15 @@ jobs:
           REPO="${{ github.repository }}"
           WORKSPACE="$GITHUB_WORKSPACE"
 
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git config user.name "github-actions[bot]"
-
           # Work in a temp clone so we don't disturb the main checkout
           WORK_DIR=$(mktemp -d)
           git clone --depth=1 --no-single-branch \
             "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" \
             "$WORK_DIR"
           cd "$WORK_DIR"
+
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
 
           # Checkout or create the dedicated images branch
           if git checkout visual-regression-images 2>/dev/null; then
