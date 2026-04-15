@@ -371,6 +371,15 @@ class StripeRequestMixin:
         sso_id = ''
         if c.ATTENDEE_ACCOUNTS_ENABLED and c.LOCAL_ACCOUNTS_DISABLED and self.account:
             sso_id = self.account.sso_id
+        
+        if sso_id:
+            sso_id_search = stripe.Customer.search(query=f'metadata["sso_id"]:"{sso_id}"')
+            if sso_id_search.data:
+                customer = sso_id_search.data[0]
+                if customer.email != self.receipt_email:
+                    stripe.Customer.modify(customer.id, email=self.receipt_email)
+                self.customer_id = customer.id
+                return
 
         customer_list = stripe.Customer.list(
             email=self.receipt_email,
@@ -378,14 +387,13 @@ class StripeRequestMixin:
         )
         if customer_list:
             customer = customer_list.data[0]
-            if sso_id and not customer.metadata.get('sso_id'):
-                stripe.Customer.modify(customer.id, metadata={"sso_id": self.account.sso_id})
         else:
             customer = stripe.Customer.create(
                 description=self.receipt_email,
-                email=self.receipt_email,
-                metadata={'sso_id': sso_id}
+                email=self.receipt_email
             )
+        if sso_id:
+            stripe.Customer.modify(customer.id, metadata={"sso_id": self.account.sso_id})
         self.customer_id = customer.id if customer else None
 
     def generate_payment_intent(self, intent_id=''):
