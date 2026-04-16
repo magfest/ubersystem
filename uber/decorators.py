@@ -219,7 +219,7 @@ def check_dept_admin(session, department_id=None, inherent_role=None):
 
 
 def requires_account(models=None):
-    from uber.models import Attendee, AttendeeAccount, Group, GuestGroup, PanelApplication, IndieStudio, MITSTeam
+    from uber.models import Attendee, AttendeeAccount, Group, GuestGroup, PanelApplication, IndieStudio, MITSTeam, PromoCodeGroup
 
     def model_requires_account(func):
         @wraps(func)
@@ -268,6 +268,10 @@ def requires_account(models=None):
                             error, model_id = check_id_for_model(model, alt_id=alt_id, **kwargs)
                             if not error:
                                 other_account_model = session.query(model).filter_by(id=model_id).first()
+                        elif model == PromoCodeGroup:
+                            error, model_id = check_id_for_model(model, alt_id='group_id', **kwargs)
+                            if not error:
+                                attendee = session.get(model, model_id).buyer
                         else:
                             other_model = session.query(model).filter_by(id=kwargs.get('id')).first()
                             if other_model:

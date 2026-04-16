@@ -6,10 +6,10 @@ from cherrypy.lib.static import serve_file
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, render
+from uber.decorators import ajax, all_renderable, render, requires_account, file_to_fk_id
 from uber.errors import HTTPRedirect
 from uber.files import FileService
-from uber.models import GuestMerch, GuestDetailedTravelPlan, GuestTravelPlans, GuestPanel
+from uber.models import GuestGroup, GuestMerch, GuestDetailedTravelPlan, GuestTravelPlans, GuestPanel
 from uber.model_checks import mivs_show_info_required_fields
 from uber.utils import check, filename_extension
 from uber.tasks.email import send_email
@@ -38,6 +38,7 @@ def compile_travel_plans_from_params(session, **params):
 
 @all_renderable(public=True)
 class Root:
+    @requires_account(GuestGroup)
     def index(self, session, id, message=''):
         guest = session.guest_group(id)
         guest_bio_pic = None
@@ -50,6 +51,7 @@ class Root:
             'guest_bio_pic': guest_bio_pic,
         }
 
+    @requires_account(GuestGroup)
     def agreement(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         guest_info = session.guest_info(params, restricted=True)
@@ -73,6 +75,7 @@ class Root:
             'message': message
         }
 
+    @requires_account(GuestGroup)
     def bio(self, session, guest_id, message='', bio_pic=None, **params):
         guest = session.guest_group(guest_id)
         guest_bio = session.guest_bio(params)
@@ -97,6 +100,7 @@ class Root:
             'message': message
         }
 
+    @requires_account(GuestGroup)
     @cherrypy.expose(['w9'])
     def taxes(self, session, guest_id=None, message='', w9=None, **params):
         if not guest_id:
@@ -118,6 +122,7 @@ class Root:
             'message': message
         }
 
+    @requires_account(GuestGroup)
     def stage_plot(self, session, guest_id, message='', plot=None, **params):
         guest = session.guest_group(guest_id)
         guest_stage_plot = session.guest_stage_plot(params)
@@ -139,6 +144,7 @@ class Root:
             'message': message
         }
 
+    @requires_account(GuestGroup)
     def panel(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         guest_panel = session.guest_panel(params, checkgroups=['tech_needs'])
@@ -165,6 +171,7 @@ class Root:
             'message': message
         }
     
+    @requires_account(GuestGroup)
     def decline_panel(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         guest_panel = GuestPanel(
@@ -174,7 +181,7 @@ class Root:
         session.add(guest_panel)
         raise HTTPRedirect('index?id={}&message={}', guest.id, 'You have declined to run a panel.')
 
-
+    @requires_account(GuestGroup)
     def mc(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         if cherrypy.request.method == 'POST':
@@ -186,6 +193,7 @@ class Root:
             'message': message
         }
 
+    @requires_account(GuestGroup)
     def rehearsal(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         if cherrypy.request.method == 'POST':
@@ -200,6 +208,8 @@ class Root:
             'message': message
         }
 
+    @file_to_fk_id('guest_id')
+    @requires_account(GuestGroup)
     @ajax
     def delete_sample_track(self, session, id, **params):
         track_handler = FileService.from_db_id(session, id)
@@ -208,6 +218,7 @@ class Root:
             session.commit()
         return {'success': True, 'message': "Track deleted."}
 
+    @requires_account(GuestGroup)
     def merch(self, session, guest_id, message='', coverage=False, warning=False, **params):
         guest = session.guest_group(guest_id)
         guest_merch = session.guest_merch(params, checkgroups=GuestMerch.all_checkgroups, bools=GuestMerch.all_bools)
@@ -294,6 +305,7 @@ class Root:
             guest_merch.orig_value_of('selling_merch') != c.NO_MERCH and guest_merch.poc_address1,
         }
 
+    @requires_account(GuestGroup)
     @ajax
     def save_inventory_item(self, session, guest_id, **params):
         guest = session.guest_group(guest_id)
@@ -313,6 +325,7 @@ class Root:
 
         return {'error': message}
 
+    @requires_account(GuestGroup)
     @ajax
     def remove_inventory_item(self, session, guest_id, item_id):
         guest = session.guest_group(guest_id)
@@ -330,6 +343,7 @@ class Root:
             session.commit()
         return {'error': message}
 
+    @requires_account(GuestGroup)
     def update_arrival_plans(self, session, guest_id, **params):
         guest = session.guest_group(guest_id)
         guest_merch = session.guest_merch(params)
@@ -351,7 +365,7 @@ class Root:
             message = "Arrival plans updated."
         raise HTTPRedirect('merch?guest_id={}&message={}', guest_id, message)
 
-
+    @requires_account(GuestGroup)
     def charity(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         guest_charity = session.guest_charity(params)
@@ -379,6 +393,7 @@ class Root:
             'message': message
         }
 
+    @requires_account(GuestGroup)
     def autograph(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         guest_autograph = session.guest_autograph(params)
@@ -406,6 +421,7 @@ class Root:
             'message': message
         }
 
+    @requires_account(GuestGroup)
     def interview(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         guest_interview = session.guest_interview(params, bools=['will_interview', 'direct_contact'])
@@ -423,6 +439,7 @@ class Root:
             'message': message
         }
 
+    @requires_account(GuestGroup)
     def travel_plans(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
 
@@ -473,6 +490,7 @@ class Root:
             'max_departure_time': GuestDetailedTravelPlan.max_departure_time,
         }
 
+    @requires_account(GuestGroup)
     def hospitality(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         guest_hospitality = session.guest_hospitality(params, restricted=True)
@@ -487,6 +505,7 @@ class Root:
             'message': message
         }
     
+    @requires_account(GuestGroup)
     def media_request(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         guest_media_request = session.guest_media_request(params, restricted=True)
@@ -501,6 +520,7 @@ class Root:
             'message': message
         }
     
+    @requires_account(GuestGroup)
     def performer_badges(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         if cherrypy.request.method == 'POST':
@@ -512,6 +532,7 @@ class Root:
             'message': message
         }
 
+    @requires_account(GuestGroup)
     def mivs_core_hours(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         if cherrypy.request.method == 'POST':
@@ -526,6 +547,7 @@ class Root:
             'message': message,
         }
 
+    @requires_account(GuestGroup)
     def mivs_discussion(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         if cherrypy.request.method == 'POST':
@@ -541,6 +563,7 @@ class Root:
             'message': message,
         }
 
+    @requires_account(GuestGroup)
     def mivs_handbook(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         if cherrypy.request.method == 'POST':
@@ -555,6 +578,7 @@ class Root:
             'message': message,
         }
 
+    @requires_account(GuestGroup)
     def mivs_training(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         if cherrypy.request.method == 'POST':
@@ -572,6 +596,7 @@ class Root:
             'message': message,
         }
 
+    @requires_account(GuestGroup)
     def mivs_logistics(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         if cherrypy.request.method == 'POST':
@@ -590,6 +615,7 @@ class Root:
             'confirm_checkbox': True if 'confirm_checkbox' in params or guest.group.studio.logistics_updated else False,
         }
 
+    @requires_account(GuestGroup)
     def mivs_hotel_space(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         if cherrypy.request.method == 'POST':
@@ -625,6 +651,7 @@ class Root:
             'confirm_checkbox': True if 'confirm_checkbox' in params else False,
         }
 
+    @requires_account(GuestGroup)
     def mivs_selling_at_event(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         if cherrypy.request.method == 'POST':
@@ -648,6 +675,7 @@ class Root:
             'message': message,
         }
 
+    @requires_account(GuestGroup)
     def mivs_show_info(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         if cherrypy.request.method == 'POST':
@@ -681,7 +709,8 @@ class Root:
             'message': message,
         }
 
-    def view_inventory_file(self, session, id, item_id, name, disposition='inline'):
+    @requires_account(GuestGroup)
+    def view_inventory_file(self, session, id, item_id, name, disposition='inline', **params):
         guest_merch = session.guest_merch(id)
         if guest_merch:
             item = guest_merch.inventory.get(item_id)
