@@ -725,7 +725,7 @@ class Root:
             'id': id
         }
 
-    def banned(self, **params):
+    def banned(self, session, **params):
         errors = check_if_can_reg(is_dealer_reg='group_id' in params)
         if errors:
             return errors
@@ -733,6 +733,7 @@ class Root:
         attendee, group = self._get_attendee_or_group(params)
         return {
             'attendee': attendee,
+            'entries': session.guess_attendee_watchentry(attendee),
             'id': id
         }
 

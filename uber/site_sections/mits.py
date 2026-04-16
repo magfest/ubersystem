@@ -9,10 +9,10 @@ from pytz import UTC
 
 from uber.config import c
 from uber.custom_tags import format_image_size, readable_join
-from uber.decorators import ajax, all_renderable, csrf_protected, render
+from uber.decorators import ajax, all_renderable, csrf_protected, render, requires_account, get_team_id, file_to_fk_id
 from uber.errors import HTTPRedirect
 from uber.files import FileService
-from uber.models import Email, File, MITSTeam
+from uber.models import Email, File, MITSTeam, MITSApplicant, MITSGame, MITSPanelApplication, MITSTimes
 from uber.tasks.email import send_email
 from uber.utils import check, localized_now, GuidebookUtils, listify
 
@@ -21,6 +21,7 @@ log = logging.getLogger(__name__)
 
 @all_renderable(public=True)
 class Root:
+    @requires_account(MITSTeam)
     def index(self, session, message='', **params):
         team = session.mits_team(params)
 
@@ -29,39 +30,31 @@ class Root:
 
             if not message:
                 session.add(team)
-                raise HTTPRedirect('index?message={}', 'Team updated')
+                raise HTTPRedirect('index?id={}&message={}', team.id, 'Team updated.')
 
         return {
             'message': message,
-            'team': session.logged_in_mits_team()
+            'team': team,
         }
 
-    def logout(self):
-        cherrypy.session.pop('mits_team_id', None)
-        raise HTTPRedirect('team')
-
-    def continue_app(self, session, id):
-        session.log_in_as_mits_team(id, redirect_to='index')
-
-    def login_explanation(self, message=''):
-        return {'message': message}
-
+    @requires_account(MITSTeam)
     def cancel(self, session, id):
         team = session.mits_team(id)
 
         if team.status != c.ACCEPTED:
             team.status = c.CANCELLED
-            raise HTTPRedirect('index?message={}', 'You have successfully cancelled your application.')
+            raise HTTPRedirect('index?id={}&message={}', team.id, 'You have successfully cancelled your application.')
         else:
-            raise HTTPRedirect(
-                'Your application has already been accepted. Please contact us at {}.".format(c.MITS_EMAIL)')
+            raise HTTPRedirect('index?id={}&message={}', team.id,
+                f'Your application has already been accepted. Please contact us at {c.MITS_EMAIL}.')
 
+    @requires_account(MITSTeam)
     @csrf_protected
     def uncancel(self, session, id):
         team = session.mits_team(id)
         team.status = c.PENDING
 
-        raise HTTPRedirect('index?message={}', 'Application re-enabled.')
+        raise HTTPRedirect('index?id={}&message={}', team.id, 'Application re-enabled.')
 
     def check_if_applied(self, session, message='', **params):
         if cherrypy.request.method == 'POST':
@@ -106,9 +99,9 @@ class Root:
 
         return {'message': message}
 
+    @requires_account()
     def team(self, session, message='', **params):
-        params.pop('id', None)
-        team = session.mits_team(dict(params, id=cherrypy.session.get('mits_team_id', 'None')))
+        team = session.mits_team(params)
         applicant = session.mits_applicant(params)
 
         if cherrypy.request.method == 'POST':
@@ -126,9 +119,11 @@ class Root:
             if not message:
                 session.add(team)
                 if team.is_new:
+                    if c.ATTENDEE_ACCOUNTS_ENABLED:
+                        team.attendee_account = session.current_attendee_account()
                     applicant.primary_contact = True
                     session.add(applicant)
-                raise HTTPRedirect('continue_app?id={}', team.id)
+                raise HTTPRedirect('index?id={}', team.id)
 
         return {
             'message': message,
@@ -136,69 +131,98 @@ class Root:
             'applicant': applicant
         }
 
+    @get_team_id(MITSApplicant)
+    @requires_account(MITSTeam)
     def applicant(self, session, message='', **params):
-        applicant = session.mits_applicant(params, applicant=True)
+        team_id = params.pop('team_id', '')
+        applicant = session.mits_applicant(params)
+
+        if not team_id:
+            team_id = applicant.team_id
+        
+        team = session.mits_team(team_id)
         if applicant.attendee_id:
             raise HTTPRedirect(
-                '../preregistration/confirm?id={}&return_to={}', applicant.attendee_id, '../mits/')
+                '../preregistration/confirm?id={}&return_to={}', applicant.attendee_id, f'../mits/index?id={team.id}')
 
         if cherrypy.request.method == 'POST':
+            applicant.team = team
             message = check(applicant)
             if not message:
                 session.add(applicant)
-                raise HTTPRedirect('index?message={}', 'Team member uploaded')
+                raise HTTPRedirect('index?id={}&message={}', team.id, 'Team member uploaded.')
 
         return {
             'message': message,
-            'applicant': applicant
+            'applicant': applicant,
+            'team': team,
         }
 
+    @get_team_id(MITSApplicant)
+    @requires_account(MITSTeam)
     @csrf_protected
-    def set_primary_contact(self, session, id, enable=False):
-        applicant = session.mits_applicant(id, applicant=True)
+    def set_primary_contact(self, session, id, enable=False, **params):
+        applicant = session.mits_applicant(id)
         if not enable and len(applicant.team.primary_contacts) == 1:
-            raise HTTPRedirect('index?message={}', 'At least one team member must be designated to receive emails')
+            raise HTTPRedirect('index?id={}&message={}', applicant.team.id,
+                               'At least one team member must be designated to receive emails.')
         else:
             applicant.primary_contact = bool(enable)
-            raise HTTPRedirect('index?message={}', 'Email designation updated')
+            raise HTTPRedirect('index?id={}&message={}', applicant.team.id, 'Email designation updated.')
 
+    @get_team_id(MITSApplicant)
+    @requires_account(MITSTeam)
     @csrf_protected
-    def delete_applicant(self, session, id):
-        applicant = session.mits_applicant(id, applicant=True)
+    def delete_applicant(self, session, id, **params):
+        applicant = session.mits_applicant(id)
         if applicant.primary_contact and len(applicant.team.primary_contacts) == 1:
             raise HTTPRedirect(
-                'index?message={}', 'You cannot delete the only team member designated to receive emails')
+                'index?id={}&message={}', applicant.team.id,
+                'You cannot delete the only team member designated to receive emails')
         elif applicant.attendee_id:
             raise HTTPRedirect(
-                '../preregistration/confirm?id={}',
+                '../preregistration/confirm?id={}&message={}', applicant.attendee_id,
                 'Team members cannot be deleted after being granted a badge, '
                 'but you may transfer this badge if you need to.')
         else:
             session.delete(applicant)
-            raise HTTPRedirect('index?message={}', 'Team member deleted')
+            raise HTTPRedirect('index?id={}&message={}', applicant.team.id, 'Team member deleted')
 
+    @file_to_fk_id('team_id')
+    @requires_account(MITSTeam)
     @ajax
-    def delete_picture(self, session, id):
+    def delete_picture(self, session, id, **params):
         picture_handler = FileService.from_db_id(session, id)
         if picture_handler:
             picture_handler.delete()
             session.commit()
         return "Picture deleted."
 
+    @file_to_fk_id('team_id')
+    @requires_account(MITSTeam)
     @ajax
-    def delete_document(self, session, id):
+    def delete_document(self, session, id, **params):
         doc_handler = FileService.from_db_id(session, id)
         if doc_handler:
             doc_handler.delete()
             session.commit()
         return "Document deleted."
 
+    @get_team_id(MITSGame)
+    @requires_account(MITSTeam)
     def game(self, session, message='', **params):
-        game = session.mits_game(params, applicant=True)
+        team_id = params.pop('team_id', '')
+        game = session.mits_game(params)
+
+        if not team_id:
+            team_id = game.team_id
+        
+        team = session.mits_team(team_id)
         header_image = params.get('header_image')
         thumbnail_image = params.get('thumbnail_image')
 
         if cherrypy.request.method == 'POST':
+            game.team = team
             documents = params.get('upload_documents', [])
             documents = documents if isinstance(documents, list) else [documents]
             existing_documents = FileService.get_existing_files(session, game, and_flags=['document'], uselist=True)
@@ -258,10 +282,11 @@ class Root:
                         FileService.delete_existing_files(session, handler.file_obj, and_flags=handler.file_obj.true_flags)
 
                 session.add(game)
-                raise HTTPRedirect('index?message={}', 'Game saved')
+                raise HTTPRedirect('index?id={}&message={}', game.team.id, 'Game saved.')
 
         return {
             'game': game,
+            'team': team,
             'header_image': params.get('header_image', ''),
             'game_pictures': FileService.get_existing_files(session, game, and_flags=['picture'], uselist=True),
             'game_documents': FileService.get_existing_files(session, game, and_flags=['document'], uselist=True),
@@ -270,21 +295,29 @@ class Root:
             'message': message
         }
 
+    @get_team_id(MITSGame)
+    @requires_account(MITSTeam)
     @csrf_protected
-    def delete_game(self, session, id):
-        game = session.mits_game(id, applicant=True)
+    def delete_game(self, session, id, **params):
+        game = session.mits_game(id)
         session.delete(game)
-        raise HTTPRedirect('index?message={}', 'Game deleted')
+        raise HTTPRedirect('index?id={}&message={}', game.team.id, 'Game deleted.')
 
+    @get_team_id(MITSPanelApplication)
+    @requires_account(MITSTeam)
     def panel(self, session, message='', **params):
         times_params = {'id': params.pop('schedule_id', None)}
+        team_id = params.pop('team_id', '')
         if cherrypy.request.method == 'POST':
             times_params['availability'] = params.pop('availability', '')
 
         panel_app = session.mits_panel_application(params, applicant=True, bools=['participation_interest'])
         times = session.mits_times(times_params, applicant=True, checkgroups=['availability'])
-        team = session.logged_in_mits_team()
+        
+        if not team_id:
+            team_id = panel_app.team_id
 
+        team = session.mits_team(team_id)
         if cherrypy.request.method == 'POST':
             if 'availability' in times_params:
                 team.panel_interest = True
@@ -303,11 +336,12 @@ class Root:
             if not message:
                 session.add(panel_app)
                 session.add(times)
-                raise HTTPRedirect('index?message={}', 'Panel application saved')
+                raise HTTPRedirect('index?id={}&message={}', team.id, 'Panel application saved.')
 
         return {
             'times': times,
             'panel_app': panel_app,
+            'team': team,
             'message': message,
             'list': [
                 (val, desc, val in times.availability_ints)
@@ -315,9 +349,15 @@ class Root:
             ]
         }
 
+    @get_team_id(MITSTimes)
+    @requires_account(MITSTeam)
     def schedule(self, session, message='', **params):
-        times = session.mits_times(params, applicant=True, checkgroups=['showcase_availability'])
-        team = session.logged_in_mits_team()
+        team_id = params.pop('team_id', '')
+        times = session.mits_times(params, checkgroups=['showcase_availability'])
+        if not team_id:
+            team_id = times.team_id
+
+        team = session.mits_team(team_id)
         if cherrypy.request.method == 'POST':
             if 'showcase_availability' in params:
                 if params.get('showcase_consent'):
@@ -330,7 +370,7 @@ class Root:
             message = message or check(times)
             if not message:
                 session.add(times)
-                raise HTTPRedirect('index?message={}', 'Times saved')
+                raise HTTPRedirect('index?id={}&message={}', team.id, 'Times saved.')
 
         return {
             'team': team,
@@ -342,8 +382,9 @@ class Root:
             ]
         }
 
-    def hotel_requests(self, session, message='', **params):
-        team = session.logged_in_mits_team()
+    @requires_account(MITSTeam)
+    def hotel_requests(self, session, team_id, message='', **params):
+        team = session.mits_team(team_id)
         if cherrypy.request.method == 'POST':
             for applicant in team.applicants:
                 applicant.declined_hotel_space = '{}-declined'.format(applicant.id) in params
@@ -358,18 +399,16 @@ class Root:
                     break
 
             if not message:
-                raise HTTPRedirect('index?message={}', 'Room nights uploaded')
+                raise HTTPRedirect('index?id={}&message={}', team.id, 'Room nights uploaded.')
 
         return {
             'team': team,
             'message': message
         }
 
-    def waiver(self, session, message='', **params):
-        if params.get('id'):
-            session.log_in_as_mits_team(params['id'], redirect_to='waiver')
-        else:
-            team = session.logged_in_mits_team()
+    @requires_account(MITSTeam)
+    def waiver(self, session, team_id, message='', **params):
+        team = session.mits_team(team_id)
 
         if cherrypy.request.method == 'POST':
             if not params['waiver_signature']:
@@ -386,13 +425,14 @@ class Root:
                     message = "The name you entered did not match any of this team's members."
 
             if not message:
-                raise HTTPRedirect('index?message={}', 'Thank you for signing the waiver!')
+                raise HTTPRedirect('index?id={}&message={}', team.id, 'Thank you for signing the waiver!')
         return {
             'team': team,
             'message': message,
         }
 
-    def submit_for_judging(self, session):
+    @requires_account(MITSTeam)
+    def submit_for_judging(self, session, team_id):
         """
         Sometimes we mark partially completed applications as accepted, either
         because there's enough information to complete judging OR because an
@@ -401,14 +441,14 @@ class Root:
         to submit their applications either before the deadline or at any time
         if they've been pre-accepted.
         """
-        team = session.logged_in_mits_team()
+        team = session.mits_team(team_id)
         if team.steps_completed < c.MITS_APPLICATION_STEPS - 1:
-            raise HTTPRedirect('index?message={}', 'You have not completed all of the required steps')
+            raise HTTPRedirect('index?id={}&message={}', team.id, 'You have not completed all of the required steps.')
         elif c.AFTER_MITS_SUBMISSION_DEADLINE and not team.accepted:
-            raise HTTPRedirect('index?message={}', 'You cannot submit an application past the deadline')
+            raise HTTPRedirect('index?id={}&message={}', team.id, 'You cannot submit an application past the deadline.')
         else:
             team.submitted = datetime.now(UTC)
-            raise HTTPRedirect('index?message={}', 'Your application has been submitted')
+            raise HTTPRedirect('index?id={}&message={}', team.id, 'Your application has been submitted!')
 
     def accepted_teams(self, session):
         teams = session.mits_teams()

@@ -16,10 +16,13 @@ from uber.models.types import (Choice, MultiChoice, DefaultColumn as Column,
 from uber.utils import slugify
 
 
-__all__ = ['MITSTeam', 'MITSApplicant', 'MITSGame', 'MITSTimes']
+__all__ = ['MITSTeam', 'MITSApplicant', 'MITSPanelApplication', 'MITSGame', 'MITSTimes']
 
 
 class MITSTeam(MagModel, table=True):
+    attendee_account_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee_account.id', nullable=True)
+    attendee_account: 'AttendeeAccount' = Relationship(back_populates="mits_teams")
+
     name: str = ''
     days_available: int | None = Field(nullable=True)
     hours_available: int | None = Field(nullable=True)
@@ -224,44 +227,3 @@ class MITSPanelApplication(MagModel, table=True):
     description: str = ''
     length: int = Field(sa_column=Column(Choice(c.PANEL_STRICT_LENGTH_OPTS)), default=c.SIXTY_MIN)
     participation_interest: bool = False
-
-
-def add_applicant_restriction():
-    """
-    We use convenience functions for our form handling, e.g. to
-    instantiate an attendee from an id or from form data we use the
-    session.attendee() method. This method runs on startup and overrides
-    the methods which are used for the game application forms to add a
-    new "applicant" parameter.  If truthy, this triggers three
-    additional behaviors:
-
-    1) We check that there is currently a logged in team, and redirect
-       to the initial application form if there is not.
-    2) We check that the item being edited belongs to the
-       currently-logged-in team and raise an exception if it does not.
-       This check is bypassed for new things which have not yet been
-       saved to the database.
-    3) We set the "team" relationship on the model to the
-       logged-in team.
-    """
-    from uber.models import Session
-
-    def override_getter(method_name):
-        orig_getter = getattr(Session.SessionMixin, method_name)
-
-        @wraps(orig_getter)
-        def with_applicant(self, *args, **kwargs):
-            applicant = kwargs.pop('applicant', False)
-            instance = orig_getter(self, *args, **kwargs)
-            if applicant:
-                team = self.logged_in_mits_team()
-                assert instance.is_new or team == instance.team
-                instance.team = team
-            return instance
-        setattr(Session.SessionMixin, method_name, with_applicant)
-
-    for name in [
-        'mits_applicant', 'mits_game', 'mits_times', 'mits_panel_application'
-    ]:
-        override_getter(name)
-cherrypy.engine.subscribe('start', add_applicant_restriction, priority=98)

@@ -379,7 +379,7 @@ class Root:
     
     @ajax
     @attendee_view
-    def add_existing_account(self, session, id, account_id, email, **params):
+    def add_existing_account(self, session, id, account_id, email=False, **params):
         attendee = session.attendee(id)
         account = session.attendee_account(account_id)
         if attendee.managers:

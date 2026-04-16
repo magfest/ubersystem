@@ -1139,8 +1139,8 @@ class GuidebookUtils():
 
 
 def validate_model(session, forms, model, create_preview_model=True, is_admin=False):
-    # Create_preview_model should only be false in the VERY rare case
-    # where we are re-checking a model with no changes
+    # Create_preview_model should only be false if we're re-checking a model with no changes
+    # OR we're checking a brand-new object and don't want to/can't commit to the DB
 
     from uber.models import File
     from uber.files import FileService

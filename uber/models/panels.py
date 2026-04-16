@@ -183,6 +183,9 @@ class PanelApplication(MagModel, table=True):
 
     submitter_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='panel_applicant.id', nullable=True)
 
+    attendee_account_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee_account.id', nullable=True)
+    attendee_account: 'AttendeeAccount' = Relationship(back_populates="panel_applications")
+
     name: str = ''
     length: int = Field(sa_column=Column(Choice(c.PANEL_LENGTH_OPTS)), default=c.SIXTY_MIN)
     length_text: str = ''

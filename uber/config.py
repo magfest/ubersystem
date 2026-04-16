@@ -1062,6 +1062,14 @@ class Config(_Overridable):
         except Exception:
             return {}
         
+    @request_cached_property
+    @dynamic
+    def CURRENT_ATTENDEE_ACCOUNT(self):
+        from uber.models import Session
+        with Session() as session:
+            account = session.current_attendee_account()
+        return account
+        
     @property
     def LOCAL_ACCOUNTS_DISABLED(self):
         return c.OIDC_ENABLED and not c.SSO_EMAIL_DOMAINS
@@ -1333,6 +1341,32 @@ class Config(_Overridable):
     @dynamic
     def MITS_SUBMISSIONS_OPEN(self):
         return self.MITS_START and self.BEFORE_MITS_SUBMISSION_DEADLINE and self.AFTER_MITS_START
+
+    @property
+    @dynamic
+    def BEFORE_SHOWCASES_OPEN(self):
+        if self.MITS_START and self.AFTER_MITS_START:
+            return
+        if self.MIVS_START and self.AFTER_MIVS_START:
+            return
+        if self.INDIE_ARCADE_START and self.AFTER_INDIE_ARCADE_START:
+            return
+        if self.INDIE_RETRO_START and self.AFTER_INDIE_RETRO_START:
+            return
+        return True
+    
+    @property
+    @dynamic
+    def ALL_SHOWCASES_CLOSED(self):
+        if self.MITS_START and self.BEFORE_MITS_SUBMISSION_DEADLINE:
+            return
+        if self.MIVS_START and not really_past_mivs_deadline(c.MIVS_DEADLINE):
+            return
+        if self.INDIE_ARCADE_START and self.BEFORE_INDIE_ARCADE_DEADLINE:
+            return
+        if self.INDIE_RETRO_START and self.BEFORE_INDIE_RETRO_DEADLINE:
+            return
+        return True
 
     # =========================
     # panels

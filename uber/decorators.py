@@ -93,6 +93,66 @@ def check_for_encrypted_badge_num(func):
     return with_check
 
 
+def file_to_fk_id(id_name='fk_id'):
+    """
+    Files don't have direct relationships to their objects, but we often need those object's IDs for,
+    e.g., checking access. This injects a file's object into a function under the key defined by `id_name`
+    """
+
+    def file_fk_id(func):
+        @wraps(func)
+        def with_check(*args, **kwargs):
+            from uber.files import FileService
+            if kwargs.get('id', None) and not kwargs.get(id_name):
+                file_handler = FileService.from_db_id(kwargs.get('id'))
+                if file_handler.file_obj:
+                    kwargs[id_name] = file_handler.file_obj.fk_id
+            return func(*args, **kwargs)
+        return with_check
+    return file_fk_id
+
+
+def get_studio_id(model, id_name='id'):
+    """
+    We check for access to attendee-facing Indie Showcase pages via the IndieStudio ID,
+    but not all pages have the studio ID passed to them. This grabs the `model` matching
+    the ID passed to that page and injects that object's IndieStudio ID.
+    """
+
+    def indie_studio_id(func):
+        @wraps(func)
+        def with_check(*args, **kwargs):
+            if kwargs.get(id_name, None) and not kwargs.get('studio_id'):
+                with uber.models.Session() as session:
+                    child_model = session.query(model).get(kwargs.get(id_name))
+                    if hasattr(child_model, 'game'):
+                        kwargs['studio_id'] = child_model.game.studio.id
+                    else:
+                        kwargs['studio_id'] = child_model.studio.id
+            return func(*args, **kwargs)
+        return with_check
+    return indie_studio_id
+
+
+def get_team_id(model, id_name='id'):
+    """
+    We check for access to attendee-facing MITS pages via the MITSTeam ID,
+    but not all pages have the team ID passed to them. This grabs the `model` matching
+    the ID passed to that page and injects that object's MITSTeam ID.
+    """
+
+    def mits_team_id(func):
+        @wraps(func)
+        def with_check(*args, **kwargs):
+            if kwargs.get(id_name, None) and not kwargs.get('team_id'):
+                with uber.models.Session() as session:
+                    child_model = session.query(model).get(kwargs.get(id_name))
+                    kwargs['team_id'] = child_model.team.id
+            return func(*args, **kwargs)
+        return with_check
+    return mits_team_id
+
+
 def site_mappable(_func=None, *, download=False):
     def wrapper(func):
         func.site_mappable = True
@@ -159,7 +219,7 @@ def check_dept_admin(session, department_id=None, inherent_role=None):
 
 
 def requires_account(models=None):
-    from uber.models import Attendee, AttendeeAccount, Group
+    from uber.models import Attendee, AttendeeAccount, Group, GuestGroup, PanelApplication, IndieStudio, MITSTeam
 
     def model_requires_account(func):
         @wraps(func)
@@ -182,9 +242,9 @@ def requires_account(models=None):
                     if message_add:
                         message = f'Please log in or create an account to {message_add}!'
                     ajax_or_redirect(func, '../landing/index?message=', message, True)
-                elif kwargs.get('id') and models:
+                elif kwargs.get('id', kwargs.get('attendee_id')) and models:
                     model_list = [models] if not isinstance(models, list) else models
-                    attendee, error, model_id = None, None, None
+                    attendee, other_account_model, error, model_id = None, None, None, None
                     for model in model_list:
                         if model == Attendee:
                             error, model_id = check_id_for_model(model, alt_id='attendee_id', **kwargs)
@@ -194,25 +254,51 @@ def requires_account(models=None):
                             error, model_id = check_id_for_model(model, alt_id='group_id', **kwargs)
                             if not error:
                                 attendee = session.query(model).filter_by(id=model_id).first().leader
+                        elif model == GuestGroup:
+                            error, model_id = check_id_for_model(model, alt_id='guest_id', **kwargs)
+                            if not error:
+                                group = session.query(model).filter_by(id=model_id).first().group
+                                if group:
+                                    attendee = group.leader
+                        elif model in [PanelApplication, IndieStudio, MITSTeam]:
+                            if model == PanelApplication:
+                                alt_id = 'application_id'
+                            else:
+                                alt_id = 'studio_id' if model == IndieStudio else 'team_id'
+                            error, model_id = check_id_for_model(model, alt_id=alt_id, **kwargs)
+                            if not error:
+                                other_account_model = session.query(model).filter_by(id=model_id).first()
                         else:
                             other_model = session.query(model).filter_by(id=kwargs.get('id')).first()
                             if other_model:
                                 attendee = other_model.attendee
 
-                        if attendee:
+                        if attendee or other_account_model:
                             break
 
-                    if error and not attendee:
+                    if error and not attendee and not other_account_model:
                         ajax_or_redirect(func, f'../preregistration/not_found?id={model_id}&message=', error)
 
-                    # Admin account override
-                    if session.admin_attendee_max_access(attendee):
-                        return func(*args, **kwargs)
+                    if other_account_model:
+                        if session.current_admin_account():
+                            if isinstance(other_account_model, PanelApplication) and c.HAS_PANELS_ADMIN_ACCESS:
+                                return func(*args, **kwargs)
+                            elif isinstance(other_account_model, IndieStudio) and c.HAS_SHOWCASE_ADMIN_ACCESS:
+                                return func(*args, **kwargs)
+                            elif isinstance(other_account_model, MITSTeam) and c.HAS_MITS_ADMIN_ACCESS:
+                                return func(*args, **kwargs)
+                        account = session.query(AttendeeAccount).get(attendee_account_id) if attendee_account_id else None
+                        if not account or account != other_account_model.attendee_account:
+                            message = 'You do not have permission to view this page.'
+                    elif attendee:
+                        # Admin account override
+                        if session.admin_attendee_max_access(attendee):
+                            return func(*args, **kwargs)
 
-                    account = session.query(AttendeeAccount).get(attendee_account_id) if attendee_account_id else None
+                        account = session.query(AttendeeAccount).get(attendee_account_id) if attendee_account_id else None
 
-                    if not account or account not in attendee.managers:
-                        message = 'You do not have permission to view this page.'
+                        if not account or account not in attendee.managers:
+                            message = 'You do not have permission to view this page.'
 
                 if message:
                     if admin_account_id:

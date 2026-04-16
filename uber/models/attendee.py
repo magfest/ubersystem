@@ -2594,6 +2594,9 @@ class AttendeeAccount(MagModel, table=True):
         sa_relationship_kwargs={
             'order_by': 'Attendee.registered', 
             'secondary': 'attendee_attendee_account'})
+    panel_applications: list['PanelApplication'] = Relationship(back_populates="attendee_account")
+    indie_studios: list['IndieStudio'] = Relationship(back_populates="attendee_account")
+    mits_teams: list['MITSTeam'] = Relationship(back_populates="attendee_account")
     imported: bool = False
     unused_years: int = 0
 
@@ -2626,6 +2629,10 @@ class AttendeeAccount(MagModel, table=True):
     @property
     def sso_claimed(self):
         return self.sso_id != ''
+    
+    @property
+    def has_applications(self):
+        return self.panel_applications or self.indie_studios or self.mits_teams
 
     @property
     def has_dealer(self):

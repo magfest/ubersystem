@@ -1,7 +1,6 @@
 {% import 'forms/macros.html' as form_macros with context %}
 {% extends "preregistration/preregbase.html" %}
 {% set title_text = c.EVENT_NAME ~ "MIVS Game" %}
-{% block backlink %}{% endblock %}
 {% block content %}
 <div class="card card-body">
   <h2>{% if game.is_new %}Register an Indie Videogame Showcase Game{% else %}Edit Information for {{ game.title }}{% endif %}</h2>

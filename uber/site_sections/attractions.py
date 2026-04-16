@@ -6,7 +6,7 @@ from pytz import UTC
 from sqlalchemy import or_
 from sqlalchemy.orm import subqueryload
 
-from uber.decorators import ajax, all_renderable
+from uber.decorators import ajax, all_renderable, requires_account
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Attraction, AttractionFeature, AttractionEvent, AttractionSignup, BadgeInfo
 from uber.site_sections.preregistration import check_post_con
@@ -76,6 +76,7 @@ class Root:
         else:
             raise HTTPRedirect('index?attendee_id={}', kwargs.get('attendee_id', ''))
 
+    @requires_account(Attendee)
     def index(self, session, **params):
         attendee = _model_for_id(session, Attendee, params.get('attendee_id', None))
 
@@ -88,6 +89,7 @@ class Root:
             'attendee_id': params.get('attendee_id'),
             }
 
+    @requires_account(Attendee)
     def features(self, session, id=None, slug=None, **params):
         attendee = _model_for_id(session, Attendee, params.get('attendee_id', None))
 
@@ -115,6 +117,7 @@ class Root:
             'attendee_id': params.get('attendee_id'),
         }
 
+    @requires_account(Attendee)
     def events(self, session, id=None, slug=None, feature=None, **params):
         attendee = _model_for_id(session, Attendee, params.get('attendee_id', None))
         

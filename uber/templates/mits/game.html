@@ -16,6 +16,7 @@
 <form method="post" enctype="multipart/form-data" action="game" class="form-horizontal" role="form">
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ game.db_id }}" />
+    <input type="hidden" name="team_id" value="{{ team.id }}" />
 
     {{ macros.form_group(game, 'name', is_required=True) }}
     

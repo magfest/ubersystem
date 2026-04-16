@@ -6,7 +6,7 @@ from cherrypy.lib.static import serve_file
 
 from uber.config import c
 from uber.custom_tags import format_image_size
-from uber.decorators import all_renderable, ajax, csrf_protected
+from uber.decorators import all_renderable, ajax, csrf_protected, requires_account, get_studio_id, file_to_fk_id
 from uber.errors import HTTPRedirect
 from uber.files import FileService
 from uber.forms import load_forms
@@ -16,6 +16,7 @@ from uber.utils import add_opt, check, check_csrf, GuidebookUtils, validate_mode
 
 @all_renderable(public=True)
 class Root:
+    @requires_account()
     def apply(self, session, message='', **params):
         studio = IndieStudio()
         developer = IndieDeveloper(receives_emails=True)
@@ -30,6 +31,8 @@ class Root:
             developer.studio = studio
             session.add(studio)
             session.add(developer)
+            if c.ATTENDEE_ACCOUNTS_ENABLED:
+                studio.attendee_account = session.current_attendee_account()
             raise HTTPRedirect('index?id={}&message={}', studio.id,
                                "Studio created successfully! Submit one or more games to our showcases below.")
 
@@ -43,12 +46,12 @@ class Root:
         all_errors = {}
 
         forms = load_forms(params, IndieStudio(), ['StudioInfo'])
-        studio_errors = validate_model(session, forms, IndieStudio())
+        studio_errors = validate_model(session, forms, IndieStudio(), create_preview_model=False)
         if studio_errors:
             all_errors.update(studio_errors)
 
         dev_forms = load_forms(params, IndieDeveloper(), ['DeveloperInfo'])
-        dev_errors = validate_model(session, dev_forms, IndieDeveloper())
+        dev_errors = validate_model(session, dev_forms, IndieDeveloper(), create_preview_model=False)
         if dev_errors:
             all_errors.update(dev_errors)
 
@@ -57,6 +60,7 @@ class Root:
 
         return {"success": True}
 
+    @requires_account(IndieStudio)
     def index(self, session, id, message='', **params):
         studio = session.indie_studio(id)
         demo_forms = {}
@@ -142,6 +146,8 @@ class Root:
 
         return {"success": True}
 
+    @get_studio_id(IndieDeveloper)
+    @requires_account(IndieStudio)
     def developer(self, session, id='', message='', **params):
         if id in [None, '', 'None']:
             developer = IndieDeveloper()
@@ -195,6 +201,8 @@ class Root:
 
         return {"success": True}
 
+    @get_studio_id(IndieDeveloper)
+    @requires_account(IndieStudio)
     def delete_developer(self, session, id, **params):
         developer = session.indie_developer(id)
         studio = developer.studio
@@ -205,6 +213,8 @@ class Root:
         session.delete(developer)
         raise HTTPRedirect('index?id={}&message={}', studio.id, 'Presenter deleted.')
 
+    @get_studio_id(IndieGame)
+    @requires_account(IndieStudio)
     def submit_game(self, session, id, **params):
         game = session.indie_game(id)
         if game.missing_steps:
@@ -215,6 +225,7 @@ class Root:
             raise HTTPRedirect('index?id={}&message={}', game.studio.id,
                                'Your game has been submitted to our panel of judges.')
     
+    @requires_account(IndieStudio)
     def confirm(self, session, id, decision=None, **params):
         studio = session.indie_studio(id)
 
@@ -255,6 +266,7 @@ class Root:
                 group = studio.group = Group(name='Showcase Studio: ' + studio.name, can_add=True)
                 session.add(group)
                 session.commit()
+                leader_account = session.current_attendee_account()
                 for dev in developers:
                     if dev.matching_attendee:
                         add_opt(dev.matching_attendee.ribbon_ints, c.MIVS)
@@ -262,6 +274,8 @@ class Root:
                             group.attendees.append(dev.matching_attendee)
                             if dev.leader:
                                 group.leader_id = dev.matching_attendee.id
+                                if c.ATTENDEE_ACCOUNTS_ENABLED and dev.managers and len(dev.managers) == 1:
+                                    leader_account = dev.managers[0]
                         dev.matching_attendee.indie_developer = dev
                     else:
                         attendee = Attendee(
@@ -281,6 +295,10 @@ class Root:
                             group.leader_id = attendee.id
                 for i in range(badges_remaining):
                     group.attendees.append(Attendee(badge_type=c.ATTENDEE_BADGE, paid=c.NEED_NOT_PAY))
+                if c.ATTENDEE_ACCOUNTS_ENABLED:
+                    for attendee in group.attendees:
+                        if not attendee.managers and not attendee.is_unassigned:
+                            session.add_attendee_to_account(attendee, leader_account)
                 group.cost = group.calc_default_cost()
                 group.guest = GuestGroup()
                 group.guest.group_type = c.MIVS
@@ -291,6 +309,8 @@ class Root:
             'developers': developers
         }
     
+    @get_studio_id(IndieGame)
+    @requires_account(IndieStudio)
     def show_info(self, session, message='', **params):
         game = session.indie_game(params)
         cherrypy.session['studio_id'] = game.studio.id
@@ -362,8 +382,10 @@ class Root:
             'game_guidebook_thumbnail': FileService.get_existing_files(session, game, and_flags=['guidebook_thumbnail']),
         }
 
+    @file_to_fk_id('studio_id')
+    @requires_account(IndieStudio)
     @csrf_protected
-    def mark_image(self, session, id):
+    def mark_image(self, session, id, **params):
         image = FileService.from_db_id(session, id).file_obj
         game = session.indie_game(image.fk_id)
         best_images = FileService.get_existing_files(session, game, and_flags=['use_in_promo'], uselist=True)
@@ -375,8 +397,10 @@ class Root:
         raise HTTPRedirect('show_info?id={}&message={}', game.id,
                            'Screenshot marked as one of your "best" images.')
 
+    @file_to_fk_id('studio_id')
+    @requires_account(IndieStudio)
     @csrf_protected
-    def unmark_image(self, session, id):
+    def unmark_image(self, session, id, **params):
         image = FileService.from_db_id(session, id).file_obj
         game = session.indie_game(image.fk_id)
         image.flags['use_in_promo'] = False

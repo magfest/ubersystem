@@ -18,6 +18,7 @@
 <form method="post" action="panel" class="form-horizontal" role="form">
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ panel_app.db_id }}" />
+    <input type="hidden" name="team_id" value="{{ team.id }}" />
     <input type="hidden" name="schedule_id" value="{{ times.db_id }}" />
 
     {{ macros.form_group(panel_app, 'name', label="Panel Name") }}
