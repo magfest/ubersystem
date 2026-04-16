@@ -705,17 +705,3 @@ class Root:
                     return serve_file(filepath, disposition=disposition, name=download_filename, content_type=content_type)
                 else:
                     raise cherrypy.HTTPError(404, "File not found")
-
-    def view_track(self, session, id):
-        track = session.guest_track(id)
-        cherrypy.response.headers['Cache-Control'] = 'no-store'
-        return serve_file(
-            track.filepath,
-            disposition="attachment",
-            name=track.filename,
-            content_type=track.content_type)
-
-    def view_image(self, session, id):
-        image = session.guest_image(id)
-        cherrypy.response.headers['Cache-Control'] = 'no-store'
-        return serve_file(image.filepath, name=image.filename, content_type=image.content_type)

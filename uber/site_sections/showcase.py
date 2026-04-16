@@ -104,11 +104,7 @@ class Root:
             'retro_game_screenshots': retro_game_screenshots,
         }
 
-    def view_image(self, session, id):
-        image = session.indie_game_image(id)
-        cherrypy.response.headers['Cache-Control'] = 'no-store'
-        return serve_file(image.filepath, name=image.filename, content_type=image.content_type)
-    
+    @requires_account(IndieStudio)
     def studio(self, session, id, message='', **params):
         studio = session.indie_studio(id)
         forms = load_forms(params, studio, ['StudioInfo'])
