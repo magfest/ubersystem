@@ -4,6 +4,7 @@ import logging
 import cherrypy
 from cherrypy.lib.static import serve_file
 from sqlalchemy.orm.exc import NoResultFound
+import base64
 
 from uber.config import c
 from uber.decorators import ajax, all_renderable, not_site_mappable
@@ -30,20 +31,22 @@ class Root:
             return file_handler.serve_file(filename=filename)
 
     @not_site_mappable
-    def oidc_handler(self, code=None, error=None, **kwargs):
+    def oidc_handler(self, code=None, error=None, post_login_url='', **kwargs):
         if error:
             raise HTTPRedirect("../landing/index?message={}", f"Login failed: {error}")
-        
+
         cherrypy.tools.oidc.error = ''
-        cherrypy.tools.oidc.handle_login(code)
+        redirect_uri = f"{c.OIDC_REDIRECT_URL}?post_login_url={post_login_url}" if post_login_url else c.OIDC_REDIRECT_URL
+        cherrypy.tools.oidc.handle_login(code, redirect_uri=redirect_uri)
+
         if cherrypy.tools.oidc.error:
             raise HTTPRedirect('../landing/index?message={}', cherrypy.tools.oidc.error)
-
-        post_login_url = cherrypy.request.cookie['post_login_url'].value if 'post_login_url' in cherrypy.request.cookie else None
         
+        post_login_url = base64.urlsafe_b64decode(post_login_url.encode()).decode()
+
         if getattr(cherrypy.request, 'admin_account', None) and c.AT_THE_CON:
             raise HTTPRedirect(post_login_url or '../accounts/homepage')
-        elif cherrypy.request.attendee_account:
+        elif getattr(cherrypy.request, 'attendee_account', None):
             raise HTTPRedirect(post_login_url or '../preregistration/homepage')
         raise HTTPRedirect('../landing/index?message={}', f'Login failed.')
     

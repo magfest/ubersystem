@@ -271,7 +271,7 @@ class Root:
         id_token = ""
         if "session_token" in cherrypy.request.cookie:
             id_token = cherrypy.request.cookie['session_token'].value
-        for cookie in ['session_token', 'refresh_token']:
+        for cookie in ['session_token', 'refresh_token', 'idp_hint']:
             cherrypy.response.cookie[cookie] = ''
             cherrypy.response.cookie[cookie]['expires'] = 0
             cherrypy.response.cookie[cookie]['max-age'] = 0 # Also set max-age for compatibility

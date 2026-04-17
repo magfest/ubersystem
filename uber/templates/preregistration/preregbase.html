@@ -6,7 +6,9 @@
 {% if c.ATTENDEE_ACCOUNTS_ENABLED or c.HAS_REGISTRATION_ACCESS or c.HAS_GROUP_ADMIN_ACCESS %}
 <nav class="navbar navbar-expand-lg">
     <div class="container-fluid">
+        {% if account %}
         <div class="badge bg-dark">Logged in as: {{ account.email }}</div>
+        {% endif %}
         <div class="{% if bootstrap %}d-flex justify-content-end gap-2{% else %}pull-right{% endif %}">
             {% if c.HAS_REGISTRATION_ACCESS and attendee and not attendee.is_new %}
             <a class="btn btn-secondary btn-sm" href="../registration/form?id={{ attendee.id }}">Admin Form</a>
