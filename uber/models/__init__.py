@@ -2362,7 +2362,7 @@ class HybridSessionProxy:
 
     def __call__(self, create_savepoint=False, *args, **kwargs):
         """
-        Creates a new session or returns the current session.
+        Creates a session with an optional savepoint to allow rollbacks. Sessions use the existing DB connection, if there is one.
 
         create_savepoint (bool): Flush the current session to the DB and create a savepoint.
                                  This lets you use session.rollback() to undo only changes made after the savepoint.

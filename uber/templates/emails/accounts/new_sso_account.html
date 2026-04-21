@@ -19,7 +19,7 @@ badge
                 You have been invited to manage the {% if attendee.group.guest_group %}{{ attendee.group.guest_group.group_type }} {% endif %}
                 group "{{ attendee.group.name }}" for {{ c.EVENT_NAME_AND_YEAR }}.
             </p>
-            {% if group.attendees|length > 1 %}
+            {% if attendee.group.attendees|length > 1 %}
             <p>Once you claim your badge, you will be able to manage your group members' badges{% if attendee.group.guest_group %} and complete your group's checklist{% endif %}.</p>
             {% endif %}
             {% else %}
@@ -51,7 +51,7 @@ badge
         {% if c.OIDC_ACCOUNT_FAQ %}You can find more information about <a href="{{ c.OIDC_ACCOUNT_FAQ }}" target="_blank">{{ c.OIDC_ACCOUNT_NAME }} accounts here</a>.{% endif %}
     </p>
 
-    <p><a href="{{ c.URL_BASE }}/preregistration/sso_account_setup?&token={{ token }}" target="_blank">{{ c.URL_BASE }}/preregistration/sso_account_setup?&token={{ token }}</a></p>
+    <p><a href="{{ c.URL_BASE }}/preregistration/claim_account?&sso_claim_token={{ token }}" target="_blank">{{ c.URL_BASE }}/preregistration/claim_account?&sso_claim_token={{ token }}</a></p>
 
 </body>
 </html>

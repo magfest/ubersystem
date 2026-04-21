@@ -362,7 +362,7 @@ class Root:
             AttendeeAccount.normalized_email == normalize_email_legacy(attendee.email)).first()
         if matching_account:
             return {'success': False, 'message': f"An account with the email {attendee.email} already exists."}
-        if attendee.has_sso_email:
+        if attendee.has_sso_email and not c.LOCAL_ACCOUNTS_DISABLED:
             return {'success': False, 'message': f"This attendee will receive an account the first time they log in."}
         
         create_new_account(session, attendee)

@@ -1,3 +1,4 @@
+import base64
 import uuid
 
 import bcrypt
@@ -11,6 +12,7 @@ from uber.decorators import (ajax, all_renderable, csrf_protected, csv_file,
                              not_site_mappable, render, site_mappable, public)
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, Attendee, BadgeInfo, PasswordReset, WorkstationAssignment
+from uber.payments import PreregCart
 from uber.tasks.email import send_email
 from uber.utils import (check, check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, genpasswd,
                         create_new_hash)
@@ -98,6 +100,8 @@ class Root:
                     OIDC.send_claim_token(session, new_account, account)
                     return {'success': True, 'message': "Account created and claim email sent."}
                 else:
+                    if c.ATTENDEE_ACCOUNTS_ENABLED and attendee.managers:
+                        new_account.sso_id = attendee.managers[0].sso_id
                     body = render('emails/accounts/new_account.txt', {
                         'account': account,
                         'password': password,
@@ -193,21 +197,19 @@ class Root:
 
     @public
     def login(self, session, message='', original_location=None, **params):
-        redirect_url = ''
-        if original_location:
-            redirect_url = c.URL_BASE + create_valid_user_supplied_redirect_url(original_location, default_url='/accounts/homepage')
+        internal_redirect_url = create_valid_user_supplied_redirect_url(original_location, default_url='/accounts/homepage')
+        external_redirect_url = c.URL_BASE + internal_redirect_url
 
         if c.OIDC_ENABLED:
-            cherrypy.tools.oidc.redirect_to_keycloak(target_url=redirect_url)
+            cherrypy.tools.oidc.redirect_to_keycloak(target_url=external_redirect_url)
         if c.SAML_SETTINGS:
             from uber.utils import prepare_saml_request
             from onelogin.saml2.auth import OneLogin_Saml2_Auth
 
             req = prepare_saml_request(cherrypy.request)
             auth = OneLogin_Saml2_Auth(req, c.SAML_SETTINGS)
-            raise HTTPRedirect(auth.login(return_to=redirect_url))
+            raise HTTPRedirect(auth.login(return_to=external_redirect_url))
 
-        original_location = create_valid_user_supplied_redirect_url(original_location, default_url='/accounts/homepage')
         if 'email' in params:
             try:
                 account = session.get_admin_account_by_email(params['email'])
@@ -224,7 +226,7 @@ class Root:
                 cherrypy.session.pop('kiosk_supervisor_id', None)
 
                 ensure_csrf_token_exists()
-                raise HTTPRedirect(original_location)
+                raise HTTPRedirect(internal_redirect_url)
 
         return {
             'message': message,
@@ -266,8 +268,7 @@ class Root:
             }
 
     @public
-    def logout(self):
-        # TODO: Make this handle ALL logouts
+    def logout(self, delete_prereg=False, **params):
         id_token = ""
         if "session_token" in cherrypy.request.cookie:
             id_token = cherrypy.request.cookie['session_token'].value
@@ -277,17 +278,28 @@ class Root:
             cherrypy.response.cookie[cookie]['max-age'] = 0 # Also set max-age for compatibility
             cherrypy.response.cookie[cookie]['path'] = '/'
         for key in list(cherrypy.session.keys()):
-            if key not in ['preregs', 'paid_preregs', 'job_defaults', 'prev_location']:
-                cherrypy.session.pop(key)
+            if key not in ['job_defaults', 'prev_location']:
+                if delete_prereg or key not in PreregCart.session_keys:
+                    cherrypy.session.pop(key)
 
         if c.SAML_SETTINGS:
             raise HTTPRedirect('../landing/index?message={}', 'You have been logged out.')
         elif c.OIDC_ENABLED:
-            token_hint = ""
+            if cherrypy.request.method == "POST":
+                post_logout_url = params.get('post_logout_url', '')
+                post_logout_state = params.get('post_logout_state', '')
+            else:
+                post_logout_url = "/landing/index"
+                post_logout_state = "?message=You have been logged out."
+            token_or_client_id = ""
             if id_token:
-                token_hint = f"id_token_hint={id_token}&"
-            redirect_to = f"{c.URL_BASE}/landing/index"
-            raise HTTPRedirect(f"{c.OIDC_LOGOUT_URL}?{token_hint}post_logout_redirect_uri={redirect_to}")
+                token_or_client_id = f"id_token_hint={id_token}&"
+            else:
+                token_or_client_id = f"client_id={c.OIDC_CLIENT_ID}&"
+            raise HTTPRedirect(
+                f"{c.OIDC_LOGOUT_URL}?{token_or_client_id}&state={base64.urlsafe_b64encode(post_logout_state.encode()).decode()}"
+                f"&post_logout_redirect_uri={c.URL_BASE}{post_logout_url}"
+            )
         else:
             raise HTTPRedirect('login?message={}', 'You have been logged out.')
 
@@ -428,31 +440,46 @@ class Root:
             except ValueError:
                 pass
             else:
-                match = session.query(Attendee).filter(Attendee.id == id).first()
-                if match:
+                attendee = session.query(Attendee).filter(Attendee.id == id).first()
+                if attendee:
                     account = session.admin_account(params)
-                    if account.is_new:
-                        if not c.SAML_SETTINGS:
-                            password = genpasswd()
-                            account.hashed = create_new_hash(password)
-                        account.attendee = match
-                        session.add(account)
-                        body = render('emails/accounts/new_account.txt', {
-                            'account': account,
-                            'password': password if not c.SAML_SETTINGS else '',
-                            'creator': AdminAccount.admin_name()
-                        }, encoding=None)
-                        send_email.delay(
-                            c.ADMIN_EMAIL,
-                            match.email,
-                            'New ' + c.EVENT_NAME + ' Admin Account',
-                            body,
-                            model=match.to_dict('id'))
+                    if not c.SAML_SETTINGS and not c.OIDC_ENABLED:
+                        password = genpasswd()
+                        account.hashed = create_new_hash(password)
+                    account.attendee = attendee
+                    session.add(account)
+                    if account.is_new and not c.AT_OR_POST_CON:
+                        session.commit()
+                        if c.LOCAL_ACCOUNTS_DISABLED and not attendee.managers:
+                            new_account = session.create_attendee_account(attendee.email)
+                            session.add(new_account)
+                            session.add_attendee_to_account(attendee, new_account)
+                            if attendee.group and attendee.id == attendee.group.leader_id:
+                                for group_member in attendee.group.attendees:
+                                    if not group_member.is_unassigned and group_member != attendee:
+                                        session.add_attendee_to_account(group_member, new_account)
+                            session.commit()
+                            OIDC.send_claim_token(session, new_account, account)
+                            return {'success': True, 'message': "Account created and claim email sent."}
+                        else:
+                            if c.ATTENDEE_ACCOUNTS_ENABLED and attendee.managers:
+                                new_account.sso_id = attendee.managers[0].sso_id
+                            body = render('emails/accounts/new_account.txt', {
+                                'account': account,
+                                'password': password if not c.SAML_SETTINGS else '',
+                                'creator': AdminAccount.admin_name()
+                            }, encoding=None)
+                            send_email.delay(
+                                c.ADMIN_EMAIL,
+                                attendee.email,
+                                'New ' + c.EVENT_NAME + ' Admin Account',
+                                body,
+                                model=attendee.to_dict('id'))
 
                         success_count += 1
         if success_count == 0:
             message = 'No new accounts were created.'
         else:
             session.commit()
-            message = '%d new accounts have been created, and emailed their passwords.' % success_count
+            message = '%d new accounts have been created and emailed.' % success_count
         return message

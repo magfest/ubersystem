@@ -4,7 +4,7 @@ import uuid
 import logging
 from datetime import datetime, timedelta
 from functools import wraps
-from uber.models.admin import PasswordReset
+from urllib.parse import urlparse
 
 import bcrypt
 import cherrypy
@@ -14,14 +14,15 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import selectinload, joinedload, make_transient
 from sqlalchemy.orm.exc import NoResultFound
 
+from uber.auth import OIDC
 from uber.config import c
 from uber.custom_tags import email_only, readable_join
 from uber.decorators import ajax, ajax_gettable, all_renderable, credit_card, csrf_protected, id_required, log_pageview, \
     redirect_if_at_con_to_kiosk, render, requires_account
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
-from uber.models import Attendee, AttendeeAccount, Attraction, BadgePickupGroup, Email, Group, PromoCode, PromoCodeGroup, \
-                        ModelReceipt, ReceiptItem, ReceiptTransaction, Tracking
+from uber.models import AdminAccount, Attendee, AttendeeAccount, Attraction, BadgePickupGroup, Email, Group, PromoCode, PromoCodeGroup, \
+                        PasswordReset, ReceiptItem, ReceiptTransaction, Tracking
 from uber.tasks.email import send_email
 from uber.utils import add_opt, remove_opt, check, localized_now, normalize_email, normalize_email_legacy, genpasswd, valid_email, \
     valid_password, SignNowRequest, validate_model, create_new_hash, get_age_conf_from_birthday, RegistrationCode, listify
@@ -2214,13 +2215,6 @@ class Root:
         raise HTTPRedirect('homepage?message={}', message or
                            'An email has been sent to {} to set up their account.'.format(attendee.email))
 
-    def logout(self, return_to=''):
-        cherrypy.session.pop('attendee_account_id')
-        for key in PreregCart.session_keys:
-            cherrypy.session.pop(key)
-        return_to = return_to or '/landing/index'
-        raise HTTPRedirect('..{}?message={}', return_to, 'You have been logged out.')
-
     @id_required(Attendee)
     @requires_account(Attendee)
     @log_pageview
@@ -2752,6 +2746,40 @@ class Root:
             'id': account.id,
             'account_email': account_email,
         }
+
+    def claim_account(self, session, sso_claim_token, message='', **params):
+        logged_in_account = session.current_attendee_account()
+        sso_id = logged_in_account.sso_id if logged_in_account else None
+        try:
+            attendee_account, admin_account = OIDC.process_account_claim_token(session, sso_claim_token, sso_id,
+                                                                               logged_in_account, dry_run=True)
+        except ValueError as e:
+            if logged_in_account:
+                redirect_page = 'homepage'
+            else:
+                redirect_page = '../landing/index' 
+            raise HTTPRedirect('{}?message={}', redirect_page, e)
+        
+        if cherrypy.request.method == 'POST':
+            if not logged_in_account:
+                message = f'Please create or log into a {c.OIDC_ACCOUNT_NAME} account first.'
+            elif not logged_in_account.sso_id:
+                message = f"Your {c.OIDC_ACCOUNT_NAME} account is invalid. Please contact us at {email_only(c.CONTACT_EMAIL)}."
+
+            if not message:
+                OIDC.process_account_claim_token(session, sso_claim_token, logged_in_account.sso_id, logged_in_account)
+                raise HTTPRedirect('homepage?message={}', "Thank you for setting up your account!")
+
+        return {
+            'logged_in_account': logged_in_account,
+            'attendee_account': attendee_account,
+            'admin_account': admin_account,
+            'sso_claim_token': sso_claim_token,
+            'message': message,
+        }
+    
+    def switch_account(self, session, **params):
+        pass
 
     @id_required(Attendee)
     @requires_account(Attendee)

@@ -4,6 +4,7 @@ import logging
 import cherrypy
 from cherrypy.lib.static import serve_file
 from sqlalchemy.orm.exc import NoResultFound
+from urllib.parse import urlparse, parse_qsl
 import base64
 
 from uber.config import c
@@ -35,20 +36,20 @@ class Root:
         if error:
             raise HTTPRedirect("../landing/index?message={}", f"Login failed: {error}")
 
-        cherrypy.tools.oidc.error = ''
-        redirect_uri = f"{c.OIDC_REDIRECT_URL}?post_login_url={post_login_url}" if post_login_url else c.OIDC_REDIRECT_URL
-        cherrypy.tools.oidc.handle_login(code, redirect_uri=redirect_uri)
-
-        if cherrypy.tools.oidc.error:
-            raise HTTPRedirect('../landing/index?message={}', cherrypy.tools.oidc.error)
-        
+        orig_redirect_uri = f"{c.OIDC_REDIRECT_URL}?post_login_url={post_login_url}" if post_login_url else c.OIDC_REDIRECT_URL
         post_login_url = base64.urlsafe_b64decode(post_login_url.encode()).decode()
-
+        params = dict(parse_qsl(urlparse(post_login_url).query))
+        error = cherrypy.tools.oidc.handle_login(code, redirect_uri=orig_redirect_uri,
+                                                 account_claim_token=params.get('sso_claim_token'))
+        
+        if error:
+            raise HTTPRedirect('../landing/index?message={}', error)
+        
+        redirect_url = getattr(cherrypy.request, 'redirect_url', post_login_url)
         if getattr(cherrypy.request, 'admin_account', None) and c.AT_THE_CON:
-            raise HTTPRedirect(post_login_url or '../accounts/homepage')
+            raise HTTPRedirect(redirect_url or '../accounts/homepage')
         elif getattr(cherrypy.request, 'attendee_account', None):
-            raise HTTPRedirect(post_login_url or '../preregistration/homepage')
-        raise HTTPRedirect('../landing/index?message={}', f'Login failed.')
+            raise HTTPRedirect(redirect_url or '../preregistration/homepage')
     
     @not_site_mappable
     def stripe_webhook_handler(self):

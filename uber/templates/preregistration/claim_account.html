@@ -1,0 +1,65 @@
+{% extends "./preregistration/preregbase.html" %}
+{% set title_text = "Claim Account" %}
+
+{% macro badge_description(attendee) %}
+{% if not attendee.badge_cost_with_promo_code %}complimentary {% endif %}
+{% if attendee.badge_type != c.ATTENDEE_BADGE %}{{ attendee.badge_type_label }} 
+{% elif c.DEALER_RIBBON in attendee.ribbon_ints %}{% if attendee.group and attendee.id == attendee.group.leader_id %}{{ c.DEALER_TERM }}{% else %}{{ c.DEALER_HELPER_TERM }}{% endif %}{% elif c.PANELIST_RIBBON in attendee.ribbon_ints %}Panelist{% endif %}
+badge
+{% endmacro %}
+
+{% block content %}
+<div class="card">
+  <div class="card-body">
+    <h2>{{ c.EVENT_NAME_AND_YEAR }} Badge Claim</h2>
+    <p>
+      {% if attendee_account and attendee_account.valid_attendees|length == 1 %}
+      You have been invited to claim an {% if admin_account %}admin {% endif %}account for <strong>{{ attendee_account.valid_attendees[0].full_name }}</strong>.
+      {% else %}
+      You have been invited to claim an account for {{ c.EVENT_NAME_AND_YEAR }}.
+      This account includes the following badges:
+      <ul>
+        {% for attendee in attendee_account.attendees %}
+        <li>A {{ badge_description(attendee) }} for {{ attendee.full_name }}{% if attendee.admin_account %}, which includes admin access to our system{% endif %}{% if attendee.group %}, {% if attendee.id == attendee.group.leader_id %}for{% else %}in{% endif %} the {% if attendee.group.guest_group %}{{ attendee.group.guest_group.group_type }} {% endif %}group "{{ attendee.group.name }}"{% endif %}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </p>
+    {% set badge_or_badges = "these badges" if attendee_account and attendee_account.valid_attendees|length > 1 else "this badge" %}
+    <p>
+      {% if logged_in_account %}
+      You are currently logged in as <strong>{{ logged_in_account.email }}</strong>. If that sounds correct, click below to claim {{ badge_or_badges }} under your existing account.
+      If not, you can log out below, then create or log into another {{ c.OIDC_ACCOUNT_NAME }} account to claim {{ badge_or_badges }}.
+      {% else %}
+      Claiming {{ badge_or_badges }} requires a {{ c.OIDC_ACCOUNT_NAME }} account. If you've signed up for a {{ c.OIDC_ACCOUNT_NAME }} account previously,
+      even for another {{ c.EVENT_NAME }} event, we recommend logging into that account using the button below to claim your badge so you can manage all your badges in one place.
+    </p><p>
+      If you do not already have an account for {{ c.EVENT_NAME_AND_YEAR }}, the button below will link your {{ c.OIDC_ACCOUNT_NAME }} to {{ badge_or_badges }} immediately.
+      {% endif %}
+    </p>
+    <div class="d-flex gap-2">
+      {% if logged_in_account %}
+      <div>
+        <form method="post" action="claim_account">
+          {{ csrf_token() }}
+          <input type="hidden" name="sso_claim_token" value="{{ sso_claim_token }}" />
+          <button class="btn btn-primary">Claim {{ badge_or_badges|title }}</button>
+        </form>
+      </div>
+      <div>
+        <form method="post" action="../accounts/logout">
+          {{ csrf_token() }}
+          <input type="hidden" name="post_logout_url" value="/preregistration/claim_account" />
+          <input type="hidden" name="post_logout_state" value="?sso_claim_token={{ sso_claim_token }}&message=You have been logged out." />
+          <button class="btn btn-secondary">Log Out</a>
+        </form>
+      </div>
+      {% else %}
+      <div>
+        <a class="btn btn-success" href="../accounts/login?original_location=/preregistration/claim_account?sso_claim_token={{ sso_claim_token }}">Create or Log Into {{ c.OIDC_ACCOUNT_NAME }} Account</a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

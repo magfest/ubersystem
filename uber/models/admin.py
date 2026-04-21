@@ -267,16 +267,16 @@ class AdminAccount(MagModel, table=True):
 
 
 class PasswordReset(MagModel, table=True):
-    admin_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='admin_account.id', ondelete='CASCADE', unique=True)
+    admin_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='admin_account.id', ondelete='CASCADE', unique=True, nullable=True)
     admin_account: 'AdminAccount' = Relationship(
         back_populates="password_reset", sa_relationship_kwargs={'single_parent': True})
 
-    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee_account.id', ondelete='CASCADE', unique=True)
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee_account.id', ondelete='CASCADE', unique=True, nullable=True)
     attendee_account: 'AttendeeAccount' = Relationship(back_populates="password_reset", sa_relationship_kwargs={'single_parent': True})
 
     generated: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
-    hashed: str = Column(String, private=True)
-    token: str = Column(String, private=True)
+    hashed: str = Field(sa_type=String, private=True)
+    token: str = Field(sa_type=String, private=True)
 
     @property
     def is_expired(self):
