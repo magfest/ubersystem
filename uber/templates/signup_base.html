@@ -27,7 +27,7 @@
     </button>
     <ul class="navbar-nav me-auto mb-2 mb-lg-0" id="main-menu">
       {% if c.VOLUNTEER_CHECKLIST_OPEN %}<li class="nav-item"><a class="nav-link{% if c.PAGE_PATH == '/staffing/checklist' %} active" aria-current="page"{% else %}"{% endif %} href="../staffing/checklist?id={{ attendee.id }}">Volunteer Checklist</a></li>{% endif %}
-      {% if c.AFTER_SHIFTS_CREATED and attendee.shift_prereqs_complete %}
+      {% if c.AFTER_SHIFTS_CREATED and (not c.VOLUNTEER_CHECKLIST_OPEN or attendee.shift_prereqs_complete) %}
       <li class="nav-item"><a class="nav-link{% if c.PAGE_PATH == '/staffing/shifts' %} active" aria-current="page"{% else %}"{% endif %} href="../staffing/shifts?id={{ attendee.id }}">Shifts</a></li>
       <li class="nav-item"><a class="nav-link" href="../staffing/printable?id={{ attendee.id }}" target="_blank">Printable Shift Schedule</a></li>
       {% endif %}

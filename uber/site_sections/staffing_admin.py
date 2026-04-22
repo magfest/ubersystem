@@ -50,7 +50,7 @@ def _copy_department_templates(to_department, from_department):
     to_dept_templates_by_id = to_department.job_templates_by_id
     to_dept_templates_by_name = to_department.job_templates_by_name
     dept_template_map = {}
-    for from_dept_template in from_department['job_templates']:
+    for from_dept_template in from_department.get('job_templates', {}):
         to_dept_template = to_dept_templates_by_id.get(from_dept_template['id'], [None])[0]
         if not to_dept_template:
             to_dept_template = to_dept_templates_by_name.get(from_dept_template['template_name'], [None])[0]
@@ -67,8 +67,12 @@ def _copy_department_templates(to_department, from_department):
 
 def _copy_department_shifts(service, to_department, from_department, dept_role_map, dept_template_map):
     from_config = service.config.info()
-    FROM_EPOCH = c.EVENT_TIMEZONE.localize(datetime.strptime(from_config['SHIFTS_EPOCH'], '%Y-%m-%d %H:%M:%S.%f'))
-    EPOCH_DELTA = c.SHIFTS_EPOCH - FROM_EPOCH
+    if from_config.get('SHIFTS_EPOCH'):
+        FROM_EPOCH = c.EVENT_TIMEZONE.localize(datetime.strptime(from_config['SHIFTS_EPOCH'], '%Y-%m-%d %H:%M:%S.%f'))
+        EPOCH_DELTA = c.SHIFTS_EPOCH - FROM_EPOCH
+    else:
+        FROM_EPOCH = c.EVENT_TIMEZONE.localize(datetime.strptime(from_config['EPOCH'], '%Y-%m-%d %H:%M:%S.%f'))
+        EPOCH_DELTA = c.EPOCH - FROM_EPOCH
 
     for from_job in from_department['jobs']:
         to_job = Job(
@@ -83,7 +87,7 @@ def _copy_department_shifts(service, to_department, from_department, dept_role_m
             department_id=to_department.id)
         for from_required_role in from_job['required_roles']:
             to_job.required_roles.append(dept_role_map[from_required_role['id']])
-        if from_job['job_template_id']:
+        if from_job.get('job_template_id'):
             to_job.template = dept_template_map[from_job['job_template_id']]
         to_department.jobs.append(to_job)
 
@@ -155,7 +159,7 @@ class Root:
                 if shifts_text:
                     _copy_department_shifts(service, to_department, from_department, dept_role_map, dept_template_map)
 
-                message = '{}{}successfully imported from {}'.format(to_department.name, shifts_text, uri)
+                message = '{}{} successfully imported from {}'.format(to_department.name, shifts_text, uri)
                 raise HTTPRedirect('import_shifts?target_server={}&api_token={}&message={}',
                                    target_server, api_token, message)
 
@@ -219,7 +223,7 @@ class Root:
                 _copy_department_templates(to_department, from_department)
 
                 to_dept_attractions = {attraction.slug: attraction for attraction in to_department.attractions}
-                for from_dept_attraction in from_department['attractions']:
+                for from_dept_attraction in from_department.get('attractions', {}):
                     from_slug = slugify(from_dept_attraction['name'])
                     to_dept_attraction = to_dept_attractions.get(from_slug, None)
 

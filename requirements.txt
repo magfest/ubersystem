@@ -13,6 +13,7 @@ fpdf2==2.8.3
 geopy==2.4.1
 TatSu==5.7.4
 ics==0.7.2
+TatSu==5.16
 Jinja2==3.1.6
 ortools==9.14.6206
 phonenumbers==9.0.9

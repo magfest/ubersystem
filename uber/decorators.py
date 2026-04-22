@@ -850,7 +850,10 @@ def restricted(func):
         if not getattr(cherrypy.request, 'admin_account', getattr(cherrypy.request, 'attendee_account', None)):
             cherrypy.tools.oidc.redirect_to_keycloak()
 
-        if cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None)) is None:
+        if '/staffing/' in c.PAGE_PATH and not c.VOLUNTEER_SIGNUPS_AVAILABLE and not c.DEV_BOX:
+            redirect = '../preregistration/homepage' if c.ATTENDEE_ACCOUNTS_ENABLED else '../landing/index'
+            ajax_or_redirect(func, '{redirect}?message=', "The volunteer checklist is not open yet.", True)
+        elif cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None)) is None:
             if getattr(func, 'kiosk_login', None):
                 if not cherrypy.session.get('kiosk_supervisor_id'):
                     cherrypy.session.pop('kiosk_operator_id', None)
