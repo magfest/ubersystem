@@ -688,7 +688,7 @@ if c.VOLUNTEER_CHECKLIST_OPEN:
     StopsEmailFixture(
         'Please complete your {EVENT_NAME} Staff/Volunteer Checklist',
         'shifts/created.txt',
-        lambda a: a.staffing,
+        lambda a: a.staffing and a.assigned_depts,
         when=after(c.VOLUNTEER_CHECKLIST_OPEN),
         allow_at_the_con=True,
         ident='volunteer_checklist_completion_request')
