@@ -124,7 +124,7 @@ class Root:
                     from_attraction = service.attraction.features_events(attraction_id=from_attraction_id)
                     to_attraction_id = existing_attractions_by_id.get(from_attraction_id, None)
                     if to_attraction_id:
-                        to_attraction = session.query(Attraction).filter(Attraction.id == to_attraction_id).first()
+                        to_attraction = session.get(Attraction, to_attraction_id)
                     else:
                         attraction_count += 1
                         to_attraction = Attraction()
@@ -216,10 +216,10 @@ class Root:
         if not attraction_id or attraction_id == 'None':
             raise HTTPRedirect('index')
         
-        attraction = session.query(Attraction).filter(Attraction.id == attraction_id).options(
+        attraction = session.get(Attraction, attraction_id, options=[
             joinedload(Attraction.department), selectinload(Attraction.events),
             defaultload(Attraction.features).defaultload(AttractionFeature.events).selectinload(AttractionEvent.signups),
-        ).first()
+        ])
         
         forms = load_forms(params, attraction, ['AttractionInfo'])
 
@@ -323,7 +323,7 @@ class Root:
     @csrf_protected
     def delete(self, session, id, message=''):
         if cherrypy.request.method == 'POST':
-            attraction = session.query(Attraction).get(id)
+            attraction = session.get(Attraction, id)
             if not session.current_admin_account().can_admin_attraction(attraction):
                 raise HTTPRedirect(
                     'form?id={}&message={}',
@@ -350,8 +350,7 @@ class Root:
             feature = session.attraction_feature(params.get('id'))
 
         attraction_id = feature.attraction_id or attraction_id
-        attraction = session.query(Attraction).filter_by(id=attraction_id) \
-            .order_by(Attraction.id).one()
+        attraction = session.get(Attraction, attraction_id)
         
         feature.attraction = attraction
         if feature.is_new:
@@ -406,7 +405,7 @@ class Root:
     @csv_file
     def export_feature(self, out, session, id):
         from uber.decorators import _set_response_filename
-        feature = session.query(AttractionFeature).get(id)
+        feature = session.get(AttractionFeature, id)
         _set_response_filename('{}.csv'.format(filename_safe(feature.name)))
         out.writerow(['Name', 'Badge Name', 'Badge Num', 'Signup Time', 'Checkin Time'])
         for event in feature.events:
@@ -442,7 +441,7 @@ class Root:
             feature = event.feature
 
         if not feature and (params['feature_id'] or params.get('attraction_feature_id', '')):
-            feature = session.query(AttractionFeature).get(params.get('attraction_feature_id', params['feature_id']))
+            feature = session.get(AttractionFeature, params.get('attraction_feature_id', params['feature_id']))
 
         if cherrypy.request.method != 'POST':
             last_event = None
@@ -496,8 +495,7 @@ class Root:
                 'form?id={}&message={}', feature.attraction_id, message)
 
         return {
-            'attraction': session.query(Attraction).filter(Attraction.id == feature.attraction_id).options(
-                selectinload(Attraction.events)).first(),
+            'attraction': session.get(Attraction, feature.attraction_id, options=[selectinload(Attraction.events)]),
             'feature': feature,
             'event': event,
             'forms': forms,
@@ -544,7 +542,7 @@ class Root:
             gap = None
 
         if gap is not None and cherrypy.request.method == 'POST':
-            ref_event = session.query(AttractionEvent).get(id)
+            ref_event = session.get(AttractionEvent, id)
             events_for_day = ref_event.feature.events_by_location_by_day[ref_event.event_location_id][ref_event.start_day_local]
             attraction_id = ref_event.feature.attraction_id
 
@@ -565,7 +563,7 @@ class Root:
     def update_locations(self, session, feature_id, old_location, new_location):
         message = ''
         if cherrypy.request.method == 'POST':
-            feature = session.query(AttractionFeature).get(feature_id)
+            feature = session.get(AttractionFeature, feature_id)
             if not session.current_admin_account().can_admin_attraction(feature.attraction):
                 message = "You cannot update rooms for an attraction you don't own"
             else:
@@ -580,9 +578,9 @@ class Root:
     def delete_event(self, session, id):
         message = ''
         if cherrypy.request.method == 'POST':
-            event = session.query(AttractionEvent).get(id)
+            event = session.get(AttractionEvent, id)
             attraction_id = event.feature.attraction_id
-            attraction = session.query(Attraction).get(attraction_id)
+            attraction = session.get(Attraction, attraction_id)
             if not session.current_admin_account().can_admin_attraction(attraction):
                 message = "You cannot delete a event from an attraction you don't own."
             else:
@@ -595,9 +593,9 @@ class Root:
     def delete_event_cascade(self, session, id):
         message = ''
         if cherrypy.request.method == 'POST':
-            event = session.query(AttractionEvent).get(id)
+            event = session.get(AttractionEvent, id)
             attraction_id = event.feature.attraction_id
-            attraction = session.query(Attraction).get(attraction_id)
+            attraction = session.get(Attraction, attraction_id)
             if not session.current_admin_account().can_admin_attraction(attraction):
                 message = "You cannot delete a event from an attraction you don't own."
             else:
@@ -610,11 +608,11 @@ class Root:
     
     @ajax
     def delete_feature(self, session, id):
-        feature = session.query(AttractionFeature).get(id)
+        feature = session.get(AttractionFeature, id)
         attraction_id = feature.attraction_id
         message = ''
         if cherrypy.request.method == 'POST':
-            attraction = session.query(Attraction).get(attraction_id)
+            attraction = session.get(Attraction, attraction_id)
             if not session.current_admin_account().can_admin_attraction(attraction):
                 message = "You cannot delete a feature from an attraction you don't own."
             else:
@@ -626,11 +624,11 @@ class Root:
     
     @ajax
     def delete_feature_cascade(self, session, id):
-        feature = session.query(AttractionFeature).get(id)
+        feature = session.get(AttractionFeature, id)
         attraction_id = feature.attraction_id
         message = ''
         if cherrypy.request.method == 'POST':
-            attraction = session.query(Attraction).get(attraction_id)
+            attraction = session.get(Attraction, attraction_id)
             if not session.current_admin_account().can_admin_attraction(attraction):
                 message = "You cannot delete a feature from an attraction you don't own."
             else:
@@ -649,9 +647,9 @@ class Root:
         message = ''
         event = {}
         if cherrypy.request.method == 'POST':
-            signup = session.query(AttractionSignup).get(id)
+            signup = session.get(AttractionSignup, id)
             attraction_id = signup.event.feature.attraction_id
-            attraction = session.query(Attraction).get(attraction_id)
+            attraction = session.get(Attraction, attraction_id)
             if not session.current_admin_account().can_admin_attraction(attraction):
                 message = "You cannot cancel a signup for an attraction you don't own."
             elif signup.is_checked_in:
@@ -777,8 +775,8 @@ class Root:
             if not attendee_id:
                 return {'error': "Attendee ID is blank."}
             
-            event = session.query(AttractionEvent).get(id)
-            attendee = session.query(Attendee).get(attendee_id)
+            event = session.get(AttractionEvent, id)
+            attendee = session.get(Attendee, attendee_id)
             if not event:
                 return {'error': "Could not find event."}
             if not attendee:
@@ -816,7 +814,7 @@ class Root:
         message = ''
         email = True if email == 'true' else False
         if cherrypy.request.method == 'POST':
-            signup = session.query(AttractionSignup).get(id)
+            signup = session.get(AttractionSignup, id)
             if signup.is_checked_in:
                 message = "This attendee has already checked in."
             else:
@@ -832,7 +830,7 @@ class Root:
     def checkin_signup(self, session, id):
         message = ''
         if cherrypy.request.method == 'POST':
-            signup = session.query(AttractionSignup).get(id)
+            signup = session.get(AttractionSignup, id)
             if signup.is_checked_in:
                 message = "This attendee has already checked in."
             elif signup.on_waitlist:
@@ -847,6 +845,6 @@ class Root:
     @ajax
     def undo_checkin_signup(self, session, id):
         if cherrypy.request.method == 'POST':
-            signup = session.query(AttractionSignup).get(id)
+            signup = session.get(AttractionSignup, id)
             signup.checkin_time = utcmin.datetime
             session.commit()

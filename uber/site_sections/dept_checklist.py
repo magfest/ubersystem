@@ -17,8 +17,7 @@ def _submit_checklist_item(session, department_id, submitted, csrf_token, slug, 
     if not department_id:
         raise HTTPRedirect('../dept_checklist/index')
     attendee = session.admin_attendee()
-    department = session.query(Department).options(
-        subqueryload(Department.dept_checklist_items)).get(department_id)
+    department = session.get(Department, department_id, options=[subqueryload(Department.dept_checklist_items)])
     if submitted:
         item = department.checklist_item_for_slug(slug)
         if not item:
@@ -60,8 +59,7 @@ class Root:
         if not department_id and len(attendee.can_admin_checklist_depts) == 1:
             department_id = attendee.can_admin_checklist_depts[0].id
 
-        department = session.query(Department).options(
-            subqueryload(Department.dept_checklist_items)).get(department_id)
+        department = session.get(Department, department_id, options=[subqueryload(Department.dept_checklist_items)])
         return {
             'message': message,
             'attendee': attendee,
@@ -75,8 +73,7 @@ class Root:
     def mark_item_complete(self, session, slug, department_id):
         _check_dept_checklist_open(department_id)
         attendee = session.admin_attendee()
-        department = session.query(Department).options(
-            subqueryload(Department.dept_checklist_items)).get(department_id)
+        department = session.get(Department, department_id, options=[subqueryload(Department.dept_checklist_items)])
 
         if department.checklist_item_for_slug(slug):
             message = 'Checklist item already marked as complete'
@@ -92,8 +89,7 @@ class Root:
     def form(self, session, slug, department_id, csrf_token=None, comments=None):
         _check_dept_checklist_open(department_id)
         attendee = session.admin_attendee()
-        department = session.query(Department).options(
-            subqueryload(Department.dept_checklist_items)).get(department_id)
+        department = session.get(Department, department_id, options=[subqueryload(Department.dept_checklist_items)])
 
         conf = DeptChecklistConf.instances[slug]
         item = department.checklist_item_for_slug(slug)
@@ -265,7 +261,7 @@ class Root:
 
         return {
             'department_id': 'All' if department_id is None else department_id,
-            'dept_name': session.query(Department).get(department_id).name if department_id else 'All',
+            'dept_name': session.get(Department, department_id).name if department_id else 'All',
             'checklist': checklist,
             'placeholders': placeholders
         }

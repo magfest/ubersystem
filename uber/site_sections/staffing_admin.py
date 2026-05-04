@@ -147,10 +147,10 @@ class Root:
                         to_department.jobs = []
                     session.add(to_department)
                 else:
-                    to_department = session.query(Department).filter(Department.id == to_department_id).options(
+                    to_department = session.get(Department, to_department_id, options=[
                         selectinload(Department.dept_roles), selectinload(Department.job_templates),
                         selectinload(Department.jobs)
-                    ).first()
+                    ])
                     session.add(to_department)
 
                 dept_role_map = _copy_department_roles(to_department, from_department)

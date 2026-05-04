@@ -440,7 +440,7 @@ class Root:
             except ValueError:
                 pass
             else:
-                attendee = session.query(Attendee).filter(Attendee.id == id).first()
+                attendee = session.get(Attendee, id)
                 if attendee:
                     account = session.admin_account(params)
                     if not c.SAML_SETTINGS and not c.OIDC_ENABLED:

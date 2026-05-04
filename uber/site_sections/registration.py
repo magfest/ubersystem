@@ -51,7 +51,7 @@ def load_attendee(session, params):
     if id in [None, '', 'None']:
         attendee = Attendee()
     else:
-        attendee = session.query(Attendee).filter(Attendee.id == id).options(
+        attendee = session.get(Attendee, id, options=[
             selectinload(Attendee.promo_code_groups),
             selectinload(Attendee.allocated_badges),
             selectinload(Attendee.escalation_tickets),
@@ -63,7 +63,7 @@ def load_attendee(session, params):
             joinedload(Attendee.watch_list),
             joinedload(Attendee.shifts),
             joinedload(Attendee.panel_applicants),
-            joinedload(Attendee.admin_account)).one()
+            joinedload(Attendee.admin_account)])
 
     return attendee
 
@@ -1484,7 +1484,7 @@ class Root:
     def undo_delete(self, session, id, message='', page='1', who='', what='', action=''):
         if cherrypy.request.method == "POST":
             model_class = None
-            tracked_delete = session.query(Tracking).get(id)
+            tracked_delete = session.get(Tracking, id)
             if tracked_delete.action != c.DELETED:
                 message = 'Only a delete can be undone'
             else:
@@ -1494,8 +1494,7 @@ class Root:
                 params = json.loads(tracked_delete.snapshot)
                 model_id = params.get('id').strip()
                 if model_id:
-                    existing_model = session.query(model_class).filter(
-                        model_class.id == model_id).first()
+                    existing_model = session.get(model_class, model_id)
                     if existing_model:
                         message = '{} has already been undeleted'.format(tracked_delete.which)
                     else:

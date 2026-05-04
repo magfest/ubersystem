@@ -357,7 +357,7 @@ def auth_by_session(required_access):
     if not admin_account_id:
         return (403, 'Missing admin account in session')
     with Session() as session:
-        admin_account = session.query(AdminAccount).filter_by(id=admin_account_id).first()
+        admin_account = session.get(AdminAccount, admin_account_id)
         if not admin_account:
             return (403, 'Invalid admin account in session')
         for access_level in required_access:
@@ -522,7 +522,7 @@ class MivsLookup:
             raise HTTPError(400, f"Invalid ID: {str(e)}")
 
         with Session() as session:
-            judge = session.query(IndieJudge).filter(IndieJudge.id == id).first()
+            judge = session.get(IndieJudge, id)
             if judge:
                 return judge.to_dict()
             else:
@@ -869,7 +869,7 @@ class AttendeeAccountLookup:
         """
 
         with Session() as session:
-            account = session.query(AttendeeAccount).filter(AttendeeAccount.id == id).first()
+            account = session.get(AttendeeAccount, id)
 
             if not account:
                 raise HTTPError(404, 'No attendee account found with this ID')
@@ -978,7 +978,7 @@ class AttractionLookup:
         attraction ids call the "attraction.list" method.
         """
         with Session() as session:
-            attraction = session.query(Attraction).filter_by(id=attraction_id).first()
+            attraction = session.get(Attraction, attraction_id)
             if not attraction:
                 raise HTTPError(404, 'Attraction id not found: {}'.format(attraction_id))
             return attraction.to_dict({
@@ -1111,7 +1111,7 @@ class JobLookup:
         Takes the shift id as the only parameter.
         """
         with Session() as session:
-            shift = session.query(Shift).filter_by(id=shift_id).first()
+            shift = session.get(Shift, shift_id)
             if not shift:
                 raise HTTPError(404, 'Shift id not found:{}'.format(shift_id))
 
@@ -1153,7 +1153,7 @@ class JobLookup:
                 c.RATINGS[rating]))
 
         with Session() as session:
-            shift = session.query(Shift).filter_by(id=shift_id).first()
+            shift = session.get(Shift, shift_id)
             if not shift:
                 raise HTTPError(404, 'Shift id not found:{}'.format(shift_id))
 
@@ -1259,7 +1259,7 @@ class GroupLookup:
         """
 
         with Session() as session:
-            group = session.query(Group).filter(Group.id == id).first()
+            group = session.get(Group, id)
 
             if not group:
                 raise HTTPError(404, 'No group found with this ID')
@@ -1361,7 +1361,7 @@ class DepartmentLookup:
         Takes the department id and 'full' to return attendees' full list of fields.
         """
         with Session() as session:
-            department = session.query(Department).filter_by(id=department_id).first()
+            department = session.get(Department, department_id)
             if not department:
                 raise HTTPError(404, 'Department id not found: {}'.format(department_id))
             if full:
@@ -1390,7 +1390,7 @@ class DepartmentLookup:
         department ids call the "dept.list" method.
         """
         with Session() as session:
-            department = session.query(Department).filter_by(id=department_id).first()
+            department = session.get(Department, department_id)
             if not department:
                 raise HTTPError(404, 'Department id not found: {}'.format(department_id))
             return department.to_dict({
@@ -1531,7 +1531,7 @@ class HotelLookup:
         """
         with Session() as session:
             if id:
-                room = session.query(Room).filter(Room.id == id).one_or_none()
+                room = session.get(Room, id)
                 if not room:
                     return HTTPError(404, "Could not locate room {}".format(id))
             else:
@@ -1554,7 +1554,7 @@ class HotelLookup:
         """
         with Session() as session:
             if id:
-                hotel_request = session.query(HotelRequests).filter(HotelRequests.id == id).one_or_none()
+                hotel_request = session.get(HotelRequests, id)
                 if not hotel_request:
                     return HTTPError(404, "Could not locate request {}".format(id))
             else:
@@ -1743,7 +1743,7 @@ class PrintJobLookup:
             except ValueError:
                 raise HTTPError(400, "Reg station must be an integer.")
 
-            attendee = session.query(Attendee).filter_by(id=attendee_id).first()
+            attendee = session.get(Attendee, attendee_id)
             if not attendee:
                 raise HTTPError(404, "Attendee not found.")
 

@@ -238,12 +238,12 @@ class FileService:
     @staticmethod
     def from_fk_model_id(session, fk_model, fk_id, *args, **kwargs):
         model_cls = session.resolve_model(fk_model)
-        fk_object = session.query(model_cls).filter(model_cls.id == fk_id).one()
+        fk_object = session.get(model_cls, fk_id)
         return FileService.file_handler(session, fk_object, *args, **kwargs)
 
     @staticmethod
     def from_db_id(session, file_obj_id, *args, **kwargs):
-        file_obj = session.query(File).filter(File.id == file_obj_id).one()
+        file_obj = session.get(File, file_obj_id)
         return FileService.file_handler(session, file_obj, *args, **kwargs)
 
     @staticmethod

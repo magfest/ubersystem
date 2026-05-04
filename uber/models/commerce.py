@@ -261,7 +261,7 @@ class ModelReceipt(MagModel, table=True):
         cls = Session.resolve_model(self.owner_model)
         if cls in [Attendee, Group]:
             with Session() as session:
-                model = session.query(cls).filter_by(id=self.owner_id).first()
+                model = session.get(cls, self.owner_id)
                 if model and model.is_dealer:
                     return c.DEALER_RECEIPT_ITEM
         return getattr(cls, 'department')

@@ -124,7 +124,7 @@ def get_studio_id(model, id_name='id'):
         def with_check(*args, **kwargs):
             if kwargs.get(id_name, None) and not kwargs.get('studio_id'):
                 with uber.models.Session() as session:
-                    child_model = session.query(model).get(kwargs.get(id_name))
+                    child_model = session.get(model, kwargs.get(id_name))
                     if hasattr(child_model, 'game'):
                         kwargs['studio_id'] = child_model.game.studio.id
                     else:
@@ -146,7 +146,7 @@ def get_team_id(model, id_name='id'):
         def with_check(*args, **kwargs):
             if kwargs.get(id_name, None) and not kwargs.get('team_id'):
                 with uber.models.Session() as session:
-                    child_model = session.query(model).get(kwargs.get(id_name))
+                    child_model = session.get(model, kwargs.get(id_name))
                     kwargs['team_id'] = child_model.team.id
             return func(*args, **kwargs)
         return with_check
@@ -190,7 +190,7 @@ suffix_property.check = _suffix_property_check
 def check_can_edit_dept(session, department_id=None, inherent_role=None, override_access=None):
     from uber.models import AdminAccount, DeptMembership, Department
     account_id = cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))
-    admin_account = session.query(AdminAccount).get(account_id)
+    admin_account = session.get(AdminAccount, account_id)
     if not getattr(admin_account, override_access, None):
         dh_filter = [
             AdminAccount.id == account_id,
@@ -207,7 +207,7 @@ def check_can_edit_dept(session, department_id=None, inherent_role=None, overrid
         is_dept_admin = session.query(AdminAccount).filter(*dh_filter).first()
         if not is_dept_admin:
             if department_id:
-                department = session.query(Department).get(department_id)
+                department = session.get(Department, department_id)
                 dept_msg = ' of {}'.format(department.name)
             else:
                 dept_msg = ''
@@ -253,11 +253,11 @@ def requires_account(models=None):
                         elif model == Group:
                             error, model_id = check_id_for_model(model, alt_id='group_id', **kwargs)
                             if not error:
-                                attendee = session.query(model).filter_by(id=model_id).first().leader
+                                attendee = session.get(model, model_id).leader
                         elif model == GuestGroup:
                             error, model_id = check_id_for_model(model, alt_id='guest_id', **kwargs)
                             if not error:
-                                group = session.query(model).filter_by(id=model_id).first().group
+                                group = session.get(model, model_id).group
                                 if group:
                                     attendee = group.leader
                         elif model in [PanelApplication, IndieStudio, MITSTeam]:
@@ -267,13 +267,13 @@ def requires_account(models=None):
                                 alt_id = 'studio_id' if model == IndieStudio else 'team_id'
                             error, model_id = check_id_for_model(model, alt_id=alt_id, **kwargs)
                             if not error:
-                                other_account_model = session.query(model).filter_by(id=model_id).first()
+                                other_account_model = session.get(model, model_id)
                         elif model == PromoCodeGroup:
                             error, model_id = check_id_for_model(model, alt_id='group_id', **kwargs)
                             if not error:
                                 attendee = session.get(model, model_id).buyer
                         else:
-                            other_model = session.query(model).filter_by(id=kwargs.get('id')).first()
+                            other_model = session.get(model, kwargs.get('id'))
                             if other_model:
                                 attendee = other_model.attendee
 
@@ -291,7 +291,7 @@ def requires_account(models=None):
                                 return func(*args, **kwargs)
                             elif isinstance(other_account_model, MITSTeam) and c.HAS_MITS_ADMIN_ACCESS:
                                 return func(*args, **kwargs)
-                        account = session.query(AttendeeAccount).get(attendee_account_id) if attendee_account_id else None
+                        account = session.get(AttendeeAccount, attendee_account_id) if attendee_account_id else None
                         if not account or account != other_account_model.attendee_account:
                             message = 'You do not have permission to view this page.'
                     elif attendee:
@@ -299,7 +299,7 @@ def requires_account(models=None):
                         if session.admin_attendee_max_access(attendee):
                             return func(*args, **kwargs)
 
-                        account = session.query(AttendeeAccount).get(attendee_account_id) if attendee_account_id else None
+                        account = session.get(AttendeeAccount, attendee_account_id) if attendee_account_id else None
 
                         if not account or account not in attendee.managers:
                             message = 'You do not have permission to view this page.'
@@ -1058,7 +1058,7 @@ def check_id_for_model(model, alt_id=None, **params):
         except ValueError:
             message = "That ID is not a valid format. Did you enter or edit it manually or paste it incorrectly?"
         else:
-            if not session.query(model).filter(model.id == model_id).first():
+            if not session.get(model, model_id):
                 message = "The ID provided was not found in our database."
 
     if message:
