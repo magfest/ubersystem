@@ -128,6 +128,8 @@ class Root:
             log.error('unexpected error adding new applicant', exc_info=True)
             return {'error': 'Unexpected error: unable to add attendee'}
         else:
+            if c.ATTENDEE_ACCOUNTS_ENABLED:
+                session.add_attendee_to_account(applicant.attendee, applicant.team.attendee_account)
             return {'comp_count': applicant.team.comped_badge_count}
 
     @csv_file

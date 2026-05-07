@@ -2,12 +2,12 @@ import cherrypy
 from datetime import datetime, timedelta
 import logging
 import ics
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
 from uber.custom_tags import safe_string
-from uber.decorators import ajax, ajax_gettable, all_renderable, check_shutdown, csrf_protected, render, public
+from uber.decorators import ajax, ajax_gettable, all_renderable, check_shutdown, csrf_protected, render, requires_account
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, Job, FoodRestrictions
@@ -29,22 +29,36 @@ def _convert_urls(desc):
     return desc
 
 
-@all_renderable()
+@all_renderable(public=True)
 class Root:
-    def index(self, session, message=''):
+    @requires_account()
+    def index(self, session, id, message=''):
+        attendee = session.volunteer_from_id(id)
         if c.UBER_SHUT_DOWN:
-            return render('staffing/printable.html', {'attendee': session.logged_in_volunteer()})
+            return render('staffing/printable.html', {'attendee': attendee})
+        else:
+            if not c.VOLUNTEER_CHECKLIST_OPEN or attendee.shift_prereqs_complete:
+                raise HTTPRedirect('shifts?id={}&message={}', attendee.id, message)
+            raise HTTPRedirect('checklist?id={}&message={}', attendee.id, message)
+
+    @requires_account()
+    def checklist(self, session, id, message=''):
+        attendee = session.volunteer_from_id(id)
+        if c.UBER_SHUT_DOWN:
+            return render('staffing/printable.html', {'attendee': attendee})
         else:
             return {
                 'message': message,
-                'attendee': session.logged_in_volunteer()
+                'attendee': attendee
             }
 
-    def printable(self, session):
-        return {'attendee': session.logged_in_volunteer()}
+    @requires_account()
+    def printable(self, id, session):
+        return {'attendee': session.volunteer_from_id(id)}
 
-    def food_restrictions(self, session, message='', **params):
-        attendee = session.logged_in_volunteer()
+    @requires_account()
+    def food_restrictions(self, session, id, message='', **params):
+        attendee = session.volunteer_from_id(params.get('attendee_id', id))
         restrictions = attendee.food_restrictions or FoodRestrictions(attendee_id=attendee.id)
         forms = load_forms(params, restrictions, ["DietaryRestrictions"])
 
@@ -54,9 +68,11 @@ class Root:
             session.add(restrictions)
             session.commit()
             if attendee.badge_type == c.GUEST_BADGE:
-                raise HTTPRedirect('food_restrictions?message={}', 'Your info has been recorded, thanks a bunch!')
+                raise HTTPRedirect('food_restrictions?id={}&message={}', attendee.id,
+                                   'Your info has been recorded, thanks a bunch!')
             else:
-                raise HTTPRedirect('index?message={}', 'Your dietary restrictions have been recorded.')
+                raise HTTPRedirect('checklist?id={}&message={}', attendee.id,
+                                   'Your dietary restrictions have been recorded.')
 
         return {
             'restrictions': restrictions,
@@ -65,12 +81,13 @@ class Root:
             'attendee': attendee
         }
 
+    @requires_account()
     @ajax
     def validate_food_restrictions(self, session, form_list=[], **params):
         all_errors = {}
 
-        attendee = session.logged_in_volunteer()
-        restrictions = attendee.food_restrictions or FoodRestrictions()
+        attendee = session.volunteer_from_id(params.get('attendee_id'))
+        restrictions = attendee.food_restrictions or FoodRestrictions(attendee_id=attendee.id)
 
         if not form_list:
             form_list = ['DietaryRestrictions']
@@ -85,9 +102,10 @@ class Root:
 
         return {"success": True}
 
+    @requires_account()
     @check_shutdown
-    def shirt_size(self, session, message='', **params):
-        attendee = session.logged_in_volunteer()
+    def shirt_size(self, session, id, message='', **params):
+        attendee = session.volunteer_from_id(id)
         if cherrypy.request.method == "POST":
             check_csrf(params.get('csrf_token'))
             test_attendee = Attendee(**attendee.to_dict())
@@ -102,7 +120,7 @@ class Root:
                 for attr in ['shirt', 'staff_shirt', 'num_event_shirts', 'shirt_opt_out']:
                     if params.get(attr):
                         setattr(attendee, attr, int(params.get(attr)))
-                raise HTTPRedirect('index?message={}', 'Shirt info uploaded.')
+                raise HTTPRedirect('checklist?id={}&message={}', id, 'Shirt info uploaded.')
 
         return {
             'message': message,
@@ -110,15 +128,16 @@ class Root:
             'opts': [('', 'Enter your shirt size')] + c.SHIRT_OPTS[1:]
         }
 
+    @requires_account()
     @check_shutdown
-    def volunteer_agreement(self, session, message='', agreed_to_terms=None, agreed_to_terms_1=None,
+    def volunteer_agreement(self, session, id, message='', agreed_to_terms=None, agreed_to_terms_1=None,
                             agreed_to_terms_2=None, csrf_token=None):
-        attendee = session.logged_in_volunteer()
+        attendee = session.volunteer_from_id(id)
         if csrf_token is not None:
             check_csrf(csrf_token)
             if agreed_to_terms or (agreed_to_terms_1 and agreed_to_terms_2):
                 attendee.agreed_to_volunteer_agreement = True
-                raise HTTPRedirect('index?message={}', 'Agreement received')
+                raise HTTPRedirect('checklist?id={}&message={}', id, 'Agreement received')
             elif agreed_to_terms_1 or agreed_to_terms_2:
                 message = "You must agree to both the terms of the agreement and "\
                     "the volunteering policies and guidelines"
@@ -133,14 +152,16 @@ class Root:
             'agreement_end_date': c.ESCHATON.date() + timedelta(days=31),
         }
 
+    @requires_account()
     @check_shutdown
-    def emergency_procedures(self, session, message='', reviewed_procedures=None, csrf_token=None):
-        attendee = session.logged_in_volunteer()
+    def emergency_procedures(self, session, id, message='', reviewed_procedures=None, csrf_token=None):
+        attendee = session.volunteer_from_id(id)
         if csrf_token is not None:
             check_csrf(csrf_token)
             if reviewed_procedures:
                 attendee.reviewed_emergency_procedures = True
-                raise HTTPRedirect('index?message={}', 'Thanks for reviewing our safety and security information!')
+                raise HTTPRedirect('checklist?id={}&message={}', id,
+                                   'Thanks for reviewing our safety and security information!')
 
             message = "You must acknowledge that you reviewed our safety and security information."
 
@@ -148,15 +169,17 @@ class Root:
             'message': message,
             'attendee': attendee,
         }
-    
+
+    @requires_account()
     @check_shutdown
-    def cash_handling(self, session, message='', reviewed_cash_handling=None, csrf_token=None):
-        attendee = session.logged_in_volunteer()
+    def cash_handling(self, session, id, message='', reviewed_cash_handling=None, csrf_token=None):
+        attendee = session.volunteer_from_id(id)
         if csrf_token is not None:
             check_csrf(csrf_token)
             if reviewed_cash_handling:
                 attendee.reviewed_cash_handling = datetime.now()
-                raise HTTPRedirect('index?message={}', 'Thanks for reviewing our payment handling guidelines!')
+                raise HTTPRedirect('checklist?id={}&message={}', id,
+                                   'Thanks for reviewing our payment handling guidelines!')
 
             message = "You must acknowledge that you reviewed our payment handling guidelines."
 
@@ -165,55 +188,39 @@ class Root:
             'attendee': attendee,
         }
 
+    @requires_account()
     @check_shutdown
-    def credits(self, session, message='', name_in_credits='', csrf_token=None):
-        attendee = session.logged_in_volunteer()
+    def credits(self, session, id, message='', name_in_credits='', csrf_token=None):
+        attendee = session.volunteer_from_id(id)
         if csrf_token is not None:
             check_csrf(csrf_token)
             attendee.name_in_credits = name_in_credits
             message = "Thank you for providing a name for the credits roll!" if name_in_credits \
                 else "You have opted out of having your name in the credits roll."
-            raise HTTPRedirect('index?message={}', message)
+            raise HTTPRedirect('checklist?id={}&message={}', id, message)
 
         return {
             'message': message,
             'attendee': attendee,
         }
 
+    @requires_account()
     @check_shutdown
-    @public
-    def volunteer(self, session, id, csrf_token=None, requested_depts_ids=None, message=''):
-        attendee = session.attendee(id)
-        if requested_depts_ids:
-            check_csrf(csrf_token)
-            attendee.staffing = True
-            attendee.requested_depts_ids = requested_depts_ids
-            raise HTTPRedirect(
-                'login?message={}',
-                "Thanks for signing up as a volunteer; you'll be emailed as "
-                "soon as you are assigned to one or more departments.")
-
-        return {
-            'message': message,
-            'attendee': attendee,
-            'requested_depts_ids': requested_depts_ids
-        }
-
-    @check_shutdown
-    def hotel(self, session, message='', decline=None, **params):
+    def hotel(self, session, id, message='', decline=None, **params):
         if c.AFTER_ROOM_DEADLINE and not c.HAS_STAFFING_ADMIN_ACCESS:
-            raise HTTPRedirect('../staffing/index?message={}', 'The room deadline has passed')
-        attendee = session.logged_in_volunteer()
+            raise HTTPRedirect('../staffing/checklist?id={}&message={}', id, 'The room deadline has passed')
+        attendee = session.volunteer_from_id(params.get('attendee_id', id))
         if not attendee.hotel_eligible:
-            raise HTTPRedirect('../staffing/index?message={}', 'You have not been marked as eligible for hotel space')
-        requests = session.hotel_requests(params, checkgroups=['nights'], restricted=True)
-        if 'attendee_id' in params:
+            raise HTTPRedirect('../staffing/checklist?id={}&message={}', id, 'You have not been marked as eligible for hotel space')
+
+        if cherrypy.request.method == 'POST':
+            requests = session.hotel_requests(params, checkgroups=['nights'], restricted=True)
             requests.attendee = attendee  # foreign keys are automatically admin-only
             session.add(requests)
             if decline or not requests.nights:
                 requests.nights = ''
                 raise HTTPRedirect(
-                    '../staffing/index?message={}', "We've recorded that you've declined hotel room space")
+                    '../staffing/checklist?id={}&message={}', id, "We've recorded that you've declined hotel room space")
             else:
                 if requests.setup_teardown:
                     days = ' / '.join(
@@ -229,7 +236,7 @@ class Root:
                         "We'll let you know your roommates a few weeks after the " \
                         "deadline.".format(requests.nights_display)
 
-                raise HTTPRedirect('../staffing/index?message={}', message)
+                raise HTTPRedirect('../staffing/checklist?id={}&message={}', attendee.id, message)
         else:
             requests = attendee.hotel_requests or requests
             if requests.is_new:
@@ -256,9 +263,10 @@ class Root:
             'attendee': attendee
         }
 
+    @requires_account()
     @check_shutdown
-    def shifts(self, session, **params):
-        volunteer = session.logged_in_volunteer()
+    def shifts(self, session, id, **params):
+        volunteer = session.volunteer_from_id(id)
 
         total_duration = 0
         event_dates = []
@@ -282,6 +290,7 @@ class Root:
         requested_hotel_nights = volunteer.hotel_requests.nights_ints if volunteer.hotel_requests else []
 
         return {
+            'attendee': volunteer,
             'has_public_jobs': session.query(Job).filter(Job.is_public == True).first(),
             'depts_with_roles': [membership.department.name for membership in volunteer.dept_memberships_with_role],
             'assigned_depts_list': [(dept.id, dept.name) for dept in volunteer.assigned_depts],
@@ -297,12 +306,13 @@ class Root:
             'requested_setup_nights': [c.NIGHTS[night] for night in requested_hotel_nights if night in c.SETUP_NIGHTS],
             'requested_teardown_nights': [c.NIGHTS[night] for night in requested_hotel_nights if night in c.TEARDOWN_NIGHTS],
         }
-    
-    @ajax_gettable
-    def get_available_jobs(self, session, all=False, highlight=False, **params):
-        joblist = session.jobs_for_signups(all=all)
 
-        volunteer = session.logged_in_volunteer()
+    @requires_account()
+    @ajax_gettable
+    def get_available_jobs(self, session, id, all=False, highlight=False, **params):
+        joblist = session.jobs_for_signups(id=id, all=all)
+
+        volunteer = session.volunteer_from_id(id)
         assigned_dept_ids = set(volunteer.assigned_depts_ids)
         event_list = []
 
@@ -335,10 +345,11 @@ class Root:
             })
         session.close()
         return event_list
-    
+
+    @requires_account()
     @ajax_gettable
-    def get_assigned_jobs(self, session, **params):
-        volunteer = session.logged_in_volunteer()
+    def get_assigned_jobs(self, session, id, **params):
+        volunteer = session.volunteer_from_id(id)
         event_list = []
         jobs = session.query(Job).filter(Job.shifts.any(attendee_id=volunteer.id)).options(joinedload(Job.shifts))
 
@@ -371,8 +382,9 @@ class Root:
         session.close()
         return event_list
 
-    def shifts_ical(self, session, **params):
-        attendee = session.logged_in_volunteer()
+    @requires_account()
+    def shifts_ical(self, session, id, **params):
+        attendee = session.volunteer_from_id(id)
         icalendar = ics.Calendar()
 
         calname = "".join(filter(str.isalnum, attendee.full_name)) + "_Shifts"
@@ -394,28 +406,30 @@ class Root:
 
     @check_shutdown
     @ajax_gettable
-    def jobs(self, session, all=False):
-        return {'jobs': session.jobs_for_signups(all=all)}
+    def jobs(self, id, session, all=False):
+        return {'jobs': session.jobs_for_signups(id=id, all=all)}
 
+    @requires_account()
     @check_shutdown
     @ajax
-    def sign_up(self, session, job_id, **params):
-        volunteer = session.logged_in_volunteer()
+    def sign_up(self, session, id, job_id, **params):
+        volunteer = session.volunteer_from_id(id)
         message = session.assign(volunteer.id, job_id)
         if message:
             return {'success': False, 'message': message}
         return {'success': True, 'message': "Signup complete!", 'hours': volunteer.weighted_hours}
 
+    @requires_account()
     @check_shutdown
     @ajax
-    def drop(self, session, job_id, all=False):
+    def drop(self, session, id, job_id, all=False):
         if c.AFTER_DROP_SHIFTS_DEADLINE:
             return {
                 'success': False,
                 'message': "You can no longer drop shifts."
             }
         try:
-            volunteer = session.logged_in_volunteer()
+            volunteer = session.volunteer_from_id(id)
             shift = session.shift(job_id=job_id, attendee_id=volunteer.id)
             session.delete(shift)
             session.commit()
@@ -428,39 +442,9 @@ class Root:
         finally:
             return {'success': True, 'message': "Shift dropped.", 'hours': volunteer.weighted_hours}
 
-    @public
-    def login(self, session, message='', first_name='', last_name='', email='', zip_code='', original_location=None):
-        original_location = create_valid_user_supplied_redirect_url(original_location, default_url='/staffing/index')
-
-        if first_name or last_name or email or zip_code:
-            try:
-                attendee = session.lookup_attendee(first_name.strip(), last_name.strip(), email, zip_code)
-                if not attendee.staffing:
-                    message = safe_string(
-                        'You are not signed up as a volunteer. '
-                        '<a href="volunteer?id={}">Click Here</a> to sign up.'.format(attendee.id))
-                elif not attendee.dept_memberships and not c.AT_THE_CON:
-                    message = 'You have not been assigned to any departments; ' \
-                        'an admin must assign you to a department before you can log in'
-            except Exception:
-                message = 'No attendee matches that name and email address and zip code'
-
-            if not message:
-                ensure_csrf_token_exists()
-                cherrypy.session['staffer_id'] = attendee.id
-                raise HTTPRedirect(original_location)
-
-        return {
-            'message':   message,
-            'first_name': first_name,
-            'last_name': last_name,
-            'email': email,
-            'zip_code':  zip_code,
-            'original_location': original_location
-        }
-
-    def onsite_jobs(self, session, message=''):
-        attendee = session.logged_in_volunteer()
+    @requires_account()
+    def onsite_jobs(self, session, id, message=''):
+        attendee = session.volunteer_from_id(id)
         return {
             'message': message,
             'attendee': attendee,
@@ -468,7 +452,8 @@ class Root:
                      if getattr(job, 'taken', False) or job.start_time > localized_now()]
         }
 
+    @requires_account()
     @csrf_protected
-    def onsite_sign_up(self, session, job_id):
-        message = session.assign(session.logged_in_volunteer().id, job_id)
-        raise HTTPRedirect('onsite_jobs?message={}', message or 'It worked')
+    def onsite_sign_up(self, session, id, job_id):
+        message = session.assign(id, job_id)
+        raise HTTPRedirect('onsite_jobs?id={}&message={}', id, message or 'It worked')

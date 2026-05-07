@@ -1326,6 +1326,7 @@ class Root:
         attendee = session.attendee(id)
         attendee_receipt = session.get_receipt_by_model(attendee, create_if_none="BLANK")
         charge = TransactionRequest(attendee_receipt,
+                                    account=session.current_attendee_account(),
                                     receipt_email=attendee.email,
                                     description='{}ayment for Art Show Invoice #{}'.format(
                                                     'P' if int(float(amount)) == receipt.total else 'Partial p',

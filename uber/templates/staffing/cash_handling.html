@@ -11,6 +11,7 @@
 
 {% if not attendee.reviewed_cash_handling %}
     <form method="post" action="cash_handling">
+        <input type="hidden" name="id" value="{{ attendee.id }}" />
         {{ csrf_token() }}
         <label for="reviewed_cash_handling" class="checkbox-label">
           I have reviewed these guidelines: <input type="checkbox" id="reviewed_cash_handling" name="reviewed_cash_handling" class="checkbox" />

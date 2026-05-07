@@ -4,7 +4,7 @@
 <p>
     {{ attendee.full_name }}'s' information matches at least one entry on our watchlist{% if c.HAS_SECURITY_ADMIN_ACCESS %}:
     <ul>
-    {% for entry in session.guess_attendee_watchentry(attendee) %}
+    {% for entry in entries %}
         <li>
             <a href="../security_admin/watchlist_form?id={{ entry.id }}" target="_blank">{{ entry.full_name }}</a>
             {% if entry.email or entry.birthdate %}

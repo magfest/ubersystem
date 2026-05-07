@@ -6,6 +6,7 @@
 <form method="post" action="applicant" class="form-horizontal" role="form">
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ applicant.db_id }}" />
+    <input type="hidden" name="team_id" value="{{ team.id }}" />
 
     <div class="form-group">
         <label class="col-sm-3 control-label">First Name</label>

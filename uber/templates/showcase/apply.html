@@ -1,7 +1,6 @@
 {% import 'forms/macros.html' as form_macros with context %}
 {% extends "preregistration/preregbase.html" %}
 {% set title_text = c.EVENT_NAME ~ "Showcase Application" %}
-{% block backlink %}{% endblock %}
 {% block content %}
 
   <div class="card card-body">
@@ -23,7 +22,7 @@
         <p>
             Welcome to {{ c.EVENT_NAME }} Indies!
              To create a studio, please fill out the information below for you and your studio.
-            If you've already created a studio, check your confirmation email for a link to access your studio page.
+            If you've already created a studio, {% if c.ATTENDEE_ACCOUNTS_ENABLED %}you can access it on <a href="../preregistration/homepage">your homepage</a>{% else %}check your confirmation email for a link to access your studio page{% endif %}.
         </p>
         <p>
             After creating a studio, you will be able to enter games into {{ c.ENABLED_INDIES_STR }} according to the schedule below.

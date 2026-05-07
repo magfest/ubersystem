@@ -135,6 +135,8 @@ class IndieJudge(MagModel, ReviewMixin, table=True):
 class IndieStudio(MagModel, table=True):
     group_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='group.id', nullable=True, unique=True)
     group: 'Group' = Relationship(back_populates="studio", sa_relationship_kwargs={'single_parent': True})
+    attendee_account_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee_account.id', nullable=True)
+    attendee_account: 'AttendeeAccount' = Relationship(back_populates="indie_studios")
 
     name: str = Field(default='', unique=True)
     website: str = ''

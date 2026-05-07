@@ -16,31 +16,40 @@
 {% block masthead %}{% endblock %}
 
 {% block backlink %}
-<nav class="navbar navbar-expand-lg navbar-light bg-light">
+<nav class="navbar navbar-expand-lg navbar-light bg-light mb-2">
   <div class="container-fluid">
     <a class="navbar-brand" href="#">
       <img src="../static/images/favicon.png" alt="{{ c.EVENT_NAME }}" width="24" class="d-inline-block align-text-top">
-      {{ c.EVENT_NAME }} Staffing
+      {{ c.EVENT_NAME }} Shift Signups
     </a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#main-menu" aria-controls="main-menu" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
     <ul class="navbar-nav me-auto mb-2 mb-lg-0" id="main-menu">
-      <li class="nav-item"><a class="nav-link{% if c.PAGE_PATH == '/staffing/index' %} active" aria-current="page"{% else %}"{% endif %} href="../staffing/index">Volunteer Checklist</a></li>
-      {% if c.AFTER_SHIFTS_CREATED and c.CURRENT_VOLUNTEER.shift_prereqs_complete %}
-      <li class="nav-item"><a class="nav-link{% if c.PAGE_PATH == '/staffing/shifts' %} active" aria-current="page"{% else %}"{% endif %} href="../staffing/shifts">Shifts</a></li>
-      <li class="nav-item"><a class="nav-link" href="../staffing/printable" target="_blank">Printable Shift Schedule</a></li>
+      {% if c.VOLUNTEER_CHECKLIST_OPEN %}<li class="nav-item"><a class="nav-link{% if c.PAGE_PATH == '/staffing/checklist' %} active" aria-current="page"{% else %}"{% endif %} href="../staffing/checklist?id={{ attendee.id }}">Volunteer Checklist</a></li>{% endif %}
+      {% if c.AFTER_SHIFTS_CREATED and attendee.shift_prereqs_complete %}
+      <li class="nav-item"><a class="nav-link{% if c.PAGE_PATH == '/staffing/shifts' %} active" aria-current="page"{% else %}"{% endif %} href="../staffing/shifts?id={{ attendee.id }}">Shifts</a></li>
+      <li class="nav-item"><a class="nav-link" href="../staffing/printable?id={{ attendee.id }}" target="_blank">Printable Shift Schedule</a></li>
       {% endif %}
     </ul>
     <ul class="navbar-nav d-flex">
-      <li class="nav-item"><a href="{{ c.VOLUNTEER_PERKS_URL }}" target="_blank" class="nav-link"><i class="fa fa-question-circle"></i> Volunteering Perks</a></li>
+      {% if c.VOLUNTEER_PERKS_URL %}<li class="nav-item"><a href="{{ c.VOLUNTEER_PERKS_URL }}" target="_blank" class="nav-link"><i class="fa fa-question-circle"></i> Volunteering Perks</a></li>{% endif %}
       <li class="nav-item dropdown">
         <a class="nav-link dropdown-toggle" href="#" id="account-dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-        <span>Logged in as: {{ c.CURRENT_VOLUNTEER.first_name }} {{ c.CURRENT_VOLUNTEER.last_name }}</span> <i title="Account Settings" class="fa fa-cog"></i>
+        <span>Viewing: {{ attendee.first_name }} {{ attendee.last_name }}</span> <i title="Account Settings" class="fa fa-cog"></i>
         </a>
         <ul class="dropdown-menu" aria-labelledby="account-dropdown">
-          <li><a class="dropdown-item" href="../preregistration/confirm?id={{ c.CURRENT_VOLUNTEER.id }}">View My Badge</a></li>
-          <li><a class="dropdown-item" href="../staffing/login">Logout</a></li>
+          {% if c.ATTENDEE_ACCOUNTS_ENABLED and attendee.managers %}
+          {% for volunteer in attendee.managers[0].volunteering_attendees %}
+            {% if volunteer != attendee %}
+            <li><a class="dropdown-item" href="index?id={{ volunteer.id }}">View {{ volunteer.full_name }}</a></li>
+            {% endif %}
+          {% endfor %}
+          <li><a class="dropdown-item" href="../preregistration/homepage">Back to Homepage</a></li>
+          <li><a class="dropdown-item" href="../accounts/logout">Logout</a></li>
+          {% else %}
+          <li><a class="dropdown-item" href="../preregistration/confirm?id={{ attendee.id }}">View My Badge</a></li>
+          {% endif %}
         </ul>
       </li>
     </ul>

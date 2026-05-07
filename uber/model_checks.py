@@ -95,7 +95,7 @@ ApiToken.required = [('name', 'Name'), ('description', 'Intended Usage'), ('acce
 
 @validation.ApiToken
 def admin_has_required_api_access(api_token):
-    admin_account_id = cherrypy.session.get('account_id')
+    admin_account_id = cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))
     if api_token.is_new and admin_account_id != api_token.admin_account_id:
         return 'You may not create an API token for another user'
 

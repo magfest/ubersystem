@@ -10,6 +10,7 @@ room with others in the Indie Tabletop Showcase.
 
 <form method="post" action="hotel_requests" class="form-horizontal" role="form">
     {{ csrf_token() }}
+    <input type="hidden" name="team_id" value="{{ team.id }}" />
 
     {% for applicant in team.applicants %}
         <div class="form-group">

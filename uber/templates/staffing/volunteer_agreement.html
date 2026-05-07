@@ -81,6 +81,7 @@ which, when taken together, will constitute one Agreement.
 {% if not attendee.agreed_to_volunteer_agreement %}
     <form method="post" action="volunteer_agreement">
         {{ csrf_token() }}
+        <input type="hidden" name="id" value="{{ attendee.id }}" />
         <label for="agreed_to_terms">
           I agree to the terms of the volunteer agreement: <input type="checkbox" id="agreed_to_terms" name="agreed_to_terms" />
         </label>

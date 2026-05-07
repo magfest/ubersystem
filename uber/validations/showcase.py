@@ -26,7 +26,7 @@ DeveloperInfo.field_validation.required_fields = {
 
 @DeveloperInfo.new_or_changed('receives_emails')
 def at_least_one_contact(form, field):
-    if not field.data and form.model.studio and len(form.model.studio.primary_contacts) == 1:
+    if not field.data and (not form.model.studio or len(form.model.studio.primary_contacts) <= 1):
         raise ValidationError("Your studio must have at least one presenter who receives emails.")
 
 

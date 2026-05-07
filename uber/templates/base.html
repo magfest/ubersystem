@@ -406,10 +406,10 @@
             </div>
         {% endif %}
     {% endblock %}
-    <div id="mainContainer" class="container-fluid">
+    <div>
         {% block backlink %}
         {% if admin_area %}
-        <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <nav class="navbar navbar-expand-lg navbar-light bg-light mb-2">
             <div class="container-fluid">
               <a class="navbar-brand"{% if c.CURRENT_ADMIN %} href="../accounts/homepage"{% endif %}>
                 <img src="../static/images/favicon.png" alt="{{ c.EVENT_NAME }}" width="24" class="d-inline-block align-text-top">
@@ -501,6 +501,7 @@
           </nav>
         {% endif %}
         {% endblock %}
+        <div id="mainContainer" class="container-fluid">
         {% block header %}{% endblock %}
         {% block alert %}
         <div class="alert alert-dismissible" role="alert" id="message-alert"><span></span>{% if bootstrap5 %}<button type="button" class="btn-close" onClick="hideMessageBox()" aria-label="Close"></button>{% else %}<button type="button" class="close" onClick="hideMessageBox()" aria-label="Close"><span aria-hidden="true">&times;</span></button>{% endif %}</div>
@@ -508,6 +509,7 @@
         {% block masthead %}{% endblock %}
         {% if title_text %}<h1 class="visually-hidden">{{ title_text }}</h1>{% endif %}
         {% block content %}{% endblock %}
+    </div>
     </div>
     {% block footer %}{% endblock %}
     {% block scripts %}

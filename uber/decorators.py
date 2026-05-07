@@ -56,7 +56,7 @@ def log_pageview(func):
     def with_check(*args, **kwargs):
         with uber.models.Session() as session:
             try:
-                session.admin_account(cherrypy.session.get('account_id'))
+                session.admin_account(cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None)))
             except Exception:
                 pass  # no tracking for non-admins yet
             else:
@@ -91,6 +91,66 @@ def check_for_encrypted_badge_num(func):
         return func(*args, **kwargs)
 
     return with_check
+
+
+def file_to_fk_id(id_name='fk_id'):
+    """
+    Files don't have direct relationships to their objects, but we often need those object's IDs for,
+    e.g., checking access. This injects a file's object into a function under the key defined by `id_name`
+    """
+
+    def file_fk_id(func):
+        @wraps(func)
+        def with_check(*args, **kwargs):
+            from uber.files import FileService
+            if kwargs.get('id', None) and not kwargs.get(id_name):
+                file_handler = FileService.from_db_id(kwargs.get('id'))
+                if file_handler.file_obj:
+                    kwargs[id_name] = file_handler.file_obj.fk_id
+            return func(*args, **kwargs)
+        return with_check
+    return file_fk_id
+
+
+def get_studio_id(model, id_name='id'):
+    """
+    We check for access to attendee-facing Indie Showcase pages via the IndieStudio ID,
+    but not all pages have the studio ID passed to them. This grabs the `model` matching
+    the ID passed to that page and injects that object's IndieStudio ID.
+    """
+
+    def indie_studio_id(func):
+        @wraps(func)
+        def with_check(*args, **kwargs):
+            if kwargs.get(id_name, None) and not kwargs.get('studio_id'):
+                with uber.models.Session() as session:
+                    child_model = session.query(model).get(kwargs.get(id_name))
+                    if hasattr(child_model, 'game'):
+                        kwargs['studio_id'] = child_model.game.studio.id
+                    else:
+                        kwargs['studio_id'] = child_model.studio.id
+            return func(*args, **kwargs)
+        return with_check
+    return indie_studio_id
+
+
+def get_team_id(model, id_name='id'):
+    """
+    We check for access to attendee-facing MITS pages via the MITSTeam ID,
+    but not all pages have the team ID passed to them. This grabs the `model` matching
+    the ID passed to that page and injects that object's MITSTeam ID.
+    """
+
+    def mits_team_id(func):
+        @wraps(func)
+        def with_check(*args, **kwargs):
+            if kwargs.get(id_name, None) and not kwargs.get('team_id'):
+                with uber.models.Session() as session:
+                    child_model = session.query(model).get(kwargs.get(id_name))
+                    kwargs['team_id'] = child_model.team.id
+            return func(*args, **kwargs)
+        return with_check
+    return mits_team_id
 
 
 def site_mappable(_func=None, *, download=False):
@@ -129,7 +189,7 @@ suffix_property.check = _suffix_property_check
 
 def check_can_edit_dept(session, department_id=None, inherent_role=None, override_access=None):
     from uber.models import AdminAccount, DeptMembership, Department
-    account_id = cherrypy.session.get('account_id')
+    account_id = cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))
     admin_account = session.query(AdminAccount).get(account_id)
     if not getattr(admin_account, override_access, None):
         dh_filter = [
@@ -159,7 +219,7 @@ def check_dept_admin(session, department_id=None, inherent_role=None):
 
 
 def requires_account(models=None):
-    from uber.models import Attendee, AttendeeAccount, Group
+    from uber.models import Attendee, AttendeeAccount, Group, GuestGroup, PanelApplication, IndieStudio, MITSTeam, PromoCodeGroup
 
     def model_requires_account(func):
         @wraps(func)
@@ -167,23 +227,24 @@ def requires_account(models=None):
             if not c.ATTENDEE_ACCOUNTS_ENABLED:
                 return func(*args, **kwargs)
             with uber.models.Session() as session:
-                admin_account_id = cherrypy.session.get('account_id')
-                attendee_account_id = cherrypy.session.get('attendee_account_id')
+                admin_account_id = cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))
+                attendee_account_id = cherrypy.session.get('attendee_account_id', getattr(cherrypy.request, 'attendee_account', None))
                 message = ''
-                if not models and not attendee_account_id and c.PAGE_PATH != '/preregistration/homepage':
-                    # These should all be pages like the prereg form
+                if c.LOCAL_ACCOUNTS_DISABLED and admin_account_id is None and attendee_account_id is None:
+                    ajax_or_redirect(func, '../accounts/login?message=', message, True)
+                elif attendee_account_id is None and admin_account_id is None:
+                    message = 'You must log in to view this page.'
+                    message_add = ''
                     if c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form']:
                         message_add = 'register'
-                    else:
+                    elif c.PAGE_PATH != '/preregistration/homepage' and not models and 'staffing' not in c.PAGE_PATH:
                         message_add = 'fill out this application'
-                    message = 'Please log in or create an account to {}!'.format(message_add)
+                    if message_add:
+                        message = f'Please log in or create an account to {message_add}!'
                     ajax_or_redirect(func, '../landing/index?message=', message, True)
-                elif attendee_account_id is None and admin_account_id is None or \
-                        attendee_account_id is None and c.PAGE_PATH == '/preregistration/homepage':
-                    message = 'You must log in to view this page.'
-                elif kwargs.get('id') and models:
+                elif kwargs.get('id', kwargs.get('attendee_id')) and models:
                     model_list = [models] if not isinstance(models, list) else models
-                    attendee, error, model_id = None, None, None
+                    attendee, other_account_model, error, model_id = None, None, None, None
                     for model in model_list:
                         if model == Attendee:
                             error, model_id = check_id_for_model(model, alt_id='attendee_id', **kwargs)
@@ -193,25 +254,55 @@ def requires_account(models=None):
                             error, model_id = check_id_for_model(model, alt_id='group_id', **kwargs)
                             if not error:
                                 attendee = session.query(model).filter_by(id=model_id).first().leader
+                        elif model == GuestGroup:
+                            error, model_id = check_id_for_model(model, alt_id='guest_id', **kwargs)
+                            if not error:
+                                group = session.query(model).filter_by(id=model_id).first().group
+                                if group:
+                                    attendee = group.leader
+                        elif model in [PanelApplication, IndieStudio, MITSTeam]:
+                            if model == PanelApplication:
+                                alt_id = 'application_id'
+                            else:
+                                alt_id = 'studio_id' if model == IndieStudio else 'team_id'
+                            error, model_id = check_id_for_model(model, alt_id=alt_id, **kwargs)
+                            if not error:
+                                other_account_model = session.query(model).filter_by(id=model_id).first()
+                        elif model == PromoCodeGroup:
+                            error, model_id = check_id_for_model(model, alt_id='group_id', **kwargs)
+                            if not error:
+                                attendee = session.get(model, model_id).buyer
                         else:
                             other_model = session.query(model).filter_by(id=kwargs.get('id')).first()
                             if other_model:
                                 attendee = other_model.attendee
 
-                        if attendee:
+                        if attendee or other_account_model:
                             break
 
-                    if error and not attendee:
+                    if error and not attendee and not other_account_model:
                         ajax_or_redirect(func, f'../preregistration/not_found?id={model_id}&message=', error)
 
-                    # Admin account override
-                    if session.admin_attendee_max_access(attendee):
-                        return func(*args, **kwargs)
+                    if other_account_model:
+                        if session.current_admin_account():
+                            if isinstance(other_account_model, PanelApplication) and c.HAS_PANELS_ADMIN_ACCESS:
+                                return func(*args, **kwargs)
+                            elif isinstance(other_account_model, IndieStudio) and c.HAS_SHOWCASE_ADMIN_ACCESS:
+                                return func(*args, **kwargs)
+                            elif isinstance(other_account_model, MITSTeam) and c.HAS_MITS_ADMIN_ACCESS:
+                                return func(*args, **kwargs)
+                        account = session.query(AttendeeAccount).get(attendee_account_id) if attendee_account_id else None
+                        if not account or account != other_account_model.attendee_account:
+                            message = 'You do not have permission to view this page.'
+                    elif attendee:
+                        # Admin account override
+                        if session.admin_attendee_max_access(attendee):
+                            return func(*args, **kwargs)
 
-                    account = session.query(AttendeeAccount).get(attendee_account_id) if attendee_account_id else None
+                        account = session.query(AttendeeAccount).get(attendee_account_id) if attendee_account_id else None
 
-                    if not account or account not in attendee.managers:
-                        message = 'You do not have permission to view this page.'
+                        if not account or account not in attendee.managers:
+                            message = 'You do not have permission to view this page.'
 
                 if message:
                     if admin_account_id:
@@ -280,7 +371,7 @@ def ajax(func):
 def track_report(params):
     with uber.models.Session() as session:
         try:
-            session.admin_account(cherrypy.session.get('account_id'))
+            session.admin_account(cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None)))
         except Exception:
             pass  # no tracking for non-admins yet
         else:
@@ -717,7 +808,7 @@ def attendee_view(func):
 
     @wraps(func)
     def with_check(*args, **kwargs):
-        if cherrypy.session.get('account_id') is None:
+        if cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None)) is None:
             ajax_or_redirect(func, '../accounts/login?message=', "You are not logged in.", True)
 
         if kwargs.get('id') and str(kwargs.get('id')) != "None":
@@ -756,12 +847,10 @@ def restricted(func):
     def with_restrictions(*args, **kwargs):
         if func.public:
             return func(*args, **kwargs)
+        if not getattr(cherrypy.request, 'admin_account', getattr(cherrypy.request, 'attendee_account', None)):
+            cherrypy.tools.oidc.redirect_to_keycloak()
 
-        if '/staffing/' in c.PAGE_PATH:
-            if not cherrypy.session.get('staffer_id'):
-                ajax_or_redirect(func, '../staffing/login?message=', "You are not logged in.", True)
-
-        elif cherrypy.session.get('account_id') is None:
+        if cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None)) is None:
             if getattr(func, 'kiosk_login', None):
                 if not cherrypy.session.get('kiosk_supervisor_id'):
                     cherrypy.session.pop('kiosk_operator_id', None)
@@ -780,7 +869,7 @@ def restricted(func):
 
         elif getattr(func, 'any_admin_access', None):
             with uber.models.Session() as session:
-                account = session.admin_account(cherrypy.session.get('account_id'))
+                account = session.admin_account(cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None)))
                 if not account.access_groups:
                     return "You do not have any admin accesses."
         else:

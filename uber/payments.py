@@ -368,6 +368,19 @@ class StripeRequestMixin:
         if not self.receipt_email:
             return
 
+        sso_id = ''
+        if c.ATTENDEE_ACCOUNTS_ENABLED and c.LOCAL_ACCOUNTS_DISABLED and self.account:
+            sso_id = self.account.sso_id
+        
+        if sso_id:
+            sso_id_search = stripe.Customer.search(query=f'metadata["sso_id"]:"{sso_id}"')
+            if sso_id_search.data:
+                customer = sso_id_search.data[0]
+                if customer.email != self.receipt_email:
+                    stripe.Customer.modify(customer.id, email=self.receipt_email)
+                self.customer_id = customer.id
+                return
+
         customer_list = stripe.Customer.list(
             email=self.receipt_email,
             limit=1,
@@ -377,8 +390,10 @@ class StripeRequestMixin:
         else:
             customer = stripe.Customer.create(
                 description=self.receipt_email,
-                email=self.receipt_email,
+                email=self.receipt_email
             )
+        if sso_id:
+            stripe.Customer.modify(customer.id, metadata={"sso_id": self.account.sso_id})
         self.customer_id = customer.id if customer else None
 
     def generate_payment_intent(self, intent_id=''):
@@ -742,10 +757,14 @@ class AuthNetRequestMixin:
 
 
 class TransactionRequest(AuthNetRequestMixin if c.AUTHORIZENET_LOGIN_ID else StripeRequestMixin):
-    def __init__(self, receipt=None, receipt_email='', description='', amount=0,
+    def __init__(self, receipt=None, account=None, receipt_email='', description='', amount=0,
                  method=c.STRIPE, customer_id=None, **kwargs):
         self.amount = int(amount)
-        self.receipt_email = receipt_email[0] if isinstance(receipt_email, list) else receipt_email
+        self.account = account
+        if account:
+            self.receipt_email = account.email
+        else:
+            self.receipt_email = receipt_email[0] if isinstance(receipt_email, list) else receipt_email
         self.description = description
         self.customer_id = customer_id
         self.intent, self.response, self.receipt_manager = None, None, None

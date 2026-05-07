@@ -351,6 +351,24 @@ class Root:
             for applicant in applicants:
                 ids.append(applicant.id)
                 applicant.attendee_id = attendee.id
+            if c.ATTENDEE_ACCOUNTS_ENABLED and pa.accepted_applications:
+                # It's difficult to assign the 'correct' attendee account due to PanelApplicant's tenuous connection to reality
+                # If people don't like how this works, the solution is to rework panel applicants
+                account = None
+                for app in pa.accepted_applications:
+                    account = app.attendee_account
+                    if app.submitter_id == pa.id:
+                        break
+                if account:
+                    session.add_attendee_to_account(attendee, account)
+                    body = render('emails/accounts/attendee_added.html', {'account': account, 'attendee': attendee}, encoding=None)
+                    send_email.delay(
+                        c.ADMIN_EMAIL,
+                        account.email,
+                        'New Badge Added to Your ' + c.EVENT_NAME + ' Account',
+                        body,
+                        format='html',
+                        model=account.to_dict('id'))
             session.commit()
         except Exception:
             log.error('unexpected error adding new panelist', exc_info=True)

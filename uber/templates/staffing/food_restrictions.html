@@ -24,6 +24,7 @@ Thanks for volunteering, welcome to the fold! Please let us know any dietary res
 <form novalidate method="post" action="food_restrictions" id="dietary-restrictions">
     {{ csrf_token() }}
     <input type="hidden" name="id" value="{{ restrictions.db_id }}" />
+    <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
 
     Please select any options that apply:<br/>
     <div class="col-sm-6 mb-3">{{ form_macros.input(dietary_restrictions.standard, alpine_model='allergies') }}</div>

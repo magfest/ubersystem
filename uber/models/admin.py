@@ -37,6 +37,7 @@ class AdminAccount(MagModel, table=True):
     attendee: 'Attendee' = Relationship(back_populates="admin_account", sa_relationship_kwargs={'lazy': 'joined'})
 
     hashed: str = Field(sa_type=String, private=True)
+    sso_id: str = ''
 
     access_groups: list['AccessGroup'] = Relationship(
         back_populates='admin_accounts',
@@ -111,7 +112,7 @@ class AdminAccount(MagModel, table=True):
         try:
             from uber.models import Session
             with Session() as session:
-                id = id or cherrypy.session.get('account_id')
+                id = id or cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))
                 account = session.admin_account(id)
                 if include_read_only:
                     return account.read_or_write_access_set
@@ -185,7 +186,7 @@ class AdminAccount(MagModel, table=True):
         try:
             from uber.models import Session
             with Session() as session:
-                id = id or cherrypy.session.get('account_id')
+                id = id or cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))
                 admin_account = session.admin_account(id)
                 return admin_account.judge or 'showcase_judging' in admin_account.read_or_write_access_set
         except Exception:
@@ -266,15 +267,16 @@ class AdminAccount(MagModel, table=True):
 
 
 class PasswordReset(MagModel, table=True):
-    admin_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='admin_account.id', ondelete='CASCADE', unique=True)
+    admin_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='admin_account.id', ondelete='CASCADE', unique=True, nullable=True)
     admin_account: 'AdminAccount' = Relationship(
         back_populates="password_reset", sa_relationship_kwargs={'single_parent': True})
 
-    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee_account.id', ondelete='CASCADE', unique=True)
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee_account.id', ondelete='CASCADE', unique=True, nullable=True)
     attendee_account: 'AttendeeAccount' = Relationship(back_populates="password_reset", sa_relationship_kwargs={'single_parent': True})
 
     generated: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
-    hashed: str = Column(String, private=True)
+    hashed: str = Field(sa_type=String, private=True)
+    token: str = Field(sa_type=String, private=True)
 
     @property
     def is_expired(self):

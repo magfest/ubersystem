@@ -6,7 +6,7 @@ from pytz import UTC
 from sqlalchemy import or_
 from sqlalchemy.orm import subqueryload
 
-from uber.decorators import ajax, all_renderable
+from uber.decorators import ajax, all_renderable, requires_account
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Attraction, AttractionFeature, AttractionEvent, AttractionSignup, BadgeInfo
 from uber.site_sections.preregistration import check_post_con
@@ -76,6 +76,7 @@ class Root:
         else:
             raise HTTPRedirect('index?attendee_id={}', kwargs.get('attendee_id', ''))
 
+    @requires_account(Attendee)
     def index(self, session, **params):
         attendee = _model_for_id(session, Attendee, params.get('attendee_id', None))
 
@@ -88,6 +89,7 @@ class Root:
             'attendee_id': params.get('attendee_id'),
             }
 
+    @requires_account(Attendee)
     def features(self, session, id=None, slug=None, **params):
         attendee = _model_for_id(session, Attendee, params.get('attendee_id', None))
 
@@ -115,6 +117,7 @@ class Root:
             'attendee_id': params.get('attendee_id'),
         }
 
+    @requires_account(Attendee)
     def events(self, session, id=None, slug=None, feature=None, **params):
         attendee = _model_for_id(session, Attendee, params.get('attendee_id', None))
         
@@ -148,6 +151,7 @@ class Root:
             'attendee_id': params.get('attendee_id'),
         }
 
+    @requires_account(Attendee)
     def manage(self, session, id=None, **params):
         attendee = _model_for_id(session, Attendee, id, subqueryload(
             Attendee.attraction_signups)
@@ -171,6 +175,7 @@ class Root:
                 attendee.attraction_signups,
                 key=lambda s: s.event.checkin_start_time)}
 
+    @requires_account()
     @ajax
     def verify_badge_num(self, session, badge_num, **params):
         attendee = _attendee_for_badge_num(session, badge_num)
@@ -184,6 +189,7 @@ class Root:
             'first_name': attendee.first_name,
             'badge_num': attendee.badge_num}
 
+    @requires_account()
     @ajax
     def signup_for_event(self, session, id, badge_num='', first_name='',
                          last_name='', email='', zip_code='', **params):
@@ -255,6 +261,7 @@ class Root:
             'remaining_waitlist_slots': event.remaining_waitlist_slots,
             'old_remaining_slots': old_remaining_slots}
 
+    @requires_account(Attendee)
     @ajax
     def cancel_signup(self, session, attendee_id, id):
         message = ''
@@ -273,6 +280,7 @@ class Root:
             return {'error': message}
         return {}
 
+    @requires_account(Attendee)
     @ajax
     def opt_out(self, session, id, attractions_opt_out):
         if cherrypy.request.method == 'POST':
@@ -282,6 +290,7 @@ class Root:
             session.commit()
         return {}
 
+    @requires_account(Attendee)
     @ajax
     def notification_pref(self, session, id, notification_pref):
         if cherrypy.request.method == 'POST':

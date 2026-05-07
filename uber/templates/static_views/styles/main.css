@@ -2,15 +2,7 @@ label.error {
     color: #d00;
 }
 
-.navbar {
-    margin-bottom: 0px;
-}
-
-#mainContainer > .navbar {
-    margin: 0 -15px 15px -15px;
-}
-
-#mainContainer .navbar .navbar-nav > li > a {
+.navbar .navbar-nav > li > a {
     padding: 15px 12px;
 }
 

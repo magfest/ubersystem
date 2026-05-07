@@ -7,7 +7,7 @@
     {% else %}
         You have acknowledged that you reviewed our
     {% endif %}
-    {% if not attendee.placeholder and (attendee.agreed_to_volunteer_agreement or not c.VOLUNTEER_AGREEMENT_ENABLED) and (attendee.reviewed_emergency_procedures or not c.EMERGENCY_PROCEDURES_ENABLED) %}<a href="cash_handling">Cash and Electronic Payment Handling Guidelines</a>{% else %}Cash and Electronic Payment Handling Guidelines{% endif %}
+    {% if not attendee.placeholder and (attendee.agreed_to_volunteer_agreement or not c.VOLUNTEER_AGREEMENT_ENABLED) and (attendee.reviewed_emergency_procedures or not c.EMERGENCY_PROCEDURES_ENABLED) %}<a href="cash_handling?id={{ attendee.id }}">Cash and Electronic Payment Handling Guidelines</a>{% else %}Cash and Electronic Payment Handling Guidelines{% endif %}
     {% if not attendee.reviewed_cash_handling %} and acknowledge that you have done so{% endif %}.
 </li>
 {% endif %}

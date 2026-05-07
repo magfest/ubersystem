@@ -6,11 +6,11 @@ from cherrypy.lib.static import serve_file
 
 from uber.config import c
 from uber.custom_tags import format_image_size
-from uber.decorators import all_renderable, ajax, csrf_protected
+from uber.decorators import all_renderable, ajax, csrf_protected, requires_account, get_studio_id
 from uber.errors import HTTPRedirect
 from uber.files import FileService
 from uber.forms import load_forms
-from uber.models import Attendee, File, GuestGroup, IndieDeveloper, IndieGame, IndieGameCode
+from uber.models import Attendee, File, GuestGroup, IndieStudio, IndieGame, IndieGameCode
 from uber.utils import add_opt, check, check_csrf, GuidebookUtils, validate_model
 
 log = logging.getLogger(__name__)
@@ -18,6 +18,8 @@ log = logging.getLogger(__name__)
 
 @all_renderable(public=True)
 class Root:
+    @get_studio_id(IndieGame)
+    @requires_account(IndieStudio)
     def game(self, session, id='', message='', **params):
         if id in [None, '', 'None']:
             studio_id = params.get('studio_id', '')
@@ -68,6 +70,8 @@ class Root:
 
         return {"success": True}
 
+    @get_studio_id(IndieGame)
+    @requires_account(IndieStudio)
     def update_demo_info(self, session, id, message='', **params):
         game = session.indie_game(id)
 
@@ -80,6 +84,8 @@ class Root:
             raise HTTPRedirect('../showcase/index?id={}&message={}', game.studio.id,
                                 f'Demo information updated for {game.title}.')
 
+    @get_studio_id(IndieGame, 'game_id')
+    @requires_account(IndieStudio)
     def code(self, session, game_id, message='', **params):
         if params.get('id') in [None, '', 'None']:
             code = IndieGameCode()
@@ -97,9 +103,9 @@ class Root:
                                'Code added.' if code.is_new else 'Code updated.')
 
     @ajax
-    def validate_code(self, session, form_list=[], **params):
+    def validate_code(self, session, game_id, form_list=[], **params):
         if params.get('id') in [None, '', 'None']:
-            code = IndieGameCode()
+            code = IndieGameCode(game_id=game_id)
         else:
             code = session.indie_game_code(params.get('id'))
 
@@ -116,6 +122,8 @@ class Root:
 
         return {"success": True}
 
+    @get_studio_id(IndieGame, 'game_id')
+    @requires_account(IndieStudio)
     def screenshot(self, session, game_id, use_in_promo='', **params):
         game = session.indie_game(game_id)
         if params.get('id') in [None, '', 'None']:
@@ -159,6 +167,7 @@ class Root:
 
         return {"success": True}
 
+    @requires_account(IndieStudio)
     @csrf_protected
     def delete_screenshot(self, session, studio_id, id, show_info=False):
         screenshot_handler = FileService.from_db_id(session, id)
@@ -171,8 +180,10 @@ class Root:
         else:
             raise HTTPRedirect('../showcase/index?id={}&message={}', studio_id, 'Screenshot deleted.')
 
+    @get_studio_id(IndieGameCode)
+    @requires_account(IndieStudio)
     @csrf_protected
-    def delete_code(self, session, id):
+    def delete_code(self, session, id, **params):
         code = session.indie_game_code(id)
         studio_id = code.game.studio.id
         session.delete(code)

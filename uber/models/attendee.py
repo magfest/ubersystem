@@ -608,7 +608,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         if self.promo_code and self.promo_code_groups:
             self.promo_code = None
         
-        if self.group and not self.is_group_save:
+        if self.group and not getattr(self, 'is_group_save', False):
             self.group.presave_adjustments()
 
     @presave_adjustment
@@ -667,9 +667,9 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
                 self.staffing = True
 
         if not self.is_new:
-            old_ribbon = self.orig_value_of('ribbon')
-            if old_ribbon and isinstance(old_ribbon, six.string_types):
-                old_ribbon = map(int, self.orig_value_of('ribbon').split(','))
+            old_ribbon = self.orig_value_of('ribbon') or []
+            if old_ribbon:
+                old_ribbon = [int(i) for i in str(self.orig_value_of('ribbon')).split(',')]
             old_staffing = self.orig_value_of('staffing')
 
             if old_staffing and not self.staffing or c.VOLUNTEER_RIBBON not in self.ribbon_ints \
@@ -740,6 +740,14 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     def match_account_if_exists(self):
         if c.ATTENDEE_ACCOUNTS_ENABLED and self.email and not self.managers:
             self.session.match_attendee_to_account(self)
+
+    @property
+    def has_sso_email(self):
+        if c.SSO_EMAIL_DOMAINS:
+            local, domain = normalize_email(self.email, split_address=True)
+            return domain in c.SSO_EMAIL_DOMAINS
+        elif c.OIDC_ENABLED:
+            return True
 
     @hybrid_property
     def times_printed(self):
@@ -2576,6 +2584,7 @@ attendee_attendee_account = Table(
 class AttendeeAccount(MagModel, table=True):
     public_id: str | None = Field(sa_type=Uuid(as_uuid=False), default_factory=lambda: str(uuid4()), nullable=True)
     email: str = ''
+    sso_id: str = ''
     hashed: str = Field(default='', private=True)
     password_reset: 'PasswordReset' = Relationship(
         back_populates="attendee_account",
@@ -2585,6 +2594,9 @@ class AttendeeAccount(MagModel, table=True):
         sa_relationship_kwargs={
             'order_by': 'Attendee.registered', 
             'secondary': 'attendee_attendee_account'})
+    panel_applications: list['PanelApplication'] = Relationship(back_populates="attendee_account")
+    indie_studios: list['IndieStudio'] = Relationship(back_populates="attendee_account")
+    mits_teams: list['MITSTeam'] = Relationship(back_populates="attendee_account")
     imported: bool = False
     unused_years: int = 0
 
@@ -2611,6 +2623,16 @@ class AttendeeAccount(MagModel, table=True):
         if c.SSO_EMAIL_DOMAINS:
             local, domain = normalize_email(self.email, split_address=True)
             return domain in c.SSO_EMAIL_DOMAINS
+        elif c.OIDC_ENABLED:
+            return True
+        
+    @property
+    def sso_claimed(self):
+        return self.sso_id != ''
+    
+    @property
+    def has_applications(self):
+        return self.panel_applications or self.indie_studios or self.mits_teams
 
     @property
     def has_dealer(self):
@@ -2689,6 +2711,11 @@ class AttendeeAccount(MagModel, table=True):
         return sorted([attendee for attendee in self.attendees if
                        attendee.badge_status == c.NEW_STATUS and attendee.paid == c.PENDING],
                        key=lambda a: a.first_name)
+
+    @property
+    def volunteering_attendees(self):
+        return [attendee for attendee in self.attendees if attendee.has_badge
+                and attendee.staffing and attendee.badge_type != c.CONTRACTOR_BADGE]
 
     @property
     def invalid_attendees(self):

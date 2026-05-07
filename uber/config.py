@@ -1007,8 +1007,6 @@ class Config(_Overridable):
         via the meta tag for everything except these pages.
         """
         index_pages = ['/landing/', '/landing/index', '/pregistration/form', '/accounts/login']
-        if c.SHIFTS_CREATED:
-            index_pages.append('/staffing/login')
         if c.TRANSFERABLE_BADGE_TYPES:
             index_pages.append('/preregistration/start_badge_transfer')
         if not c.ATTENDEE_ACCOUNTS_ENABLED:
@@ -1034,7 +1032,7 @@ class Config(_Overridable):
             with Session() as session:
                 attrs = Attendee.to_dict_default_attrs + ['admin_account', 'assigned_depts', 'logged_in_name']
                 admin_attendee = session.query(Attendee).join(Attendee.admin_account) \
-                    .filter(AdminAccount.id == cherrypy.session.get('account_id')) \
+                    .filter(AdminAccount.id == cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))) \
                     .options(
                         joinedload(Attendee.admin_account),
                         selectinload(Attendee.assigned_depts)).one()
@@ -1042,18 +1040,6 @@ class Config(_Overridable):
         except Exception:
             return {}
 
-    @request_cached_property
-    @dynamic
-    def CURRENT_VOLUNTEER(self):
-        try:
-            from uber.models import Session, Attendee
-            with Session() as session:
-                attrs = Attendee.to_dict_default_attrs + ['logged_in_name']
-                attendee = session.logged_in_volunteer()
-                return attendee.to_dict(attrs)
-        except Exception:
-            return {}
-        
     @request_cached_property
     @dynamic
     def CURRENT_KIOSK_SUPERVISOR(self):
@@ -1075,6 +1061,18 @@ class Config(_Overridable):
                 return attendee.to_dict()
         except Exception:
             return {}
+        
+    @request_cached_property
+    @dynamic
+    def CURRENT_ATTENDEE_ACCOUNT(self):
+        from uber.models import Session
+        with Session() as session:
+            account = session.current_attendee_account()
+        return account
+        
+    @property
+    def LOCAL_ACCOUNTS_DISABLED(self):
+        return c.OIDC_ENABLED and not c.SSO_EMAIL_DOMAINS
 
     @request_cached_property
     @dynamic
@@ -1343,6 +1341,32 @@ class Config(_Overridable):
     @dynamic
     def MITS_SUBMISSIONS_OPEN(self):
         return self.MITS_START and self.BEFORE_MITS_SUBMISSION_DEADLINE and self.AFTER_MITS_START
+
+    @property
+    @dynamic
+    def BEFORE_SHOWCASES_OPEN(self):
+        if self.MITS_START and self.AFTER_MITS_START:
+            return
+        if self.MIVS_START and self.AFTER_MIVS_START:
+            return
+        if self.INDIE_ARCADE_START and self.AFTER_INDIE_ARCADE_START:
+            return
+        if self.INDIE_RETRO_START and self.AFTER_INDIE_RETRO_START:
+            return
+        return True
+    
+    @property
+    @dynamic
+    def ALL_SHOWCASES_CLOSED(self):
+        if self.MITS_START and self.BEFORE_MITS_SUBMISSION_DEADLINE:
+            return
+        if self.MIVS_START and not really_past_mivs_deadline(c.MIVS_DEADLINE):
+            return
+        if self.INDIE_ARCADE_START and self.BEFORE_INDIE_ARCADE_DEADLINE:
+            return
+        if self.INDIE_RETRO_START and self.BEFORE_INDIE_RETRO_DEADLINE:
+            return
+        return True
 
     # =========================
     # panels

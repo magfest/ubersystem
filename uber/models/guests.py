@@ -601,8 +601,8 @@ class GuestMerch(MagModel, table=True):
 
     def inventory_url(self, item_id, name, download=False):
         disposition = 'inline' if not download else 'attachment'
-        return '../guests/view_inventory_file?id={}&item_id={}&name={}&disposition={}'.format(
-            self.id, item_id, name, disposition)
+        return '../guests/view_inventory_file?id={}&guest_id={}&item_id={}&name={}&disposition={}'.format(
+            self.id, self.guest.id, item_id, name, disposition)
 
     def remove_inventory_item(self, item_id, *, persist_files=True):
         item = None

@@ -70,7 +70,45 @@
                 {% endif %}
             </div>
             {% endif %}
+            {% if c.PANELS_START %}
+            <div class="text-center">
+                {% if c.BEFORE_PANELS_START %}
+                <span class="badge bg-secondary">Panel Applications: NOT OPEN</span><br/>Check back soon!
+                {% elif c.AFTER_PANELS_DEADLINE %}
+                <span class="badge bg-danger">Panel Applications: CLOSED</span>
+                {% else %}
+                <a href="../panels/" target="_blank"><span class="badge bg-success">Panel Applications: OPEN &nbsp;<i class="fa fa-external-link"></i></span></a><br/>Closes {{ c.PANELS_DEADLINE|datetime_local("%b %-d", append_ord=True) }}
+                {% endif %}
+            </div>
+            {% endif %}
+            {% if c.MITS_START or c.ENABLED_INDIES_STR %}
+            <div class="text-center">
+                {% if c.BEFORE_SHOWCASES_OPEN %}
+                <span class="badge bg-secondary">Indies: NOT OPEN</span><br/>Check back soon!
+                {% elif c.ALL_SHOWCASES_CLOSED %}
+                <span class="badge bg-danger">Indies: CLOSED</span>
+                {% else %}
+                <a href="../showcase/apply" target="_blank"><span class="badge bg-success">Indies{% if c.MITS_START %}/MITS{% endif %}: OPEN &nbsp;<i class="fa fa-external-link"></i></span></a><br/>
+                {% endif %}
+            </div>
+            {% endif %}
         </div>
+        {% if account.has_applications %}
+            <hr/>
+            {% for studio in account.indie_studios %}
+            <div class="text-center">
+                <span class="h4">Indie Studio "{{ studio.name }}" <a href="../showcase/index?id={{ studio.id }}" class="btn btn-primary btn-sm"><i class="fa fa-pencil"></i>&nbsp;View/Edit</a></span>
+            </div>
+            {% endfor %}
+            {% for team in account.mits_teams %}
+            <div class="text-center mt-3">
+                <span class="h4">MITS Team "{{ team.name }}" <a href="../mits/index?id={{ team.id }}" class="btn btn-primary btn-sm"><i class="fa fa-pencil"></i>&nbsp;View/Edit</a></span>
+            </div>
+            {% endfor %}
+            {% if account.panel_applications %}
+            <div class="text-center mt-3">You have submitted {{ account.panel_applications|length }} panel application{{ account.panel_applications|length|pluralize }}.</div>
+            {% endif %}
+        {% endif %}
     </div>
 </div>
 {% if c.AT_THE_CON and account.at_door_pending_attendees %}
@@ -223,14 +261,14 @@
     {% endif %}
 
     {% if prereg_message %}
-        <div class="text-center mt-3 mb-2 text-danger">{{ prereg_message }}</div>
+        <h4 class="text-center"><span class="fw-normal fst-italic mb-2 badge bg-secondary">{{ prereg_message }}</span></h4>
     {% endif %}
 
     {% for group, attendees in account.valid_badges_by_group.items() %}
     <div class="card mb-3">
         <div class="card-header bg-body p-3">
             <div class="row">
-            <div class="col-sm-3"></div>
+            <div class="col-sm-3">{% if group.leader in attendees and group.guest %}<a href="../guests/index?id={{ group.guest.id }}" class="btn btn-success btn-sm"><i class="fa fa-check"></i>&nbsp;{{ group.guest.group_type_label }} Checklist</a>{% endif %}</div>
             <div class="col-sm-6 text-center">
                 <span class="h4">{{ c.DEALER_TERM|title if group.is_dealer else 'Group' }} "{{ group.name }}"</span>
                 {% if group.is_dealer %}

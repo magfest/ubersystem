@@ -11,7 +11,7 @@ warnBeforeLogout = function() {
     },
     callback: function (result) {
         if (result) {
-            window.location = "../preregistration/logout";
+            window.location = "../accounts/logout?delete_prereg=True";
         }
     }
     });

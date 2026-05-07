@@ -41,9 +41,6 @@
         </div>
         {% else %}
         {% block login_intro %}
-        <div class="text-center">
-            <h2>Log in</h2>
-        </div>
         {% endblock %}
             {% include 'preregistration/login_or_create_account.html' %}
         {% endif %}
@@ -85,12 +82,6 @@
 {% endif %}
 
 {% if not c.ATTENDEE_ACCOUNTS_ENABLED %}
-<p class="text-end">
-    <a class="btn btn-link btn-lg" href="../staffing/login" role="button">
-        Staff/Volunteer Login
-    </a>
-</p>
-
 <p class="text-end">
     <a class="btn btn-link btn-lg" href="../preregistration/check_if_preregistered" role="button">
         Check If Registered

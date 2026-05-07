@@ -874,18 +874,18 @@ class UberSession(sqlalchemy.orm.Session):
 
     class SessionMixin:
         def current_admin_account(self):
-            if getattr(cherrypy, 'session', {}).get('account_id'):
-                return self.admin_account(cherrypy.session.get('account_id'))
+            if getattr(cherrypy, 'session', {}).get('account_id', getattr(cherrypy.request, 'admin_account', None)):
+                return self.admin_account(cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None)))
             
         def current_supervisor_admin(self):
             if getattr(cherrypy, 'session', {}).get('kiosk_supervisor_id'):
                 return self.admin_account(cherrypy.session.get('kiosk_supervisor_id'))
 
         def admin_attendee(self):
-            if getattr(cherrypy, 'session', {}).get('account_id'):
+            if getattr(cherrypy, 'session', {}).get('account_id', getattr(cherrypy.request, 'admin_account', None)):
                 try:
                     return self.query(Attendee).join(Attendee.admin_account).filter(
-                        AdminAccount.id == cherrypy.session.get('account_id')).options(
+                        AdminAccount.id == cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))).options(
                             contains_eager(Attendee.admin_account)
                         ).one()
                 except NoResultFound:
@@ -899,9 +899,9 @@ class UberSession(sqlalchemy.orm.Session):
                     return
 
         def current_attendee_account(self):
-            if c.ATTENDEE_ACCOUNTS_ENABLED and getattr(cherrypy, 'session', {}).get('attendee_account_id'):
+            if c.ATTENDEE_ACCOUNTS_ENABLED and getattr(cherrypy, 'session', {}).get('attendee_account_id', getattr(cherrypy.request, 'attendee_account', None)):
                 try:
-                    return self.attendee_account(cherrypy.session.get('attendee_account_id'))
+                    return self.attendee_account(cherrypy.session.get('attendee_account_id', cherrypy.request.attendee_account))
                 except sqlalchemy.orm.exc.NoResultFound:
                     cherrypy.session['attendee_account_id'] = ''
 
@@ -915,12 +915,12 @@ class UberSession(sqlalchemy.orm.Session):
                 return logged_in_account
             elif len(attendee.managers) == 1:
                 return attendee.managers[0]
-
-        def logged_in_volunteer(self):
-            return self.query(Attendee).filter(Attendee.id == cherrypy.session.get('staffer_id')).options(
+            
+        def volunteer_from_id(self, id):
+            return self.query(Attendee).filter(Attendee.id == id).options(
                 selectinload(Attendee.hotel_requests), selectinload(Attendee.food_restrictions),
                 selectinload(Attendee.shifts)
-            ).one()
+            ).first()
 
         def admin_has_staffer_access(self, staffer, access="view"):
             admin = self.current_admin_account()
@@ -1118,8 +1118,8 @@ class UberSession(sqlalchemy.orm.Session):
                     'completed': attendee.checklist_item_for_slug(conf.slug)
                 }
 
-        def jobs_for_signups(self, all=False):
-            jobs = self.logged_in_volunteer().possible
+        def jobs_for_signups(self, id, all=False):
+            jobs = self.volunteer_from_id(id).possible
             restricted_minutes = set()
             for job in jobs:
                 if job.required_roles:
@@ -1319,6 +1319,8 @@ class UberSession(sqlalchemy.orm.Session):
             return "", c.TERMINAL_ID_TABLE[lookup_key]
 
         def get_receipt_by_model(self, model, include_closed=False, who='', create_if_none="", options=[]):
+            if not model:
+                return
             receipt_select = self.query(ModelReceipt).filter_by(owner_id=model.id, owner_model=model.__class__.__name__)
             if not include_closed:
                 receipt_select = receipt_select.filter(ModelReceipt.closed == None)  # noqa: E711
@@ -1917,10 +1919,6 @@ class UberSession(sqlalchemy.orm.Session):
                     Attendee.promo_code_group_name.ilike('%' + search_text + '%'),
                 ]
 
-                # We no longer join AttendeeAccount and I do not want to deal with that right now
-                #if c.ATTENDEE_ACCOUNTS_ENABLED:
-                #    check_list.append(Attendee.primary_account_email.ilike('%' + search_text + '%'))
-
                 for attr in Attendee.searchable_fields:
                     check_list.append(getattr(Attendee, attr).ilike('%' + search_text + '%'))
 
@@ -2364,7 +2362,7 @@ class HybridSessionProxy:
 
     def __call__(self, create_savepoint=False, *args, **kwargs):
         """
-        Creates a new session or returns the current session.
+        Creates a session with an optional savepoint to allow rollbacks. Sessions use the existing DB connection, if there is one.
 
         create_savepoint (bool): Flush the current session to the DB and create a savepoint.
                                  This lets you use session.rollback() to undo only changes made after the savepoint.

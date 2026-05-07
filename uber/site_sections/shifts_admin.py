@@ -285,8 +285,7 @@ class Root:
         }
 
     def goto_volunteer_checklist(self, id):
-        cherrypy.session['staffer_id'] = id
-        raise HTTPRedirect('../staffing/index')
+        raise HTTPRedirect('../staffing/index?id={}', id)
 
     @ajax
     def update_shifts_info(self, session, id, nonshift_hours, admin_notes, for_review=None):

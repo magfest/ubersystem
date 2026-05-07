@@ -367,7 +367,8 @@
       
       var callback = function(response) {
         if(response && response['error']) {
-          showErrorMessage(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error']);
+          setTimeout(function(){ hideMessageBox() }, 3000);
         } else {
           window.location.reload();
         }
@@ -417,7 +418,8 @@
 
       var callback = function(response) {
         if(response && response['error']) {
-          showErrorMessage(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error']);
+          setTimeout(function(){ hideMessageBox() }, 3000);
         } else {
           var $event = $button.closest('.event');
           $event.css({'height': $event.height(), 'min-height': ''});

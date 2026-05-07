@@ -81,7 +81,7 @@
   </a>
 </li>
 {% endif %}
-{% if not c.ATTENDEE_ACCOUNTS_ENABLED %}
+
 <li class="nav-item ms-auto">
   <div class="input-group me-2">
     {% if c.ART_SHOW_ENABLED and c.ART_SHOW_OPEN and not attendee.art_show_application %}
@@ -105,7 +105,15 @@
       </span>
       {% endif %}
     {% endif %}
+    {% if attendee.has_badge and attendee.staffing and attendee.badge_type != c.CONTRACTOR_BADGE and (not c.VOLUNTEER_CHECKLIST_OPEN and c.AFTER_SHIFTS_CREATED or c.AFTER_VOLUNTEER_CHECKLIST_OPEN) %}
+      <a class="p-0" href="../staffing/index?id={{ attendee.id }}" target="_blank">
+        {% if (not c.VOLUNTEER_CHECKLIST_OPEN or attendee.shift_prereqs_complete) and c.AFTER_SHIFTS_CREATED %}
+        <button type="button" class="btn btn-secondary"><i class="fa fa-external-link"></i>&nbsp; View Shifts</button>
+        {% else %}
+        <button type="button" class="btn btn-secondary"><i class="fa fa-external-link"></i>&nbsp; Volunteer Checklist</button>
+        {% endif %}
+      </a>
+    {% endif %}
   </div>
 </li>
-{% endif %}
 </ul>

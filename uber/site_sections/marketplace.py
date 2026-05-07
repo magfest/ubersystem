@@ -215,8 +215,8 @@ class Root:
             session.commit()
             session.refresh(receipt)
         
-        charge = TransactionRequest(receipt, app.email_address,
-                                    "Artist Marketplace Application Payment", amount=app.amount_unpaid * 100)
+        charge = TransactionRequest(receipt, account=session.current_attendee_account(), receipt_email=app.email_address,
+                                    description="Artist Marketplace Application Payment", amount=app.amount_unpaid * 100)
         incomplete_txn = receipt.get_last_incomplete_txn()
 
         if incomplete_txn and incomplete_txn.desc == "Artist Marketplace Application Payment":
