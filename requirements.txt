@@ -11,7 +11,6 @@ configobj==5.0.9
 email_validator==2.2.0
 fpdf2==2.8.3
 geopy==2.4.1
-TatSu==5.7.4
 ics==0.7.2
 TatSu==5.16
 Jinja2==3.1.6
