@@ -240,7 +240,7 @@ class Root:
             message = "You are not logged in."
             if c.OIDC_ENABLED or c.SAML_SETTINGS:
                 if cherrypy.session.get('attendee_account_id', getattr(cherrypy.request, 'attendee_account', None)):
-                    raise HTTPRedirect('../landing/index?message={}', "You do have admin access.", save_location=True)
+                    raise HTTPRedirect('../preregistration/homepage?message={}', "You do not have admin access.")
             raise HTTPRedirect('login?message={}', message, save_location=True)
 
         reg_station_id = cherrypy.session.get('reg_station', '')

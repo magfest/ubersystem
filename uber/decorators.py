@@ -847,13 +847,17 @@ def restricted(func):
     def with_restrictions(*args, **kwargs):
         if func.public:
             return func(*args, **kwargs)
-        if not getattr(cherrypy.request, 'admin_account', getattr(cherrypy.request, 'attendee_account', None)):
-            cherrypy.tools.oidc.redirect_to_keycloak()
+
+        admin_account_id = cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))
+        attendee_account_id = cherrypy.session.get('attendee_account_id', getattr(cherrypy.request, 'attendee_account', None))
+        if not admin_account_id and not attendee_account_id:
+            ajax_or_redirect(func, '../accounts/login?message=', "You are not logged in.", True)
 
         if '/staffing/' in c.PAGE_PATH and not c.VOLUNTEER_SIGNUPS_AVAILABLE and not c.DEV_BOX:
+            message = "The volunteer checklist is not open yet." if c.VOLUNTEER_CHECKLIST_OPEN else "Shift signups are not available yet."
             redirect = '../preregistration/homepage' if c.ATTENDEE_ACCOUNTS_ENABLED else '../landing/index'
-            ajax_or_redirect(func, '{redirect}?message=', "The volunteer checklist is not open yet.", True)
-        elif cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None)) is None:
+            ajax_or_redirect(func, f'{redirect}?message=', message, True)
+        elif admin_account_id is None:
             if getattr(func, 'kiosk_login', None):
                 if not cherrypy.session.get('kiosk_supervisor_id'):
                     cherrypy.session.pop('kiosk_operator_id', None)
@@ -864,11 +868,12 @@ def restricted(func):
                     ajax_or_redirect(func, f'{func.kiosk_login}?message=',
                                      "Please enter your badge number to log into the kiosk.")
             else:
-                ajax_or_redirect(func, '../accounts/login?message=', "You are not logged in.", True)
+                page = 'preregistration/homepage' if c.ATTENDEE_ACCOUNTS_ENABLED else 'landing/index'
+                ajax_or_redirect(func, f'../{page}?message=', "You do not have admin access.")
 
         elif '/showcase_judging/' in c.PAGE_PATH:
             if not uber.models.AdminAccount.is_mivs_judge_or_admin:
-                return f'You need to be a MIVS Judge or have access to {c.PAGE_PATH}'
+                return f'You need to be a MAGFest Indies Judge or have access to {c.PAGE_PATH}'
 
         elif getattr(func, 'any_admin_access', None):
             with uber.models.Session() as session:
