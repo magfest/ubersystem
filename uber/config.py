@@ -428,6 +428,10 @@ class Config(_Overridable):
     def PREREG_TABLE_OPTS(self):
         return [(count, '{}: ${}'.format(desc, self.get_table_price(count)))
                 for count, desc in c.TABLE_OPTS]
+    
+    @property
+    def VOLUNTEER_SIGNUPS_AVAILABLE(self):
+        return not c.VOLUNTEER_CHECKLIST_OPEN and c.AFTER_SHIFTS_CREATED or c.VOLUNTEER_CHECKLIST_OPEN and c.AFTER_VOLUNTEER_CHECKLIST_OPEN
 
     @property
     def ART_SHOW_OPEN(self):
@@ -440,6 +444,10 @@ class Config(_Overridable):
     @property
     def SELF_SERVICE_REFUNDS_OPEN(self):
         return self.BEFORE_REFUND_CUTOFF and (self.AFTER_REFUND_START or not self.REFUND_START)
+    
+    @property
+    def DEPT_CHECKLIST_OPEN(self):
+        return self.DEPT_CHECKLIST_START and self.AFTER_DEPT_CHECKLIST_START
     
     @property
     def HOTEL_LOTTERY_OPEN(self):

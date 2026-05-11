@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Staffing Overview{% endblock %}
+{% block title %}Volunteer Hours Overview{% endblock %}
 {% block content %}
   <script type="text/javascript">
       $.fn.dataTable.ext.search.push(
@@ -117,7 +117,7 @@
           <td>{{ volunteer.first_name }}</td>
           <td>{{ volunteer.legal_name }}</td>
           <td>{{ volunteer.email }}</td>
-          <td>{{ volunteer.unweighted_hours }}</td>
+          <td>{{ volunteer.unweighted_hours }} ({{ volunteer.unweighted_worked_hours }} worked)</td>
           <td>{{ volunteer.weighted_hours }}</td>
           <td>{{ volunteer.worked_hours }}</td>
           <td>{{ (volunteer.amount_extra >= c.SUPPORTER_LEVEL)|yesno }}</td>

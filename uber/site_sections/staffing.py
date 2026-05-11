@@ -46,6 +46,8 @@ class Root:
         attendee = session.volunteer_from_id(id)
         if c.UBER_SHUT_DOWN:
             return render('staffing/printable.html', {'attendee': attendee})
+        elif not c.VOLUNTEER_CHECKLIST_OPEN:
+            raise HTTPRedirect('shifts?id={}&message={}', attendee.id, message)
         else:
             return {
                 'message': message,

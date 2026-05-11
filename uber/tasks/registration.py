@@ -290,7 +290,7 @@ def email_pending_attendees():
 @celery.task
 def send_receipt_email(receipt_id):
     with Session() as session:
-        receipt = session.query(ReceiptInfo).filter_by(id=receipt_id).first()
+        receipt = session.get(ReceiptInfo, receipt_id)
         if not receipt:
             log.error(f"Could not send receipt {receipt_id} to model {receipt.fk_email_model} {receipt.fk_email_id}: "
                       "receipt info not found!")
@@ -302,7 +302,7 @@ def send_receipt_email(receipt_id):
             return
 
         model = Session.resolve_model(receipt.fk_email_model)
-        email_to = session.query(model).filter_by(id=receipt.fk_email_id).first()
+        email_to = session.get(model, receipt.fk_email_id)
         if not email_to:
             log.error(f"Could not send receipt {receipt_id} to model {receipt.fk_email_model} "
                       f"{receipt.fk_email_id}: model not found!")

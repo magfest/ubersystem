@@ -106,15 +106,17 @@
 </table>
 {% endif %}
 
-{% if checklist.relevant and checklist.completed %}
+{% if checklist.relevant and (c.DEPT_CHECKLIST_OPEN or c.DEV_BOX) %}
+    {% if checklist.completed %}
     You've already indicated that this list is complete but you can update your requests if needed.
-{% elif checklist.relevant %}
-<form method="post" action="../dept_checklist/mark_item_complete">
-    {{ csrf_token() }}
-    <input type="hidden" name="department_id" value="{{ department_id }}" />
-    <input type="hidden" name="slug" value="{{ checklist.conf.slug }}" />
-    <button type="submit" class="btn btn-primary">I've added all my department's bulk print requests</button>
-</form>
+    {% else %}
+    <form method="post" action="../dept_checklist/mark_item_complete">
+        {{ csrf_token() }}
+        <input type="hidden" name="department_id" value="{{ department_id }}" />
+        <input type="hidden" name="slug" value="{{ checklist.conf.slug }}" />
+        <button type="submit" class="btn btn-primary">I've added all my department's bulk print requests</button>
+    </form>
+    {% endif %}
 {% endif %}
 </div>
 

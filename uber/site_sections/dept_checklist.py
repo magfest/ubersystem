@@ -17,8 +17,7 @@ def _submit_checklist_item(session, department_id, submitted, csrf_token, slug, 
     if not department_id:
         raise HTTPRedirect('../dept_checklist/index')
     attendee = session.admin_attendee()
-    department = session.query(Department).options(
-        subqueryload(Department.dept_checklist_items)).get(department_id)
+    department = session.get(Department, department_id, options=[subqueryload(Department.dept_checklist_items)])
     if submitted:
         item = department.checklist_item_for_slug(slug)
         if not item:
@@ -38,6 +37,15 @@ def _submit_checklist_item(session, department_id, submitted, csrf_token, slug, 
     }
 
 
+def _check_dept_checklist_open(department_id=None):
+    if not c.DEV_BOX and not c.DEPT_CHECKLIST_OPEN:
+        message = "Department checklists are not yet available." if c.DEPT_CHECKLIST_START \
+            else "Department checklists are not enabled for this event."
+        url = f"../dept_admin/form?id={department_id}&message={message}" if department_id \
+            else f"../dept_admin/index?message={message}"
+        raise HTTPRedirect(url)
+
+
 @all_renderable()
 class Root:
     def index(self, session, department_id=None, message=''):
@@ -51,8 +59,7 @@ class Root:
         if not department_id and len(attendee.can_admin_checklist_depts) == 1:
             department_id = attendee.can_admin_checklist_depts[0].id
 
-        department = session.query(Department).options(
-            subqueryload(Department.dept_checklist_items)).get(department_id)
+        department = session.get(Department, department_id, options=[subqueryload(Department.dept_checklist_items)])
         return {
             'message': message,
             'attendee': attendee,
@@ -64,9 +71,9 @@ class Root:
 
     @csrf_protected
     def mark_item_complete(self, session, slug, department_id):
+        _check_dept_checklist_open(department_id)
         attendee = session.admin_attendee()
-        department = session.query(Department).options(
-            subqueryload(Department.dept_checklist_items)).get(department_id)
+        department = session.get(Department, department_id, options=[subqueryload(Department.dept_checklist_items)])
 
         if department.checklist_item_for_slug(slug):
             message = 'Checklist item already marked as complete'
@@ -80,9 +87,9 @@ class Root:
             'index?department_id={}&message={}', department_id, message)
 
     def form(self, session, slug, department_id, csrf_token=None, comments=None):
+        _check_dept_checklist_open(department_id)
         attendee = session.admin_attendee()
-        department = session.query(Department).options(
-            subqueryload(Department.dept_checklist_items)).get(department_id)
+        department = session.get(Department, department_id, options=[subqueryload(Department.dept_checklist_items)])
 
         conf = DeptChecklistConf.instances[slug]
         item = department.checklist_item_for_slug(slug)
@@ -180,6 +187,7 @@ class Root:
             out.writecell(', '.join([admin.email for admin in dept.checklist_admins]), last_cell=True)
 
     def item(self, session, slug):
+        _check_dept_checklist_open()
         conf = DeptChecklistConf.instances[slug]
         departments = session.query(Department) \
             .options(
@@ -234,6 +242,8 @@ class Root:
         elif department_id == 'All':
             department_id = None
 
+        _check_dept_checklist_open(department_id)
+
         placeholders = []
 
         if department_id != '':
@@ -251,12 +261,13 @@ class Root:
 
         return {
             'department_id': 'All' if department_id is None else department_id,
-            'dept_name': session.query(Department).get(department_id).name if department_id else 'All',
+            'dept_name': session.get(Department, department_id).name if department_id else 'All',
             'checklist': checklist,
             'placeholders': placeholders
         }
 
     def printed_signs(self, session, department_id=None, submitted=None, csrf_token=None):
+        _check_dept_checklist_open(department_id)
         # We actually submit from this page to `form`, this just lets us render a custom page
         return _submit_checklist_item(session, department_id, submitted, csrf_token, 'printed_signs')
 
@@ -267,6 +278,8 @@ class Root:
             department_id = ''
         elif department_id == 'All':
             department_id = None
+
+        _check_dept_checklist_open(department_id)
 
         requests = session.query(BulkPrintingRequest)
         if department_id not in ['', None]:
@@ -348,6 +361,7 @@ class Root:
             ])
     
     def delete_print_request(self, session, id, department_id=None, **params):
+        _check_dept_checklist_open(department_id)
         request = session.bulk_printing_request(id)
         if request:
             session.delete(request)
@@ -355,14 +369,17 @@ class Root:
                            department_id, "Bulk printing request deleted.")
 
     def treasury(self, session, department_id=None, submitted=None, csrf_token=None):
+        _check_dept_checklist_open(department_id)
         return _submit_checklist_item(session, department_id, submitted, csrf_token, 'treasury',
                                       'Thanks for completing the MPoints form!')
 
     def allotments(self, session, department_id=None, submitted=None, csrf_token=None, **params):
+        _check_dept_checklist_open(department_id)
         return _submit_checklist_item(session, department_id, submitted, csrf_token, 'allotments',
                                       'Treasury checklist data uploaded')
 
     def guidebook_schedule(self, session, department_id=None, submitted=None, csrf_token=None):
+        _check_dept_checklist_open(department_id)
         return _submit_checklist_item(session, department_id, submitted, csrf_token, 'guidebook_schedule',
                                       'Thanks for confirming your schedule is ready for Guidebook!')
 
@@ -373,6 +390,8 @@ class Root:
             department_id = ''
         elif department_id == 'All':
             department_id = None
+
+        _check_dept_checklist_open(department_id)
 
         attendees = []
 
@@ -401,6 +420,8 @@ class Root:
             department_id = ''
         elif department_id == 'All':
             department_id = None
+
+        _check_dept_checklist_open(department_id)
 
         requests = []
 

@@ -88,9 +88,9 @@ class Root:
             initial_date = max(initial_date, datetime.strptime(time, "%Y-%m-%dT%H:%M:%S%z"))
 
         if department_id:
-            department = session.query(Department).filter(Department.id == department_id).options(
-                selectinload(Department.dept_checklist_items), selectinload(Department.job_templates)
-            ).first()
+            department = session.get(Department, department_id, options=[
+                selectinload(Department.dept_checklist_items), selectinload(Department.job_templates)]
+            )
         else:
             department = None
         by_start = defaultdict(list)
@@ -241,9 +241,8 @@ class Root:
         requested_count = 0
 
         if department_id:
-            department = session.query(Department).filter_by(id=department_id).options(
-                selectinload(Department.unassigned_explicitly_requesting_attendees)
-            ).first()
+            department = session.get(Department, department_id,
+                                     options=[selectinload(Department.unassigned_explicitly_requesting_attendees)])
             if not department:
                 department_id = ''
 
@@ -326,16 +325,16 @@ class Root:
         if params.get('id') in [None, '', 'None']:
             job = Job()
         else:
-            job = session.query(Job).filter(Job.id == params.get('id')).options(
+            job = session.get(Job, params.get('id'), options=[
                 defaultload(Job.department).selectinload(Department.dept_roles),
                 defaultload(Job.department).selectinload(Department.job_templates)
-            ).first()
+            ])
             department = job.department
         
         if params.get('department_id'):
-            department = session.query(Department).filter(Department.id == params['department_id']).options(
+            department = session.get(Department, params['department_id'], options=[
                 selectinload(Department.dept_roles), selectinload(Department.job_templates)
-            ).first()
+            ])
 
         if not department:
             raise HTTPRedirect('index?message={}', "Please select a department.")
@@ -395,16 +394,14 @@ class Root:
         if params.get('id') in [None, '', 'None']:
             job_template = JobTemplate()
         else:
-            job_template = session.query(JobTemplate).filter(JobTemplate.id == params.get('id')).options(
+            job_template = session.get(JobTemplate params.get('id'), options=[
                 defaultload(JobTemplate.department).selectinload(Department.dept_roles)
-            ).first()
+            ])
             num_jobs = session.query(Job).filter(Job.job_template_id == params.get('id')).count()
             department = job_template.department
 
         if params.get('department_id'):
-            department = session.query(Department).filter(Department.id == params['department_id']).options(
-                selectinload(Department.dept_roles)
-            ).first()
+            department = session.get(Department, params['department_id'], options=[selectinload(Department.dept_roles)])
 
         if not department:
             raise HTTPRedirect('index?message={}', "Please select a department.")

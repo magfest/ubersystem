@@ -1,5 +1,5 @@
 import cherrypy
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm import joinedload, selectinload, subqueryload
 from datetime import timedelta
 
 from uber.config import c
@@ -18,7 +18,7 @@ class Root:
     def index(self, session, filtered=False, message='', **params):
         if filtered:
             admin_account_id = cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))
-            admin_account = session.query(AdminAccount).get(admin_account_id)
+            admin_account = session.get(AdminAccount, admin_account_id)
             dept_filter = [Department.memberships.any(
                 DeptMembership.attendee_id == admin_account.attendee_id)]
         else:
@@ -42,8 +42,7 @@ class Root:
         if not department_id or department_id == 'None':
             raise HTTPRedirect('index')
         
-        department = session.query(Department).filter(
-            Department.id == department_id).options(selectinload(Department.attendees_working_shifts)).first()
+        department = session.get(Department, department_id, options=[selectinload(Department.attendees_working_shifts)])
         forms = load_forms(params, department, ['DepartmentInfo'])
 
         if cherrypy.request.method == 'POST':
@@ -58,18 +57,15 @@ class Root:
                     department.id,
                     'Department updated successfully.')
         else:
-            department = session.query(Department) \
-                .filter_by(id=department_id) \
-                .order_by(Department.id) \
-                .options(
-                    selectinload(Department.memberships),
-                    selectinload(Department.dept_roles).selectinload(DeptRole.dept_memberships),
-                    selectinload(Department.members).selectinload(Attendee.shifts).joinedload(Shift.job),
-                    selectinload(Department.members).joinedload(Attendee.admin_account),
-                    selectinload(Department.dept_heads).selectinload(Attendee.dept_memberships),
-                    selectinload(Department.pocs).selectinload(Attendee.dept_memberships),
-                    selectinload(Department.checklist_admins).selectinload(Attendee.dept_memberships)) \
-                .one()
+            department = session.get(Department, department_id, options=[
+                selectinload(Department.memberships),
+                selectinload(Department.dept_roles).selectinload(DeptRole.dept_memberships),
+                selectinload(Department.members).selectinload(Attendee.shifts).joinedload(Shift.job),
+                selectinload(Department.members).joinedload(Attendee.admin_account),
+                selectinload(Department.dept_heads).selectinload(Attendee.dept_memberships),
+                selectinload(Department.pocs).selectinload(Attendee.dept_memberships),
+                selectinload(Department.checklist_admins).selectinload(Attendee.dept_memberships)
+                ])
 
         return {
             'admin': session.admin_attendee(),
@@ -82,7 +78,7 @@ class Root:
     @csrf_protected
     def delete(self, session, id, message=''):
         if cherrypy.request.method == 'POST':
-            department = session.query(Department).get(id)
+            department = session.get(Department, id)
             if department.member_count > 1:
                 raise HTTPRedirect(
                     'form?id={}&message={}',
@@ -231,7 +227,7 @@ class Root:
 
     @csv_file
     def dept_members_export(self, out, session, department_id, message='', **params):
-        department = session.query(Department).get(department_id)
+        department = session.get(Department, department_id)
         headers = ['Name', 'Legal Name', 'Email', 'Phone Number', 'Emergency Contact',
                    'Weighted Hours', 'Badge Status', 'Placeholder', 'Has Shifts', 'Roles']
 
@@ -297,12 +293,9 @@ class Root:
             checkgroups=DeptRole.all_checkgroups)
 
         department_id = role.department_id or department_id
-        department = session.query(Department).filter_by(id=department_id).order_by(Department.id) \
-            .options(
-                subqueryload(Department.memberships)
-                .subqueryload(DeptMembership.attendee)
-                .subqueryload(Attendee.dept_roles)) \
-            .one()
+        department = session.get(Department, department_id, options=[
+            subqueryload(Department.memberships).subqueryload(DeptMembership.attendee).subqueryload(Attendee.dept_roles)
+            ])
 
         if cherrypy.request.method == 'POST':
             message = check_dept_admin(session)
@@ -329,7 +322,7 @@ class Root:
 
     @csrf_protected
     def delete_role(self, session, id):
-        dept_role = session.query(DeptRole).get(id)
+        dept_role = session.get(DeptRole, id)
         department_id = dept_role.department_id
         message = ''
         if cherrypy.request.method == 'POST':
@@ -385,7 +378,7 @@ class Root:
             else:
                 session.add(DeptMembership(
                     department_id=department_id, attendee_id=attendee_id))
-                attendee = session.query(Attendee).get(attendee_id)
+                attendee = session.get(Attendee, attendee_id)
                 message = '{} successfully added as a member of this ' \
                     'department'.format(attendee.full_name)
 

@@ -6,7 +6,7 @@
 {% if department_id == '' %}
 Please select a department above to view its signups.
 {% else %}
-{% if c.POST_CON and checklist.relevant %}
+{% if c.POST_CON and checklist.relevant and (c.DEPT_CHECKLIST_OPEN or c.DEV_BOX) %}
   <div class="center">
     {% if checklist.completed %}
       You've already indicated that you've marked all of the shifts you can remember.  Don't forgot to also mark non-shift hours as needed.

@@ -266,7 +266,7 @@ class Root:
     def cancel_signup(self, session, attendee_id, id):
         message = ''
         if cherrypy.request.method == 'POST':
-            signup = session.query(AttractionSignup).get(id)
+            signup = session.get(AttractionSignup, id)
             if signup.attendee_id != attendee_id:
                 message = "You cannot cancel someone else's signup"
             elif signup.is_checked_in:
@@ -284,7 +284,7 @@ class Root:
     @ajax
     def opt_out(self, session, id, attractions_opt_out):
         if cherrypy.request.method == 'POST':
-            attendee = session.query(Attendee).get(id)
+            attendee = session.get(Attendee, id)
             opt_out = str(attractions_opt_out).lower()
             attendee.attractions_opt_out = opt_out == 'true'
             session.commit()
@@ -294,7 +294,7 @@ class Root:
     @ajax
     def notification_pref(self, session, id, notification_pref):
         if cherrypy.request.method == 'POST':
-            attendee = session.query(Attendee).get(id)
+            attendee = session.get(Attendee, id)
             attendee.notification_pref = notification_pref
             session.commit()
         return {}

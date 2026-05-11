@@ -76,9 +76,9 @@ def _add_promo_code(session, attendee, submitted_promo_code):
 def update_prereg_cart(session):
     pending_preregs = PreregCart.pending_preregs.copy()
     for id in pending_preregs:
-        existing_model = session.query(Attendee).filter_by(id=id).first()
+        existing_model = session.get(Attendee, id)
         if not existing_model:
-            existing_model = session.query(Group).filter_by(id=id).first()
+            existing_model = session.get(Group, id).first()
         if existing_model:
             receipt = session.refresh_receipt_and_model(existing_model, is_prereg=True)
             if receipt and (receipt.current_amount_owed or not receipt.payment_total):
@@ -882,7 +882,7 @@ class Root:
 
         pickup_group_id = None
         for attendee in cart.attendees:
-            pending_attendee = session.query(Attendee).filter_by(id=attendee.id).first()
+            pending_attendee = session.get(Attendee, attendee.id)
             if pending_attendee and pending_attendee.badge_pickup_group_id:
                 pickup_group_id = pending_attendee.badge_pickup_group_id
         pending_attendee = None
@@ -987,7 +987,7 @@ class Root:
                 session.add_all(receipt_manager.items_to_add)
 
         for attendee in cart.attendees:
-            pending_attendee = session.query(Attendee).filter_by(id=attendee.id).first()
+            pending_attendee = session.get(Attendee, attendee.id)
             if pending_attendee:
                 for key, val in PreregCart.to_sessionized(attendee).items():
                     setattr(pending_attendee, key, val)
@@ -1120,7 +1120,7 @@ class Root:
 
             owner_id = txn.receipt.owner_id
 
-        attendee = session.query(Attendee).filter_by(id=owner_id).first()
+        attendee = session.get(Attendee, owner_id)
         return {'redirect_url': 'group_promo_codes?id={}&message={}'.format(attendee.promo_code_groups[0].id,
                                                                             'Payment cancelled.')}
 
@@ -1135,9 +1135,9 @@ class Root:
             # We do NOT want to merge the old data into the new attendee
             preregs = []
             for prereg in PreregCart.paid_preregs:
-                model = session.query(Attendee).filter_by(id=prereg['id']).first()
+                model = session.get(Attendee, prereg['id'])
                 if not model:
-                    model = session.query(Group).filter_by(id=prereg['id']).first()
+                    model = session.get(Group, prereg['id'])
 
                 if model:
                     preregs.append(model)
@@ -1161,10 +1161,10 @@ class Root:
     def delete(self, session, message='Preregistration deleted.', **params):
         if 'id' or 'attendee_id' in params:
             id = params.get("id", params.get("attendee_id"))
-            existing_model = session.query(Attendee).filter_by(id=id).first()
+            existing_model = session.get(Attendee, id)
         elif 'group_id' in params:
             id = params.get("group_id")
-            existing_model = session.query(Group).filter_by(id=id).first()
+            existing_model = session.get(Group, id)
 
         PreregCart.unpaid_preregs.pop(id, None)
 
@@ -2180,7 +2180,8 @@ class Root:
             else:
                 raise HTTPRedirect('homepage?message={}', "Only full registration admins can see attendee homepages.")
         else:
-            account = session.query(AttendeeAccount).get(cherrypy.session.get('attendee_account_id', getattr(cherrypy.request, 'attendee_account', None)))
+            account = session.get(AttendeeAccount,
+                                  cherrypy.session.get('attendee_account_id', getattr(cherrypy.request, 'attendee_account', None)))
 
         attendees_who_owe_money = {}
         if c.ONLINE_PAYMENT_AVAILABLE:
@@ -2220,15 +2221,15 @@ class Root:
     @log_pageview
     def confirm(self, session, message='', return_to='confirm', undoing_extra='', **params):
         if params.get('id') not in [None, '', 'None']:
-            attendee = session.query(Attendee).filter(Attendee.id == params.get('id')).options(
+            attendee = session.get(Attendee, params.get('id'), options=[
                 selectinload(Attendee.dept_membership_requests),
                 selectinload(Attendee.art_agent_apps),
                 selectinload(Attendee.promo_code_groups),
                 selectinload(Attendee.shifts),
                 joinedload(Attendee.lottery_application),
                 joinedload(Attendee.art_show_application),
-                joinedload(Attendee.marketplace_application),
-            ).first()
+                joinedload(Attendee.marketplace_application)]
+            )
             receipt = session.get_receipt_by_model(attendee)
             if cherrypy.request.method == 'POST':
                 receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, params.copy())
@@ -2338,10 +2339,8 @@ class Root:
         if id in [None, '', 'None']:
             attendee = Attendee()
         else:
-            try:
-                attendee = session.query(Attendee).filter(Attendee.id == id).options(
-                    selectinload(Attendee.promo_code_groups)).one()
-            except NoResultFound:
+            attendee = session.get(Attendee, id, options=[selectinload(Attendee.promo_code_groups)])
+            if not attendee:
                 if is_prereg:
                     attendee = self._get_unsaved(
                         id,

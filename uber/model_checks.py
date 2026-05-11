@@ -86,7 +86,7 @@ def duplicate_admin(account):
 def has_email_address(account):
     if account.is_new:
         with Session() as session:
-            if session.query(Attendee).filter_by(id=account.attendee_id).first().email == '':
+            if session.get(Attendee, account.attendee_id).email == '':
                 return "Attendee doesn't have a valid email set"
 
 

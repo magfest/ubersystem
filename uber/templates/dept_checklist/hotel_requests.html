@@ -19,7 +19,7 @@ Please select a department above to view its hotel requests.
 <h2> {{ department_name }} Hotel Requests </h2>
 
 <div class="center">
-    {% if checklist.relevant %}
+    {% if checklist.relevant and (c.DEPT_CHECKLIST_OPEN or c.DEV_BOX) %}
         <br/>
         {% if checklist.completed %}
             You've already signed off that everyone who needs approval is here and no one is missing; email STOPS if this is a mistake.

@@ -881,11 +881,11 @@ class Root:
             raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}',
                                model.id, f"This registration/application already has an existing active receipt.")
         
-        from_model = session.query(model.__class__).filter_by(id=from_id).first()
+        from_model = session.get(model.__class__, from_id)
         if from_model:
             receipt = from_model.active_receipt
         else:
-            receipt = session.query(ModelReceipt).filter(ModelReceipt.id == from_id).first()
+            receipt = session.get(ModelReceipt, from_id)
 
         if not receipt:
             raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}',

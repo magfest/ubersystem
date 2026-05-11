@@ -917,10 +917,10 @@ class UberSession(sqlalchemy.orm.Session):
                 return attendee.managers[0]
             
         def volunteer_from_id(self, id):
-            return self.query(Attendee).filter(Attendee.id == id).options(
+            return self.get(Attendee, id, options=[
                 selectinload(Attendee.hotel_requests), selectinload(Attendee.food_restrictions),
                 selectinload(Attendee.shifts)
-            ).first()
+            ])
 
         def admin_has_staffer_access(self, staffer, access="view"):
             admin = self.current_admin_account()
@@ -1102,9 +1102,9 @@ class UberSession(sqlalchemy.orm.Session):
             if not department_id:
                 return {'conf': conf, 'relevant': False, 'completed': None}
 
-            department = self.query(Department).filter(Department.id == department_id).options(
+            department = self.get(Department, department_id, options=[
                 selectinload(Department.dept_checklist_items)
-            ).first()
+            ])
             if department:
                 return {
                     'conf': conf,
@@ -1340,7 +1340,7 @@ class UberSession(sqlalchemy.orm.Session):
         def get_model_by_receipt(self, receipt):
             cls = getattr(uber.models, receipt.owner_model)
             if cls:
-                return self.query(cls).filter_by(id=receipt.owner_id).first()
+                return self.get(cls, receipt.owner_id)
 
         def update_paid_from_receipt(self, attendee, receipt):
             if receipt.item_total == 0 and attendee.paid in [c.PENDING, c.NOT_PAID]:
@@ -1782,7 +1782,7 @@ class UberSession(sqlalchemy.orm.Session):
 
         def dept_heads(self, department_id=None):
             if department_id:
-                return self.query(Department).get(department_id).dept_heads
+                return self.get(Department, department_id).dept_heads
             return self.query(Attendee).filter(Attendee.dept_memberships.any(is_dept_head=True)) \
                 .order_by(Attendee.full_name).all()
 

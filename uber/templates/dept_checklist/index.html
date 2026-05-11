@@ -18,10 +18,26 @@
 
 </style>
 
+{% if c.DEV_BOX and c.DEPT_CHECKLIST_START and c.BEFORE_DEPT_CHECKLIST_START %}
+    <div class="alert alert-info">
+    <strong> You are on a development box. Otherwise, the department head checklist would be closed. </strong>
+    </div>
+{% endif %}
+
 {% set is_relevant = attendee.can_admin_checklist_for(department) -%}
 
 <h2>Department Checklist for {{ department|form_link }}</h2>
 
+{% if not c.DEV_BOX and not c.DEPT_CHECKLIST_OPEN %}
+  {% if not c.DEPT_CHECKLIST_START %}
+  <p>Department checklists are not enabled for this event.</p>
+  {% else %}
+  <p>
+    Department checklists are not yet available. You will be emailed when the checklist is live.
+    We anticipate that the checklist will go live on {{ c.DEPT_CHECKLIST_START|datetime_local }}.
+  </p>
+  {% endif %}
+{% else %}
 <h4>{{ attendee|form_link }}</h4>
 
 {% if is_relevant %}
@@ -53,5 +69,5 @@
     </tr>
     <tr><td colspan="4">{{ item.description }}<br/></br></td></tr>
   {% endfor %}
-
+{% endif %}
 {% endblock %}
