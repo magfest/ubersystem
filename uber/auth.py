@@ -28,16 +28,12 @@ class OIDC(cherrypy.Tool):
         self.key_lock = threading.Lock()
 
     @classmethod
-    def send_claim_token(cls, session, attendee_account=None, admin_account=None):
-        if not attendee_account and not admin_account:
-            return
-
+    def send_claim_token(cls, session, attendee_account, admin_account=None):
         if attendee_account and attendee_account.password_reset:
             session.delete(attendee_account.password_reset)
         elif admin_account and admin_account.password_reset:
             session.delete(admin_account.password_reset)
-
-        email = attendee_account.email if attendee_account else admin_account.attendee.email
+        session.commit()
 
         token = secrets.token_urlsafe(64)
         session.add(PasswordReset(attendee_account=attendee_account, admin_account=admin_account, token=token))
@@ -80,7 +76,7 @@ class OIDC(cherrypy.Tool):
             message = f"You cannot have more than one admin account associated with your {c.OIDC_ACCOUNT_NAME} for this event."
         elif (sso_id or existing_account) and not cherrypy.session.get('oidc_email_verified'):
             message = f"Please verify the email on your {c.OIDC_ACCOUNT_NAME} account to claim {accounts_pluralized}."
-        elif (attendee_account and attendee_account.password_reset.is_expired) or (admin_account and admin_account.password_reset.is_expired):
+        elif attendee_account and attendee_account.password_reset.is_expired:
             OIDC.send_claim_token(session, attendee_account, admin_account)
             message = "This claim link has expired. Please check your email inbox for a new claim link."
         elif attendee_account:
@@ -224,7 +220,7 @@ class OIDC(cherrypy.Tool):
 
                     admin_account.access_groups.append(all_access_group)
                 admin_account.sso_id = sso_id
-                session.commit()
+            session.commit()
             return attendee_account.id, getattr(admin_account, 'id', None)
     
     def _exchange_code_for_tokens(self, code, redirect_uri=c.OIDC_REDIRECT_URL):
