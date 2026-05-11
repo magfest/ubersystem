@@ -394,7 +394,7 @@ class Root:
         if params.get('id') in [None, '', 'None']:
             job_template = JobTemplate()
         else:
-            job_template = session.get(JobTemplate params.get('id'), options=[
+            job_template = session.get(JobTemplate, params.get('id'), options=[
                 defaultload(JobTemplate.department).selectinload(Department.dept_roles)
             ])
             num_jobs = session.query(Job).filter(Job.job_template_id == params.get('id')).count()
