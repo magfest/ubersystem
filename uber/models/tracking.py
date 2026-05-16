@@ -165,7 +165,7 @@ class Tracking(MagModel, table=True):
             if new_val:
                 new_val = instance.coerce_column_data(column, new_val)
             old_val = instance.orig_value_of(attr)
-            if old_val != new_val and old_val.strip() != new_val:
+            if old_val != new_val:
                 """
                 Important note: here we try and show the old vs new value for
                 something that has been changed so that we can report it in the
