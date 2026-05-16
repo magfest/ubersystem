@@ -113,8 +113,7 @@ def check_duplicate_registrations():
 
                 if dupes and session.no_email(subject):
                     EmailService.queue_email(session, 'daily_duplicates_report', to=c.REGDESK_EMAIL,
-                                             subject=subject, data={'dupes': sorted(dupes.items())},
-                                             replace_unsent=True)
+                                             subject=subject, data={'dupes': sorted(dupes.items())})
 
 
 @celery.schedule(crontab(minute=0, hour='*/6'))
@@ -168,7 +167,7 @@ def check_pending_badges():
                                                      Attendee.paid != c.PENDING).all()
             if pending and session.no_email(subject):
                 EmailService.queue_email(session, 'daily_pending_report', to=c.STAFF_EMAIL,
-                                         subject=subject, data={'pending': pending}, replace_unsent=True)
+                                         subject=subject, data={'pending': pending})
 
 
 @celery.schedule(crontab(minute=0, hour='*/6'))
@@ -183,7 +182,7 @@ def check_unassigned_volunteers():
                 not_(Attendee.dept_memberships.any())).order_by(Attendee.full_name).all()  # noqa: E712
             subject = c.EVENT_NAME + ' Unassigned Volunteer Report for ' + localized_now().strftime('%Y-%m-%d')
             if unassigned and session.no_email(subject):
-                EmailService.queue_email(session, 'daily_unassigned_report', to=c.STAFF_EMAIL, replace_unsent=True)
+                EmailService.queue_email(session, 'daily_unassigned_report', to=c.STAFF_EMAIL)
 
 
 @celery.schedule(timedelta(minutes=5))
@@ -527,8 +526,7 @@ def check_authnet_held_txns():
                 if txn_status.response.transactionStatus in ["declined", "expired", "failedReview", "voided"]:
                     subject = f"AuthNet Held Transaction Declined: {charge_id}"
                     EmailService.queue_email(session, 'authnet_held_txn_admin', to=c.REGDESK_EMAIL,
-                                             subject=subject, data={'txns': txns, 'status': str(txn_status.response.transactionStatus)},
-                                             replace_unsent=True)
+                                             subject=subject, data={'txns': txns, 'status': str(txn_status.response.transactionStatus)})
                     
                     for txn in txns:
                         txn.cancelled = datetime.now()
