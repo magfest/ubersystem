@@ -98,6 +98,7 @@ class Root:
                                 session.add_attendee_to_account(group_member, new_account)
                     session.commit()
                     OIDC.send_claim_token(session, new_account, account)
+                    session.commit()
                     return {'success': True, 'message': "Account created and claim email sent."}
                 else:
                     if c.ATTENDEE_ACCOUNTS_ENABLED and attendee.managers:
@@ -445,6 +446,7 @@ class Root:
                                         session.add_attendee_to_account(group_member, new_account)
                             session.commit()
                             OIDC.send_claim_token(session, new_account, account)
+                            session.commit()
                             return {'success': True, 'message': "Account created and claim email sent."}
                         else:
                             if c.ATTENDEE_ACCOUNTS_ENABLED and attendee.managers:
