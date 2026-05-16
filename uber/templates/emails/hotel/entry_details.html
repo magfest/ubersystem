@@ -1,4 +1,4 @@
-{% macro basic_entry_details(application, app_or_parent, confirmation=True) %}
+{% macro basic_entry_details(app, app_or_parent, confirmation=True) %}
 {% if confirmation %}
     <li><strong>Entry Received</strong>: {{ app.last_submitted|datetime_local }}</li>
     <li><strong>Confirmation Number</strong>: {{ app.confirmation_num }}</li>
@@ -26,7 +26,7 @@
 {% if app_or_parent.entry_type == c.SUITE_ENTRY %}
 <u>Suite Entry Details</u>
 <ul>
-    {{ basic_entry_details(application, app_or_parent, confirmation=confirmation) }}
+    {{ basic_entry_details(app, app_or_parent, confirmation=confirmation) }}
     <li><strong>Suite Type Preference</strong>: {{ app_or_parent.suite_type_preference_labels|readable_join }}</li>
     {% if 'suite_selection_pref' in c.HOTEL_LOTTERY_FORM_STEPS %}
     <li><strong>Preference Priorities</strong>: {{ app_or_parent.selection_priorities_labels|readable_join }}</li>
@@ -37,7 +37,7 @@
 {% endif %}
 {% endif %}
 <ul>
-    {% if app_or_parent.entry_type == c.ROOM_ENTRY %}{{ basic_entry_details(application, app_or_parent, confirmation=confirmation) }}{% endif %}
+    {% if app_or_parent.entry_type == c.ROOM_ENTRY %}{{ basic_entry_details(app, app_or_parent, confirmation=confirmation) }}{% endif %}
     {% if c.HOTEL_LOTTERY_HOTELS_OPTS %}
     <li><strong>Hotel Preference</strong>: {{ app_or_parent.hotel_preference_labels|readable_join }}</li>
     {% endif %}

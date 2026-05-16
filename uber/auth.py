@@ -10,6 +10,7 @@ from jose import jwt, jwk
 from sqlalchemy.orm.exc import NoResultFound
 from urllib.parse import urlparse, parse_qsl
 
+from uber.email import EmailService
 from uber.config import c
 from uber.custom_tags import email_only
 from uber.errors import HTTPRedirect
@@ -38,15 +39,9 @@ class OIDC(cherrypy.Tool):
         token = secrets.token_urlsafe(64)
         session.add(PasswordReset(attendee_account=attendee_account, admin_account=admin_account, token=token))
         session.commit()
-        body = render('emails/accounts/new_sso_account.html', {
-            'attendee_account': attendee_account, 'admin_account': admin_account, 'token': token}, encoding=None)
-        send_email.delay(
-            c.ADMIN_EMAIL,
-            email,
-            c.EVENT_NAME_AND_YEAR + ' Account Setup',
-            body,
-            format='html',
-            model=(attendee_account or admin_account).to_dict('id'))
+
+        EmailService.queue_email(session, 'sso_account_setup', attendee_account,
+                                 data={'admin_account': admin_account, 'token': token})
 
     @classmethod
     def process_account_claim_token(cls, session, account_claim_token, sso_id=None, existing_account=None, dry_run=False):

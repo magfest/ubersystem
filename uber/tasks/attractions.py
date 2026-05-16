@@ -4,6 +4,7 @@ import pytz
 import logging
 from sqlalchemy.orm import subqueryload
 
+from uber.email import EmailService
 from uber.custom_tags import humanize_timedelta
 from uber.config import c
 from uber.decorators import render
@@ -12,7 +13,6 @@ from uber.models.attendee import Attendee
 from uber.models.attraction import Attraction, AttractionEvent, AttractionNotification, \
     AttractionNotificationReply, AttractionSignup
 from uber.tasks import celery
-from uber.tasks.email import send_email
 from uber.tasks.sms import get_twilio_client, send_sms_with_client
 from uber.utils import normalize_phone, groupify
 
@@ -101,12 +101,7 @@ def send_waitlist_notification(signup_id):
                 type_str = 'EMAIL'
                 from_ = c.ATTRACTIONS_EMAIL
                 to_ = attendee.email_to_address
-                send_email.delay(
-                    c.ATTRACTIONS_EMAIL,
-                    to_,
-                    'Signed up from waitlist',
-                    render('emails/panels/attractions_waitlist.html', {'signup': signup}, encoding=None),
-                    model=signup.to_dict('id'), ident=ident)
+                EmailService.queue_email(session, 'signup_from_waitlist', signup)
         except Exception:
             log.error(
                 'Error sending notification\n'
@@ -224,20 +219,10 @@ def attractions_send_notifications():
                         type_str = 'EMAIL'
                         from_ = c.ATTRACTIONS_EMAIL
                         to_ = attendee.email_to_address
-                        if is_first_signup:
-                            template = 'emails/panels/attractions_welcome.html'
-                            subject = 'Welcome to {} Attractions'.format(c.EVENT_NAME)
-                        else:
-                            template = 'emails/panels/attractions_notification.html'
-                            subject = 'Checkin for {} is at {}'.format(event.name, event.checkin_start_time_label)
-
-                        body = render(template, {
-                            'signup': signup,
-                            'checkin': checkin,
-                            'c': c}, encoding=None)
+                        email_ident = 'first_attractions_signup' if is_first_signup else 'signup_checkin_notice'
+                        EmailService.queue_email(session, email_ident, signup,
+                                                 data={'checkin': checkin, 'c': c})
                         sid = ident
-                        send_email.delay(from_, to_, subject=subject, body=body, format='html',
-                                         model=attendee.to_dict(), ident=ident)
                 except Exception:
                     log.error(
                         'Error sending notification\n'

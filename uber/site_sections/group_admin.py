@@ -295,14 +295,14 @@ class Root:
 
         if group.leader:
             other_emails = session.query(Email).filter(
-                Email.to == group.leader.email).order_by(Email.when).all()
+                Email.to == group.leader.email).order_by(Email.generated).all()
         else:
             other_emails = {}
 
         return {
             'group': group,
             'emails': session.query(Email).filter(Email.model == 'Group',
-                                                  Email.fk_id == id).order_by(Email.when).all(),
+                                                  Email.fk_id == id).order_by(Email.generated).all(),
             'other_emails': other_emails,
             'changes': session.query(Tracking).filter(or_(
                 Tracking.links.like('%group({})%'.format(id)),

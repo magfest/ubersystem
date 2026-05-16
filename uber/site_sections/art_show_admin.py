@@ -139,7 +139,7 @@ class Root:
         app = session.art_show_application(id)
         return {
             'app': app,
-            'emails': session.query(Email).filter(Email.fk_id == id).order_by(Email.when).all(),
+            'emails': session.query(Email).filter(Email.fk_id == id).order_by(Email.generated).all(),
             'changes': session.query(Tracking).filter(
                 or_(Tracking.links.like('%art_show_application({})%'.format(id)),
                     and_(Tracking.model == 'ArtShowApplication', Tracking.fk_id == id))

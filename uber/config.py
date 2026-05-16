@@ -358,8 +358,8 @@ class Config(_Overridable):
                 Attendee.has_badge == True).count()  # noqa: E712
         return count
 
-    def has_section_or_page_access(self, include_read_only=False, page_path=''):
-        access = uber.models.AdminAccount.get_access_set(include_read_only=include_read_only)
+    def has_section_or_page_access(self, page_path='', include_read_only=False, full=False):
+        access = uber.models.AdminAccount.get_access_set(include_read_only=include_read_only, full=full)
         page_path = page_path or self.PAGE_PATH
 
         section = page_path.replace(page_path.split('/')[-1], '').strip('/')
@@ -987,17 +987,20 @@ class Config(_Overridable):
         uber.utils.ensure_csrf_token_exists()
         return cherrypy.session.get('csrf_token', '')
 
+    def query_str_without_params(self, remove_keys):
+        from urllib.parse import parse_qsl, urlencode
+        query = parse_qsl(cherrypy.request.query_string, keep_blank_values=True)
+
+        query = [(key, val) for (key, val) in query if key not in (['message'] + remove_keys)]
+        return urlencode(query)
+
     @property
     def QUERY_STRING(self):
         return cherrypy.request.query_string
 
     @property
     def QUERY_STRING_NO_MSG(self):
-        from urllib.parse import parse_qsl, urlencode
-
-        query = parse_qsl(cherrypy.request.query_string, keep_blank_values=True)
-        query = [(key, val) for (key, val) in query if key != 'message']
-        return urlencode(query)
+        return self.query_str_without_params(['message'])
 
     @property
     def PAGE_PATH(self):
@@ -1127,7 +1130,7 @@ class Config(_Overridable):
             if not query.first():
                 return [(-1, -1)]
             current_admin = session.current_admin_account()
-            if current_admin.full_shifts_admin:
+            if self.has_section_or_page_access(full=True):
                 return [(d.id, d.name) for d in query]
             else:
                 return [(d.id, d.name) for d in query if d.id in
@@ -1228,6 +1231,11 @@ class Config(_Overridable):
     @dynamic
     def ADMIN_WRITE_ACCESS_SET(self):
         return uber.models.AdminAccount.get_access_set()
+    
+    @request_cached_property
+    @dynamic
+    def ADMIN_FULL_ACCESS_SET(self):
+        return uber.models.AdminAccount.get_access_set(full=True)
 
     @cached_property
     def ADMIN_PAGES(self):
@@ -1529,6 +1537,8 @@ class Config(_Overridable):
             elif access_name == 'read':
                 return self.has_section_or_page_access(include_read_only=True)
 
+            if access_name.startswith('full_'):
+                return access_name[5:] in self.ADMIN_FULL_ACCESS_SET
             if access_name.endswith('_read'):
                 return access_name[:-5] in self.ADMIN_ACCESS_SET
             return access_name in self.ADMIN_WRITE_ACCESS_SET
@@ -1942,6 +1952,7 @@ c.CON_TOTAL_DAYS = -(-(int((c.SHIFTS_ESCHATON - c.SHIFTS_EPOCH).total_seconds() 
 c.PANEL_STRICT_LENGTH_OPTS = [opt for opt in c.PANEL_LENGTH_OPTS if opt != c.OTHER]
 
 c.EVENT_YEAR = c.EPOCH.strftime('%Y')
+c.EVENT_DATE = c.EPOCH.strftime('%b %Y')
 c.EVENT_NAME_AND_YEAR = c.EVENT_NAME + (' {}'.format(c.EVENT_YEAR) if c.EVENT_YEAR else '')
 c.EVENT_MONTH = c.EPOCH.strftime('%B')
 c.EVENT_START_DAY = int(c.EPOCH.strftime('%d')) % 100
@@ -2114,6 +2125,13 @@ c.GUIDEBOOK_PROPERTIES = [
     ('guidebook_header', 'Image (Optional)'),
     ('guidebook_thumbnail', 'Thumbnail (Optional)'),
 ]
+
+
+# A list of department emails and their other related configured email addresses
+c.RELATED_EMAILS = {
+    c.MARKETPLACE_EMAIL: [c.MARKETPLACE_NOTIFICATIONS_EMAIL],
+    c.ART_SHOW_EMAIL: [c.ART_SHOW_NOTIFICATIONS_EMAIL, c.ART_SHOW_BCC_EMAIL]
+}
 
 
 # =============================

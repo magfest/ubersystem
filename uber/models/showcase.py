@@ -120,7 +120,7 @@ class IndieJudge(MagModel, ReviewMixin, table=True):
 
     @property
     def email(self):
-        return self.attendee.email
+        return self.attendee.email if self.attendee else ''
 
     @email.setter
     def email(self, value):
@@ -448,7 +448,7 @@ class IndieGame(MagModel, ReviewMixin, table=True):
 
     @property
     def email(self):
-        return self.studio.email
+        return self.studio.email if self.studio else ''
     
     @property
     def admin_email(self):

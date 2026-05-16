@@ -16,7 +16,8 @@ from uber.amazon_ses import email_sender
 from uber.automated_emails import AutomatedEmailFixture
 from uber.config import c
 from uber.decorators import render
-from uber.models import AutomatedEmail, Email, MagModel, Session
+from uber.email import EmailService
+from uber.models import AutomatedEmail, Email, MagModel, UberSession, Session
 from uber.tasks import celery
 
 log = logging.getLogger(__name__)
@@ -48,6 +49,7 @@ def send_email(
         ident=None,
         automated_email=None,
         session=None):
+    return
 
     to, cc, bcc, replyto = map(lambda x: utils.listify(x if x else []), [to, cc, bcc, replyto])
     original_to, original_cc, original_bcc, original_replyto = to, cc, bcc, replyto
@@ -130,8 +132,10 @@ def notify_admins_of_pending_emails():
 
     This is important so we don't forget to let certain automated emails send.
     """
-    if not c.ENABLE_PENDING_EMAILS_REPORT or not c.PRE_CON or not (c.DEV_BOX or c.SEND_EMAILS):
-        return None
+    return
+
+    if not c.PRE_CON or not (c.DEV_BOX or c.SEND_EMAILS):
+        return
 
     with Session() as session:
         pending_emails = session.query(AutomatedEmail).filter(*AutomatedEmail.filters_for_pending).all()
@@ -150,106 +154,42 @@ def notify_admins_of_pending_emails():
                 if isinstance(email[0], AutomatedEmail):
                     email[0].reconcile(AutomatedEmail._fixtures[email[0].ident])
 
-            subject = '{} Pending Emails Report for {}'.format(c.EVENT_NAME, utils.localized_now().strftime('%Y-%m-%d'))
-            body = render('emails/daily_checks/pending_emails.html', {
-                'pending_emails_by_sender': emails_by_sender,
-                'primary_sender': sender,
-            }, encoding=None)
-            send_email(c.REPORTS_EMAIL, sender, subject, body, format='html', model='n/a', session=session)
+            EmailService.queue_email(session, 'pending_emails_admin', to=c.REPORTS_EMAIL, sender=sender,
+                                     subject=f'{c.EVENT_NAME} Pending Emails Report for {utils.localized_now().strftime('%Y-%m-%d')}',
+                                     data={'pending_emails_by_sender': emails_by_sender, 'primary_sender': sender},
+                                     replace_unsent=True)
 
         return utils.groupify(pending_emails, 'sender', 'ident')
 
 
-@celery.schedule(timedelta(minutes=5 if c.DEV_BOX else 15))
+@celery.schedule(timedelta(minutes=5))
 def send_automated_emails():
     """
-    Send any automated emails that are currently active, and have been approved
-    or do not need approval. For each unapproved email that needs approval from
-    an admin, the unapproved_count will be updated to indicate the number of
-    recepients that _would have_ received the email if it had been approved.
+    Send any queued emails while using DB locks to ensure the same email doesn't get processed twice.
+    Emails are processed per model.
     """
     if not (c.DEV_BOX or c.SEND_EMAILS):
         return None
 
+    quantity_sent = 0
+    start_time = time()
+
     try:
-        quantity_sent = 0
-        start_time = time()
         Session.session_factory = sessionmaker(bind=Session.engine, expire_on_commit=False, autoflush=False, autocommit=False,
-                                           query_cls=Session.QuerySubclass)
+                                               query_cls=UberSession.QuerySubclass)
         with Session() as session:
-            active_automated_emails = session.query(AutomatedEmail) \
-                .filter(*AutomatedEmail.filters_for_active).all()
-
-            automated_emails_by_model = utils.groupify(active_automated_emails, 'model')
-
-            for model, query_func in AutomatedEmailFixture.queries.items():
-                log.debug("Sending automated emails for " + model.__name__)
-                automated_emails = automated_emails_by_model.get(model.__name__, [])
-                log.debug("  Found " + str(len(automated_emails)) + " emails for " + model.__name__)
-                load_start = time()
-                model_instances = query_func(session).all()
-                log.debug(f"Loaded {len(model_instances)} {model.__name__} instances in {time() - load_start} seconds")
+            for model_class in set([fixture.model for fixture in AutomatedEmail._fixtures.values()]):
                 with Session.engine.connect() as guard_conn:
-                    for automated_email in automated_emails:
-                        # Convert the automated_email UUID into a 64-bit int as a lock key
-                        # Collisions are possible, but the only side effect is both automated_emails won't run in parallel
-                        lock_key = uuid.UUID(str(automated_email.id)).int & ((1<<63)-1)
-                        log.debug(f"Attempting to lock {automated_email.ident}")
-                    
-                        with guard_conn.begin():
-                            if guard_conn.execute(select(func.pg_try_advisory_lock(lock_key))).scalar():
-                                log.debug(f"Locked {automated_email.ident}")
-                                unapproved_count = 0
+                    lock_key = model_class.__name__.lower() + '_email_queue'
+                    lock_key = int.from_bytes(lock_key.encode())  & ((1<<63)-1)
+                    log.debug(f"Attempting to lock {model_class.__name__} email queue for processing.")
 
-                                if getattr(automated_email, 'shared_ident', None):
-                                    matching_email_ids = session.query(Email.fk_id).filter(Email.ident.startswith(automated_email.shared_ident))
-                                    fk_id_list = {id for id, in matching_email_ids}
-                                else:
-                                    fk_id_list = {email.fk_id for email in automated_email.emails}
-
-                                for model_instance in model_instances:
-                                    if model_instance.id not in fk_id_list:
-                                        if automated_email.would_send_if_approved(model_instance):
-                                            if automated_email.approved or not automated_email.needs_approval:
-                                                if getattr(model_instance, 'active_receipt', None):
-                                                    session.refresh_receipt_and_model(model_instance)
-                                                automated_email.send_to(model_instance, delay=False, session=session)
-                                                quantity_sent += 1
-                                            else:
-                                                unapproved_count += 1
-
-                                automated_email.unapproved_count = unapproved_count
-                                session.add(automated_email)
-                            else:
-                                log.debug(f"Skipping {automated_email.ident} as it is being worked by another thread.")
-                    
-                session.commit()
-            log.info("Sent " + str(quantity_sent) + " emails in " + str(time() - start_time) + " seconds")
-            return {e.ident: e.unapproved_count for e in active_automated_emails if e.unapproved_count > 0}
+                    with guard_conn.begin():
+                        if guard_conn.execute(select(func.pg_try_advisory_lock(lock_key))).scalar():
+                            log.debug(f"Sending queued emails for {model_class.__name__}.")
+                            quantity_sent += EmailService.process_emails_by_class(session, model_class)
+                        else:
+                            log.debug(f"Skipping {model_class.__name__} as it is being worked by another thread.")
+            log.info(f"Sent {quantity_sent} emails in {time() - start_time} seconds.")
     except Exception:
         traceback.print_exc()
-
-        # TODO: Once we finish converting each AutomatedEmailFixture.filter
-        #       into an AutomatedEmailFixture.query, we'll be able to remove
-        #       AutomatedEmailFixture.queries entirely and send our
-        #       automated emails using the code below.
-        #
-        # for automated_email in active_automated_emails:
-        #     model_class = automated_email.model_class or Attendee
-        #     model_instances = session.query(model_class).filter(
-        #         not_(exists().where(and_(
-        #             Email.fk_id == model_class.id,
-        #             Email.automated_email_id == automated_email.id))
-        #         ),
-        #         *automated_email.query
-        #     ).options(*automated_email.query_options)
-        #
-        #     automated_email.unapproved_count = 0
-        #     for model_instance in model_instances:
-        #         if automated_email.would_send_if_approved(model_instance):
-        #             if automated_email.approved or not automated_email.needs_approval:
-        #                 automated_email.send_to(model_instance, delay=False)
-        #             else:
-        #                 automated_email.unapproved_count += 1
-        #
-        # return {e.ident: e.unapproved_count for e in active_automated_emails if e.unapproved_count > 0}

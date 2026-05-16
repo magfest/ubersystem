@@ -1,12 +1,12 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Sent Emails{% endblock %}
+{% block title %}Sent and Queued Emails{% endblock %}
 {% block content %}
 <div><a href="index">Go Back</a></div>
 
 {% for email in emails  %}
 <div class="card">
   <div class="card-body">
-    <h3>{{ email.subject }} ({{ email.when|full_datetime_local }})</h3>
+    <h3>{{ email.subject }} ({{ email.generated|full_datetime_local }})</h3>
     <h4>To:
       {% if email.fk_id %}
         {{ email.fk|form_link }} ({{ email.to }})

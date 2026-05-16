@@ -1,6 +1,14 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% block title %}Automated Emails Pending Approval{% endblock %}
 {% block content %}
+<script type="text/javascript">
+    var deptIdChanged = function () {
+        window.location = "{{ c.PAGE }}?department_id=" + $("#department_id").val() + "&{{ c.query_str_without_params(['department_id']) }}";
+    };
+    var emailPolicyChanged = function () {
+        window.location = "{{ c.PAGE }}?status=" + $("#status").val() + "&{{ c.query_str_without_params(['status']) }}";
+    };
+</script>
 
 {% macro email_table(emails) %}
   <table class="table table-striped datatable"
@@ -11,57 +19,42 @@
     <tr class="header">
       <th>Subject</th>
       <th>Template</th>
-      <th>Sender</th>
-      <th>Emails Sent</th>
-      <th>Emails Waiting to Send</th>
-      <th>Examples</th>
-      <th>Approval Status</th>
+      <th>Queued/Sent</th>
+      <th>Email Policy</th>
       <th>Date Restrictions</th>
+      <th></th>
     </tr>
     </thead>
     <tbody>
       {% for email in emails %}
-        {% set is_pending = email.unapproved_count > 0 and not email.approved %}
-        <tr class="{% if is_pending %}pending{% endif %}">
+        <tr>
           <td class="subject">
             <span>{{ email.subject }}</span>
-            {% if is_pending %}
-              <br>
-              {{ email.unapproved_count }}
-              pending email{{ email.unapproved_count|pluralize }}
-              require{{ email.unapproved_count|pluralize('s', '') }} approval
-            {% endif %}
           </td>
           <td>
             {% if email.fixture.template_url %}
             <a href="{{ email.fixture.template_url }}" target="_blank">{{ email.fixture.template_plugin_name }}</a>
             {% else %}{{ email.fixture.template_plugin_name }}{% endif %}
           </td>
-          <td>{{ email.sender }}</td>
-          <td>{{ email.sent_email_count }}</td>
-          <td>{{ email.unapproved_count }}</td>
-          <td><a href="pending_examples?ident={{ email.ident|urlencode }}">Examples</a></td>
-          <td>
-            {% if not email.needs_approval %}
-                Automatic
-            {% else %}
-                {% if not email.approved %}
-                    <form method="post" action="approve">
-                    {{ csrf_token() }}
-                    <input type="hidden" name="ident" value="{{ email.ident }}" />
-                    <input type="submit" value="Approve" class="btn btn-sm btn-success"/>
-                    </form>
-                {% else %}
-                    Approved
-                    <form method="post" action="unapprove">
-                    {{ csrf_token() }}
-                    <input type="hidden" name="ident" value="{{ email.ident }}" />
-                    <input type="submit" value="Undo Approval" class="btn btn-sm btn-warning"/>
-                    </form>
-                {% endif %}
-            {% endif %}
-        </td>
+          <td>{{ queued_email_counts[email.id] or 0 }} / {{ sent_email_counts[email.id] or 0 }}{% if queued_email_counts[email.id] or sent_email_counts[email.id] %} <a href="index?ident={{ email.ident }}" target="_blank">View <i class="fa fa-external-link"></i></a>{% endif %}</td>
+          <td>{{ email.policy_label or 'Not Set' }}</td>
         <td>{{ email.active_when_label|linebreaksbr }}</td>
+        {# <td><a href="pending_examples?ident={{ email.ident|urlencode }}" class="btn btn-primary btn-sm"><i class="fa fa-pencil"></i>&nbsp;View/Edit</a></td> #}
+        <td>
+          {% if email.policy != c.AUTOSEND %}
+              <form method="post" action="approve">
+              {{ csrf_token() }}
+              <input type="hidden" name="ident" value="{{ email.ident }}" />
+              <input type="submit" value="Autosend" class="btn btn-sm btn-success"/>
+              </form>
+          {% else %}
+              <form method="post" action="unapprove">
+              {{ csrf_token() }}
+              <input type="hidden" name="ident" value="{{ email.ident }}" />
+              <input type="submit" value="Don't Autosend" class="btn btn-sm btn-warning"/>
+              </form>
+          {% endif %}
+        </td>
       </tr>
     {% endfor %}
   </tbody>
@@ -71,6 +64,26 @@
 <h2>Pending Automated Emails</h2>
 <div class="card">
   <div class="card-body">
+    <div class="row g-3 mb-3">
+      <div class="col-6 col-sm-4">
+          <label for="department_id" class="form-text">Department</label>
+          <select id="department_id" onChange="deptIdChanged()" class="form-select">
+          {% if c.ADMIN_DEPARTMENTS|length > 1 %}
+            <option value="">Filter by department</option>
+            {% if c.HAS_FULL_EMAIL_ADMIN_ACCESS %}<option value="None"{% if department_id == 'None' %} selected{% endif %}>No Department</option>{% endif %}
+            <option value="All"{% if department_id == 'All' %} selected{% endif %}>All Departments</option>
+          {% endif %}
+          {{ options(c.ADMIN_DEPARTMENT_OPTS, department_id) }}
+          </select>
+      </div>
+      <div class="col-6 col-sm-4">
+          <label for="policy" class="form-text">Email Policy</label>
+          <select id="policy" onChange="emailPolicyChanged()" class="form-select">
+          <option value="">Filter by policy</option>
+          {{ options(c.EMAIL_POLICY_OPTS, policy) }}
+          </select>
+      </div>
+    </div>
 {% if not automated_emails %}
   <p class="text-info">
     There are currently no automated emails. The system is probably updating,
@@ -85,21 +98,10 @@
     If there are date restrictions for an email, that email will not be sent outside of those dates.
     Emails may be "unapproved" after approval to stop them being sent to newly qualifying attendees or groups.
   </p>
-  <p>
-    Please note that the emails below represent most, <em>but not all</em>, of the automated emails the system sends.
-    Any emails that don't appear here are sent in response to an action (e.g., a dealer changing their application) and cannot be approved or unapproved.
-  </p>
-  <ul class="nav nav-pills">
-  {% for sender in automated_emails.keys() %}
-    <li class="nav-item">
-      <a class="nav-link border border-primary rounded" href="#{{ sender|email_only }}">{{ sender|email_only }}</a>
-    </li>&nbsp;
-  {% endfor %}
-  </ul>
   <hr/>
   {% for sender, emails in automated_emails.items() %}
   <a id="{{ sender|email_only }}"></a>
-    <h3 class="mb-0 mt-4">{{ sender }}</h3>
+    <h3 class="mb-0 mt-4">{{ sender }} ({% if not depts_by_sender[sender] %}No Department{% else %}{% for dept in depts_by_sender[sender] %}{{ dept|form_link }}{% endfor %}{% endif %})</h3>
     {{ email_table(emails) }}
     {% if not loop.last %}<hr/>{% endif %}
   {% endfor %}

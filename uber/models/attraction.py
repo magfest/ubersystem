@@ -799,7 +799,11 @@ class AttractionSignup(MagModel, table=True):
 
     @property
     def email(self):
-        return self.attendee.email
+        return self.attendee.email if self.attendee else ''
+
+    @property
+    def gets_emails(self):
+        return self.attendee and self.attendee.has_badge
 
     @property
     def email_model_name(self):
@@ -826,19 +830,6 @@ class AttractionSignup(MagModel, table=True):
     @is_unchecked_in.expression
     def is_unchecked_in(cls):
         return cls.checkin_time <= utcmin.datetime
-    
-    def notify_waitlist(self):
-        from uber.tasks.email import send_email
-        TEXT_TEMPLATE = "You've been signed up from the waitlist for {signup.event.name} in {signup.event.location_room_name}, {signup.event.time_span_label}! Reply N to drop out"
-
-        if self.attendee.notification_pref == Attendee._NOTIFICATION_EMAIL:
-            send_email.delay(
-                c.ATTRACTIONS_EMAIL,
-                self.email,
-                'Signed up from waitlist',
-                render('emails/panels/attractions_waitlist.html', {'signup': self}, encoding=None),
-                model=self.to_dict('id'))
-            # TODO: Handle text notifs too
 
 
 class AttractionNotification(MagModel, table=True):

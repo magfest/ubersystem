@@ -7,13 +7,13 @@ from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.auth import OIDC
+from uber.email import EmailService
 from uber.config import c
 from uber.decorators import (ajax, all_renderable, csrf_protected, csv_file,
                              not_site_mappable, render, site_mappable, public)
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, Attendee, BadgeInfo, PasswordReset, WorkstationAssignment
 from uber.payments import PreregCart
-from uber.tasks.email import send_email
 from uber.utils import (check, check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, genpasswd,
                         create_new_hash)
 
@@ -102,17 +102,10 @@ class Root:
                 else:
                     if c.ATTENDEE_ACCOUNTS_ENABLED and attendee.managers:
                         new_account.sso_id = attendee.managers[0].sso_id
-                    body = render('emails/accounts/new_account.txt', {
-                        'account': account,
-                        'password': password,
-                        'creator': AdminAccount.admin_name()
-                    }, encoding=None)
-                    send_email.delay(
-                        c.ADMIN_EMAIL,
-                        attendee.email,
-                        'New ' + c.EVENT_NAME + ' Admin Account',
-                        body,
-                        model=attendee.to_dict('id'))
+                    EmailService.queue_email(
+                        session, 'new_admin_account', account,
+                        data={'password': password if not c.SAML_SETTINGS and not c.OIDC_ENABLED else '',
+                              'creator': AdminAccount.admin_name()}, replace_unsent=True)
             session.commit()
             return {'success': True, 'message': message}
         else:
@@ -325,16 +318,8 @@ class Root:
                     session.delete(account.password_reset)
                     session.commit()
                 session.add(PasswordReset(admin_account=account, hashed=create_new_hash(password)))
-                body = render('emails/accounts/password_reset.txt', {
-                    'name': account.attendee.full_name,
-                    'password':  password}, encoding=None)
-
-                send_email.delay(
-                    c.ADMIN_EMAIL,
-                    account.attendee.email,
-                    c.EVENT_NAME + ' Admin Password Reset',
-                    body,
-                    model=account.attendee.to_dict('id'))
+                EmailService.queue_email(session, 'admin_password_reset', account,
+                                         data={'password': password}, replace_unsent=True)
                 raise HTTPRedirect('login?message={}', 'Your new password has been emailed to you')
 
         return {
@@ -464,17 +449,10 @@ class Root:
                         else:
                             if c.ATTENDEE_ACCOUNTS_ENABLED and attendee.managers:
                                 new_account.sso_id = attendee.managers[0].sso_id
-                            body = render('emails/accounts/new_account.txt', {
-                                'account': account,
-                                'password': password if not c.SAML_SETTINGS else '',
-                                'creator': AdminAccount.admin_name()
-                            }, encoding=None)
-                            send_email.delay(
-                                c.ADMIN_EMAIL,
-                                attendee.email,
-                                'New ' + c.EVENT_NAME + ' Admin Account',
-                                body,
-                                model=attendee.to_dict('id'))
+                            EmailService.queue_email(
+                                session, 'new_admin_account', account,
+                                data={'password': password if not c.SAML_SETTINGS and not c.OIDC_ENABLED else '',
+                                      'creator': AdminAccount.admin_name()}, replace_unsent=True)
 
                         success_count += 1
         if success_count == 0:

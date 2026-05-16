@@ -12,6 +12,7 @@ from uber import config  # noqa: F401
 from uber import api  # noqa: F401
 from uber import auth # noqa: F401
 from uber import automated_emails  # noqa: F401
+from uber import email  # noqa: F401
 from uber import custom_tags  # noqa: F401
 from uber import forms  # noqa: F401
 from uber import jinja  # noqa: F401

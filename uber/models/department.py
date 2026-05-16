@@ -245,12 +245,9 @@ class Department(MagModel, table=True):
     handles_cash: bool = False
     panels_desc: str = ''
 
-    locations: list['EventLocation'] = Relationship(
-        back_populates="department")
-    events: list['Event'] = Relationship(
-        back_populates="department")
-    attractions: list['Attraction'] = Relationship(
-        back_populates="department")
+    locations: list['EventLocation'] = Relationship(back_populates="department")
+    events: list['Event'] = Relationship(back_populates="department")
+    attractions: list['Attraction'] = Relationship(back_populates="department")
 
     jobs: list['Job'] = Relationship(back_populates="department",
                                      sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})

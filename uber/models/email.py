@@ -7,10 +7,9 @@ from dateutil import parser as dateparser
 
 from pytz import UTC
 from sqlalchemy import func, or_, select, update
-from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.types import Uuid, DateTime
+from sqlalchemy.types import Uuid, DateTime, JSON
 from typing import Any, ClassVar
 
 from uber import utils
@@ -18,7 +17,7 @@ from uber.config import c
 from uber.decorators import presave_adjustment, renderable_data, cached_property, classproperty
 from uber.jinja import JinjaEnv
 from uber.models import MagModel
-from uber.models.types import DefaultField as Field, DefaultRelationship as Relationship
+from uber.models.types import DefaultField as Field, DefaultRelationship as Relationship, Choice, DefaultColumn as Column
 from uber.utils import normalize_newlines, request_cached_context, groupify
 
 log = logging.getLogger(__name__)
@@ -29,6 +28,7 @@ __all__ = ['AutomatedEmail', 'Email']
 
 class BaseEmailMixin(object):
     model: str = ''
+    shared_ident: str = ''
 
     subject: str = ''
     body: str = ''
@@ -67,27 +67,17 @@ class BaseEmailMixin(object):
 
 class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
     _fixtures: ClassVar = OrderedDict()
-    email_overrides: ClassVar = [] # Used in plugins, list of (ident, key, val) tuples
+    initialized: ClassVar = False
 
     format: str = 'text'
     ident: str = Field(default='', unique=True)
-
-    approved: bool = False
-    needs_approval: bool = True
-    unapproved_count: int = 0
-    currently_sending: bool = False
-    last_send_time: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
-
+    policy: int | None = Field(sa_column=Column(Choice(c.EMAIL_POLICY_OPTS), index=True, nullable=True), default=None)
     allow_at_the_con: bool = False
     allow_post_con: bool = False
-
     active_after: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
     active_before: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
-    revert_changes: dict[str, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
 
-    emails: list['Email'] = Relationship(
-        back_populates="automated_email",
-        sa_relationship_kwargs={'order_by': 'Email.id'})
+    emails: list['Email'] = Relationship(back_populates="automated_email", sa_relationship_kwargs={'order_by': 'Email.id'})
 
     @presave_adjustment
     def date_adjustments(self):
@@ -109,11 +99,12 @@ class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
 
     @classproperty
     def filters_for_allowed(cls):
+        allowed = [cls.policy != c.DISABLED, cls.policy != c.REMOVE]
         if c.AT_THE_CON:
-            return [cls.allow_at_the_con == True]  # noqa: E712
+            return allowed + [cls.allow_at_the_con == True]  # noqa: E712
         if c.POST_CON:
-            return [cls.allow_post_con == True]  # noqa: E712
-        return []
+            return allowed + [cls.allow_post_con == True]  # noqa: E712
+        return allowed
 
     @classproperty
     def filters_for_active(cls):
@@ -122,50 +113,6 @@ class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
             or_(cls.active_after == None, cls.active_after <= now),  # noqa: E711
             or_(cls.active_before == None, cls.active_before >= now)]  # noqa: E711
 
-    @classproperty
-    def filters_for_approvable(cls):
-        return [cls.approved == False, cls.needs_approval == True,  # noqa: E712
-                or_(cls.active_before == None, cls.active_before >= utils.localized_now())]  # noqa: E711, E712
-
-    @classproperty
-    def filters_for_pending(cls):
-        return cls.filters_for_active + [
-            cls.approved == False, cls.needs_approval == True, cls.unapproved_count > 0]  # noqa: E712
-
-    @staticmethod
-    def update_fixture(session, ident, **kwargs):
-        fixture = AutomatedEmail._fixtures.get(ident, None)
-        if not fixture:
-            log.error(f"We tried to update fixture ident {ident}, but it wasn't in our list of email fixtures!")
-            return
-        
-        kwargs.pop('csrf_token', None)
-
-        automated_email = session.query(AutomatedEmail).filter_by(ident=ident).first() or AutomatedEmail()
-        for key, val in kwargs.items():
-            if not hasattr(fixture, key):
-                log.debug(f"We tried to update fixture ident {ident} with parameter {key}, "
-                          f"but there's no attribute named {key}!")
-            elif getattr(fixture, key) != val and (getattr(fixture, key) or val):
-                if key not in automated_email.revert_changes:
-                    current_val = getattr(fixture, key)
-                    if isinstance(current_val, date):
-                        current_val = current_val.isoformat()
-                    automated_email.revert_changes[key] = current_val
-                setattr(fixture, key, val)
-
-        updated_email = automated_email.reconcile(fixture)
-        session.merge(updated_email)
-        session.commit()
-
-        # Check to see if any properties got changed back to their original value
-        listed_changes = updated_email.revert_changes.copy()
-        for key in listed_changes:
-            if getattr(updated_email, key) == updated_email.revert_changes[key] or (
-                    not getattr(updated_email, key) and not updated_email.revert_changes[key]):
-                updated_email.revert_changes.pop(key)
-        session.merge(updated_email)
-    
     @staticmethod
     def reset_fixture_attr(session, ident, key):
         fixture = AutomatedEmail._fixtures.get(ident, None)
@@ -173,52 +120,63 @@ class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
             log.error(f"We tried to update fixture ident {ident}, but it wasn't in our list of email fixtures!")
             return
         
-        automated_email = session.query(AutomatedEmail).filter_by(ident=ident).first() or AutomatedEmail()
-        revert_val = automated_email.revert_changes.get(key, None)
-
-        setattr(fixture, key, revert_val)
-        automated_email.revert_changes.pop(key, None)
+        automated_email = session.query(AutomatedEmail).filter_by(ident=ident).first() or AutomatedEmail(ident=ident)
 
         session.add(automated_email.reconcile(fixture))
 
     @staticmethod
-    def reconcile_fixtures(cleanup=True):
+    def reconcile_fixtures(cleanup=False):
         from uber.models import Session
         with Session() as session:
-            for ident, fixture in AutomatedEmail._fixtures.items():
-                automated_email = session.query(AutomatedEmail).filter_by(ident=ident).first() or AutomatedEmail()
+            existing_automated_emails = session.query(AutomatedEmail)
 
-                if automated_email:
-                    # Load changes from DB to avoid blowing away dynamic updates
-                    for key in automated_email.revert_changes:
-                        AutomatedEmail.update_fixture(session, ident, **{key: getattr(automated_email, key, '')})
+            existing_idents = set([email.ident for email in existing_automated_emails])
+            fixture_idents = set(AutomatedEmail._fixtures.keys())
 
-                # Load plugin overrides
-                for ident, key, val in AutomatedEmail.email_overrides:
-                    AutomatedEmail.update_fixture(session, ident, **{key: val})
-
+            new_idents = fixture_idents - existing_idents
+            orphaned_idents = existing_idents - fixture_idents
+            for ident in new_idents:
+                fixture = AutomatedEmail._fixtures[ident]
+                automated_email = AutomatedEmail(ident=ident)
                 session.add(automated_email.reconcile(fixture))
                 if not fixture.template_plugin_name or not fixture.template_url:
                     fixture.update_template_plugin_info()
-            session.flush()
+
+            for automated_email in existing_automated_emails:
+                ident = automated_email.ident
+                if ident not in orphaned_idents:
+                    fixture = AutomatedEmail._fixtures[ident]
+                    pending_emails = session.query(Email).filter(Email.ident == ident, Email.status != c.SENT)
+                    
+                    # We want to update any pending emails, but emails can be generated with custom attributes
+                    # This updates emails while avoiding changing any attributes that don't match the fixture
+                    changed_vals = {}
+                    for attr in ['subject', 'sender', 'cc', 'bcc', 'replyto']:
+                        fixture_attr = getattr(fixture, attr) if attr in ['subject', 'sender'] else ','.join(getattr(fixture, attr))
+                        if getattr(automated_email, attr) != fixture_attr:
+                            changed_vals[attr] = fixture_attr
+                    
+                    for pending in pending_emails:
+                        changed = False
+                        for attr in changed_vals.keys():
+                            if getattr(pending, attr) == getattr(automated_email, attr):
+                                setattr(pending, attr, changed_vals[attr])
+                                changed = True
+                        if changed:
+                            if pending.generated:
+                                pending.generated = datetime.now(UTC)
+                            session.add(pending)
+                    session.add(automated_email.reconcile(fixture))
 
             if not cleanup:
+                session.commit()
                 return
 
-            for automated_email in session.query(AutomatedEmail).all():
-                if automated_email.ident in AutomatedEmail._fixtures:
-                    # This automated email exists in our email fixtures.
-                    session.execute(update(Email).where(Email.ident == automated_email.ident).values(
-                        automated_email_id=automated_email.id))
-                else:
-                    # This automated email no longer exists in our email
-                    # fixtures. It was probably deleted because it was no
-                    # longer relevant, or perhaps it was removed by disabling
-                    # a feature flag. Either way, we want to clean up and
-                    # delete it from the database.
-                    session.execute(update(Email).where(Email.ident == automated_email.ident).values(
-                        automated_email_id=None))
-                    session.delete(automated_email)
+            # TODO: This will repeatedly mark panel-related emails for removal. We may want to just get rid of cleanup
+            for automated_email in session.query(AutomatedEmail).filter(AutomatedEmail.ident.in_(orphaned_idents)).all():
+                automated_email.policy = c.REMOVE
+                session.add(automated_email)
+            session.commit()
 
     @property
     def active_when_label(self):
@@ -233,6 +191,20 @@ class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
         elif self.active_before:
             return 'before {}'.format(self.active_before.strftime(fmt))
         return ''
+    
+    @property
+    def inactive_reason(self):
+        if self.policy in [c.DISABLED, c.REMOVE]:
+            return "disabled"
+        
+        if c.AT_THE_CON and not self.allow_at_the_con:
+            return "not allowed during the event"
+        if c.POST_CON and not self.allow_post_con:
+            return "not allowed after the event"
+
+        now = utils.localized_now()
+        if self.active_after and self.active_after > now or self.active_before and self.active_before < now:
+            return f"only active {self.active_when_label}"
 
     @cached_property
     def emails_by_fk_id(self):
@@ -266,20 +238,11 @@ class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
             return -1
 
     @property
-    def query(self):
-        return self.fixture.query if self.fixture else tuple()
-
-    @property
-    def query_options(self):
-        return self.fixture.query_options if self.fixture else tuple()
-
-    @property
     def is_html(self):
         return self.format == 'html'
 
     def reconcile(self, fixture):
-        self.model = fixture.model.__name__
-        self.ident = fixture.ident
+        self.model = fixture.model.__name__ if fixture.model else ''
         self.subject = fixture.subject
         self.body = fixture.body
         self.format = fixture.format
@@ -287,37 +250,36 @@ class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
         self.cc = ','.join(fixture.cc)
         self.bcc = ','.join(fixture.bcc)
         self.replyto = ','.join(fixture.replyto)
-        self.needs_approval = fixture.needs_approval
         self.allow_at_the_con = fixture.allow_at_the_con
         self.allow_post_con = fixture.allow_post_con
         self.active_after = fixture.active_after
         self.active_before = fixture.active_before
-        self.approved = False if self.is_new else self.approved
-        self.unapproved_count = 0 if self.is_new else self.unapproved_count
-        self.currently_sending = False
         return self
 
-    def renderable_data(self, model_instance):
-        model_name = getattr(model_instance, 'email_model_name', model_instance.__class__.__name__.lower())
-        data = {
-            model_name: model_instance,
-            'email_signature': c.get_signature_by_sender(self.sender),
-            }
+    def renderable_data(self, model_instance=None, render_data={}):
+        data = {'email_signature': c.get_signature_by_sender(self.sender)}
+        if model_instance:
+            model_name = getattr(model_instance, 'email_model_name', model_instance.__class__.__name__.lower())
+            data[model_name] = model_instance
+
         if self.fixture:
             data.update(self.fixture.extra_data)
+
+        data.update(render_data)
         return renderable_data(data)
 
-    def render_body(self, model_instance):
-        return self.render_template(self.body, self.renderable_data(model_instance))
+    def render_body(self, model_instance=None, render_data={}):
+        return self.render_template(self.body, self.renderable_data(model_instance, render_data))
 
-    def render_subject(self, model_instance):
-        return self.render_template(self.subject, self.renderable_data(model_instance))
+    def render_subject(self, model_instance, render_data={}):
+        return self.subject.format(self.renderable_data(model_instance, render_data))
 
     def render_template(self, text, data):
         with request_cached_context(clear_cache_on_start=True):
             return JinjaEnv.env().from_string(text).render(data)
 
     def send_to(self, model_instance, delay=True, raise_errors=False, session=None):
+        return
         try:
             from uber.tasks.email import send_email
             data = self.renderable_data(model_instance)
@@ -354,7 +316,11 @@ class Email(MagModel, BaseEmailMixin, table=True):
     fk_id: str | None = Field(sa_type=Uuid(as_uuid=False), nullable=True)
     ident: str = ''
     to: str = ''
-    when: str = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    render_data: dict[str, Any] = Field(sa_type=JSON, default_factory=dict)
+    status: int = Field(sa_column=Column(Choice(c.EMAIL_STATUS_OPTS), index=True), default=c.UNAPPROVED)
+    generated: str = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    sent: str | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
+    error: str = ''
 
     @cached_property
     def fk(self):

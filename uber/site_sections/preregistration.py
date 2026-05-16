@@ -14,6 +14,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import selectinload, joinedload, make_transient
 from sqlalchemy.orm.exc import NoResultFound
 
+from uber.email import EmailService
 from uber.auth import OIDC
 from uber.config import c
 from uber.custom_tags import email_only, readable_join
@@ -23,7 +24,6 @@ from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import AdminAccount, Attendee, AttendeeAccount, Attraction, BadgePickupGroup, Email, Group, PromoCode, PromoCodeGroup, \
                         PasswordReset, ReceiptItem, ReceiptTransaction, Tracking
-from uber.tasks.email import send_email
 from uber.utils import add_opt, remove_opt, check, localized_now, normalize_email, normalize_email_legacy, genpasswd, valid_email, \
     valid_password, SignNowRequest, validate_model, create_new_hash, get_age_conf_from_birthday, RegistrationCode, listify
 from uber.payments import PreregCart, TransactionRequest, ReceiptManager, RefundRequest
@@ -131,15 +131,9 @@ def set_up_new_account(session, attendee, email=None):
     if not account.is_sso_account:
         session.add(PasswordReset(attendee_account=account, hashed=token))
 
-        body = render('emails/accounts/new_account.html', {
-                'attendee': attendee, 'account_email': email, 'token': token}, encoding=None)
-        send_email.delay(
-            c.ADMIN_EMAIL,
-            email,
-            c.EVENT_NAME + ' Account Setup',
-            body,
-            format='html',
-            model=account.to_dict('id'))
+        EmailService.queue_email(session, 'local_account_setup', account,
+                                 data={'attendee': attendee, 'account_email': email, 'token': token},
+                                 replace_unsent=True)
 
 
 @all_renderable(public=True)
@@ -199,15 +193,10 @@ class Root:
             if attendee:
                 last_email = (session.query(Email)
                                      .filter_by(to=attendee.email, subject=subject)
-                                     .order_by(Email.when.desc()).first())
-                if not last_email or last_email.when < (localized_now() - timedelta(days=7)):
-                    send_email.delay(
-                        c.REGDESK_EMAIL,
-                        attendee.email_to_address,
-                        subject,
-                        render('emails/reg_workflow/prereg_check.txt', {'attendee': attendee}, encoding=None),
-                        model=attendee.to_dict('id'))
-
+                                     .first())
+                if not last_email or last_email.generated < (localized_now() - timedelta(days=7)):
+                    EmailService.queue_email(session, 'prereg_check', attendee, replace_unsent=True)
+                    
         return {'message': message}
 
     @requires_account()
@@ -426,19 +415,8 @@ class Root:
         session.commit()
         try:
             if c.NOTIFY_DEALER_APPLIED:
-                send_email.delay(
-                    c.MARKETPLACE_EMAIL,
-                    c.MARKETPLACE_NOTIFICATIONS_EMAIL,
-                    '{} Received'.format(c.DEALER_APP_TERM.title()),
-                    render('emails/dealers/reg_notification.txt', {'group': group}, encoding=None),
-                    model=group.to_dict('id'))
-            send_email.delay(
-                c.MARKETPLACE_EMAIL,
-                attendee.email_to_address,
-                '{} Received'.format(c.DEALER_APP_TERM.title()),
-                render('emails/dealers/application.html', {'group': group}, encoding=None),
-                'html',
-                model=group.to_dict('id'))
+                EmailService.queue_email(session, 'dealer_applied_admin', to=c.MARKETPLACE_NOTIFICATIONS_EMAIL,
+                                         data={'group': group})
         except Exception:
             log.error('unable to send marketplace application confirmation email', exc_info=True)
         raise HTTPRedirect('dealer_confirmation?id={}', group.id)
@@ -1199,8 +1177,8 @@ class Root:
         receipt = session.refresh_receipt_and_model(group.buyer)
         session.commit()
 
-        sent_code_emails = session.query(Email.ident, Email.to, func.max(Email.when)).filter(
-            Email.ident.contains("pc_group_invite_")).order_by(func.max(Email.when)).group_by(Email.ident,
+        sent_code_emails = session.query(Email.ident, Email.to, func.max(Email.generated)).filter(
+            Email.ident.contains("pc_group_invite_")).order_by(func.max(Email.generated)).group_by(Email.ident,
                                                                                               Email.to).all()
 
         emailed_codes = defaultdict(str)
@@ -1229,13 +1207,8 @@ class Root:
                 message = valid_email(params.get('email'))
 
             if not message:
-                send_email.delay(
-                    c.REGDESK_EMAIL,
-                    params.get('email'),
-                    'Claim a {} badge in "{}"'.format(c.EVENT_NAME, code.group.name),
-                    render('emails/reg_workflow/promo_code_invite.txt', {'code': code}, encoding=None),
-                    model=code.to_dict('id'),
-                    ident="pc_group_invite_" + code.code)
+                EmailService.queue_email(session, 'promo_code_group_invite', to=params.get('email'),
+                                         data={'code': code})
                 raise HTTPRedirect('group_promo_codes?id={}&message={}'.format(
                     group_id, f"Email sent to {params.get('email', '')}!"))
             else:
@@ -1320,13 +1293,8 @@ class Root:
                 form.populate_obj(group)
             session.commit()
             if group.is_dealer:
-                send_email.delay(
-                    c.MARKETPLACE_EMAIL,
-                    c.MARKETPLACE_NOTIFICATIONS_EMAIL,
-                    '{} Changed'.format(c.DEALER_APP_TERM.title()),
-                    render('emails/dealers/appchange_notification.html', {'group': group}, encoding=None),
-                    'html',
-                    model=group.to_dict('id'))
+                EmailService.queue_email(session, 'dealer_app_updated_admin',
+                                         to=c.MARKETPLACE_NOTIFICATIONS_EMAIL, data={'group': group})
 
             message = 'Thank you! Your application has been updated.'
 
@@ -1484,15 +1452,8 @@ class Root:
                 attendee.group_id,
                 'Attendee successfully removed from the group.')
         
-        try:
-            send_email.delay(
-                c.REGDESK_EMAIL,
-                attendee.email_to_address,
-                '{} group registration dropped'.format(c.EVENT_NAME),
-                render('emails/reg_workflow/group_member_dropped.txt', {'attendee': attendee}, encoding=None),
-                model=attendee.to_dict('id'))
-        except Exception:
-            log.error('unable to send group unset email', exc_info=True)
+        EmailService.queue_email(session, 'attendee_removed_from_group', to=attendee.email_to_address,
+                                 data={'attendee': attendee.to_dict(), 'group': attendee.group})
 
         session.assign_badges(
             attendee.group,
@@ -1688,15 +1649,7 @@ class Root:
                 attendee.transfer_code = RegistrationCode.generate_random_code(Attendee.transfer_code)
                 session.commit()
 
-                subject = c.EVENT_NAME + ' Pending Badge Code'
-                body = render('emails/reg_workflow/pending_code.txt',
-                                {'attendee': attendee}, encoding=None)
-                send_email.delay(
-                    c.REGDESK_EMAIL,
-                    attendee.email_to_address,
-                    subject,
-                    body,
-                    model=attendee.to_dict('id'))
+                EmailService.queue_email(session, 'badge_transfer_code', attendee)
 
                 raise HTTPRedirect('confirm?id={}&message={}', attendee.id,
                                    f"Success! Your pending badge's transfer code is {attendee.transfer_code}.")
@@ -1752,29 +1705,12 @@ class Root:
         if old.lottery_application:
             session.delete(old.lottery_application)
 
-        subject = c.EVENT_NAME + ' Registration Transferred'
-        new_body = render('emails/reg_workflow/badge_transferee.txt',
-                          {'attendee': transfer_badge, 'transferee_code': transfer_badge.transfer_code,
-                           'transferer_code': old.transfer_code}, encoding=None)
-        old_body = render('emails/reg_workflow/badge_transferer.txt',
-                          {'attendee': old, 'transferee_code': transfer_badge.transfer_code,
-                           'transferer_code': old.transfer_code}, encoding=None)
-
-        try:
-            send_email.delay(
-                c.REGDESK_EMAIL,
-                [transfer_badge.email_to_address, c.REGDESK_EMAIL],
-                subject,
-                new_body,
-                model=transfer_badge.to_dict('id'))
-            send_email.delay(
-                c.REGDESK_EMAIL,
-                [old.email_to_address],
-                subject,
-                old_body,
-                model=old.to_dict('id'))
-        except Exception:
-            log.error('Unable to send badge change email', exc_info=True)
+        EmailService.queue_email(session, 'code_badge_transfer_new_badge',
+                                 to=[transfer_badge.email_to_address, c.REGDESK_EMAIL],
+                                 data={'transferee_code': transfer_badge.transfer_code, 'transferer_code': old.transfer_code})
+        
+        EmailService.queue_email(session, 'code_badge_transfer_old_badge', to=old.email_to_address,
+                                 data={'transferee_code': transfer_badge.transfer_code, 'transferer_code': old.transfer_code})
 
         session.add(transfer_badge)
         transfer_badge.transfer_code = ''
@@ -1862,27 +1798,12 @@ class Root:
                 if old.lottery_application:
                     session.delete(old.lottery_application)
 
-                subject = c.EVENT_NAME + ' Registration Transferred'
-                new_body = render('emails/reg_workflow/badge_transfer.txt',
-                                  {'new': attendee, 'old': old, 'include_link': True}, encoding=None)
-                old_body = render('emails/reg_workflow/badge_transfer.txt',
-                                  {'new': attendee, 'old': old, 'include_link': False}, encoding=None)
-
-                try:
-                    send_email.delay(
-                        c.REGDESK_EMAIL,
-                        [attendee.email_to_address, c.REGDESK_EMAIL],
-                        subject,
-                        new_body,
-                        model=attendee.to_dict('id'))
-                    send_email.delay(
-                        c.REGDESK_EMAIL,
-                        [old.email_to_address],
-                        subject,
-                        old_body,
-                        model=old.to_dict('id'))
-                except Exception:
-                    log.error('Unable to send badge change email', exc_info=True)
+                EmailService.queue_email(session, 'link_badge_transfer',
+                                         to=[attendee.email_to_address, c.REGDESK_EMAIL],
+                                         data={'new': attendee, 'old': old, 'include_link': True})
+        
+                EmailService.queue_email(session, 'link_badge_transfer', to=old.email_to_address,
+                                         data={'new': attendee, 'old': old, 'include_link': False})
 
                 session.add(attendee)
                 session.commit()
@@ -2693,15 +2614,8 @@ class Root:
             token = secrets.token_urlsafe(64)
             session.add(PasswordReset(attendee_account=account, hashed=token))
 
-            body = render('emails/accounts/password_reset.html', {
-                    'account': account, 'token': token}, encoding=None)
-            send_email.delay(
-                c.ADMIN_EMAIL,
-                account.email_to_address,
-                c.EVENT_NAME + ' Account Password Reset',
-                body,
-                format='html',
-                model=account.to_dict('id'))
+            EmailService.queue_email(session, 'attendee_password_reset', account,
+                                     data={'token': token}, replace_unsent=True)
 
             raise HTTPRedirect(success_url)
         return {}

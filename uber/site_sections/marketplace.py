@@ -3,13 +3,13 @@ import logging
 
 from datetime import datetime
 
+from uber.email import EmailService
 from uber.config import c
 from uber.custom_tags import email_only
 from uber.decorators import ajax, all_renderable, render, credit_card, requires_account, public
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, ArtistMarketplaceApplication
-from uber.tasks.email import send_email
 from uber.utils import check, validate_model
 from uber.payments import TransactionRequest, ReceiptManager, RefundRequest
 
@@ -95,13 +95,8 @@ class Root:
             session.refresh(app)
 
             if app.status == c.ACCEPTED:
-                send_email.delay(
-                    c.ARTIST_MARKETPLACE_EMAIL,
-                    c.ARTIST_MARKETPLACE_EMAIL,
-                    'Marketplace Application Updated',
-                    render('emails/marketplace/appchange_notification.html',
-                            {'app': app, 'old_app': old_app}, encoding=None), 'html',
-                    model=app.to_dict('id'))
+                EmailService.queue_email(session, 'marketplace_app_updated_admin', to=c.ARTIST_MARKETPLACE_EMAIL,
+                                         data={'app': app, 'old_app': old_app})
             raise HTTPRedirect('edit?id={}&message={}', app.id,
                                 'Your application has successfully been updated.')
 
@@ -179,13 +174,8 @@ class Root:
             session.check_receipt_closed(session.get_receipt_by_model(app.attendee))
 
         if app.status == c.ACCEPTED:
-            send_email.delay(
-                    c.ARTIST_MARKETPLACE_EMAIL,
-                    c.ARTIST_MARKETPLACE_EMAIL,
-                    'Marketplace Application Cancelled',
-                    render('emails/marketplace/cancelled.txt',
-                            {'app': app}, encoding=None),
-                    model=app.to_dict('id'))
+            EmailService.queue_email(session, 'marketplace_app_cancelled_admin',
+                                     to=c.ARTIST_MARKETPLACE_EMAIL, data={'app': app})
         app.status = c.CANCELLED
 
         if c.ATTENDEE_ACCOUNTS_ENABLED:

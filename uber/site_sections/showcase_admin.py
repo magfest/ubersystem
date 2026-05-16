@@ -2,13 +2,13 @@ import cherrypy
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
+from uber.email import EmailService
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, render, site_mappable
 from uber.errors import HTTPRedirect
 from uber.files import FileService
 from uber.forms import load_forms
 from uber.models import AdminAccount, Attendee, IndieJudge, IndieGameReview, IndieStudio, IndieGame
-from uber.tasks.email import send_email
 from uber.utils import check, get_api_service_from_server, normalize_email_legacy, validate_model, listify
 
 
@@ -134,17 +134,8 @@ class Root:
                     session.add(attendee)
 
                 attendee.admin_account, password = session.create_admin_account(attendee, judge=judge)
-                email_body = render('emails/accounts/new_account.txt', {
-                    'password': password,
-                    'account': attendee.admin_account,
-                    'creator': AdminAccount.admin_name()
-                }, encoding=None)
-                send_email.delay(
-                    c.MIVS_EMAIL,
-                    attendee.email_to_address,
-                    f'New {c.EVENT_NAME} Indies Judge Account',
-                    email_body,
-                    model=attendee.to_dict('id'))
+                EmailService.queue_email(session, 'new_judge_admin_account', attendee.admin_account,
+                                         data={'password': password, 'creator': AdminAccount.admin_name()})
             raise HTTPRedirect(
                 index_link, f'{attendee.full_name} has been given an admin account as an Indies Judge.')
 
@@ -223,16 +214,8 @@ class Root:
 
         session.commit()
 
-        email_body = render('emails/mivs/judge_disqualified.txt', {
-                    'judge': judge,
-                    'prior_payment_status': prior_payment_status,
-                }, encoding=None)
-        send_email.delay(
-            c.MIVS_EMAIL,
-            judge.attendee.email_to_address,
-            'MIVS Judging Disqualification',
-            email_body,
-            model=attendee.to_dict('id'))
+        EmailService.queue_email(session, 'indies_judge_disqualified', judge,
+                                 data={'prior_payment_status': prior_payment_status})
 
         raise HTTPRedirect('index?message={}{}', attendee.full_name,
                            ' has been disqualified from judging for this year')
@@ -389,23 +372,15 @@ class Root:
             if review.has_video_issues:
                 review.video_status = c.PENDING
                 if not no_emails:
-                    body = render('emails/mivs/video_fixed.txt', {'review': review}, encoding=None)
-                    send_email.delay(
-                        game.admin_email,
-                        review.judge.email_to_address,
-                        f'{game.showcase_type_label}: Video Problems Resolved for {game.title}',
-                        body,
-                        model=review.judge.to_dict('id'))
+                    EmailService.queue_email(session, 'indies_video_problems_fixed', review.judge, sender=game.admin_email,
+                                             subject=f'{game.showcase_type_label}: Video Problems Resolved for {game.title}',
+                                             data={'review': review})
             if review.has_game_issues:
                 review.game_status = c.PENDING
                 if not no_emails:
-                    body = render('emails/mivs/game_fixed.txt', {'review': review}, encoding=None)
-                    send_email.delay(
-                        game.admin_email,
-                        review.judge.email_to_address,
-                        f'{game.showcase_type_label}: Game Problems Resolved for {game.title}',
-                        body,
-                        model=review.judge.to_dict('id'))
+                    EmailService.queue_email(session, 'indies_game_problems_fixed', review.judge, sender=game.admin_email,
+                                             subject=f'{game.showcase_type_label}: Game Problems Resolved for {game.title}',
+                                             data={'review': review})
         raise HTTPRedirect(
             'edit_game?id={}&message={}{}{}', game.id, game.title,
             ' has been marked as having its judging issues fixed',
@@ -505,17 +480,8 @@ class Root:
             else:
                 attendee.admin_account, password = session.create_admin_account(attendee, judge=new_judge)
                 new_judge.admin_id = attendee.admin_account.id
-                email_body = render('emails/accounts/new_account.txt', {
-                        'password': password,
-                        'account': attendee.admin_account,
-                        'creator': AdminAccount.admin_name()
-                    }, encoding=None)
-                send_email.delay(
-                    c.MIVS_EMAIL,
-                    attendee.email,
-                    'New {} MIVS Judge Account'.format(c.EVENT_NAME),
-                    email_body,
-                    model=attendee.to_dict('id'))
+                EmailService.queue_email(session, 'new_judge_admin_account', attendee.admin_account,
+                                         data={'password': password, 'creator': AdminAccount.admin_name()})
 
             session.add(new_judge)
             session.add(attendee)

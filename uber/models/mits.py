@@ -65,6 +65,10 @@ class MITSTeam(MagModel, table=True):
     @property
     def email(self):
         return [applicant.email for applicant in self.primary_contacts]
+    
+    @property
+    def gets_emails(self):
+        return not self.deleted
 
     @property
     def primary_contacts(self):

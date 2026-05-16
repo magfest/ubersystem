@@ -19,7 +19,6 @@ from uber.decorators import all_renderable, log_pageview, ajax, xlsx_file, csv_f
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, Group, LotteryApplication, Email, Tracking, PageViewTracking
-from uber.tasks.email import send_email
 from uber.utils import Order, get_page, localized_now, validate_model, get_age_from_birthday, normalize_email_legacy
 
 log = logging.getLogger(__name__)
@@ -322,7 +321,7 @@ class Root:
             'application':  application,
             'emails': session.query(Email).filter(Email.model == 'LotteryApplication',
                                                   Email.fk_id == id
-                                                  ).order_by(Email.when).all(),
+                                                  ).order_by(Email.generated).all(),
             'changes': session.query(Tracking).filter(Tracking.model == 'LotteryApplication', Tracking.fk_id == id
                                                       ).order_by(Tracking.when).all(),
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(application)

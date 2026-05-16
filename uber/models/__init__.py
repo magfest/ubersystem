@@ -36,7 +36,7 @@ from sqlmodel import SQLModel
 import uber
 from uber.config import c, create_namespace_uuid
 from uber.errors import HTTPRedirect
-from uber.decorators import cost_property, presave_adjustment, suffix_property, cached_classproperty, classproperty
+from uber.decorators import presave_adjustment, suffix_property, cached_classproperty, classproperty
 from uber.models.types import Choice, MultiChoice, utcnow, UniqueList, DefaultField as Field
 from uber.utils import check_csrf, normalize_email_legacy, create_new_hash, DeptChecklistConf, \
     RegistrationCode, listify
@@ -334,14 +334,6 @@ class MagModel(SQLModel):
         and in their confirmation emails.
         """
         return []
-
-    @cached_classproperty
-    def cost_property_names(cls):
-        """Returns the names of all cost properties on this model."""
-        return [
-            s for s in cls._class_attr_names
-            if s not in ['cost_property_names']
-            and isinstance(getattr(cls, s), cost_property)]
 
     @cached_classproperty
     def multichoice_columns(cls):
@@ -2419,10 +2411,12 @@ def _attendee_validity_check():
     Session.SessionMixin.attendee = with_validity_check
 cherrypy.engine.subscribe('start', _attendee_validity_check, priority=98)
 
+
 def _presave_adjustments(session, context, instances='deprecated'):
     for model in chain(session.dirty, session.new):
         model.presave_adjustments()
     for model in session.deleted:
+        # TODO: also delete files and emails?
         model.predelete_adjustments()
 
 
@@ -2438,12 +2432,20 @@ def _track_changes(session, context, instances='deprecated'):
                 Tracking.track(action, instance)
 
 
+def _check_emails(session, instances='deprecated'):
+    from uber.email import EmailService
+
+    for model in chain(session.dirty, session.new):
+        EmailService.check_emails_for_model(session, model)
+
+
 def register_session_listeners():
     """
     The order in which we register these listeners matters.
     """
     listen(Session.session_factory, 'before_flush', _presave_adjustments)
     listen(Session.session_factory, 'after_flush', _track_changes)
+    listen(Session.session_factory, 'before_commit', _check_emails)
 
 
 def _track_collection_append(target, value, initiator):

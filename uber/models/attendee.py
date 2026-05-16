@@ -613,6 +613,8 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
 
     @presave_adjustment
     def _status_adjustments(self):
+        from uber.email import EmailService
+
         if self.group and self.paid == c.PAID_BY_GROUP and self.has_or_will_have_badge:
             if not self.group.is_valid:
                 self.badge_status = c.INVALID_GROUP_STATUS
@@ -634,15 +636,8 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
 
         if self.badge_status == c.NEW_STATUS and self.banned:
             self.badge_status = c.WATCHED_STATUS
-            try:
-                uber.tasks.email.send_email.delay(
-                    c.SECURITY_EMAIL,
-                    [c.REGDESK_EMAIL, c.SECURITY_EMAIL],
-                    c.EVENT_NAME + ' WatchList Notification',
-                    render('emails/reg_workflow/attendee_watchlist.txt', {'attendee': self}, encoding=None),
-                    model='n/a')
-            except Exception:
-                log.error('unable to send banned email about {}', self, exc_info=True)
+            EmailService.queue_email(self.session, 'watchlist_match_admin', to=[c.REGDESK_EMAIL, c.SECURITY_EMAIL],
+                                     data={'attendee': self})
 
         elif self.badge_status == c.NEW_STATUS and not self.placeholder and self.first_name and (
                     self.paid in [c.HAS_PAID, c.NEED_NOT_PAY, c.REFUNDED]

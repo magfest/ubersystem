@@ -6,6 +6,7 @@ import json
 from sqlalchemy import func, literal_column
 from sqlalchemy.orm import joinedload
 
+from uber.email import EmailService
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, render
 from uber.errors import HTTPRedirect
@@ -13,7 +14,6 @@ from uber.models import AssignedPanelist, Attendee, AutomatedEmail, Event, Event
     PanelApplicant, PanelApplication, GuestGroup
 from uber.utils import add_opt, check, localized_now, validate_model, groupify
 from uber.forms import load_forms
-from uber.tasks.email import send_email
 
 log = logging.getLogger(__name__)
 
@@ -209,15 +209,8 @@ class Root:
             app.accepted = datetime.now()
             app.add_credentials_to_desc()
             if c.ACCESSIBILITY_EMAIL and any([panelist for panelist in app.applicants if panelist.requested_accessibility_services]):
-                body = render('emails/panels/accessibility_requested.txt', {
-                'app': app,
-                }, encoding=None)
-                send_email.delay(
-                    c.ADMIN_EMAIL,
-                    c.ACCESSIBILITY_EMAIL,
-                    f'{c.EVENT_NAME} Panel Accepted With Accessibility Request(s)',
-                    body,
-                    model='n/a')
+                EmailService.queue_email(session, 'panel_accepted_accessibility_admin',
+                                         to=c.ACCESSIBILITY_EMAIL, data={'app': app})
         app.status = int(status)
         if not app.poc:
             app.poc_id = session.admin_attendee().id
@@ -361,14 +354,8 @@ class Root:
                         break
                 if account:
                     session.add_attendee_to_account(attendee, account)
-                    body = render('emails/accounts/attendee_added.html', {'account': account, 'attendee': attendee}, encoding=None)
-                    send_email.delay(
-                        c.ADMIN_EMAIL,
-                        account.email,
-                        'New Badge Added to Your ' + c.EVENT_NAME + ' Account',
-                        body,
-                        format='html',
-                        model=account.to_dict('id'))
+                    EmailService.queue_email(session, 'attendee_account_attendee_added', account,
+                                             data={'attendee': attendee})
             session.commit()
         except Exception:
             log.error('unexpected error adding new panelist', exc_info=True)

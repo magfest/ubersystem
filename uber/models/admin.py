@@ -63,6 +63,10 @@ class AdminAccount(MagModel, table=True):
 
     def __repr__(self):
         return f"<Admin full_name='{self.attendee.full_name}'>"
+    
+    @property
+    def email(self):
+        return self.attendee.email if self.attendee else ''
 
     @staticmethod
     def admin_name():
@@ -108,12 +112,14 @@ class AdminAccount(MagModel, table=True):
             return None
 
     @staticmethod
-    def get_access_set(id=None, include_read_only=False):
+    def get_access_set(id=None, include_read_only=False, full=False):
         try:
             from uber.models import Session
             with Session() as session:
                 id = id or cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))
                 account = session.admin_account(id)
+                if full:
+                    return account.full_access_set
                 if include_read_only:
                     return account.read_or_write_access_set
                 return account.write_access_set
@@ -123,6 +129,11 @@ class AdminAccount(MagModel, table=True):
     @classproperty
     def _extra_apply_attrs(cls):
         return set(['access_groups_ids'])
+
+    @property
+    def full_access_set(self):
+        access_list = [group.access for group in self.valid_access_groups]
+        return set([key for sublist in access_list for key, val in sublist.items() if int(sublist[key]) == AccessGroup.FULL])
 
     @property
     def write_access_set(self):
