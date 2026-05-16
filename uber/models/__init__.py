@@ -641,21 +641,19 @@ class MagModel(SQLModel):
                     return int(value[:-2])
                 else:
                     return int(float(value))
-            elif isinstance(column.type, UniqueList):
-                if isinstance(value, list):
-                    return ','.join(map(lambda x: str(x).strip(), value))
-                else:
-                    return str(value).strip()
             elif isinstance(column.type, MultiChoice):
                 if isinstance(value, list):
                     value = ','.join(map(lambda x: str(x).strip(), value))
                 else:
                     value = str(value).strip()
                 return column.type.convert_if_labels(value)
-
             elif isinstance(column.type, Choice):
                 return column.type.convert_if_label(value)
-
+            elif isinstance(column.type, UniqueList):
+                if isinstance(value, list):
+                    return ','.join(map(lambda x: str(x).strip(), value))
+                else:
+                    return str(value).strip()
             elif isinstance(column.type, Integer):
                 value = int(float(value))
 
