@@ -38,11 +38,11 @@ class DepartmentInfo(MagForm):
         description="What text, if any, should be shown when applying for a panel for this department?")
     parent_id = HiddenField()
 
-    def populate_obj(self, obj, is_admin=False):
+    def populate_obj(self, obj, is_admin=False, dry_run=False):
         max_minutes = self._fields.get('max_consecutive_minutes', None)
         if max_minutes and max_minutes.data:
             max_minutes.data = max_minutes.data * 60
-        super().populate_obj(obj, is_admin)
+        super().populate_obj(obj, is_admin, dry_run)
 
 
 class BaseJobInfo(MagForm):
