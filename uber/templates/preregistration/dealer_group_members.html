@@ -1,4 +1,12 @@
 {% block status %}
+{% if c.HIDE_DEALER_STATUS %}
+{% if group.status not in c.DEALER_EDITABLE_STATUSES %}
+<div class="alert alert-info" role="alert">
+  Your {{ c.DEALER_APP_TERM }} is currently being reviewed and cannot be edited.
+  You will received an email from <strong>{{ c.MARKETPLACE_EMAIL|email_only }}</strong> with the results.
+</div>
+{% endif %}
+{% else %}
 {% if group.status in c.DEALER_ACCEPTED_STATUSES %}
     <div class="alert alert-success pb-0" role="alert">
     <p>Congratulations, your {{ c.DEALER_APP_TERM }} has been <strong>approved</strong>!</p>
@@ -58,6 +66,7 @@
         <a href="../marketplace/apply?attendee_id={{ group.leader.id }}" target="_blank">apply for a table in the Marketplace.</a></p>
       {% endif %}
     </div>
+{% endif %}
 {% endif %}
 {% endblock %}
 

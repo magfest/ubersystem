@@ -271,7 +271,7 @@
             <div class="col-sm-3">{% if group.leader in attendees and group.guest %}<a href="../guests/index?id={{ group.guest.id }}" class="btn btn-success btn-sm"><i class="fa fa-check"></i>&nbsp;{{ group.guest.group_type_label }} Checklist</a>{% endif %}</div>
             <div class="col-sm-6 text-center">
                 <span class="h4">{{ c.DEALER_TERM|title if group.is_dealer else 'Group' }} "{{ group.name }}"</span>
-                {% if group.is_dealer %}
+                {% if group.is_dealer and not c.HIDE_DEALER_STATUS %}
                 <span class="badge bg-{{ 'success' if group.status in c.DEALER_ACCEPTED_STATUSES else 'secondary' }}">{{ group.status_label }}</span>
                 {% endif %}
             </div>

@@ -81,7 +81,7 @@
           </div>
         {% endif %}
 
-        {% if attendee.is_dealer %}
+        {% if attendee.is_dealer and not c.HIDE_DEALER_STATUS %}
           {% if attendee.group.status == c.DECLINED %}
             {% set bg_class = 'danger' %}
           {% elif attendee.group.status in c.DEALER_ACCEPTED_STATUSES %}

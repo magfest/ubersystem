@@ -597,7 +597,7 @@ class ArtistMarketplaceEmailFixture(AutomatedEmailFixture):
     def __init__(self, subject, template, filter, ident, **kwargs):
         AutomatedEmailFixture.__init__(self, ArtistMarketplaceApplication, subject,
                                        template,
-                                       lambda app: True and filter(app),
+                                       filter,
                                        ident,
                                        sender=c.ARTIST_MARKETPLACE_EMAIL, **kwargs)
 
@@ -667,7 +667,7 @@ class MarketplaceEmailFixture(AutomatedEmailFixture):
             Group,
             subject,
             template,
-            lambda g: g.is_dealer and filter(g),
+            (lambda g: g.is_dealer and filter(g)) if filter else None,
             ident,
             sender=c.MARKETPLACE_EMAIL,
             **kwargs)
@@ -771,7 +771,7 @@ class StopsEmailFixture(AutomatedEmailFixture):
             Attendee,
             subject,
             template,
-            lambda a: a.staffing and filter(a),
+            (lambda a: a.staffing and filter(a)) if filter else None,
             ident,
             sender=c.STAFF_EMAIL,
             **kwargs)
@@ -1005,7 +1005,7 @@ class HotelLotteryEmailFixture(AutomatedEmailFixture):
             LotteryApplication,
             subject,
             template,
-            lambda a: (a.attendee and filter(a)) if filter else None,
+            (lambda a: a.attendee and filter(a)) if filter else None,
             ident,
             sender=c.HOTEL_LOTTERY_EMAIL,
             **kwargs)
@@ -1329,7 +1329,8 @@ class RetroGuestEmailFixture(AutomatedEmailFixture):
             GuestGroup,
             subject,
             template,
-            lambda mg: mg.group_type == c.MIVS and mg.group.studio and mg.matches_showcases([c.INDIE_RETRO]) and filter(mg),
+            (lambda mg: mg.group_type == c.MIVS and mg.group.studio and
+             mg.matches_showcases([c.INDIE_RETRO]) and filter(mg)) if filter else None,
             ident,
             sender=c.INDIE_RETRO_EMAIL,
             **kwargs)
@@ -1372,7 +1373,8 @@ class IAGuestEmailFixture(AutomatedEmailFixture):
             GuestGroup,
             subject,
             template,
-            lambda mg: mg.group_type == c.MIVS and mg.group.studio and mg.matches_showcases([c.INDIE_ARCADE]) and filter(mg),
+            (lambda mg: mg.group_type == c.MIVS and mg.group.studio and
+             mg.matches_showcases([c.INDIE_ARCADE]) and filter(mg)) if filter else None,
             ident,
             sender=c.INDIE_ARCADE_EMAIL,
             **kwargs)
@@ -1442,7 +1444,8 @@ class MIVSGuestEmailFixture(AutomatedEmailFixture):
             GuestGroup,
             subject,
             template,
-            lambda mg: mg.group_type == c.MIVS and mg.group.studio and mg.matches_showcases([c.MIVS]) and filter(mg),
+            (lambda mg: mg.group_type == c.MIVS and mg.group.studio and
+             mg.matches_showcases([c.MIVS]) and filter(mg)) if filter else None,
             ident,
             sender=c.MIVS_EMAIL,
             **kwargs)
@@ -1849,7 +1852,7 @@ class ArenaEmailFixture(AutomatedEmailFixture):
             GuestGroup,
             subject,
             template,
-            lambda b: b.group_type == c.ARENA and filter(b),
+            (lambda b: b.group_type == c.ARENA and filter(b)) if filter else None,
             ident,
             sender=c.ARENA_EMAIL,
             **kwargs)
@@ -1862,7 +1865,7 @@ class BandEmailFixture(AutomatedEmailFixture):
             GuestGroup,
             subject,
             template,
-            lambda b: b.group_type in [c.BAND, c.SIDE_STAGE] and filter(b),
+            (lambda b: b.group_type in [c.BAND, c.SIDE_STAGE] and filter(b)) if filter else None,
             ident,
             sender=c.BAND_EMAIL,
             **kwargs)
@@ -1875,7 +1878,7 @@ class GuestEmailFixture(AutomatedEmailFixture):
             GuestGroup,
             subject,
             template,
-            lambda b: b.group_type == c.GUEST and filter(b),
+            (lambda b: b.group_type == c.GUEST and filter(b)) if filter else None,
             ident,
             sender=c.GUEST_EMAIL,
             **kwargs)

@@ -151,7 +151,7 @@
     {{ c.REGDESK_EMAIL|email_only|email_to_link }} if you wish to transfer badges.
     {% if group.can_add_existing_badges %}Badges purchased separately will be removed from the group without unsetting them.{% endif %}
 </div>
-{% elif group.attendees|length - group.floating|length != 1 %}
+{% elif group.attendees|length - group.floating|length != 1 and not c.HIDE_DEALER_STATUS %}
 <p>Because your {{ c.DEALER_APP_TERM }} is {{ group.status_label }}, you cannot add or assign {{ c.DEALER_HELPER_TERM }}s, but you can view your assigned {{ c.DEALER_HELPER_TERM }}s below.</p>
 {% endif %}
 

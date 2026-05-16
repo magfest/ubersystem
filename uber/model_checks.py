@@ -862,4 +862,7 @@ def group_leadership(attendee):
 @prereg_validation.Group
 def edit_only_correct_statuses(group):
     if group.status not in c.DEALER_EDITABLE_STATUSES:
-        return "You cannot change your {} after it has been {}.".format(c.DEALER_APP_TERM, group.status_label)
+        if c.HIDE_DEALER_STATUS:
+            return f"Your {c.DEALER_APP_TERM} is currently being reviewed and cannot be edited."
+        else:
+            return f"You cannot change your {c.DEALER_APP_TERM} after it has been {group.status_label}."
