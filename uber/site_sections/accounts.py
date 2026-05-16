@@ -102,7 +102,7 @@ class Root:
                     return {'success': True, 'message': "Account created and claim email sent."}
                 else:
                     if c.ATTENDEE_ACCOUNTS_ENABLED and attendee.managers:
-                        new_account.sso_id = attendee.managers[0].sso_id
+                        account.sso_id = attendee.managers[0].sso_id
                     EmailService.queue_email(
                         session, 'new_admin_account', account,
                         data={'password': password if not c.SAML_SETTINGS and not c.OIDC_ENABLED else '',
@@ -450,7 +450,7 @@ class Root:
                             return {'success': True, 'message': "Account created and claim email sent."}
                         else:
                             if c.ATTENDEE_ACCOUNTS_ENABLED and attendee.managers:
-                                new_account.sso_id = attendee.managers[0].sso_id
+                                account.sso_id = attendee.managers[0].sso_id
                             EmailService.queue_email(
                                 session, 'new_admin_account', account,
                                 data={'password': password if not c.SAML_SETTINGS and not c.OIDC_ENABLED else '',
