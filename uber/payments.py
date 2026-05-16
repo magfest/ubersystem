@@ -1826,8 +1826,7 @@ class ReceiptManager:
     @staticmethod
     def mark_paid_from_ids(intent_id, charge_id, put_on_hold=False):
         from uber.models import Attendee, ArtShowApplication, Group, ReceiptTransaction, Session
-        from uber.tasks.email import send_email
-        from uber.decorators import render
+        from uber.email import EmailService
 
         session = Session()
         matching_txns = session.query(ReceiptTransaction).filter(
@@ -1895,25 +1894,11 @@ class ReceiptManager:
                     session.commit()
 
             if model and isinstance(model, Group) and model.is_dealer and not txn.receipt.open_purchase_items:
-                try:
-                    send_email.delay(
-                        c.MARKETPLACE_EMAIL,
-                        c.MARKETPLACE_NOTIFICATIONS_EMAIL,
-                        '{} Payment Completed'.format(c.DEALER_TERM.title()),
-                        render('emails/dealers/payment_notification.txt', {'group': model}, encoding=None),
-                        model=model.to_dict('id'))
-                except Exception:
-                    log.error('Unable to send {} payment confirmation email'.format(c.DEALER_TERM), exc_info=True)
+                EmailService.queue_email(session, 'dealer_payment_admin', to=c.MARKETPLACE_NOTIFICATIONS_EMAIL,
+                                         data={'group': model})
             if model and isinstance(model, ArtShowApplication) and not txn.receipt.open_purchase_items:
-                try:
-                    send_email.delay(
-                        c.ART_SHOW_EMAIL,
-                        c.ART_SHOW_NOTIFICATIONS_EMAIL,
-                        'Art Show Payment Received',
-                        render('emails/art_show/payment_notification.txt', {'app': model}, encoding=None),
-                        model=model.to_dict('id'))
-                except Exception:
-                    log.error('Unable to send Art Show payment confirmation email', exc_info=True)
+                EmailService.queue_email(session, 'art_show_payment_admin', to=c.ART_SHOW_NOTIFICATIONS_EMAIL,
+                                         data={'app': model})
 
         session.close()
         return matching_txns

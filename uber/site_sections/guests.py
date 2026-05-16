@@ -5,6 +5,7 @@ import cherrypy
 from cherrypy.lib.static import serve_file
 from sqlalchemy.orm.exc import NoResultFound
 
+from uber.email import EmailService
 from uber.config import c
 from uber.decorators import ajax, all_renderable, render, requires_account, file_to_fk_id
 from uber.errors import HTTPRedirect
@@ -12,7 +13,6 @@ from uber.files import FileService
 from uber.models import GuestGroup, GuestMerch, GuestDetailedTravelPlan, GuestTravelPlans, GuestPanel
 from uber.model_checks import mivs_show_info_required_fields
 from uber.utils import check, filename_extension
-from uber.tasks.email import send_email
 
 log = logging.getLogger(__name__)
 
@@ -279,12 +279,8 @@ class Root:
                     session.add(guest_autograph)
                     if (guest_autograph.is_new and guest_autograph.rock_island_autographs) or \
                         guest_autograph.orig_value_of('rock_island_autographs') != guest_autograph.rock_island_autographs:
-                        send_email.delay(
-                            c.ROCK_ISLAND_EMAIL,
-                            c.ROCK_ISLAND_EMAIL,
-                            '{} Meet & Greet Notification'.format(guest.group.name),
-                            render('emails/guests/meetgreet_notification.txt', {'guest': guest}, encoding=None),
-                            model=guest.to_dict('id'))
+                        EmailService.queue_email(session, 'guest_meet_greet_admin',
+                                                 to=c.ROCK_ISLAND_EMAIL, data={'guest': guest})
                 guest.merch = guest_merch
                 session.add(guest_merch)
                 raise HTTPRedirect('index?id={}&message={}', guest.id, 'Your merchandise preferences have been saved')
@@ -379,12 +375,8 @@ class Root:
                 session.add(guest_charity)
                 if guest_charity.donating == c.DONATING or \
                         guest_charity.orig_value_of('donating') != guest_charity.donating:
-                    send_email.delay(
-                            c.CHARITY_EMAIL,
-                            c.CHARITY_EMAIL,
-                            '{} Donation Notification'.format(guest.group.name),
-                            render('emails/guests/charity_notification.txt', {'guest': guest}, encoding=None),
-                            model=guest.to_dict('id'))
+                    EmailService.queue_email(session, 'guest_charity_admin',
+                                             to=c.CHARITY_EMAIL, data={'guest': guest})
                 raise HTTPRedirect('index?id={}&message={}', guest.id, 'Your charity decisions have been saved')
 
         return {
@@ -407,12 +399,8 @@ class Root:
 
             if (guest_autograph.is_new and guest_autograph.rock_island_autographs) or \
                     guest_autograph.orig_value_of('rock_island_autographs') != guest_autograph.rock_island_autographs:
-                send_email.delay(
-                    c.ROCK_ISLAND_EMAIL,
-                    c.ROCK_ISLAND_EMAIL,
-                    '{} Meet & Greet Notification'.format(guest.group.name),
-                    render('emails/guests/meetgreet_notification.txt', {'guest': guest}, encoding=None),
-                    model=guest.to_dict('id'))
+                EmailService.queue_email(session, 'guest_meet_greet_admin',
+                                         to=c.ROCK_ISLAND_EMAIL, data={'guest': guest})
             raise HTTPRedirect('index?id={}&message={}', guest.id, 'Your autograph sessions have been saved')
 
         return {

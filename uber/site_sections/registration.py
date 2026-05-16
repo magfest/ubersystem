@@ -17,6 +17,7 @@ from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.auth import OIDC
+from uber.email import EmailService
 from uber.config import c
 from uber.custom_tags import format_currency, readable_join
 from uber.decorators import ajax, ajax_gettable, any_admin_access, all_renderable, attendee_view, \
@@ -32,7 +33,6 @@ from uber.site_sections.preregistration import check_if_can_reg
 from uber.utils import add_opt, check, check_pii_consent, get_page, hour_day_format, \
     localized_now, Order, validate_model, normalize_email_legacy
 from uber.payments import TransactionRequest, ReceiptManager, SpinTerminalRequest
-from uber.tasks.email import send_email
 
 
 def check_atd(func):
@@ -115,16 +115,8 @@ def create_new_account(session, attendee):
         token = secrets.token_urlsafe(64)
         session.add(PasswordReset(attendee_account=new_account, hashed=token))
 
-        body = render('emails/accounts/new_account.html', {
-                'attendee': attendee, 'account_email': new_account.email, 'token': token}, encoding=None)
-        send_email.delay(
-            c.ADMIN_EMAIL,
-            new_account.email,
-            c.EVENT_NAME + ' Account Setup',
-            body,
-            format='html',
-            model=new_account.to_dict('id'))
-
+        EmailService.queue_email(session, 'local_account_setup', new_account,
+                                 data={'attendee': attendee, 'account_email': new_account.email, 'token': token})
 
 @all_renderable()
 class Root:
@@ -391,14 +383,8 @@ class Root:
                     session.add_attendee_to_account(group_member, account)
         session.commit()
         if email:
-            body = render('emails/accounts/attendee_added.html', {'account': account, 'attendee': attendee}, encoding=None)
-            send_email.delay(
-                c.ADMIN_EMAIL,
-                account.email,
-                'New Badge Added to Your ' + c.EVENT_NAME + ' Account',
-                body,
-                format='html',
-                model=account.to_dict('id'))
+            EmailService.queue_email(session, 'attendee_account_attendee_added', account,
+                                     data={'attendee': attendee})
         return {'success': True,
                 'message': f"Attendee added to account {account.email}{' and the account owner has been notified' if email else ''}!"}
             
@@ -686,9 +672,9 @@ class Root:
         return {
             'attendee':  attendee,
             'emails': session.query(Email).filter(Email.model == 'Attendee',
-                                                  Email.fk_id == id).order_by(Email.when).all(),
+                                                  Email.fk_id == id).order_by(Email.generated).all(),
             'other_emails': session.query(Email).filter(Email.to == attendee.email,
-                                                        Email.fk_id != id).order_by(Email.when).all(),
+                                                        Email.fk_id != id).order_by(Email.generated).all(),
             'changes': session.query(Tracking).filter(
                 or_(and_(Tracking.links.like('%attendee({})%'.format(id))),
                     and_(Tracking.model == 'Attendee', Tracking.fk_id == id))).order_by(Tracking.when).all(),
@@ -1608,9 +1594,9 @@ class Root:
         return {
             'attendee': attendee,
             'emails': session.query(Email).filter(Email.model == 'Attendee',
-                                                  Email.fk_id == id).order_by(Email.when).all(),
+                                                  Email.fk_id == id).order_by(Email.generated).all(),
             'other_emails': session.query(Email).filter(Email.to == attendee.email,
-                                                        Email.fk_id != id).order_by(Email.when).all(),
+                                                        Email.fk_id != id).order_by(Email.generated).all(),
             'changes': session.query(Tracking).filter(
                 or_(and_(Tracking.links.like('%attendee({})%'.format(id)),
                          Tracking.model == 'Attendee', Tracking.fk_id == id))).order_by(Tracking.when).all(),

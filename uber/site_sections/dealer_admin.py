@@ -4,13 +4,13 @@ from datetime import datetime
 from pytz import UTC
 from sqlalchemy.orm import subqueryload
 
+from uber.email import EmailService
 from uber.config import c
 from uber.custom_tags import pluralize
 from uber.decorators import ajax, all_renderable, render
 from uber.errors import HTTPRedirect
 from uber.models import Attendee, Group
 from uber.payments import ReceiptManager
-from uber.tasks.email import send_email
 from uber.utils import remove_opt, SignNowRequest
 
 log = logging.getLogger(__name__)
@@ -96,7 +96,6 @@ def decline_and_convert_dealer_group(session, group, status=c.DECLINED, admin_no
     else:
         email_subject = f"Update About Your {c.EVENT_NAME} Registration"
     message = ['Group declined']
-    emails_failed = 0
     emails_sent = 0
     badges_converted = 0
     assigned_badges = group.badges - group.unregistered_badges
@@ -105,21 +104,10 @@ def decline_and_convert_dealer_group(session, group, status=c.DECLINED, admin_no
         if not attendee.is_unassigned:
             convert_dealer_badge(session, attendee, admin_note)
             if email_leader or attendee != group.leader:
-                try:
-                    send_email.delay(
-                        c.MARKETPLACE_EMAIL,
-                        attendee.email_to_address,
-                        email_subject,
-                        render('emails/dealers/badge_converted.html', {
-                            'attendee': attendee,
-                            'group': group,
-                            'other_badges': assigned_badges - 1}, encoding=None),
-                        format='html',
-                        model=attendee.to_dict('id'))
-                    emails_sent += 1
-                except Exception as e:
-                    log.error(f"Failed to send badge conversion email: {str(e)}")
-                    emails_failed += 1
+                EmailService.queue_email(
+                    session, 'dealer_decline_convert', attendee, subject=email_subject,
+                    data={'group': group, 'other_badges': assigned_badges - 1})
+                emails_sent += 1
 
             badges_converted += 1
         elif not delete_group:
@@ -141,8 +129,7 @@ def decline_and_convert_dealer_group(session, group, status=c.DECLINED, admin_no
 
     for count, template in [
             (badges_converted, '{} badge{} converted'),
-            (emails_sent, '{} email{} sent'),
-            (emails_failed, '{} email{} failed to send')]:
+            (emails_sent, '{} email{} sent')]:
         if count > 0:
             message.append(template.format(count, pluralize(count)))
     return ', '.join(message)
@@ -215,13 +202,9 @@ class Root:
         group = session.group(id)
         subject = 'Your {} {} has been {}'.format(c.EVENT_NAME, c.DEALER_REG_TERM, action)
         if group.email:
-            send_email.delay(
-                c.MARKETPLACE_EMAIL,
-                group.email_to_address,
-                subject,
-                email_text,
-                bcc=c.MARKETPLACE_NOTIFICATIONS_EMAIL,
-                model=group.to_dict('id'))
+            ident = 'dealer_reg_waitlisted' if action == 'waitlisted' else 'dealer_reg_declined'
+            EmailService.queue_email(session, ident, group, sender=c.MARKETPLACE_EMAIL, subject=subject,
+                                     body=email_text, bcc=c.MARKETPLACE_NOTIFICATIONS_EMAIL)
         if action == 'waitlisted':
             group.status = c.WAITLISTED
         elif convert == True:
@@ -259,14 +242,7 @@ class Root:
         group.convert_to_shared(session)
         session.commit()
 
-        send_email.delay(
-            c.MARKETPLACE_EMAIL,
-            group.leader.email_to_address,
-            f"Your {c.DEALER_APP_TERM} is now shared",
-            render('emails/dealers/table_shared.html', {
-                'group': group,}, encoding=None),
-            format='html',
-            model=group.to_dict('id'))
+        EmailService.queue_email(session, 'dealer_reg_shared', group)
 
         return {
             'success': True,

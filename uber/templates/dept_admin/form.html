@@ -264,7 +264,7 @@
 </p>
 {% if department.from_email %}
 <p>
-  <a href="../email_admin/pending_dept?sender={{ department.from_email }}">
+  <a href="../email_admin/pending?department_id={{ department.id }}">
     <i class="fa fa-envelope-o"></i>
     View Pending Emails
   </a>

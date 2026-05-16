@@ -136,7 +136,7 @@ class GuestGroup(MagModel, table=True):
 
     @property
     def email(self):
-        return self.group.email
+        return self.group.email if self.group else ''
 
     @property
     def gets_emails(self):

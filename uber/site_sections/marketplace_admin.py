@@ -124,7 +124,7 @@ class Root:
                 c.STRIPE: "Authorize.net" if c.AUTHORIZENET_LOGIN_ID else "Stripe",
                 c.SQUARE: "SPIn" if c.SPIN_TERMINAL_AUTH_KEY else "Square",
                 c.MANUAL: "Stripe"},
-            'emails': session.query(Email).filter(Email.fk_id == id).order_by(Email.when).all(),
+            'emails': session.query(Email).filter(Email.fk_id == id).order_by(Email.generated).all(),
             'changes': session.query(Tracking).filter(
                 or_(Tracking.links.like('%artist_marketplace_application({})%'.format(id)),
                     and_(Tracking.model == 'ArtistMarketplaceApplication',

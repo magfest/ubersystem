@@ -1,4 +1,5 @@
 import json
+import six
 import sys
 import logging
 from datetime import datetime
@@ -157,17 +158,14 @@ class Tracking(MagModel, table=True):
     def differences(cls, instance):
         diff = {}
         for attr, column in instance.__table__.columns.items():
-            if attr in ['last_updated', 'last_synced', 'inventory_updated', 'unapproved_count']:
+            if attr in ['last_updated', 'last_synced', 'inventory_updated']:
                 continue
-
-            if attr in ['currently_sending', 'last_send_time']:
-                return {}
 
             new_val = getattr(instance, attr)
             if new_val:
                 new_val = instance.coerce_column_data(column, new_val)
             old_val = instance.orig_value_of(attr)
-            if old_val != new_val:
+            if old_val != new_val and old_val.strip() != new_val:
                 """
                 Important note: here we try and show the old vs new value for
                 something that has been changed so that we can report it in the
@@ -188,6 +186,10 @@ class Tracking(MagModel, table=True):
                 if it encounters insane/old data that really shouldn't be our
                 problem.
                 """
+                # Don't track whitespace changes
+                if isinstance(old_val, six.string_types) and old_val.strip() == new_val:
+                    continue
+
                 try:
                     old_val_repr = cls.repr(column, old_val)
                 except Exception:

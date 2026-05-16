@@ -190,6 +190,8 @@ class LotteryApplication(MagModel, table=True):
     lottery_name: str = ''
     booking_url: str = ''
 
+    email_model_name: ClassVar = 'app'
+
     @presave_adjustment
     def unset_entry_type(self):
         if self.entry_type == 0:
@@ -259,8 +261,11 @@ class LotteryApplication(MagModel, table=True):
 
     @property
     def email(self):
-        if self.attendee:
-            return self.attendee.email
+        return self.attendee.email if self.attendee else ''
+
+    @property
+    def gets_emails(self):
+        return self.attendee and self.attendee.is_valid and self.status != c.DISQUALIFIED
 
     @property
     def birthdate(self):

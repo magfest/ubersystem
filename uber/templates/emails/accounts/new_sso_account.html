@@ -8,44 +8,40 @@ badge
 <html>
 <head></head>
 <body>
-    {% if attendee_account and attendee_account.valid_attendees|length == 1 %}
-    {{ attendee_account.valid_attendees[0].full_name }},
+    {% if account.valid_attendees|length == 1 %}
+    {{ account.valid_attendees[0].full_name }},
     {% endif %}
-    {% if attendee_account %}
-        {% if attendee_account.valid_attendees|length == 1 %}
-            {% set attendee = attendee_account.valid_attendees[0] %}
-            {% if attendee.group and attendee.id == attendee.group.leader_id %}
-            <p>
-                You have been invited to manage the {% if attendee.group.guest_group %}{{ attendee.group.guest_group.group_type }} {% endif %}
-                group "{{ attendee.group.name }}" for {{ c.EVENT_NAME_AND_YEAR }}.
-            </p>
-            {% if attendee.group.attendees|length > 1 %}
-            <p>Once you claim your badge, you will be able to manage your group members' badges{% if attendee.group.guest_group %} and complete your group's checklist{% endif %}.</p>
-            {% endif %}
-            {% else %}
-            <p>
-                You have been invited to claim a {{ badge_description(attendee) }} for {{ c.EVENT_NAME_AND_YEAR }}.
-            </p>
-            {% endif %}
-            {% if attendee.admin_account %}
-                <p>
-                    Once you claim your badge, you will also have admin access to our system.
-                    You'll log in with the same account you use to claim this badge.
-                </p>
-            {% endif %}
+    {% if account.valid_attendees|length == 1 %}
+        {% set attendee = account.valid_attendees[0] %}
+        {% if attendee.group and attendee.id == attendee.group.leader_id %}
+        <p>
+            You have been invited to manage the {% if attendee.group.guest_group %}{{ attendee.group.guest_group.group_type }} {% endif %}
+            group "{{ attendee.group.name }}" for {{ c.EVENT_NAME_AND_YEAR }}.
+        </p>
+        {% if attendee.group.attendees|length > 1 %}
+        <p>Once you claim your badge, you will be able to manage your group members' badges{% if attendee.group.guest_group %} and complete your group's checklist{% endif %}.</p>
+        {% endif %}
         {% else %}
-            You have been invited to manage the following badges for {{ c.EVENT_NAME_AND_YEAR }}:
-            <ul>
-                {% for attendee in attendee_account.attendees %}
-                <li>A {{ badge_description(attendee) }} for {{ attendee.full_name }}{% if attendee.admin_account %}, which includes admin access to our system{% endif %}{% if attendee.group %}, {% if attendee.id == attendee.group.leader_id %}for{% else %}in{% endif %} the {% if attendee.group.guest_group %}{{ attendee.group.guest_group.group_type }} {% endif %}group "{{ attendee.group.name }}"{% endif %}</li>
-                {% endfor %}
-            </ul>
-            <p></p>
+        <p>
+            You have been invited to claim a {{ badge_description(attendee) }} for {{ c.EVENT_NAME_AND_YEAR }}.
+        </p>
+        {% endif %}
+        {% if attendee.admin_account %}
+            <p>
+                Once you claim your badge, you will also have admin access to our system.
+                You'll log in with the same account you use to claim this badge.
+            </p>
         {% endif %}
     {% else %}
+        You have been invited to manage the following badges for {{ c.EVENT_NAME_AND_YEAR }}:
+        <ul>
+            {% for attendee in account.attendees %}
+            <li>A {{ badge_description(attendee) }} for {{ attendee.full_name }}{% if attendee.admin_account %}, which includes admin access to our system{% endif %}{% if attendee.group %}, {% if attendee.id == attendee.group.leader_id %}for{% else %}in{% endif %} the {% if attendee.group.guest_group %}{{ attendee.group.guest_group.group_type }} {% endif %}group "{{ attendee.group.name }}"{% endif %}</li>
+            {% endfor %}
+        </ul>
     {% endif %}
     <p>
-        Claiming {% if attendee_account and attendee_account.valid_attendees|length > 1 %}these badges{% else %}this badge{% endif %}
+        Claiming {% if account.valid_attendees|length > 1 %}these badges{% else %}this badge{% endif %}
         requires a {{ c.OIDC_ACCOUNT_NAME }} account. If you've signed up for a {{ c.OIDC_ACCOUNT_NAME }} account previously,
         even for another {{ c.EVENT_NAME }} event, we recommend logging into that account to claim your badge so you can manage all your badges in one place.
         {% if c.OIDC_ACCOUNT_FAQ %}You can find more information about <a href="{{ c.OIDC_ACCOUNT_FAQ }}" target="_blank">{{ c.OIDC_ACCOUNT_NAME }} accounts here</a>.{% endif %}

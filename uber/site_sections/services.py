@@ -13,7 +13,6 @@ from uber.errors import HTTPRedirect
 from uber.models import GuestMerch, GuestDetailedTravelPlan, GuestTravelPlans, GuestPanel
 from uber.model_checks import mivs_show_info_required_fields
 from uber.utils import check, filename_extension
-from uber.tasks.email import send_email
 from uber.files import FileService
 from uber.payments import ReceiptManager
 

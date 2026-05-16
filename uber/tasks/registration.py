@@ -11,12 +11,12 @@ from sqlalchemy import not_, or_, insert
 from sqlalchemy.orm import joinedload, raiseload, subqueryload
 from sqlalchemy.orm.exc import NoResultFound
 
+from uber.email import EmailService
 from uber.config import c
 from uber.custom_tags import readable_join
 from uber.decorators import render
 from uber.models import (ApiJob, Attendee, AttendeeAccount, BadgeInfo, BadgePickupGroup, Email, Group, ModelReceipt,
                          ReceiptInfo, ReceiptItem, ReceiptTransaction, Session, TerminalSettlement)
-from uber.tasks.email import send_email
 from uber.tasks import celery
 from uber.utils import localized_now, TaskUtils, normalize_email, groupify
 from uber.payments import ReceiptManager, TransactionRequest
@@ -112,14 +112,14 @@ def check_duplicate_registrations():
                         del dupes[who]
 
                 if dupes and session.no_email(subject):
-                    body = render('emails/daily_checks/duplicates.html',
-                                  {'dupes': sorted(dupes.items())}, encoding=None)
-                    send_email.delay(c.REPORTS_EMAIL, c.REGDESK_EMAIL, subject, body, format='html', model='n/a')
+                    EmailService.queue_email(session, 'daily_duplicates_report', to=c.REGDESK_EMAIL,
+                                             subject=subject, data={'dupes': sorted(dupes.items())},
+                                             replace_unsent=True)
 
 
 @celery.schedule(crontab(minute=0, hour='*/6'))
 def check_placeholder_registrations():
-    if c.PRE_CON and c.CHECK_PLACEHOLDERS and (c.DEV_BOX or c.SEND_EMAILS) and c.REPORTS_EMAIL:
+    if c.PRE_CON and (c.DEV_BOX or c.SEND_EMAILS) and c.REPORTS_EMAIL:
         emails = [[
             'Staff',
             c.STAFF_EMAIL,
@@ -154,9 +154,9 @@ def check_placeholder_registrations():
                                            .options(joinedload(Attendee.group))
                                            .order_by(Attendee.registered, Attendee.full_name).all())
                     if placeholders:
-                        body = render('emails/daily_checks/placeholders.html',
-                                      {'placeholders': placeholders}, encoding=None)
-                        send_email.delay(c.REPORTS_EMAIL, to, subject, body, format='html', model='n/a')
+                        EmailService.queue_email(session, 'daily_placeholder_report', to=to,
+                                                 subject=subject, data={'placeholders': placeholders},
+                                                 replace_unsent=True)
 
 
 @celery.schedule(crontab(minute=0, hour='*/6'))
@@ -165,12 +165,10 @@ def check_pending_badges():
         subject = c.EVENT_NAME + ' Pending Badges Report for ' + localized_now().strftime('%Y-%m-%d')
         with Session() as session:
             pending = session.query(Attendee).filter(Attendee.badge_status == c.PENDING_STATUS,
-                                                        Attendee.paid != c.PENDING).all()
+                                                     Attendee.paid != c.PENDING).all()
             if pending and session.no_email(subject):
-                body = render('emails/daily_checks/pending.html',
-                                {'pending': pending}, encoding=None)
-                send_email.delay(c.REPORTS_EMAIL, c.STAFF_EMAIL, subject, body,
-                                    format='html', model='n/a')
+                EmailService.queue_email(session, 'daily_pending_report', to=c.STAFF_EMAIL,
+                                         subject=subject, data={'pending': pending}, replace_unsent=True)
 
 
 @celery.schedule(crontab(minute=0, hour='*/6'))
@@ -185,8 +183,7 @@ def check_unassigned_volunteers():
                 not_(Attendee.dept_memberships.any())).order_by(Attendee.full_name).all()  # noqa: E712
             subject = c.EVENT_NAME + ' Unassigned Volunteer Report for ' + localized_now().strftime('%Y-%m-%d')
             if unassigned and session.no_email(subject):
-                body = render('emails/daily_checks/unassigned.html', {'unassigned': unassigned}, encoding=None)
-                send_email.delay(c.REPORTS_EMAIL, c.STAFF_EMAIL, subject, body, format='html', model='n/a')
+                EmailService.queue_email(session, 'daily_unassigned_report', to=c.STAFF_EMAIL, replace_unsent=True)
 
 
 @celery.schedule(timedelta(minutes=5))
@@ -197,8 +194,8 @@ def check_near_cap():
             subject = "BADGES SOLD ALERT: {} BADGES LEFT!".format(badges_left)
             with Session() as session:
                 if not session.query(Email).filter_by(subject=subject).first() and actual_badges_left <= badges_left:
-                    body = render('emails/badges_sold_alert.txt', {'badges_left': actual_badges_left}, encoding=None)
-                    send_email.delay(c.REPORTS_EMAIL, [c.REGDESK_EMAIL, c.ADMIN_EMAIL], subject, body, model='n/a')
+                    EmailService.queue_email(session, 'badges_sold_alert', to=[c.REGDESK_EMAIL, c.ADMIN_EMAIL],
+                                             subject=subject, data={'badges_left': actual_badges_left})
 
 
 @celery.schedule(timedelta(days=1))
@@ -270,18 +267,9 @@ def email_pending_attendees():
                         already_emailed_accounts.append(email_to)
                     continue
 
-                body = render('emails/reg_workflow/pending_badges.html',
-                              {'account': badge.managers[0] if badge.managers else None,
-                               'attendee': badge, 'compare_date': compare_date}, encoding=None)
-                send_email.delay(
-                    c.REGDESK_EMAIL,
-                    email_to,
-                    f"You have an incomplete {c.EVENT_NAME} registration!",
-                    body,
-                    format='html',
-                    model=badge.managers[0].to_dict() if c.ATTENDEE_ACCOUNTS_ENABLED else badge.to_dict(),
-                    ident=email_ident
-                )
+                EmailService.queue_email(session, 'incomplete_reg_notification', badge,
+                                         data={'account': badge.managers[0] if badge.managers else None, 'compare_date': compare_date},
+                                         limit_one=True)
 
                 if c.ATTENDEE_ACCOUNTS_ENABLED:
                     already_emailed_accounts.append(email_to)
@@ -309,10 +297,8 @@ def send_receipt_email(receipt_id):
             return
 
         to = getattr(email_to, 'email', getattr(email_to, 'email_address', ''))
-        subject = f"Your {c.EVENT_NAME_AND_YEAR} receipt [#{receipt.reference_id}]"
 
-        body = render('emails/reg_workflow/receipt.html', {'receipt': receipt}, encoding=None)
-        send_email.delay(c.ADMIN_EMAIL, to, subject, body, format='html', model='n/a')
+        EmailService.queue_email(session, 'receipt_info', to=to, data={'receiptinfo': receipt})
 
 
 @celery.task
@@ -539,12 +525,10 @@ def check_authnet_held_txns():
                 log.error(f"Tried to check status of transaction {charge_id} but got the error: {error}")
             else:
                 if txn_status.response.transactionStatus in ["declined", "expired", "failedReview", "voided"]:
-                    body = render('emails/held_txn_declined.html',
-                                  {'txns': txns, 'status': str(txn_status.response.transactionStatus)},
-                                  encoding=None)
                     subject = f"AuthNet Held Transaction Declined: {charge_id}"
-                    send_email.delay(c.REPORTS_EMAIL, c.REGDESK_EMAIL, subject, body,
-                                     format='html', model='n/a')
+                    EmailService.queue_email(session, 'authnet_held_txn_admin', to=c.REGDESK_EMAIL,
+                                             subject=subject, data={'txns': txns, 'status': str(txn_status.response.transactionStatus)},
+                                             replace_unsent=True)
                     
                     for txn in txns:
                         txn.cancelled = datetime.now()

@@ -6,12 +6,12 @@ from datetime import timedelta, datetime
 from dateutil import parser as dateparser
 from sqlalchemy import or_
 
-from uber.automated_emails import AutomatedEmailFixture, PanelAppEmailFixture
+from uber.automated_emails import PanelAppEmailFixture
 from uber.config import c
 from uber.decorators import render
+from uber.email import EmailService
 from uber.models import Email, Session, Tracking, Department, EventLocation, AutomatedEmail
 from uber.tasks import celery
-from uber.tasks.email import send_email
 from uber.utils import GuidebookUtils, localized_now, slugify
 
 
@@ -83,17 +83,14 @@ def check_deleted_guidebook_models():
     with Session() as session:
         subject = f"Deleted Guidebook Items: {localized_now().strftime("%A %-I:%M %p")}"
         last_email = session.query(Email).filter(Email.subject.contains("Deleted Guidebook Items")
-                                                 ).order_by(Email.when.desc()).first()
+                                                 ).first()
 
-        deleted_models = _get_deleted_models(session, deleted_since=last_email.when) if last_email else _get_deleted_models(session)
+        deleted_models = _get_deleted_models(session, deleted_since=last_email.generated) if last_email else _get_deleted_models(session)
 
         if deleted_models:
-            body = render('emails/guidebook_deletes.txt', {
-                'deleted_models': deleted_models,
-            }, encoding=None)
-            send_email.delay(c.REPORTS_EMAIL, c.GUIDEBOOK_UPDATES_EMAIL,
-                             subject, body, ident="guidebook_deletes"
-                             )
+            EmailService.queue_email(session, 'guidebook_deletes', to=c.GUIDEBOOK_UPDATES_EMAIL,
+                                     subject=subject,
+                                     data={'deleted_models': deleted_models}, replace_unsent=True)
 
 
 @celery.schedule(timedelta(minutes=15))
@@ -110,19 +107,14 @@ def check_stale_guidebook_models():
         last_email = session.query(Email).filter(or_(
             Email.subject.contains("Guidebook Updates"),
             Email.subject.contains("Deleted Guidebook Items"))
-            ).order_by(Email.when.desc()).first()
+            ).first()
 
-        deleted_models = _get_deleted_models(session, deleted_since=last_email.when) if last_email else _get_deleted_models(session)
+        deleted_models = _get_deleted_models(session, deleted_since=last_email.generated) if last_email else _get_deleted_models(session)
 
         if stale_models or deleted_models:
-            body = render('emails/guidebook_updates.txt', {
-                'stale_models': stale_models,
-                'deleted_models': deleted_models,
-            }, encoding=None)
-            send_email.delay(c.REPORTS_EMAIL, c.GUIDEBOOK_UPDATES_EMAIL,
-                                f"Guidebook Updates: {localized_now().strftime("%A %-I:%M %p")}",
-                                body, ident="guidebook_updates"
-                                )
+            EmailService.queue_email(session, 'guidebook_updates', to=c.GUIDEBOOK_UPDATES_EMAIL,
+                                     subject=f"Guidebook Updates: {localized_now().strftime("%A %-I:%M %p")}",
+                                     data={'stale_models': stale_models, 'deleted_models': deleted_models}, replace_unsent=True)
 
 
 @celery.schedule(timedelta(hours=6))
@@ -136,20 +128,18 @@ def panels_waitlist_unaccepted_panels():
             if not app.confirmed and app.after_confirm_deadline:
                 app.status = c.WAITLISTED
                 session.commit()
-                body = render('emails/panels/panel_app_waitlisted.txt', {
-                    'app': app,
-                }, encoding=None)
-                send_email.delay(c.PANELS_EMAIL, app.email,
-                                 f"Your {c.EVENT_NAME} Panel Application Has Been Automatically Waitlisted: "
-                                 f"{app.name}",
-                                 body,
-                                 ident="panel_waitlisted",
-                                 shared_ident="panelapps_waitlisted"
-                                 )
+                EmailService.queue_email(session, 'panel_waitlisted', app)
 
 
 @celery.schedule(timedelta(minutes=30))
 def setup_panel_emails():
+    # TODO: Some options for these emails:
+    # 1. Don't create fixtures, just add/remove automated emails in the DB.
+    # Can then change this to be based on department changes rather than a timer,
+    # but it means removing the cleanup code from reconcile_fixtures
+    # 2. Add fixtures/DB objects on department changes and also add fixtures on server startup
+    # 3. Leave basically as-is. May need to remove the cleanup code from reconcile_fixtures
+    #
     if not c.PRE_CON:
         return
     
@@ -182,7 +172,7 @@ def setup_panel_emails():
                 **kwargs)
 
         custom_panel_app_email(
-            'Your {EVENT_NAME} Panel Application Has Been Received: {{ app.name }}',
+            f'Your {c.EVENT_NAME} Panel Application Has Been Received: ' + '{app.name}',
             'panels/application.html',
             lambda app: True,
             sender=sender,
@@ -190,7 +180,7 @@ def setup_panel_emails():
             ident=f'panelapps_received_{slugify(name)}')
 
         custom_panel_app_email(
-            'Your {EVENT_NAME} Panel Application Has Been Accepted: {{ app.name }}',
+            f'Your {c.EVENT_NAME} Panel Application Has Been Accepted: ' + '{app.name}',
             'panels/panel_app_accepted.txt',
             lambda app: app.status == c.ACCEPTED,
             sender=sender,
@@ -198,7 +188,7 @@ def setup_panel_emails():
             ident=f'panelapps_accepted_{slugify(name)}')
 
         custom_panel_app_email(
-            'Your {EVENT_NAME} Panel Application Has Been Declined: {{ app.name }}',
+            f'Your {c.EVENT_NAME} Panel Application Has Been Declined: ' + '{app.name}',
             'panels/panel_app_declined.txt',
             lambda app: app.status == c.DECLINED,
             sender=sender,
@@ -206,7 +196,7 @@ def setup_panel_emails():
             ident=f'panelapps_declined_{slugify(name)}')
 
         custom_panel_app_email(
-            'Your {EVENT_NAME} Panel Application Has Been Waitlisted: {{ app.name }}',
+            f'Your {c.EVENT_NAME} Panel Application Has Been Waitlisted: ' + '{app.name}',
             'panels/panel_app_waitlisted.txt',
             lambda app: app.status == c.WAITLISTED,
             sender=sender,
@@ -223,11 +213,11 @@ def setup_panel_emails():
             ident=f'panelapps_accept_reminder_{slugify(name)}')
 
         custom_panel_app_email(
-            'Your {EVENT_NAME} Panel Has Been Scheduled: {{ app.name }}',
+            f'Your {c.EVENT_NAME} Panel Has Been Scheduled: ' + '{app.name}',
             'panels/panel_app_scheduled.txt',
             lambda app: app.event_id,
             sender=sender,
             shared_ident='panelapps_scheduled',
             ident=f'panelapps_scheduled_{slugify(name)}')
     
-    AutomatedEmail.reconcile_fixtures()
+    AutomatedEmail.reconcile_fixtures(cleanup=True)

@@ -165,7 +165,7 @@ class PromoCodeGroup(MagModel, table=True):
 
     @property
     def email(self):
-        return self.buyer.email if self.buyer else None
+        return self.buyer.email if self.buyer else ''
 
     @hybrid_property
     def total_cost(self):
@@ -305,6 +305,7 @@ class PromoCode(MagModel, table=True):
         (_FIXED_DISCOUNT, 'Fixed Discount'),
         (_FIXED_PRICE, 'Fixed Price'),
         (_PERCENT_DISCOUNT, 'Percent Discount')]
+    email_model_name: ClassVar = 'code'
 
     group_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='promo_code_group.id', nullable=True)
     group: 'PromoCodeGroup' = Relationship(back_populates="promo_codes", sa_relationship_kwargs={'lazy': 'joined'})

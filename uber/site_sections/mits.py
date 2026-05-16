@@ -7,13 +7,13 @@ import cherrypy
 from cherrypy.lib.static import serve_file
 from pytz import UTC
 
+from uber.email import EmailService
 from uber.config import c
 from uber.custom_tags import format_image_size, readable_join
 from uber.decorators import ajax, all_renderable, csrf_protected, render, requires_account, get_team_id, file_to_fk_id
 from uber.errors import HTTPRedirect
 from uber.files import FileService
 from uber.models import Email, File, MITSTeam, MITSApplicant, MITSGame, MITSPanelApplication, MITSTimes
-from uber.tasks.email import send_email
 from uber.utils import check, localized_now, GuidebookUtils, listify
 
 log = logging.getLogger(__name__)
@@ -67,8 +67,8 @@ class Root:
                 last_email = (session.query(Email)
                               .filter(Email.to.ilike(params['email']))
                               .filter_by(subject=subject)
-                              .order_by(Email.when.desc()).first())
-                if not last_email or last_email.when < (
+                              .first())
+                if not last_email or last_email.generated < (
                             localized_now() - timedelta(days=7)):
                     can_send_email = True
                 else:
@@ -82,15 +82,9 @@ class Root:
                         match_counter += 1
 
                         if can_send_email:
-                            send_email.delay(
-                                c.MITS_EMAIL,
-                                params['email'],
-                                subject,
-                                render('emails/mits/mits_check.txt',
-                                       {'team': team}, encoding=None),
-                                cc=team.email,
-                                model=team.to_dict('id'))
-
+                            EmailService.queue_email(session, 'mits_team_check',
+                                                     to=params['email'],
+                                                     data={'team': team})
                 if match_counter:
                     message = 'We found {} team{}.{}'\
                         .format(match_counter, 's' if match_counter > 1 else '',

@@ -342,6 +342,10 @@ def requires_shifts_admin(func=None, inherent_role=None):
     return requires_admin(func, inherent_role, override_access='full_shifts_admin')
 
 
+def requires_email_admin(func=None, inherent_role=None):
+    return requires_admin(func, inherent_role, override_access='full_email_admin')
+
+
 def csrf_protected(func):
     @wraps(func)
     def protected(*args, csrf_token, **kwargs):
@@ -702,8 +706,8 @@ def render(template_name_list, data=None, encoding='utf-8'):
     return rendered
 
 
-def render_empty(template_name_list):
-    env = JinjaEnv.env()
+def render_empty(template_name_list, **kwargs):
+    env = JinjaEnv.env(**kwargs)
     template = env.get_or_select_template(template_name_list)
     return open(template.filename, 'rb').read().decode('utf-8')
 

@@ -91,7 +91,7 @@ app, c.PAGE_PATH,
 
 {% for email in emails  %}
     {% if loop.first %}<h3>Automated Emails</h3>{% endif %}
-    <h4> {{ email.subject }} ({{ email.when|full_datetime_local }}) </h4>
+    <h4> {{ email.subject }} ({{ email.generated|full_datetime_local }}) </h4>
     {{ macros.preview_email(email) }}
     {% if not read_only %}
       <form method="post" action="resend_email" id="resend_email_{{ email.id }}">

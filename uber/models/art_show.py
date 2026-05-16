@@ -270,9 +270,7 @@ class ArtShowApplication(MagModel, table=True):
 
     @property
     def email(self):
-        if self.attendee:
-            return self.attendee.email
-        return ''
+        return self.attendee.email if self.attendee else ''
     
     @property
     def badge_status(self):
@@ -777,8 +775,7 @@ class ArtShowBidder(MagModel, table=True):
     
     @property
     def email(self):
-        if self.attendee:
-            return self.attendee.email
+        return self.attendee.email if self.attendee else ''
 
     @property
     def won_pieces_by_gallery(self):

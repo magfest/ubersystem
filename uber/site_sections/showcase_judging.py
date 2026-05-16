@@ -1,12 +1,12 @@
 import cherrypy
 
+from uber.email import EmailService
 from uber.config import c
 from uber.decorators import all_renderable, ajax, render, site_mappable
 from uber.errors import HTTPRedirect
 from uber.files import FileService
 from uber.forms import load_forms
 from uber.models import IndieGameReview
-from uber.tasks.email import send_email
 from uber.utils import check, validate_model
 
 
@@ -84,15 +84,12 @@ class Root:
             for form in forms.values():
                 form.populate_obj(review)
 
-            if review.video_status in c.MIVS_PROBLEM_STATUSES\
-                    and review.video_status != review.orig_value_of('video_status'):
-                body = render('emails/mivs/admin_video_broken.txt', {'review': review}, encoding=None)
-                send_email.delay(review.game.admin_email, review.game.admin_email, 'Indies Video Submission Marked as Broken', body)
-
-            if review.game_status in c.MIVS_PROBLEM_STATUSES\
-                    and review.game_status != review.orig_value_of('game_status'):
-                body = render('emails/mivs/admin_game_broken.txt', {'review': review}, encoding=None)
-                send_email.delay(review.game.admin_email, review.game.admin_email, 'Indies Game Submission Marked as Broken', body)
+            if review.video_status in c.MIVS_PROBLEM_STATUSES and review.video_status != review.orig_value_of('video_status'):
+                EmailService.queue_email(session, 'indies_video_problems_admin', to=review.game.admin_email,
+                                         sender=review.game.admin_email, data={'review': review})
+            if review.game_status in c.MIVS_PROBLEM_STATUSES and review.game_status != review.orig_value_of('game_status'):
+                EmailService.queue_email(session, 'indies_game_problems_admin', to=review.game.admin_email,
+                                         sender=review.game.admin_email, data={'review': review})
 
             raise HTTPRedirect('index?id={}&message={}{}', review.judge.id,
                                review.game.title, ' game review has been uploaded')

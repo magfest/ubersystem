@@ -293,7 +293,7 @@ class PanelApplication(MagModel, table=True):
 
     @property
     def email(self):
-        return self.submitter and self.submitter.email
+        return self.submitter.email if self.submitter else ''
 
     @property
     def submitter(self):
