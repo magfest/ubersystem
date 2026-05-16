@@ -61,6 +61,8 @@ class AdminAccount(MagModel, table=True):
     print_requests: list['PrintJob'] = Relationship(
         back_populates="admin_account")
 
+    email_model_name: ClassVar = 'account'
+
     def __repr__(self):
         return f"<Admin full_name='{self.attendee.full_name}'>"
     
