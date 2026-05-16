@@ -358,6 +358,7 @@ class Root:
             return {'success': False, 'message': f"This attendee will receive an account the first time they log in."}
         
         create_new_account(session, attendee)
+        session.commit()
         return {'success': True, 'message': "New account email sent!"}
 
     @ajax
