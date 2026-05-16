@@ -350,9 +350,9 @@ class EmailService:
         departments = session.query(Department).filter(Department.id.in_(dept_ids), Department.from_email != '')
 
         for dept in departments:
-            from_email = [dept.from_email]
+            from_email = dept.from_email
             related_emails = c.RELATED_EMAILS.get(from_email, [])
-            for email in from_email + related_emails:
+            for email in [from_email] + related_emails:
                 depts_by_sender[email].add(dept)
             
         return depts_by_sender
