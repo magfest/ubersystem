@@ -285,10 +285,10 @@ class EmailService:
                 }
                 error_msg = email_sender.sendEmail(
                     source=email.sender,
-                    toAddresses=list(email.to),
-                    replyToAddresses=list(email.replyto),
-                    ccAddresses=list(email.cc),
-                    bccAddresses=list(email.bcc),
+                    toAddresses=email.to.split(','),
+                    replyToAddresses=email.replyto.split(',') if email.replyto else [],
+                    ccAddresses=email.cc.split(',') if email.cc else [],
+                    bccAddresses=email.bcc.split(',') if email.bcc else [],
                     message=ses_payload)
 
             if error_msg:
