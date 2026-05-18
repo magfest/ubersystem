@@ -184,6 +184,7 @@ class OIDC(cherrypy.Tool):
         roles = claims.get('realm_access', {}).get('roles', [])
         email = claims.get('workspace_email', claims.get('email', ''))
         sso_id = claims.get('sub', None)
+        admin_account = None
 
         with Session() as session:
             attendee_account = session.create_attendee_account(email)
