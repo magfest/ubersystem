@@ -148,7 +148,6 @@ def resave_all_attendees_and_groups():
     SAFETY: This -should- be safe to run at any time, but, for safety sake, recommend turning off
     any running ubersystem servers before running this command.
     """
-    Session.initialize_db(modify_tables=False, drop=False, initialize=True)
     with Session() as session:
         print("Re-saving all attendees....")
         for a in session.valid_attendees():
@@ -171,7 +170,6 @@ def resave_all_attendees_and_groups():
 
 @entry_point
 def insert_admin():
-    Session.initialize_db(initialize=True)
     with Session() as session:
         if session.insert_test_admin_account():
             print("Test admin account created successfully")
@@ -181,7 +179,6 @@ def insert_admin():
 
 @entry_point
 def has_admin():
-    Session.initialize_db(initialize=True)
     with Session() as session:
         if session.query(AdminAccount).first() is None:
             print('Could not find any admin accounts', file=sys.stderr)
@@ -207,7 +204,6 @@ def reset_uber_db():
 @entry_point
 def decline_and_convert_dealer_groups():
     from uber.site_sections.groups import decline_and_convert_dealer_group
-    Session.initialize_db(initialize=True)
     with Session() as session:
         groups = session.query(Group) \
             .filter(Group.tables > 0, Group.status == c.WAITLISTED) \
@@ -225,7 +221,6 @@ def decline_and_convert_dealer_groups():
 @entry_point
 def notify_admins_of_pending_emails():
     from uber.tasks.email import notify_admins_of_pending_emails as notify_admins
-    Session.initialize_db(initialize=True)
     results = timed(notify_admins)()
     if results:
         print('Notification emails sent to:\n{}'.format(dumps(results, indent=2, sort_keys=True)))
@@ -234,7 +229,6 @@ def notify_admins_of_pending_emails():
 @entry_point
 def send_automated_emails():
     from uber.tasks.email import send_automated_emails as send_emails
-    Session.initialize_db(initialize=True)
     timed(AutomatedEmail.reconcile_fixtures)()
     results = timed(send_emails)()
     if results:
@@ -244,7 +238,6 @@ def send_automated_emails():
 @entry_point
 def check_stripe_payments():
     from uber.tasks.registration import check_missed_stripe_payments
-    Session.initialize_db(initialize=True)
     results = timed(check_missed_stripe_payments)()
     if results:
         print('Marked the following payment intents as paid: {}'.format(", ".join(results)))
@@ -253,7 +246,6 @@ def check_stripe_payments():
 @entry_point
 def process_api_queue():
     from uber.tasks.registration import process_api_queue
-    Session.initialize_db(initialize=True)
     results = timed(process_api_queue)()
     for job_name, count in results.items():
         print('Processed {} API job(s) with ident "{}"'.format(count, job_name))

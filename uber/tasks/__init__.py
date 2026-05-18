@@ -45,11 +45,6 @@ celery.on_startup = celery_on_startup
 celery.schedule = celery_schedule
 
 
-@worker_process_init.connect
-def init_worker_process(*args, **kwargs):
-    Session.initialize_db(initialize=True)
-
-
 @beat_init.connect
 def run_startup_tasks(*args, **kwargs):
     for fn, a, kw in celery.conf.beat_startup_tasks:

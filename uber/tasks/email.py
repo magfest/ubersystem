@@ -180,16 +180,17 @@ def send_automated_emails():
         with Session() as session:
             for model_class in set([fixture.model for fixture in AutomatedEmail._fixtures.values()]):
                 with Session.engine.connect() as guard_conn:
-                    lock_key = model_class.__name__.lower() + '_email_queue'
+                    model_name = model_class.__name__ if model_class else 'Classless'
+                    lock_key = model_name.lower() + '_email_queue'
                     lock_key = int.from_bytes(lock_key.encode())  & ((1<<63)-1)
-                    log.debug(f"Attempting to lock {model_class.__name__} email queue for processing.")
+                    log.debug(f"Attempting to lock {model_name} email queue for processing.")
 
                     with guard_conn.begin():
                         if guard_conn.execute(select(func.pg_try_advisory_lock(lock_key))).scalar():
-                            log.debug(f"Sending queued emails for {model_class.__name__}.")
+                            log.debug(f"Sending queued emails for {model_name}.")
                             quantity_sent += EmailService.process_emails_by_class(session, model_class)
                         else:
-                            log.debug(f"Skipping {model_class.__name__} as it is being worked by another thread.")
+                            log.debug(f"Skipping {model_name} as it is being worked by another thread.")
             log.info(f"Sent {quantity_sent} emails in {time() - start_time} seconds.")
     except Exception:
         traceback.print_exc()

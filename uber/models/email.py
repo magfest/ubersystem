@@ -250,10 +250,11 @@ class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
         self.cc = ','.join(fixture.cc)
         self.bcc = ','.join(fixture.bcc)
         self.replyto = ','.join(fixture.replyto)
-        self.allow_at_the_con = fixture.allow_at_the_con
-        self.allow_post_con = fixture.allow_post_con
-        self.active_after = fixture.active_after
-        self.active_before = fixture.active_before
+        if self.is_new:
+            self.allow_at_the_con = fixture.allow_at_the_con
+            self.allow_post_con = fixture.allow_post_con
+            self.active_after = fixture.active_after
+            self.active_before = fixture.active_before
         return self
 
     def renderable_data(self, model_instance=None, render_data={}):
