@@ -417,6 +417,7 @@ class Root:
             if c.NOTIFY_DEALER_APPLIED:
                 EmailService.queue_email(session, 'dealer_applied_admin', to=c.MARKETPLACE_NOTIFICATIONS_EMAIL,
                                          data={'group': group})
+            EmailService.queue_email(session, 'dealer_reg_received', group)
         except Exception:
             log.error('unable to send marketplace application confirmation email', exc_info=True)
         raise HTTPRedirect('dealer_confirmation?id={}', group.id)
