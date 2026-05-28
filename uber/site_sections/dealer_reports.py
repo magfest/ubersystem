@@ -123,7 +123,7 @@ class Root:
 
     @xlsx_file
     def all_sellers_application_info(self, out, session):
-        header_row = [
+        out.writerow([
             'Table Name',
             'Description',
             'Seller Name',
@@ -135,16 +135,9 @@ class Root:
             'Categories',
             'Other Category',
             'Special Requests',
-            ]
+            ])
 
         dealer_groups = session.query(Group).filter(Group.is_dealer == True).all()  # noqa: E712
-
-        for group in dealer_groups:
-            wares_urls = extract_urls(group.wares) or []
-            if len(wares_urls) > max_rows:
-                max_rows = len(wares_urls)
-        header_row.extend([''] * max_rows)
-        out.writerow(header_row)
 
         def write_url_or_text(cell, is_url=False, last_cell=False):
             if is_url:
@@ -157,12 +150,8 @@ class Root:
             else:
                 out.writecell(cell, format={'text_wrap': True}, last_cell=last_cell)
 
-        max_rows = 0
-
         for group in dealer_groups:
             wares_urls = extract_urls(group.wares) or []
-            if len(wares_urls) > max_rows:
-                max_rows = len(wares_urls)
             full_name = group.leader.full_name if group.leader else ''
 
             row = [
