@@ -141,8 +141,12 @@ class Root:
 
         def write_url_or_text(cell, is_url=False, last_cell=False):
             if is_url:
+                cell = cell.lower()
                 url = cell if cell.startswith('http') else 'http://' + cell
-                out.writecell(cell, url=url, last_cell=last_cell)
+                try:
+                    out.writecell(cell, url=url, last_cell=last_cell)
+                except Exception:
+                    out.writecell(cell, format={'text_wrap': True}, last_cell=last_cell)
             else:
                 out.writecell(cell, format={'text_wrap': True}, last_cell=last_cell)
 
@@ -247,13 +251,13 @@ class Root:
 
     @xlsx_file
     def seller_tax_info(self, out, session):
-        approved_groups = session.query(Group).filter(Group.status.in_(c.DEALER_ACCEPTED_STATUSES)).all()
         rows = []
-        for group in approved_groups:
+        for group in session.query(Group):
             name = group.leader.full_name if group.leader else ''
             phone = group.phone or (group.leader.cellphone if group.leader else '')
             if group.is_dealer:
                 rows.append([
+                    group.status_label,
                     group.name,
                     name,
                     group.email,
@@ -264,6 +268,7 @@ class Root:
                     group.wares,
                 ])
         header_row = [
+            'Status'
             'Business Name',
             'Group Leader Name',
             'Group Leader Email',
