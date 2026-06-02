@@ -36,7 +36,7 @@ get cellphoneRequired() { return this.receives_emails },
 </div>
 <div class="row g-3 mb-3">
     <div class="col-sm">
-        {{ form_macros.input(developer_info.receives_emails, alpine_model="receives_emails") }}
+        {{ form_macros.input(developer_info.receives_emails, alpine_model="receives_emails", readonly=primary_contact_readonly) }}
     </div>
 {% else %}
 <input type="hidden" name="{{ developer_info.receives_emails.name }}" value="{{ developer_info.receives_emails.data }}" />

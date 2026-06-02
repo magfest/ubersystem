@@ -58,11 +58,13 @@
                 <td>
                     <div class="d-flex gap-1">
                     <a href="developer?id={{ dev.id }}" class="btn btn-sm btn-primary"><i class="fa fa-pencil"></i></a>
+                    {% if studio.developers|length > 1 %}
                     <form method="post" action="delete_developer">
                         {{ csrf_token() }}
                         <input type="hidden" name="id" value="{{ dev.id }}" />
                         <button type="submit" class="btn btn-sm btn-danger"><i class="fa fa-remove"></i></button>
                     </form>
+                    {% endif %}
                     </div>
                 </td>
                 </tr>
