@@ -1,8 +1,9 @@
 import re
 import traceback
 import logging
+import pytz
 from collections import OrderedDict
-from datetime import datetime, date
+from datetime import datetime, timedelta
 from dateutil import parser as dateparser
 
 from pytz import UTC
@@ -64,7 +65,6 @@ class BaseEmailMixin(object):
         else:
             return None
 
-
 class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
     _fixtures: ClassVar = OrderedDict()
     initialized: ClassVar = False
@@ -72,6 +72,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
     format: str = 'text'
     ident: str = Field(default='', unique=True)
     policy: int | None = Field(sa_column=Column(Choice(c.EMAIL_POLICY_OPTS), index=True, nullable=True), default=None)
+    policy_permanent: bool = False
     allow_at_the_con: bool = False
     allow_post_con: bool = False
     active_after: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
@@ -99,7 +100,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
 
     @classproperty
     def filters_for_allowed(cls):
-        allowed = [cls.policy != c.DISABLED, cls.policy != c.REMOVE]
+        allowed = [cls.policy != None, cls.policy != c.DISABLED]
         if c.AT_THE_CON:
             return allowed + [cls.allow_at_the_con == True]  # noqa: E712
         if c.POST_CON:
@@ -125,9 +126,12 @@ class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
         session.add(automated_email.reconcile(fixture))
 
     @staticmethod
-    def reconcile_fixtures(cleanup=False):
+    def reconcile_fixtures():
         from uber.models import Session
+        from uber.tasks import panels
         with Session() as session:
+            panels.setup_panel_emails(reconcile_fixtures=False)
+
             existing_automated_emails = session.query(AutomatedEmail)
 
             existing_idents = set([email.ident for email in existing_automated_emails])
@@ -139,7 +143,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
                 fixture = AutomatedEmail._fixtures[ident]
                 automated_email = AutomatedEmail(ident=ident)
                 session.add(automated_email.reconcile(fixture))
-                if not fixture.template_plugin_name or not fixture.template_url:
+                if not fixture.template_plugin_name or not fixture.template_path:
                     fixture.update_template_plugin_info()
 
             for automated_email in existing_automated_emails:
@@ -163,19 +167,10 @@ class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
                                 setattr(pending, attr, changed_vals[attr])
                                 changed = True
                         if changed:
-                            if pending.generated:
-                                pending.generated = datetime.now(UTC)
+                            if pending.send_after:
+                                pending.update_send_after()
                             session.add(pending)
                     session.add(automated_email.reconcile(fixture))
-
-            if not cleanup:
-                session.commit()
-                return
-
-            # TODO: This will repeatedly mark panel-related emails for removal. We may want to just get rid of cleanup
-            for automated_email in session.query(AutomatedEmail).filter(AutomatedEmail.ident.in_(orphaned_idents)).all():
-                automated_email.policy = c.REMOVE
-                session.add(automated_email)
             session.commit()
 
     @property
@@ -193,18 +188,12 @@ class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
         return ''
     
     @property
-    def inactive_reason(self):
-        if self.policy in [c.DISABLED, c.REMOVE]:
-            return "disabled"
-        
-        if c.AT_THE_CON and not self.allow_at_the_con:
-            return "not allowed during the event"
-        if c.POST_CON and not self.allow_post_con:
-            return "not allowed after the event"
-
+    def can_generate(self):
         now = utils.localized_now()
-        if self.active_after and self.active_after > now or self.active_before and self.active_before < now:
-            return f"only active {self.active_when_label}"
+        return self.policy != c.DISABLED and (
+            not c.AT_THE_CON or self.allow_at_the_con) and (
+            not c.POST_CON or self.allow_post_con) and (
+            not self.active_before or self.active_before > now)
 
     @cached_property
     def emails_by_fk_id(self):
@@ -222,7 +211,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
     def filter(self):
         if not self.fixture:
             if not self.ident.startswith('panelapps_'):
-                log.error(f"We want to send {self.ident} but it has no fixture!")
+                log.error(f"{self.ident} has no fixture.")
             return lambda x: False
         return self.fixture.filter
 
@@ -320,6 +309,7 @@ class Email(MagModel, BaseEmailMixin, table=True):
     render_data: dict[str, Any] = Field(sa_type=JSON, default_factory=dict)
     status: int = Field(sa_column=Column(Choice(c.EMAIL_STATUS_OPTS), index=True), default=c.UNAPPROVED)
     generated: str = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    send_after: str | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
     sent: str | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
     error: str = ''
 
@@ -327,6 +317,11 @@ class Email(MagModel, BaseEmailMixin, table=True):
     def fk(self):
         return self.session.get(self.model_class, self.fk_id) \
             if self.session and self.fk_id else None
+    
+    @presave_adjustment
+    def set_errored_status(self):
+        if self.error:
+            self.status = c.ERRORED
 
     @property
     def fk_email(self):
@@ -343,3 +338,12 @@ class Email(MagModel, BaseEmailMixin, table=True):
         return self.automated_email.is_html \
             if self.automated_email_id and self.automated_email \
             else super(Email, self).is_html
+    
+    @property
+    def new_send_after(self):
+        five_minute_delay = datetime.now(pytz.UTC) + timedelta(seconds=300)
+        if self.automated_email.active_after and self.automated_email.active_after > five_minute_delay:
+            return self.automated_email.active_after
+        
+        if not self.send_after or self.send_after < five_minute_delay:
+            return five_minute_delay

@@ -78,7 +78,7 @@ def update_prereg_cart(session):
     for id in pending_preregs:
         existing_model = session.get(Attendee, id)
         if not existing_model:
-            existing_model = session.get(Group, id).first()
+            existing_model = session.get(Group, id)
         if existing_model:
             receipt = session.refresh_receipt_and_model(existing_model, is_prereg=True)
             if receipt and (receipt.current_amount_owed or not receipt.payment_total):

@@ -101,7 +101,7 @@ c.MENU = MenuItem(name='Root', submenu=[
         MenuItem(name='Admin Accounts', href='../accounts/'),
         MenuItem(name='Access Groups', href='../accounts/access_groups'),
         MenuItem(name='API Access', href='../api/'),
-        MenuItem(name='Email Configuration', href='../email_admin/pending'),
+        MenuItem(name='Automated Emails', href='../email_admin/pending'),
         MenuItem(name='Email Queue', href='../email_admin/'),
         MenuItem(name='Feed of Database Changes', href='../registration/feed'),
         MenuItem(name='Watchlist', href='../security_admin/index'),

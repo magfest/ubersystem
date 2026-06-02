@@ -16,7 +16,7 @@ Choose an option below to give them access to their badge.{% if attendee.group a
             This will add the badge to that account with the option to notify them.
         </div>
     </div>
-    {% else %}
+    {% elif attendee.email %}
     <div class="d-flex gap-3 align-items-center">
         <div><button class="btn btn-primary text-nowrap" onClick="sendClaim()">Send Claim Email</button></div>
         <div>

@@ -17,7 +17,7 @@ from uber.model_checks import invalid_phone_number
 from uber.utils import get_age_conf_from_birthday
 
 
-__all__ = ['DepartmentInfo', 'JobInfo', 'JobTemplateInfo', 'BulkPrintingRequestInfo']
+__all__ = ['DepartmentInfo', 'JobInfo', 'JobTemplateInfo', 'BulkPrintingRequestInfo', 'EmailInfo']
 
 
 class DepartmentInfo(MagForm):
@@ -126,3 +126,14 @@ class BulkPrintingRequestInfo(MagForm):
         description="We will do our best to print all submitted documents, but this will help us prioritize the most important documents to print.")
     link_is_shared = BooleanField(
         Markup("<strong>I verify that I have checked the permissions of the link provided and made sure it is publicly accessible.</strong>"))
+
+
+class EmailInfo(MagForm):
+    admin_desc = True
+
+    policy = SelectField("Send Policy", coerce=int, default=0, choices=[(0, "Please select an option")] + c.EMAIL_POLICY_OPTS)
+    policy_permanent = BooleanField("This policy should be kept as-is for future events.")
+    allow_at_the_con = BooleanField("This email can be generated and sent during the event.")
+    allow_post_con = BooleanField("This email can be generated and sent after the event.")
+    active_after = StringField("Don't Send Email Before", widget=DateTimePicker())
+    active_before = StringField("Don't Send Email After", widget=DateTimePicker())

@@ -3,11 +3,14 @@
 {% block content %}
 <script type="text/javascript">
     var deptIdChanged = function () {
-        window.location = "{{ c.PAGE }}?department_id=" + $("#department_id").val() + "&{{ c.query_str_without_params(['department_id']) }}";
+        window.location = "{{ c.PAGE }}?department_id=" + $("#department_id").val() + "&{{ c.query_str_for_search('department_id') }}";
     };
     var emailPolicyChanged = function () {
-        window.location = "{{ c.PAGE }}?status=" + $("#status").val() + "&{{ c.query_str_without_params(['status']) }}";
+        window.location = "{{ c.PAGE }}?policy=" + $("#policy").val() + "&{{ c.query_str_for_search('policy') }}";
     };
+    var goToSender = function () {
+      location.href = "#" + $('#sender').val();
+    }
 </script>
 
 {% macro email_table(emails) %}
@@ -18,10 +21,11 @@
     <thead>
     <tr class="header">
       <th>Subject</th>
-      <th>Template</th>
+      <th>To</th>
       <th>Queued/Sent</th>
       <th>Email Policy</th>
       <th>Date Restrictions</th>
+      <th>Can Generate</th>
       <th></th>
     </tr>
     </thead>
@@ -32,27 +36,19 @@
             <span>{{ email.subject }}</span>
           </td>
           <td>
-            {% if email.fixture.template_url %}
-            <a href="{{ email.fixture.template_url }}" target="_blank">{{ email.fixture.template_plugin_name }}</a>
-            {% else %}{{ email.fixture.template_plugin_name }}{% endif %}
+            {{ email.fixture.model.__name__ if email.fixture.model else 'Other' }}
           </td>
-          <td>{{ queued_email_counts[email.id] or 0 }} / {{ sent_email_counts[email.id] or 0 }}{% if queued_email_counts[email.id] or sent_email_counts[email.id] %} <a href="index?ident={{ email.ident }}" target="_blank">View <i class="fa fa-external-link"></i></a>{% endif %}</td>
+          <td>{{ queued_email_counts[email.id] or 0 }} / {{ sent_email_counts[email.id] or 0 }}{% if queued_email_counts[email.id] or sent_email_counts[email.id] %} <a href="index?ident={{ email.ident }}&department_id={{ department_id }}" target="_blank">View <i class="fa fa-external-link"></i></a>{% endif %}</td>
           <td>{{ email.policy_label or 'Not Set' }}</td>
         <td>{{ email.active_when_label|linebreaksbr }}</td>
-        {# <td><a href="pending_examples?ident={{ email.ident|urlencode }}" class="btn btn-primary btn-sm"><i class="fa fa-pencil"></i>&nbsp;View/Edit</a></td> #}
+        <td>{{ (email.can_generate and (email.policy or not email.filter))|yesno|title }}</td>
         <td>
-          {% if email.policy != c.AUTOSEND %}
-              <form method="post" action="approve">
-              {{ csrf_token() }}
-              <input type="hidden" name="ident" value="{{ email.ident }}" />
-              <input type="submit" value="Autosend" class="btn btn-sm btn-success"/>
-              </form>
+          {% if email.fixture %}
+          <a href="automated_email?id={{ email.id }}&department_id={{ department_id }}" class="btn btn-primary btn-sm"><i class="fa fa-pencil"></i>&nbsp;View/Edit</a>
           {% else %}
-              <form method="post" action="unapprove">
-              {{ csrf_token() }}
-              <input type="hidden" name="ident" value="{{ email.ident }}" />
-              <input type="submit" value="Don't Autosend" class="btn btn-sm btn-warning"/>
-              </form>
+          <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="tooltip" data-bs-placement="top" title="This email does not have configuration and cannot be viewed at this time.">
+            <i class="fa fa-exclamation-circle"></i>
+          </button>
           {% endif %}
         </td>
       </tr>
@@ -61,7 +57,7 @@
 </table>
 {% endmacro %}
 
-<h2>Pending Automated Emails</h2>
+<h2>Automated Emails</h2>
 <div class="card">
   <div class="card-body">
     <div class="row g-3 mb-3">
@@ -85,23 +81,27 @@
       </div>
     </div>
 {% if not automated_emails %}
-  <p class="text-info">
-    There are currently no automated emails. The system is probably updating,
-    and should be finished in at most {{ "5" if c.DEV_BOX else "15" }} minutes.
+  <p>
+    There are currently no automated emails matching the filters above.
   </p>
 {% else %}
-  <p>
-    The emails below will be sent to any qualifying attendee or group as long as that email is active and approved.
-    Attendees or groups who qualify for an email before it is approved will receive the email when it is approved.
-  </p>
-  <p>
-    If there are date restrictions for an email, that email will not be sent outside of those dates.
-    Emails may be "unapproved" after approval to stop them being sent to newly qualifying attendees or groups.
-  </p>
+  {% if automated_emails.keys()|length > 3 %}
+  <div class="row">
+    <div class="col-sm-6">
+    <label for="sender" class="form-text">Jump to Sender</label>
+    <select id="sender" onChange="goToSender()" class="form-select">
+      <option value="">Select sender address</option>
+      {% for sender in automated_emails.keys() %}
+        <option name="sender" value="{{ sender|email_only }}">{{ sender|email_only }}</option>
+      {% endfor %}
+    </select>
+    </div>
+    </div>
+  {% endif %}
   <hr/>
   {% for sender, emails in automated_emails.items() %}
   <a id="{{ sender|email_only }}"></a>
-    <h3 class="mb-0 mt-4">{{ sender }} ({% if not depts_by_sender[sender] %}No Department{% else %}{% for dept in depts_by_sender[sender] %}{{ dept|form_link }}{% endfor %}{% endif %})</h3>
+    <h3 class="mb-0 mt-4">{{ sender }}{% if depts_by_sender[sender|email_only] %} ({% for dept in depts_by_sender[sender|email_only] %}{{ dept|form_link(true) }}{% endfor %}){% endif %}</h3>
     {{ email_table(emails) }}
     {% if not loop.last %}<hr/>{% endif %}
   {% endfor %}

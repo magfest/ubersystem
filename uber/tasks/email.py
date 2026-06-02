@@ -23,7 +23,7 @@ from uber.tasks import celery
 log = logging.getLogger(__name__)
 
 
-__all__ = ['notify_admins_of_pending_emails', 'send_automated_emails', 'send_email']
+__all__ = ['notify_admins_of_pending_emails', 'send_automated_emails', 'send_email', 'check_emails_for_fixture']
 
 def _is_dev_email(email):
     """
@@ -160,6 +160,33 @@ def notify_admins_of_pending_emails():
                                      replace_unsent=True)
 
         return utils.groupify(pending_emails, 'sender', 'ident')
+    
+
+@celery.task
+def check_emails_for_fixture(id):
+    email_check_status = c.REDIS_STORE.hgetall(c.REDIS_PREFIX + 'email_generation:' + id)
+    if email_check_status:
+        request_timestamp = c.REDIS_STORE.hget(c.REDIS_PREFIX + 'email_generation:' + id, 'request_timestamp')
+        request_time = datetime.fromtimestamp(float(request_timestamp))
+        if request_time + timedelta(hours=2) < datetime.now():
+            log.error(f"The check_emails_for_fixture task for {id} took more than 2 hours. There may be an issue with email generation.")
+            c.REDIS_STORE.delete(c.REDIS_PREFIX + 'email_generation:' + id)
+        else:
+            return
+
+    c.REDIS_STORE.hset(c.REDIS_PREFIX + 'email_generation:' + id, 'request_timestamp',
+                       datetime.now().timestamp())
+    with Session() as session:
+        fixture_obj = session.get(AutomatedEmail, id)
+        if not fixture_obj.fixture:
+            c.REDIS_STORE.hset(c.REDIS_PREFIX + 'email_generation:' + id, 'error',
+                               "This email has no configuration. If this issue persists, contact your developer.")
+        if not fixture_obj.can_generate:
+            c.REDIS_STORE.hset(c.REDIS_PREFIX + 'email_generation:' + id, 'error',
+                               "This email is not eligible for generation. Please check the send policy and date restrictions.")
+        email_count = EmailService.check_emails_for_fixture(session, fixture_obj)
+        if email_count or email_count == 0:
+            c.REDIS_STORE.hset(c.REDIS_PREFIX + 'email_generation:' + id, 'emails_generated', email_count)
 
 
 @celery.schedule(timedelta(minutes=5))
@@ -191,6 +218,7 @@ def send_automated_emails():
                             quantity_sent += EmailService.process_emails_by_class(session, model_class)
                         else:
                             log.debug(f"Skipping {model_name} as it is being worked by another thread.")
+                session.commit()
             log.info(f"Sent {quantity_sent} emails in {time() - start_time} seconds.")
     except Exception:
         traceback.print_exc()

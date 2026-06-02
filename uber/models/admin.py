@@ -38,6 +38,7 @@ class AdminAccount(MagModel, table=True):
 
     hashed: str = Field(sa_type=String, private=True)
     sso_id: str = ''
+    last_signed_in: str | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
 
     access_groups: list['AccessGroup'] = Relationship(
         back_populates='admin_accounts',

@@ -991,8 +991,13 @@ class Config(_Overridable):
         from urllib.parse import parse_qsl, urlencode
         query = parse_qsl(cherrypy.request.query_string, keep_blank_values=True)
 
-        query = [(key, val) for (key, val) in query if key not in (['message'] + remove_keys)]
+        query = [(key, val) for (key, val) in query if key not in (remove_keys)]
         return urlencode(query)
+    
+    def query_str_for_search(self, search_term=''):
+        # For use in server-side search pages
+        # Preserves most existing search terms while removing the search term that's being changed
+        return self.query_str_without_params(['message', 'page', search_term])
 
     @property
     def QUERY_STRING(self):
