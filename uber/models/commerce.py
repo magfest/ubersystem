@@ -121,10 +121,12 @@ class ModelReceipt(MagModel, table=True):
                 if item.amount < 0:
                     latest_txn = self.sorted_txns[-1]
                 else:
-                    latest_txn = sorted([txn for txn in self.receipt_txns if txn.amount > 0],
-                                        key=lambda x: x.added, reverse=True)[0]
-                
-                item.receipt_txn = latest_txn
+                    pos_txns = sorted([txn for txn in self.receipt_txns if txn.amount > 0],
+                                      key=lambda x: x.added, reverse=True)
+                    if pos_txns:
+                        latest_txn = pos_txns[0]
+                        item.receipt_txn = latest_txn
+
                 item.closed = datetime.now()
             session.add(item)
         session.commit()

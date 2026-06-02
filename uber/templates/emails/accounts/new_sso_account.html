@@ -47,7 +47,10 @@ badge
         {% if c.OIDC_ACCOUNT_FAQ %}You can find more information about <a href="{{ c.OIDC_ACCOUNT_FAQ }}" target="_blank">{{ c.OIDC_ACCOUNT_NAME }} accounts here</a>.{% endif %}
     </p>
 
-    <p><a href="{{ c.URL_BASE }}/preregistration/claim_account?&sso_claim_token={{ token }}" target="_blank">{{ c.URL_BASE }}/preregistration/claim_account?&sso_claim_token={{ token }}</a></p>
+    <p>
+        <a href="{{ c.URL_BASE }}/preregistration/claim_account?&sso_claim_token={{ token }}" target="_blank">{{ c.URL_BASE }}/preregistration/claim_account?&sso_claim_token={{ token }}</a>
+        <br/>This claim link expires in {{ c.PASSWORD_RESET_HOURS }} hours.
+    </p>
 
 </body>
 </html>

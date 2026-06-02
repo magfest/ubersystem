@@ -797,7 +797,7 @@ class Root:
             session.add(ReceiptItem(
                 receipt_id=txn.receipt.id,
                 department=c.REG_RECEIPT_ITEM,
-                category=c.REFUND,
+                category=c.CANCEL_ITEM,
                 desc=f"Refunding {model.full_name}'s Promo Code",
                 amount=-group_refund_amount,
                 who=AdminAccount.admin_name() or 'non-admin',

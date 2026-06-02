@@ -341,9 +341,39 @@ def requires_dept_admin(func=None, inherent_role=None):
 def requires_shifts_admin(func=None, inherent_role=None):
     return requires_admin(func, inherent_role, override_access='full_shifts_admin')
 
+def requires_email_admin(inherent_role=None):
+    from uber.email import EmailService
+    from uber.models import AutomatedEmail
+    
+    def email_admin_decorator(func):
+        @wraps(func)
+        def protected(*args, **kwargs):
+            if not kwargs.get('department_id', kwargs.get('department')):
+                message = ''
+                with uber.models.Session() as session:
+                    id = kwargs.get('id')
+                    if not id:
+                        email = session.query(AutomatedEmail).filter(AutomatedEmail.ident == kwargs.get('ident')).first()
+                    else:
+                        email = session.get(AutomatedEmail, id)
+                    if not email:
+                        return func(*args, **kwargs)
+                    
+                    depts_tuples = EmailService.depts_from_email(session, email.sender)
+                    if not depts_tuples and not c.HAS_FULL_EMAIL_ADMIN_ACCESS:
+                        ajax_or_redirect(func, '../accounts/homepage?message=', message, False)
 
-def requires_email_admin(func=None, inherent_role=None):
-    return requires_admin(func, inherent_role, override_access='full_email_admin')
+                    for id, _ in depts_tuples:
+                        message = ''
+                        message = check_can_edit_dept(session, id, inherent_role, 'full_email_admin')
+                        if not message:
+                            return func(*args, **kwargs)
+                    if message:
+                        ajax_or_redirect(func, '../accounts/homepage?message=', message, False)
+            return func(*args, **kwargs)
+        return protected
+    return email_admin_decorator
+    
 
 
 def csrf_protected(func):

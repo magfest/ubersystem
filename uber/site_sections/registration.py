@@ -350,6 +350,8 @@ class Root:
         attendee = session.attendee(id)
         if attendee.managers:
             return {'success': False, 'message': "This attendee already has an account."}
+        if not attendee.email:
+            return {'success': False, 'message': "This attendee does not have an email address to create an account from."}
         matching_account = session.query(AttendeeAccount).filter(
             AttendeeAccount.normalized_email == normalize_email_legacy(attendee.email)).first()
         if matching_account:

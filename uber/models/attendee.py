@@ -2,6 +2,7 @@ import json
 import math
 import re
 from datetime import datetime, timedelta, date
+from markupsafe import Markup
 from uuid import uuid4
 import logging
 
@@ -1905,7 +1906,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         if self.accoutrements:
             notes.append(f"Please check this attendee in {self.accoutrements}.")
 
-        return "<br/><br/>".join(notes)
+        return Markup("<br/><br/>".join(notes))
     
     @property
     def active_escalation_tickets(self):
@@ -2594,6 +2595,7 @@ class AttendeeAccount(MagModel, table=True):
     mits_teams: list['MITSTeam'] = Relationship(back_populates="attendee_account")
     imported: bool = False
     unused_years: int = 0
+    last_signed_in: str | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
 
     email_model_name: ClassVar = 'account'
 

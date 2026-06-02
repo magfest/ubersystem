@@ -18,7 +18,7 @@
             {% for ident, email in emails.items() %}
                 <li>
                     <b>{{ email[0].subject }}</b> ({{ email[0].unapproved_count }} pending): 
-                    <a href="{{ c.URL_BASE }}/email_admin/pending_examples?ident={{ ident }}">View Examples and Approve</a>
+                    <a href="{{ c.URL_BASE }}/email_admin/index?ident={{ ident }}">View Examples and Approve</a>
                 </li>
             {% endfor %}
           </ul>

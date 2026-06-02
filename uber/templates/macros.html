@@ -695,10 +695,10 @@
   {%- set body_html = email.body_as_html if email.format == 'text' else email.body_with_body_tag_stripped -%}
   {% if email.to is defined %}
     {# Rendered email to a specific model instance #}
-    <div class="well email-preview">{{ body_html|safe }}</div>
+    <div class="card card-body email-preview">{{ body_html|safe }}</div>
   {% else %}
     {# Unrendered email template #}
-    <div class="well email-preview" style='font-family: Menlo, Monaco, Consolas, "Courier New", monospace; font-size: 13px'>
+    <div class="card card-body email-preview" style='font-family: Menlo, Monaco, Consolas, "Courier New", monospace; font-size: 13px'>
       {{ body_html|safe }}
     </div>
   {% endif %}

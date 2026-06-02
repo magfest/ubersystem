@@ -32,7 +32,6 @@ class AutomatedEmailFixture:
             subqueryload(Attendee.shifts).subqueryload(Shift.job),
             subqueryload(Attendee.assigned_depts),
             subqueryload(Attendee.dept_membership_requests),
-            subqueryload(Attendee.checklist_admin_depts).subqueryload(Department.dept_checklist_items),
             subqueryload(Attendee.dept_memberships),
             subqueryload(Attendee.dept_memberships_with_role),
             subqueryload(Attendee.depts_where_working),
@@ -85,8 +84,22 @@ class AutomatedEmailFixture:
         self.subject = subject
         self.template = template
         self.format = 'text' if template.endswith('.txt') else 'html'
-        self.filter = (lambda x: (x.gets_emails and filter(x))) if filter else None
-        self.send_filter = (lambda x: (x.gets_emails and send_filter(x))) if send_filter else self.filter
+        self.filter_desc = ''
+        self.send_filter_desc = ''
+
+        for filter_tuple in [('filter', filter), ('send_filter', send_filter)]:
+            name, val = filter_tuple
+            if val:
+                if callable(val):
+                    setattr(self, name, lambda x: (x.gets_emails and val(x)))
+                else:
+                    setattr(self, name + '_desc', val)
+                    filter_func = eval(val)
+                    setattr(self, name, lambda x: (x.gets_emails and filter_func(x)))
+            else:
+                setattr(self, name, None)
+
+        self.send_filter = self.send_filter or self.filter
         self.ident = ident
         self.shared_ident = shared_ident
         self.sender = sender or c.CONTACT_EMAIL
@@ -116,6 +129,7 @@ class AutomatedEmailFixture:
             if template_path.parts[2] == 'plugins':
                 path_offset = 2
             self.template_plugin_name = template_path.parts[2 + path_offset]
+            self.template_path = f"{pathlib.Path(*template_path.parts[(5 + path_offset):]).as_posix()}"
             self.template_url = (f"https://github.com/magfest/{self.template_plugin_name}/tree/main/"
                                  f"{self.template_plugin_name}/{pathlib.Path(*template_path.parts[(3 + path_offset):]).as_posix()}")
         except jinja2.exceptions.TemplateNotFound:
@@ -169,7 +183,7 @@ AutomatedEmailFixture(
     'accounts/new_account.txt', None,
     'new_admin_account',
     sender=c.ADMIN_EMAIL,
-    send_filter=lambda a: a.admin_account,
+    send_filter='lambda a: a.admin_account',
 )
 
 
@@ -179,7 +193,7 @@ AutomatedEmailFixture(
     'accounts/password_reset.txt', None,
     'admin_password_reset',
     sender=c.ADMIN_EMAIL,
-    send_filter=lambda a: a.admin_account,
+    send_filter='lambda a: a.admin_account',
 )
 
 
@@ -189,7 +203,7 @@ AutomatedEmailFixture(
     'accounts/password_reset.html', None,
     'attendee_password_reset',
     sender=c.ADMIN_EMAIL,
-    send_filter=lambda a: a.admin_account,
+    send_filter='lambda a: a.admin_account',
 )
 
 
@@ -258,7 +272,7 @@ AutomatedEmailFixture(
     'reg_workflow/pending_code.txt', None,
     'badge_transfer_code',
     sender=c.REGDESK_EMAIL,
-    send_filter=lambda a: a.badge_status == c.PENDING_STATUS and a.paid == c.PENDING
+    send_filter='lambda a: a.badge_status == c.PENDING_STATUS and a.paid == c.PENDING'
 )
 
 
@@ -372,8 +386,8 @@ AutomatedEmailFixture(
     Attendee,
     f'{c.EVENT_NAME} registration confirmed',
     'reg_workflow/attendee_confirmation.html',
-    lambda a: ((a.paid == c.HAS_PAID and not a.promo_code_groups) or
-              (a.paid == c.NEED_NOT_PAY and (a.confirmed or a.promo_code_id or a.age_discount))),
+    "lambda a: (a.paid == c.HAS_PAID and not a.promo_code_groups) or \
+        (a.paid == c.NEED_NOT_PAY and (a.confirmed or a.promo_code_id or a.age_discount))",
     'attendee_badge_confirmed',
     allow_at_the_con=True)
 
@@ -382,7 +396,7 @@ if c.ATTENDEE_ACCOUNTS_ENABLED:
         AttendeeAccount,
         f'{c.EVENT_NAME} account creation confirmed',
         'reg_workflow/account_confirmation.html',
-        lambda a: not a.imported and a.hashed and not a.password_reset and not a.is_sso_account,
+        "lambda a: not a.imported and a.hashed and not a.password_reset and not a.is_sso_account",
         'attendee_account_confirmed',
         allow_at_the_con=True)
 
@@ -390,7 +404,7 @@ AutomatedEmailFixture(
     PromoCodeGroup,
     f'{c.EVENT_NAME} group registration successful',
     'reg_workflow/promo_code_group_confirmation.html',
-    lambda g: g.buyer and g.buyer.amount_paid > 0,
+    "lambda g: g.buyer and g.buyer.amount_paid > 0",
     'pc_group_payment_received',
     allow_at_the_con=True)
 
@@ -398,22 +412,22 @@ AutomatedEmailFixture(
     Group,
     f'{c.EVENT_NAME} group payment received',
     'reg_workflow/group_confirmation.html',
-    lambda g: g.amount_paid == g.cost * 100 and g.cost != 0 and g.leader_id,
+    "lambda g: g.amount_paid == g.cost * 100 and g.cost != 0 and g.leader_id",
     'group_payment_received')
 
 AutomatedEmailFixture(
     Group,
     f'{c.EVENT_NAME} group registration successful',
     'reg_workflow/group_confirmation.html',
-    lambda g: g.cost == 0 and g.leader_id and not g.leader.placeholder,
+    "lambda g: g.cost == 0 and g.leader_id and not g.leader.placeholder",
     'group_registration_confirmation')
 
 AutomatedEmailFixture(
     Attendee,
     f'{c.EVENT_NAME} group registration confirmed',
     'reg_workflow/attendee_confirmation.html',
-    lambda a: a.group and (a.id != a.group.leader_id or a.group.cost == 0) and not a.placeholder \
-              and a.paid == c.PAID_BY_GROUP,
+    "lambda a: a.group and (a.id != a.group.leader_id or a.group.cost == 0) and not a.placeholder \
+        and a.paid == c.PAID_BY_GROUP",
     'attendee_group_reg_confirmation',
     allow_at_the_con=True)
 
@@ -427,7 +441,7 @@ AutomatedEmailFixture(
     Attendee,
     f'{c.EVENT_NAME} merch pre-order received',
     'reg_workflow/group_donation.txt',
-    lambda a: a.paid == c.PAID_BY_GROUP and a.amount_extra and a.amount_paid >= (a.amount_extra * 100),
+    "lambda a: a.paid == c.PAID_BY_GROUP and a.amount_extra and a.amount_paid >= (a.amount_extra * 100)",
     'group_extra_payment_received',
     sender=c.MERCH_EMAIL)
 
@@ -440,11 +454,7 @@ AutomatedEmailFixture(
     Group,
     f'Reminder to pre-assign {c.EVENT_NAME} group badges',
     'reg_workflow/group_preassign_reminder.txt',
-    lambda g: (
-        c.BEFORE_GROUP_PREREG_TAKEDOWN
-        and days_after(30, g.registered)()
-        and g.unregistered_badges
-        and not g.is_dealer),
+    "lambda g: c.BEFORE_GROUP_PREREG_TAKEDOWN and days_after(30, g.registered)() and g.unregistered_badges and not g.is_dealer",
     'group_preassign_badges_reminder',
     when=[before(c.GROUP_PREREG_TAKEDOWN)],
     sender=c.REGDESK_EMAIL)
@@ -453,10 +463,7 @@ AutomatedEmailFixture(
     Group,
     f'Last chance to pre-assign {c.EVENT_NAME} group badges',
     'reg_workflow/group_preassign_reminder.txt',
-    lambda g: (
-      c.AFTER_GROUP_PREREG_TAKEDOWN
-      and g.unregistered_badges
-      and (not g.is_dealer or g.status in c.DEALER_ACCEPTED_STATUSES)),
+    "lambda g: c.AFTER_GROUP_PREREG_TAKEDOWN and g.unregistered_badges and (not g.is_dealer or g.status in c.DEALER_ACCEPTED_STATUSES)",
     'group_preassign_badges_reminder_last_chance',
     when=[after(c.GROUP_PREREG_TAKEDOWN)],
     allow_at_the_con=True,
@@ -521,8 +528,7 @@ if c.ART_SHOW_ENABLED:
         ArtShowBidder,
         f'Bidding Winner Notification for the {c.EVENT_NAME} Art Show',
         'art_show/pieces_won.html',
-        lambda a: a.email_won_bids and len(
-            [piece for piece in a.art_show_pieces if piece.winning_bid and piece.status == c.SOLD]) > 0,
+        "lambda a: a.email_won_bids and len([piece for piece in a.art_show_pieces if piece.winning_bid and piece.status == c.SOLD]) > 0",
         'art_show_pieces_won',
         allow_at_the_con=True,
         sender=c.ART_SHOW_EMAIL)
@@ -530,31 +536,31 @@ if c.ART_SHOW_ENABLED:
     ArtShowAppEmailFixture(
         f'{c.EVENT_NAME} Art Show Application Confirmation',
         'art_show/application.html',
-        lambda a: a.status == c.UNAPPROVED,
+        "lambda a: a.status == c.UNAPPROVED",
         'art_show_confirm')
 
     ArtShowAppEmailFixture(
         f'Your {c.EVENT_NAME} Art Show application has been approved',
         'art_show/approved.html',
-        lambda a: a.status == c.APPROVED,
+        "lambda a: a.status == c.APPROVED",
         'art_show_approved')
 
     ArtShowAppEmailFixture(
         f'Your {c.EVENT_NAME} Art Show application has been waitlisted',
         'art_show/waitlisted.txt',
-        lambda a: a.status == c.WAITLISTED,
+        "lambda a: a.status == c.WAITLISTED",
         'art_show_waitlisted')
 
     ArtShowAppEmailFixture(
         f'Your {c.EVENT_NAME} Art Show application has been declined',
         'art_show/declined.txt',
-        lambda a: a.status == c.DECLINED,
+        "lambda a: a.status == c.DECLINED",
         'art_show_declined')
 
     ArtShowAppEmailFixture(
         f'Your {c.EVENT_NAME} Art Show payment has been received',
         'art_show/payment_confirmation.txt',
-        lambda a: a.status == c.APPROVED and a.amount_paid,
+        "lambda a: a.status == c.APPROVED and a.amount_paid",
         'art_show_payment_received'
     )
 
@@ -562,21 +568,21 @@ if c.ART_SHOW_ENABLED:
         ArtShowAppEmailFixture(
             f'Reminder to pay for your {c.EVENT_NAME} Art Show application',
             'art_show/payment_reminder.txt',
-            lambda a: a.status == c.APPROVED and a.amount_unpaid,
+            "lambda a: a.status == c.APPROVED and a.amount_unpaid",
             'art_show_payment_reminder',
             when=[days_between((14, c.ART_SHOW_PAYMENT_DUE), (1, c.EPOCH))])
 
     ArtShowAppEmailFixture(
         f'{c.EVENT_NAME} Art Show piece entry needed',
         'art_show/pieces_reminder.txt',
-        lambda a: a.status == c.APPROVED and not a.amount_unpaid and not a.art_show_pieces,
+        "lambda a: a.status == c.APPROVED and not a.amount_unpaid and not a.art_show_pieces",
         'art_show_pieces_reminder',
         when=[days_before(15, c.EPOCH)])
 
     ArtShowAppEmailFixture(
         f'Reminder to assign an agent for your {c.EVENT_NAME} Art Show application',
         'art_show/agent_reminder.html',
-        lambda a: a.status == c.APPROVED and not a.amount_unpaid and a.delivery_method == c.AGENT and not a.current_agents,
+        "lambda a: a.status == c.APPROVED and not a.amount_unpaid and a.delivery_method == c.AGENT and not a.current_agents",
         'art_show_agent_reminder',
         when=[after(c.EVENT_TIMEZONE.localize(datetime(int(c.EVENT_YEAR), 11, 1)))])
 
@@ -584,7 +590,7 @@ if c.ART_SHOW_ENABLED:
         ArtShowAppEmailFixture(
             f'{c.EVENT_NAME} Art Show MAIL IN Instructions',
             'art_show/mailing_in.html',
-            lambda a: a.status == c.APPROVED and not a.amount_unpaid and a.delivery_method == c.BY_MAIL,
+            "lambda a: a.status == c.APPROVED and not a.amount_unpaid and a.delivery_method == c.BY_MAIL",
             'art_show_mail_in',
             when=[days_before(7, c.ART_SHOW_WAITLIST if c.ART_SHOW_WAITLIST else c.ART_SHOW_DEADLINE)])
 
@@ -620,38 +626,38 @@ if c.MARKETPLACE_REG_START:
     ArtistMarketplaceEmailFixture(
         f'{c.EVENT_NAME} Artist Marketplace Application Confirmation',
         'marketplace/application.html',
-        lambda a: a.status == c.PENDING,
+        "lambda a: a.status == c.PENDING",
         'marketplace_confirm')
 
     ArtistMarketplaceEmailFixture(
         f'Your {c.EVENT_NAME} Artist Marketplace application has been accepted',
         'marketplace/approved.html',
-        lambda a: a.status == c.ACCEPTED,
+        "lambda a: a.status == c.ACCEPTED",
         'marketplace_approved')
 
     ArtistMarketplaceEmailFixture(
         f'Your {c.EVENT_NAME} Artist Marketplace application has been waitlisted',
         'marketplace/waitlisted.txt',
-        lambda a: a.status == c.WAITLISTED,
+        "lambda a: a.status == c.WAITLISTED",
         'marketplace_waitlisted')
 
     ArtistMarketplaceEmailFixture(
         f'Your {c.EVENT_NAME} Artist Marketplace application has been declined',
         'marketplace/declined.txt',
-        lambda a: a.status == c.DECLINED,
+        "lambda a: a.status == c.DECLINED",
         'marketplace_declined')
 
     ArtistMarketplaceEmailFixture(
         f'Reminder to pay for your {c.EVENT_NAME} Artist Marketplace application',
         'marketplace/payment_reminder.txt',
-        lambda a: a.status == c.ACCEPTED and a.amount_unpaid,
+        "lambda a: a.status == c.ACCEPTED and a.amount_unpaid",
         'marketplace_payment_reminder',
         when=[days_before(14, c.MARKETPLACE_PAYMENT_DUE)])
 
     ArtistMarketplaceEmailFixture(
         f'Your {c.EVENT_NAME} Artist Marketplace payment has been received',
         'marketplace/payment_confirmation.txt',
-        lambda a: a.status == c.ACCEPTED and a.amount_paid,
+        "lambda a: a.status == c.ACCEPTED and a.amount_paid",
         'marketplace_payment_received'
     )
 
@@ -662,12 +668,19 @@ if c.MARKETPLACE_REG_START:
 
 class MarketplaceEmailFixture(AutomatedEmailFixture):
     def __init__(self, subject, template, filter, ident, **kwargs):
+        dealer_filter = None
+        if filter:
+            if callable(filter):
+                dealer_filter = lambda g: g.is_dealer and filter(g)
+            else:
+                dealer_filter = f"lambda g: g.is_dealer and eval({filter.encode()})(g)"
+
         AutomatedEmailFixture.__init__(
             self,
             Group,
             subject,
             template,
-            (lambda g: g.is_dealer and filter(g)) if filter else None,
+            dealer_filter,
             ident,
             sender=c.MARKETPLACE_EMAIL,
             **kwargs)
@@ -712,141 +725,149 @@ if c.DEALER_REG_START:
     MarketplaceEmailFixture(
         f'Your {c.EVENT_NAME} {c.DEALER_APP_TERM.capitalize()} has been waitlisted',
         'dealers/waitlisted.txt',
-        lambda g: g.status == c.WAITLISTED,
+        "lambda g: g.status == c.WAITLISTED",
         'dealer_reg_waitlisted')
 
     MarketplaceEmailFixture(
         f'Your {c.EVENT_NAME} {c.DEALER_APP_TERM.capitalize()} has been declined',
         'dealers/declined.txt',
-        lambda g: g.status == c.DECLINED,
+        "lambda g: g.status == c.DECLINED",
         'dealer_reg_declined')
 
     MarketplaceEmailFixture(
         f'Your {c.EVENT_NAME} {c.DEALER_APP_TERM.capitalize()} has been approved',
         'dealers/approved.html',
-        lambda g: g.status == c.APPROVED,
+        "lambda g: g.status == c.APPROVED",
         'dealer_reg_approved')
     
     if c.ALLOW_SHARED_TABLES:
         MarketplaceEmailFixture(
             f'Your {c.DEALER_APP_TERM} is now shared',
             'dealers/table_shared.html',
-            lambda g: g.status == c.SHARED,
+            "lambda g: g.status == c.SHARED",
             'dealer_reg_shared')
 
     if c.SIGNNOW_DEALER_TEMPLATE_ID:
         MarketplaceEmailFixture(
             f'Please complete your {c.EVENT_NAME} {c.DEALER_APP_TERM.capitalize()}!',
             'dealers/signnow_request.html',
-            lambda g: g.status in [c.APPROVED,
-                                   c.SHARED] and c.SIGNNOW_DEALER_TEMPLATE_ID and not g.signnow_document_signed,
+            "lambda g: g.status in [c.APPROVED, c.SHARED] and c.SIGNNOW_DEALER_TEMPLATE_ID and not g.signnow_document_signed",
             'dealer_signnow_email')
 
     MarketplaceEmailFixture(
         f'Reminder to pay for your {c.EVENT_NAME} {c.DEALER_REG_TERM.capitalize()}',
         'dealers/payment_reminder.txt',
-        lambda g: g.status in c.DEALER_ACCEPTED_STATUSES and days_after(30, g.approved)() and g.is_unpaid,
+        "lambda g: g.status in c.DEALER_ACCEPTED_STATUSES and days_after(30, g.approved)() and g.is_unpaid",
         'dealer_reg_payment_reminder',
         when=[days_before(60, c.DEALER_PAYMENT_DUE, 7)])
 
     MarketplaceEmailFixture(
         f'Your {c.EVENT_NAME} ({c.EVENT_DATE}) {c.DEALER_REG_TERM.capitalize()} is due in one week',
         'dealers/payment_reminder.txt',
-        lambda g: g.status in c.DEALER_ACCEPTED_STATUSES and g.is_unpaid,
+        "lambda g: g.status in c.DEALER_ACCEPTED_STATUSES and g.is_unpaid",
         'dealer_reg_payment_reminder_due_soon',
         when=[days_before(7, c.DEALER_PAYMENT_DUE, 2)])
 
     MarketplaceEmailFixture(
         f'Last chance to pay for your {c.EVENT_NAME} ({c.EVENT_DATE}) {c.DEALER_REG_TERM.capitalize()}',
         'dealers/payment_reminder.txt',
-        lambda g: g.status in c.DEALER_ACCEPTED_STATUSES and g.is_unpaid,
+        "lambda g: g.status in c.DEALER_ACCEPTED_STATUSES and g.is_unpaid",
         'dealer_reg_payment_reminder_last_chance',
         when=[days_before(2, c.DEALER_PAYMENT_DUE)])
 
 
 class StopsEmailFixture(AutomatedEmailFixture):
     def __init__(self, subject, template, filter, ident, **kwargs):
+        staff_filter = None
+        if filter:
+            if callable(filter):
+                staff_filter = lambda a: a.staffing and filter(a)
+            else:
+                staff_filter = f"lambda a: a.staffing and eval({filter.encode()})(a)"
+
         AutomatedEmailFixture.__init__(
             self,
             Attendee,
             subject,
             template,
-            (lambda a: a.staffing and filter(a)) if filter else None,
+            staff_filter,
             ident,
             sender=c.STAFF_EMAIL,
             **kwargs)
 
-
-earliest_opening_date = min(c.PREREG_OPEN, c.DEALER_REG_START) if c.DEALER_REG_START else c.PREREG_OPEN
-
-def staff_import_placeholder(a): return a.placeholder and (a.registered_local <= c.PREREG_OPEN
-                                                           and (a.admin_account or
-                                                                "staff import" in a.admin_notes.lower()))
-
-AutomatedEmailFixture(
-    Attendee,
-    f'Claim your badge for {c.EVENT_NAME_AND_YEAR}!',
-    'placeholders/regular.txt',
-    lambda a: a.placeholder and a.registered_local > earliest_opening_date and a.paid == c.NEED_NOT_PAY,
-    'generic_badge_confirmation_comped',
-    sender=c.CONTACT_EMAIL,
-    allow_at_the_con=True)
-
-AutomatedEmailFixture(
-    Attendee,
-    f'Please complete your {c.EVENT_NAME_AND_YEAR} registration',
-    'placeholders/regular.txt',
-    lambda a: (a.placeholder and a.registered_local > earliest_opening_date and
-               a.paid != c.NEED_NOT_PAY and "converted badge" not in a.admin_notes.lower()),
-    'generic_badge_confirmation',
-    sender=c.CONTACT_EMAIL,
-    allow_at_the_con=True)
-
-AutomatedEmailFixture(
-    Attendee,
-    f'Last chance to claim your badge for {c.EVENT_NAME}',
-    'dealers/claim_badge.html',
-    lambda a: a.placeholder and 'converted badge' in a.admin_notes.lower(),
-    'converted_dealer_last_chance',
-    sender=c.MARKETPLACE_EMAIL,
-    when=[days_before(7, c.PREREG_HOTEL_ELIGIBILITY_CUTOFF)]
-)
 
 AutomatedEmailFixture(
     Attendee,
     f'You have an incomplete {c.EVENT_NAME} registration!',
     'reg_workflow/pending_badges.html', None,
     'incomplete_reg_notification',
-    send_filter=lambda a: a.badge_status == c.PENDING_STATUS and a.paid == c.PENDING,
+    send_filter="lambda a: a.badge_status == c.PENDING_STATUS and a.paid == c.PENDING",
     sender=c.REGDESK_EMAIL,
 )
 
-StopsEmailFixture(
-    f'Claim your Staff badge for {c.EVENT_NAME} {c.EVENT_YEAR}!',
-    'placeholders/imported_volunteer.txt',
-    staff_import_placeholder,
-    'volunteer_again_inquiry')
-
 AutomatedEmailFixture(
     Attendee,
-    f'{c.EVENT_NAME} Badge Confirmation Reminder',
-    'placeholders/reminder.txt',
-    lambda a: days_after(7, a.registered)() and a.placeholder and not a.is_dealer,
-    'badge_confirmation_reminder')
+    f'Last chance to claim your badge for {c.EVENT_NAME}',
+    'dealers/claim_badge.html',
+    "lambda a: a.placeholder and 'converted badge' in a.admin_notes.lower()",
+    'converted_dealer_last_chance',
+    sender=c.MARKETPLACE_EMAIL,
+    when=[days_before(7, c.PREREG_HOTEL_ELIGIBILITY_CUTOFF)]
+)
 
-AutomatedEmailFixture(
-    Attendee,
-    f'Last Chance to Accept Your {c.EVENT_NAME} ({c.EVENT_DATE}) Badge',
-    'placeholders/reminder.txt',
-    lambda a: a.placeholder and not a.is_dealer,
-    'badge_confirmation_reminder_last_chance',
-    when=[days_before(7, c.PLACEHOLDER_DEADLINE if c.PLACEHOLDER_DEADLINE else c.UBER_TAKEDOWN)])
+
+if not c.LOCAL_ACCOUNTS_DISABLED:
+    earliest_opening_date = min(c.PREREG_OPEN, c.DEALER_REG_START) if c.DEALER_REG_START else c.PREREG_OPEN
+
+    def staff_import_placeholder(a): return a.placeholder and (a.registered_local <= c.PREREG_OPEN
+                                                               and (a.admin_account or
+                                                                    "staff import" in a.admin_notes.lower()))
+
+    AutomatedEmailFixture(
+        Attendee,
+        f'Claim your badge for {c.EVENT_NAME_AND_YEAR}!',
+        'placeholders/regular.txt',
+        f"lambda a: a.placeholder and a.registered_local > {earliest_opening_date} and a.paid == c.NEED_NOT_PAY",
+        'generic_badge_confirmation_comped',
+        sender=c.CONTACT_EMAIL,
+        allow_at_the_con=True)
+
+    AutomatedEmailFixture(
+        Attendee,
+        f'Please complete your {c.EVENT_NAME_AND_YEAR} registration',
+        'placeholders/regular.txt',
+        f"lambda a: a.placeholder and a.registered_local > {earliest_opening_date} and \
+            a.paid != c.NEED_NOT_PAY and 'converted badge' not in a.admin_notes.lower()",
+        'generic_badge_confirmation',
+        sender=c.CONTACT_EMAIL,
+        allow_at_the_con=True)
+
+    StopsEmailFixture(
+        f'Claim your Staff badge for {c.EVENT_NAME} {c.EVENT_YEAR}!',
+        'placeholders/imported_volunteer.txt',
+        staff_import_placeholder,
+        'volunteer_again_inquiry')
+
+    AutomatedEmailFixture(
+        Attendee,
+        f'{c.EVENT_NAME} Badge Confirmation Reminder',
+        'placeholders/reminder.txt',
+        "lambda a: days_after(7, a.registered)() and a.placeholder and not a.is_dealer",
+        'badge_confirmation_reminder')
+
+    AutomatedEmailFixture(
+        Attendee,
+        f'Last Chance to Accept Your {c.EVENT_NAME} ({c.EVENT_DATE}) Badge',
+        'placeholders/reminder.txt',
+        "lambda a: a.placeholder and not a.is_dealer",
+        'badge_confirmation_reminder_last_chance',
+        when=[days_before(7, c.PLACEHOLDER_DEADLINE if c.PLACEHOLDER_DEADLINE else c.UBER_TAKEDOWN)])
 
 if c.VOLUNTEER_CHECKLIST_OPEN:
     StopsEmailFixture(
         f'Please complete your {c.EVENT_NAME} Staff/Volunteer Checklist',
         'shifts/created.txt',
-        lambda a: a.staffing,
+        "lambda a: a.staffing",
         'volunteer_checklist_completion_request',
         when=[after(c.VOLUNTEER_CHECKLIST_OPEN)],
         allow_at_the_con=True)
@@ -854,12 +875,8 @@ if c.VOLUNTEER_CHECKLIST_OPEN:
     StopsEmailFixture(
         f'Still want to volunteer at {c.EVENT_NAME} ({c.EVENT_DATE})?',
         'shifts/volunteer_check.txt',
-        lambda a: (
-            c.VOLUNTEER_SIGNUPS_AVAILABLE
-            and a.badge_type != c.CONTRACTOR_BADGE
-            and c.VOLUNTEER_RIBBON in a.ribbon_ints
-            and a.takes_shifts
-            and a.weighted_hours == 0),
+        "lambda a: c.VOLUNTEER_SIGNUPS_AVAILABLE and a.badge_type != c.CONTRACTOR_BADGE and c.VOLUNTEER_RIBBON in a.ribbon_ints \
+            and a.takes_shifts and a.weighted_hours == 0",
         'volunteer_still_interested_inquiry',
         when=[days_before(28, c.FINAL_EMAIL_DEADLINE)])
 
@@ -867,7 +884,7 @@ if c.VOLUNTEER_AGREEMENT_ENABLED:
     StopsEmailFixture(
         f'Reminder: Please agree to terms of {c.EVENT_NAME} ({c.EVENT_DATE}) volunteer agreement',
         'staffing/volunteer_agreement.txt',
-        lambda a: c.VOLUNTEER_CHECKLIST_OPEN and c.VOLUNTEER_AGREEMENT_ENABLED and not a.agreed_to_volunteer_agreement,
+        "lambda a: c.VOLUNTEER_CHECKLIST_OPEN and c.VOLUNTEER_AGREEMENT_ENABLED and not a.agreed_to_volunteer_agreement",
         'volunteer_agreement',
         when=[days_before(45, c.FINAL_EMAIL_DEADLINE)])
 
@@ -875,38 +892,30 @@ if c.SHIFTS_CREATED:
     StopsEmailFixture(
         f'{c.EVENT_NAME} ({c.EVENT_DATE}) shifts are live!',
         'shifts/shifts_created.txt',
-        lambda a: (
-            c.AFTER_SHIFTS_CREATED
-            and a.badge_type != c.CONTRACTOR_BADGE
-            and a.takes_shifts
-            and a.registered_local <= c.SHIFTS_CREATED),
+        "lambda a: c.AFTER_SHIFTS_CREATED and a.badge_type != c.CONTRACTOR_BADGE and a.takes_shifts and a.registered_local <= c.SHIFTS_CREATED",
         'volunteer_shift_signup_notification',
         when=[before(c.PREREG_TAKEDOWN)])
 
     StopsEmailFixture(
         f'Reminder to sign up for {c.EVENT_NAME} ({c.EVENT_DATE}) shifts',
         'shifts/reminder.txt',
-        lambda a: (
-            c.AFTER_SHIFTS_CREATED
-            and a.badge_type != c.CONTRACTOR_BADGE
-            and days_after(14, max(a.registered_local, c.SHIFTS_CREATED))()
-            and a.takes_shifts
-            and not a.shift_minutes),
+        "lambda a: c.AFTER_SHIFTS_CREATED and a.badge_type != c.CONTRACTOR_BADGE and \
+            days_after(14, max(a.registered_local, c.SHIFTS_CREATED))() and a.takes_shifts and not a.shift_minutes",
         'volunteer_shift_signup_reminder',
         when=[before(c.PREREG_TAKEDOWN)])
 
     StopsEmailFixture(
         f'Last chance to sign up for {c.EVENT_NAME} ({c.EVENT_DATE}) shifts',
         'shifts/reminder.txt',
-        lambda a: (c.AFTER_SHIFTS_CREATED and a.badge_type != c.CONTRACTOR_BADGE
-                and (not c.PREREG_TAKEDOWN or c.BEFORE_PREREG_TAKEDOWN) and a.takes_shifts and not a.shift_minutes),
+        "lambda a: c.AFTER_SHIFTS_CREATED and a.badge_type != c.CONTRACTOR_BADGE and \
+            (not c.PREREG_TAKEDOWN or c.BEFORE_PREREG_TAKEDOWN) and a.takes_shifts and not a.shift_minutes",
         'volunteer_shift_signup_reminder_last_chance',
         when=[days_before(10, c.EPOCH)])
 
     StopsEmailFixture(
         f'Your {c.EVENT_NAME} ({c.EVENT_DATE}) shift schedule',
         'shifts/schedule.html',
-        lambda a: c.SHIFTS_CREATED and a.weighted_hours and a.badge_type != c.CONTRACTOR_BADGE,
+        "lambda a: c.SHIFTS_CREATED and a.weighted_hours and a.badge_type != c.CONTRACTOR_BADGE",
         'volunteer_shift_schedule',
         when=[days_before(1, c.FINAL_EMAIL_DEADLINE)],
         allow_at_the_con=True)
@@ -914,7 +923,7 @@ if c.SHIFTS_CREATED:
     StopsEmailFixture(
         f'Please review your worked shifts for {c.EVENT_NAME}!',
         'shifts/shifts_worked.html',
-        lambda a: (a.weighted_hours or a.nonshift_minutes) and a.badge_type != c.CONTRACTOR_BADGE,
+        "lambda a: (a.weighted_hours or a.nonshift_minutes) and a.badge_type != c.CONTRACTOR_BADGE",
         'volunteer_shifts_worked',
         when=[days_after(1, c.ESCHATON)],
         allow_post_con=True)
@@ -927,8 +936,7 @@ if c.PRINTED_BADGE_DEADLINE:
     StopsEmailFixture(
         f'Last chance to personalize your {c.EVENT_NAME} ({c.EVENT_DATE}) badge',
         'personalized_badges/volunteers.txt',
-        lambda a: (a.staffing and a.has_personalized_badge and a.placeholder
-                   and a.badge_type != c.CONTRACTOR_BADGE),
+        "lambda a: a.staffing and a.has_personalized_badge and a.placeholder and a.badge_type != c.CONTRACTOR_BADGE",
         'volunteer_personalized_badge_reminder',
         when=[days_before(7, c.PRINTED_BADGE_DEADLINE)])
 
@@ -938,7 +946,7 @@ if c.PRINTED_BADGE_DEADLINE:
             Attendee,
             f'Personalized {c.EVENT_NAME} ({c.EVENT_DATE}) badges will be ordered next week',
             'personalized_badges/reminder.txt',
-            lambda a: a.has_personalized_badge and not a.placeholder,
+            "lambda a: a.has_personalized_badge and not a.placeholder",
             'personalized_badge_reminder',
             when=[days_before(7, c.PRINTED_BADGE_DEADLINE)])
 
@@ -949,7 +957,7 @@ AutomatedEmailFixture(
     Attendee,
     f'{c.EVENT_NAME} ({c.EVENT_DATE}) parental consent form reminder',
     'reg_workflow/under_18_reminder.txt',
-    lambda a: c.CONSENT_FORM_URL and a.age_group_conf['consent_form'] and days_after(14, a.registered)(),
+    "lambda a: c.CONSENT_FORM_URL and a.age_group_conf['consent_form'] and days_after(14, a.registered)()",
     'under_18_parental_consent_reminder',
     when=[days_before(60, c.EPOCH)],
     allow_at_the_con=True)
@@ -961,7 +969,7 @@ AutomatedEmailFixture(
     Attendee,
     f'Check in faster at {c.EVENT_NAME}',
     'reg_workflow/attendee_qrcode.html',
-    lambda a: not a.cannot_check_in_reason and c.USE_CHECKIN_BARCODE,
+    "lambda a: not a.cannot_check_in_reason and c.USE_CHECKIN_BARCODE",
     'qrcode_for_checkin',
     when=[days_before(7, c.EPOCH)],
     allow_at_the_con=True)
@@ -980,9 +988,7 @@ class DeptChecklistEmailFixture(AutomatedEmailFixture):
             Attendee,
             f'{c.EVENT_NAME} Department Checklist: ' + conf.name,
             'shifts/dept_checklist.txt',
-            lambda a: a.admin_account and any(
-                not d.checklist_item_for_slug(conf.slug)
-                for d in a.checklist_admin_depts),
+            "lambda a: a.admin_account and any(not d.checklist_item_for_slug(conf.slug) for d in a.checklist_admin_depts)",
             'department_checklist_{}'.format(conf.name),
             when=when,
             sender=c.STAFF_EMAIL,
@@ -1000,12 +1006,19 @@ if c.DEPT_CHECKLIST_START:
 
 class HotelLotteryEmailFixture(AutomatedEmailFixture):
     def __init__(self, subject, template, filter, ident, **kwargs):
+        lottery_filter = None
+        if filter:
+            if callable(filter):
+                lottery_filter = lambda a: a.attendee and filter(a)
+            else:
+                lottery_filter = f"lambda a: a.attendee and eval({filter.encode()})(a)"
+                
         AutomatedEmailFixture.__init__(
             self,
             LotteryApplication,
             subject,
             template,
-            (lambda a: a.attendee and filter(a)) if filter else None,
+            lottery_filter,
             ident,
             sender=c.HOTEL_LOTTERY_EMAIL,
             **kwargs)
@@ -1015,7 +1028,7 @@ if c.HOTEL_LOTTERY_STAFF_START:
     HotelLotteryEmailFixture(
         'Last chance to complete your staff hotel lottery entry',
         'hotel/lottery_reminder.html',
-        lambda a: a.status == c.PARTIAL and a.qualifies_for_staff_lottery and days_after(1, a.entry_started)(),
+        "lambda a: a.status == c.PARTIAL and a.qualifies_for_staff_lottery and days_after(1, a.entry_started)()",
         'staff_hotel_lottery_reminder',
         when=[days_before(3, c.HOTEL_LOTTERY_STAFF_DEADLINE)]
     )
@@ -1028,7 +1041,7 @@ if c.HOTEL_LOTTERY_FORM_START:
         Attendee,
         f'Did you want to enter the {c.EVENT_NAME} {c.EVENT_YEAR} hotel lottery?',
         'hotel/enter_lottery.html',
-        lambda a: a.hotel_lottery_eligible and not a.lottery_application and days_after(1, a.registered)(),
+        "lambda a: a.hotel_lottery_eligible and not a.lottery_application and days_after(1, a.registered)()",
         'enter_hotel_lottery',
         when=[days_before(7, earliest_hotel_deadline)],
         sender=c.HOTEL_LOTTERY_EMAIL,)
@@ -1036,7 +1049,7 @@ if c.HOTEL_LOTTERY_FORM_START:
     HotelLotteryEmailFixture(
         'Last chance to complete your hotel lottery entry',
         'hotel/lottery_reminder.html',
-        lambda a: a.status == c.PARTIAL and days_after(1, a.entry_started)(),
+        "lambda a: a.status == c.PARTIAL and days_after(1, a.entry_started)()",
         'hotel_lottery_reminder',
         when=[days_before(3, earliest_hotel_deadline)],
     )
@@ -1046,14 +1059,14 @@ if c.HOTEL_LOTTERY_STAFF_START or c.HOTEL_LOTTERY_FORM_START:
     HotelLotteryEmailFixture(
         f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Notification',
         'hotel/award_notification.html',
-        lambda a: a.status == c.AWARDED and not a.final_status_hidden and a.booking_url_ready,
+        "lambda a: a.status == c.AWARDED and not a.final_status_hidden and a.booking_url_ready",
         'hotel_lottery_awarded'
     )
 
     HotelLotteryEmailFixture(
         f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Notification',
         'hotel/reject_notification.html',
-        lambda a: a.status == c.REJECTED and not a.final_status_hidden,
+        "lambda a: a.status == c.REJECTED and not a.final_status_hidden",
         'hotel_lottery_rejected'
     )
 
@@ -1061,7 +1074,7 @@ if c.HOTEL_LOTTERY_STAFF_START or c.HOTEL_LOTTERY_FORM_START:
         HotelLotteryEmailFixture(
             f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Notification',
             'hotel/reject_notification.html',
-            lambda a: a.status == c.COMPLETE and a.qualifies_for_first_round,
+            "lambda a: a.status == c.COMPLETE and a.qualifies_for_first_round",
             'hotel_lottery_first_round_rejected',
             when=[after(c.HOTEL_LOTTERY_FORM_WAITLIST)],
         )
@@ -1069,22 +1082,22 @@ if c.HOTEL_LOTTERY_STAFF_START or c.HOTEL_LOTTERY_FORM_START:
     HotelLotteryEmailFixture(
         f'Reminder to confirm your {c.EVENT_NAME_AND_YEAR} hotel reservation',
         'hotel/guarantee_reminder.html',
-        lambda a: a.status == c.AWARDED and a.booking_url_ready and \
-            days_before(7, a.guarantee_deadline)() and not a.parent_application,
+        "lambda a: a.status == c.AWARDED and a.booking_url_ready and \
+            days_before(7, a.guarantee_deadline)() and not a.parent_application",
         'hotel_lottery_guarantee_reminder'
     )
     
     HotelLotteryEmailFixture(
         f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Award Cancelled',
         'hotel/cancel_notification.html',
-        lambda a: a.status == c.CANCELLED,
+        "lambda a: a.status == c.CANCELLED",
         'hotel_lottery_award_cancelled'
     )
 
     HotelLotteryEmailFixture(
         f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Award Confirmed!',
         'hotel/secure_notification.html',
-        lambda a: a.status == c.SECURED,
+        "lambda a: a.status == c.SECURED",
         'hotel_lottery_secured'
     )
 
@@ -1136,8 +1149,7 @@ if c.HOTELS_ENABLED and c.HOURS_FOR_HOTEL_SPACE:
         Attendee,
         f'Want volunteer hotel room space at {c.EVENT_NAME}?',
         'hotel/hotel_rooms.txt',
-        lambda a: (a.badge_type != c.CONTRACTOR_BADGE and a.hotel_eligible
-                   and not a.hotel_requests and a.takes_shifts),
+        "lambda a: a.badge_type != c.CONTRACTOR_BADGE and a.hotel_eligible and not a.hotel_requests and a.takes_shifts",
         'volunteer_hotel_room_inquiry',
         sender=c.ROOM_EMAIL_SENDER,
         when=[days_before(45, c.ROOM_DEADLINE, 14)])
@@ -1146,8 +1158,7 @@ if c.HOTELS_ENABLED and c.HOURS_FOR_HOTEL_SPACE:
         Attendee,
         f'Reminder to sign up for {c.EVENT_NAME} hotel room space',
         'hotel/hotel_reminder.txt',
-        lambda a: (a.badge_type != c.CONTRACTOR_BADGE and a.hotel_eligible
-                   and not a.hotel_requests and a.takes_shifts),
+        "lambda a: a.badge_type != c.CONTRACTOR_BADGE and a.hotel_eligible and not a.hotel_requests and a.takes_shifts",
         'hotel_sign_up_reminder',
         sender=c.ROOM_EMAIL_SENDER,
         when=[days_before(14, c.ROOM_DEADLINE, 2)])
@@ -1156,8 +1167,7 @@ if c.HOTELS_ENABLED and c.HOURS_FOR_HOTEL_SPACE:
         Attendee,
         f'Last chance to sign up for {c.EVENT_NAME} hotel room space',
         'hotel/hotel_reminder.txt',
-        lambda a: (a.badge_type != c.CONTRACTOR_BADGE and a.hotel_eligible
-                   and not a.hotel_requests and a.takes_shifts),
+        "lambda a: a.badge_type != c.CONTRACTOR_BADGE and a.hotel_eligible and not a.hotel_requests and a.takes_shifts",
         'hotel_sign_up_reminder_last_chance',
         sender=c.ROOM_EMAIL_SENDER,
         when=[days_before(2, c.ROOM_DEADLINE)])
@@ -1166,8 +1176,7 @@ if c.HOTELS_ENABLED and c.HOURS_FOR_HOTEL_SPACE:
         Attendee,
         f'Reminder to meet your {c.EVENT_NAME} hotel room requirements',
         'hotel/hotel_hours.txt',
-        lambda a: (a.badge_type != c.CONTRACTOR_BADGE and a.hotel_shifts_required
-                   and a.weighted_hours < c.HOURS_FOR_HOTEL_SPACE),
+        "lambda a: a.badge_type != c.CONTRACTOR_BADGE and a.hotel_shifts_required and a.weighted_hours < c.HOURS_FOR_HOTEL_SPACE",
         'hotel_requirements_reminder',
         sender=c.ROOM_EMAIL_SENDER,
         when=[days_before(14, c.FINAL_EMAIL_DEADLINE, 7)])
@@ -1176,8 +1185,7 @@ if c.HOTELS_ENABLED and c.HOURS_FOR_HOTEL_SPACE:
         Attendee,
         f'Final reminder to meet your {c.EVENT_NAME} hotel room requirements',
         'hotel/hotel_hours.txt',
-        lambda a: (a.badge_type != c.CONTRACTOR_BADGE and a.hotel_shifts_required
-                   and a.weighted_hours < c.HOURS_FOR_HOTEL_SPACE),
+        "lambda a: a.badge_type != c.CONTRACTOR_BADGE and a.hotel_shifts_required and a.weighted_hours < c.HOURS_FOR_HOTEL_SPACE",
         'hotel_requirements_reminder_last_chance',
         sender=c.ROOM_EMAIL_SENDER,
         when=[days_before(7, c.FINAL_EMAIL_DEADLINE)])
@@ -1187,7 +1195,7 @@ if c.HOTELS_ENABLED and c.HOURS_FOR_HOTEL_SPACE:
             Room,
             f'{c.EVENT_NAME} Hotel Room Assignment',
             'hotel/room_assignment.txt',
-            lambda r: r.locked_in,
+            "lambda r: r.locked_in",
             'hotel_room_assignment',
             sender=c.ROOM_EMAIL_SENDER,)
 
@@ -1201,7 +1209,7 @@ if c.ENABLED_INDIES_STR:
         IndieStudio,
         'Your Studio Has Been Registered',
         'indie_studio_registered.txt',
-        lambda x: True,
+        "lambda x: True",
         'showcase_studio_registered',
         sender=c.INDIE_SHOWCASE_EMAIL,
     )
@@ -1210,7 +1218,7 @@ if c.ENABLED_INDIES_STR:
         IndieStudio,
         f'Reminder to submit your game to {c.EVENT_NAME}',
         'mivs/game_reminder.txt',
-        lambda studio: not studio.games,
+        "lambda studio: not studio.games",
         'mivs_studio_submission_reminder',
         sender=c.INDIE_SHOWCASE_EMAIL,
         when=[days_before(7, c.MIVS_DEADLINE)]
@@ -1220,7 +1228,7 @@ if c.ENABLED_INDIES_STR:
         IndieStudio,
         f'Final Reminder to submit your game to {c.EVENT_NAME}',
         'mivs/game_reminder.txt',
-        lambda studio: not studio.games,
+        "lambda studio: not studio.games",
         'mivs_game_submission_final_reminder',
         sender=c.INDIE_SHOWCASE_EMAIL,
         when=[days_before(2, c.MIVS_DEADLINE)])
@@ -1262,7 +1270,7 @@ if c.ENABLED_INDIES_STR:
         IndieJudge,
         f'Welcome as a {c.EVENT_NAME} Indies Judge!',
         'judge_welcome.html',
-        lambda judge: judge.showcases and len(judge.showcases_ints) > 1,
+        "lambda judge: judge.showcases and len(judge.showcases_ints) > 1",
         'multi_judge_welcome',
         sender=c.INDIE_SHOWCASE_EMAIL,
     )
@@ -1271,7 +1279,7 @@ if c.ENABLED_INDIES_STR:
         IndieGame,
         f'{c.EVENT_NAME} Indies December Update',
         'mivs/2022/december_update.txt',
-        lambda game: game.confirmed,
+        "lambda game: game.confirmed",
         'indies_december_update',
         sender=c.INDIE_SHOWCASE_EMAIL,
     )
@@ -1317,20 +1325,26 @@ if c.ENABLED_INDIES_STR:
 
 class RetroEmailFixture(AutomatedEmailFixture):
     def __init__(self, *args, **kwargs):
-        if len(args) < 4 and 'filter' not in kwargs:
-            kwargs['filter'] = lambda x: True
         AutomatedEmailFixture.__init__(self, *args, sender=c.INDIE_RETRO_EMAIL, **kwargs)
 
 
 class RetroGuestEmailFixture(AutomatedEmailFixture):
     def __init__(self, subject, template, filter, ident, **kwargs):
+        guest_filter = None
+        if filter:
+            if callable(filter):
+                guest_filter = lambda mg: mg.group_type == c.MIVS and mg.group.studio and \
+                    mg.matches_showcases([c.INDIE_RETRO]) and filter(mg)
+            else:
+                guest_filter = f"lambda mg: mg.group_type == c.MIVS and mg.group.studio and \
+                    mg.matches_showcases([c.INDIE_RETRO]) and eval({filter.encode()})(mg)"
+
         AutomatedEmailFixture.__init__(
             self,
             GuestGroup,
             subject,
             template,
-            (lambda mg: mg.group_type == c.MIVS and mg.group.studio and
-             mg.matches_showcases([c.INDIE_RETRO]) and filter(mg)) if filter else None,
+            guest_filter,
             ident,
             sender=c.INDIE_RETRO_EMAIL,
             **kwargs)
@@ -1341,40 +1355,46 @@ if c.INDIE_RETRO_START:
         IndieGame,
         'Your Indie Retro Game Has Been Submitted',
         'indie_retro/game_submitted.txt',
-        lambda game: game.submitted and game.showcase_type == c.INDIE_RETRO,
+        "lambda game: game.submitted and game.showcase_type == c.INDIE_RETRO",
         'retro_game_submitted')
 
     RetroEmailFixture(
         IndieJudge,
         'Welcome as an Indie Retro Judge!',
         'indie_retro/judge_welcome.html',
-        lambda judge: judge.single_showcase == c.INDIE_RETRO,
+        "lambda judge: judge.single_showcase == c.INDIE_RETRO",
         'retro_judge_welcome')
     
     RetroGuestEmailFixture(
         f'{c.EVENT_NAME} Indie Retro Checklist',
         'indie_arcade/checklist_open.txt',
-        lambda mg: True,
+        "lambda mg: True",
         'ia_checklist_open'
     )
 
 
 class IAEmailFixture(AutomatedEmailFixture):
     def __init__(self, *args, **kwargs):
-        if len(args) < 4 and 'filter' not in kwargs:
-            kwargs['filter'] = lambda x: True
         AutomatedEmailFixture.__init__(self, *args, sender=c.INDIE_ARCADE_EMAIL, **kwargs)
 
 
 class IAGuestEmailFixture(AutomatedEmailFixture):
     def __init__(self, subject, template, filter, ident, **kwargs):
+        guest_filter = None
+        if filter:
+            if callable(filter):
+                guest_filter = lambda mg: mg.group_type == c.MIVS and mg.group.studio and \
+                    mg.matches_showcases([c.INDIE_ARCADE]) and filter(mg)
+            else:
+                guest_filter = f"lambda mg: mg.group_type == c.MIVS and mg.group.studio and \
+                    mg.matches_showcases([c.INDIE_ARCADE]) and eval({filter.encode()})(mg)"
+
         AutomatedEmailFixture.__init__(
             self,
             GuestGroup,
             subject,
             template,
-            (lambda mg: mg.group_type == c.MIVS and mg.group.studio and
-             mg.matches_showcases([c.INDIE_ARCADE]) and filter(mg)) if filter else None,
+            guest_filter,
             ident,
             sender=c.INDIE_ARCADE_EMAIL,
             **kwargs)
@@ -1385,67 +1405,73 @@ if c.INDIE_ARCADE_START:
         IndieGame,
         'Your Indie Arcade Game Has Been Submitted',
         'indie_arcade/game_submitted.txt',
-        lambda game: game.submitted and game.showcase_type == c.INDIE_ARCADE,
+        "lambda game: game.submitted and game.showcase_type == c.INDIE_ARCADE",
         'ia_game_submitted')
     
     IAEmailFixture(
         IndieJudge,
         'Welcome as an Indie Arcade Judge!',
         'indie_arcade/judge_welcome.html',
-        lambda judge: judge.single_showcase == c.INDIE_ARCADE,
+        "lambda judge: judge.single_showcase == c.INDIE_ARCADE",
         'ia_judge_welcome')
 
     IAEmailFixture(
         IndieGame,
         f'Your game has been accepted into the {c.EVENT_NAME} Indie Arcade',
         'indie_arcade/game_accepted.txt',
-        lambda game: game.status == c.ACCEPTED and not game.waitlisted and game.showcase_type == c.INDIE_ARCADE,
+        "lambda game: game.status == c.ACCEPTED and not game.waitlisted and game.showcase_type == c.INDIE_ARCADE",
         'ia_game_accepted')
 
     IAEmailFixture(
         IndieGame,
         f'Your game has been accepted into the {c.EVENT_NAME} Indie Arcade from our waitlist',
         'indie_arcade/game_accepted_from_waitlist.txt',
-        lambda game: game.status == c.ACCEPTED and game.waitlisted and game.showcase_type == c.INDIE_ARCADE,
+        "lambda game: game.status == c.ACCEPTED and game.waitlisted and game.showcase_type == c.INDIE_ARCADE",
         'ia_game_accepted_from_waitlist')
 
     IAEmailFixture(
         IndieGame,
         f'Your game application has been declined from the {c.EVENT_YEAR} Indie Arcade',
         'indie_arcade/game_declined.txt',
-        lambda game: game.status == c.DECLINED and game.showcase_type == c.INDIE_ARCADE,
+        "lambda game: game.status == c.DECLINED and game.showcase_type == c.INDIE_ARCADE",
         'ia_game_declined')
 
     IAEmailFixture(
         IndieGame,
         'Your Indie Arcade application has been waitlisted',
         'indie_arcade/game_waitlisted.txt',
-        lambda game: game.status == c.WAITLISTED and game.showcase_type == c.INDIE_ARCADE,
+        "lambda game: game.status == c.WAITLISTED and game.showcase_type == c.INDIE_ARCADE",
         'ia_game_waitlisted')
     
     IAGuestEmailFixture(
         f'{c.EVENT_NAME_AND_YEAR} Indie Arcade Checklist',
         'indie_arcade/checklist_open.txt',
-        lambda mg: True,
+        "lambda mg: True",
         'ia_checklist_open'
     )
 
 class MIVSEmailFixture(AutomatedEmailFixture):
     def __init__(self, *args, **kwargs):
-        if len(args) < 4 and 'filter' not in kwargs:
-            kwargs['filter'] = lambda x: True
         AutomatedEmailFixture.__init__(self, *args, sender=c.MIVS_EMAIL, **kwargs)
 
 
 class MIVSGuestEmailFixture(AutomatedEmailFixture):
     def __init__(self, subject, template, filter, ident, **kwargs):
+        guest_filter = None
+        if filter:
+            if callable(filter):
+                guest_filter = lambda mg: mg.group_type == c.MIVS and mg.group.studio and \
+                    mg.matches_showcases([c.MIVS]) and filter(mg)
+            else:
+                guest_filter = f"lambda mg: mg.group_type == c.MIVS and mg.group.studio and \
+                    mg.matches_showcases([c.MIVS]) and eval({filter.encode()})(mg)"
+                
         AutomatedEmailFixture.__init__(
             self,
             GuestGroup,
             subject,
             template,
-            (lambda mg: mg.group_type == c.MIVS and mg.group.studio and
-             mg.matches_showcases([c.MIVS]) and filter(mg)) if filter else None,
+            guest_filter,
             ident,
             sender=c.MIVS_EMAIL,
             **kwargs)
@@ -1456,49 +1482,49 @@ if c.MIVS_START:
         IndieGame,
         'Your MIVS Game Has Been Submitted',
         'mivs/game_submitted.txt',
-        lambda game: game.submitted and game.showcase_type == c.MIVS,
+        "lambda game: game.submitted and game.showcase_type == c.MIVS",
         'mivs_game_submitted')
 
     MIVSEmailFixture(
         IndieGame,
         'MIVS: Your Submitted Video Is Broken',
         'mivs/video_broken.txt',
-        lambda game: game.video_broken and game.showcase_type == c.MIVS,
+        "lambda game: game.video_broken and game.showcase_type == c.MIVS",
         'mivs_video_broken')
 
     MIVSEmailFixture(
         IndieGame,
         'Your game has been accepted into MIVS',
         'mivs/game_accepted.txt',
-        lambda game: game.status == c.ACCEPTED and not game.waitlisted and game.showcase_type == c.MIVS,
+        "lambda game: game.status == c.ACCEPTED and not game.waitlisted and game.showcase_type == c.MIVS",
         'mivs_game_accepted')
 
     MIVSEmailFixture(
         IndieGame,
         'Your game has been accepted into MIVS from our waitlist',
         'mivs/game_accepted_from_waitlist.txt',
-        lambda game: game.status == c.ACCEPTED and game.waitlisted and game.showcase_type == c.MIVS,
+        "lambda game: game.status == c.ACCEPTED and game.waitlisted and game.showcase_type == c.MIVS",
         'mivs_game_accepted_from_waitlist')
 
     MIVSEmailFixture(
         IndieGame,
         'Your game application has been declined from MIVS',
         'mivs/game_declined.txt',
-        lambda game: game.status == c.DECLINED and game.showcase_type == c.MIVS,
+        "lambda game: game.status == c.DECLINED and game.showcase_type == c.MIVS",
         'mivs_game_declined')
 
     MIVSEmailFixture(
         IndieGame,
         'Your MIVS application has been waitlisted',
         'mivs/game_waitlisted.txt',
-        lambda game: game.status == c.WAITLISTED and game.showcase_type == c.MIVS,
+        "lambda game: game.status == c.WAITLISTED and game.showcase_type == c.MIVS",
         'mivs_game_waitlisted')
 
     MIVSEmailFixture(
         IndieGame,
         f'MIVS {c.EVENT_YEAR} Waitlist: Additional Information Required',
         'mivs/waitlist_info.txt',
-        lambda game: game.status == c.WAITLISTED and game.showcase_type == c.MIVS,
+        "lambda game: game.status == c.WAITLISTED and game.showcase_type == c.MIVS",
         'mivs_waitlist_info'
     )
 
@@ -1506,17 +1532,15 @@ if c.MIVS_START:
         IndieGame,
         'Last chance to accept your MIVS booth',
         'mivs/game_accept_reminder.txt',
-        lambda game: (
-            game.status == c.ACCEPTED and game.showcase_type == c.MIVS
-            and not game.confirmed
-            and (localized_now() + timedelta(days=2)) > game.studio.confirm_deadline),
+        "lambda game: game.status == c.ACCEPTED and game.showcase_type == c.MIVS and \
+            not game.confirmed and (localized_now() + timedelta(days=2)) > game.studio.confirm_deadline",
         'mivs_accept_booth_reminder')
 
     MIVSEmailFixture(
         IndieGame,
         'Summary of judging feedback for your game',
         'mivs/reviews_summary.html',
-        lambda game: game.status in c.FINAL_MIVS_GAME_STATUSES and game.reviews_to_email and game.showcase_type == c.MIVS,
+        "lambda game: game.status in c.FINAL_MIVS_GAME_STATUSES and game.reviews_to_email and game.showcase_type == c.MIVS",
         'mivs_reviews_summary',
         allow_post_con=True)
 
@@ -1524,7 +1548,7 @@ if c.MIVS_START:
         IndieGame,
         'MIVS judging is wrapping up',
         'mivs/results_almost_ready.txt',
-        lambda game: game.submitted and game.showcase_type == c.MIVS,
+        "lambda game: game.submitted and game.showcase_type == c.MIVS",
         'mivs_results_almost_ready',
         when=[days_before(14, c.MIVS_JUDGING_DEADLINE)],)
 
@@ -1532,35 +1556,35 @@ if c.MIVS_START:
         IndieJudge,
         'Welcome as a MIVS Judge!',
         'mivs/judging/judge_welcome.html',
-        lambda judge: judge.single_showcase == c.MIVS,
+        "lambda judge: judge.single_showcase == c.MIVS",
         'mivs_judge_welcome')
 
     MIVSEmailFixture(
         IndieJudge,
         'Reminder to update your MIVS Judge status',
         'mivs/judging/judge_welcome_reminder.txt',
-        lambda judge: judge.status == c.UNCONFIRMED and judge.single_showcase == c.MIVS,
+        "lambda judge: judge.status == c.UNCONFIRMED and judge.single_showcase == c.MIVS",
         'mivs_judge_welcome_reminder')
 
     MIVSEmailFixture(
         IndieJudge,
         'MIVS Judging is about to begin!',
         'mivs/judge_intro.txt',
-        lambda judge: judge.status == c.CONFIRMED and judge.single_showcase == c.MIVS,
+        "lambda judge: judge.status == c.CONFIRMED and judge.single_showcase == c.MIVS",
         'mivs_judge_intro')
 
     MIVSEmailFixture(
         IndieJudge,
         'MIVS Judging has begun!',
         'mivs/judging_begun.txt',
-        lambda judge: judge.status == c.CONFIRMED and judge.single_showcase == c.MIVS,
+        "lambda judge: judge.status == c.CONFIRMED and judge.single_showcase == c.MIVS",
         'mivs_judging_has_begun')
 
     MIVSEmailFixture(
         IndieJudge,
         'MIVS Judging is almost over!',
         'mivs/judging_reminder.txt',
-        lambda judge: judge.status == c.CONFIRMED and judge.single_showcase == c.MIVS,
+        "lambda judge: judge.status == c.CONFIRMED and judge.single_showcase == c.MIVS",
         'mivs_judging_due_reminder',
         when=[days_before(7, c.SOFT_MIVS_JUDGING_DEADLINE)])
 
@@ -1568,7 +1592,7 @@ if c.MIVS_START:
         IndieJudge,
         f'Reminder: MIVS Judging due by {c.MIVS_JUDGING_DEADLINE.strftime('%B %-d')}',
         'mivs/judging_reminder.txt',
-        lambda judge: not judge.judging_complete and judge.status == c.CONFIRMED and judge.single_showcase == c.MIVS,
+        "lambda judge: not judge.judging_complete and judge.status == c.CONFIRMED and judge.single_showcase == c.MIVS",
         'mivs_judging_due_reminder_last_chance',
         when=[days_before(5, c.MIVS_JUDGING_DEADLINE)])
 
@@ -1576,56 +1600,56 @@ if c.MIVS_START:
         IndieJudge,
         f'MIVS Judging survey and {c.EVENT_NAME} badge information',
         'mivs/judge_badge_info.txt',
-        lambda judge: judge.status == c.CONFIRMED and judge.single_showcase == c.MIVS,
+        "lambda judge: judge.status == c.CONFIRMED and judge.single_showcase == c.MIVS",
         'mivs_judge_badge_info')
 
     MIVSEmailFixture(
         IndieGame,
         'MIVS: Tournaments and Leaderboard Challenges',
         'mivs/confirmed/tournaments.txt',
-        lambda game: game.confirmed and game.showcase_type == c.MIVS,
+        "lambda game: game.confirmed and game.showcase_type == c.MIVS",
         'mivs_tournaments'
     )
 
     MIVSGuestEmailFixture(
         f'{c.EVENT_NAME} MIVS Checklist',
         'mivs/checklist_open.txt',
-        lambda mg: True,
+        "lambda mg: True",
         'mivs_checklist_open'
     )
 
     MIVSGuestEmailFixture(
         f'New {c.EVENT_NAME} MIVS Checklist Item: Update Studio and Game Information',
         'mivs/checklist/new_update_studio_information.txt',
-        lambda mg: True,
+        "lambda mg: True",
         'mivs_checklist_update_studio_information'
     )
 
     MIVSGuestEmailFixture(
         f'New {c.EVENT_NAME} MIVS Checklist Item: MIVS Indie Handbook',
         'mivs/checklist/new_update_indiehandbook_information.txt',
-        lambda mg: True,
+        "lambda mg: True",
         'mivs_checklist_update_indiehandbook_information'
     )
 
     MIVSGuestEmailFixture(
         f'New {c.EVENT_NAME} MIVS Checklist Item: Selling Information',
         'mivs/checklist/new_update_selling_information.txt',
-        lambda mg: True,
+        "lambda mg: True",
         'mivs_checklist_update_selling_information'
     )
 
     MIVSGuestEmailFixture(
         f'New {c.EVENT_NAME} MIVS Checklist Item: Hotel Signups',
         'mivs/checklist/new_update_hotel_information.txt',
-        lambda mg: True,
+        "lambda mg: True",
         'mivs_checklist_update_hotel_information'
     )
 
     MIVSGuestEmailFixture(
         f'New {c.EVENT_NAME} MIVS Checklist Item: MIVS Training',
         'mivs/checklist/new_update_training_information.txt',
-        lambda mg: True,
+        "lambda mg: True",
         'mivs_checklist_update_training_information'
     )
 
@@ -1634,7 +1658,7 @@ if c.MIVS_START:
         IndieGame,
         f'{c.EVENT_NAME} MIVS {c.EVENT_YEAR}: Wednesday Setup',
         'mivs/At-Con/LoadIn.txt',
-        lambda game: game.confirmed and game.showcase_type == c.MIVS,
+        "lambda game: game.confirmed and game.showcase_type == c.MIVS",
         'mivs_LoadIn.txt'
     )
 
@@ -1642,7 +1666,7 @@ if c.MIVS_START:
         IndieGame,
         f'{c.EVENT_NAME} MIVS {c.EVENT_YEAR}: Thursday, Day 1',
         'mivs/At-Con/Day1.txt',
-        lambda game: game.confirmed and game.showcase_type == c.MIVS,
+        "lambda game: game.confirmed and game.showcase_type == c.MIVS",
         'mivs_Day1.txt'
     )
 
@@ -1651,7 +1675,7 @@ if c.MIVS_START:
         IndieGame,
         f'{c.EVENT_NAME} MIVS {c.EVENT_YEAR}: Request for Feedback',
         'mivs/feedback/indie_survey.txt',
-        lambda game: game.confirmed and game.showcase_type == c.MIVS,
+        "lambda game: game.confirmed and game.showcase_type == c.MIVS",
         'mivs_feedback_survey',
         allow_post_con=True,
     )
@@ -1681,7 +1705,7 @@ if c.MITS_START:
     MITSEmailFixture(
         'Thanks for showing an interest in MITS!',
         'mits/mits_registered.txt',
-        lambda team: not team.submitted and team.applied < datetime.now(UTC) - timedelta(hours=1),
+        "lambda team: not team.submitted and team.applied < datetime.now(UTC) - timedelta(hours=1)",
         'mits_application_created')
 
     # For similar reasons to the above, we wait at least 6 hours before sending this
@@ -1692,51 +1716,51 @@ if c.MITS_START:
     MITSEmailFixture(
         'Last chance to complete your MITS application!',
         'mits/mits_reminder.txt',
-        lambda team: not team.submitted and team.applied < datetime.now(UTC) - timedelta(hours=6),
+        "lambda team: not team.submitted and team.applied < datetime.now(UTC) - timedelta(hours=6)",
         'mits_reminder',
         when=[days_before(3, c.MITS_SUBMISSION_DEADLINE)])
 
     MITSEmailFixture(
         'Thanks for submitting your MITS application!',
         'mits/mits_submitted.txt',
-        lambda team: team.submitted,
+        "lambda team: team.submitted",
         'mits_application_submitted')
 
     MITSEmailFixture(
         'Please fill out the remainder of your MITS application',
         'mits/mits_preaccepted.txt',
-        lambda team: team.accepted and team.completion_percentage < 100,
+        "lambda team: team.accepted and team.completion_percentage < 100",
         'mits_preaccepted_incomplete')
 
     MITSEmailFixture(
         'MITS initial panel information',
         'mits/mits_initial_panel_info.txt',
-        lambda team: team.accepted and team.panel_interest,
+        "lambda team: team.accepted and team.panel_interest",
         'mits_initial_panel_info')
 
     MITSEmailFixture(
         f'Please sign the MITS waiver for {c.EVENT_NAME}',
         'mits/mits_waiver.txt',
-        lambda team: team.accepted and not team.waiver_signed,
+        "lambda team: team.accepted and not team.waiver_signed",
         'mits_waiver')
 
     MITSEmailFixture(
         f'Reminder to sign the MITS waiver for {c.EVENT_NAME}',
         'mits/mits_waiver.txt',
-        lambda team: team.accepted and not team.waiver_signed,
+        "lambda team: team.accepted and not team.waiver_signed",
         'mits_waiver_reminder',
         when=[days_before(10, c.EPOCH)])
 
     MITSEmailFixture(
         'Tax Form for selling in MITS',
         'mits/mits_tax_form.txt',
-        lambda team: team.accepted and team.want_to_sell,
+        "lambda team: team.accepted and team.want_to_sell",
         'mits_tax_form')
 
     MITSEmailFixture(
         'MITS 2024 Developer Perspective Feedback',
         'mits/mits_feedback.txt',
-        lambda team: team.accepted,
+        "lambda team: team.accepted",
         'mits_feedback',
         allow_post_con=True)
 
@@ -1744,7 +1768,7 @@ if c.MITS_START:
         MITSApplicant,
         f'{c.EVENT_NAME} parking information',
         'mits/mits_parking.txt',
-        lambda ma: ma.attendee and ma.team and ma.team.accepted,
+        "lambda ma: ma.attendee and ma.team and ma.team.accepted",
         'mits_parking',
         sender=c.MITS_EMAIL)
 
@@ -1752,7 +1776,7 @@ if c.MITS_START:
         MITSApplicant,
         'Automated MITS FAQ Email',
         'mits/mits_faq.html',
-        lambda ma: ma.attendee and ma.team and ma.team.accepted,
+        "lambda ma: ma.attendee and ma.team and ma.team.accepted",
         'mits_faq',
         sender=c.MITS_EMAIL)
 
@@ -1769,15 +1793,19 @@ if c.MITS_START:
 
 class PanelAppEmailFixture(AutomatedEmailFixture):
     def __init__(self, subject, template, filter, ident, **kwargs):
+        panel_filter = None
+        if filter:
+            if callable(filter):
+                panel_filter = lambda a: (not a.submitter or not a.submitter.attendee_id) and filter(a)
+            else:
+                panel_filter = f"lambda a: (not a.submitter or not a.submitter.attendee_id) and eval({filter.encode()})(a)"
+
         AutomatedEmailFixture.__init__(
             self,
             PanelApplication,
             subject,
             template,
-            lambda app: filter(app) and (
-                not app.submitter or
-                not app.submitter.attendee_id
-                ),
+            panel_filter,
             ident,
             sender=kwargs.pop('sender', c.PANELS_EMAIL),
             **kwargs)
@@ -1787,56 +1815,53 @@ if c.PANELS_START:
     PanelAppEmailFixture(
         f'Your {c.EVENT_NAME} Panel Application Has Been Received: ' + '{app.name}',
         'panels/application.html',
-        lambda a: True,
+        "lambda a: True",
         'panel_received')
 
     PanelAppEmailFixture(
         f'Your {c.EVENT_NAME} Panel Application Has Been Accepted: ' + '{app.name}',
         'panels/panel_app_accepted.txt',
-        lambda app: app.status == c.ACCEPTED and app.department in c.EMAILLESS_PANEL_DEPTS,
+        "lambda app: app.status == c.ACCEPTED and app.department in c.EMAILLESS_PANEL_DEPTS",
         'panel_accepted')
 
     PanelAppEmailFixture(
         f'Your {c.EVENT_NAME} Panel Application Has Been Declined: ' + '{app.name}',
         'panels/panel_app_declined.txt',
-        lambda app: app.status == c.DECLINED and app.department in c.EMAILLESS_PANEL_DEPTS,
+        "lambda app: app.status == c.DECLINED and app.department in c.EMAILLESS_PANEL_DEPTS",
         'panel_declined')
 
     PanelAppEmailFixture(
         f'Your {c.EVENT_NAME} Panel Application Has Been Waitlisted: ' + '{app.name}',
         'panels/panel_app_waitlisted.txt',
-        lambda app: app.status == c.WAITLISTED and app.department in c.EMAILLESS_PANEL_DEPTS,
+        "lambda app: app.status == c.WAITLISTED and app.department in c.EMAILLESS_PANEL_DEPTS",
         'panel_waitlisted')
 
     PanelAppEmailFixture(
         'Last chance to confirm your panel',
         'panels/panel_accept_reminder.txt',
-        lambda app: (
-            c.PANELS_CONFIRM_DEADLINE
-            and app.confirm_deadline
-            and app.department in c.EMAILLESS_PANEL_DEPTS
-            and (localized_now() + timedelta(days=2)) > app.confirm_deadline),
+        "lambda app: c.PANELS_CONFIRM_DEADLINE and app.confirm_deadline and app.department in c.EMAILLESS_PANEL_DEPTS \
+            and (localized_now() + timedelta(days=2)) > app.confirm_deadline",
         'panel_accept_reminder')
 
     PanelAppEmailFixture(
         f'Your {c.EVENT_NAME} Panel Application Has Been Automatically Waitlisted: ' + '{app.name}',
         'panels/panel_app_waitlisted.txt', None,
         'panel_waitlisted',
-        send_filter=lambda app: app.status == c.WAITLISTED,
+        send_filter="lambda app: app.status == c.WAITLISTED",
         shared_ident='panelapps_waitlisted'
     )
 
     PanelAppEmailFixture(
         f'Your {c.EVENT_NAME} Panel Has Been Scheduled: ' + '{app.name}',
         'panels/panel_app_scheduled.txt',
-        lambda app: app.event_id and app.department in c.EMAILLESS_PANEL_DEPTS,
+        "lambda app: app.event_id and app.department in c.EMAILLESS_PANEL_DEPTS",
         'panel_scheduled')
 
     AutomatedEmailFixture(
         Attendee,
         f'Your {c.EVENT_NAME} Event Schedule',
         'panels/panelist_schedule.txt',
-        lambda a: a.badge_type != c.GUEST_BADGE and a.assigned_panelists,
+        "lambda a: a.badge_type != c.GUEST_BADGE and a.assigned_panelists",
         'event_schedule',
         sender=c.PANELS_EMAIL)
 
@@ -1847,12 +1872,19 @@ if c.PANELS_START:
 
 class ArenaEmailFixture(AutomatedEmailFixture):
     def __init__(self, subject, template, filter, ident, **kwargs):
+        arena_filter = None
+        if filter:
+            if callable(filter):
+                arena_filter = lambda g: g.group_type == c.ARENA and filter(g)
+            else:
+                arena_filter = f"lambda g: g.group_type == c.ARENA and eval({filter.encode()})(g)"
+
         AutomatedEmailFixture.__init__(
             self,
             GuestGroup,
             subject,
             template,
-            (lambda b: b.group_type == c.ARENA and filter(b)) if filter else None,
+            arena_filter,
             ident,
             sender=c.ARENA_EMAIL,
             **kwargs)
@@ -1860,12 +1892,19 @@ class ArenaEmailFixture(AutomatedEmailFixture):
 
 class BandEmailFixture(AutomatedEmailFixture):
     def __init__(self, subject, template, filter, ident, **kwargs):
+        band_filter = None
+        if filter:
+            if callable(filter):
+                band_filter = lambda g: g.group_type in [c.BAND, c.SIDE_STAGE] and filter(g)
+            else:
+                band_filter = f"lambda g: g.group_type in [c.BAND, c.SIDE_STAGE] and eval({filter.encode()})(g)"
+
         AutomatedEmailFixture.__init__(
             self,
             GuestGroup,
             subject,
             template,
-            (lambda b: b.group_type in [c.BAND, c.SIDE_STAGE] and filter(b)) if filter else None,
+            band_filter,
             ident,
             sender=c.BAND_EMAIL,
             **kwargs)
@@ -1873,12 +1912,19 @@ class BandEmailFixture(AutomatedEmailFixture):
 
 class GuestEmailFixture(AutomatedEmailFixture):
     def __init__(self, subject, template, filter, ident, **kwargs):
+        guest_filter = None
+        if filter:
+            if callable(filter):
+                guest_filter = lambda g: g.group_type == c.GUEST and filter(g)
+            else:
+                guest_filter = f"lambda g: g.group_type == c.GUEST and eval({filter.encode()})(g)"
+
         AutomatedEmailFixture.__init__(
             self,
             GuestGroup,
             subject,
             template,
-            (lambda b: b.group_type == c.GUEST and filter(b)) if filter else None,
+            guest_filter,
             ident,
             sender=c.GUEST_EMAIL,
             **kwargs)
@@ -1911,144 +1957,144 @@ AdminReportEmailFixture(
 BandEmailFixture(
     f'{c.EVENT_NAME} Performer Checklist',
     'guests/band_notification.txt',
-    lambda b: True,
+    "lambda b: True",
     'band_checklist_inquiry')
 
 BandEmailFixture(
     f'Reminder to apply for a {c.EVENT_NAME} Panel',
     'guests/band_panel_reminder.txt',
-    lambda b: not b.panel_status,
+    "lambda b: not b.panel_status",
     'band_panel_reminder',
     when=[days_before(14, c.BAND_PANEL_DEADLINE, 3)])
 
 BandEmailFixture(
     f'Last chance to apply for a {c.EVENT_NAME} Panel',
     'guests/band_panel_reminder.txt',
-    lambda b: not b.panel_status,
+    "lambda b: not b.panel_status",
     'band_panel_reminder_last',
     when=[days_before(3, c.BAND_PANEL_DEADLINE)])
 
 BandEmailFixture(
     f'Reminder to accept your offer to perform at {c.EVENT_NAME}',
     'guests/band_agreement_reminder.txt',
-    lambda b: not b.info_status,
+    "lambda b: not b.info_status",
     'band_agreement_reminder',
     when=[days_before(14, c.BAND_INFO_DEADLINE, 3)])
 
 BandEmailFixture(
     f'Last chance to accept your offer to perform at {c.EVENT_NAME}',
     'guests/band_agreement_reminder.txt',
-    lambda b: not b.info_status,
+    "lambda b: not b.info_status",
     'band_agreement_reminder_last',
     when=[days_before(3, c.BAND_INFO_DEADLINE)])
 
 BandEmailFixture(
     f'Reminder to include your bio info on the {c.EVENT_NAME} website',
     'guests/band_bio_reminder.txt',
-    lambda b: not b.bio_status,
+    "lambda b: not b.bio_status",
     'band_bio_reminder',
     when=[days_before(14, c.BAND_BIO_DEADLINE, 3)])
 
 BandEmailFixture(
     f'Last chance to include your bio info on the {c.EVENT_NAME} website',
     'guests/band_bio_reminder.txt',
-    lambda b: not b.bio_status,
+    "lambda b: not b.bio_status",
     'band_bio_reminder_last',
     when=[days_before(3, c.BAND_BIO_DEADLINE)])
 
 BandEmailFixture(
     f'Reminder to submit your W9 for {c.EVENT_NAME}',
     'guests/band_w9_reminder.txt',
-    lambda b: b.payment and not b.taxes_status,
+    "lambda b: b.payment and not b.taxes_status",
     'band_w9_reminder',
     when=[days_before(14, c.BAND_TAXES_DEADLINE, 3)])
 
 BandEmailFixture(
     f'Last chance to submit your W9 for {c.EVENT_NAME}',
     'guests/band_w9_reminder.txt',
-    lambda b: b.payment and not b.taxes_status,
+    "lambda b: b.payment and not b.taxes_status",
     'band_w9_reminder_last',
     when=[days_before(3, c.BAND_TAXES_DEADLINE)])
 
 BandEmailFixture(
     f'Reminder to sign up for selling merchandise at {c.EVENT_NAME}',
     'guests/band_merch_reminder.txt',
-    lambda b: not b.merch_status,
+    "lambda b: not b.merch_status",
     'band_merch_reminder',
     when=[days_before(14, c.BAND_MERCH_DEADLINE, 3)])
 
 BandEmailFixture(
     f'Last chance to sign up for selling merchandise at {c.EVENT_NAME}',
     'guests/band_merch_reminder.txt',
-    lambda b: not b.merch_status,
+    "lambda b: not b.merch_status",
     'band_merch_reminder_last',
     when=[days_before(3, c.BAND_MERCH_DEADLINE)])
 
 BandEmailFixture(
     f'Reminder to submit items for the {c.EVENT_NAME} charity auction',
     'guests/band_charity_reminder.txt',
-    lambda b: not b.charity_status,
+    "lambda b: not b.charity_status",
     'band_charity_reminder',
     when=[days_before(14, c.BAND_CHARITY_DEADLINE, 3)])
 
 BandEmailFixture(
     f'Last chance to submit items for the {c.EVENT_NAME} charity auction',
     'guests/band_charity_reminder.txt',
-    lambda b: not b.charity_status,
+    "lambda b: not b.charity_status",
     'band_charity_reminder_last',
     when=[days_before(3, c.BAND_CHARITY_DEADLINE)])
 
 BandEmailFixture(
     f'Reminder to submit a stage plot for {c.EVENT_NAME}',
     'guests/band_stage_plot_reminder.txt',
-    lambda b: not b.stage_plot_status,
+    "lambda b: not b.stage_plot_status",
     'band_stage_plot_reminder',
     when=[days_before(14, c.BAND_STAGE_PLOT_DEADLINE, 3)])
 
 BandEmailFixture(
     f'Last chance to submit a stage plot for {c.EVENT_NAME}',
     'guests/band_stage_plot_reminder.txt',
-    lambda b: not b.stage_plot_status,
+    "lambda b: not b.stage_plot_status",
     'band_stage_plot_reminder_last',
     when=[days_before(3, c.BAND_STAGE_PLOT_DEADLINE)])
 
 GuestEmailFixture(
     f'It\'s time to send us your info for {c.EVENT_NAME}!',
     'guests/guest_checklist_announce.html',
-    lambda g: True,
+    "lambda g: True",
     'guest_checklist_inquiry')
 
 GuestEmailFixture(
     f'Reminder: Please complete your Guest Checklist for {c.EVENT_NAME}!',
     'guests/guest_checklist_reminder.html',
-    lambda g: not g.checklist_completed,
+    "lambda g: not g.checklist_completed",
     'guest_reminder_1',
     when=[days_before(7, c.GUEST_INFO_DEADLINE)])
 
 GuestEmailFixture(
     f'Have you forgotten anything? Your {c.EVENT_NAME} Guest Checklist needs you!',
     'guests/guest_checklist_reminder.html',
-    lambda g: not g.checklist_completed,
+    "lambda g: not g.checklist_completed",
     'guest_reminder_2',
     when=[days_after(7, c.GUEST_INFO_DEADLINE)])
 
 ArenaEmailFixture(
     f'It\'s time to send us your info for {c.EVENT_NAME}!',
     'guests/guest_checklist_announce.html',
-    lambda g: True,
+    "lambda g: True",
     'arena_checklist_inquiry')
 
 ArenaEmailFixture(
     f'Reminder: Please complete your Arena Checklist for {c.EVENT_NAME}!',
     'guests/guest_checklist_reminder.html',
-    lambda g: not g.checklist_completed,
+    "lambda g: not g.checklist_completed",
     'arena_reminder_1',
     when=[days_before(7, c.ARENA_INFO_DEADLINE)])
 
 ArenaEmailFixture(
     f'Have you forgotten anything? Your {c.EVENT_NAME} Arena Checklist needs you!',
     'guests/guest_checklist_reminder.html',
-    lambda g: not g.checklist_completed,
+    "lambda g: not g.checklist_completed",
     'arena_reminder_2',
     when=[days_after(7, c.ARENA_INFO_DEADLINE)])
 
@@ -2056,7 +2102,7 @@ AutomatedEmailFixture(
     GuestGroup,
     f'Sign up to sell merch at {c.EVENT_NAME} Rock Island',
     'guests/rock_island_intro.txt',
-    lambda g: g.group_type in c.ROCK_ISLAND_GROUPS and g.deadline_from_model('merch') and not g.group_type == c.BAND,
+    "lambda g: g.group_type in c.ROCK_ISLAND_GROUPS and g.deadline_from_model('merch') and not g.group_type == c.BAND",
     'rock_island_intro',
     sender=c.ROCK_ISLAND_EMAIL)
 
@@ -2064,7 +2110,7 @@ AutomatedEmailFixture(
     GuestGroup,
     f'Last chance to finalize your {c.EVENT_NAME} Rock Island Inventory',
     'guests/rock_island_inventory_reminder.txt',
-    lambda g: g.group_type in c.ROCK_ISLAND_GROUPS and g.merch and g.merch.selling_merch == c.ROCK_ISLAND,
+    "lambda g: g.group_type in c.ROCK_ISLAND_GROUPS and g.merch and g.merch.selling_merch == c.ROCK_ISLAND",
     'ri_inventory_reminder',
     when=[days_before(7, c.ROCK_ISLAND_DEADLINE)],
     sender=c.ROCK_ISLAND_EMAIL)

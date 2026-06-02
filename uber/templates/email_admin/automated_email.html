@@ -1,0 +1,265 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% block title %}Manage Automated Email{% endblock %}
+{% block content %}
+{% if email.can_generate %}
+<script type="text/javascript">
+    var loadingIcon = '<i class="fa fa-lg fa-repeat gly-spin"></i>';
+    let intervalId;
+    var startEmailGeneration = function(action='generate_emails') {
+        $('#email-loading-message').removeClass('alert-danger').addClass('alert-info');
+        $('#email-loading-message').html("Checking for new emails... &nbsp;" + loadingIcon).show();
+        $.post(action,
+        {
+            id: '{{ email.id }}',
+            csrf_token: csrf_token
+        }).done( function(json) {
+        if (json && json.success) {
+            setTimeout(pollEmailGeneration, 500);
+            intervalId = setInterval(pollEmailGeneration, 5000);
+        } else if (json && json.error) {
+            $('#email-loading-message').removeClass('alert-info').addClass('alert-danger');
+            $('#email-loading-message').html(json.error);
+        } else {
+            $('#email-loading-message').removeClass('alert-info').addClass('alert-danger');
+            $('#email-loading-message').html("Something went wrong!");
+            }
+        }).fail(function() {
+        $('#email-loading-message').removeClass('alert-info').addClass('alert-danger');
+        $('#email-loading-message').html("Couldn't contact server!");
+        });
+    }
+    var pollEmailGeneration = function () {
+        $.post('poll_email_generation',
+        {
+            id: '{{ email.id }}',
+            csrf_token: csrf_token
+        }, function(json) {
+        if (json && json.success) {
+            $('#email-loading-message').html(json.message);
+            clearInterval(intervalId);
+        } else if (json && json.message) {
+            $('#email-loading-message').removeClass('alert-info').addClass('alert-danger');
+            $('#email-loading-message').html(json.message);
+            clearInterval(intervalId);
+        }
+        });
+    }
+    $(function() {
+        $('#email-loading-message').hide();
+        $('.email-info').on('submit', function(event) {
+        event.preventDefault();
+        var $toSubmit = $(this);
+        send_count = ''
+        delete_count = ''
+        may_or_will = 'MAY'
+
+        if ($('#policy').val() != '{{ email.policy }}') {
+            if ($('#policy').val() == '{{ c.DISABLED }}') {
+                delete_count = '{{ unsent_count }}'
+                may_or_will = 'WILL'
+            } else if ('{{ c.AT_THE_CON }}' == 'True' && $('#allow_at_the_con').val() != true) {
+                delete_count = '{{ unsent_count }}'
+                may_or_will = 'WILL'
+            } else if ('{{ c.POST_CON }}' == 'True' && $('#allow_post_con').val() != true) {
+                delete_count = '{{ unsent_count }}'
+                may_or_will = 'WILL'
+            }
+            if ($('#policy').val() == '{{ c.AUTOSEND }}') {
+                send_count = '{{ unapproved_count }}'
+            }
+        }
+        if ($('#active_before').val() != '{{ email.active_before }}') {
+            delete_count = '{{ unsent_count }}'
+        }
+
+        if (send_count != '') {
+            bootbox.confirm({
+                backdrop: true,
+                title: "Send Emails?",
+                message: '<p>This automated email\'s new send policy will mark ' + send_count + ' emails for sending. Are you sure?</p>',
+                buttons: {
+                    confirm: { label: 'Send', className: 'btn-primary' },
+                    cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+                },
+                callback: function (result) {
+                    if (result) {
+                    $toSubmit[0].submit();
+                    }
+                }
+            });
+        }
+        else if (delete_count != '') {
+            if (may_or_will == 'MAY') {
+                confirm_msg = "This automated email's new date restriction " + may_or_will
+            } else {
+                confirm_msg = "This automated email new send policy or new at-con/post-con permissions " + may_or_will
+            }
+            bootbox.confirm({
+                backdrop: true,
+                title: "Delete Emails?",
+                message: '<p>' + confirm_msg + ' delete ' + delete_count + ' emails. Are you sure?</p>',
+                buttons: {
+                    confirm: { label: 'Delete', className: 'btn-danger' },
+                    cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+                },
+                callback: function (result) {
+                    if (result) {
+                    $toSubmit[0].submit();
+                    }
+                }
+            });
+        } else {
+            $toSubmit[0].submit();
+        }
+      });
+    });
+</script>
+{% endif %}
+<div class="card card-body">
+    {% if not email.can_generate or (not email.policy and email.filter) %}
+    <div class="alert alert-warning">
+        No copies of this email will be generated.
+        {% if not email.filter %}
+            Since this email is generated in response to an action,
+            <strong>any qualifying recipients will miss receiving this email PERMANENTLY.</strong>
+        {% endif %}
+        {% if not email.policy and email.filter %}
+            Please set a send policy below to enable email generation.
+        {% elif email.policy != c.DISABLED %}
+            To enable email generation, check the "Don't Send After"
+            setting below{% if c.AT_THE_CON %} and ensure the email can be sent during the event{% elif c.POST_CON %} and ensure the email can be sent after the event{% endif %}.
+        {% endif %}
+    </div>
+    {% endif %}
+    
+    <h2>Edit "{{ email.subject }}" <small>{% for id, name in email_depts %}<a href="pending?department_id={{ id }}">Back to {{ name }} Emails</a> | {% endfor %}<a href="pending">Back to{% if email_depts %} All{% endif %} Emails</a></small></h2>
+    {{ form_macros.form_validation('email-info', 'validate_automated_email') }}
+    <form novalidate method="post" action="automated_email" id="email-info">
+    {{ csrf_token() }}
+    <input type="hidden" name="id" value="{{ email.id }}" />
+    {% include 'forms/department/email_info.html' %}
+    <button type="submit" class="btn btn-primary">Update Email Settings</button>
+    {% if email.filter %}
+    <button type="submit" class="btn btn-success" name="generate" value="1">Update and Generate Emails</button>
+    {% endif %}
+    </form>
+
+    <hr/>
+
+    <div class="row justify-content-center">
+        <div id="email-loading-message" class="alert alert-info text-center mt-3 col-8"></div>
+    </div>
+
+    {% if email.filter and email.can_generate and email.policy %}
+        <p>
+            {% if not queued_emails and not sent_emails %}
+            No copies of this email have been generated yet.
+            {% endif %}
+            Emails are generated by the system automatically, but you can use the button below to ensure that all qualifying
+            recipients receive a copy. Doing so is recommended if this email was previously ineligible for generation.
+            <br/><button type="button" class="btn btn-info" onClick="startEmailGeneration()">Generate Emails</button>
+        </p>
+    {% elif not email.filter and email.can_generate and not queued_emails and not sent_emails %}
+        <p>
+            Nobody has qualified to receive this email yet. The action that generates this email may not have been triggered -- 
+            if instead you suspect there may be a technical issue, contact your developer.
+        </p>
+    {% endif %}
+
+    {% if limited_queue %}
+    <div class="alert alert-warning">
+        Since there are more than 500 copies of this email in the system, the views below have been limited to 100 emails each.
+        <a href="index?ident={{ email.ident }}" target="_blank">View Full Queue <i class="fa fa-external-link"></i></a>
+    </div>
+    {% endif %}
+
+    <ul class="nav nav-tabs flex-grow-1" role="tablist">
+        {% if queued_emails %}
+        <li class="nav-item" role="presentation">
+        <button class="nav-link" id="queued-tab" data-bs-toggle="tab" data-bs-target="#queued" type="button" role="tab" aria-controls="queued">
+            <i class="fa fa-list"></i>&nbsp;Email Queue ({{ queued_emails|length }}) {% if error_count %}<i class="fa fa-exclamation-circle"></i>{% endif %}
+        </button>
+        </li>
+        {% endif %}
+        <li class="nav-item" role="presentation">
+        <button class="nav-link" id="raw-template-tab" data-bs-toggle="tab" data-bs-target="#raw-template" type="button" role="tab" aria-controls="raw-template">
+            <i class="fa fa-code"></i>&nbsp;Raw Template
+        </button>
+        </li>
+        {% if sent_emails %}
+        <li class="nav-item" role="presentation">
+        <button class="nav-link" id="sent-tab" data-bs-toggle="tab" data-bs-target="#sent" type="button" role="tab" aria-controls="sent">
+            <i class="fa fa-paper-plane"></i>&nbsp;Sent Emails ({{ sent_emails|length }})
+        </button>
+        </li>
+        {% endif %}
+    </ul>
+    <div class="tab-content">
+        &nbsp;
+        {% if queued_emails %}
+        <div role="tabpanel" class="tab-pane" id="queued" aria-labelledby="queued-tab">
+            {% if error_count %}
+            <p>
+                <strong>Warning</strong>: some of the emails below could not be sent due to an error.
+                This usually happens when an email is queued and its recipient is invalidated or deleted before it is sent.
+                If there are a lot of errors, contact your developer.
+            </p>
+            {% endif %}
+            <table class="table datatable table-hover table-sm">
+                <thead><tr>
+                    <th>Status</th>
+                    <th>Queued</th>
+                    <th>Recipient</th>
+                    <th></th>
+                    <th data-orderable="false"></th>
+                </tr></thead>
+                {% for queued_email in queued_emails %}
+                <tr id="row-{{ queued_email.id }}">
+                    <td>{{ queued_email.status_label }}</td>
+                    <td style="white-space:nowrap">{{ queued_email.generated|datetime_local("%x %X") }}</td>
+                    <td>{{ queued_email.to }}</td>
+                    <td>{{ queued_email.error }}</td>
+                    <td>
+                        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#body-{{ queued_email.id }}">View</button>
+                        {% if queued_email.error %}
+                        <button type="button" class="btn btn-sm btn-danger" onClick="deleteEmail('{{ queued_email.id }}', '{{ queued_email.to }}')">Delete</button>
+                        <button type="button" class="btn btn-sm btn-info" onClick="requeueEmail('{{ queued_email.id }}', '{{ queued_email.to }}')">Requeue</button>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </table>
+        </div>
+        {% endif %}
+        <div role="tabpanel" class="tab-pane" id="raw-template" aria-labelledby="raw-template-tab">
+            {%- set body_html = email.body_as_html if email.format == 'text' else email.body_with_body_tag_stripped -%}
+            <code>{{ body_html|safe }}</code>
+        </div>
+        {% if sent_emails %}
+        <div role="tabpanel" class="tab-pane" id="sent" aria-labelledby="sent-tab">
+            <table class="table datatable table-hover table-sm">
+                <thead><tr>
+                    <th>Sent</th>
+                    <th>Recipient</th>
+                    <th></th>
+                </tr></thead>
+                {% for sent_email in sent_emails %}
+                <tr>
+                    <td style="white-space:nowrap">{{ sent_email.sent|datetime_local("%x %X") }}</td>
+                    <td>{{ sent_email.to }}</td>
+                    <td>
+                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#body-{{ sent_email.id }}">View</button>
+                    </td>
+                </tr>
+            {% endfor %}
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% set email_queue = queued_emails + sent_emails %}
+{% include 'email_admin/manage_email.html' with context %}
+{{ "js/window-hash-tabload.js"|serve_static_content }}
+
+{% endblock %}

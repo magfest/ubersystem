@@ -168,9 +168,26 @@ class DateMaskInput(TextInput):
 
 
 class DateTimePicker(TextInput):
-    def __call__(self, field, min_date=c.SHIFTS_EPOCH, max_date=c.SHIFTS_ESCHATON, start_dt=None, **kwargs):
+    def __call__(self, field, **kwargs):
         id = kwargs.pop('id', field.id) or "date-time-picker"
-        start_dt = field.data or start_dt or c.EPOCH
+        date_info = ''
+        start_dt = None
+
+        if field.data:
+            start_dt = field.data
+        elif 'start_dt' not in kwargs or kwargs['start_dt'] is not None:
+            start_dt = kwargs.get('start_dt', c.EPOCH)
+        
+        if start_dt:
+            if isinstance(start_dt, six.string_types):
+                start_dt = c.EVENT_TIMEZONE.localize(dateparser.parse(start_dt))
+            date_info += f"\ndefaultDate: '{start_dt.isoformat()}',"
+
+        if 'min_date' not in kwargs or kwargs['min_date'] is not None:
+            date_info += f"\nminDate: '{kwargs.get('min_date', c.SHIFTS_EPOCH).isoformat()}',"
+        if 'max_date' not in kwargs or kwargs['max_date'] is not None:
+            date_info += f"\nmaxDate: '{kwargs.get('max_date', c.SHIFTS_ESCHATON).isoformat()}',"
+        
         if isinstance(start_dt, six.string_types):
             start_dt = c.EVENT_TIMEZONE.localize(dateparser.parse(start_dt))
         html = f"""
@@ -189,10 +206,7 @@ class DateTimePicker(TextInput):
                 altInput: true,
                 altFormat: 'M/D/YYYY  hh:mm A', //use moment format not flatpickr
                 disableMobile: true, //Do not let mobile native datepicker take over.
-                dateFormat: 'YYYY-MM-DD\\\\THH:mm:ssZ', // use moment formats, not flatpickr
-                defaultDate: '{start_dt.isoformat()}',
-                minDate: '{min_date.isoformat()}',
-                maxDate: '{max_date.isoformat()}',
+                dateFormat: 'YYYY-MM-DD\\\\THH:mm:ssZ', // use moment formats, not flatpickr{date_info}
                 parseDate(dateString, format) {{
                     let eventTimezonedDate = new moment.tz(dateString, format, window.eventTimeZone);
 

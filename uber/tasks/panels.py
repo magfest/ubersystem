@@ -15,7 +15,7 @@ from uber.tasks import celery
 from uber.utils import GuidebookUtils, localized_now, slugify
 
 
-__all__ = ['panels_waitlist_unaccepted_panels', 'sync_guidebook_models',
+__all__ = ['panels_waitlist_unaccepted_panels', 'sync_guidebook_models', 'setup_panel_emails',
            'check_deleted_guidebook_models', 'check_stale_guidebook_models']
 
 
@@ -132,14 +132,7 @@ def panels_waitlist_unaccepted_panels():
 
 
 @celery.schedule(timedelta(minutes=30))
-def setup_panel_emails():
-    # TODO: Some options for these emails:
-    # 1. Don't create fixtures, just add/remove automated emails in the DB.
-    # Can then change this to be based on department changes rather than a timer,
-    # but it means removing the cleanup code from reconcile_fixtures
-    # 2. Add fixtures/DB objects on department changes and also add fixtures on server startup
-    # 3. Leave basically as-is. May need to remove the cleanup code from reconcile_fixtures
-    #
+def setup_panel_emails(reconcile_fixtures=True):
     if not c.PRE_CON:
         return
     
@@ -219,5 +212,6 @@ def setup_panel_emails():
             sender=sender,
             shared_ident='panelapps_scheduled',
             ident=f'panelapps_scheduled_{slugify(name)}')
-    
-    AutomatedEmail.reconcile_fixtures(cleanup=True)
+
+    if reconcile_fixtures:
+        AutomatedEmail.reconcile_fixtures()
