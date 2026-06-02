@@ -2,6 +2,7 @@ from wtforms import validators
 from wtforms.validators import ValidationError
 
 from uber.config import c
+from uber.custom_tags import readable_join
 from uber.forms.showcase import (StudioInfo, DeveloperInfo, MivsGameInfo, MivsDemoInfo, MivsConsents, MivsCode, MivsScreenshot,
                                  ArcadeGameInfo, ArcadeConsents, ArcadeLogistics, ArcadePhoto, RetroGameInfo, RetroGameDetails,
                                  RetroLogistics, RetroScreenshot, MivsJudgeInfo, JudgeShowcaseInfo, NewJudgeInfo, GameReview)
@@ -26,8 +27,23 @@ DeveloperInfo.field_validation.required_fields = {
 
 @DeveloperInfo.new_or_changed('receives_emails')
 def at_least_one_contact(form, field):
-    if not field.data and (not form.model.studio or len(form.model.studio.primary_contacts) <= 1):
+    if not field.data and (not form.model.studio or len(form.model.studio.primary_contacts) < 1):
         raise ValidationError("Your studio must have at least one presenter who receives emails.")
+
+
+@DeveloperInfo.new_or_changed('receives_emails')
+def contact_locked_by_game(form, field):
+    if not form.model.studio or field.data:
+        return
+    
+    contact_games = []
+    for game in form.model.studio.games:
+        if form.model.id == game.primary_contact_id:
+            contact_games.append(game.title)
+    
+    if contact_games:
+            raise ValidationError("You cannot opt out of emails because you are listed as the "
+                                  f"primary contact for {readable_join(contact_games)}.")
 
 
 MivsGameInfo.field_validation.required_fields = {

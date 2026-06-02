@@ -157,6 +157,8 @@ class Root:
             studio_id = developer.studio.id
         
         studio = session.indie_studio(studio_id)
+        locked_primary_contacts = set([game.primary_contact_id for game in studio.games])
+        locked_primary_contacts.discard(None)
 
         forms = load_forms(params, developer, ['DeveloperInfo'])
 
@@ -177,6 +179,7 @@ class Root:
         return {
             'message': message,
             'developer': developer,
+            'primary_contact_readonly': id in locked_primary_contacts,
             'studio': studio,
             'forms': forms,
         }
@@ -185,6 +188,7 @@ class Root:
     def validate_developer(self, session, form_list=[], **params):
         if params.get('id') in [None, '', 'None']:
             developer = IndieDeveloper()
+            developer.studio_id = params.get('studio_id')
         else:
             developer = session.indie_developer(params.get('id'))
 
