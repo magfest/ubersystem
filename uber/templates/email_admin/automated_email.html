@@ -210,6 +210,7 @@
                 <thead><tr>
                     <th>Status</th>
                     <th>Queued</th>
+                    <th>Send After</th>
                     <th>Recipient</th>
                     <th></th>
                     <th data-orderable="false"></th>
@@ -217,7 +218,9 @@
                 {% for queued_email in queued_emails %}
                 <tr id="row-{{ queued_email.id }}">
                     <td>{{ queued_email.status_label }}</td>
-                    <td style="white-space:nowrap">{{ queued_email.generated|datetime_local("%x %X") }}</td>
+                    <td>{{ queued_email.generated|datetime_local("%x %X") }}</td>
+                    <td>{% if queued_email.status == c.QUEUED %}{{ queued_email.send_after|datetime_local("%x %X") }}
+                        {% else %}N/A{% endif %}</td>
                     <td>{{ queued_email.to }}</td>
                     <td>{{ queued_email.error }}</td>
                     <td>

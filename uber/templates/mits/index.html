@@ -4,7 +4,7 @@
 <h2>MAGFest Indie Tabletop Showcase Application</h2>
 
 This is your application for the MAGFest Indie Tabletop Showcase for your production team {{ team.name }}.
-If you are not a member of {{ team.name }} then please <a href="logout">log out</a>.
+{% if not c.ATTENDEE_ACCOUNTS_ENABLED %}If you are not a member of {{ team.name }} then please <a href="logout">log out</a>.{% endif %}
 
 {% if team.status == c.CANCELLED %}
   {% if c.HAS_MITS_ADMIN_ACCESS %}

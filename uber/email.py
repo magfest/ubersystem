@@ -255,7 +255,7 @@ class EmailService:
                         update_dict['send_after'] = new_send_after
                 else:
                     update_dict['send_after'] = None
-                email_update_list.append({'id': email.id, 'status': new_status})
+                email_update_list.append(update_dict)
         if email_update_list:
             session.execute(update(Email), email_update_list)
             session.commit()

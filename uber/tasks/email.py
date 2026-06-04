@@ -216,9 +216,11 @@ def send_automated_emails():
                         if guard_conn.execute(select(func.pg_try_advisory_lock(lock_key))).scalar():
                             log.debug(f"Sending queued emails for {model_name}.")
                             quantity_sent += EmailService.process_emails_by_class(session, model_class)
+                            session.commit()
+                            if guard_conn.execute(select(func.pg_advisory_unlock(lock_key))).scalar():
+                                log.debug(f"{model_name} email queue sent and unlocked.")
                         else:
                             log.debug(f"Skipping {model_name} as it is being worked by another thread.")
-                session.commit()
             log.info(f"Sent {quantity_sent} emails in {time() - start_time} seconds.")
     except Exception:
         traceback.print_exc()

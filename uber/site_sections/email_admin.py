@@ -112,6 +112,9 @@ class Root:
         if policy:
             emails = emails.filter(AutomatedEmail.policy == int(policy))
 
+        emails = sorted(emails.all(), key=lambda e: list(AutomatedEmail._fixtures.keys()).index(e.ident)
+                        if e.ident in AutomatedEmail._fixtures.keys() else 99999999)
+
         for fixture in AutomatedEmail._fixtures.values():
             if not fixture.template_plugin_name or not fixture.template_path:
                 fixture.update_template_plugin_info()
