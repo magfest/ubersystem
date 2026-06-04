@@ -1521,19 +1521,19 @@ if c.PANELS_START:
     PanelAppEmailFixture(
         'Your {EVENT_NAME} Panel Application Has Been Accepted: {{ app.name }}',
         'panels/panel_app_accepted.txt',
-        lambda app: app.status == c.ACCEPTED and app.department in c.EMAILLESS_PANEL_DEPTS,
+        lambda app: app.status == c.ACCEPTED and int(app.department) in c.EMAILLESS_PANEL_DEPTS,
         ident='panel_accepted')
 
     PanelAppEmailFixture(
         'Your {EVENT_NAME} Panel Application Has Been Declined: {{ app.name }}',
         'panels/panel_app_declined.txt',
-        lambda app: app.status == c.DECLINED and app.department in c.EMAILLESS_PANEL_DEPTS,
+        lambda app: app.status == c.DECLINED and int(app.department) in c.EMAILLESS_PANEL_DEPTS,
         ident='panel_declined')
 
     PanelAppEmailFixture(
         'Your {EVENT_NAME} Panel Application Has Been Waitlisted: {{ app.name }}',
         'panels/panel_app_waitlisted.txt',
-        lambda app: app.status == c.WAITLISTED and app.department in c.EMAILLESS_PANEL_DEPTS,
+        lambda app: app.status == c.WAITLISTED and int(app.department) in c.EMAILLESS_PANEL_DEPTS,
         ident='panel_waitlisted')
 
     PanelAppEmailFixture(
@@ -1542,14 +1542,14 @@ if c.PANELS_START:
         lambda app: (
             c.PANELS_CONFIRM_DEADLINE
             and app.confirm_deadline
-            and app.department in c.EMAILLESS_PANEL_DEPTS
+            and int(app.department) in c.EMAILLESS_PANEL_DEPTS
             and (localized_now() + timedelta(days=2)) > app.confirm_deadline),
         ident='panel_accept_reminder')
 
     PanelAppEmailFixture(
         'Your {EVENT_NAME} Panel Has Been Scheduled: {{ app.name }}',
         'panels/panel_app_scheduled.txt',
-        lambda app: app.event_id and app.department in c.EMAILLESS_PANEL_DEPTS,
+        lambda app: app.event_id and int(app.department) in c.EMAILLESS_PANEL_DEPTS,
         ident='panel_scheduled')
 
     AutomatedEmailFixture(
