@@ -827,7 +827,7 @@ if not c.LOCAL_ACCOUNTS_DISABLED:
         Attendee,
         f'Claim your badge for {c.EVENT_NAME_AND_YEAR}!',
         'placeholders/regular.txt',
-        f"lambda a: a.placeholder and a.registered_local > {earliest_opening_date} and a.paid == c.NEED_NOT_PAY",
+        f"lambda a: a.placeholder and a.registered_local > '{earliest_opening_date}' and a.paid == c.NEED_NOT_PAY",
         'generic_badge_confirmation_comped',
         sender=c.CONTACT_EMAIL,
         allow_at_the_con=True)
@@ -836,7 +836,7 @@ if not c.LOCAL_ACCOUNTS_DISABLED:
         Attendee,
         f'Please complete your {c.EVENT_NAME_AND_YEAR} registration',
         'placeholders/regular.txt',
-        f"lambda a: a.placeholder and a.registered_local > {earliest_opening_date} and \
+        f"lambda a: a.placeholder and a.registered_local > '{earliest_opening_date}' and \
             a.paid != c.NEED_NOT_PAY and 'converted badge' not in a.admin_notes.lower()",
         'generic_badge_confirmation',
         sender=c.CONTACT_EMAIL,
