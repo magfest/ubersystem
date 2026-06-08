@@ -31,7 +31,7 @@ def test_total_hours(monkeypatch):
 
 @pytest.fixture
 def session(request):
-    session = Session().session
+    session = Session()
     for num in ['One', 'Two', 'Three', 'Four', 'Five', 'Six']:
         setattr(session, 'job_' + num.lower(), session.job(name='Job ' + num))
     for num in ['One', 'Two', 'Three', 'Four', 'Five']:

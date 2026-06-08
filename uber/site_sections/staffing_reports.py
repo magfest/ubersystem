@@ -1,20 +1,27 @@
+import cherrypy
 import os
 import re
+
 from collections import defaultdict, OrderedDict
 from datetime import timedelta
+from dateutil import parser as dateparser
 
-from sqlalchemy.orm import subqueryload
+from sqlalchemy import and_
+from sqlalchemy.orm import subqueryload, selectinload
 
 from uber.config import c
 from uber.decorators import all_renderable, csv_file, render
-from uber.models import Attendee, Department
+from uber.models import Attendee, Department, DeptMembership, Job
 
 
 def volunteer_checklists(session):
     attendees = session.query(Attendee) \
         .filter(
             Attendee.staffing == True,  # noqa: E712
-            Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS])) \
+            Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS])).options(
+                selectinload(Attendee.hotel_requests), selectinload(Attendee.food_restrictions),
+                selectinload(Attendee.shifts)
+            ) \
         .order_by(Attendee.full_name, Attendee.id).all()
 
     checklist_items = OrderedDict()
@@ -103,11 +110,56 @@ class Root:
             'volunteers': attendees,
             'message': message,
         }
+    
+    def volunteer_food(self, session, message='', department_id=None, start_time=None, end_time=None):
+        staffers = set()
+        start = dateparser.parse(start_time) if start_time else None
+        end = dateparser.parse(end_time) if end_time else None
+
+        if cherrypy.request.method == 'POST' or department_id or start_time or end_time:
+            if department_id == 'All':
+                department_id = None
+
+            if not start or not end:
+                potential = session.query(Attendee).filter(Attendee.badge_type != c.CONTRACTOR_BADGE, Attendee.shifts)
+                for attendee in potential:
+                    if attendee.badge_type == c.STAFF_BADGE or attendee.weighted_hours >= c.HOURS_FOR_FOOD:
+                        staffers.add(attendee)
+            else:
+                if end < start:
+                    message = 'Start must come before end: {} {}'.format(start, end)
+                else:
+                    filters = [Job.start_time < end, Job.end_time > start]
+                    if department_id:
+                        filters.append(Job.department_id == department_id)
+                    minutes = set()
+                    minute = start
+                    while minute < end:
+                        minutes.add(minute)
+                        minute += timedelta(minutes=1)
+                    for job in session.query(Job).filter(*filters):
+                        if minutes.intersection(job.minutes):
+                            for shift in job.shifts:
+                                if shift.attendee.badge_type != c.CONTRACTOR_BADGE and (
+                                        shift.attendee.badge_type == c.STAFF_BADGE or shift.attendee.weighted_hours >= c.HOURS_FOR_FOOD):
+                                    staffers.add(shift.attendee)
+
+        return {
+            'message': message,
+            'start_time': start.isoformat() if start else '',
+            'end_time': end.isoformat() if end else '',
+            'department_id': department_id,
+            'staffers': sorted(staffers, key=lambda a: a.full_name)
+        }
 
     @csv_file
     def dept_head_contact_info(self, out, session):
         out.writerow(["Full Name", "Email", "Phone", "Department(s)"])
-        for a in session.query(Attendee).filter(Attendee.dept_memberships_as_dept_head.any()).order_by('last_name'):
+        dept_heads = session.query(Attendee).join(DeptMembership,
+                                                  and_(
+                                                      Attendee.id == DeptMembership.attendee_id,
+                                                      DeptMembership.is_dept_head == True))
+        for a in dept_heads.order_by(Attendee.last_name):
             for label in a.assigned_depts_labels:
                 out.writerow([a.full_name, a.email, a.cellphone, label])
 

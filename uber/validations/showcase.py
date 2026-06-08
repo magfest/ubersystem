@@ -2,6 +2,7 @@ from wtforms import validators
 from wtforms.validators import ValidationError
 
 from uber.config import c
+from uber.custom_tags import readable_join
 from uber.forms.showcase import (StudioInfo, DeveloperInfo, MivsGameInfo, MivsDemoInfo, MivsConsents, MivsCode, MivsScreenshot,
                                  ArcadeGameInfo, ArcadeConsents, ArcadeLogistics, ArcadePhoto, RetroGameInfo, RetroGameDetails,
                                  RetroLogistics, RetroScreenshot, MivsJudgeInfo, JudgeShowcaseInfo, NewJudgeInfo, GameReview)
@@ -18,16 +19,31 @@ DeveloperInfo.field_validation.required_fields = {
     'first_name': "Please provide a first name.",
     'last_name': "Please provide a last name.",
     'email': "Please enter an email address.",
-    'cellphone': ('Please provide a phone number.', 'gets_emails'),
+    'cellphone': ('Please provide a phone number.', 'receives_emails'),
     'agreed_coc': "You must agree to be bound by our Code of Conduct.",
     'agreed_data_policy': "You must agree for your information to be used for determining showcase selection.",
 }
 
 
-@DeveloperInfo.new_or_changed('gets_emails')
+@DeveloperInfo.new_or_changed('receives_emails')
 def at_least_one_contact(form, field):
-    if not field.data and form.model.studio and len(form.model.studio.primary_contacts) == 1:
+    if not field.data and (not form.model.studio or len(form.model.studio.primary_contacts) < 1):
         raise ValidationError("Your studio must have at least one presenter who receives emails.")
+
+
+@DeveloperInfo.new_or_changed('receives_emails')
+def contact_locked_by_game(form, field):
+    if not form.model.studio or field.data:
+        return
+    
+    contact_games = []
+    for game in form.model.studio.games:
+        if form.model.id == game.primary_contact_id:
+            contact_games.append(game.title)
+    
+    if contact_games:
+            raise ValidationError("You cannot opt out of emails because you are listed as the "
+                                  f"primary contact for {readable_join(contact_games)}.")
 
 
 MivsGameInfo.field_validation.required_fields = {
@@ -80,27 +96,21 @@ MivsCode.field_validation.required_fields = {
 
 
 MivsScreenshot.field_validation.required_fields = {
-    'description': "Please enter a description of this screenshot."
+    'image_description': "Please enter a description of this screenshot."
 }
 
 
-@MivsScreenshot.new_or_changed('image')
-def image_required(form, field):
-    if not field.data or not field.data.file:
-        raise ValidationError("Please choose a file to upload.")
-
-
-@MivsScreenshot.new_or_changed('image')
+@MivsScreenshot.field_validation('image')
 def image_is_image(form, field):
-    if field.data and field.data.file:
+    if field.data and field.data.filename:
         content_type = field.data.content_type.value
         if not content_type.startswith('image'):
             raise ValidationError("Our server did not recognize your upload as a valid image.")
 
 
-@MivsScreenshot.new_or_changed('image')
+@MivsScreenshot.field_validation('image')
 def image_size(form, field):
-    if field.data and field.data.file:
+    if field.data and field.data.filename:
         field.data.file.seek(0)
         file_size = len(field.data.file.read()) / (1024 * 1024)
         field.data.file.seek(0)
@@ -144,13 +154,7 @@ ArcadeLogistics.field_validation.required_fields = {
 }
 
 
-@ArcadePhoto.new_or_changed('image')
-def image_required(form, field):
-    if not field.data or not field.data.file:
-        raise ValidationError("Please choose a file to upload.")
-
-
-@ArcadePhoto.new_or_changed('image')
+@ArcadePhoto.field_validation('image')
 def image_is_image(form, field):
     if field.data and field.data.file:
         content_type = field.data.content_type.value
@@ -158,7 +162,7 @@ def image_is_image(form, field):
             raise ValidationError("Our server did not recognize your upload as a valid image.")
 
 
-@ArcadePhoto.new_or_changed('image')
+@ArcadePhoto.field_validation('image')
 def image_size(form, field):
     if field.data and field.data.file:
         field.data.file.seek(0)
@@ -191,13 +195,7 @@ RetroGameDetails.field_validation.validations['genres']['optional'] = validators
 RetroGameDetails.field_validation.validations['platforms']['optional'] = validators.Optional()
 
 
-@RetroGameDetails.new_or_changed('game_logo')
-def game_logo_required(form, field):
-    if not field.data or not field.data.file and not form.model.game_logo:
-        raise ValidationError("Please upload a transparent PNG for your game logo.")
-
-
-@RetroGameDetails.new_or_changed('game_logo')
+@RetroGameDetails.field_validation('game_logo')
 def game_logo_is_image(form, field):
     if field.data and field.data.file:
         content_type = field.data.content_type.value
@@ -205,7 +203,7 @@ def game_logo_is_image(form, field):
             raise ValidationError(f"Your game logo ({field.data.filename}) is not a valid image.")
 
 
-@RetroGameDetails.new_or_changed('game_logo')
+@RetroGameDetails.field_validation('game_logo')
 def game_logo_size(form, field):
     if field.data and field.data.file:
         field.data.file.seek(0)
@@ -223,13 +221,7 @@ RetroLogistics.field_validation.required_fields = {
 }
 
 
-@RetroScreenshot.new_or_changed('image')
-def image_required(form, field):
-    if not field.data or not field.data.file:
-        raise ValidationError("Please choose a file to upload.")
-
-
-@RetroScreenshot.new_or_changed('image')
+@RetroScreenshot.field_validation('image')
 def image_is_image(form, field):
     if field.data and field.data.file:
         content_type = field.data.content_type.value
@@ -237,7 +229,7 @@ def image_is_image(form, field):
             raise ValidationError("Our server did not recognize your upload as a valid image.")
 
 
-@RetroScreenshot.new_or_changed('image')
+@RetroScreenshot.field_validation('image')
 def image_size(form, field):
     if field.data and field.data.file:
         field.data.file.seek(0)

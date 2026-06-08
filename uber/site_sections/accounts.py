@@ -1,16 +1,19 @@
+import base64
 import uuid
 
 import bcrypt
 import cherrypy
-from sqlalchemy.orm import subqueryload
+from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.exc import NoResultFound
 
+from uber.auth import OIDC
+from uber.email import EmailService
 from uber.config import c
 from uber.decorators import (ajax, all_renderable, csrf_protected, csv_file,
-                             department_id_adapter, not_site_mappable, render, site_mappable, public)
+                             not_site_mappable, render, site_mappable, public)
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, Attendee, BadgeInfo, PasswordReset, WorkstationAssignment
-from uber.tasks.email import send_email
+from uber.payments import PreregCart
 from uber.utils import (check, check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, genpasswd,
                         create_new_hash)
 
@@ -46,7 +49,7 @@ class Root:
             'message':  message,
             'accounts': (session.query(AdminAccount)
                          .join(Attendee)
-                         .options(subqueryload(AdminAccount.attendee).subqueryload(Attendee.assigned_depts))
+                         .options(joinedload(AdminAccount.attendee).selectinload(Attendee.assigned_depts))
                          .order_by(Attendee.last_first).all()),
             'all_attendees': attendees,
         }
@@ -63,12 +66,12 @@ class Root:
 
             account = session.admin_account(params)
 
-            if account.is_new and not c.SAML_SETTINGS:
+            if account.is_new and not c.SAML_SETTINGS and not c.OIDC_ENABLED:
                 if c.AT_OR_POST_CON:
                     if not password:
-                        message = 'You must enter a password'
+                        message = 'You must enter a password.'
                     elif params.get("check-password", "") != password:
-                        message = 'Your password and password confirmation do not match'
+                        message = 'Your password and password confirmation do not match.'
                     password = password
                 else:
                     password = genpasswd()
@@ -78,24 +81,32 @@ class Root:
 
             message = message or check(account)
         if not message:
-            message = 'Account settings uploaded'
+            message = 'Account settings uploaded.'
             attendee = session.attendee(account.attendee_id)  # dumb temporary hack, will fix later with tests
             account.attendee = attendee
             session.add(account)
             if account.is_new and not c.AT_OR_POST_CON:
-                message = 'Account created'
+                message = 'Account created.'
                 session.commit()
-                body = render('emails/accounts/new_account.txt', {
-                    'account': account,
-                    'password': password,
-                    'creator': AdminAccount.admin_name()
-                }, encoding=None)
-                send_email.delay(
-                    c.ADMIN_EMAIL,
-                    attendee.email,
-                    'New ' + c.EVENT_NAME + ' Admin Account',
-                    body,
-                    model=attendee.to_dict('id'))
+                if c.LOCAL_ACCOUNTS_DISABLED and not attendee.managers:
+                    new_account = session.create_attendee_account(attendee.email)
+                    session.add(new_account)
+                    session.add_attendee_to_account(attendee, new_account)
+                    if attendee.group and attendee.id == attendee.group.leader_id:
+                        for group_member in attendee.group.attendees:
+                            if not group_member.is_unassigned and group_member != attendee:
+                                session.add_attendee_to_account(group_member, new_account)
+                    session.commit()
+                    OIDC.send_claim_token(session, new_account, account)
+                    session.commit()
+                    return {'success': True, 'message': "Account created and claim email sent."}
+                else:
+                    if c.ATTENDEE_ACCOUNTS_ENABLED and attendee.managers:
+                        account.sso_id = attendee.managers[0].sso_id
+                    EmailService.queue_email(
+                        session, 'new_admin_account', account,
+                        data={'password': password if not c.SAML_SETTINGS and not c.OIDC_ENABLED else '',
+                              'creator': AdminAccount.admin_name()}, replace_unsent=True)
             session.commit()
             return {'success': True, 'message': message}
         else:
@@ -109,11 +120,12 @@ class Root:
         raise HTTPRedirect('index?message={}', 'Account deleted')
 
     @site_mappable
-    @department_id_adapter
     def bulk(self, session, department_id=None, **params):
         department_id = None if department_id == 'All' else department_id
         attendee_filters = [Attendee.dept_memberships.any(department_id=department_id)] if department_id else []
-        attendees = session.staffers().filter(*attendee_filters).all()
+        attendees = session.staffers().filter(*attendee_filters).options(
+            selectinload(Attendee.dept_memberships_with_role), joinedload(Attendee.admin_account)
+        ).all()
         for attendee in attendees:
             attendee.trusted_here = attendee.trusted_in(department_id) if department_id else attendee.has_role_somewhere
             attendee.hours_here = attendee.weighted_hours_in(department_id)
@@ -179,20 +191,19 @@ class Root:
 
     @public
     def login(self, session, message='', original_location=None, **params):
+        internal_redirect_url = create_valid_user_supplied_redirect_url(original_location, default_url='/accounts/homepage')
+        external_redirect_url = c.URL_BASE + internal_redirect_url
+
+        if c.OIDC_ENABLED:
+            cherrypy.tools.oidc.redirect_to_keycloak(target_url=external_redirect_url)
         if c.SAML_SETTINGS:
             from uber.utils import prepare_saml_request
             from onelogin.saml2.auth import OneLogin_Saml2_Auth
 
-            if original_location:
-                redirect_url = c.URL_ROOT + create_valid_user_supplied_redirect_url(original_location, default_url='')
-            else:
-                redirect_url = ''
-
             req = prepare_saml_request(cherrypy.request)
             auth = OneLogin_Saml2_Auth(req, c.SAML_SETTINGS)
-            raise HTTPRedirect(auth.login(return_to=redirect_url))
+            raise HTTPRedirect(auth.login(return_to=external_redirect_url))
 
-        original_location = create_valid_user_supplied_redirect_url(original_location, default_url='/accounts/homepage')
         if 'email' in params:
             try:
                 account = session.get_admin_account_by_email(params['email'])
@@ -209,7 +220,7 @@ class Root:
                 cherrypy.session.pop('kiosk_supervisor_id', None)
 
                 ensure_csrf_token_exists()
-                raise HTTPRedirect(original_location)
+                raise HTTPRedirect(internal_redirect_url)
 
         return {
             'message': message,
@@ -219,8 +230,12 @@ class Root:
 
     @public
     def homepage(self, session, message=''):
-        if not cherrypy.session.get('account_id'):
-            raise HTTPRedirect('login?message={}', 'You are not logged in', save_location=True)
+        if not cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None)):
+            message = "You are not logged in."
+            if c.OIDC_ENABLED or c.SAML_SETTINGS:
+                if cherrypy.session.get('attendee_account_id', getattr(cherrypy.request, 'attendee_account', None)):
+                    raise HTTPRedirect('../preregistration/homepage?message={}', "You do not have admin access.")
+            raise HTTPRedirect('login?message={}', message, save_location=True)
 
         reg_station_id = cherrypy.session.get('reg_station', '')
         workstation_assignment = session.query(WorkstationAssignment).filter_by(
@@ -237,7 +252,7 @@ class Root:
     @public
     @not_site_mappable
     def attendees(self, session, query=''):
-        if not cherrypy.session.get('account_id'):
+        if not cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None)):
             raise HTTPRedirect('login?message={}', 'You are not logged in', save_location=True)
 
         attendees = session.access_query_matrix()[query].limit(c.ROW_LOAD_LIMIT).all() if query else None
@@ -247,13 +262,38 @@ class Root:
             }
 
     @public
-    def logout(self):
+    def logout(self, delete_prereg=False, **params):
+        id_token = ""
+        if "session_token" in cherrypy.request.cookie:
+            id_token = cherrypy.request.cookie['session_token'].value
+        for cookie in ['session_token', 'refresh_token', 'idp_hint']:
+            cherrypy.response.cookie[cookie] = ''
+            cherrypy.response.cookie[cookie]['expires'] = 0
+            cherrypy.response.cookie[cookie]['max-age'] = 0 # Also set max-age for compatibility
+            cherrypy.response.cookie[cookie]['path'] = '/'
         for key in list(cherrypy.session.keys()):
-            if key not in ['preregs', 'paid_preregs', 'job_defaults', 'prev_location']:
-                cherrypy.session.pop(key)
+            if key not in ['job_defaults', 'prev_location']:
+                if delete_prereg or key not in PreregCart.session_keys:
+                    cherrypy.session.pop(key)
 
         if c.SAML_SETTINGS:
             raise HTTPRedirect('../landing/index?message={}', 'You have been logged out.')
+        elif c.OIDC_ENABLED:
+            if cherrypy.request.method == "POST":
+                post_logout_url = params.get('post_logout_url', '')
+                post_logout_state = params.get('post_logout_state', '')
+            else:
+                post_logout_url = "/landing/index"
+                post_logout_state = "?message=You have been logged out."
+            token_or_client_id = ""
+            if id_token:
+                token_or_client_id = f"id_token_hint={id_token}&"
+            else:
+                token_or_client_id = f"client_id={c.OIDC_CLIENT_ID}&"
+            raise HTTPRedirect(
+                f"{c.OIDC_LOGOUT_URL}?{token_or_client_id}&state={base64.urlsafe_b64encode(post_logout_state.encode()).decode()}"
+                f"&post_logout_redirect_uri={c.URL_BASE}{post_logout_url}"
+            )
         else:
             raise HTTPRedirect('login?message={}', 'You have been logged out.')
 
@@ -279,16 +319,8 @@ class Root:
                     session.delete(account.password_reset)
                     session.commit()
                 session.add(PasswordReset(admin_account=account, hashed=create_new_hash(password)))
-                body = render('emails/accounts/password_reset.txt', {
-                    'name': account.attendee.full_name,
-                    'password':  password}, encoding=None)
-
-                send_email.delay(
-                    c.ADMIN_EMAIL,
-                    account.attendee.email,
-                    c.EVENT_NAME + ' Admin Password Reset',
-                    body,
-                    model=account.attendee.to_dict('id'))
+                EmailService.queue_email(session, 'admin_password_reset', account,
+                                         data={'password': password}, replace_unsent=True)
                 raise HTTPRedirect('login?message={}', 'Your new password has been emailed to you')
 
         return {
@@ -308,7 +340,7 @@ class Root:
 
         if updater_password is not None:
             new_password = new_password.strip()
-            updater_account = session.admin_account(cherrypy.session.get('account_id'))
+            updater_account = session.admin_account(cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None)))
             if not new_password:
                 message = 'New password is required'
             elif not valid_password(updater_password, updater_account):
@@ -336,12 +368,12 @@ class Root:
             csrf_token=None,
             confirm_password=None):
 
-        if not cherrypy.session.get('account_id'):
+        if not cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None)):
             raise HTTPRedirect('login?message={}', 'You are not logged in', save_location=True)
 
         if old_password is not None:
             new_password = new_password.strip()
-            account = session.admin_account(cherrypy.session.get('account_id'))
+            account = session.admin_account(cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None)))
             if not new_password:
                 message = 'New password is required'
             elif not valid_password(old_password, account):
@@ -394,31 +426,40 @@ class Root:
             except ValueError:
                 pass
             else:
-                match = session.query(Attendee).filter(Attendee.id == id).first()
-                if match:
+                attendee = session.get(Attendee, id)
+                if attendee:
                     account = session.admin_account(params)
-                    if account.is_new:
-                        if not c.SAML_SETTINGS:
-                            password = genpasswd()
-                            account.hashed = create_new_hash(password)
-                        account.attendee = match
-                        session.add(account)
-                        body = render('emails/accounts/new_account.txt', {
-                            'account': account,
-                            'password': password if not c.SAML_SETTINGS else '',
-                            'creator': AdminAccount.admin_name()
-                        }, encoding=None)
-                        send_email.delay(
-                            c.ADMIN_EMAIL,
-                            match.email,
-                            'New ' + c.EVENT_NAME + ' Admin Account',
-                            body,
-                            model=match.to_dict('id'))
+                    if not c.SAML_SETTINGS and not c.OIDC_ENABLED:
+                        password = genpasswd()
+                        account.hashed = create_new_hash(password)
+                    account.attendee = attendee
+                    session.add(account)
+                    if account.is_new and not c.AT_OR_POST_CON:
+                        session.commit()
+                        if c.LOCAL_ACCOUNTS_DISABLED and not attendee.managers:
+                            new_account = session.create_attendee_account(attendee.email)
+                            session.add(new_account)
+                            session.add_attendee_to_account(attendee, new_account)
+                            if attendee.group and attendee.id == attendee.group.leader_id:
+                                for group_member in attendee.group.attendees:
+                                    if not group_member.is_unassigned and group_member != attendee:
+                                        session.add_attendee_to_account(group_member, new_account)
+                            session.commit()
+                            OIDC.send_claim_token(session, new_account, account)
+                            session.commit()
+                            return {'success': True, 'message': "Account created and claim email sent."}
+                        else:
+                            if c.ATTENDEE_ACCOUNTS_ENABLED and attendee.managers:
+                                account.sso_id = attendee.managers[0].sso_id
+                            EmailService.queue_email(
+                                session, 'new_admin_account', account,
+                                data={'password': password if not c.SAML_SETTINGS and not c.OIDC_ENABLED else '',
+                                      'creator': AdminAccount.admin_name()}, replace_unsent=True)
 
                         success_count += 1
         if success_count == 0:
             message = 'No new accounts were created.'
         else:
             session.commit()
-            message = '%d new accounts have been created, and emailed their passwords.' % success_count
+            message = '%d new accounts have been created and emailed.' % success_count
         return message

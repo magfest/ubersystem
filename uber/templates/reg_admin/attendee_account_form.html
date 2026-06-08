@@ -81,11 +81,11 @@
                 <a href="receipt_items?id={{ attendee.id }}" target="_blank">View Receipt</a>
             </td>
             <td>
-                {% for app in attendee.art_show_applications %}
-                <a href="../art_show_admin/form?id={{ app.id }}" target="_blank">View Application</a>
+                {% if attendee.art_show_application %}
+                <a href="../art_show_admin/form?id={{ attendee.art_show_application.id }}" target="_blank">View Application</a>
                 {% else %}
                     N/A
-                {% endfor %}
+                {% endif %}
             </td>
             <td>
                 {% if attendee.marketplace_application %}

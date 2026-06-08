@@ -36,11 +36,11 @@
             {% endfor %}
         </select>
         {% for app in event.applications %}
-        <br/> (<a href="../panels_admin/app?id={{ app.id }}">view application for {{ app.name }}</a>)
+        <a href="../panels_admin/app?id={{ app.id }}">View application for {{ app.name }}</a>
         {% endfor %}
     </div>
     <div class="col-sm">
-        <label for="panel_id" class="form-text">Panelists</label>
+        <div class="form-text">Panelists</div>
         <div><a class="btn btn-primary" id="add" href="#" onClick="addPanelist(); return false">Add a Panelist</a></div>
     </div>
 </div>

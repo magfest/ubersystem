@@ -1,11 +1,13 @@
 from collections import OrderedDict
 from os.path import abspath, join
 import pathlib
-from pockets.autolog import log
+import logging
 
 from alembic import command
 from alembic.config import Config as AlembicConfig
 from alembic.script import ScriptDirectory
+
+log = logging.getLogger(__name__)
 
 
 # Path to "alembic.ini", cached here for convenience

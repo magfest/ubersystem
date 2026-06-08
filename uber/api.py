@@ -3,36 +3,34 @@ import uuid
 from collections import defaultdict
 from datetime import datetime
 from functools import wraps
-from pockets import is_listy
-from pockets.autolog import log
 
 import cherrypy
 import pytz
 import json
 import six
 import traceback
+import inspect
+import logging
 from cherrypy import HTTPError
 from dateutil import parser as dateparser
-from pockets import unwrap
 from time import mktime
-from residue import UTCDateTime
-from sqlalchemy import and_, func, or_
-from sqlalchemy.orm import subqueryload
+from sqlalchemy import and_, func, or_, not_
+from sqlalchemy.orm import subqueryload, joinedload, selectinload
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
-from sqlalchemy.types import Boolean, Date
-from sqlalchemy.sql.elements import not_
+from sqlalchemy.types import Boolean, Date, DateTime
 
 from uber.barcode import get_badge_num_from_barcode
 from uber.config import c
-from uber.decorators import department_id_adapter
 from uber.errors import CSRFException
-from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, BadgeInfo, Department, DeptMembership,
+from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, Attraction, AttractionFeature, AttractionEvent,
+                         BadgeInfo, Department, DeptMembership,
                          DeptRole, Event, IndieJudge, IndieStudio, Job, Session, Shift, Group,
                          GuestGroup, Room, HotelRequests, RoomAssignment)
 from uber.models.badge_printing import PrintJob
 from uber.serializer import serializer
-from uber.utils import check, check_csrf, normalize_email, normalize_newlines
+from uber.utils import check, check_csrf, normalize_email_legacy, normalize_newlines, is_listy
 
+log = logging.getLogger(__name__)
 
 __version__ = '1.0'
 
@@ -162,13 +160,15 @@ def _attendee_fields_and_query(full, query, only_valid=True):
     if full:
         fields = AttendeeLookup.fields_full
         query = query.options(
-            subqueryload(Attendee.dept_memberships),
-            subqueryload(Attendee.assigned_depts),
-            subqueryload(Attendee.food_restrictions),
-            subqueryload(Attendee.shifts).subqueryload(Shift.job))
+            selectinload(Attendee.dept_memberships).joinedload(DeptMembership.department),
+            selectinload(Attendee.assigned_depts),
+            selectinload(Attendee.dept_roles).joinedload(DeptRole.department),
+            selectinload(Attendee.shifts).joinedload(Shift.job),
+            selectinload(Attendee.food_restrictions),
+            selectinload(Attendee.managers), joinedload(Attendee.group))
     else:
         fields = AttendeeLookup.fields
-        query = query.options(subqueryload(Attendee.dept_memberships))
+        query = query.options(selectinload(Attendee.dept_memberships), selectinload(Attendee.shifts).joinedload(Shift.job),)
     return (fields, query)
 
 
@@ -220,8 +220,8 @@ def _prepare_attendees_export(attendees, include_account_ids=False, include_apps
             d['attendee_account_ids'] = [m.id for m in a.managers]
 
         if include_apps:
-            if a.art_show_applications:
-                d['art_show_app'] = a.art_show_applications[0].to_dict(art_show_import_fields)
+            if a.art_show_application:
+                d['art_show_app'] = a.art_show_application.to_dict(art_show_import_fields)
             if a.marketplace_application:
                 d['marketplace_app'] = a.marketplace_application.to_dict(marketplace_import_fields)
 
@@ -276,14 +276,14 @@ def _query_to_names_emails_ids(query, split_names=True):
             match = _re_name_email.match(q)
             if match:
                 name = match.group(1)
-                email = normalize_email(match.group(2))
+                email = normalize_email_legacy(match.group(2))
                 if name:
                     first, last = (_re_whitespace.split(name.lower(), 1) + [''])[0:2]
                     names_and_emails[(first, last, email)] = q
                 else:
                     emails[email] = q
             else:
-                emails[normalize_email(q)] = q
+                emails[normalize_email_legacy(q)] = q
         elif q:
             try:
                 ids.add(str(uuid.UUID(q)))
@@ -309,9 +309,9 @@ def _parse_datetime(d):
 
 
 def _parse_if_datetime(key, val):
-    # This should be in the UTCDateTime and Date classes, but they're not defined in this app
+    # This should be in the DateTime and Date classes, but they're not defined in this app
     if hasattr(getattr(Attendee, key), 'type') and (
-            isinstance(getattr(Attendee, key).type, UTCDateTime) or isinstance(getattr(Attendee, key).type, Date)):
+            isinstance(getattr(Attendee, key).type, DateTime) or isinstance(getattr(Attendee, key).type, Date) or isinstance(getattr(Attendee, key).type, Date)):
         return _parse_datetime(val)
     return val
 
@@ -353,11 +353,11 @@ def auth_by_session(required_access):
         check_csrf()
     except CSRFException:
         return (403, 'Your CSRF token is invalid. Please go back and try again.')
-    admin_account_id = cherrypy.session.get('account_id')
+    admin_account_id = cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))
     if not admin_account_id:
         return (403, 'Missing admin account in session')
     with Session() as session:
-        admin_account = session.query(AdminAccount).filter_by(id=admin_account_id).first()
+        admin_account = session.get(AdminAccount, admin_account_id)
         if not admin_account:
             return (403, 'Invalid admin account in session')
         for access_level in required_access:
@@ -370,7 +370,7 @@ def api_auth(*required_access):
     required_access = set(required_access)
 
     def _decorator(fn):
-        inner_func = unwrap(fn)
+        inner_func = inspect.unwrap(fn)
         if getattr(inner_func, 'required_access', None) is not None:
             return fn
         else:
@@ -509,7 +509,6 @@ class MivsLookup:
         with Session() as session:
             judges = session.query(IndieJudge).filter(not_(IndieJudge.status.in_([c.CANCELLED, c.DISQUALIFIED])))
 
-
             for judge in judges:
                 fields = AttendeeLookup.attendee_import_fields + Attendee.import_fields
                 judges_list.append((judge.to_dict(), judge.attendee.to_dict(fields)))
@@ -523,7 +522,7 @@ class MivsLookup:
             raise HTTPError(400, f"Invalid ID: {str(e)}")
 
         with Session() as session:
-            judge = session.query(IndieJudge).filter(IndieJudge.id == id).first()
+            judge = session.get(IndieJudge, id)
             if judge:
                 return judge.to_dict()
             else:
@@ -694,10 +693,16 @@ class AttendeeLookup:
         with Session() as session:
             if full:
                 options = [
-                    subqueryload(Attendee.dept_memberships).subqueryload(DeptMembership.department),
-                    subqueryload(Attendee.dept_roles).subqueryload(DeptRole.department)]
+                    selectinload(Attendee.dept_memberships).joinedload(DeptMembership.department),
+                    selectinload(Attendee.dept_roles).joinedload(DeptRole.department),
+                    selectinload(Attendee.shifts).joinedload(Shift.job),
+                    selectinload(Attendee.food_restrictions),
+                    selectinload(Attendee.managers), joinedload(Attendee.group)
+                    ]
             else:
-                options = []
+                options = [
+                    selectinload(Attendee.shifts).joinedload(Shift.job),
+                ]
 
             email_attendees = []
             if emails:
@@ -773,7 +778,7 @@ class AttendeeLookup:
         Example `params` dictionary for setting extra parameters:
         <pre>{"placeholder": "yes", "legal_name": "First Last", "cellphone": "5555555555"}</pre>
         """
-        with Session() as session:
+        with Session(create_savepoint=True) as session:
             attendee_query = session.query(Attendee).filter(Attendee.first_name.ilike(first_name),
                                                             Attendee.last_name.ilike(last_name),
                                                             Attendee.email.ilike(email))
@@ -815,7 +820,7 @@ class AttendeeLookup:
         Example:
         <pre>{"first_name": "First", "paid": "doesn't need to", "ribbon": "Volunteer, Panelist"}</pre>
         """
-        with Session() as session:
+        with Session(create_savepoint=True) as session:
             attendee = session.attendee(id, allow_invalid=True)
 
             if not attendee:
@@ -864,13 +869,26 @@ class AttendeeAccountLookup:
         """
 
         with Session() as session:
-            account = session.query(AttendeeAccount).filter(AttendeeAccount.id == id).first()
+            account = session.get(AttendeeAccount, id)
 
             if not account:
                 raise HTTPError(404, 'No attendee account found with this ID')
+            
+            filters = [Attendee.is_valid == True]
+            if not include_group:
+                filters.append(Attendee.group_id == None)
 
-            attendees_to_export = account.valid_attendees if include_group \
-                else [a for a in account.valid_attendees if not a.group]
+            attendees_to_export = session.query(Attendee).join(Attendee.managers).filter(
+                AttendeeAccount.id == id).filter(*filters).options(
+                selectinload(Attendee.dept_memberships).joinedload(DeptMembership.department),
+                selectinload(Attendee.dept_roles).joinedload(DeptRole.department),
+                selectinload(Attendee.shifts).joinedload(Shift.job),
+                selectinload(Attendee.food_restrictions),
+                selectinload(Attendee.managers),
+                joinedload(Attendee.group),
+                joinedload(Attendee.art_show_application),
+                joinedload(Attendee.marketplace_application)
+            )
 
             attendees = _prepare_attendees_export(attendees_to_export, include_apps=full)
             return {
@@ -901,7 +919,7 @@ class AttendeeAccountLookup:
                 if emails:
                     email_accounts = session.query(AttendeeAccount).filter(
                         AttendeeAccount.email.in_(list(emails.keys()))
-                        ).options(subqueryload(AttendeeAccount.attendees)
+                        ).options(selectinload(AttendeeAccount.attendees)
                                   ).order_by(AttendeeAccount.email, AttendeeAccount.id).all()
 
                 known_emails = set(a.normalized_email for a in email_accounts)
@@ -910,7 +928,7 @@ class AttendeeAccountLookup:
                 id_accounts = []
                 if ids:
                     id_accounts = session.query(AttendeeAccount).filter(
-                        AttendeeAccount.id.in_(ids)).options(subqueryload(AttendeeAccount.attendees)
+                        AttendeeAccount.id.in_(ids)).options(selectinload(AttendeeAccount.attendees)
                                                              ).order_by(AttendeeAccount.email,
                                                                         AttendeeAccount.id).all()
 
@@ -942,6 +960,80 @@ class AttendeeAccountLookup:
             }
 
 
+@all_api_auth('api_read')
+class AttractionLookup:
+    def list(self):
+        """
+        Returns a list of all attractions
+        """
+        with Session() as session:
+            return [(id, name) for id, name in session.query(Attraction.id, Attraction.name).order_by(Attraction.name).all()]
+
+    @api_auth('api_read')
+    def features_events(self, attraction_id):
+        """
+        Returns a list of all features and events for the given attraction.
+
+        Takes the attraction id as the first parameter. For a list of all
+        attraction ids call the "attraction.list" method.
+        """
+        with Session() as session:
+            attraction = session.get(Attraction, attraction_id)
+            if not attraction:
+                raise HTTPError(404, 'Attraction id not found: {}'.format(attraction_id))
+            return attraction.to_dict({
+                'id': True,
+                'name': True,
+                'description': True,
+                'full_description': True,
+                'checkin_reminder': True,
+                'advance_checkin': True,
+                'restriction': True,
+                'badge_num_required': True,
+                'populate_schedule': True,
+                'no_notifications': True,
+                'waitlist_available': True,
+                'waitlist_slots': True,
+                'signups_open_relative': True,
+                'signups_open_time': True,
+                'slots': True,
+                'department': {
+                    'id': True,
+                    'name': True,
+                },
+                'features': {
+                    'id': True,
+                    'name': True,
+                    'description': True,
+                    'badge_num_required': True,
+                    'populate_schedule': True,
+                    'no_notifications': True,
+                    'waitlist_available': True,
+                    'waitlist_slots': True,
+                    'signups_open_relative': True,
+                    'signups_open_time': True,
+                    'slots': True,
+                    'events': {
+                        'id': True,
+                        'start_time': True,
+                        'duration': True,
+                        'populate_schedule': True,
+                        'no_notifications': True,
+                        'waitlist_available': True,
+                        'waitlist_slots': True,
+                        'signups_open_relative': True,
+                        'signups_open_time': True,
+                        'slots': True,
+                        'location': {
+                            'id': True,
+                            'name': True,
+                            'room': True,
+                        }
+                    }
+                }
+            })
+
+
 @all_api_auth('api_update')
 class JobLookup:
     fields = {
@@ -968,7 +1060,6 @@ class JobLookup:
         }
     }
 
-    @department_id_adapter
     @api_auth('api_read')
     def lookup(self, department_id, start_time=None, end_time=None):
         """
@@ -1020,7 +1111,7 @@ class JobLookup:
         Takes the shift id as the only parameter.
         """
         with Session() as session:
-            shift = session.query(Shift).filter_by(id=shift_id).first()
+            shift = session.get(Shift, shift_id)
             if not shift:
                 raise HTTPError(404, 'Shift id not found:{}'.format(shift_id))
 
@@ -1062,7 +1153,7 @@ class JobLookup:
                 c.RATINGS[rating]))
 
         with Session() as session:
-            shift = session.query(Shift).filter_by(id=shift_id).first()
+            shift = session.get(Shift, shift_id)
             if not shift:
                 raise HTTPError(404, 'Shift id not found:{}'.format(shift_id))
 
@@ -1168,7 +1259,7 @@ class GroupLookup:
         """
 
         with Session() as session:
-            group = session.query(Group).filter(Group.id == id).first()
+            group = session.get(Group, id)
 
             if not group:
                 raise HTTPError(404, 'No group found with this ID')
@@ -1262,7 +1353,6 @@ class DepartmentLookup:
         """
         return c.DEPARTMENTS
 
-    @department_id_adapter
     @api_auth('api_read')
     def members(self, department_id, full=False):
         """
@@ -1271,7 +1361,7 @@ class DepartmentLookup:
         Takes the department id and 'full' to return attendees' full list of fields.
         """
         with Session() as session:
-            department = session.query(Department).filter_by(id=department_id).first()
+            department = session.get(Department, department_id)
             if not department:
                 raise HTTPError(404, 'Department id not found: {}'.format(department_id))
             if full:
@@ -1291,7 +1381,6 @@ class DepartmentLookup:
                 'members': attendee_fields
             })
 
-    @department_id_adapter
     @api_auth('api_read')
     def jobs(self, department_id):
         """
@@ -1301,7 +1390,7 @@ class DepartmentLookup:
         department ids call the "dept.list" method.
         """
         with Session() as session:
-            department = session.query(Department).filter_by(id=department_id).first()
+            department = session.get(Department, department_id)
             if not department:
                 raise HTTPError(404, 'Department id not found: {}'.format(department_id))
             return department.to_dict({
@@ -1317,7 +1406,6 @@ class DepartmentLookup:
                 'panels_desc': True,
                 'jobs': {
                     'id': True,
-                    'type': True,
                     'name': True,
                     'description': True,
                     'start_time': True,
@@ -1326,13 +1414,50 @@ class DepartmentLookup:
                     'slots': True,
                     'extra15': True,
                     'visibility': True,
+                    'all_roles_required': True,
                     'required_roles': {'id': True},
+                    'job_template_id': True,
                 },
                 'dept_roles': {
                     'id': True,
                     'name': True,
                     'description': True,
                 },
+                'job_templates': {
+                    'id': True,
+                    'template_name': True,
+                    'type': True,
+                    'name': True,
+                    'description': True,
+                    'duration': True,
+                    'weight': True,
+                    'extra15': True,
+                    'visibility': True,
+                    'all_roles_required': True,
+                    'min_slots': True,
+                    'days': True,
+                    'open_time': True,
+                    'close_time': True,
+                    'interval': True,
+                    'required_roles': {'id': True},
+                },
+                'attractions': {
+                    'id': True,
+                    'name': True,
+                    'description': True,
+                    'full_description': True,
+                    'checkin_reminder': True,
+                    'advance_checkin': True,
+                    'restriction': True,
+                    'badge_num_required': True,
+                    'populate_schedule': True,
+                    'no_notifications': True,
+                    'waitlist_available': True,
+                    'waitlist_slots': True,
+                    'signups_open_relative': True,
+                    'signups_open_time': True,
+                    'slots': True,
+                }
             })
 
 
@@ -1344,6 +1469,10 @@ class ConfigLookup:
         'EVENT_YEAR',
         'EPOCH',
         'ESCHATON',
+        'SHIFTS_EPOCH',
+        'SHIFTS_ESCHATON',
+        'PANELS_EPOCH',
+        'PANELS_ESCHATON',
         'EVENT_VENUE',
         'EVENT_VENUE_ADDRESS',
         'EVENT_TIMEZONE',
@@ -1402,7 +1531,7 @@ class HotelLookup:
         """
         with Session() as session:
             if id:
-                room = session.query(Room).filter(Room.id == id).one_or_none()
+                room = session.get(Room, id)
                 if not room:
                     return HTTPError(404, "Could not locate room {}".format(id))
             else:
@@ -1425,7 +1554,7 @@ class HotelLookup:
         """
         with Session() as session:
             if id:
-                hotel_request = session.query(HotelRequests).filter(HotelRequests.id == id).one_or_none()
+                hotel_request = session.get(HotelRequests, id)
                 if not hotel_request:
                     return HTTPError(404, "Could not locate request {}".format(id))
             else:
@@ -1589,7 +1718,7 @@ class PrintJobLookup:
                 if not restart or not errors:
                     results[job.id] = self._build_job_json_data(job)
                     if not dry_run:
-                        job.queued = datetime.utcnow()
+                        job.queued = datetime.now(UTC)
                         session.add(job)
                         session.commit()
 
@@ -1614,7 +1743,7 @@ class PrintJobLookup:
             except ValueError:
                 raise HTTPError(400, "Reg station must be an integer.")
 
-            attendee = session.query(Attendee).filter_by(id=attendee_id).first()
+            attendee = session.get(Attendee, attendee_id)
             if not attendee:
                 raise HTTPError(404, "Attendee not found.")
 
@@ -1683,7 +1812,7 @@ class PrintJobLookup:
 
             for job in jobs:
                 results[job.id] = self._build_job_json_data(job)
-                job.printed = datetime.utcnow()
+                job.printed = datetime.now(UTC)
                 session.add(job)
                 session.commit()
 
@@ -1729,7 +1858,7 @@ class PrintJobLookup:
                     else:
                         job.errors = error
                 else:
-                    job.printed = datetime.utcnow()
+                    job.printed = datetime.now(UTC)
                 session.add(job)
                 session.commit()
 
@@ -1739,6 +1868,7 @@ class PrintJobLookup:
 if c.API_ENABLED:
     register_jsonrpc(AttendeeLookup(), 'attendee')
     register_jsonrpc(AttendeeAccountLookup(), 'attendee_account')
+    register_jsonrpc(AttractionLookup(), 'attraction')
     register_jsonrpc(GroupLookup(), 'group')
     register_jsonrpc(JobLookup(), 'shifts')
     register_jsonrpc(DepartmentLookup(), 'dept')

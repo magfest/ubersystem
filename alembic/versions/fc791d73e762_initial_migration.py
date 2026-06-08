@@ -15,7 +15,6 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import residue
 
 
 try:
@@ -32,9 +31,9 @@ else:
 
 def upgrade():
     op.create_table('band',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('group_id', residue.UUID(), nullable=False),
-    sa.Column('event_id', residue.UUID(), nullable=True),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('group_id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('event_id', sa.Uuid(as_uuid=False), nullable=True),
     sa.Column('payment', sa.Integer(), server_default='0', nullable=False),
     sa.Column('vehicles', sa.Integer(), server_default='1', nullable=False),
     sa.Column('estimated_loadin_minutes', sa.Integer(), server_default='20', nullable=False),
@@ -44,8 +43,8 @@ def upgrade():
     sa.PrimaryKeyConstraint('id', name=op.f('pk_band'))
     )
     op.create_table('band_bio',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('band_id', residue.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('band_id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('desc', sa.Unicode(), server_default='', nullable=False),
     sa.Column('website', sa.Unicode(), server_default='', nullable=False),
     sa.Column('facebook', sa.Unicode(), server_default='', nullable=False),
@@ -58,8 +57,8 @@ def upgrade():
     sa.UniqueConstraint('band_id', name=op.f('uq_band_bio_band_id'))
     )
     op.create_table('band_charity',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('band_id', residue.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('band_id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('donating', sa.Integer(), nullable=True),
     sa.Column('desc', sa.Unicode(), server_default='', nullable=False),
     sa.ForeignKeyConstraint(['band_id'], ['band.id'], name=op.f('fk_band_charity_band_id_band')),
@@ -67,8 +66,8 @@ def upgrade():
     sa.UniqueConstraint('band_id', name=op.f('uq_band_charity_band_id'))
     )
     op.create_table('band_info',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('band_id', residue.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('band_id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('poc_phone', sa.Unicode(), server_default='', nullable=False),
     sa.Column('performer_count', sa.Integer(), server_default='0', nullable=False),
     sa.Column('bringing_vehicle', sa.Boolean(), server_default='False', nullable=False),
@@ -79,16 +78,16 @@ def upgrade():
     sa.UniqueConstraint('band_id', name=op.f('uq_band_info_band_id'))
     )
     op.create_table('band_merch',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('band_id', residue.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('band_id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('selling_merch', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['band_id'], ['band.id'], name=op.f('fk_band_merch_band_id_band')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_band_merch')),
     sa.UniqueConstraint('band_id', name=op.f('uq_band_merch_band_id'))
     )
     op.create_table('band_panel',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('band_id', residue.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('band_id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('wants_panel', sa.Integer(), nullable=True),
     sa.Column('name', sa.Unicode(), server_default='', nullable=False),
     sa.Column('length', sa.Unicode(), server_default='', nullable=False),
@@ -99,8 +98,8 @@ def upgrade():
     sa.UniqueConstraint('band_id', name=op.f('uq_band_panel_band_id'))
     )
     op.create_table('band_stage_plot',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('band_id', residue.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('band_id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('filename', sa.Unicode(), server_default='', nullable=False),
     sa.Column('content_type', sa.Unicode(), server_default='', nullable=False),
     sa.ForeignKeyConstraint(['band_id'], ['band.id'], name=op.f('fk_band_stage_plot_band_id_band')),
@@ -108,8 +107,8 @@ def upgrade():
     sa.UniqueConstraint('band_id', name=op.f('uq_band_stage_plot_band_id'))
     )
     op.create_table('band_taxes',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('band_id', residue.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('band_id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('w9_filename', sa.Unicode(), server_default='', nullable=False),
     sa.Column('w9_content_type', sa.Unicode(), server_default='', nullable=False),
     sa.ForeignKeyConstraint(['band_id'], ['band.id'], name=op.f('fk_band_taxes_band_id_band')),

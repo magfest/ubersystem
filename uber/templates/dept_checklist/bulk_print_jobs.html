@@ -24,10 +24,10 @@
     <div class="modal-dialog modal-lg" role="document">
     <div class="modal-content">
         <div class="modal-header">
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         <h4 class="modal-title" id="{{ modal_id }}-request-title">
             {% if modal_id == 'new' %}Add{% else %}Update{% endif %} Bulk Printing Request
         </h4>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <form novalidate method="post" id="{{ modal_id }}-print-job" action="bulk_print_jobs">
         <div class="modal-body">
@@ -89,7 +89,8 @@
             </td>
             <td>{{ request.notes|default("None", true) }}</td>
             <td>{{ request.required|yesno|title }}</td>
-            <td class="d-flex gap-1">
+            <td>
+                <div class="d-flex gap-1">
                 <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#request-modal-{{ request.id }}">Edit</button>
                 <form method="post" action="delete_print_request">
                     <input type="hidden" name="id" value="{{ request.id }}" />
@@ -97,6 +98,7 @@
                     {{ csrf_token() }}
                     <button class="btn btn-sm btn-danger delete-request">Delete</button>
                 </form>
+                </div>
             </td>
         </tr>
         {% endfor %}
@@ -104,15 +106,17 @@
 </table>
 {% endif %}
 
-{% if checklist.relevant and checklist.completed %}
-    You've already indicated that this list is complete; emails STOPS if you completed this in error.
-{% elif checklist.relevant %}
-<form method="post" action="../dept_checklist/mark_item_complete">
-    {{ csrf_token() }}
-    <input type="hidden" name="department_id" value="{{ department_id }}" />
-    <input type="hidden" name="slug" value="{{ checklist.conf.slug }}" />
-    <button type="submit" class="btn btn-primary">I've added all my department's bulk print requests</button>
-</form>
+{% if checklist.relevant and (c.DEPT_CHECKLIST_OPEN or c.DEV_BOX) %}
+    {% if checklist.completed %}
+    You've already indicated that this list is complete but you can update your requests if needed.
+    {% else %}
+    <form method="post" action="../dept_checklist/mark_item_complete">
+        {{ csrf_token() }}
+        <input type="hidden" name="department_id" value="{{ department_id }}" />
+        <input type="hidden" name="slug" value="{{ checklist.conf.slug }}" />
+        <button type="submit" class="btn btn-primary">I've added all my department's bulk print requests</button>
+    </form>
+    {% endif %}
 {% endif %}
 </div>
 

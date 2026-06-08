@@ -1,0 +1,129 @@
+{% for queued_email in email_queue %}
+<div
+    id="body-{{ queued_email.id }}"
+    class="modal fade"
+    tabindex="-1"
+    role="dialog"
+    aria-labelledby="body-{{ queued_email.id }}-title"
+    style="display: none">
+    <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h4 class="modal-title" id="body-{{ queued_email.id }}-title">
+                Email Details ({{ queued_email.to }})
+                {% if queued_email.status == c.SENT %}
+                <span class="badge bg-success">Sent {{ queued_email.sent|full_datetime_local }}</span>
+                {% elif queued_email.status == c.UNAPPROVED %}
+                <span class="badge bg-secondary">Needs Approval</span>
+                {% elif queued_email.error %}
+                <span class="badge bg-warning">Errored</span>
+                {% elif queued_email.status == c.QUEUED %}
+                <span class="badge bg-primary">Queued for {{ queued_email.send_after|full_datetime_local }}</span>
+                {% endif %}
+            </h4>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+        <div class="modal-body">
+            <strong>To</strong>: {{ queued_email.to }}
+            <br/><strong>Subject</strong>: {{ queued_email.subject }}
+            {% if queued_email.cc %}<br/><strong>CC</strong>: {{ queued_email.cc }}{% endif %}
+            {% if queued_email.bcc %}<br/><strong>BCC</strong>: {{ queued_email.bcc }}{% endif %}
+            {% if queued_email.replyto %}<br/><strong>Replyto</strong>: {{ queued_email.replyto }}{% endif %}
+            <hr>
+            {% if queued_email.error %}
+            <div class="alert alert-warning">Error Sending Email: {{ queued_email.error }}</div>
+            {% endif %}
+            {%- set body_html = queued_email.body_as_html if queued_email.format == 'text' else queued_email.body_with_body_tag_stripped -%}
+            {{ body_html|safe }}
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+            {% if queued_email.status == c.UNAPPROVED and False %}
+            <button type="button" class="btn btn-success" data-bs-dismiss="modal">Approve for Sending</button>
+            {% elif queued_email.status == c.SENT %}
+            {% elif queued_email.error %}
+            {% endif %}
+        </div>
+    </div>
+    </div>
+</div>
+{% endfor %}
+
+<script type="text/javascript">
+    var deleteEmail = function (id, recipient) {
+        bootbox.confirm({
+                backdrop: true,
+                title: "Delete This Email to " + recipient + "?",
+                message: '<p>This queued email to ' + recipient + ' will be permanently deleted. Only do this if you are sure it will never or should never be sent.</p>',
+                buttons: {
+                    confirm: { label: 'Delete', className: 'btn-danger' },
+                    cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+                },
+                callback: function (result) {
+                    if (result) {
+                        $.ajax({
+                        method: 'POST',
+                        url: 'delete_email',
+                        dataType: 'json',
+                        data: {
+                            id: id,
+                            csrf_token: csrf_token,
+                        },
+                        success: function (json) {
+                            hideMessageBox();
+                            var message = json.message;
+                            if (json.success) {
+                                $("#message-alert").addClass("alert-info").show().children('span').html(message);
+                                window.scrollTo(0,0); setTimeout(() => { window.scrollTo(0, 0); }, 100);
+                                $('#row-' + id).remove()
+                            } else {
+                                showErrorMessage(message);
+                            }
+                        },
+                        error: function () {
+                            showErrorMessage('Unable to connect to server, please try again.');
+                        }
+                    });
+                    }
+                }
+            });
+    }
+    var requeueEmail = function (id, recipient) {
+        bootbox.confirm({
+                backdrop: true,
+                title: "Requeue This Email to " + recipient + "?",
+                message: "<p>This email's error will be cleared and it will be put back into the queue for sending. The error may occur again if the underlying issue was not fixed.</p>",
+                buttons: {
+                    confirm: { label: 'Requeue', className: 'btn-primary' },
+                    cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+                },
+                callback: function (result) {
+                    if (result) {
+                        $.ajax({
+                        method: 'POST',
+                        url: 'requeue_email',
+                        dataType: 'json',
+                        data: {
+                            id: id,
+                            csrf_token: csrf_token,
+                        },
+                        success: function (json) {
+                            hideMessageBox();
+                            var message = json.message;
+                            if (json.success) {
+                                $("#message-alert").addClass("alert-info").show().children('span').html(message);
+                                window.scrollTo(0,0); setTimeout(() => { window.scrollTo(0, 0); }, 100);
+                                $('#row-' + id).remove()
+                            } else {
+                                showErrorMessage(message);
+                            }
+                        },
+                        error: function () {
+                            showErrorMessage('Unable to connect to server, please try again.');
+                        }
+                    });
+                    }
+                }
+            });
+    }
+</script>

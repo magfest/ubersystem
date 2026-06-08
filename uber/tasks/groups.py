@@ -1,17 +1,18 @@
 import pytz
+import logging
 
 from datetime import datetime, timedelta
 from celery.schedules import crontab
-from pockets.autolog import log
 from sqlalchemy.orm.exc import NoResultFound
 
+from uber.email import EmailService
 from uber.config import c
 from uber.decorators import render
 from uber.models import Group, GuestGroup, GuestMerch, Session
 from uber.tasks import celery
-from uber.tasks.email import send_email
 from uber.utils import SignNowRequest, localized_now
 
+log = logging.getLogger(__name__)
 
 __all__ = ['check_document_signed', 'convert_declined_groups']
 
@@ -39,7 +40,7 @@ def check_document_signed():
                         session.commit()
 
 
-@celery.schedule(crontab(minute=0, hour=0))
+@celery.schedule(timedelta(hours=12))
 def convert_declined_groups():
     from uber.site_sections.dealer_admin import decline_and_convert_dealer_group
 
@@ -60,8 +61,6 @@ def rock_island_updates():
             GuestMerch, GuestGroup.merch).filter(
                 GuestMerch.inventory_updated > datetime.now(pytz.UTC) - timedelta(hours=24))
         if updated_ri_inventories.count():
-            subject = '{} Rock Island Inventory Updates for {}'.format(c.EVENT_NAME, localized_now().strftime('%Y-%m-%d'))
-            body = render('emails/daily_checks/ri_inventory_updates.html', {
-                'updated_ri_inventories': updated_ri_inventories,
-            }, encoding=None)
-            send_email(c.REPORTS_EMAIL, c.ROCK_ISLAND_EMAIL, subject, body, format='html', model='n/a', session=session)
+            EmailService.queue_email(session, 'rock_island_updates_admin', to=c.ROCK_ISLAND_EMAIL,
+                                     subject=f'{c.EVENT_NAME} Rock Island Inventory Updates for {localized_now().strftime('%Y-%m-%d')}',
+                                     data={'updated_ri_inventories': updated_ri_inventories}, replace_unsent=True)

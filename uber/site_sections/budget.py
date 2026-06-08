@@ -1,17 +1,19 @@
 import math
 import re
+import logging
 
 from collections import defaultdict
-from pockets.autolog import log
-from residue import CoerceUTF8 as UnicodeText
 from sqlalchemy.orm import joinedload
 from sqlalchemy import or_, func, not_, and_
+from typing import Iterable
 
 from uber.config import c
 from uber.decorators import all_renderable, log_pageview
 from uber.models import ArbitraryCharge, Attendee, Group, ModelReceipt, MPointsForCash, ReceiptItem, Sale, PromoCodeGroup
 from uber.server import redirect_site_section
 from uber.utils import localized_now, Order
+
+log = logging.getLogger(__name__)
 
 
 def _build_item_subquery(session):
@@ -27,7 +29,10 @@ def get_grouped_costs(session, filters=[], joins=[], selector=Attendee.badge_cos
     # Returns a defaultdict with the {int(cost): count} of badges
     query = session.query(selector, func.count(selector))
     for join in joins:
-        query = query.join(join)
+        if isinstance(join, Iterable):
+            query = query.join(*join)
+        else:
+            query = query.join(join)
     if filters:
         query = query.filter(*filters)
     return defaultdict(int, query.group_by(selector).order_by(selector).all())

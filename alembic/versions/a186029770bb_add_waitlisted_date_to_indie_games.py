@@ -16,7 +16,6 @@ depends_on = None
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-import residue
 
 
 try:
@@ -55,9 +54,9 @@ sqlite_reflect_kwargs = {
 def upgrade():
     if is_sqlite:
         with op.batch_alter_table('indie_game', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
-            batch_op.add_column(sa.Column('waitlisted', residue.UTCDateTime(), nullable=True))
+            batch_op.add_column(sa.Column('waitlisted', sa.DateTime(timezone=True), nullable=True))
     else:
-        op.add_column('indie_game', sa.Column('waitlisted', residue.UTCDateTime(), nullable=True))
+        op.add_column('indie_game', sa.Column('waitlisted', sa.DateTime(timezone=True), nullable=True))
 
 
 def downgrade():

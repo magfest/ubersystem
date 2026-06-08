@@ -20,10 +20,16 @@
 
   var resetInputs = function($parent) {
     $parent.find('input').val('');
+    {% if attendee %}
+    $parent.find('input[name=first_name]').val('{{ attendee.first_name }}');
+    $parent.find('input[name=last_name]').val('{{ attendee.last_name }}');
+    $parent.find('input[name=email]').val('{{ attendee.email }}');
+    $parent.find('input[name=zip_code]').val('{{ attendee.zip_code }}');
+    {% endif %}
   };
 
   var resetBadgeNum = function($parent) {
-    $parent.find('input[name=badge_num]').val('');
+    $parent.find('input[name=badge_num]').val('{{ attendee.badge_num if attendee and attendee.checked_in else "" }}');
     $parent.find('.confirm-label, .confirm-row').hide();
     $parent.find('.badge-num-label, .badge-num-row').show();
   };

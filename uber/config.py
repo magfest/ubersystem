@@ -19,7 +19,6 @@ import validate
 import configobj
 import pathlib
 from tempfile import NamedTemporaryFile
-from copy import deepcopy
 from collections import defaultdict, OrderedDict
 from datetime import date, datetime, time, timedelta
 from hashlib import sha512
@@ -28,12 +27,12 @@ from itertools import chain
 
 import cherrypy
 import signnow_python_sdk
-from pockets import nesteddefaultdict, unwrap, cached_property
-from pockets.autolog import log
 from sqlalchemy import or_, func
-from sqlalchemy.orm import joinedload, subqueryload
+from sqlalchemy.orm import joinedload, selectinload
 
 import uber
+
+log = logging.getLogger(__name__)
 
 plugins_dir = pathlib.Path(__file__).parents[1] / "plugins"
 
@@ -130,6 +129,18 @@ def request_cached_property(func):
             threadlocal.set(name, val)
         return val
     return with_caching
+
+def cached_property(func):
+    """Decorator for making readonly, memoized properties."""
+    cache_attr = '_cached_{0}'.format(func.__name__)
+
+    @property
+    @functools.wraps(func)
+    def caching(self, *args, **kwargs):
+        if not hasattr(self, cache_attr):
+            setattr(self, cache_attr, func(self, *args, **kwargs))
+        return getattr(self, cache_attr)
+    return caching
 
 def create_namespace_uuid(s):
     return uuid.UUID(hashlib.sha1(s.encode('utf-8')).hexdigest()[:32])
@@ -347,8 +358,8 @@ class Config(_Overridable):
                 Attendee.has_badge == True).count()  # noqa: E712
         return count
 
-    def has_section_or_page_access(self, include_read_only=False, page_path=''):
-        access = uber.models.AdminAccount.get_access_set(include_read_only=include_read_only)
+    def has_section_or_page_access(self, page_path='', include_read_only=False, full=False):
+        access = uber.models.AdminAccount.get_access_set(include_read_only=include_read_only, full=full)
         page_path = page_path or self.PAGE_PATH
 
         section = page_path.replace(page_path.split('/')[-1], '').strip('/')
@@ -417,6 +428,10 @@ class Config(_Overridable):
     def PREREG_TABLE_OPTS(self):
         return [(count, '{}: ${}'.format(desc, self.get_table_price(count)))
                 for count, desc in c.TABLE_OPTS]
+    
+    @property
+    def VOLUNTEER_SIGNUPS_AVAILABLE(self):
+        return not c.VOLUNTEER_CHECKLIST_OPEN and c.AFTER_SHIFTS_CREATED or c.VOLUNTEER_CHECKLIST_OPEN and c.AFTER_VOLUNTEER_CHECKLIST_OPEN
 
     @property
     def ART_SHOW_OPEN(self):
@@ -429,6 +444,10 @@ class Config(_Overridable):
     @property
     def SELF_SERVICE_REFUNDS_OPEN(self):
         return self.BEFORE_REFUND_CUTOFF and (self.AFTER_REFUND_START or not self.REFUND_START)
+    
+    @property
+    def DEPT_CHECKLIST_OPEN(self):
+        return self.DEPT_CHECKLIST_START and self.AFTER_DEPT_CHECKLIST_START
     
     @property
     def HOTEL_LOTTERY_OPEN(self):
@@ -968,17 +987,25 @@ class Config(_Overridable):
         uber.utils.ensure_csrf_token_exists()
         return cherrypy.session.get('csrf_token', '')
 
+    def query_str_without_params(self, remove_keys):
+        from urllib.parse import parse_qsl, urlencode
+        query = parse_qsl(cherrypy.request.query_string, keep_blank_values=True)
+
+        query = [(key, val) for (key, val) in query if key not in (remove_keys)]
+        return urlencode(query)
+    
+    def query_str_for_search(self, search_term=''):
+        # For use in server-side search pages
+        # Preserves most existing search terms while removing the search term that's being changed
+        return self.query_str_without_params(['message', 'page', search_term])
+
     @property
     def QUERY_STRING(self):
         return cherrypy.request.query_string
 
     @property
     def QUERY_STRING_NO_MSG(self):
-        from urllib.parse import parse_qsl, urlencode
-
-        query = parse_qsl(cherrypy.request.query_string, keep_blank_values=True)
-        query = [(key, val) for (key, val) in query if key != 'message']
-        return urlencode(query)
+        return self.query_str_without_params(['message'])
 
     @property
     def PAGE_PATH(self):
@@ -996,8 +1023,6 @@ class Config(_Overridable):
         via the meta tag for everything except these pages.
         """
         index_pages = ['/landing/', '/landing/index', '/pregistration/form', '/accounts/login']
-        if c.SHIFTS_CREATED:
-            index_pages.append('/staffing/login')
         if c.TRANSFERABLE_BADGE_TYPES:
             index_pages.append('/preregistration/start_badge_transfer')
         if not c.ATTENDEE_ACCOUNTS_ENABLED:
@@ -1022,26 +1047,15 @@ class Config(_Overridable):
             from uber.models import Session, AdminAccount, Attendee
             with Session() as session:
                 attrs = Attendee.to_dict_default_attrs + ['admin_account', 'assigned_depts', 'logged_in_name']
-                admin_account = session.query(AdminAccount) \
-                    .filter_by(id=cherrypy.session.get('account_id')) \
-                    .options(subqueryload(AdminAccount.attendee).subqueryload(Attendee.assigned_depts)).one()
-
-                return admin_account.attendee.to_dict(attrs)
+                admin_attendee = session.query(Attendee).join(Attendee.admin_account) \
+                    .filter(AdminAccount.id == cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))) \
+                    .options(
+                        joinedload(Attendee.admin_account),
+                        selectinload(Attendee.assigned_depts)).one()
+                return admin_attendee.to_dict(attrs)
         except Exception:
             return {}
 
-    @request_cached_property
-    @dynamic
-    def CURRENT_VOLUNTEER(self):
-        try:
-            from uber.models import Session, Attendee
-            with Session() as session:
-                attrs = Attendee.to_dict_default_attrs + ['logged_in_name']
-                attendee = session.logged_in_volunteer()
-                return attendee.to_dict(attrs)
-        except Exception:
-            return {}
-        
     @request_cached_property
     @dynamic
     def CURRENT_KIOSK_SUPERVISOR(self):
@@ -1063,6 +1077,18 @@ class Config(_Overridable):
                 return attendee.to_dict()
         except Exception:
             return {}
+        
+    @request_cached_property
+    @dynamic
+    def CURRENT_ATTENDEE_ACCOUNT(self):
+        from uber.models import Session
+        with Session() as session:
+            account = session.current_attendee_account()
+        return account
+        
+    @property
+    def LOCAL_ACCOUNTS_DISABLED(self):
+        return c.OIDC_ENABLED and not c.SSO_EMAIL_DOMAINS
 
     @request_cached_property
     @dynamic
@@ -1074,16 +1100,15 @@ class Config(_Overridable):
     def DEPARTMENT_OPTS(self):
         from uber.models import Session, Department
         with Session() as session:
-            query = session.query(Department).order_by(Department.name)
-            return [(d.id, d.name) for d in query]
+            return [(id, name) for id, name in session.query(Department.id, Department.name).order_by(Department.name).all()]
 
     @request_cached_property
     @dynamic
     def DEPARTMENT_OPTS_WITH_DESC(self):
         from uber.models import Session, Department
         with Session() as session:
-            query = session.query(Department).order_by(Department.name)
-            return [(d.id, d.name, d.description) for d in query]
+            return [(id, name, desc) for id, name, desc in
+                    session.query(Department.id, Department.name, Department.description).order_by(Department.name).all()]
 
     @request_cached_property
     @dynamic
@@ -1110,7 +1135,7 @@ class Config(_Overridable):
             if not query.first():
                 return [(-1, -1)]
             current_admin = session.current_admin_account()
-            if current_admin.full_shifts_admin:
+            if self.has_section_or_page_access(full=True):
                 return [(d.id, d.name) for d in query]
             else:
                 return [(d.id, d.name) for d in query if d.id in
@@ -1211,6 +1236,11 @@ class Config(_Overridable):
     @dynamic
     def ADMIN_WRITE_ACCESS_SET(self):
         return uber.models.AdminAccount.get_access_set()
+    
+    @request_cached_property
+    @dynamic
+    def ADMIN_FULL_ACCESS_SET(self):
+        return uber.models.AdminAccount.get_access_set(full=True)
 
     @cached_property
     def ADMIN_PAGES(self):
@@ -1269,7 +1299,7 @@ class Config(_Overridable):
                 if getattr(page_method, 'public', False):
                     public_pages.append(module_name + "_" + name)
                 if getattr(method, 'exposed', False):
-                    spec = inspect.getfullargspec(unwrap(method))
+                    spec = inspect.getfullargspec(inspect.unwrap(method))
                     has_defaults = len([arg for arg in spec.args[1:] if arg != 'session']) == len(spec.defaults or [])
                     if not getattr(method, 'ajax', False) and (getattr(method, 'site_mappable', False)
                                                                or has_defaults and not spec.varkw) \
@@ -1333,6 +1363,32 @@ class Config(_Overridable):
     def MITS_SUBMISSIONS_OPEN(self):
         return self.MITS_START and self.BEFORE_MITS_SUBMISSION_DEADLINE and self.AFTER_MITS_START
 
+    @property
+    @dynamic
+    def BEFORE_SHOWCASES_OPEN(self):
+        if self.MITS_START and self.AFTER_MITS_START:
+            return
+        if self.MIVS_START and self.AFTER_MIVS_START:
+            return
+        if self.INDIE_ARCADE_START and self.AFTER_INDIE_ARCADE_START:
+            return
+        if self.INDIE_RETRO_START and self.AFTER_INDIE_RETRO_START:
+            return
+        return True
+    
+    @property
+    @dynamic
+    def ALL_SHOWCASES_CLOSED(self):
+        if self.MITS_START and self.BEFORE_MITS_SUBMISSION_DEADLINE:
+            return
+        if self.MIVS_START and not really_past_mivs_deadline(c.MIVS_DEADLINE):
+            return
+        if self.INDIE_ARCADE_START and self.BEFORE_INDIE_ARCADE_DEADLINE:
+            return
+        if self.INDIE_RETRO_START and self.BEFORE_INDIE_RETRO_DEADLINE:
+            return
+        return True
+
     # =========================
     # panels
     # =========================
@@ -1387,13 +1443,13 @@ class Config(_Overridable):
     @dynamic
     def ROOM_TRIE(self):
         def make_room_trie(rooms):
-            root = nesteddefaultdict()
+            root = defaultdict(defaultdict)
             for index, (location, description) in enumerate(rooms):
                 for word in filter(lambda s: s, re.split(r'\W+', description)):
                     current_dict = root
                     current_dict['__rooms__'][location] = index
                     for letter in word:
-                        current_dict = current_dict.setdefault(letter.lower(), nesteddefaultdict())
+                        current_dict = current_dict.setdefault(letter.lower(), defaultdict(defaultdict))
                         current_dict['__rooms__'][location] = index
             return root
 
@@ -1486,6 +1542,8 @@ class Config(_Overridable):
             elif access_name == 'read':
                 return self.has_section_or_page_access(include_read_only=True)
 
+            if access_name.startswith('full_'):
+                return access_name[5:] in self.ADMIN_FULL_ACCESS_SET
             if access_name.endswith('_read'):
                 return access_name[:-5] in self.ADMIN_ACCESS_SET
             return access_name in self.ADMIN_WRITE_ACCESS_SET
@@ -1866,6 +1924,7 @@ c.SHIFTLESS_DEPTS = {getattr(c, dept.upper()) for dept in c.SHIFTLESS_DEPTS}
 c.PREASSIGNED_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.PREASSIGNED_BADGE_TYPES]
 c.DEFAULT_COMPED_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.DEFAULT_COMPED_BADGE_TYPES]
 c.TRANSFERABLE_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.TRANSFERABLE_BADGE_TYPES]
+c.ONSITE_CONTACTLESS_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.ONSITE_CONTACTLESS_BADGE_TYPES]
 
 c.MIVS_CHECKLIST = _config['mivs_checklist']
 for key, val in c.MIVS_CHECKLIST.items():
@@ -1898,6 +1957,7 @@ c.CON_TOTAL_DAYS = -(-(int((c.SHIFTS_ESCHATON - c.SHIFTS_EPOCH).total_seconds() 
 c.PANEL_STRICT_LENGTH_OPTS = [opt for opt in c.PANEL_LENGTH_OPTS if opt != c.OTHER]
 
 c.EVENT_YEAR = c.EPOCH.strftime('%Y')
+c.EVENT_DATE = c.EPOCH.strftime('%b %Y')
 c.EVENT_NAME_AND_YEAR = c.EVENT_NAME + (' {}'.format(c.EVENT_YEAR) if c.EVENT_YEAR else '')
 c.EVENT_MONTH = c.EPOCH.strftime('%B')
 c.EVENT_START_DAY = int(c.EPOCH.strftime('%d')) % 100
@@ -2051,7 +2111,9 @@ c.DEALER_ACCEPTED_STATUSES = [c.APPROVED, c.SHARED] if c.ALLOW_SHARED_TABLES els
 # A list of models that have properties defined for exporting for Guidebook
 c.GUIDEBOOK_MODELS = [
     ('GuestGroup_guest', 'Guest'),
+    ('GuestGroup_arena', 'Arena'),
     ('GuestGroup_band', 'Band'),
+    ('GuestGroup_sidestage', 'Side Stage'),
     ('MITSGame', 'MITS'),
     ('IndieGame', 'MIVS'),
     ('Group_dealer', 'Marketplace'),
@@ -2068,6 +2130,16 @@ c.GUIDEBOOK_PROPERTIES = [
     ('guidebook_header', 'Image (Optional)'),
     ('guidebook_thumbnail', 'Thumbnail (Optional)'),
 ]
+
+
+# A list of department emails and their other related configured email addresses
+c.RELATED_EMAILS = {
+    c.MARKETPLACE_EMAIL: [c.MARKETPLACE_NOTIFICATIONS_EMAIL],
+    c.ART_SHOW_EMAIL: [c.ART_SHOW_NOTIFICATIONS_EMAIL, c.ART_SHOW_BCC_EMAIL],
+    c.MIVS_EMAIL: [c.INDIE_SHOWCASE_EMAIL],
+    c.INDIE_ARCADE_EMAIL: [c.INDIE_SHOWCASE_EMAIL],
+    c.INDIE_RETRO_EMAIL: [c.INDIE_SHOWCASE_EMAIL],
+}
 
 
 # =============================
@@ -2095,27 +2167,6 @@ c.TEARDOWN_NIGHTS = c.NIGHT_DISPLAY_ORDER[1 + c.NIGHT_DISPLAY_ORDER.index(c.CORE
 
 for _attr in ['CORE_NIGHT', 'SETUP_NIGHT', 'TEARDOWN_NIGHT']:
     setattr(c, _attr + '_NAMES', [c.NIGHTS[night] for night in getattr(c, _attr + 'S')])
-
-
-# =============================
-# attendee_tournaments
-#
-# NO LONGER USED.
-#
-# The attendee_tournaments module is no longer used, but has been
-# included for backward compatibility with legacy servers.
-# =============================
-
-c.TOURNAMENT_AVAILABILITY_OPTS = []
-_val = 0
-for _day in range((c.ESCHATON - c.EPOCH).days):
-    for _when in ['Morning (8am-12pm)', 'Afternoon (12pm-6pm)', 'Evening (6pm-10pm)', 'Night (10pm-2am)']:
-        c.TOURNAMENT_AVAILABILITY_OPTS.append([
-            _val,
-            _when + ' of ' + (c.EPOCH + timedelta(days=_day)).strftime('%A %B %d')
-        ])
-        _val += 1
-c.TOURNAMENT_AVAILABILITY_OPTS.append([_val, 'Morning (8am-12pm) of ' + c.ESCHATON.strftime('%A %B %d')])
 
 
 # =============================

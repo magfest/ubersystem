@@ -4,6 +4,14 @@
 {% block content %}
   {% include "group_admin/nav_menu.html" %}
 
+  {% if c.ATTENDEE_ACCOUNTS_ENABLED and group.leader and (c.LOCAL_ACCOUNTS_DISABLED or not group.leader.has_sso_email) and group.leader.is_valid and not group.leader.managers %}
+  <div class="alert alert-info no-account">
+    <strong>The leader of this group does not have an account yet.</strong>
+    <a href="#attendee_form?id={{ group.leader.id }}">View their registration</a> to see options for giving them access to the group.
+    <br/><br/>Group leaders have access to all badges in their group that do not already have an account, including unassigned badges.
+  </div>
+  {% endif %}
+
   {% include "check_in.html" %}
   <div class="card">
     <div class="card-body">

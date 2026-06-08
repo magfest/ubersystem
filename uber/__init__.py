@@ -2,13 +2,17 @@ import os
 from decimal import Decimal
 import cherrypy
 
-from pockets.autolog import log
+import logging
+log = logging.getLogger(__name__)
+
 
 from uber._version import __version__  # noqa: F401
 
 from uber import config  # noqa: F401
 from uber import api  # noqa: F401
+from uber import auth # noqa: F401
 from uber import automated_emails  # noqa: F401
+from uber import email  # noqa: F401
 from uber import custom_tags  # noqa: F401
 from uber import forms  # noqa: F401
 from uber import jinja  # noqa: F401
@@ -20,6 +24,7 @@ from uber import sep_commands  # noqa: F401
 from uber import server  # noqa: F401
 from uber import tasks  # noqa: F401
 from uber import validations  # noqa: F401
+from uber import files  # noqa: F401
 from uber.serializer import serializer # noqa: F401
 
 # NOTE: this will decrease the precision of some serialized decimal.Decimals

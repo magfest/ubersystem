@@ -209,7 +209,7 @@
 {% endif %}
 {% endblock admin_controls %}
 {% block table %}
-{% set page_count = pages[-1] %}
+{% set page_count = pages[-1] if pages else 1 %}
 {% if page_count <= 50 %}
     {% set skip_pages = 1 %}
 {% else %}
@@ -289,7 +289,9 @@
                     </td>
                 {% if c.PREASSIGNED_BADGE_TYPES %}<td>{{ attendee.badge_printed_name }}</td>{% endif %}
                 <td><nobr>{{ attendee.badge_type_label }}</nobr></td>
-                {% if c.NUMBERED_BADGES %}<td>{{ attendee.last_badge_num }}</td>{% endif %}
+                {% if c.NUMBERED_BADGES %}
+                <td>{{ attendee.badge_num }}{% if not attendee.badge_num and attendee.lost_badges %}{{ attendee.lost_badges[0].ident }}{% endif %}</td>
+                {% endif %}
                 <td id="ribbon_{{ attendee.id }}">{{ attendee.ribbon_labels|join(", ") }}</td>
                 {% if c.DONATION_TIER_OPTS|length > 1 %}<td id="amount_extra_{{ attendee.id }}">{{ attendee.amount_extra_label }}</td>{% endif %}
                 <td id="paid_{{ attendee.id }}" ><nobr>{{ attendee.paid_label }}</nobr></td>
@@ -317,7 +319,7 @@
                       {% else %}
                         <td id="cin_{{ attendee.id }}">
                             <button class="attendee-checkin btn btn-sm btn-success" data-attendee-id="{{ attendee.id }}" onClick="loadCheckInModal('{{ attendee.id }}')">Check In</button>
-                            {% if attendee.badge_pickup_group and attendee.badge_pickup_group.check_inable_attendees|length > 1 %}
+                            {% if attendee.badge_pickup_group and attendee.badge_pickup_group.check_inable_attendees|length > 1 and c.ATTENDEE_ACCOUNTS_ENABLED %}
                             <button class="cart-checkin btn btn-sm btn-primary" data-attendee-id="{{ attendee.id }}" onClick="loadCheckInGroupModal('{{ attendee.badge_pickup_group.id }}')">Check In Group</button>
                             {% endif %}
                         </td>

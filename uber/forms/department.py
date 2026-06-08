@@ -17,7 +17,7 @@ from uber.model_checks import invalid_phone_number
 from uber.utils import get_age_conf_from_birthday
 
 
-__all__ = ['DepartmentInfo', 'JobInfo', 'JobTemplateInfo', 'BulkPrintingRequestInfo']
+__all__ = ['DepartmentInfo', 'JobInfo', 'JobTemplateInfo', 'BulkPrintingRequestInfo', 'EmailInfo']
 
 
 class DepartmentInfo(MagForm):
@@ -38,11 +38,11 @@ class DepartmentInfo(MagForm):
         description="What text, if any, should be shown when applying for a panel for this department?")
     parent_id = HiddenField()
 
-    def populate_obj(self, obj, is_admin=False):
+    def populate_obj(self, obj, is_admin=False, dry_run=False):
         max_minutes = self._fields.get('max_consecutive_minutes', None)
         if max_minutes and max_minutes.data:
             max_minutes.data = max_minutes.data * 60
-        super().populate_obj(obj, is_admin)
+        super().populate_obj(obj, is_admin, dry_run)
 
 
 class BaseJobInfo(MagForm):
@@ -121,7 +121,19 @@ class BulkPrintingRequestInfo(MagForm):
                                 description="If you want the same content on the front and back, please make sure your document has each page duplicated.")
     stapled = BooleanField("Please staple the pages of this document together.")
     notes = TextAreaField("Additional Information")
-    required = BooleanField("This document is vital to my department.",
-                            description="We will do our best to print all submitted documents, but this will help us prioritize the most important documents to print.")
+    important = BooleanField(
+        "This document is vital to my department.",
+        description="We will do our best to print all submitted documents, but this will help us prioritize the most important documents to print.")
     link_is_shared = BooleanField(
         Markup("<strong>I verify that I have checked the permissions of the link provided and made sure it is publicly accessible.</strong>"))
+
+
+class EmailInfo(MagForm):
+    admin_desc = True
+
+    policy = SelectField("Send Policy", coerce=int, default=0, choices=[(0, "Please select an option")] + c.EMAIL_POLICY_OPTS)
+    policy_permanent = BooleanField("This policy should be kept as-is for future events.")
+    allow_at_the_con = BooleanField("This email can be generated and sent during the event.")
+    allow_post_con = BooleanField("This email can be generated and sent after the event.")
+    active_after = StringField("Don't Send Email Before", widget=DateTimePicker())
+    active_before = StringField("Don't Send Email After", widget=DateTimePicker())

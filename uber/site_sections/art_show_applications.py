@@ -1,6 +1,7 @@
 import cherrypy
 from datetime import datetime
 
+from uber.email import EmailService
 from uber.config import c
 from uber.custom_tags import email_only, readable_join
 from uber.decorators import ajax, all_renderable, render, credit_card, requires_account
@@ -8,7 +9,6 @@ from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import ArtShowAgentCode, ArtShowApplication, Attendee, ArtShowBidder, ArtShowPiece
 from uber.payments import TransactionRequest
-from uber.tasks.email import send_email
 from uber.utils import check, validate_model
 
 
@@ -49,12 +49,8 @@ class Root:
                 app.attendee = attendee
 
                 session.add(app)
-                send_email.delay(
-                    c.ART_SHOW_EMAIL,
-                    c.ART_SHOW_NOTIFICATIONS_EMAIL,
-                    'Art Show Application Received',
-                    render('emails/art_show/reg_notification.txt',
-                            {'app': app}, encoding=None), model=app.to_dict('id'))
+                EmailService.queue_email(session, 'new_art_show_app_admin', to=c.ART_SHOW_NOTIFICATIONS_EMAIL,
+                                         data={'app': app})
                 session.commit()
                 raise HTTPRedirect('confirmation?id={}', app.id)
 
@@ -93,12 +89,12 @@ class Root:
             all_errors['attendee_id'] = [f"Please enter your confirmation number or confirm that you are not registered for {c.EVENT_NAME}"]
         elif attendee.is_new or c.INDEPENDENT_ART_SHOW:
             attendee_forms = load_forms(params, attendee, ['ArtistAttendeeInfo'])
-            attendee_errors = validate_model(attendee_forms, attendee)
+            attendee_errors = validate_model(session, attendee_forms, attendee)
             if attendee_errors:
                 all_errors.update(attendee_errors)
 
         forms = load_forms(params, app, form_list)
-        app_errors = validate_model(forms, app)
+        app_errors = validate_model(session, forms, app)
 
         if app_errors:
             all_errors.update(app_errors)
@@ -151,15 +147,7 @@ class Root:
                     form.populate_obj(app)
                 session.add(app)
                 session.commit()  # Make sure we update the DB or the email will be wrong!
-                send_email.delay(
-                    c.ART_SHOW_EMAIL,
-                    app.email_to_address,
-                    'Art Show Application Updated',
-                    render('emails/art_show/appchange_notification.html',
-                           {'app': app}, encoding=None),
-                    bcc=c.ART_SHOW_BCC_EMAIL,
-                    format='html',
-                    model=app.to_dict('id'))
+                EmailService.queue_email(session, 'art_show_app_updated', app, replace_unsent=True)
                 raise HTTPRedirect('..{}?id={}&message={}', return_to, app.id,
                                    'Your application has been updated')
             else:
@@ -193,7 +181,7 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, piece, form_list, field_prefix='new' if piece.is_new else piece.id)
-        all_errors = validate_model(forms, piece)
+        all_errors = validate_model(session, forms, piece)
 
         if all_errors:
             return {"error": all_errors}
@@ -214,7 +202,10 @@ class Root:
         if c.AUTHORIZENET_LOGIN_ID:
             # Authorize.net doesn't actually have a concept of pending transactions,
             # so there's no transaction to resume. Create a new one.
-            new_txn_request = TransactionRequest(txn.receipt, app.attendee.email, txn.desc, txn.amount)
+            new_txn_request = TransactionRequest(txn.receipt,
+                                                 account=session.current_attendee_account(),
+                                                 receipt_email=app.attendee.email,
+                                                 description=txn.desc, amount=txn.amount)
             stripe_intent = new_txn_request.generate_payment_intent()
             txn.intent_id = stripe_intent.id
             session.commit()
@@ -275,13 +266,7 @@ class Root:
         app = session.art_show_application(id)
 
         if cherrypy.request.method == 'POST':
-            send_email.delay(
-                c.ART_SHOW_EMAIL,
-                [app.email_to_address, c.ART_SHOW_NOTIFICATIONS_EMAIL],
-                f'[{app.artist_codes}] {c.EVENT_NAME} Art Show: Pieces Updated',
-                render('emails/art_show/pieces_confirmation.html',
-                       {'app': app}, encoding=None), 'html',
-                model=app.to_dict('id'))
+            EmailService.queue_email(session, 'art_show_piece_updated', app, replace_unsent=True)
             raise HTTPRedirect('..{}?id={}&message={}', params['return_to'], app.id,
                                'Confirmation email sent!')
 
@@ -333,14 +318,9 @@ class Root:
 
         if old_code.attendee:
             message = 'Agent removed.'
-            send_email.delay(
-                c.ART_SHOW_EMAIL,
-                [old_code.attendee.email_to_address, app.attendee.email_to_address],
-                '{} Art Show Agent Removed'.format(c.EVENT_NAME),
-                render('emails/art_show/agent_removed.html',
-                       {'app': app, 'agent': old_code.attendee}, encoding=None), 'html',
-                bcc=c.ART_SHOW_BCC_EMAIL,
-                model=app.to_dict('id'))
+            EmailService.queue_email(session, 'art_show_agent_removed',
+                                     to=[old_code.attendee.email_to_address, app.attendee.email_to_address],
+                                     data={'app': app, 'agent': old_code.attendee})
 
         session.commit()
         session.refresh(app)
@@ -350,14 +330,8 @@ class Root:
             if page == 'edit':
                 message += f' Your new agent code is {new_code.code}.'
             else:
-                send_email.delay(
-                    c.ART_SHOW_EMAIL,
-                    app.attendee.email_to_address,
-                    'New Agent Code for the {} Art Show'.format(c.EVENT_NAME),
-                    render('emails/art_show/agent_code.html',
-                        {'app': app, 'agent_code': new_code}, encoding=None), 'html',
-                    bcc=c.ART_SHOW_BCC_EMAIL,
-                    model=app.to_dict('id'))
+                EmailService.queue_email(session, 'new_art_agent_code', app,
+                                         data={'agent_code': new_code})
 
         raise HTTPRedirect('{}?id={}&message={}', page, app.id, message)
     
@@ -397,7 +371,8 @@ class Root:
         receipt = session.get_receipt_by_model(app, create_if_none="DEFAULT")
 
         charge_desc = "{}'s Art Show Application: {}".format(app.attendee.full_name, receipt.charge_description_list)
-        charge = TransactionRequest(receipt, app.attendee.email, charge_desc)
+        charge = TransactionRequest(receipt, account=session.current_attendee_account(),
+                                    receipt_email=app.attendee.email, description=charge_desc)
 
         message = charge.prepare_payment()
 

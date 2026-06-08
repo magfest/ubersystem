@@ -248,7 +248,7 @@
   Anyone who selects this department will see the following description: <em>{{ department.panels_desc }}</em>.{% endif %}</p>
 {% endif %}
 <div class="d-flex gap-3">
-{% if is_admin_checklist_admin or can_admin_dept -%}
+{% if c.DEPT_CHECKLIST_OPEN and (is_admin_checklist_admin or can_admin_dept) -%}
   <p>
     <a href="../dept_checklist/index?department_id={{ department.id }}">
       <i class="fa fa-edit"></i>
@@ -264,9 +264,9 @@
 </p>
 {% if department.from_email %}
 <p>
-  <a href="../email_admin/pending_dept?sender={{ department.from_email }}">
+  <a href="../email_admin/pending?department_id={{ department.id }}">
     <i class="fa fa-envelope-o"></i>
-    View Pending Emails
+    View Department Emails
   </a>
 </p>
 {% endif %}

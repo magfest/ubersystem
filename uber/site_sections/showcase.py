@@ -6,18 +6,20 @@ from cherrypy.lib.static import serve_file
 
 from uber.config import c
 from uber.custom_tags import format_image_size
-from uber.decorators import all_renderable, ajax, csrf_protected
+from uber.decorators import all_renderable, ajax, csrf_protected, requires_account, get_studio_id, file_to_fk_id
 from uber.errors import HTTPRedirect
+from uber.files import FileService
 from uber.forms import load_forms
-from uber.models import Attendee, Group, GuestGroup, IndieGameCode, IndieStudio, IndieDeveloper, IndieGameImage
+from uber.models import Attendee, File, Group, GuestGroup, IndieGameCode, IndieStudio, IndieDeveloper, IndieGame
 from uber.utils import add_opt, check, check_csrf, GuidebookUtils, validate_model
 
 
 @all_renderable(public=True)
 class Root:
+    @requires_account()
     def apply(self, session, message='', **params):
         studio = IndieStudio()
-        developer = IndieDeveloper(gets_emails=True)
+        developer = IndieDeveloper(receives_emails=True)
 
         forms = load_forms(params, studio, ['StudioInfo'])
         dev_form = load_forms(params, developer, ['DeveloperInfo'])
@@ -29,6 +31,8 @@ class Root:
             developer.studio = studio
             session.add(studio)
             session.add(developer)
+            if c.ATTENDEE_ACCOUNTS_ENABLED:
+                studio.attendee_account = session.current_attendee_account()
             raise HTTPRedirect('index?id={}&message={}', studio.id,
                                "Studio created successfully! Submit one or more games to our showcases below.")
 
@@ -42,12 +46,12 @@ class Root:
         all_errors = {}
 
         forms = load_forms(params, IndieStudio(), ['StudioInfo'])
-        studio_errors = validate_model(forms, IndieStudio())
+        studio_errors = validate_model(session, forms, IndieStudio(), create_preview_model=False)
         if studio_errors:
             all_errors.update(studio_errors)
 
         dev_forms = load_forms(params, IndieDeveloper(), ['DeveloperInfo'])
-        dev_errors = validate_model(dev_forms, IndieDeveloper())
+        dev_errors = validate_model(session, dev_forms, IndieDeveloper(), create_preview_model=False)
         if dev_errors:
             all_errors.update(dev_errors)
 
@@ -56,34 +60,42 @@ class Root:
 
         return {"success": True}
 
+    @requires_account(IndieStudio)
     def index(self, session, id, message='', **params):
         studio = session.indie_studio(id)
         demo_forms = {}
         code_forms = {}
         image_forms = {}
 
+        mivs_game_screenshots = FileService.files_by_fk_id(session, [game.id for game in studio.mivs_games], and_flags=['mivs_screenshot'])
+        arcade_game_photos = FileService.files_by_fk_id(session, [game.id for game in studio.arcade_games], and_flags=['arcade_photo'])
+        retro_game_screenshots = FileService.files_by_fk_id(session, [game.id for game in studio.retro_games], and_flags=['retro_screenshot'])
+
         for game in studio.mivs_games:
             demo_forms[game.id] = load_forms({}, game, ['MivsDemoInfo'],
                                              read_only=not c.MIVS_SUBMISSIONS_OPEN and not c.HAS_SHOWCASE_ADMIN_ACCESS)
-            image_forms['mivs_new'] = load_forms({}, IndieGameImage(), ['MivsScreenshot'], field_prefix='new')
-            for image in game.screenshots:
-                image_forms[image.id] = load_forms({}, image, ['MivsScreenshot'], field_prefix=image.id,
-                                                   read_only=not c.MIVS_SUBMISSIONS_OPEN and not c.HAS_SHOWCASE_ADMIN_ACCESS)
+            image_forms['mivs_new'] = load_forms({}, File(), ['MivsScreenshot'], field_prefix='new')
+            for image_list in mivs_game_screenshots.values():
+                for image in image_list:
+                    image_forms[image.id] = load_forms({}, image, ['MivsScreenshot'], field_prefix=image.id,
+                                                       read_only=not c.MIVS_SUBMISSIONS_OPEN and not c.HAS_SHOWCASE_ADMIN_ACCESS)
             if game.code_type != c.NO_CODE:
-                code_forms['new'] = load_forms({}, IndieGameCode(), ['MivsCode'], field_prefix='new')
+                code_forms['new'] = load_forms({}, game, ['MivsCode'], field_prefix='new')
                 for code in game.codes:
                     code_forms[code.id] = load_forms({}, code, ['MivsCode'], field_prefix=code.id,
                                                      read_only=not c.MIVS_SUBMISSIONS_OPEN and not c.HAS_SHOWCASE_ADMIN_ACCESS)
         for game in studio.arcade_games:
-            image_forms['arcade_new'] = load_forms({}, IndieGameImage(), ['ArcadePhoto'], field_prefix='new')
-            for image in game.submission_images:
-                image_forms[image.id] = load_forms({}, image, ['ArcadePhoto'], field_prefix=image.id,
-                                                   read_only=not c.INDIE_ARCADE_SUBMISSIONS_OPEN and not c.HAS_SHOWCASE_ADMIN_ACCESS)
+            image_forms['arcade_new'] = load_forms({}, File(), ['ArcadePhoto'], field_prefix='new')
+            for image_list in arcade_game_photos.values():
+                for image in image_list:
+                    image_forms[image.id] = load_forms({}, image, ['ArcadePhoto'], field_prefix=image.id,
+                                                       read_only=not c.INDIE_ARCADE_SUBMISSIONS_OPEN and not c.HAS_SHOWCASE_ADMIN_ACCESS)
         for game in studio.retro_games:
-            image_forms['retro_new'] = load_forms({}, IndieGameImage(), ['RetroScreenshot'], field_prefix='new')
-            for image in game.submission_images:
-                image_forms[image.id] = load_forms({}, image, ['RetroScreenshot'], field_prefix=image.id,
-                                                   read_only=not c.INDIE_RETRO_SUBMISSIONS_OPEN and not c.HAS_SHOWCASE_ADMIN_ACCESS)
+            image_forms['retro_new'] = load_forms({}, File(), ['RetroScreenshot'], field_prefix='new')
+            for image_list in retro_game_screenshots.values():
+                for image in image_list:
+                    image_forms[image.id] = load_forms({}, image, ['RetroScreenshot'], field_prefix=image.id,
+                                                       read_only=not c.INDIE_RETRO_SUBMISSIONS_OPEN and not c.HAS_SHOWCASE_ADMIN_ACCESS)
 
         return {
             'message': message,
@@ -91,13 +103,12 @@ class Root:
             'demo_forms': demo_forms,
             'code_forms': code_forms,
             'image_forms': image_forms,
+            'mivs_game_screenshots': mivs_game_screenshots,
+            'arcade_game_photos': arcade_game_photos,
+            'retro_game_screenshots': retro_game_screenshots,
         }
 
-    def view_image(self, session, id):
-        image = session.indie_game_image(id)
-        cherrypy.response.headers['Cache-Control'] = 'no-store'
-        return serve_file(image.filepath, name=image.filename, content_type=image.content_type)
-    
+    @requires_account(IndieStudio)
     def studio(self, session, id, message='', **params):
         studio = session.indie_studio(id)
         forms = load_forms(params, studio, ['StudioInfo'])
@@ -128,13 +139,15 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, studio, form_list)
-        all_errors = validate_model(forms, studio)
+        all_errors = validate_model(session, forms, studio)
 
         if all_errors:
             return {"error": all_errors}
 
         return {"success": True}
 
+    @get_studio_id(IndieDeveloper)
+    @requires_account(IndieStudio)
     def developer(self, session, id='', message='', **params):
         if id in [None, '', 'None']:
             developer = IndieDeveloper()
@@ -144,6 +157,8 @@ class Root:
             studio_id = developer.studio.id
         
         studio = session.indie_studio(studio_id)
+        locked_primary_contacts = set([game.primary_contact_id for game in studio.games])
+        locked_primary_contacts.discard(None)
 
         forms = load_forms(params, developer, ['DeveloperInfo'])
 
@@ -164,6 +179,7 @@ class Root:
         return {
             'message': message,
             'developer': developer,
+            'primary_contact_readonly': id in locked_primary_contacts,
             'studio': studio,
             'forms': forms,
         }
@@ -172,6 +188,7 @@ class Root:
     def validate_developer(self, session, form_list=[], **params):
         if params.get('id') in [None, '', 'None']:
             developer = IndieDeveloper()
+            developer.studio_id = params.get('studio_id')
         else:
             developer = session.indie_developer(params.get('id'))
 
@@ -181,23 +198,27 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, developer, form_list)
-        all_errors = validate_model(forms, developer)
+        all_errors = validate_model(session, forms, developer)
 
         if all_errors:
             return {"error": all_errors}
 
         return {"success": True}
 
+    @get_studio_id(IndieDeveloper)
+    @requires_account(IndieStudio)
     def delete_developer(self, session, id, **params):
         developer = session.indie_developer(id)
         studio = developer.studio
-        if developer.gets_emails and len(studio.primary_contacts) == 1:
+        if developer.receives_emails and len(studio.primary_contacts) == 1:
             raise HTTPRedirect('index?id={}&message={}', studio.id,
                                'You cannot delete the only presenter who receives email updates.')
 
         session.delete(developer)
         raise HTTPRedirect('index?id={}&message={}', studio.id, 'Presenter deleted.')
 
+    @get_studio_id(IndieGame)
+    @requires_account(IndieStudio)
     def submit_game(self, session, id, **params):
         game = session.indie_game(id)
         if game.missing_steps:
@@ -208,6 +229,7 @@ class Root:
             raise HTTPRedirect('index?id={}&message={}', game.studio.id,
                                'Your game has been submitted to our panel of judges.')
     
+    @requires_account(IndieStudio)
     def confirm(self, session, id, decision=None, **params):
         studio = session.indie_studio(id)
 
@@ -223,7 +245,7 @@ class Root:
 
         has_leader = False
         badges_remaining = studio.comped_badges
-        developers = sorted(studio.developers, key=lambda d: (not d.gets_emails, d.full_name))
+        developers = sorted(studio.developers, key=lambda d: (not d.receives_emails, d.full_name))
         for dev in developers:
             if not dev.matching_attendee and badges_remaining:
                 dev.comped = True
@@ -248,6 +270,7 @@ class Root:
                 group = studio.group = Group(name='Showcase Studio: ' + studio.name, can_add=True)
                 session.add(group)
                 session.commit()
+                leader_account = session.current_attendee_account()
                 for dev in developers:
                     if dev.matching_attendee:
                         add_opt(dev.matching_attendee.ribbon_ints, c.MIVS)
@@ -255,6 +278,8 @@ class Root:
                             group.attendees.append(dev.matching_attendee)
                             if dev.leader:
                                 group.leader_id = dev.matching_attendee.id
+                                if c.ATTENDEE_ACCOUNTS_ENABLED and dev.managers and len(dev.managers) == 1:
+                                    leader_account = dev.managers[0]
                         dev.matching_attendee.indie_developer = dev
                     else:
                         attendee = Attendee(
@@ -274,6 +299,10 @@ class Root:
                             group.leader_id = attendee.id
                 for i in range(badges_remaining):
                     group.attendees.append(Attendee(badge_type=c.ATTENDEE_BADGE, paid=c.NEED_NOT_PAY))
+                if c.ATTENDEE_ACCOUNTS_ENABLED:
+                    for attendee in group.attendees:
+                        if not attendee.managers and not attendee.is_unassigned:
+                            session.add_attendee_to_account(attendee, leader_account)
                 group.cost = group.calc_default_cost()
                 group.guest = GuestGroup()
                 group.guest.group_type = c.MIVS
@@ -284,15 +313,17 @@ class Root:
             'developers': developers
         }
     
+    @get_studio_id(IndieGame)
+    @requires_account(IndieStudio)
     def show_info(self, session, message='', **params):
         game = session.indie_game(params)
-        header_pic, thumbnail_pic = None, None
         cherrypy.session['studio_id'] = game.studio.id
-        image_form = load_forms({}, IndieGameImage(), ['MivsScreenshot'], field_prefix='new')
+        image_form = load_forms({}, File(), ['MivsScreenshot'], field_prefix='new')
 
         if cherrypy.request.method == 'POST':
             header_image = params.get('header_image')
             thumbnail_image = params.get('thumbnail_image')
+            file_handlers = []
 
             if not params.get('contact_phone', ''):
                 message = "Please enter a phone number for MAGFest Indies staff to contact your studio."
@@ -307,39 +338,37 @@ class Root:
             message = check(game)
 
             if not message:
+                existing_header = FileService.get_existing_files(session, game, and_flags=['guidebook_header'])
                 if header_image and header_image.filename:
-                    message = GuidebookUtils.check_guidebook_image_filetype(header_image)
-                    if not message:
-                        header_pic = IndieGameImage.upload_image(header_image, game_id=game.id,
-                                                                is_screenshot=False, is_header=True)
-                        if not header_pic.check_image_size():
-                            message = f"Your header image must be {format_image_size(c.GUIDEBOOK_HEADER_SIZE)}."
-                elif not game.guidebook_header:
+                    file_handler = FileService.file_handler(session, game, flags={'guidebook_header': True})
+                    message = file_handler.process_file_upload(header_image,
+                                                               allowed_extensions=c.GUIDEBOOK_ALLOWED_IMAGE_TYPES,
+                                                               delete_existing=False,
+                                                               update_model=game)
+                    file_handlers.append(file_handler)
+                elif not existing_header:
                     message = f"You must upload a {format_image_size(c.GUIDEBOOK_HEADER_SIZE)} header image."
             
             if not message:
+                existing_thumbnail = FileService.get_existing_files(session, game, and_flags=['guidebook_thumbnail'])
                 if thumbnail_image and thumbnail_image.filename:
-                    message = GuidebookUtils.check_guidebook_image_filetype(thumbnail_image)
-                    if not message:
-                        thumbnail_pic = IndieGameImage.upload_image(thumbnail_image, game_id=game.id,
-                                                                    is_screenshot=False, is_thumbnail=True)
-                        if not thumbnail_pic.check_image_size():
-                            message = f"Your thumbnail image must be {format_image_size(c.GUIDEBOOK_THUMBNAIL_SIZE)}."
-                elif not game.guidebook_thumbnail:
+                    file_handler = FileService.file_handler(session, game, flags={'guidebook_thumbnail': True})
+                    message = file_handler.process_file_upload(thumbnail_image,
+                                                               allowed_extensions=c.GUIDEBOOK_ALLOWED_IMAGE_TYPES,
+                                                               update_model=game)
+                    file_handlers.append(file_handler)
+                elif not existing_thumbnail:
                     message = f"You must upload a {format_image_size(c.GUIDEBOOK_THUMBNAIL_SIZE)} thumbnail image."
 
             if not message:
                 message = check(game) or check(game.studio)
-            if not message:
-                session.add(game)
-                if header_pic:
-                    if game.guidebook_header:
-                        session.delete(game.guidebook_header)
-                    session.add(header_pic)
-                if thumbnail_pic:
-                    if game.guidebook_thumbnail:
-                        session.delete(game.guidebook_thumbnail)
-                    session.add(thumbnail_pic)
+
+            if message:
+                for handler in file_handlers:
+                    handler.delete()
+            else:
+                for handler in file_handlers:
+                    FileService.delete_existing_files(session, handler.file_obj, and_flags=handler.file_obj.true_flags)
 
                 if game.studio.group.guest:
                     raise HTTPRedirect('../guests/mivs_show_info?guest_id={}&message={}',
@@ -350,24 +379,36 @@ class Root:
             'message': message,
             'game': game,
             'image_form': image_form,
+            'game_submission_images': FileService.get_existing_files(
+                session, game, or_flags=['mivs_screenshot', 'arcade_photo', 'retro_screenshot'], uselist=True),
+            'game_best_images': FileService.get_existing_files(session, game, and_flags=['use_in_promo'], uselist=True),
+            'game_guidebook_header': FileService.get_existing_files(session, game, and_flags=['guidebook_header']),
+            'game_guidebook_thumbnail': FileService.get_existing_files(session, game, and_flags=['guidebook_thumbnail']),
         }
 
+    @file_to_fk_id('studio_id')
+    @requires_account(IndieStudio)
     @csrf_protected
-    def mark_image(self, session, id):
-        image = session.indie_game_image(id)
-        if len(image.game.best_images) >= 2:
-            raise HTTPRedirect('show_info?id={}&message={}', image.game.id,
+    def mark_image(self, session, id, **params):
+        image = FileService.from_db_id(session, id).file_obj
+        game = session.indie_game(image.fk_id)
+        best_images = FileService.get_existing_files(session, game, and_flags=['use_in_promo'], uselist=True)
+        if len(best_images) >= 2:
+            raise HTTPRedirect('show_info?id={}&message={}', game.id,
                                'You may only have up to two "best" images.')
-        image.use_in_promo = True
+        image.flags['use_in_promo'] = True
         session.add(image)
-        raise HTTPRedirect('show_info?id={}&message={}', image.game.id,
+        raise HTTPRedirect('show_info?id={}&message={}', game.id,
                            'Screenshot marked as one of your "best" images.')
 
+    @file_to_fk_id('studio_id')
+    @requires_account(IndieStudio)
     @csrf_protected
-    def unmark_image(self, session, id):
-        image = session.indie_game_image(id)
-        image.use_in_promo = False
+    def unmark_image(self, session, id, **params):
+        image = FileService.from_db_id(session, id).file_obj
+        game = session.indie_game(image.fk_id)
+        image.flags['use_in_promo'] = False
         session.add(image)
-        raise HTTPRedirect('show_info?id={}&message={}', image.game.id,
+        raise HTTPRedirect('show_info?id={}&message={}', game.id,
                            'Screenshot unmarked as one of your "best" images.')
 

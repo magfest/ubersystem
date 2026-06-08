@@ -4,7 +4,7 @@
 <h2>MAGFest Indie Tabletop Showcase Application</h2>
 
 This is your application for the MAGFest Indie Tabletop Showcase for your production team {{ team.name }}.
-If you are not a member of {{ team.name }} then please <a href="logout">log out</a>.
+{% if not c.ATTENDEE_ACCOUNTS_ENABLED %}If you are not a member of {{ team.name }} then please <a href="logout">log out</a>.{% endif %}
 
 {% if team.status == c.CANCELLED %}
   {% if c.HAS_MITS_ADMIN_ACCESS %}
@@ -86,7 +86,7 @@ If you are not a member of {{ team.name }} then please <a href="logout">log out<
     </tr>
 {% endfor %}
 {% if team.can_add_badges %}
-<tr><td></td><td colspan="5"><a class="btn btn-success" href="applicant?id=None">Add a Team Member</a></td></tr>
+<tr><td></td><td colspan="5"><a class="btn btn-success" href="applicant?team_id={{ team.id }}">Add a Team Member</a></td></tr>
 {% endif %}
 </table>
 
@@ -107,7 +107,7 @@ If you are not a member of {{ team.name }} then please <a href="logout">log out<
         </td>
     </tr>
 {% endfor %}
-<tr><td></td><td colspan="3"><a class="btn btn-success" href="game?id=None">Add a Game</a></td></tr>
+<tr><td></td><td colspan="3"><a class="btn btn-success" href="game?team_id={{ team.id }}">Add a Game</a></td></tr>
 </table>
 {% endif %}
 
@@ -120,7 +120,7 @@ If you are not a member of {{ team.name }} then please <a href="logout">log out<
       <form method="post" action="team" class="form-inline">
       <div class="btn-group">
     {% endif %}
-    <a href="panel?id={{ team.panel_app.db_id if team.panel_app else 'None' }}&schedule_id={{ team.schedule.id if team.schedule else 'None' }}" class="btn
+    <a href="panel?id={{ team.panel_app.db_id if team.panel_app else 'None' }}&schedule_id={{ team.schedule.id if team.schedule else 'None' }}&team_id={{ team.id }}" class="btn
       {% if team.panel_interest %}btn-outline-secondary">Update Panel Application
       {% else %}btn-success">Apply for a Panel{% endif %}
     </a>
@@ -150,7 +150,7 @@ If you are not a member of {{ team.name }} then please <a href="logout">log out<
       <div class="btn-group">
     {% endif %}
 
-    <a href="schedule?id={{ team.schedule.id if team.schedule else 'None' }}" class="btn
+    <a href="schedule?id={{ team.schedule.id if team.schedule else 'None' }}&team_id={{ team.id }}" class="btn
       {% if team.showcase_interest %}btn-outline-secondary">Update Showcase Availability
       {% else %}btn-success">Apply for the Showcase{% endif %}
     </a>
@@ -182,7 +182,7 @@ If you are not a member of {{ team.name }} then please <a href="logout">log out<
       <div class="btn-group">
     {% endif %}
 
-    <a href="hotel_requests" class="btn
+    <a href="hotel_requests?team_id={{ team.id }}" class="btn
       {% if team.completed_hotel_form %}btn-outline-secondary">Update Hotel Request Information
       {% else %}btn-success">Enter Hotel Request Information{% endif %}
     </a>
@@ -209,6 +209,7 @@ If you are not a member of {{ team.name }} then please <a href="logout">log out<
     </p>
     <p>
         <form method="post" action="submit_for_judging">
+          <input type="hidden" name="team_id" value="{{ team.id }}" />
           <button class="btn btn-success" type="submit">Submit For Judging</button>
         </form>
     </p>
@@ -220,7 +221,7 @@ If you are not a member of {{ team.name }} then please <a href="logout">log out<
       {% if team.waiver_signed %}<br/><strong>{{ team.waiver_signature }}</strong> signed this waiver at {{ team.waiver_signed|datetime_local }}.
       {% else %}You have <strong>not</strong> signed this waiver.{% endif %}</p>
 
-  <a target="_waiver" href="waiver" class="btn btn-primary">Review{% if not team.waiver_signature %} and Sign{% endif %} the Waiver</a>
+  <a target="_waiver" href="waiver?team_id={{ team.id }}" class="btn btn-primary">Review{% if not team.waiver_signature %} and Sign{% endif %} the Waiver</a>
 
 {% endif %}
 {% if team.status not in [c.ACCEPTED, c.CANCELLED] %}

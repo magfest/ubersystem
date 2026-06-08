@@ -220,7 +220,7 @@
         </form>
     </div>
     <div role="tabpanel" class="tab-pane" id="images" aria-labelledby="images-tab">
-        {% if not game.images %}
+        {% if not images %}
         <p>Somehow, this game has no images. Who deleted them??</p>
         {% else %}
         <table class="table table-hover">
@@ -228,22 +228,20 @@
                 <tr>
                 <th>Image</th>
                 <th>Description</th>
-                <th>Screenshot?</th>
                 <th></th>
                 </tr>
             </thead>
             <tbody>
-                {% for image in game.images %}
+                {% for image in images %}
                 <tr>
                     <td>
-                        <a href="{{ image.url }}" target="_blank">{{ image.filename }}</a>
+                        {{ image.preview_image_with_filename }}
                     </td>
                     <td>{{ image.description }}</td>
-                    <td>{{ image.is_screenshot|yesno("Yes,No") }}</td>
                     <td>
-                        {% if image.use_in_promo %}<em>Marked "Best" Screenshot</em>
-                        {% elif image.is_header %}<em>Guidebook Header</em>
-                        {% elif image.is_thumbnail %}<em>Guidebook Thumbnail</em>
+                        {% if image.flags['use_in_promo'] == True %}<em>Marked "Best" Screenshot</em>
+                        {% elif image.flags['guidebook_header'] == True %}<em>Guidebook Header</em>
+                        {% elif image.flags['guidebook_thumbnail'] == True %}<em>Guidebook Thumbnail</em>
                         {% endif %}
                     </td>
                 </tr>

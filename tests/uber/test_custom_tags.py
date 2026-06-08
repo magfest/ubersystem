@@ -37,7 +37,7 @@ class TestDatetimeFilters(object):
         ([1, 30, 100, 100, 20, 12, 2], {}),
     ])
     def test_timedelta_filter(self, timedelta_args, timedelta_kwargs):
-        dt = datetime.utcnow()
+        dt = datetime.now(UTC)
         td = timedelta(*timedelta_args, **timedelta_kwargs)
         expected = dt + td
         assert expected == timedelta_filter(dt, *timedelta_args, **timedelta_kwargs)
@@ -49,7 +49,7 @@ class TestDatetimeFilters(object):
         assert timedelta_filter('', 1, 3600) is None
 
     def test_timedelta_filter_in_template(self):
-        dt = datetime.utcnow()
+        dt = datetime.now(UTC)
         env = JinjaEnv.env()
         template = env.from_string('{{ dt|timedelta(days=-5)|datetime("%A, %B %-e") }}')
         expected = (dt + timedelta(days=-5)).strftime("%A, %B %-e")

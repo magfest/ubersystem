@@ -24,7 +24,6 @@
                 <div class="row g-3 mb-3">
                     <div class="col-sm">{{ form_macros.input(retro_screenshot.image) }}</div>
                 </div>
-                {{ form_macros.input(retro_screenshot.is_screenshot) }}
             </div>
         </div>
         <div class="modal-footer">
@@ -37,7 +36,7 @@
 </div>
 {% endif %}
 
-{% if game.submission_images %}
+{% if retro_game_screenshots[game.id] %}
 <div
     id="edit-screenshots-{{ game.id }}"
     class="modal fade"
@@ -54,7 +53,7 @@
         </h4>
         </div>
         <div class="modal-body">
-            {% for image in game.submission_images %}
+            {% for image in retro_game_screenshots[game.id] %}
             {{ form_macros.form_validation(image.id ~ '-form', '../indie_retro/validate_image') }}
             {% endfor %}
             <div class="table-responsive">
@@ -66,8 +65,8 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% set can_delete_screenshots = not game.submitted or game.submission_images|length > 2 %}
-                    {% for image in game.submission_images %}
+                    {% set can_delete_screenshots = not game.submitted or retro_game_screenshots[game.id]|length > 2 %}
+                    {% for image in retro_game_screenshots[game.id] %}
                     {% set retro_screenshot = image_forms[image.id]['retro_screenshot'] %}
                         <tr x-data="">
                             <td>
@@ -86,6 +85,7 @@
                                 <form method="post" action="../indie_retro/delete_screenshot">
                                     {{ csrf_token() }}
                                     <input type="hidden" name="id" value="{{ image.id }}" />
+                                    <input type="hidden" name="studio_id" value="{{ game.studio.id }}" />
                                     <button type="submit" class="btn btn-sm btn-danger"><i class="fa fa-remove"></i></button>
                                 </form>
                                 {% endif %}

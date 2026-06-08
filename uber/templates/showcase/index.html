@@ -1,16 +1,17 @@
 {% extends "preregistration/preregbase.html" %}
 {% import 'forms/macros.html' as form_macros with context %}
 {% set title_text = c.EVENT_NAME ~ "Showcase Application" %}
-{% block backlink %}{% endblock %}
 {% block content %}
 <div class="card card-body">
     <h2>
         {{ c.EVENT_NAME }} Showcase Application for {{ studio.name }}
         <a class="btn btn-sm btn-primary" href="studio?id={{ studio.id }}"><i class="fa fa-cog"></i>&nbsp;Edit Studio</a>
     </h2>
+    {% if not c.ATTENDEE_ACCOUNTS_ENABLED %}
     <p>
         If you are not a member of {{ studio.name }} then please <a href="apply">start a new studio application</a>.
     </p>
+    {% endif %}
 
     {% include 'showcase/deadlines.html' %}
 
@@ -55,15 +56,17 @@
                 <td>{{ dev.full_name }}</td>
                 <td>{{ dev.email }}</td>
                 <td>{{ dev.cellphone }}</td>
-                <td>{{ dev.gets_emails|yesno|title }}</td>
+                <td>{{ dev.receives_emails|yesno|title }}</td>
                 <td>
                     <div class="d-flex gap-1">
                     <a href="developer?id={{ dev.id }}" class="btn btn-sm btn-primary"><i class="fa fa-pencil"></i></a>
+                    {% if studio.developers|length > 1 %}
                     <form method="post" action="delete_developer">
                         {{ csrf_token() }}
                         <input type="hidden" name="id" value="{{ dev.id }}" />
                         <button type="submit" class="btn btn-sm btn-danger"><i class="fa fa-remove"></i></button>
                     </form>
+                    {% endif %}
                     </div>
                 </td>
                 </tr>
@@ -175,7 +178,7 @@
                             {% endif %}
                         </td>
                         <td>
-                            {{ game.screenshots|length }} screenshot{{ game.screenshots|length|pluralize }}
+                            {{ mivs_game_screenshots[game.id]|length }} screenshot{{ mivs_game_screenshots[game.id]|length|pluralize }}
                             {% if c.MIVS_SUBMISSIONS_OPEN or c.HAS_SHOWCASE_ADMIN_ACCESS %}
                             <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#new-screenshot-{{ game.id }}"><i class="fa fa-plus"></i></button>
                             {% endif %}
@@ -198,9 +201,9 @@
                                     {% if game.code_type != c.NO_CODE and game.codes %}
                                         <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#edit-codes-{{ game.id }}">View Game Code{{ game.codes|length|pluralize }}</button>
                                     {% endif %}
-                                    {% if game.screenshots %}
+                                    {% if mivs_game_screenshots[game.id] %}
                                     <div class="btn-group">
-                                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#edit-screenshots-{{ game.id }}">View Screenshot{{ game.screenshots|length|pluralize }}</button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#edit-screenshots-{{ game.id }}">View Screenshot{{ mivs_game_screenshots[game.id]|length|pluralize }}</button>
                                     </div>
                                     {% endif %}
                                     <div>
@@ -267,7 +270,7 @@
                             {{ game.title }}
                         </td>
                         <td>
-                            {{ game.submission_images|length }} photo{{ game.submission_images|length|pluralize }}
+                            {{ arcade_game_photos[game.id]|length }} photo{{ arcade_game_photos[game.id]|length|pluralize }}
                             {% if c.INDIE_ARCADE_SUBMISSIONS_OPEN or c.HAS_SHOWCASE_ADMIN_ACCESS %}
                             <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#new-photo-{{ game.id }}"><i class="fa fa-plus"></i></button>
                             {% endif %}
@@ -287,9 +290,9 @@
                         <tr>
                             <td colspan="6">
                                 <div class="d-flex gap-1 justify-content-end">
-                                    {% if game.submission_images %}
+                                    {% if arcade_game_photos[game.id] %}
                                     <div class="btn-group">
-                                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#edit-photos-{{ game.id }}">View Photo{{ game.submission_images|length|pluralize }}</button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#edit-photos-{{ game.id }}">View Photo{{ arcade_game_photos[game.id]|length|pluralize }}</button>
                                     </div>
                                     {% endif %}
                                     <div>
@@ -356,7 +359,7 @@
                             {{ game.title }}
                         </td>
                         <td>
-                            {{ game.submission_images|length }} screenshot{{ game.submission_images|length|pluralize }}
+                            {{ retro_game_screenshots[game.id]|length }} screenshot{{ retro_game_screenshots[game.id]|length|pluralize }}
                             {% if c.INDIE_RETRO_SUBMISSIONS_OPEN or c.HAS_SHOWCASE_ADMIN_ACCESS %}
                             <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#new-screenshot-{{ game.id }}"><i class="fa fa-plus"></i></button>
                             {% endif %}
@@ -376,9 +379,9 @@
                         <tr>
                             <td colspan="6">
                                 <div class="d-flex gap-1 justify-content-end">
-                                    {% if game.submission_images %}
+                                    {% if retro_game_screenshots[game.id] %}
                                     <div class="btn-group">
-                                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#edit-screenshots-{{ game.id }}">View Screenshot{{ game.submission_images|length|pluralize }}</button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#edit-screenshots-{{ game.id }}">View Screenshot{{ retro_game_screenshots[game.id]|length|pluralize }}</button>
                                     </div>
                                     {% endif %}
                                     <div>

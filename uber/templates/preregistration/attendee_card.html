@@ -66,9 +66,18 @@
             <i class="fa fa-pencil"></i> View/Edit Registration
         </a>
         {% endif %}
-        {% if attendee.art_show_applications or c.ART_SHOW_OPEN %}
-            {% if attendee.art_show_applications %}
-            <a href="../art_show_applications/edit?id={{ attendee.art_show_applications[0].id }}" class="btn btn-sm btn-warning">
+        {% if attendee.has_badge and attendee.staffing and attendee.badge_type != c.CONTRACTOR_BADGE and c.VOLUNTEER_SIGNUPS_AVAILABLE %}
+        <a href="../staffing/index?id={{ attendee.id }}" class="btn btn-sm btn-secondary">
+            {% if (not c.VOLUNTEER_CHECKLIST_OPEN or attendee.shift_prereqs_complete) and c.AFTER_SHIFTS_CREATED %}
+            <i class="fa fa-calendar-o"></i> View Shifts
+            {% else %}
+            <i class="fa fa-calendar-o"></i> Volunteer Checklist
+            {% endif %}
+        </a>
+        {% endif %}
+        {% if attendee.art_show_application or c.ART_SHOW_OPEN %}
+            {% if attendee.art_show_application %}
+            <a href="../art_show_applications/edit?id={{ attendee.art_show_application.id }}" class="btn btn-sm btn-warning">
                 <i class="fa fa-tags"></i>&nbsp; View Art Show App
             </a>
             {% else %}

@@ -41,7 +41,9 @@
             </div>
             {% endif %}
         </div>
+        {% if attendee.has_extras %}
         <br/><em>To change or cancel an upgrade, select "Cancel All Extras" or email us at {{ c.REGDESK_EMAIL|email_only|email_to_link }}.</em>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

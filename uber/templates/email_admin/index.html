@@ -1,8 +1,58 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Recently Sent Automated Emails{% endblock %}
+{% block title %}Automated Emails{% endblock %}
 {% block content %}
+<script type="text/javascript">
+    var deptIdChanged = function () {
+        window.location = "{{ c.PAGE }}?department_id=" + $("#department_id").val() + "&{{ c.query_str_for_search('department_id') }}";
+    };
+    var emailStatusChanged = function() {
+            status_str = $('[name=status]').serialize()
+            if (status_str == '') {
+                status_str = 'status='
+            }
+            window.location = "{{ c.PAGE }}?" + status_str + "&{{ c.query_str_for_search('status') }}";
+        };
+    var emailSendAfter = function () {
+        var sendAfter = $('#send_after').prop('checked') ? 'true' : ''
+        window.location = "{{ c.PAGE }}?send_after=" + sendAfter + "&{{ c.query_str_for_search('send_after') }}";
+    }
+</script>
+
 <div class="card">
     <div class="card-body">
+        <h2>
+            Email Queue{% if automated_email %} for "{{ automated_email.subject }}" <small><a href="index?{{ c.query_str_for_search('ident') }}">Show All Emails</a></small>{% endif %}
+        </h2>
+        <div class="row g-3 mb-3">
+            <div class="col-sm">
+                <label for="department_id" class="form-text">Department</label>
+                <select id="department_id" onChange="deptIdChanged()" class="form-select">
+                {% if c.ADMIN_DEPARTMENTS|length > 1 %}
+                    <option value="">Filter by department</option>
+                    {% if c.HAS_FULL_EMAIL_ADMIN_ACCESS %}<option value="None"{% if department_id == 'None' %} selected{% endif %}>No Department</option>{% endif %}
+                    <option value="All"{% if department_id == 'All' %} selected{% endif %}>All Departments</option>
+                {% endif %}
+                {{ options(c.ADMIN_DEPARTMENT_OPTS, department_id) }}
+                </select>
+            </div>
+            <div class="col-sm">
+                <label for="status" class="form-text">Email Status </label>
+                <div class="card card-body">
+                    {{ macros.checkgroup_opts('status', c.EMAIL_STATUS_OPTS, defaults=email_status) }}
+                    <span class="mb-0 ms-auto"><button type="button" class="btn btn-primary btn-sm" onclick="emailStatusChanged()">Update</button></span>
+                </div>
+            </div>
+            <div class="col-sm">
+                <div class="form-text">Send Time</div>
+                <div class="checkbox">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="send_after" name="send_after" value="1" onchange="emailSendAfter()"{% if send_after %} checked{% endif %}>
+                        Include date-restricted emails queued for later.
+                    </label>
+                    <div class="form-text">If unchecked, queued emails that are not being sent in the next 15 minutes are hidden.</div>
+                </div>
+            </div>
+        </div>
         <div class="row g-3">
         <div class="col-6 col-sm-4">
         <form role="form" action="index">
@@ -32,27 +82,51 @@
     {{ pages(page, count) }}
 <table class="table table-striped table-bordered table-sm">
 <thead><tr>
-    <th>Sent</th>
+    <th>Status</th>
+    <th>Generated</th>
+    <th>Send After</th>
+    {% if not department_id or department_id == 'All' %}
+    <th>Department</th>
+    {% endif %}
     <th>Subject</th>
     <th>Recipient</th>
+    <th></th>
     <th></th>
 </tr></thead>
 {% for email in emails %}
     <tr>
-        <td style="white-space:nowrap">{{ email.when|datetime_local("%x %X") }}</td>
-        <td>{{ email.subject }}</td>
-        <td><a href="sent?to={{ email.to|urlencode }}">{{ email.to }}</a></td>
+        <td>{{ email.status_label }}</td>
+        <td style="white-space:nowrap">{{ email.generated|datetime_local("%x %X") }}</td>
         <td>
+            {% if email.sent %}Sent {{ email.sent|datetime_local("%x %X") }}
+            {% elif email.status == c.QUEUED %}{{ email.send_after|datetime_local("%x %X") }}
+            {% else %}N/A{% endif %}
+        </td>
+        {% if not department_id or department_id == 'All' %}
+        <td>{{ depts_by_sender[email.sender] or 'N/A' }}</td>
+        {% endif %}
+        <td>{{ email.subject }}</td>
+        <td>{{ email.to }}</td>
+        <td>{{ email.error }}</td>
+        <td>
+            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#body-{{ email.id }}">View</button>
+            {% if email.status == c.SENT and False %}
             <form method="post" action="resend_email" id="resend_email_{{ email.id }}">
                 {{ csrf_token() }}
                 <input type="hidden" name="id" value="{{ email.id }}" />
-                <button class="btn btn-primary" type="submit">Resend Email</button>
+                <button class="btn btn-sm btn-primary" type="submit">Resend Email</button>
             </form>
+            {% elif email.error %}
+            <button type="button" class="btn btn-sm btn-danger" onClick="deleteEmail('{{ email.id }}', '{{ email.to }}')">Delete</button>
+            <button type="button" class="btn btn-sm btn-info" onClick="requeueEmail('{{ email.id }}', '{{ email.to }}')">Requeue</button>
+            {% endif %}
         </td>
     </tr>
 {% endfor %}
 </table>
 </div>
 </div>
+{% set email_queue = emails %}
+{% include 'email_admin/manage_email.html' with context %}
 {{ "js/resend-email-form.js"|serve_static_content }}
 {% endblock %}

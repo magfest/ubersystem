@@ -1,17 +1,19 @@
 import cherrypy
+import logging
 
 from datetime import datetime
-from pockets.autolog import log
 
+from uber.email import EmailService
 from uber.config import c
 from uber.custom_tags import email_only
 from uber.decorators import ajax, all_renderable, render, credit_card, requires_account, public
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, ArtistMarketplaceApplication
-from uber.tasks.email import send_email
 from uber.utils import check, validate_model
 from uber.payments import TransactionRequest, ReceiptManager, RefundRequest
+
+log = logging.getLogger(__name__)
 
 
 @all_renderable(public=True)
@@ -93,13 +95,8 @@ class Root:
             session.refresh(app)
 
             if app.status == c.ACCEPTED:
-                send_email.delay(
-                    c.ARTIST_MARKETPLACE_EMAIL,
-                    c.ARTIST_MARKETPLACE_EMAIL,
-                    'Marketplace Application Updated',
-                    render('emails/marketplace/appchange_notification.html',
-                            {'app': app, 'old_app': old_app}, encoding=None), 'html',
-                    model=app.to_dict('id'))
+                EmailService.queue_email(session, 'marketplace_app_updated_admin', to=c.ARTIST_MARKETPLACE_EMAIL,
+                                         data={'app': app, 'old_app': old_app})
             raise HTTPRedirect('edit?id={}&message={}', app.id,
                                 'Your application has successfully been updated.')
 
@@ -124,7 +121,7 @@ class Root:
             form_list = [form_list]
         forms = load_forms(params, app, form_list)
 
-        all_errors = validate_model(forms, app, is_admin=False)
+        all_errors = validate_model(session, forms, app, is_admin=False)
         if all_errors:
             return {"error": all_errors}
 
@@ -177,13 +174,8 @@ class Root:
             session.check_receipt_closed(session.get_receipt_by_model(app.attendee))
 
         if app.status == c.ACCEPTED:
-            send_email.delay(
-                    c.ARTIST_MARKETPLACE_EMAIL,
-                    c.ARTIST_MARKETPLACE_EMAIL,
-                    'Marketplace Application Cancelled',
-                    render('emails/marketplace/cancelled.txt',
-                            {'app': app}, encoding=None),
-                    model=app.to_dict('id'))
+            EmailService.queue_email(session, 'marketplace_app_cancelled_admin',
+                                     to=c.ARTIST_MARKETPLACE_EMAIL, data={'app': app})
         app.status = c.CANCELLED
 
         if c.ATTENDEE_ACCOUNTS_ENABLED:
@@ -213,8 +205,8 @@ class Root:
             session.commit()
             session.refresh(receipt)
         
-        charge = TransactionRequest(receipt, app.email_address,
-                                    "Artist Marketplace Application Payment", amount=app.amount_unpaid * 100)
+        charge = TransactionRequest(receipt, account=session.current_attendee_account(), receipt_email=app.email_address,
+                                    description="Artist Marketplace Application Payment", amount=app.amount_unpaid * 100)
         incomplete_txn = receipt.get_last_incomplete_txn()
 
         if incomplete_txn and incomplete_txn.desc == "Artist Marketplace Application Payment":

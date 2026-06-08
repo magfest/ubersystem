@@ -20,7 +20,7 @@
 {% endmacro %}
 
 
-{% macro badge_num_form(label='Sign up', confirm_label='Is this right?') %}
+{% macro badge_num_form(label='Sign up', confirm_label='Is this right?', default_val='') %}
   <form class="badge-num-form" method="post" action="verify_badge_num" role="form">
     <label class="form-text">
       <span class="badge-num-label">{{ label }}</span>
@@ -32,6 +32,7 @@
           type="text"
           name="badge_num"
           placeholder="Badge #"
+          value="{{ default_val }}"
           required="required"
           min="1">
           <button class="btn btn-lg btn-success">

@@ -5,6 +5,7 @@ import inspect
 import json
 import os
 import re
+import logging
 import sqlalchemy
 import threading
 import traceback
@@ -23,8 +24,6 @@ from cherrypy.lib import profiler
 from cherrypy.lib.static import serve_file
 import six
 import xlsxwriter
-from pockets import argmod, unwrap
-from pockets.autolog import log
 
 import uber
 from uber.serializer import serializer
@@ -33,6 +32,8 @@ from uber.config import c
 from uber.errors import CSRFException, HTTPRedirect
 from uber.jinja import JinjaEnv
 from uber.utils import check_csrf, report_critical_exception, ExcelWorksheetStreamWriter
+
+log = logging.getLogger(__name__)
 
 
 def swallow_exceptions(func):
@@ -55,7 +56,7 @@ def log_pageview(func):
     def with_check(*args, **kwargs):
         with uber.models.Session() as session:
             try:
-                session.admin_account(cherrypy.session.get('account_id'))
+                session.admin_account(cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None)))
             except Exception:
                 pass  # no tracking for non-admins yet
             else:
@@ -92,6 +93,66 @@ def check_for_encrypted_badge_num(func):
     return with_check
 
 
+def file_to_fk_id(id_name='fk_id'):
+    """
+    Files don't have direct relationships to their objects, but we often need those object's IDs for,
+    e.g., checking access. This injects a file's object into a function under the key defined by `id_name`
+    """
+
+    def file_fk_id(func):
+        @wraps(func)
+        def with_check(*args, **kwargs):
+            from uber.files import FileService
+            if kwargs.get('id', None) and not kwargs.get(id_name):
+                file_handler = FileService.from_db_id(kwargs.get('id'))
+                if file_handler.file_obj:
+                    kwargs[id_name] = file_handler.file_obj.fk_id
+            return func(*args, **kwargs)
+        return with_check
+    return file_fk_id
+
+
+def get_studio_id(model, id_name='id'):
+    """
+    We check for access to attendee-facing Indie Showcase pages via the IndieStudio ID,
+    but not all pages have the studio ID passed to them. This grabs the `model` matching
+    the ID passed to that page and injects that object's IndieStudio ID.
+    """
+
+    def indie_studio_id(func):
+        @wraps(func)
+        def with_check(*args, **kwargs):
+            if kwargs.get(id_name, None) and not kwargs.get('studio_id'):
+                with uber.models.Session() as session:
+                    child_model = session.get(model, kwargs.get(id_name))
+                    if hasattr(child_model, 'game'):
+                        kwargs['studio_id'] = child_model.game.studio.id
+                    else:
+                        kwargs['studio_id'] = child_model.studio.id
+            return func(*args, **kwargs)
+        return with_check
+    return indie_studio_id
+
+
+def get_team_id(model, id_name='id'):
+    """
+    We check for access to attendee-facing MITS pages via the MITSTeam ID,
+    but not all pages have the team ID passed to them. This grabs the `model` matching
+    the ID passed to that page and injects that object's MITSTeam ID.
+    """
+
+    def mits_team_id(func):
+        @wraps(func)
+        def with_check(*args, **kwargs):
+            if kwargs.get(id_name, None) and not kwargs.get('team_id'):
+                with uber.models.Session() as session:
+                    child_model = session.get(model, kwargs.get(id_name))
+                    kwargs['team_id'] = child_model.team.id
+            return func(*args, **kwargs)
+        return with_check
+    return mits_team_id
+
+
 def site_mappable(_func=None, *, download=False):
     def wrapper(func):
         func.site_mappable = True
@@ -126,14 +187,10 @@ def _suffix_property_check(inst, name):
 suffix_property.check = _suffix_property_check
 
 
-department_id_adapter = argmod(['location', 'department', 'department_id'], lambda d: uber.models.Department.to_id(d))
-
-
-@department_id_adapter
 def check_can_edit_dept(session, department_id=None, inherent_role=None, override_access=None):
     from uber.models import AdminAccount, DeptMembership, Department
-    account_id = cherrypy.session.get('account_id')
-    admin_account = session.query(AdminAccount).get(account_id)
+    account_id = cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))
+    admin_account = session.get(AdminAccount, account_id)
     if not getattr(admin_account, override_access, None):
         dh_filter = [
             AdminAccount.id == account_id,
@@ -150,7 +207,7 @@ def check_can_edit_dept(session, department_id=None, inherent_role=None, overrid
         is_dept_admin = session.query(AdminAccount).filter(*dh_filter).first()
         if not is_dept_admin:
             if department_id:
-                department = session.query(Department).get(department_id)
+                department = session.get(Department, department_id)
                 dept_msg = ' of {}'.format(department.name)
             else:
                 dept_msg = ''
@@ -162,7 +219,7 @@ def check_dept_admin(session, department_id=None, inherent_role=None):
 
 
 def requires_account(models=None):
-    from uber.models import Attendee, AttendeeAccount, Group
+    from uber.models import Attendee, AttendeeAccount, Group, GuestGroup, PanelApplication, IndieStudio, MITSTeam, PromoCodeGroup
 
     def model_requires_account(func):
         @wraps(func)
@@ -170,23 +227,24 @@ def requires_account(models=None):
             if not c.ATTENDEE_ACCOUNTS_ENABLED:
                 return func(*args, **kwargs)
             with uber.models.Session() as session:
-                admin_account_id = cherrypy.session.get('account_id')
-                attendee_account_id = cherrypy.session.get('attendee_account_id')
+                admin_account_id = cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))
+                attendee_account_id = cherrypy.session.get('attendee_account_id', getattr(cherrypy.request, 'attendee_account', None))
                 message = ''
-                if not models and not attendee_account_id and c.PAGE_PATH != '/preregistration/homepage':
-                    # These should all be pages like the prereg form
+                if c.LOCAL_ACCOUNTS_DISABLED and admin_account_id is None and attendee_account_id is None:
+                    ajax_or_redirect(func, '../accounts/login?message=', message, True)
+                elif attendee_account_id is None and admin_account_id is None:
+                    message = 'You must log in to view this page.'
+                    message_add = ''
                     if c.PAGE_PATH in ['/preregistration/form', '/preregistration/post_form']:
                         message_add = 'register'
-                    else:
+                    elif c.PAGE_PATH != '/preregistration/homepage' and not models and 'staffing' not in c.PAGE_PATH:
                         message_add = 'fill out this application'
-                    message = 'Please log in or create an account to {}!'.format(message_add)
+                    if message_add:
+                        message = f'Please log in or create an account to {message_add}!'
                     ajax_or_redirect(func, '../landing/index?message=', message, True)
-                elif attendee_account_id is None and admin_account_id is None or \
-                        attendee_account_id is None and c.PAGE_PATH == '/preregistration/homepage':
-                    message = 'You must log in to view this page.'
-                elif kwargs.get('id') and models:
+                elif kwargs.get('id', kwargs.get('attendee_id')) and models:
                     model_list = [models] if not isinstance(models, list) else models
-                    attendee, error, model_id = None, None, None
+                    attendee, other_account_model, error, model_id = None, None, None, None
                     for model in model_list:
                         if model == Attendee:
                             error, model_id = check_id_for_model(model, alt_id='attendee_id', **kwargs)
@@ -195,26 +253,56 @@ def requires_account(models=None):
                         elif model == Group:
                             error, model_id = check_id_for_model(model, alt_id='group_id', **kwargs)
                             if not error:
-                                attendee = session.query(model).filter_by(id=model_id).first().leader
+                                attendee = session.get(model, model_id).leader
+                        elif model == GuestGroup:
+                            error, model_id = check_id_for_model(model, alt_id='guest_id', **kwargs)
+                            if not error:
+                                group = session.get(model, model_id).group
+                                if group:
+                                    attendee = group.leader
+                        elif model in [PanelApplication, IndieStudio, MITSTeam]:
+                            if model == PanelApplication:
+                                alt_id = 'application_id'
+                            else:
+                                alt_id = 'studio_id' if model == IndieStudio else 'team_id'
+                            error, model_id = check_id_for_model(model, alt_id=alt_id, **kwargs)
+                            if not error:
+                                other_account_model = session.get(model, model_id)
+                        elif model == PromoCodeGroup:
+                            error, model_id = check_id_for_model(model, alt_id='group_id', **kwargs)
+                            if not error:
+                                attendee = session.get(model, model_id).buyer
                         else:
-                            other_model = session.query(model).filter_by(id=kwargs.get('id')).first()
+                            other_model = session.get(model, kwargs.get('id'))
                             if other_model:
                                 attendee = other_model.attendee
 
-                        if attendee:
+                        if attendee or other_account_model:
                             break
 
-                    if error and not attendee:
+                    if error and not attendee and not other_account_model:
                         ajax_or_redirect(func, f'../preregistration/not_found?id={model_id}&message=', error)
 
-                    # Admin account override
-                    if session.admin_attendee_max_access(attendee):
-                        return func(*args, **kwargs)
+                    if other_account_model:
+                        if session.current_admin_account():
+                            if isinstance(other_account_model, PanelApplication) and c.HAS_PANELS_ADMIN_ACCESS:
+                                return func(*args, **kwargs)
+                            elif isinstance(other_account_model, IndieStudio) and c.HAS_SHOWCASE_ADMIN_ACCESS:
+                                return func(*args, **kwargs)
+                            elif isinstance(other_account_model, MITSTeam) and c.HAS_MITS_ADMIN_ACCESS:
+                                return func(*args, **kwargs)
+                        account = session.get(AttendeeAccount, attendee_account_id) if attendee_account_id else None
+                        if not account or account != other_account_model.attendee_account:
+                            message = 'You do not have permission to view this page.'
+                    elif attendee:
+                        # Admin account override
+                        if session.admin_attendee_max_access(attendee):
+                            return func(*args, **kwargs)
 
-                    account = session.query(AttendeeAccount).get(attendee_account_id) if attendee_account_id else None
+                        account = session.get(AttendeeAccount, attendee_account_id) if attendee_account_id else None
 
-                    if not account or account not in attendee.managers:
-                        message = 'You do not have permission to view this page.'
+                        if not account or account not in attendee.managers:
+                            message = 'You do not have permission to view this page.'
 
                 if message:
                     if admin_account_id:
@@ -253,6 +341,40 @@ def requires_dept_admin(func=None, inherent_role=None):
 def requires_shifts_admin(func=None, inherent_role=None):
     return requires_admin(func, inherent_role, override_access='full_shifts_admin')
 
+def requires_email_admin(inherent_role=None):
+    from uber.email import EmailService
+    from uber.models import AutomatedEmail
+    
+    def email_admin_decorator(func):
+        @wraps(func)
+        def protected(*args, **kwargs):
+            if not kwargs.get('department_id', kwargs.get('department')):
+                message = ''
+                with uber.models.Session() as session:
+                    id = kwargs.get('id')
+                    if not id:
+                        email = session.query(AutomatedEmail).filter(AutomatedEmail.ident == kwargs.get('ident')).first()
+                    else:
+                        email = session.get(AutomatedEmail, id)
+                    if not email:
+                        return func(*args, **kwargs)
+                    
+                    depts_tuples = EmailService.depts_from_email(session, email.sender)
+                    if not depts_tuples and not c.HAS_FULL_EMAIL_ADMIN_ACCESS:
+                        ajax_or_redirect(func, '../accounts/homepage?message=', message, False)
+
+                    for id, _ in depts_tuples:
+                        message = ''
+                        message = check_can_edit_dept(session, id, inherent_role, 'full_email_admin')
+                        if not message:
+                            return func(*args, **kwargs)
+                    if message:
+                        ajax_or_redirect(func, '../accounts/homepage?message=', message, False)
+            return func(*args, **kwargs)
+        return protected
+    return email_admin_decorator
+    
+
 
 def csrf_protected(func):
     @wraps(func)
@@ -283,7 +405,7 @@ def ajax(func):
 def track_report(params):
     with uber.models.Session() as session:
         try:
-            session.admin_account(cherrypy.session.get('account_id'))
+            session.admin_account(cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None)))
         except Exception:
             pass  # no tracking for non-admins yet
         else:
@@ -456,7 +578,7 @@ def cached(func):
 
 
 def cached_page(func):
-    innermost = unwrap(func)
+    innermost = inspect.unwrap(func)
     if hasattr(innermost, 'cached'):
         func.lock = RLock()
 
@@ -562,7 +684,7 @@ def timed(prepend_text=''):
 
 
 def sessionized(func):
-    innermost = unwrap(func)
+    innermost = inspect.unwrap(func)
     if 'session' not in inspect.getfullargspec(innermost).args:
         return func
 
@@ -614,8 +736,8 @@ def render(template_name_list, data=None, encoding='utf-8'):
     return rendered
 
 
-def render_empty(template_name_list):
-    env = JinjaEnv.env()
+def render_empty(template_name_list, **kwargs):
+    env = JinjaEnv.env(**kwargs)
     template = env.get_or_select_template(template_name_list)
     return open(template.filename, 'rb').read().decode('utf-8')
 
@@ -720,7 +842,7 @@ def attendee_view(func):
 
     @wraps(func)
     def with_check(*args, **kwargs):
-        if cherrypy.session.get('account_id') is None:
+        if cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None)) is None:
             ajax_or_redirect(func, '../accounts/login?message=', "You are not logged in.", True)
 
         if kwargs.get('id') and str(kwargs.get('id')) != "None":
@@ -760,11 +882,16 @@ def restricted(func):
         if func.public:
             return func(*args, **kwargs)
 
-        if '/staffing/' in c.PAGE_PATH:
-            if not cherrypy.session.get('staffer_id'):
-                ajax_or_redirect(func, '../staffing/login?message=', "You are not logged in.", True)
+        admin_account_id = cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))
+        attendee_account_id = cherrypy.session.get('attendee_account_id', getattr(cherrypy.request, 'attendee_account', None))
+        if not admin_account_id and not attendee_account_id:
+            ajax_or_redirect(func, '../accounts/login?message=', "You are not logged in.", True)
 
-        elif cherrypy.session.get('account_id') is None:
+        if '/staffing/' in c.PAGE_PATH and not c.VOLUNTEER_SIGNUPS_AVAILABLE and not c.DEV_BOX:
+            message = "The volunteer checklist is not open yet." if c.VOLUNTEER_CHECKLIST_OPEN else "Shift signups are not available yet."
+            redirect = '../preregistration/homepage' if c.ATTENDEE_ACCOUNTS_ENABLED else '../landing/index'
+            ajax_or_redirect(func, f'{redirect}?message=', message, True)
+        elif admin_account_id is None:
             if getattr(func, 'kiosk_login', None):
                 if not cherrypy.session.get('kiosk_supervisor_id'):
                     cherrypy.session.pop('kiosk_operator_id', None)
@@ -775,15 +902,16 @@ def restricted(func):
                     ajax_or_redirect(func, f'{func.kiosk_login}?message=',
                                      "Please enter your badge number to log into the kiosk.")
             else:
-                ajax_or_redirect(func, '../accounts/login?message=', "You are not logged in.", True)
+                page = 'preregistration/homepage' if c.ATTENDEE_ACCOUNTS_ENABLED else 'landing/index'
+                ajax_or_redirect(func, f'../{page}?message=', "You do not have admin access.")
 
         elif '/showcase_judging/' in c.PAGE_PATH:
             if not uber.models.AdminAccount.is_mivs_judge_or_admin:
-                return f'You need to be a MIVS Judge or have access to {c.PAGE_PATH}'
+                return f'You need to be a MAGFest Indies Judge or have access to {c.PAGE_PATH}'
 
         elif getattr(func, 'any_admin_access', None):
             with uber.models.Session() as session:
-                account = session.admin_account(cherrypy.session.get('account_id'))
+                account = session.admin_account(cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None)))
                 if not account.access_groups:
                     return "You do not have any admin accesses."
         else:
@@ -969,9 +1097,101 @@ def check_id_for_model(model, alt_id=None, **params):
         except ValueError:
             message = "That ID is not a valid format. Did you enter or edit it manually or paste it incorrectly?"
         else:
-            if not session.query(model).filter(model.id == model_id).first():
+            if not session.get(model, model_id):
                 message = "The ID provided was not found in our database."
 
     if message:
         log.error("check_id {} error: {}: id={}".format(model.__name__, message, model_id))
     return message, model_id
+
+def cached_property(func):
+    """Decorator for making readonly, memoized properties."""
+    cache_attr = '_cached_{0}'.format(func.__name__)
+
+    @property
+    @wraps(func)
+    def caching(self, *args, **kwargs):
+        if not hasattr(self, cache_attr):
+            setattr(self, cache_attr, func(self, *args, **kwargs))
+        return getattr(self, cache_attr)
+    return caching
+
+class cached_classproperty(property):
+    """
+    Like @cached_property except it works on classes instead of instances.
+
+
+    Note:
+        Class properties created by @cached_classproperty are read-only.
+        Any attempts to write to the property will erase the
+        @cached_classproperty, and the behavior of the underlying method
+        will be lost.
+
+    >>> class MyClass(object):
+    ...     @cached_classproperty
+    ...     def myproperty(cls):
+    ...         return '{0}.myproperty'.format(cls.__name__)
+    >>> MyClass.myproperty
+    'MyClass.myproperty'
+
+    """
+    def __init__(self, fget, *arg, **kw):
+        super(cached_classproperty, self).__init__(fget, *arg, **kw)
+        self.__doc__ = fget.__doc__
+        self.__fget_name__ = fget.__name__
+
+    def __get__(desc, self, cls):
+        cache_attr = '_cached_{0}_{1}'.format(cls.__name__, desc.__fget_name__)
+        if not hasattr(cls, cache_attr):
+            setattr(cls, cache_attr, desc.fget(cls))
+        return getattr(cls, cache_attr)
+
+    def getter(self, fget):
+        raise AttributeError('@cached_classproperty.getter is not supported')
+
+    def setter(self, fset):
+        raise AttributeError('@cached_classproperty.setter is not supported')
+
+    def deleter(self, fdel):
+        raise AttributeError('@cached_classproperty.deleter is not supported')
+
+class classproperty(property):
+    """
+    Decorator to create a read-only class property similar to classmethod.
+
+    For whatever reason, the @property decorator isn't smart enough to
+    recognize @classmethods and behaves differently on them than on instance
+    methods.  This decorator may be used like to create a class-level property,
+    useful for singletons and other one-per-class properties.
+
+    This implementation is partially based on
+    `sqlalchemy.util.langhelpers.classproperty`.
+
+    Note:
+        Class properties created by @classproperty are read-only. Any attempts
+        to write to the property will erase the @classproperty, and the
+        behavior of the underlying method will be lost.
+
+    >>> class MyClass(object):
+    ...     @classproperty
+    ...     def myproperty(cls):
+    ...         return '{0}.myproperty'.format(cls.__name__)
+    >>> MyClass.myproperty
+    'MyClass.myproperty'
+
+    """
+    def __init__(self, fget, *arg, **kw):
+        super(classproperty, self).__init__(fget, *arg, **kw)
+        self.__doc__ = fget.__doc__
+
+    def __get__(desc, self, cls):
+        return desc.fget(cls)
+
+    def getter(self, fget):
+        raise AttributeError('@classproperty.getter is not supported')
+
+    def setter(self, fset):
+        raise AttributeError('@classproperty.setter is not supported')
+
+    def deleter(self, fdel):
+        raise AttributeError('@classproperty.deleter is not supported')

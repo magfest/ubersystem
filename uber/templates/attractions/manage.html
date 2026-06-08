@@ -166,7 +166,8 @@
       var callback = function(response) {
         if(response && response['error']) {
           $optout.prop('checked', !isOptedOut)
-          showErrorMessage(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error']);
+          setTimeout(function(){ hideMessageBox() }, 3000);
         } else {
           var message = isOptedOut ?
             'Attraction signups disabled':
@@ -198,7 +199,8 @@
       var callback = function(response) {
         if(response && response['error']) {
           $optout.prop('checked', !isOptedOut)
-          showErrorMessage(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error']);
+          setTimeout(function(){ hideMessageBox() }, 3000);
         } else {
           $("#message-alert").addClass("alert-success").show().children('span').html('Communication prefs updated', '', {timeOut: 3000});
         }
@@ -236,12 +238,14 @@
             $('#' + eventId + ' .remaining-slots').text(response['remaining_slots']);
             callback(response);
           } else {
-            showErrorMessage(response['error'] || 'Error signing up for event', '', {timeOut: 3000});
+            showErrorMessage(response['error'] || 'Error signing up for event');
+            setTimeout(function(){ hideMessageBox() }, 3000);
             callback(false);
           }
         },
         error: function(response, status, statusText) {
-          showErrorMessage('Error signing up for event', '', {timeOut: 3000});
+          showErrorMessage('Error signing up for event');
+          setTimeout(function(){ hideMessageBox() }, 3000);
           callback(false);
         }
       });
@@ -253,6 +257,7 @@
 
     $signupModal.on('show.bs.modal', function (event) {
       resetBadgeNum($(this));
+      $(this).find('input[name=badge_num]').val('');
     });
 
     $signupModal.on('shown.bs.modal', function (event) {
@@ -309,7 +314,8 @@
 
       var callback = function(response) {
         if(response && response['error']) {
-          showErrorMessage(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error']);
+          setTimeout(function(){ hideMessageBox() }, 3000);
         } else {
           $signup.fadeOut();
           $("#message-alert").addClass("alert-success").show().children('span').html('Signup for ' + eventLabel + ' successfully cancelled', '', {timeOut: 3000});
@@ -352,12 +358,10 @@
   <div class="modal-dialog modal-md" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
         <h4 class="modal-title">
           <span class="bling-icon"></span> <span class="signup-event-label"></span>
         </h4>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body form-horizontal">
         <div class="hidden-soldout">
@@ -468,7 +472,7 @@
         <h2>
           Signups
           <small>
-            <a href="index"><i class="fa fa-check"></i> Browse attractions & sign up for events!</a>
+            <a href="index?attendee_id={{ attendee.public_id }}"><i class="fa fa-check"></i> Browse attractions & sign up for events!</a>
           </small>
         </h2>
         {% if signups %}

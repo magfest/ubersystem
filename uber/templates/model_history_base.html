@@ -79,7 +79,7 @@
 
   <h2> Automated Emails </h2>
   {% for email in emails %}
-    <h3> {{ email.subject }} ({{ email.when|full_datetime_local }}) </h3>
+    <h3> {{ email.subject }} ({{ email.generated|full_datetime_local }}) </h3>
     {{ macros.preview_email(email) }}
     {% if not read_only %}
       <form method="post" action="resend_email" id="resend_email_{{ email.id }}">

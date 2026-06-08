@@ -1,21 +1,23 @@
 import cherrypy
+import logging
 
 from collections import defaultdict
 from datetime import datetime
-from pockets import readable_join
-from pockets.autolog import log
 from pytz import UTC
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
-from uber.custom_tags import format_currency
+from uber.custom_tags import format_currency, readable_join
 from uber.decorators import ajax, any_admin_access, all_renderable, csrf_protected, log_pageview
 from uber.errors import HTTPRedirect
+from uber.files import FileService
 from uber.forms import load_forms
 from uber.models import AdminAccount, Attendee, Email, Event, Group, GuestGroup, PageViewTracking, Tracking
 from uber.utils import check, validate_model, add_opt, SignNowRequest
 from uber.payments import ReceiptManager
+
+log = logging.getLogger(__name__)
 
 
 @all_renderable()
@@ -188,7 +190,7 @@ class Root:
                 leader.ribbon_ints = group.new_ribbons
                 leader_params = {key[7:]: val for key, val in params.items() if key.startswith('leader_')}
                 leader_forms = load_forms(leader_params, leader, ['PersonalInfo'])
-                all_errors = validate_model(leader_forms, leader, is_admin=True)
+                all_errors = validate_model(session, leader_forms, leader, is_admin=True)
                 if all_errors:
                     session.delete(group)
                     session.commit()
@@ -259,7 +261,7 @@ class Root:
             form_list = [form_list]
         forms = load_forms(params, group, form_list)
 
-        all_errors = validate_model(forms, group, is_admin=True)
+        all_errors = validate_model(session, forms, group, is_admin=True)
         if all_errors:
             return {"error": all_errors}
 
@@ -293,14 +295,14 @@ class Root:
 
         if group.leader:
             other_emails = session.query(Email).filter(
-                Email.to == group.leader.email).order_by(Email.when).all()
+                Email.to == group.leader.email).order_by(Email.generated).all()
         else:
             other_emails = {}
 
         return {
             'group': group,
             'emails': session.query(Email).filter(Email.model == 'Group',
-                                                  Email.fk_id == id).order_by(Email.when).all(),
+                                                  Email.fk_id == id).order_by(Email.generated).all(),
             'other_emails': other_emails,
             'changes': session.query(Tracking).filter(or_(
                 Tracking.links.like('%group({})%'.format(id)),
@@ -337,6 +339,10 @@ class Root:
         guest = session.guest_group(params)
         if not session.admin_can_see_guest_group(guest):
             raise HTTPRedirect('index?message={}', 'You cannot view {} groups'.format(guest.group_type_label.lower()))
+        
+        guest_bio_pic = None
+        if guest.bio:
+            guest_bio_pic = FileService.get_existing_files(session, guest.bio, and_flags=['bio_pic'])
 
         if cherrypy.request.method == 'POST':
             if event_id:
@@ -353,9 +359,8 @@ class Root:
             if not message:
                 raise HTTPRedirect('index?message={}{}', guest.group.name, ' data uploaded')
 
-        events = session.query(Event).filter_by(location=c.CONCERTS).order_by(Event.start_time).all()
         return {
             'guest': guest,
+            'guest_bio_pic': guest_bio_pic,
             'message': message,
-            'events': [(event.id, event.name) for event in events]
         }

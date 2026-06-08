@@ -130,8 +130,7 @@ def legal_name_required(form, field):
 @PersonalInfo.field_validation('onsite_contact')
 @ignore_unassigned_and_placeholders
 def require_onsite_contact(form, field):
-    if not field.data and not form.no_onsite_contact.data and form.model.badge_type not in [c.STAFF_BADGE,
-                                                                                            c.CONTRACTOR_BADGE]:
+    if not field.data and not form.no_onsite_contact.data and form.model.badge_type not in c.ONSITE_CONTACTLESS_BADGE_TYPES:
         raise ValidationError("Please enter contact information for at least one trusted friend onsite, "
                               "or indicate that we should use your emergency contact information instead.")
 
@@ -212,7 +211,7 @@ def shirt_size_sold_out(form, field):
 
 @BadgeExtras.new_or_changed('amount_extra')
 def upgrade_sold_out(form, field):
-    if form.is_admin and not c.AT_THE_CON: # Temp
+    if form.is_admin:
         return
 
     if field.data and field.data in c.SOLD_OUT_MERCH_TIERS:
@@ -264,7 +263,20 @@ def out_of_badge_type(form, field):
 # OtherInfo
 # =============================
 
-@OtherInfo.new_or_changed('promo_code_code')
+@PreregOtherInfo.new_or_changed('promo_code_code')
+def can_use_promo_code(form, field):
+    if not field.data or form.model.promo_code:
+        return
+    
+    if form.model.badge_type == c.PSEUDO_DEALER_BADGE or getattr(form.model, 'is_dealer', False):
+        raise ValidationError(f"You cannot use a promo code with a {c.DEALER_TERM} registration.")
+    if form.model.badge_type == c.PSEUDO_GROUP_BADGE or getattr(form.model, 'badges', False):
+        raise ValidationError("You cannot use a promo code when buying group badges.")
+    if not getattr(form.model, 'qualifies_for_discounts', True):
+        raise ValidationError("This registration cannot be discounted.")
+
+
+@PreregOtherInfo.new_or_changed('promo_code_code')
 def promo_code_valid(form, field):
     if field.data:
         with Session() as session:
@@ -280,6 +292,7 @@ def promo_code_valid(form, field):
                     raise ValidationError("That promo code has expired.")
                 elif not code.is_unlimited and code.uses_remaining <= 0:
                     raise ValidationError("That promo code has been used already.")
+
 
 PreregOtherInfo.field_validation.required_fields = {
     'requested_depts_ids': ('Please select at least one department to volunteer for, or check "Anywhere".',
@@ -328,6 +341,20 @@ def not_in_range(form, field):
         raise ValidationError(f'Badge number {field.data} is out of range for badge type \
                               {c.BADGES[form.model.badge_type]} ({lower_bound} - {upper_bound})')
 
+
+@AdminBadgeFlags.new_or_changed('promo_code_code')
+def promo_code_valid(form, field):
+    if field.data:
+        with Session() as session:
+            code = session.lookup_promo_code(field.data)
+            if not code:
+                group = session.lookup_registration_code(field.data, PromoCodeGroup)
+                if not group:
+                    raise ValidationError("The promo code you entered is invalid.")
+                elif not group.valid_codes:
+                    raise ValidationError(f"There are no more badges left in the group {group.name}.")
+
+
 # =============================
 # CheckInForm
 # =============================
@@ -335,6 +362,18 @@ def not_in_range(form, field):
 CheckInForm.field_validation.validations['badge_printed_name'].update(PersonalInfo.field_validation.validations['badge_printed_name'])
 CheckInForm.field_validation.validations['birthdate'].update(PersonalInfo.field_validation.validations['birthdate'])
 CheckInForm.new_or_changed.validations['badge_num']['dupe_badge_num'] = dupe_badge_num
+
+
+@CheckInForm.field_validation('badge_num')
+def not_in_range(form, field):
+    if not field.data:
+        return
+
+    badge_type = get_real_badge_type(form.model.badge_type)
+    lower_bound, upper_bound = c.BADGE_RANGES[badge_type]
+    if not (lower_bound <= int(field.data) <= upper_bound):
+        raise ValidationError(f'Badge number {field.data} is out of range for badge type \
+                              {c.BADGES[form.model.badge_type]} ({lower_bound} - {upper_bound})')
 
 
 @CheckInForm.field_validation('instructions_followed')

@@ -1,0 +1,191 @@
+{% if c.ATTENDEE_ACCOUNTS_ENABLED and not attendee.is_new and (c.LOCAL_ACCOUNTS_DISABLED or not attendee.has_sso_email) %}
+{% if not attendee.managers %}
+<div class="alert alert-info no-account">
+{% if not attendee.is_valid %}
+<strong>This attendee is invalid.</strong> Their badge status is "{{ attendee.badge_status_label }}".
+{% else %}
+<strong>This attendee does not have an account yet.</strong>
+Choose an option below to give them access to their badge.{% if attendee.group and attendee.id == attendee.group.leader_id %} This will also give them access to any badges without an account in their group, <strong>{{ attendee.group.name }}</strong>.{% endif %}
+<br/><br/>
+<div class="d-flex flex-wrap gap-1">
+    {% if matching_account %}
+    <div class="d-flex gap-3 align-items-center">
+        <div><button class="btn btn-primary text-nowrap" onClick="addToAccount('{{ matching_account.id }}', '{{ matching_account.email }}')">Add to Existing Account</button></div>
+        <div>
+            There is already an account under the email <a href="../reg_admin/attendee_account_form?id={{ matching_account.id }}" target="_blank"><strong>{{ attendee.email }}</strong></a>.
+            This will add the badge to that account with the option to notify them.
+        </div>
+    </div>
+    {% elif attendee.email %}
+    <div class="d-flex gap-3 align-items-center">
+        <div><button class="btn btn-primary text-nowrap" onClick="sendClaim()">Send Claim Email</button></div>
+        <div>
+            This will create an account with the email <strong>{{ attendee.email }}</strong> and send them an email to claim their badge.
+            {% if c.LOCAL_ACCOUNTS_DISABLED %}If they claim the badge using an existing account, the new account will be deleted.
+            {% else %}If they already have an account, you will need to merge the new account manually.
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+    <form method="post" action="assign_account" id="assign-account">
+    {{ csrf_token() }}
+    <div class="d-flex gap-3 align-items-center">
+        <div>
+            <div class="input-group">
+                <input type="text" class="form-control keeper-ignore" data-1p-ignore data-lpignore="true" data-protonpass-ignore="true" data-bwignore autocomplete="off" name="account_email" id="account-email" placeholder="Account email address" value="" />
+                <button class="btn btn-secondary">Assign to {% if matching_account %}Other{% else %}Existing{% endif %} Account</button>
+            </div>
+        </div>
+        <div>
+            This will add the badge to an account under the email address you enter, if there is one. You can opt to notify them.
+        </div>
+    </div>
+    </form>
+    {% if c.HAS_ACCOUNTS_ACCESS %}
+    <div class="d-flex gap-3 align-items-center">
+        <div><a href="../accounts/" class="btn btn-warning">Create Admin Account <i class="fa fa-external-link"></i></a></div>
+        <div>
+            Creating an admin account for this badge will send one email that combines badge claiming and admin access.
+        </div>
+    </div>
+    {% endif %}
+</div>
+</div>
+<script type="text/javascript">
+    var alertId = 'message-alert';
+    if($('#attendee-modal-alert').length != 0) { alertId = 'attendee-modal-alert'; }
+    var addExistingCall = function(account_id, send_email) {
+        $.ajax({
+            method: 'POST',
+            url: '../registration/add_existing_account',
+            data: {
+              id: '{{ attendee.id }}',
+              account_id: account_id,
+              email: send_email,
+              csrf_token: csrf_token
+            },
+            success: function(response, status) {
+                if(response.success) {
+                    $("#message-alert").addClass("alert-info").show().children('span').html(response['message']);
+                    $('.no-account').hide();
+                } else {
+                    showErrorMessage(response['message'], alertId);
+                }
+            },
+            error: function(response, status, statusText) {
+                showErrorMessage('There was an error adding this badge to the account: ' + statusText, alertId);
+            }
+          });
+        }
+    var addToAccount = function(account_id, account_email){
+        bootbox.dialog({
+            title: "Add to Existing Account?",
+            message: "The account owner of <strong>" + account_email + "</strong> will be given access to this badge.",
+            backdrop: true,
+            size: 'lg',
+            buttons: {
+                cancel: {
+                    label: 'Nevermind',
+                    className: 'btn-outline-secondary',
+                },
+                add: {
+                    label: "Add to Account",
+                    className: 'btn-outline-primary',
+                    callback: function (result) {
+                        if(result) {
+                        addExistingCall(account_id, false)
+                        }
+                    }
+                },
+                add_and_email: {
+                    label: "Add to Account And Notify",
+                    className: 'btn-primary',
+                    callback: function (result) {
+                        if(result) {
+                        addExistingCall(account_id, true)
+                        }
+                    }
+                }
+            },
+        });
+    }
+    var sendClaim = function(event){
+        bootbox.confirm({
+            title: "Send Claim Email?",
+            {% if c.LOCAL_ACCOUNTS_DISABLED %}
+            message: "<p>This will immediately send an email to {{ attendee.email }} asking them to log in with their {{ c.OIDC_ACCOUNT_NAME }} account to claim this badge.</p>" + 
+                     "<p>Are you sure?</p>",
+            {% else %}
+            message: "<p>This will immediately create an account for {{ attendee.email }} and send an email asking them to finish setting up their password.</p>" + 
+                     "<p>Are you sure?</p>",
+            {% endif %}
+            backdrop: true,
+            buttons: {
+                confirm: {
+                    label: 'Yes, Send Claim Email',
+                    className: 'btn-primary'
+                },
+                cancel: {
+                    label: 'Nevermind',
+                    className: 'btn-outline-secondary'
+                }
+            },
+            callback: function (result) {
+                if(result) {
+                    $.ajax({
+                        method: 'POST',
+                        url: '../registration/add_new_account',
+                        data: {
+                        id: '{{ attendee.id }}',
+                        csrf_token: csrf_token
+                        },
+                        success: function(response, status) {
+                            if(response.success) {
+                                $("#" + alertId).addClass("alert-info").show().children('span').html(response['message']);
+                                $('.no-account').hide();
+                            } else {
+                                showErrorMessage(response['message'], alertId);
+                            }
+                        },
+                        error: function(response, status, statusText) {
+                            showErrorMessage('There was an error adding this badge to the account: ' + statusText, alertId);
+                        }
+                    });
+                }
+            }
+        });
+    }
+    var checkAccountEmailPassed = false;
+    var validatedEmail = '';
+    var existingAccountId = '';
+    var checkAccountEmail = function($form) {
+      $.post("../registration/check_account_email", $form.serialize(), function (result) {
+        if (result.success) {
+          validatedEmail = $("#account-email").val();
+          checkAccountEmailPassed = true;
+          existingAccountId = result.account_id;
+          addToAccount(existingAccountId, validatedEmail);
+        } else {
+          if (result.message) {
+            showErrorMessage(result.message);
+          }
+        }});
+        return false;
+    }
+    $("#assign-account").submit(function (event) {
+      event.preventDefault();
+      if (!checkAccountEmailPassed) {
+        checkAccountEmail($(this));
+      } else {
+        if (validatedEmail != $("#account-email").val()) {
+          checkAccountEmail($(this));
+        } else {
+          addToAccount(existingAccountId, validatedEmail);
+        }
+      }
+      return false;
+    });
+</script>
+{% endif %}
+{% endif %}
+{% endif %}

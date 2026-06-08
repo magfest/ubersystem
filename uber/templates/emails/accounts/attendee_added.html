@@ -1,0 +1,23 @@
+{% macro badge_description(attendee) %}
+{% if not attendee.badge_cost_with_promo_code %}complimentary {% endif %}
+{% if attendee.badge_type != c.ATTENDEE_BADGE %}{{ attendee.badge_type_label }} 
+{% elif c.DEALER_RIBBON in attendee.ribbon_ints %}{% if attendee.group and attendee.id == attendee.group.leader_id %}{{ c.DEALER_TERM }} {% else %}{{ c.DEALER_HELPER_TERM }} {% endif %}{% elif c.PANELIST_RIBBON in attendee.ribbon_ints %}panelist {% endif %}
+badge
+{% endmacro %}
+
+<html>
+<head></head>
+<body>
+    {% if account.valid_attendees|length == 1 %}
+    {{ account.valid_attendees[0].full_name }},
+    {% endif %}
+    <p>We've added a new {{ badge_description(attendee) }} for {% if account.valid_attendees|length == 1 %}you{% else %}{{ attendee.full_name }}{% endif %} to your {{ c.EVENT_NAME_AND_YEAR }} account.</p>
+
+    {% if attendee.placeholder %}
+    <p>Please <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}" target="_blank">log in and fill out the rest of {% if account.valid_attendees|length == 1 %}your{% else %}{{ attendee.first_name }}'s{% endif %} information here</a>.</p>
+    {% else %}
+    <p>You can <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}" target="_blank">view {% if account.valid_attendees|length == 1 %}your{% else %}{{ attendee.first_name }}'s{% endif %} badge here</a>. We recommend checking to make sure the information is accurate.</p>
+    {% endif %}
+
+</body>
+</html>

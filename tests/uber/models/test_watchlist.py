@@ -8,7 +8,7 @@ from uber.models import Attendee, Session, WatchList
 
 @pytest.fixture()
 def session(request):
-    session = Session().session
+    session = Session()
     request.addfinalizer(session.close)
     setattr(session, 'watchlist_entry', session.watch_list(first_names='Banned, Alias, Nickname', last_name='Attendee'))
     return session

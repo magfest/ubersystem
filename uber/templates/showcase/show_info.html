@@ -11,19 +11,19 @@
   <h4>Gameplay Images for Promotion</h4>
   Please upload a max of two gameplay images for use on the website, social media, and other promotion.
   <table>
-    {% for image in game.submission_images %}
+    {% for image in game_submission_images %}
       <tr>
         <td><ul><li></li></ul></td>
         <td><a target="_blank" href="{{ image.url }}">{{ image.filename }}</a></td>
         <td>{{ image.description }}</td>
         <td>
-          {% if image.use_in_promo %}
+          {% if image.flags['use_in_promo'] == True %}
             <form method="post" action="unmark_image">
               {{ csrf_token() }}
               <input type="hidden" name="id" value="{{ image.id }}" />
               <input class="btn btn-sm btn-warning" type="submit" value="Unmark as Best" />
             </form>
-          {% elif game.best_images|length < 2 %}
+          {% elif game_best_images|length < 2 %}
             <form method="post" action="mark_image">
               {{ csrf_token() }}
               <input type="hidden" name="id" value="{{ image.id }}" />
@@ -35,6 +35,7 @@
           <form method="post" action="../mivs/delete_screenshot">
               {{ csrf_token() }}
               <input type="hidden" name="id" value="{{ image.id }}" />
+              <input type="hidden" name="studio_id" value="{{ game.studio.id }}" />
               <input type="hidden" name="show_info" value="1" />
               <input class="btn btn-sm btn-danger" type="submit" value="Remove" />
             </form>
@@ -52,23 +53,23 @@
     <div class="col-sm">
       <label class="form-text">Header Image</label>
           <input type="file" name="header_image" />
-          {% if game.guidebook_header %}
-          <a target="_blank" href="{{ game.guidebook_header.url }}">{{ game.guidebook_header.filename }}</a>
+          {% if game_guidebook_header %}
+          {{ game_guidebook_header.html_link }}
           {% endif %}
       <p class="form-text">
           A {{ c.GUIDEBOOK_HEADER_SIZE|format_image_size }} image to display on the schedule next to your game details.<br/>
-          {% if game.guidebook_header %}Uploading a file will replace the existing image.{% endif %}
+          {% if game_guidebook_header %}Uploading a file will replace the existing image.{% endif %}
       </p>
     </div>
     <div class="col-sm">
       <label class="form-text">Thumbnail Image</label>
         <input type="file" name="thumbnail_image" />
-        {% if game.guidebook_thumbnail %}
-        <a target="_blank" href="{{ game.guidebook_thumbnail.url }}">{{ game.guidebook_thumbnail.filename }}</a>
+        {% if game_guidebook_thumbnail %}
+        {{ game_guidebook_thumbnail.html_link }}
         {% endif %}
     <p class="form-text">
         A {{ c.GUIDEBOOK_THUMBNAIL_SIZE|format_image_size }} image to display on the schedule next to your game name.<br/>
-        {% if game.guidebook_thumbnail %}Uploading a file will replace the existing image.{% endif %}
+        {% if game_guidebook_thumbnail %}Uploading a file will replace the existing image.{% endif %}
     </p>
     </div>
   </div>
@@ -162,9 +163,8 @@
                   <div class="col-sm">{{ form_macros.input(mivs_image.image) }}</div>
               </div>
               <div class="row g-3 mb-3">
-                  <div class="col-sm">{{ form_macros.input(mivs_image.description, label_text="Image Description") }}</div>
+                  <div class="col-sm">{{ form_macros.input(mivs_image.image_description, label_text="Image Description") }}</div>
               </div>
-              {{ form_macros.input(mivs_image.is_screenshot) }}
           </div>
       </div>
       <div class="modal-footer">

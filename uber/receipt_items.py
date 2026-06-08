@@ -28,13 +28,15 @@ Finally, we define a dictionary of tuples for each model that associates column 
 to run for them and their corresponding categories. If a function returns a category, that is always used instead.
 """
 import string
+import logging
 
 from collections import defaultdict
-from pockets.autolog import log
 
 from uber.config import c
 from uber.decorators import receipt_calculation
 from uber.models import Attendee, ArtShowApplication, Group
+
+log = logging.getLogger(__name__)
 
 
 def calc_simple_cost_change(model, col_name, col_str, new_model=None):

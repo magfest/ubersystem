@@ -406,10 +406,10 @@
             </div>
         {% endif %}
     {% endblock %}
-    <div id="mainContainer" class="container-fluid">
+    <div>
         {% block backlink %}
         {% if admin_area %}
-        <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <nav class="navbar navbar-expand-lg navbar-light bg-light mb-2">
             <div class="container-fluid">
               <a class="navbar-brand"{% if c.CURRENT_ADMIN %} href="../accounts/homepage"{% endif %}>
                 <img src="../static/images/favicon.png" alt="{{ c.EVENT_NAME }}" width="24" class="d-inline-block align-text-top">
@@ -466,13 +466,15 @@
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="account-dropdown">
                             {% if 'admin_account' in c.CURRENT_ADMIN %}
-                            {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
-                            <li><a class="dropdown-item" href="../preregistration/homepage">My Homepage</a></li>
-                            {% else %}
-                            <li><a class="dropdown-item" href="../preregistration/confirm?id={{ c.CURRENT_ADMIN.id }}">View My Badge</a></li>
-                            {% if c.HAS_SHIFTS_ADMIN_ACCESS %}<li><a class="dropdown-item" href="../shifts_admin/goto_volunteer_checklist?id={{ c.CURRENT_ADMIN.id }}">My Shifts</a></li>{% endif %}
-                            {% endif %}
+                              {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
+                              <li><a class="dropdown-item" href="../preregistration/homepage">My Homepage</a></li>
+                              {% else %}
+                              <li><a class="dropdown-item" href="../preregistration/confirm?id={{ c.CURRENT_ADMIN.id }}">View My Badge</a></li>
+                              {% if c.HAS_SHIFTS_ADMIN_ACCESS %}<li><a class="dropdown-item" href="../shifts_admin/goto_volunteer_checklist?id={{ c.CURRENT_ADMIN.id }}">My Shifts</a></li>{% endif %}
+                              {% endif %}
+                              {% if c.ADMIN_ACCESS_SET %}
                               <li><a class="dropdown-item" href="#attendee_form?id={{ c.CURRENT_ADMIN.id }}">My Registration</a></li>
+                              {% endif %}
                               {% if c.HAS_DEPT_ADMIN_ACCESS and c.CURRENT_ADMIN.assigned_depts %}
                                 <li><a class="dropdown-item" href="../dept_admin/?filtered=1">My Departments</a></li>
                                 {% for dept in c.CURRENT_ADMIN.assigned_depts %}
@@ -499,6 +501,7 @@
           </nav>
         {% endif %}
         {% endblock %}
+        <div id="mainContainer" class="container-fluid">
         {% block header %}{% endblock %}
         {% block alert %}
         <div class="alert alert-dismissible" role="alert" id="message-alert"><span></span>{% if bootstrap5 %}<button type="button" class="btn-close" onClick="hideMessageBox()" aria-label="Close"></button>{% else %}<button type="button" class="close" onClick="hideMessageBox()" aria-label="Close"><span aria-hidden="true">&times;</span></button>{% endif %}</div>
@@ -506,6 +509,7 @@
         {% block masthead %}{% endblock %}
         {% if title_text %}<h1 class="visually-hidden">{{ title_text }}</h1>{% endif %}
         {% block content %}{% endblock %}
+    </div>
     </div>
     {% block footer %}{% endblock %}
     {% block scripts %}

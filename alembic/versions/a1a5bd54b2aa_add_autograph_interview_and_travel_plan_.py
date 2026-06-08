@@ -16,7 +16,6 @@ depends_on = None
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-import residue
 
 
 try:
@@ -54,8 +53,8 @@ sqlite_reflect_kwargs = {
 
 def upgrade():
     op.create_table('guest_autograph',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('guest_id', residue.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('guest_id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('num', sa.Integer(), server_default='0', nullable=False),
     sa.Column('length', sa.Integer(), server_default='60', nullable=False),
     sa.ForeignKeyConstraint(['guest_id'], ['guest_group.id'], name=op.f('fk_guest_autograph_guest_id_guest_group')),
@@ -63,8 +62,8 @@ def upgrade():
     sa.UniqueConstraint('guest_id', name=op.f('uq_guest_autograph_guest_id'))
     )
     op.create_table('guest_interview',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('guest_id', residue.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('guest_id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('will_interview', sa.Boolean(), server_default='False', nullable=False),
     sa.Column('email', sa.Unicode(), server_default='', nullable=False),
     sa.Column('direct_contact', sa.Boolean(), server_default='False', nullable=False),
@@ -73,8 +72,8 @@ def upgrade():
     sa.UniqueConstraint('guest_id', name=op.f('uq_guest_interview_guest_id'))
     )
     op.create_table('guest_travel_plans',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('guest_id', residue.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('guest_id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('modes', sa.Unicode(), server_default='', nullable=False),
     sa.Column('modes_text', sa.Unicode(), server_default='', nullable=False),
     sa.Column('details', sa.Unicode(), server_default='', nullable=False),

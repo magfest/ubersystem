@@ -44,13 +44,13 @@
     </a>
   </li>
 {% endfor %}
-{% for art_show_app in attendee.art_show_applications %}
+{% if attendee.art_show_application %}
   <li class="nav-item{% if 'art_show_applications' in c.PAGE_PATH and not bootstrap5 %} active{% endif %}" role="presentation">
-    <a href="../art_show_applications/edit?id={{ art_show_app.id }}" class="nav-link{% if 'art_show_applications' in c.PAGE_PATH %} active{% endif %}">
-      <i class="fa fa-picture"></i> Art Show Application{% if art_show_app.display_name != art_show_app.attendee.full_name %} ({{ art_show_app.display_name }}){% endif %}
+    <a href="../art_show_applications/edit?id={{ attendee.art_show_application.id }}" class="nav-link{% if 'art_show_applications' in c.PAGE_PATH %} active{% endif %}">
+      <i class="fa fa-picture"></i> Art Show Application{% if attendee.art_show_application.display_name != attendee.art_show_application.attendee.full_name %} ({{ attendee.art_show_application.display_name }}){% endif %}
     </a>
   </li>
-{% endfor %}
+{% endif %}
 {% if attendee.marketplace_application %}
   <li class="nav-item" role="presentation">
     <a href="../marketplace/edit?id={{ attendee.marketplace_application.id }}" class="nav-link{% if 'marketplace' in c.PAGE_PATH %} active{% endif %}">
@@ -58,9 +58,9 @@
     </a>
   </li>
 {% endif %}
-{% if c.ATTRACTIONS_ENABLED and attractions %}
+{% if c.ATTRACTIONS_ENABLED and (attractions or 'attractions' in c.PAGE_PATH) %}
   <li class="nav-item" role="presentation">
-    <a href="../attractions/manage?id={{ attendee.id }}" class="nav-link{% if 'manage' in c.PAGE_PATH %} active{% endif %}">
+    <a href="../attractions/manage?id={{ attendee.id }}" class="nav-link{% if 'attractions' in c.PAGE_PATH %} active{% endif %}">
       <span class="bling-icon"></span> Attraction Signups
     </a>
   </li>
@@ -81,10 +81,10 @@
   </a>
 </li>
 {% endif %}
-{% if not c.ATTENDEE_ACCOUNTS_ENABLED %}
+
 <li class="nav-item ms-auto">
   <div class="input-group me-2">
-    {% if c.ART_SHOW_ENABLED and c.ART_SHOW_OPEN and not attendee.art_show_applications %}
+    {% if c.ART_SHOW_ENABLED and c.ART_SHOW_OPEN and not attendee.art_show_application %}
     <a class="p-0" href="../art_show_applications/index?attendee_id={{ attendee.id }}">
       <button type="button" class="btn btn-outline-primary"><i class="fa fa-tags"></i>&nbsp; Apply for Art Show</button>
     </a>
@@ -105,10 +105,15 @@
       </span>
       {% endif %}
     {% endif %}
+    {% if attendee.has_badge and attendee.staffing and attendee.badge_type != c.CONTRACTOR_BADGE and c.VOLUNTEER_SIGNUPS_AVAILABLE %}
+      <a class="p-0" href="../staffing/index?id={{ attendee.id }}" target="_blank">
+        {% if (not c.VOLUNTEER_CHECKLIST_OPEN or attendee.shift_prereqs_complete) and c.AFTER_SHIFTS_CREATED %}
+        <button type="button" class="btn btn-secondary"><i class="fa fa-external-link"></i>&nbsp; View Shifts</button>
+        {% else %}
+        <button type="button" class="btn btn-secondary"><i class="fa fa-external-link"></i>&nbsp; Volunteer Checklist</button>
+        {% endif %}
+      </a>
+    {% endif %}
   </div>
 </li>
-{% endif %}
 </ul>
-
-{% if not attendee.art_show_applications and c.ART_SHOW_OPEN %}
-{% endif %}

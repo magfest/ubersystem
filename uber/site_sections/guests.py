@@ -1,18 +1,20 @@
 import os
 import shutil
-
-from pockets.autolog import log
+import logging
 import cherrypy
 from cherrypy.lib.static import serve_file
 from sqlalchemy.orm.exc import NoResultFound
 
+from uber.email import EmailService
 from uber.config import c
-from uber.decorators import ajax, all_renderable, render
+from uber.decorators import ajax, all_renderable, render, requires_account, file_to_fk_id
 from uber.errors import HTTPRedirect
-from uber.models import GuestMerch, GuestDetailedTravelPlan, GuestTravelPlans, GuestPanel, GuestTrack
+from uber.files import FileService
+from uber.models import GuestGroup, GuestMerch, GuestDetailedTravelPlan, GuestTravelPlans, GuestPanel
 from uber.model_checks import mivs_show_info_required_fields
-from uber.utils import check
-from uber.tasks.email import send_email
+from uber.utils import check, filename_extension
+
+log = logging.getLogger(__name__)
 
 
 def compile_travel_plans_from_params(session, **params):
@@ -36,14 +38,20 @@ def compile_travel_plans_from_params(session, **params):
 
 @all_renderable(public=True)
 class Root:
+    @requires_account(GuestGroup)
     def index(self, session, id, message=''):
         guest = session.guest_group(id)
+        guest_bio_pic = None
+        if guest.bio:
+            guest_bio_pic = FileService.get_existing_files(session, guest.bio, and_flags=['bio_pic']),
 
         return {
             'message': message,
             'guest': guest,
+            'guest_bio_pic': guest_bio_pic,
         }
 
+    @requires_account(GuestGroup)
     def agreement(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         guest_info = session.guest_info(params, restricted=True)
@@ -67,15 +75,18 @@ class Root:
             'message': message
         }
 
-    def bio(self, session, guest_id, message='', **params):
+    @requires_account(GuestGroup)
+    def bio(self, session, guest_id, message='', bio_pic=None, **params):
         guest = session.guest_group(guest_id)
-        guest_bio = session.guest_bio(params, restricted=True)
+        guest_bio = session.guest_bio(params)
         if cherrypy.request.method == 'POST':
             if not guest_bio.desc:
-                message = 'Please provide a brief bio for our website'
+                message = 'Please provide a brief bio for our website.'
 
             if not message:
-                message = guest.handle_images_from_params(session, **params)
+                if bio_pic.filename:
+                    file_handler = FileService.file_handler(session, guest_bio)
+                    message = file_handler.process_file_upload(bio_pic, allowed_extensions=c.ALLOWED_BIO_PIC_EXTENSIONS)
 
             if not message:
                 guest.bio = guest_bio
@@ -85,9 +96,11 @@ class Root:
         return {
             'guest': guest,
             'guest_bio': guest.bio or guest_bio,
+            'guest_bio_pic': FileService.get_existing_files(session, guest.bio or guest_bio, and_flags=['bio_pic']),
             'message': message
         }
 
+    @requires_account(GuestGroup)
     @cherrypy.expose(['w9'])
     def taxes(self, session, guest_id=None, message='', w9=None, **params):
         if not guest_id:
@@ -109,31 +122,29 @@ class Root:
             'message': message
         }
 
+    @requires_account(GuestGroup)
     def stage_plot(self, session, guest_id, message='', plot=None, **params):
         guest = session.guest_group(guest_id)
-        guest_stage_plot = session.guest_stage_plot(params, restricted=True)
+        guest_stage_plot = session.guest_stage_plot(params)
         if cherrypy.request.method == 'POST':
             if plot.filename:
-                guest_stage_plot.filename = plot.filename
-                guest_stage_plot.content_type = plot.content_type.value
-                if guest_stage_plot.stage_plot_extension not in c.ALLOWED_STAGE_PLOT_EXTENSIONS:
-                    message = 'Uploaded file type must be one of ' + ', '.join(c.ALLOWED_STAGE_PLOT_EXTENSIONS)
-                else:
-                    with open(guest_stage_plot.fpath, 'wb') as f:
-                        shutil.copyfileobj(plot.file, f)
+                file_handler = FileService.file_handler(session, guest_stage_plot)
+                message = file_handler.process_file_upload(plot, allowed_extensions=c.ALLOWED_STAGE_PLOT_EXTENSIONS)
             elif not params.get('notes'):
                 message = "Please either upload a stage layout or explain your inputs and stage gear needs in the Additional Notes section."
             if not message:
                 guest.stage_plot = guest_stage_plot
                 session.add(guest_stage_plot)
-                raise HTTPRedirect('index?id={}&message={}', guest.id, 'Stage directions uploaded')
+                raise HTTPRedirect('index?id={}&message={}', guest.id, 'Stage directions uploaded!')
 
         return {
             'guest': guest,
             'guest_stage_plot': guest.stage_plot or guest_stage_plot,
+            'stage_plot_file': FileService.get_existing_files(session, guest.stage_plot or guest_stage_plot),
             'message': message
         }
 
+    @requires_account(GuestGroup)
     def panel(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         guest_panel = session.guest_panel(params, checkgroups=['tech_needs'])
@@ -160,6 +171,7 @@ class Root:
             'message': message
         }
     
+    @requires_account(GuestGroup)
     def decline_panel(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         guest_panel = GuestPanel(
@@ -169,7 +181,7 @@ class Root:
         session.add(guest_panel)
         raise HTTPRedirect('index?id={}&message={}', guest.id, 'You have declined to run a panel.')
 
-
+    @requires_account(GuestGroup)
     def mc(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         if cherrypy.request.method == 'POST':
@@ -181,6 +193,7 @@ class Root:
             'message': message
         }
 
+    @requires_account(GuestGroup)
     def rehearsal(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         if cherrypy.request.method == 'POST':
@@ -195,14 +208,17 @@ class Root:
             'message': message
         }
 
+    @file_to_fk_id('guest_id')
+    @requires_account(GuestGroup)
     @ajax
     def delete_sample_track(self, session, id, **params):
-        track = session.guest_track(id)
-        if track:
-            session.delete(track)
+        track_handler = FileService.from_db_id(session, id)
+        if track_handler:
+            track_handler.delete()
             session.commit()
         return {'success': True, 'message': "Track deleted."}
 
+    @requires_account(GuestGroup)
     def merch(self, session, guest_id, message='', coverage=False, warning=False, **params):
         guest = session.guest_group(guest_id)
         guest_merch = session.guest_merch(params, checkgroups=GuestMerch.all_checkgroups, bools=GuestMerch.all_bools)
@@ -213,25 +229,22 @@ class Root:
         if guest.autograph:
             autograph_params['id'] = guest.autograph.id
         guest_autograph = session.guest_autograph(autograph_params)
+        existing_tracks = FileService.get_existing_files(session, guest.merch or guest_merch, and_flags=['sample_track'], uselist=True)
         
         group_params = dict()
 
         if cherrypy.request.method == 'POST':
+            file_handlers = []
             sample_tracks = params.get('sample_tracks', [])
             if isinstance(sample_tracks, cherrypy._cpreqbody.Part):
                 sample_tracks = [sample_tracks]
-            if len(guest.sample_tracks) + len(sample_tracks) > 8:
+            if len(existing_tracks) + len(sample_tracks) > 8:
                 message = "Please upload no more than eight sample tracks total."
             else:
-                try:
-                    for track in [track for track in sample_tracks if track.file]:
-                        new_track = GuestTrack(guest_id=guest_id)
-                        new_track.file = track
-                        session.add(new_track)
-                except Exception as e:
-                    session.rollback()
-                    log.error(f'Error uploading sample track for guest {guest.id}: {e}')
-                    message = f"There was an issue with uploading one of your sample tracks. Please try again or contact us at rockisland@magfest.org"
+                for track in [track for track in sample_tracks if track.filename]:
+                    file_handler = FileService.file_handler(session, guest_merch, flags={'sample_track': True})
+                    message = file_handler.process_file_upload(track, delete_existing=False)
+                    file_handlers.append(file_handler)
 
             if not message:
                 message = check(guest_merch)
@@ -266,15 +279,14 @@ class Root:
                     session.add(guest_autograph)
                     if (guest_autograph.is_new and guest_autograph.rock_island_autographs) or \
                         guest_autograph.orig_value_of('rock_island_autographs') != guest_autograph.rock_island_autographs:
-                        send_email.delay(
-                            c.ROCK_ISLAND_EMAIL,
-                            c.ROCK_ISLAND_EMAIL,
-                            '{} Meet & Greet Notification'.format(guest.group.name),
-                            render('emails/guests/meetgreet_notification.txt', {'guest': guest}, encoding=None),
-                            model=guest.to_dict('id'))
+                        EmailService.queue_email(session, 'guest_meet_greet_admin',
+                                                 to=c.ROCK_ISLAND_EMAIL, data={'guest': guest})
                 guest.merch = guest_merch
                 session.add(guest_merch)
                 raise HTTPRedirect('index?id={}&message={}', guest.id, 'Your merchandise preferences have been saved')
+            else:
+                for handler in file_handlers:
+                    handler.delete()
         else:
             guest_merch = guest.merch
 
@@ -282,12 +294,14 @@ class Root:
             'guest': guest,
             'guest_merch': guest_merch,
             'guest_autograph': guest.autograph or guest_autograph,
+            'guest_tracks': existing_tracks,
             'group': group_params or guest.group,
             'message': message,
             'agreed_to_ri_faq': guest.group_type in c.ROCK_ISLAND_GROUPS and guest_merch and
             guest_merch.orig_value_of('selling_merch') != c.NO_MERCH and guest_merch.poc_address1,
         }
 
+    @requires_account(GuestGroup)
     @ajax
     def save_inventory_item(self, session, guest_id, **params):
         guest = session.guest_group(guest_id)
@@ -307,6 +321,7 @@ class Root:
 
         return {'error': message}
 
+    @requires_account(GuestGroup)
     @ajax
     def remove_inventory_item(self, session, guest_id, item_id):
         guest = session.guest_group(guest_id)
@@ -324,6 +339,7 @@ class Root:
             session.commit()
         return {'error': message}
 
+    @requires_account(GuestGroup)
     def update_arrival_plans(self, session, guest_id, **params):
         guest = session.guest_group(guest_id)
         guest_merch = session.guest_merch(params)
@@ -345,7 +361,7 @@ class Root:
             message = "Arrival plans updated."
         raise HTTPRedirect('merch?guest_id={}&message={}', guest_id, message)
 
-
+    @requires_account(GuestGroup)
     def charity(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         guest_charity = session.guest_charity(params)
@@ -359,12 +375,8 @@ class Root:
                 session.add(guest_charity)
                 if guest_charity.donating == c.DONATING or \
                         guest_charity.orig_value_of('donating') != guest_charity.donating:
-                    send_email.delay(
-                            c.CHARITY_EMAIL,
-                            c.CHARITY_EMAIL,
-                            '{} Donation Notification'.format(guest.group.name),
-                            render('emails/guests/charity_notification.txt', {'guest': guest}, encoding=None),
-                            model=guest.to_dict('id'))
+                    EmailService.queue_email(session, 'guest_charity_admin',
+                                             to=c.CHARITY_EMAIL, data={'guest': guest})
                 raise HTTPRedirect('index?id={}&message={}', guest.id, 'Your charity decisions have been saved')
 
         return {
@@ -373,6 +385,7 @@ class Root:
             'message': message
         }
 
+    @requires_account(GuestGroup)
     def autograph(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         guest_autograph = session.guest_autograph(params)
@@ -386,12 +399,8 @@ class Root:
 
             if (guest_autograph.is_new and guest_autograph.rock_island_autographs) or \
                     guest_autograph.orig_value_of('rock_island_autographs') != guest_autograph.rock_island_autographs:
-                send_email.delay(
-                    c.ROCK_ISLAND_EMAIL,
-                    c.ROCK_ISLAND_EMAIL,
-                    '{} Meet & Greet Notification'.format(guest.group.name),
-                    render('emails/guests/meetgreet_notification.txt', {'guest': guest}, encoding=None),
-                    model=guest.to_dict('id'))
+                EmailService.queue_email(session, 'guest_meet_greet_admin',
+                                         to=c.ROCK_ISLAND_EMAIL, data={'guest': guest})
             raise HTTPRedirect('index?id={}&message={}', guest.id, 'Your autograph sessions have been saved')
 
         return {
@@ -400,6 +409,7 @@ class Root:
             'message': message
         }
 
+    @requires_account(GuestGroup)
     def interview(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         guest_interview = session.guest_interview(params, bools=['will_interview', 'direct_contact'])
@@ -417,6 +427,7 @@ class Root:
             'message': message
         }
 
+    @requires_account(GuestGroup)
     def travel_plans(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
 
@@ -467,6 +478,7 @@ class Root:
             'max_departure_time': GuestDetailedTravelPlan.max_departure_time,
         }
 
+    @requires_account(GuestGroup)
     def hospitality(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         guest_hospitality = session.guest_hospitality(params, restricted=True)
@@ -481,6 +493,7 @@ class Root:
             'message': message
         }
     
+    @requires_account(GuestGroup)
     def media_request(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         guest_media_request = session.guest_media_request(params, restricted=True)
@@ -495,6 +508,7 @@ class Root:
             'message': message
         }
     
+    @requires_account(GuestGroup)
     def performer_badges(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         if cherrypy.request.method == 'POST':
@@ -506,6 +520,7 @@ class Root:
             'message': message
         }
 
+    @requires_account(GuestGroup)
     def mivs_core_hours(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         if cherrypy.request.method == 'POST':
@@ -520,6 +535,7 @@ class Root:
             'message': message,
         }
 
+    @requires_account(GuestGroup)
     def mivs_discussion(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         if cherrypy.request.method == 'POST':
@@ -535,6 +551,7 @@ class Root:
             'message': message,
         }
 
+    @requires_account(GuestGroup)
     def mivs_handbook(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         if cherrypy.request.method == 'POST':
@@ -549,6 +566,7 @@ class Root:
             'message': message,
         }
 
+    @requires_account(GuestGroup)
     def mivs_training(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         if cherrypy.request.method == 'POST':
@@ -566,6 +584,7 @@ class Root:
             'message': message,
         }
 
+    @requires_account(GuestGroup)
     def mivs_logistics(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         if cherrypy.request.method == 'POST':
@@ -584,6 +603,7 @@ class Root:
             'confirm_checkbox': True if 'confirm_checkbox' in params or guest.group.studio.logistics_updated else False,
         }
 
+    @requires_account(GuestGroup)
     def mivs_hotel_space(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         if cherrypy.request.method == 'POST':
@@ -619,6 +639,7 @@ class Root:
             'confirm_checkbox': True if 'confirm_checkbox' in params else False,
         }
 
+    @requires_account(GuestGroup)
     def mivs_selling_at_event(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         if cherrypy.request.method == 'POST':
@@ -642,6 +663,7 @@ class Root:
             'message': message,
         }
 
+    @requires_account(GuestGroup)
     def mivs_show_info(self, session, guest_id, message='', **params):
         guest = session.guest_group(guest_id)
         if cherrypy.request.method == 'POST':
@@ -675,7 +697,8 @@ class Root:
             'message': message,
         }
 
-    def view_inventory_file(self, session, id, item_id, name):
+    @requires_account(GuestGroup)
+    def view_inventory_file(self, session, id, item_id, name, disposition='inline', **params):
         guest_merch = session.guest_merch(id)
         if guest_merch:
             item = guest_merch.inventory.get(item_id)
@@ -686,33 +709,16 @@ class Root:
                 filepath = guest_merch.inventory_path(filename)
                 if filename and download_filename and content_type and os.path.exists(filepath):
                     filesize = os.path.getsize(filepath)
+                    if disposition == 'attachment':
+                        extension = filename_extension(item.get('image_download_filename', filename))
+                        normalized_name = item.get('name', '???').strip().lower()
+                        normalized_name = ''.join(s for s in normalized_name if s.isalnum() or s == ' ')
+
+                        download_filename = f"{guest_merch.guest.normalized_group_name}_{' '.join(normalized_name.split()).replace(' ', '_')}.{extension}"
                     cherrypy.response.headers['Accept-Ranges'] = 'bytes'
                     cherrypy.response.headers['Content-Length'] = filesize
                     cherrypy.response.headers['Content-Range'] = 'bytes 0-{}'.format(filesize)
                     cherrypy.response.headers['Cache-Control'] = 'no-store'
-                    return serve_file(filepath, disposition='inline', name=download_filename, content_type=content_type)
+                    return serve_file(filepath, disposition=disposition, name=download_filename, content_type=content_type)
                 else:
                     raise cherrypy.HTTPError(404, "File not found")
-
-    def view_track(self, session, id):
-        track = session.guest_track(id)
-        cherrypy.response.headers['Cache-Control'] = 'no-store'
-        return serve_file(
-            track.filepath,
-            disposition="attachment",
-            name=track.filename,
-            content_type=track.content_type)
-
-    def view_image(self, session, id):
-        image = session.guest_image(id)
-        cherrypy.response.headers['Cache-Control'] = 'no-store'
-        return serve_file(image.filepath, name=image.filename, content_type=image.content_type)
-
-    def view_stage_plot(self, session, id):
-        guest = session.guest_group(id)
-        cherrypy.response.headers['Cache-Control'] = 'no-store'
-        return serve_file(
-            guest.stage_plot.fpath,
-            disposition="attachment",
-            name=guest.stage_plot.download_filename,
-            content_type=guest.stage_plot.content_type)

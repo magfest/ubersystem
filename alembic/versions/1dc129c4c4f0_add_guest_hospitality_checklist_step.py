@@ -15,7 +15,6 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import residue
 
 
 try:
@@ -53,8 +52,8 @@ sqlite_reflect_kwargs = {
 
 def upgrade():
     op.create_table('guest_hospitality',
-        sa.Column('id', residue.UUID(), nullable=False),
-        sa.Column('guest_id', residue.UUID(), nullable=False),
+        sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+        sa.Column('guest_id', sa.Uuid(as_uuid=False), nullable=False),
         sa.Column('completed', sa.Boolean(), server_default='False', nullable=False),
         sa.ForeignKeyConstraint(['guest_id'], ['guest_group.id'], name=op.f('fk_guest_hospitality_guest_id_guest_group')),
         sa.PrimaryKeyConstraint('id', name=op.f('pk_guest_hospitality')),

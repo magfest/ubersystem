@@ -367,7 +367,8 @@
       
       var callback = function(response) {
         if(response && response['error']) {
-          showErrorMessage(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error']);
+          setTimeout(function(){ hideMessageBox() }, 3000);
         } else {
           window.location.reload();
         }
@@ -417,7 +418,8 @@
 
       var callback = function(response) {
         if(response && response['error']) {
-          showErrorMessage(response['error'], '', {timeOut: 3000});
+          showErrorMessage(response['error']);
+          setTimeout(function(){ hideMessageBox() }, 3000);
         } else {
           var $event = $button.closest('.event');
           $event.css({'height': $event.height(), 'min-height': ''});
@@ -660,7 +662,7 @@
   }
 </script>
 
-{%- set can_admin_attraction = admin_account.attendee.can_admin_attraction(attraction) -%}
+{%- set can_admin_attraction = admin_account.can_admin_attraction(attraction) -%}
 {% if can_admin_attraction -%}
   <div id="edit_attraction" class="modal fade" tabindex="-1" role="dialog" style="display: none"
       aria-labelledby="edit_attraction_title">
@@ -773,16 +775,9 @@
   {%- endif %}
 
   {% if attraction.checkin_reminder %}
-    {% if attraction.checkin_reminder == 1 %}
+    {% if attraction.checkin_reminder %}
       <p>Attendees will be notified about {{ attraction.name }} events
-      {{ humanize_timedelta(minutes=attraction.checkin_reminder|first, now='when the event starts', suffix=' before') }}.</p>
-    {% else %}
-      Attendees will be notified about {{ attraction.name }} events:
-      <ul>
-        {% for notification in attraction.checkin_reminder %}
-          <li>{{ humanize_timedelta(minutes=notification, now='when the event starts', suffix=' before') }}</li>
-        {% endfor %}
-      </ul>
+      {{ humanize_timedelta(minutes=attraction.checkin_reminder, now='when the event starts', suffix=' before') }}.</p>
     {% endif %}
   {% else %}
     <p>Attendees will <b>NOT</b> be notified before the start of an {{ attraction.name }} event.</p>

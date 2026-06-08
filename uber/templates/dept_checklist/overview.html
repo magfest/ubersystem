@@ -109,8 +109,15 @@ th.checklist-item div {
 
 </style>
 
+{% if c.DEV_BOX and c.DEPT_CHECKLIST_START and c.BEFORE_DEPT_CHECKLIST_START %}
+    <div class="alert alert-info">
+    <strong> You are on a development box. Otherwise, the department head checklist would be closed. </strong>
+    </div>
+{% endif %}
+
 <h2>
   Department Checklists
+  {% if c.DEV_BOX or c.DEPT_CHECKLIST_OPEN %}
   {% if filtered %}
     <a class="btn btn-sm btn-secondary" href="overview">
   {% else %}
@@ -119,7 +126,19 @@ th.checklist-item div {
       <i class="fa fa-lg fa-filter"></i>
       Show only my checklists
     </a>
+  {% endif %}
 </h2>
+
+{% if not c.DEV_BOX and not c.DEPT_CHECKLIST_OPEN %}
+  {% if not c.DEPT_CHECKLIST_START %}
+  <p>Department checklists are not enabled for this event.</p>
+  {% else %}
+  <p>
+    Department checklists are not yet available. You will be emailed when the checklist is live.
+    We anticipate that the checklist will go live on {{ c.DEPT_CHECKLIST_START|datetime_local }}.
+  </p>
+  {% endif %}
+{% else %}
 
 <div class="legend">
   <strong>Click the title of a checklist item to view responses from all departments for that item.</strong><br/><br/>
@@ -206,5 +225,6 @@ th.checklist-item div {
 </table>
 {% else %}
 <em>No Department Checklists Found!</em>
+{% endif %}
 {% endif %}
 {% endblock %}

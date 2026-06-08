@@ -1,10 +1,10 @@
 import cherrypy
-from sqlalchemy.orm import subqueryload
+from sqlalchemy.orm import joinedload, selectinload, subqueryload
 from datetime import timedelta
 
 from uber.config import c
 from uber.custom_tags import pluralize, yesno, readable_join
-from uber.decorators import all_renderable, ajax, check_dept_admin, csrf_protected, csv_file, department_id_adapter, \
+from uber.decorators import all_renderable, ajax, check_dept_admin, csrf_protected, csv_file, \
     requires_dept_admin, site_mappable
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
@@ -17,8 +17,8 @@ class Root:
     @site_mappable
     def index(self, session, filtered=False, message='', **params):
         if filtered:
-            admin_account_id = cherrypy.session.get('account_id')
-            admin_account = session.query(AdminAccount).get(admin_account_id)
+            admin_account_id = cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))
+            admin_account = session.get(AdminAccount, admin_account_id)
             dept_filter = [Department.memberships.any(
                 DeptMembership.attendee_id == admin_account.attendee_id)]
         else:
@@ -26,8 +26,9 @@ class Root:
 
         forms = load_forms({}, Department(), ['DepartmentInfo'])
 
-        departments = session.query(Department).filter(*dept_filter) \
-            .order_by(Department.name).all()
+        departments = session.query(Department).filter(*dept_filter).options(
+            selectinload(Department.memberships)
+        ).order_by(Department.name).all()
         return {
             'filtered': filtered,
             'message': message,
@@ -41,7 +42,7 @@ class Root:
         if not department_id or department_id == 'None':
             raise HTTPRedirect('index')
         
-        department = session.department(department_id)
+        department = session.get(Department, department_id, options=[selectinload(Department.attendees_working_shifts)])
         forms = load_forms(params, department, ['DepartmentInfo'])
 
         if cherrypy.request.method == 'POST':
@@ -56,17 +57,15 @@ class Root:
                     department.id,
                     'Department updated successfully.')
         else:
-            department = session.query(Department) \
-                .filter_by(id=department_id) \
-                .order_by(Department.id) \
-                .options(
-                    subqueryload(Department.dept_roles).subqueryload(DeptRole.dept_memberships),
-                    subqueryload(Department.members).subqueryload(Attendee.shifts).subqueryload(Shift.job),
-                    subqueryload(Department.members).subqueryload(Attendee.admin_account),
-                    subqueryload(Department.dept_heads).subqueryload(Attendee.dept_memberships),
-                    subqueryload(Department.pocs).subqueryload(Attendee.dept_memberships),
-                    subqueryload(Department.checklist_admins).subqueryload(Attendee.dept_memberships)) \
-                .one()
+            department = session.get(Department, department_id, options=[
+                selectinload(Department.memberships),
+                selectinload(Department.dept_roles).selectinload(DeptRole.dept_memberships),
+                selectinload(Department.members).selectinload(Attendee.shifts).joinedload(Shift.job),
+                selectinload(Department.members).joinedload(Attendee.admin_account),
+                selectinload(Department.dept_heads).selectinload(Attendee.dept_memberships),
+                selectinload(Department.pocs).selectinload(Attendee.dept_memberships),
+                selectinload(Department.checklist_admins).selectinload(Attendee.dept_memberships)
+                ])
 
         return {
             'admin': session.admin_attendee(),
@@ -79,7 +78,7 @@ class Root:
     @csrf_protected
     def delete(self, session, id, message=''):
         if cherrypy.request.method == 'POST':
-            department = session.query(Department).get(id)
+            department = session.get(Department, id)
             if department.member_count > 1:
                 raise HTTPRedirect(
                     'form?id={}&message={}',
@@ -137,7 +136,7 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, dept, form_list)
-        all_errors = validate_model(forms, dept, is_admin=True)
+        all_errors = validate_model(session, forms, dept, is_admin=True)
 
         if all_errors:
             return {"error": all_errors}
@@ -173,12 +172,13 @@ class Root:
                 'value': value
             }
 
-    @department_id_adapter
     def requests(self, session, department_id=None, requested_any=False, message='', **params):
         if not department_id:
             raise HTTPRedirect('index')
 
-        department = session.query(Department).get(department_id)
+        department = session.query(Department).filter(Department.id == department_id).options(
+            selectinload(Department.unassigned_explicitly_requesting_attendees)
+        ).first()
         if cherrypy.request.method == 'POST':
             attendee_ids = [s for s in params.get('attendee_ids', []) if s]
             if attendee_ids:
@@ -202,10 +202,12 @@ class Root:
             'requested_any': requested_any
         }
 
-    @department_id_adapter
     @csv_file
     def dept_requests_export(self, out, session, department_id, requested_any=False, message='', **params):
-        department = session.query(Department).get(department_id)
+        department = session.query(Department).filter(Department.id == department_id).options(
+            selectinload(Department.unassigned_explicitly_requesting_attendees),
+            selectinload(Department.unassigned_requesting_attendees),
+        ).first()
 
         requesting_attendees = department.unassigned_requesting_attendees \
             if requested_any else department.unassigned_explicitly_requesting_attendees
@@ -223,10 +225,9 @@ class Root:
 
                 out.writerow(row)
 
-    @department_id_adapter
     @csv_file
     def dept_members_export(self, out, session, department_id, message='', **params):
-        department = session.query(Department).get(department_id)
+        department = session.get(Department, department_id)
         headers = ['Name', 'Legal Name', 'Email', 'Phone Number', 'Emergency Contact',
                    'Weighted Hours', 'Badge Status', 'Placeholder', 'Has Shifts', 'Roles']
 
@@ -278,7 +279,6 @@ class Root:
                 if start_minute - timedelta(minutes=1) not in minute_map:
                     single_sequence(attendee, start_minute, minute_map)
 
-    @department_id_adapter
     def role(self, session, department_id=None, message='', **params):
         if not department_id or department_id == 'None':
             department_id = None
@@ -293,12 +293,9 @@ class Root:
             checkgroups=DeptRole.all_checkgroups)
 
         department_id = role.department_id or department_id
-        department = session.query(Department).filter_by(id=department_id).order_by(Department.id) \
-            .options(
-                subqueryload(Department.memberships)
-                .subqueryload(DeptMembership.attendee)
-                .subqueryload(Attendee.dept_roles)) \
-            .one()
+        department = session.get(Department, department_id, options=[
+            subqueryload(Department.memberships).subqueryload(DeptMembership.attendee).subqueryload(Attendee.dept_roles)
+            ])
 
         if cherrypy.request.method == 'POST':
             message = check_dept_admin(session)
@@ -325,7 +322,7 @@ class Root:
 
     @csrf_protected
     def delete_role(self, session, id):
-        dept_role = session.query(DeptRole).get(id)
+        dept_role = session.get(DeptRole, id)
         department_id = dept_role.department_id
         message = ''
         if cherrypy.request.method == 'POST':
@@ -381,7 +378,7 @@ class Root:
             else:
                 session.add(DeptMembership(
                     department_id=department_id, attendee_id=attendee_id))
-                attendee = session.query(Attendee).get(attendee_id)
+                attendee = session.get(Attendee, attendee_id)
                 message = '{} successfully added as a member of this ' \
                     'department'.format(attendee.full_name)
 

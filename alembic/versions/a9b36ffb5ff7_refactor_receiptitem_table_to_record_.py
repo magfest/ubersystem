@@ -16,7 +16,8 @@ depends_on = None
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-import residue
+from sqlalchemy.types import JSON
+from sqlalchemy.ext.mutable import MutableDict
 
 
 try:
@@ -56,8 +57,8 @@ def upgrade():
     op.add_column('attendee', sa.Column('refunded_items', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False))
     op.add_column('group', sa.Column('purchased_items', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False))
     op.add_column('group', sa.Column('refunded_items', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False))
-    op.add_column('receipt_item', sa.Column('cost_snapshot', residue.types.JSON(), server_default='{}', nullable=False))
-    op.add_column('receipt_item', sa.Column('refund_snapshot', residue.types.JSON(), server_default='{}', nullable=False))
+    op.add_column('receipt_item', sa.Column('cost_snapshot', MutableDict.as_mutable(JSON), server_default='{}', nullable=False))
+    op.add_column('receipt_item', sa.Column('refund_snapshot', MutableDict.as_mutable(JSON), server_default='{}', nullable=False))
     op.drop_column('receipt_item', 'item_type')
     op.drop_column('receipt_item', 'fk_id')
     op.drop_column('receipt_item', 'model')

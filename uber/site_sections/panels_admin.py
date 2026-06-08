@@ -1,21 +1,21 @@
 from collections import defaultdict
 from datetime import datetime, timedelta
-
+import logging
 import cherrypy
 import json
-from pockets import groupify
-from pockets.autolog import log
 from sqlalchemy import func, literal_column
 from sqlalchemy.orm import joinedload
 
+from uber.email import EmailService
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, render
 from uber.errors import HTTPRedirect
-from uber.models import AssignedPanelist, Attendee, AutomatedEmail, Event, EventFeedback, \
+from uber.models import AssignedPanelist, Attendee, AutomatedEmail, Event, EventFeedback, EventLocation, Department, \
     PanelApplicant, PanelApplication, GuestGroup
-from uber.utils import add_opt, check, localized_now, validate_model
+from uber.utils import add_opt, check, localized_now, validate_model, groupify
 from uber.forms import load_forms
-from uber.tasks.email import send_email
+
+log = logging.getLogger(__name__)
 
 
 @all_renderable()
@@ -87,7 +87,7 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, app, form_list)
-        all_errors = validate_model(forms, app, is_admin=True)
+        all_errors = validate_model(session, forms, app, is_admin=True)
 
         if all_errors:
             return {"error": all_errors}
@@ -123,7 +123,7 @@ class Root:
             form_list = [form_list]
 
         forms = load_forms(params, panelist, form_list, field_prefix=prefix)
-        all_errors = validate_model(forms, panelist, is_admin=True)
+        all_errors = validate_model(session, forms, panelist, is_admin=True)
 
         if all_errors:
             return {"error": all_errors}
@@ -209,15 +209,8 @@ class Root:
             app.accepted = datetime.now()
             app.add_credentials_to_desc()
             if c.ACCESSIBILITY_EMAIL and any([panelist for panelist in app.applicants if panelist.requested_accessibility_services]):
-                body = render('emails/panels/accessibility_requested.txt', {
-                'app': app,
-                }, encoding=None)
-                send_email.delay(
-                    c.ADMIN_EMAIL,
-                    c.ACCESSIBILITY_EMAIL,
-                    f'{c.EVENT_NAME} Panel Accepted With Accessibility Request(s)',
-                    body,
-                    model='n/a')
+                EmailService.queue_email(session, 'panel_accepted_accessibility_admin',
+                                         to=c.ACCESSIBILITY_EMAIL, data={'app': app})
         app.status = int(status)
         if not app.poc:
             app.poc_id = session.admin_attendee().id
@@ -290,7 +283,8 @@ class Root:
         return {
             'app': app,
             'message': message,
-            'panels': session.query(Event).filter(Event.location.in_(c.PANEL_ROOMS)).order_by('name')
+            'panels': session.query(Event).join(Event.location).join(
+                EventLocation.department).filter(Department.manages_panels == True).order_by('name')
         }
 
     def badges(self, session):
@@ -350,6 +344,18 @@ class Root:
             for applicant in applicants:
                 ids.append(applicant.id)
                 applicant.attendee_id = attendee.id
+            if c.ATTENDEE_ACCOUNTS_ENABLED and pa.accepted_applications:
+                # It's difficult to assign the 'correct' attendee account due to PanelApplicant's tenuous connection to reality
+                # If people don't like how this works, the solution is to rework panel applicants
+                account = None
+                for app in pa.accepted_applications:
+                    account = app.attendee_account
+                    if app.submitter_id == pa.id:
+                        break
+                if account:
+                    session.add_attendee_to_account(attendee, account)
+                    EmailService.queue_email(session, 'attendee_account_attendee_added', account,
+                                             data={'attendee': attendee})
             session.commit()
         except Exception:
             log.error('unexpected error adding new panelist', exc_info=True)
@@ -386,7 +392,8 @@ class Root:
             feedback[fb.event].append(fb)
 
         events = []
-        for event in session.query(Event).filter(Event.location.in_(c.PANEL_ROOMS)).order_by('name'):
+        for event in session.query(Event).join(Event.location).join(
+                EventLocation.department).filter(Department.manages_panels == True).order_by('name'):
             events.append([event, feedback[event]])
 
         for event, fb in feedback.items():

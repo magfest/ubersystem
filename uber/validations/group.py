@@ -25,7 +25,7 @@ GroupInfo.field_validation.required_fields = {
 }
 
 
-GroupInfo.field_validation.validations['name']['length'] = validators.Length(
+GroupInfo.new_or_changed.validations['name']['length'] = validators.Length(
     max=40, message="Group names cannot be longer than 40 characters.")
 
 

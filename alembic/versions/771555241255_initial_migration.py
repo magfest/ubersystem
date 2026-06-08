@@ -15,7 +15,6 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import residue
 
 
 try:
@@ -41,17 +40,17 @@ sqlite_reflect_kwargs = {
 
 def upgrade():
     op.create_table('room',
-    sa.Column('id', residue.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('notes', sa.Unicode(), server_default='', nullable=False),
     sa.Column('message', sa.Unicode(), server_default='', nullable=False),
     sa.Column('locked_in', sa.Boolean(), server_default='False', nullable=False),
     sa.Column('nights', sa.Unicode(), server_default='', nullable=False),
-    sa.Column('created', residue.UTCDateTime(), server_default=sa.text(utcnow_server_default), nullable=False),
+    sa.Column('created', sa.DateTime(timezone=True), server_default=sa.text(utcnow_server_default), nullable=False),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_room'))
     )
     op.create_table('hotel_requests',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('attendee_id', residue.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('attendee_id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('nights', sa.Unicode(), server_default='', nullable=False),
     sa.Column('wanted_roommates', sa.Unicode(), server_default='', nullable=False),
     sa.Column('unwanted_roommates', sa.Unicode(), server_default='', nullable=False),
@@ -62,9 +61,9 @@ def upgrade():
     sa.UniqueConstraint('attendee_id', name=op.f('uq_hotel_requests_attendee_id'))
     )
     op.create_table('room_assignment',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('room_id', residue.UUID(), nullable=False),
-    sa.Column('attendee_id', residue.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('room_id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('attendee_id', sa.Uuid(as_uuid=False), nullable=False),
     sa.ForeignKeyConstraint(['attendee_id'], ['attendee.id'], name=op.f('fk_room_assignment_attendee_id_attendee')),
     sa.ForeignKeyConstraint(['room_id'], ['room.id'], name=op.f('fk_room_assignment_room_id_room')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_room_assignment'))

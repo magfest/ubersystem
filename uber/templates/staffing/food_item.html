@@ -3,7 +3,7 @@
 <li>
     {{ macros.checklist_image(attendee.food_restrictions) }}
     {% if not attendee.placeholder %}
-        <a href="food_restrictions">Let us know</a>
+        <a href="food_restrictions?id={{ attendee.id }}">Let us know</a>
     {% else %}
         Let us know
     {% endif %}

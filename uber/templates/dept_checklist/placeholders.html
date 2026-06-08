@@ -7,7 +7,7 @@ Please select a department above to view its assigned placeholders.
 {% else %}
 <h2>{{ dept_name }} Unconfirmed Volunteers: {{ placeholders|length }}</h2>
 
-{% if checklist.relevant %}
+{% if checklist.relevant and (c.DEPT_CHECKLIST_OPEN or c.DEV_BOX) %}
     <br/>
     {% if checklist.completed %}
         You've already told us that no one on this list is essential to your department; please emails STOPS if this is in error.

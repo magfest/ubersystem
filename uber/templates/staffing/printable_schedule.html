@@ -33,7 +33,7 @@
             <td>{{ shift.job.name }}</td>
             <td>{{ shift.job.department_name }}</td>
             <td>{{ shift.job.start_time|datetime_local("%A %-I:%M %p") }}</td>
-            <td>{{ (shift.job.duration / 60)|int }}</td>
+            <td>{{ shift.job.duration / 60 }}</td>
             <td>(x{{ shift.job.weight }})</td>
             <td>__________</td>
         </tr>

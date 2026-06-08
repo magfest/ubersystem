@@ -1,12 +1,16 @@
+import os
+
+from collections import defaultdict
 from sqlalchemy import or_
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
 from uber.custom_tags import time_day_local
-from uber.decorators import all_renderable, csv_file, site_mappable, xlsx_file
+from uber.decorators import all_renderable, csv_file, site_mappable, multifile_zipfile, xlsx_file
 from uber.errors import HTTPRedirect
-from uber.models import Group, GuestAutograph, GuestGroup, GuestMerch, GuestTravelPlans
-from uber.utils import convert_to_absolute_url
+from uber.files import FileService
+from uber.models import File, Group, GuestAutograph, GuestGroup, GuestMerch, GuestTravelPlans
+from uber.utils import convert_to_absolute_url, filename_extension
 
 
 @all_renderable()
@@ -35,8 +39,13 @@ class Root:
             'Needs Rehearsal?',
         ])
         for guest in [guest for guest in session.query(GuestGroup).all() if session.admin_can_see_guest_group(guest)]:
-            absolute_pic_url = convert_to_absolute_url(getattr(guest.bio_pic, 'url', ''))
-            absolute_stageplot_url = convert_to_absolute_url(getattr(guest.stage_plot, 'url', ''))
+            absolute_pic_url, absolute_stageplot_url = '', ''
+            if guest.bio:
+                bio_pic_file = FileService.get_existing_files(session, guest.bio, and_flags=['bio_pic'])
+                absolute_pic_url = convert_to_absolute_url(bio_pic_file.url)
+            if guest.stage_plot:
+                stage_plot_file = FileService.get_existing_files(session, guest.stage_plot)
+                absolute_stageplot_url = convert_to_absolute_url(stage_plot_file.url)
             num_panels = 0 if not guest.group or not guest.group.leader or not guest.group.leader.submitted_panels \
                 else len(guest.group.leader.submitted_panels)
 
@@ -115,9 +124,15 @@ class Root:
                 GuestMerch.selling_merch == c.ROCK_ISLAND,
                 GuestGroup.group_id == Group.id).filter(
                 *empty_filter).order_by(Group.name).all()
+        
+        guest_tracks = defaultdict(list)
+        tracks = session.query(File).filter(File.fk_model == 'GuestGroup')
+        for track in tracks:
+            guest_tracks[track.fk_id].append(track.html_link)
 
         return {
             'guest_groups': [guest for guest in guest_groups if session.admin_can_see_guest_group(guest)],
+            'guest_tracks': guest_tracks,
             'only_empty': only_empty
         }
     
@@ -125,11 +140,14 @@ class Root:
     @xlsx_file
     def rock_island_square_xlsx(self, out, session, id=None, **params):
         header_row = [
-            'Token', 'Item Name', 'Variation Name', 'Unit and Precision', 'SKU', 'Description', 'Category',
-            'SEO Title', 'SEO Description', 'Permalink', 'Square Online Item Visibility', 'Weight (lb)', 'Shipping Enabled',
-            'Self-serve Ordering Enabled', 'Delivery Enabled', 'Pickup Enabled', 'Price', 'Sellable', 'Stockable',
-            'Skip Detail Screen in POS', 'Option Name 1', 'Option Value 1', 'Current Quantity MAGFest Rock Island',
-            'New Quantity MAGFest Rock Island'
+            'Reference Handle', 'Token', 'Item Name', 'Customer-facing Name', 'Variation Name',
+            'Unit and Precision', 'SKU', 'Description', 'Categories', 'Reporting Category',
+            'SEO Title', 'SEO Description', 'Permalink', 'GTIN', 'Square Online Item Visibility', 'Item Type',
+            'Weight (lb)', 'Social Media Link Title', 'Social Media Link Description',
+            'Shipping Enabled', 'Self-serve Ordering Enabled', 'Delivery Enabled', 'Pickup Enabled', 'Price',
+            'Online Sale Price', 'Archived', 'Sellable', 'Contains Alcohol', 'Stockable', 'Skip Detail Screen in POS',
+            'Option Name 1', 'Option Value 1', 'Current Quantity MAGFest Rock Island', 'New Quantity MAGFest Rock Island',
+            'Stock Alert Enabled MAGFest Rock Island', 'Stock Alert Count MAGFest Rock Island', 'Tax - Sales Tax (6%)'
             ]
         
         query = session.query(GuestGroup).options(
@@ -173,9 +191,9 @@ class Root:
                 item_name = f'{item_name} T-shirt'
 
             return [
-                '', item_name, variation_name, '', '', '', guest.group.name, '', '', '',
-                'hidden', '', 'N', '', 'N', 'N', '{:.2f}'.format(float(item['price'])),
-                '', '', 'N', '', '', '', ''
+                '', '', item_name, '', variation_name, '', '', '', guest.group.name, guest.group.name,
+                '', '', '', '', 'unavailable', 'Physical good', '', '', '', 'N', 'N', 'N', 'N', '{:.2f}'.format(float(item['price'])),
+                '', 'N', '', 'N', '', 'N', '', '', '', '', 'Y', '1', 'Y'
             ]
 
         for guest in guest_groups:
@@ -192,7 +210,7 @@ class Root:
     @csv_file
     def rock_island_csv(self, out, session, id=None, **params):
         out.writerow([
-            'Group Name', 'Inventory Type', 'Inventory Name', 'Price', 'Quantity', 'Promo Picture URL',
+            'Group Name', 'Inventory Type', 'Inventory Name', 'Price', 'Media', 'Quantity', 'Promo Picture URL',
         ])
         query = session.query(GuestGroup).options(
                 subqueryload(GuestGroup.group)).options(
@@ -223,7 +241,8 @@ class Root:
                             c.MERCH_TYPES[merch_type],
                             '{} - {}'.format(item['name'], guest.merch.line_item_to_string(item, line_item)),
                             '${:.2f}'.format(float(item['price'])),
-                            item[line_item],
+                            '',
+                            '1',
                             convert_to_absolute_url(guest.merch.inventory_url(item['id'], 'image'))
                         ])
                 else:
@@ -232,9 +251,43 @@ class Root:
                         c.MERCH_TYPES[merch_type],
                         item['name'],
                         '${:.2f}'.format(float(item['price'])),
+                        c.ALBUM_MEDIAS[int(item['media'])] if item.get('media', '') else '',
                         '1',
                         convert_to_absolute_url(guest.merch.inventory_url(item['id'], 'image')),
                     ])
+
+    @multifile_zipfile
+    def rock_island_image_zip(self, zip_file, session, id=None, **params):
+        query = session.query(GuestGroup).options(
+                subqueryload(GuestGroup.group)).options(
+                subqueryload(GuestGroup.merch))
+        if id:
+            guest_groups = [query.get(id)]
+        else:
+            guest_groups = query.filter(
+                GuestGroup.id == GuestMerch.guest_id,
+                GuestMerch.selling_merch == c.ROCK_ISLAND,
+                GuestGroup.group_id == Group.id).order_by(
+                Group.name).all()
+            
+        def _inventory_sort_key(item):
+            return ' '.join([
+                c.MERCH_TYPES[int(item['type'])],
+                item['name']
+            ])
+
+        for guest in guest_groups:
+            for item in sorted(guest.merch.inventory.values(), key=_inventory_sort_key):
+                filename = item.get('image_filename')
+                content_type = item.get('image_content_type')
+                filepath = guest.merch.inventory_path(filename)
+                if filename and content_type and os.path.exists(filepath):
+                    extension = filename_extension(item.get('image_download_filename', filename))
+                    normalized_name = item.get('name', '???').strip().lower()
+                    normalized_name = ''.join(s for s in normalized_name if s.isalnum() or s == ' ')
+
+                    download_filename = f"{guest.normalized_group_name}_{' '.join(normalized_name.split()).replace(' ', '_')}.{extension}"
+                    zip_file.write(filepath, download_filename)
 
     @csv_file
     def rock_island_info_csv(self, out, session):

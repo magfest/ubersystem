@@ -16,7 +16,6 @@ depends_on = None
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-import residue
 
 
 try:
@@ -53,14 +52,14 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.add_column('attendee', sa.Column('badge_pickup_group_id', residue.UUID(), nullable=True))
+    op.add_column('attendee', sa.Column('badge_pickup_group_id', sa.Uuid(as_uuid=False), nullable=True))
     op.create_table('badge_pickup_group',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('created', residue.UTCDateTime(), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
-    sa.Column('last_updated', residue.UTCDateTime(), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('created', sa.DateTime(timezone=True), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
+    sa.Column('last_updated', sa.DateTime(timezone=True), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
     sa.Column('external_id', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False),
     sa.Column('last_synced', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False),
-    sa.Column('public_id', residue.UUID(), nullable=True),
+    sa.Column('public_id', sa.Uuid(as_uuid=False), nullable=True),
     sa.Column('account_id', sa.Unicode(), server_default='', nullable=False),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_badge_pickup_group'))
     )

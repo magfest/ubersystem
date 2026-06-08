@@ -45,12 +45,12 @@
 <div class="col-12 col-md-10">
   <div class="d-flex justify-content-between align-items-end">
     <h2>
-      {{ c.CURRENT_VOLUNTEER.first_name }} {{ c.CURRENT_VOLUNTEER.last_name }}'s Available Shifts
+      {{ attendee.first_name }} {{ attendee.last_name }}'s Available Shifts
     </h2>
     <div class="text-end mb-1">
       {% if not c.HIDE_SCHEDULE %}<a target="_blank" href="../schedule/">View Event Schedule</a> |{% endif %}
-      <a href="shifts_ical">Download .ics File ⤓</a> | 
-      <a href="printable" target="_blank">View Printable Schedule</a>
+      <a href="shifts_ical?id={{ attendee.id }}">Download .ics File ⤓</a> | 
+      <a href="printable?id={{ attendee.id }}" target="_blank">View Printable Schedule</a>
     </div>  
   </div>
   {% if c.BEFORE_SHIFTS_CREATED %}
@@ -379,6 +379,7 @@
   }
 
   var fetchEventsParams = {
+    id: '{{ attendee.id }}',
     all: '',
     highlight: '',
   }

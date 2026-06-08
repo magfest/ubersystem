@@ -95,7 +95,7 @@ By default, labels and descriptions for fields are simple strings with automatic
 Below is a map of what column types exist in Ubersystem models and what fields you might want to (or ought to) use when declaring the corresponding form fields.
 | Column Type | Suggested Field Type(s) |
 | --- | --- |
-| UnicodeText | StringField, TextAreaField, EmailField, TelField, PasswordField, URLField | 
+| String | StringField, TextAreaField, EmailField, TelField, PasswordField, URLField | 
 | Integer | IntegerField |
 | Date | DateField |
 | Choice | SelectField, RadioField |

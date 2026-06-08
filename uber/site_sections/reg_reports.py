@@ -2,6 +2,7 @@ import six
 import calendar
 from collections import defaultdict
 from sqlalchemy import or_, and_
+from sqlalchemy.orm import lazyload, joinedload
 from sqlalchemy.sql import func
 from sqlalchemy.sql.expression import literal
 
@@ -30,15 +31,19 @@ def checkins_by_hour_query(session):
 @all_renderable()
 class Root:
     def comped_badges(self, session, message='', show='all'):
-        regular_comped = session.attendees_with_badges().filter(Attendee.paid == c.NEED_NOT_PAY,
-                                                                Attendee.promo_code == None)  # noqa: E711
-        promo_comped = session.query(Attendee).join(PromoCode).filter(Attendee.has_badge == True,  # noqa: E712
-                                                                      Attendee.paid == c.NEED_NOT_PAY,
-                                                                      or_(PromoCode.cost == None,  # noqa: E711
-                                                                          PromoCode.cost == 0))
-        group_comped = session.query(Attendee).join(Group, Attendee.group_id == Group.id)\
-            .filter(Attendee.has_badge == True,  # noqa: E712
-                    Attendee.paid == c.PAID_BY_GROUP, Group.cost == 0)
+        regular_comped = session.attendees_with_badges().filter(
+            Attendee.paid == c.NEED_NOT_PAY, Attendee.promo_code == None).options(  # noqa: E711
+                joinedload(Attendee.creator)
+            )
+        promo_comped = session.query(Attendee).join(PromoCode).filter(
+            Attendee.has_badge == True, Attendee.paid == c.NEED_NOT_PAY,  # noqa: E712
+            or_(PromoCode.cost == None, PromoCode.cost == 0)).options(  # noqa: E711
+                joinedload(Attendee.creator)
+            )
+        group_comped = session.query(Attendee).join(
+            Group, Attendee.group_id == Group.id).filter(
+                Attendee.has_badge == True,  # noqa: E712
+                Attendee.paid == c.PAID_BY_GROUP, Group.cost == 0).options(joinedload(Attendee.creator))
         all_comped = regular_comped.union(promo_comped, group_comped)
         claimed_comped = all_comped.filter(Attendee.placeholder == False)  # noqa: E712
         unclaimed_comped = all_comped.filter(Attendee.placeholder == True)  # noqa: E712
@@ -86,7 +91,7 @@ class Root:
         attendees = session.query(Attendee).filter(
             filter).join(Attendee.active_receipt).outerjoin(ModelReceipt.receipt_items).group_by(
                 ModelReceipt.id).group_by(Attendee.id).having(
-                    Attendee.default_cost_cents != ModelReceipt.fkless_item_total_sql)
+                    Attendee.default_cost_cents != ModelReceipt.fkless_item_total_sql).options(lazyload("*"))
 
         return {
             'attendees': attendees,
@@ -109,7 +114,7 @@ class Root:
                 ModelReceipt.receipt_txns).join(item_subquery, Attendee.id == item_subquery.c.owner_id).group_by(
                     ModelReceipt.id).group_by(Attendee.id).group_by(item_subquery.c.item_total).having(
                         and_((ModelReceipt.payment_total_sql - ModelReceipt.refund_total_sql) != item_subquery.c.item_total,
-                             filter))
+                             filter)).options(lazyload("*"))
         
         if include_no_receipts:
             attendees_no_receipts = session.query(Attendee).outerjoin(

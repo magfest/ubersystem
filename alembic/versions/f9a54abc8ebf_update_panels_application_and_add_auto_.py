@@ -15,7 +15,6 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import residue
 
 
 try:
@@ -52,8 +51,8 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.add_column('panel_application', sa.Column('accepted', residue.UTCDateTime(), nullable=True))
-    op.add_column('panel_application', sa.Column('confirmed', residue.UTCDateTime(), nullable=True))
+    op.add_column('panel_application', sa.Column('accepted', sa.DateTime(timezone=True), nullable=True))
+    op.add_column('panel_application', sa.Column('confirmed', sa.DateTime(timezone=True), nullable=True))
     op.add_column('panel_application', sa.Column('department', sa.Integer(), server_default='39626696', nullable=False))
     op.add_column('panel_application', sa.Column('noise_level', sa.Integer(), nullable=False))
     op.add_column('panel_application', sa.Column('track', sa.Unicode(), server_default='', nullable=False))

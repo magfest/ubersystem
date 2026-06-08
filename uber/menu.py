@@ -1,7 +1,10 @@
+
+import logging
+log = logging.getLogger(__name__)
+
 from urllib.parse import urlparse
 
-from pockets import listify
-from pockets.autolog import log
+from uber.utils import listify
 
 from uber.config import c
 
@@ -98,8 +101,8 @@ c.MENU = MenuItem(name='Root', submenu=[
         MenuItem(name='Admin Accounts', href='../accounts/'),
         MenuItem(name='Access Groups', href='../accounts/access_groups'),
         MenuItem(name='API Access', href='../api/'),
-        MenuItem(name='Pending Emails', href='../email_admin/pending'),
-        MenuItem(name='Sent Emails', href='../email_admin/'),
+        MenuItem(name='Automated Emails', href='../email_admin/pending'),
+        MenuItem(name='Email Queue', href='../email_admin/'),
         MenuItem(name='Feed of Database Changes', href='../registration/feed'),
         MenuItem(name='Watchlist', href='../security_admin/index'),
     ]),
@@ -110,7 +113,6 @@ c.MENU = MenuItem(name='Root', submenu=[
         MenuItem(name='View/Edit Shift Schedule', href='../shifts_admin/'),
         MenuItem(name='Unfilled Shifts', href='../shifts_admin/unfilled_shifts'),
         MenuItem(name='Departments', href='../dept_admin/'),
-        MenuItem(name='Department Checklists', href='../dept_checklist/overview'),
     ]),
 
     MenuItem(name='People', submenu=[
@@ -134,6 +136,10 @@ c.MENU = MenuItem(name='Root', submenu=[
         MenuItem(name='Badges Sold Graph', href='../statistics/badges_sold'),
     ]),
 ])
+
+
+if c.DEPT_CHECKLIST_OPEN or (c.DEPT_CHECKLIST_START and c.DEV_BOX):
+    c.MENU['Staffing'].append_menu_item(MenuItem(name='Department Checklists', href='../dept_checklist/overview'))
 
 
 if c.ENABLED_INDIES_STR:

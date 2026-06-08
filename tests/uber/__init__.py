@@ -4,7 +4,6 @@ from glob import glob
 import pytest
 import sqlite3
 from jinja2 import meta
-from pockets import uniquify as remove_duplicates
 from sqlalchemy.schema import CreateTable, MetaData
 
 from uber.jinja import JinjaEnv
@@ -15,7 +14,7 @@ from uber.sep_commands import alembic, drop_uber_db, reset_uber_db
 def sort_lines(text, to_strip=' ', uniquify=True):
     lines = [s.strip(to_strip) for s in text.split('\n') if s.strip(to_strip)]
     if uniquify:
-        lines = remove_duplicates(lines)
+        lines = set(lines)
     return '\n'.join(sorted(lines))
 
 

@@ -23,7 +23,7 @@
   {% endif %}
 
   {{ macros.form_group(guest.bio, 'desc', label='Bio', is_readonly=True) }}
-  {{ macros.form_group(guest.bio_pic, 'url',
+  {{ macros.form_group(guest_bio_pic, 'url',
         url_text="Click here to view the guest's uploaded picture",
         url_is_relative=True,
         label='Bio Pic',
@@ -103,21 +103,6 @@
 
   {{ macros.form_group(guest, 'num_hotel_rooms', type='number', label='Hotel Rooms',
         help="How many hotel rooms are we offering the guest.") }}
-
-
-  <div class="form-group">
-    <label class="col-sm-3 control-label">Event</label>
-    <div class="col-sm-6">
-      <select name="event_id" class="form-control">
-        <option value="">Pick an Event</option>
-        {{ options(events,guest.event_id) }}
-      </select>
-      <p class="help-block">
-        If not set, the guest agreement will say "date and time information coming soon"<br/>
-        If this is set, the guest agreement will reflect the start time of the event on the schedule.
-      </p>
-    </div>
-  </div>
 
   <div class="form-group">
     <div class="col-sm-6 col-sm-offset-3">

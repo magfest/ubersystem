@@ -15,7 +15,6 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import residue
 
 
 try:
@@ -32,26 +31,26 @@ else:
 
 def upgrade():
     op.create_table('event',
-    sa.Column('id', residue.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('location', sa.Integer(), nullable=False),
-    sa.Column('start_time', residue.UTCDateTime(), nullable=False),
+    sa.Column('start_time', sa.DateTime(timezone=True), nullable=False),
     sa.Column('duration', sa.Integer(), nullable=False),
     sa.Column('name', sa.Unicode(), server_default='', nullable=False),
     sa.Column('description', sa.Unicode(), server_default='', nullable=False),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_event'))
     )
     op.create_table('assigned_panelist',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('attendee_id', residue.UUID(), nullable=False),
-    sa.Column('event_id', residue.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('attendee_id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('event_id', sa.Uuid(as_uuid=False), nullable=False),
     sa.ForeignKeyConstraint(['attendee_id'], ['attendee.id'], name=op.f('fk_assigned_panelist_attendee_id_attendee'), ondelete='cascade'),
     sa.ForeignKeyConstraint(['event_id'], ['event.id'], name=op.f('fk_assigned_panelist_event_id_event'), ondelete='cascade'),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_assigned_panelist'))
     )
     op.create_table('event_feedback',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('event_id', residue.UUID(), nullable=False),
-    sa.Column('attendee_id', residue.UUID(), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('event_id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('attendee_id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('headcount_starting', sa.Integer(), server_default='0', nullable=False),
     sa.Column('headcount_during', sa.Integer(), server_default='0', nullable=False),
     sa.Column('comments', sa.Unicode(), server_default='', nullable=False),
@@ -61,9 +60,9 @@ def upgrade():
     sa.PrimaryKeyConstraint('id', name=op.f('pk_event_feedback'))
     )
     op.create_table('panel_application',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('event_id', residue.UUID(), nullable=True),
-    sa.Column('poc_id', residue.UUID(), nullable=True),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('event_id', sa.Uuid(as_uuid=False), nullable=True),
+    sa.Column('poc_id', sa.Uuid(as_uuid=False), nullable=True),
     sa.Column('name', sa.Unicode(), server_default='', nullable=False),
     sa.Column('length', sa.Unicode(), server_default='', nullable=False),
     sa.Column('description', sa.Unicode(), server_default='', nullable=False),
@@ -75,7 +74,7 @@ def upgrade():
     sa.Column('tech_needs', sa.Unicode(), server_default='', nullable=False),
     sa.Column('other_tech_needs', sa.Unicode(), server_default='', nullable=False),
     sa.Column('panelist_bringing', sa.Unicode(), server_default='', nullable=False),
-    sa.Column('applied', residue.UTCDateTime(), server_default=sa.text(utcnow_server_default), nullable=False),
+    sa.Column('applied', sa.DateTime(timezone=True), server_default=sa.text(utcnow_server_default), nullable=False),
     sa.Column('status', sa.Integer(), server_default='196944751', nullable=False),
     sa.Column('comments', sa.Unicode(), server_default='', nullable=False),
     sa.ForeignKeyConstraint(['event_id'], ['event.id'], name=op.f('fk_panel_application_event_id_event'), ondelete='SET NULL'),
@@ -83,9 +82,9 @@ def upgrade():
     sa.PrimaryKeyConstraint('id', name=op.f('pk_panel_application'))
     )
     op.create_table('panel_applicant',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('app_id', residue.UUID(), nullable=False),
-    sa.Column('attendee_id', residue.UUID(), nullable=True),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('app_id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('attendee_id', sa.Uuid(as_uuid=False), nullable=True),
     sa.Column('submitter', sa.Boolean(), server_default='False', nullable=False),
     sa.Column('first_name', sa.Unicode(), server_default='', nullable=False),
     sa.Column('last_name', sa.Unicode(), server_default='', nullable=False),

@@ -1,7 +1,7 @@
 import json
 import math
 import os
-import pytz
+import secrets
 import re
 import shutil
 from datetime import datetime, timedelta
@@ -13,9 +13,11 @@ from cherrypy.lib.static import serve_file
 from aztec_code_generator import AztecCode
 from pytz import UTC
 from sqlalchemy import and_, func, or_
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.exc import NoResultFound
 
+from uber.auth import OIDC
+from uber.email import EmailService
 from uber.config import c
 from uber.custom_tags import format_currency, readable_join
 from uber.decorators import ajax, ajax_gettable, any_admin_access, all_renderable, attendee_view, \
@@ -23,12 +25,13 @@ from uber.decorators import ajax, ajax_gettable, any_admin_access, all_renderabl
     requires_account, site_mappable, public
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
-from uber.models import (Attendee, AdminAccount, BadgeInfo, Email, EscalationTicket, Group, Job, PageViewTracking, TxnRequestTracking,
+from uber.models import (Attendee, AttendeeAccount, AdminAccount, BadgeInfo, Email, EscalationTicket, Group, Job, PageViewTracking,
+                         TxnRequestTracking, PasswordReset,
                          PrintJob, PromoCode, PromoCodeGroup, ReportTracking, Sale, Session, Shift, Tracking, ReceiptTransaction,
                          WorkstationAssignment)
 from uber.site_sections.preregistration import check_if_can_reg
 from uber.utils import add_opt, check, check_pii_consent, get_page, hour_day_format, \
-    localized_now, Order, validate_model
+    localized_now, Order, validate_model, normalize_email_legacy
 from uber.payments import TransactionRequest, ReceiptManager, SpinTerminalRequest
 
 
@@ -47,14 +50,26 @@ def load_attendee(session, params):
 
     if id in [None, '', 'None']:
         attendee = Attendee()
-        session.add(attendee)
     else:
-        attendee = session.attendee(id)
+        attendee = session.get(Attendee, id, options=[
+            selectinload(Attendee.promo_code_groups),
+            selectinload(Attendee.allocated_badges),
+            selectinload(Attendee.escalation_tickets),
+            selectinload(Attendee.assigned_depts),
+            selectinload(Attendee.dept_membership_requests),
+            selectinload(Attendee.dept_memberships_with_role),
+            selectinload(Attendee.dept_memberships_with_inherent_role),
+            joinedload(Attendee.lottery_application),
+            joinedload(Attendee.watch_list),
+            joinedload(Attendee.shifts),
+            joinedload(Attendee.panel_applicants),
+            joinedload(Attendee.admin_account)])
 
     return attendee
 
 
 def save_attendee(session, attendee, params):
+    session.add(attendee)
     if cherrypy.request.method == 'POST':
         receipt_items = ReceiptManager.auto_update_receipt(
             attendee, session.get_receipt_by_model(attendee), params.copy(), who=AdminAccount.admin_name() or 'non-admin')
@@ -84,6 +99,24 @@ def save_attendee(session, attendee, params):
 
     return message
 
+
+def create_new_account(session, attendee):
+    new_account = session.create_attendee_account(attendee.email)
+    session.add(new_account)
+    session.add_attendee_to_account(attendee, new_account)
+    if attendee.group and attendee.id == attendee.group.leader_id:
+        for group_member in attendee.group.attendees:
+            if not group_member.is_unassigned and group_member != attendee:
+                session.add_attendee_to_account(group_member, new_account)
+    session.commit()
+    if c.LOCAL_ACCOUNTS_DISABLED:
+        OIDC.send_claim_token(session, new_account)
+    elif not new_account.is_sso_account:
+        token = secrets.token_urlsafe(64)
+        session.add(PasswordReset(attendee_account=new_account, hashed=token))
+
+        EmailService.queue_email(session, 'local_account_setup', new_account,
+                                 data={'attendee': attendee, 'account_email': new_account.email, 'token': token})
 
 @all_renderable()
 class Root:
@@ -134,6 +167,9 @@ class Root:
                     'This attendee was the only{} search result'.format('' if invalid else ' valid'))
 
         pages = range(1, int(math.ceil(count / 100)) + 1)
+        attendees = attendees.options(
+            selectinload(Attendee.promo_code_groups),
+            selectinload(Attendee.allocated_badges))
         attendees = attendees[-100 + 100*page: 100*page] if page else []
 
         return {
@@ -156,10 +192,7 @@ class Root:
     @ajax
     @any_admin_access
     def validate_attendee(self, session, form_list=[], **params):
-        if params.get('id') in [None, '', 'None']:
-            attendee = Attendee()
-        else:
-            attendee = session.attendee(params.get('id'))
+        attendee = load_attendee(session, params)
 
         if not form_list:
             form_list = ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo', 'AdminBadgeFlags',
@@ -170,7 +203,7 @@ class Root:
             params['promo_code_code'] = attendee.promo_code_code
         forms = load_forms(params, attendee, form_list)
 
-        all_errors = validate_model(forms, attendee, is_admin=True)
+        all_errors = validate_model(session, forms, attendee, is_admin=True)
         if all_errors:
             return {"error": all_errors}
 
@@ -188,7 +221,7 @@ class Root:
             if old:
                 return {"warning": render('registration/duplicate.html', {'attendee': old}, encoding=None),
                         "button_text": "Yes, I'm sure this is someone else!"}
-
+        
         return {"success": True}
 
     @ajax
@@ -223,11 +256,26 @@ class Root:
 
     @log_pageview
     def form(self, session, message='', return_to='', **params):
+        """
+        email matches existing account
+        email doesn't match existing account
+        pending status
+
+        if new badge and placeholder checked: second checkbox to make account + send claim email
+        """
         attendee = load_attendee(session, params)
 
         reg_station_id = cherrypy.session.get('reg_station', '')
         workstation_assignment = session.query(WorkstationAssignment
                                                ).filter_by(reg_station_id=reg_station_id or -1).first()
+        
+        matching_account = None
+        attendee_claimed = None
+        if c.ATTENDEE_ACCOUNTS_ENABLED and c.LOCAL_ACCOUNTS_DISABLED and not attendee.is_new and attendee.is_valid:
+            if not attendee.managers:
+                matching_account = session.query(AttendeeAccount).filter(
+                    AttendeeAccount.normalized_email == normalize_email_legacy(attendee.email)).first()
+            attendee_claimed = any([account for account in attendee.managers if account.sso_claimed])
 
         if cherrypy.request.method == 'POST':
             message = save_attendee(session, attendee, params)
@@ -237,6 +285,8 @@ class Root:
                 if attendee.is_new and c.ADMIN_BADGES_NEED_APPROVAL and not session.current_admin_account().full_registration_admin:
                     attendee.badge_status = c.PENDING_STATUS
                     message += ' as a pending badge'
+                elif attendee.create_account:
+                    create_new_account(session, attendee)
 
                 stay_on_form = params.get('save_return_to_search', False) is False
                 session.add(attendee)
@@ -277,6 +327,8 @@ class Root:
         return {
             'message':    message,
             'attendee':   attendee,
+            'attendee_claimed': attendee_claimed,
+            'matching_account': matching_account,
             'forms': forms,
             'return_to':  return_to,
             'no_badge_num': params.get('no_badge_num'),
@@ -291,6 +343,54 @@ class Root:
             'workstation_assignment': workstation_assignment,
             'receipt': receipt,
         }  # noqa: E711
+
+    @ajax
+    @attendee_view
+    def add_new_account(self, session, id, **params):
+        attendee = session.attendee(id)
+        if attendee.managers:
+            return {'success': False, 'message': "This attendee already has an account."}
+        if not attendee.email:
+            return {'success': False, 'message': "This attendee does not have an email address to create an account from."}
+        matching_account = session.query(AttendeeAccount).filter(
+            AttendeeAccount.normalized_email == normalize_email_legacy(attendee.email)).first()
+        if matching_account:
+            return {'success': False, 'message': f"An account with the email {attendee.email} already exists."}
+        if attendee.has_sso_email and not c.LOCAL_ACCOUNTS_DISABLED:
+            return {'success': False, 'message': f"This attendee will receive an account the first time they log in."}
+        
+        create_new_account(session, attendee)
+        session.commit()
+        return {'success': True, 'message': "New account email sent!"}
+
+    @ajax
+    @attendee_view
+    def check_account_email(self, session, account_email, **params):
+        existing_account = session.query(AttendeeAccount).filter(
+            AttendeeAccount.normalized_email == normalize_email_legacy(account_email)).first()
+        if not existing_account:
+            return {'success': False, 'message': f"There is no account under the email {account_email}."}
+        return {'success': True, 'account_id': existing_account.id}
+    
+    @ajax
+    @attendee_view
+    def add_existing_account(self, session, id, account_id, email=False, **params):
+        attendee = session.attendee(id)
+        account = session.attendee_account(account_id)
+        if attendee.managers:
+            return {'success': False, 'message': "This attendee already has an account."}
+        session.add_attendee_to_account(attendee, account)
+        if attendee.group and attendee.id == attendee.group.leader_id:
+            for group_member in attendee.group.attendees:
+                if not group_member.is_unassigned and group_member != attendee:
+                    session.add_attendee_to_account(group_member, account)
+        session.commit()
+        if email:
+            EmailService.queue_email(session, 'attendee_account_attendee_added', account,
+                                     data={'attendee': attendee})
+        return {'success': True,
+                'message': f"Attendee added to account {account.email}{' and the account owner has been notified' if email else ''}!"}
+            
 
     @ajax
     def start_terminal_payment(self, session, model_id='', pickup_group_id='', **params):
@@ -377,7 +477,7 @@ class Root:
             if response:
                 response_json = response.json()
                 if req.api_response_successful(response_json):
-                    tracker.resolved = datetime.utcnow()
+                    tracker.resolved = datetime.now(UTC)
                     tracker.response = response_json
                     tracker.internal_error = ''
                     session.add(tracker)
@@ -390,7 +490,7 @@ class Root:
                     error = req.error_message_from_response(response_json)
                     if error != "Not found":
                         return {'success': False, 'message': f"Error checking status of last transaction: {error}"}
-                    tracker.resolved = datetime.utcnow()
+                    tracker.resolved = datetime.now(UTC)
                     session.add(tracker)
                     session.commit()
                     prior_error = terminal_status.get('last_error')
@@ -575,9 +675,9 @@ class Root:
         return {
             'attendee':  attendee,
             'emails': session.query(Email).filter(Email.model == 'Attendee',
-                                                  Email.fk_id == id).order_by(Email.when).all(),
+                                                  Email.fk_id == id).order_by(Email.generated).all(),
             'other_emails': session.query(Email).filter(Email.to == attendee.email,
-                                                        Email.fk_id != id).order_by(Email.when).all(),
+                                                        Email.fk_id != id).order_by(Email.generated).all(),
             'changes': session.query(Tracking).filter(
                 or_(and_(Tracking.links.like('%attendee({})%'.format(id))),
                     and_(Tracking.model == 'Attendee', Tracking.fk_id == id))).order_by(Tracking.when).all(),
@@ -598,15 +698,16 @@ class Root:
                 message = 'Unassigned badge removed.'
             else:
                 replacement_attendee = Attendee(**{attr: getattr(attendee, attr) for attr in [
-                    'group', 'registered', 'badge_type', 'badge_num', 'paid', 'amount_extra'
+                    'group', 'registered', 'badge_type', 'paid', 'amount_extra'
                 ]})
                 if replacement_attendee.group and replacement_attendee.group.is_dealer:
                     replacement_attendee.ribbon = add_opt(replacement_attendee.ribbon_ints, c.DEALER_RIBBON)
+                if attendee.active_badge:
+                    attendee.active_badge.attendee_id = replacement_attendee.id
+                    session.add(attendee.active_badge)
                 session.add(replacement_attendee)
-                attendee._skip_badge_shift_on_delete = True
                 session.delete_from_group(attendee, attendee.group)
-                message = 'Attendee deleted, but this badge is still ' \
-                    'available to be assigned to someone else in the same group'
+                message = 'Attendee deleted, but this badge is still available to be assigned to someone else in the same group.'
         else:
             session.delete(attendee)
             message = 'Attendee deleted'
@@ -904,13 +1005,14 @@ class Root:
         else:
             attendee = session.attendee(id)
 
+        pre_badge = attendee.badge_num
+
         forms = load_forms(params, attendee, ['CheckInForm'])
 
         for form in forms.values():
             form.populate_obj(attendee, is_admin=True)
         
         session.commit()
-        pre_badge = attendee.badge_num
         success, increment = False, False
 
         attendee.check_in()
@@ -1101,7 +1203,8 @@ class Root:
         attendee = session.attendee(id)
         receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
-        charge = TransactionRequest(receipt, attendee.email, charge_desc)
+        charge = TransactionRequest(receipt, account=session.current_attendee_account(),
+                                    receipt_email=attendee.email, description=charge_desc)
         message = charge.prepare_payment()
 
         if message:
@@ -1236,7 +1339,8 @@ class Root:
         attendee = session.attendee(id)
         receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
-        charge = TransactionRequest(receipt, attendee.email, charge_desc)
+        charge = TransactionRequest(receipt, account=session.current_attendee_account(),
+                                    receipt_email=attendee.email, description=charge_desc)
 
         message = charge.prepare_payment(payment_method=c.MANUAL)
         if message:
@@ -1369,7 +1473,7 @@ class Root:
     def undo_delete(self, session, id, message='', page='1', who='', what='', action=''):
         if cherrypy.request.method == "POST":
             model_class = None
-            tracked_delete = session.query(Tracking).get(id)
+            tracked_delete = session.get(Tracking, id)
             if tracked_delete.action != c.DELETED:
                 message = 'Only a delete can be undone'
             else:
@@ -1379,8 +1483,7 @@ class Root:
                 params = json.loads(tracked_delete.snapshot)
                 model_id = params.get('id').strip()
                 if model_id:
-                    existing_model = session.query(model_class).filter(
-                        model_class.id == model_id).first()
+                    existing_model = session.get(model_class, model_id)
                     if existing_model:
                         message = '{} has already been undeleted'.format(tracked_delete.which)
                     else:
@@ -1450,7 +1553,7 @@ class Root:
             'badges_sold': c.BADGES_SOLD,
             'remaining_badges': c.REMAINING_BADGES,
             'badges_price': c.BADGE_PRICE,
-            'server_current_timestamp': int(datetime.utcnow().timestamp()),
+            'server_current_timestamp': int(datetime.now(UTC).timestamp()),
             'warn_if_server_browser_time_mismatch': c.WARN_IF_SERVER_BROWSER_TIME_MISMATCH
         })
 
@@ -1465,12 +1568,7 @@ class Root:
     @attendee_view
     @cherrypy.expose(['attendee_data'])
     def attendee_form(self, session, message='', tab_view=None, **params):
-        id = params.get('id', None)
-
-        if id in [None, '', 'None']:
-            attendee = Attendee()
-        else:
-            attendee = session.attendee(id)
+        attendee = load_attendee(session, params)
 
         forms = load_forms(params, attendee, ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo',
                                               'AdminBadgeFlags', 'BadgeAdminNotes', 'OtherInfo'])
@@ -1499,9 +1597,9 @@ class Root:
         return {
             'attendee': attendee,
             'emails': session.query(Email).filter(Email.model == 'Attendee',
-                                                  Email.fk_id == id).order_by(Email.when).all(),
+                                                  Email.fk_id == id).order_by(Email.generated).all(),
             'other_emails': session.query(Email).filter(Email.to == attendee.email,
-                                                        Email.fk_id != id).order_by(Email.when).all(),
+                                                        Email.fk_id != id).order_by(Email.generated).all(),
             'changes': session.query(Tracking).filter(
                 or_(and_(Tracking.links.like('%attendee({})%'.format(id)),
                          Tracking.model == 'Attendee', Tracking.fk_id == id))).order_by(Tracking.when).all(),
@@ -1512,7 +1610,10 @@ class Root:
     @attendee_view
     @cherrypy.expose(['shifts'])
     def attendee_shifts(self, session, id, **params):
-        attendee = session.attendee(id, allow_invalid=True)
+        attendee = session.query(Attendee).filter(Attendee.id == id).options(
+            joinedload(Attendee.shifts),
+            selectinload(Attendee.dept_membership_requests),
+            selectinload(Attendee.dept_memberships_with_dept_role)).first()
         attrs = Shift.to_dict_default_attrs + ['worked_label']
 
         return_dict = {

@@ -1,19 +1,16 @@
 import re
 from datetime import datetime
-from inspect import signature, getmembers, ismethod
 
 import cherrypy
 import pytz
-import stripe
-from pockets import unwrap
-from sqlalchemy.orm import subqueryload
+import inspect
+from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.decorators import ajax, all_renderable, not_site_mappable, public, site_mappable
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, ApiJob, ApiToken
 from uber.utils import check
-from uber.payments import ReceiptManager
 
 
 @all_renderable()
@@ -27,8 +24,8 @@ class Root:
         if not show_revoked:
             api_tokens = api_tokens.filter(ApiToken.revoked_time == None)  # noqa: E711
         api_tokens = api_tokens.options(
-            subqueryload(ApiToken.admin_account)
-            .subqueryload(AdminAccount.attendee)) \
+            joinedload(ApiToken.admin_account)
+            .selectinload(AdminAccount.attendee)) \
             .order_by(ApiToken.issued_time).all()
         return {
             'message': message,
@@ -45,11 +42,11 @@ class Root:
         for name in sorted(jsonrpc.keys()):
             service = jsonrpc[name]
             methods = []
-            for method_name, method in getmembers(service, ismethod):
+            for method_name, method in inspect.getmembers(service, inspect.ismethod):
                 if not method_name.startswith('_'):
-                    method = unwrap(method)
+                    method = inspect.unwrap(method)
                     doc = method.__doc__ or ''
-                    args = dict(signature(method).parameters)
+                    args = dict(inspect.signature(method).parameters)
                     if 'self' in args:
                         del args['self']
                     access = getattr(method, 'required_access', set())
@@ -75,7 +72,7 @@ class Root:
     @ajax
     def create_api_token(self, session, **params):
         if cherrypy.request.method == 'POST':
-            params['admin_account_id'] = cherrypy.session.get('account_id')
+            params['admin_account_id'] = cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))
             api_token = session.api_token(params)
             message = check(api_token)
             if not message:
@@ -127,7 +124,7 @@ class Root:
             new_job.completed = None
             new_job.queued = None
             new_job.errors = ''
-            new_job.admin_id = cherrypy.session.get('account_id')
+            new_job.admin_id = cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))
             new_job.admin_name = session.admin_attendee().full_name
             session.add(new_job)
             message = "API job duplicated."
@@ -144,37 +141,3 @@ class Root:
         session.commit()
 
         raise HTTPRedirect('api_jobs?message={}', message or 'Incomplete API jobs requeued.')
-
-    @public
-    @not_site_mappable
-    def stripe_webhook_handler(self):
-        if not cherrypy.request or not cherrypy.request.body:
-            cherrypy.response.status = 400
-            return "Request required"
-        sig_header = cherrypy.request.headers.get('Stripe-Signature', '')
-        payload = cherrypy.request.body.read()
-        event = None
-
-        try:
-            event = stripe.Webhook.construct_event(
-                payload, sig_header, c.STRIPE_ENDPOINT_SECRET
-            )
-        except ValueError:
-            cherrypy.response.status = 400
-            return "Invalid payload: " + payload
-        except stripe.error.SignatureVerificationError:
-            cherrypy.response.status = 400
-            return "Invalid signature: " + sig_header
-
-        if not event:
-            cherrypy.response.status = 400
-            return "No event"
-
-        if event and event['type'] == 'payment_intent.succeeded':
-            payment_intent = event['data']['object']
-            matching_txns = ReceiptManager.mark_paid_from_stripe_intent(payment_intent)
-            if not matching_txns:
-                cherrypy.response.status = 400
-                return "No matching Stripe transactions"
-            cherrypy.response.status = 200
-            return "Payments marked complete for payment intent ID " + payment_intent['id']

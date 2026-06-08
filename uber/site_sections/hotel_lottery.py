@@ -1,18 +1,20 @@
 import base64
 import uuid
 import cherrypy
+import logging
 from datetime import datetime, timedelta
-from pockets.autolog import log
 from sqlalchemy.orm.exc import NoResultFound
 
+from uber.email import EmailService
 from uber.config import c
 from uber.custom_tags import readable_join
 from uber.decorators import all_renderable, ajax, requires_account, render
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, LotteryApplication
-from uber.tasks.email import send_email
 from uber.utils import RegistrationCode, validate_model, get_age_from_birthday, normalize_email_legacy
+
+log = logging.getLogger(__name__)
 
 
 def _join_room_group(session, application, group_id):
@@ -75,17 +77,9 @@ def _disband_room_group(session, application):
         member = _reset_group_member(member)
         session.add(member)
         session.commit()
-        body = render('emails/hotel/removed_from_group.html', {
-            'app': member, 'parent': application, 'old_room_group_name': old_room_group_name}, encoding=None)
-        send_email.delay(
-            c.HOTEL_LOTTERY_EMAIL,
-            member.attendee.email_to_address,
-            f'{c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM} "{old_room_group_name}" Disbanded',
-            body,
-            format='html',
-            model=member.to_dict('id'))
-    
-    session.commit()
+        EmailService.queue_email(session, 'hotel_lottery_group_removed', member,
+                                 subject=f'{c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM} "{old_room_group_name}" Disbanded',
+                                 data={'parent': application, 'old_room_group_name': old_room_group_name})
 
 
 def _reset_group_member(application):
@@ -263,19 +257,11 @@ class Root:
         application.confirmation_num = ''
         application.attendee.hotel_eligible = False
         session.add(application)
-        
-        body = render('emails/hotel/hotel_lottery_entry.html', {
-            'app': application,
-            'maybe_swapped': False,
-            'new_conf': False,
-            'action_str': f"entering the {application.entry_type_label.lower()} attendee lottery"}, encoding=None)
-        send_email.delay(
-            c.HOTEL_LOTTERY_EMAIL,
-            application.attendee.email_to_address,
-            c.EVENT_NAME_AND_YEAR + f' {application.entry_type_label} Lottery Confirmation',
-            body,
-            format='html',
-            model=application.to_dict('id'))
+
+        EmailService.queue_email(session, 'hotel_lottery_confirmation', application,
+                                 data={'maybe_swapped': False,
+                                       'new_conf': False,
+                                       'action_str': f"entering the {application.entry_type_label.lower()} attendee lottery"})
 
         raise HTTPRedirect('index?id={}&message={}',
                            application.id,
@@ -287,18 +273,10 @@ class Root:
         application = _reset_group_member(application)
         session.add(application)
         if application.status == c.COMPLETE:
-            body = render('emails/hotel/hotel_lottery_entry.html', {
-                'app': application,
-                'maybe_swapped': False,
-                'new_conf': False,
-                'action_str': f"re-entering the {application.entry_type_label.lower()} lottery"}, encoding=None)
-            send_email.delay(
-                c.HOTEL_LOTTERY_EMAIL,
-                application.attendee.email_to_address,
-                c.EVENT_NAME_AND_YEAR + f' {application.entry_type_label} Lottery Confirmation',
-                body,
-                format='html',
-                model=application.to_dict('id'))
+            EmailService.queue_email(session, 'hotel_lottery_confirmation', application,
+                                     data={'maybe_swapped': False,
+                                           'new_conf': False,
+                                           'action_str': f"re-entering the {application.entry_type_label.lower()} lottery"})
         else:
             raise HTTPRedirect('start?attendee_id={}&message={}',
                                application.attendee.id,
@@ -318,27 +296,10 @@ class Root:
         _clear_application(application)
 
         if old_room_group:
-            body = render('emails/hotel/group_member_left.html', {
-                'app': old_room_group, 'member': application}, encoding=None)
-            send_email.delay(
-                c.HOTEL_LOTTERY_EMAIL,
-                old_room_group.attendee.email_to_address,
-                f'{application.attendee.first_name} has left your {c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM}',
-                body,
-                format='html',
-                model=old_room_group.to_dict('id'))
-
+            EmailService.queue_email(session, 'hotel_lottery_group_member_left', old_room_group,
+                                     data={'member': application})
         if has_actually_entered:
-            body = render('emails/hotel/lottery_entry_cancelled.html', {
-                'app': application},
-                encoding=None)
-            send_email.delay(
-                c.HOTEL_LOTTERY_EMAIL,
-                application.attendee.email_to_address,
-                c.EVENT_NAME_AND_YEAR + f' Lottery Entry Cancelled',
-                body,
-                format='html',
-                model=application.to_dict('id'))
+            EmailService.queue_email(session, 'hotel_lottery_cancelled', application)
 
             raise HTTPRedirect('{}message={}'.format(_return_link(application.attendee.id),
                             f"You have been removed from the hotel lottery.{' Your group has been disbanded.' if was_room_group else ''}"))
@@ -381,27 +342,14 @@ class Root:
                     application.status = c.COMPLETE
                 application.last_submitted = datetime.now()
 
-                body = render('emails/hotel/hotel_lottery_entry.html', {
-                    'app': application,
-                    'action_str': "updating your room lottery entry"}, encoding=None)
-                send_email.delay(
-                    c.HOTEL_LOTTERY_EMAIL,
-                    application.attendee.email_to_address,
-                    c.EVENT_NAME_AND_YEAR + f' Room Lottery Updated',
-                    body,
-                    format='html',
-                    model=application.to_dict('id'))
+                EmailService.queue_email(session, 'hotel_lottery_confirmation', application,
+                                         subject=f'{c.EVENT_NAME_AND_YEAR} Room Lottery Updated',
+                                         data={'action_str': "updating your room lottery entry"},
+                                         replace_unsent=True)
+
                 if update_group_members:
                     for member in application.valid_group_members:
-                        body = render('emails/hotel/group_entry_updated.html', {
-                            'app': member}, encoding=None)
-                        send_email.delay(
-                            c.HOTEL_LOTTERY_EMAIL,
-                            member.attendee.email_to_address,
-                            c.EVENT_NAME_AND_YEAR + f' Room Lottery Updated',
-                            body,
-                            format='html',
-                            model=application.to_dict('id'))
+                        EmailService.queue_email(session, 'group_lottery_updated', member, replace_unsent=True)
 
                 raise HTTPRedirect('index?id={}&confirm=room&action=updated',
                                    application.id)
@@ -450,28 +398,16 @@ class Root:
                     application.status = c.COMPLETE
                 application.last_submitted = datetime.now()
 
-                body = render('emails/hotel/hotel_lottery_entry.html', {
-                    'app': application,
-                    'action_str': "updating your suite lottery entry"}, encoding=None)
-                send_email.delay(
-                    c.HOTEL_LOTTERY_EMAIL,
-                    application.attendee.email_to_address,
-                    c.EVENT_NAME_AND_YEAR + f' Suite Lottery Updated',
-                    body,
-                    format='html',
-                    model=application.to_dict('id'))
-                
+                EmailService.queue_email(session, 'hotel_lottery_confirmation', application,
+                                         subject=f'{c.EVENT_NAME_AND_YEAR} Suite Lottery Updated',
+                                         data={'action_str': "updating your suite lottery entry"},
+                                         replace_unsent=True)
+
                 if update_group_members:
                     for member in application.valid_group_members:
-                        body = render('emails/hotel/group_entry_updated.html', {
-                            'app': member}, encoding=None)
-                        send_email.delay(
-                            c.HOTEL_LOTTERY_EMAIL,
-                            member.attendee.email_to_address,
-                            c.EVENT_NAME_AND_YEAR + f' Suite Lottery Updated',
-                            body,
-                            format='html',
-                            model=application.to_dict('id'))
+                        EmailService.queue_email(session, 'group_lottery_updated', member,
+                                                 subject=f'{c.EVENT_NAME_AND_YEAR} Suite Lottery Updated',
+                                                 replace_unsent=True)
 
                 raise HTTPRedirect('index?id={}&confirm=suite&action=updated',
                                    application.id)
@@ -506,7 +442,7 @@ class Root:
             form_list = [form_list]
         forms = load_forms(params, application, form_list)
 
-        all_errors = validate_model(forms, application)
+        all_errors = validate_model(session, forms, application)
         check_date = params.get('earliest_suite_checkin_date', params.get('earliest_room_checkin_date', ''))
         if attendee.birthdate and check_date and get_age_from_birthday(attendee.birthdate,
                                                                        check_date) < 21:
@@ -557,18 +493,11 @@ class Root:
             session.refresh(application)
 
             room_or_suite = "suite" if application.entry_type == c.SUITE_ENTRY else "room"
-            body = render('emails/hotel/hotel_lottery_entry.html', {
-                'app': application,
-                'maybe_swapped': maybe_swapped,
-                'new_conf': False,
-                'action_str': f"entering the {application.entry_type_label.lower()} lottery"}, encoding=None)
-            send_email.delay(
-                c.HOTEL_LOTTERY_EMAIL,
-                application.attendee.email_to_address,
-                c.EVENT_NAME_AND_YEAR + f' {application.entry_type_label} Lottery Confirmation',
-                body,
-                format='html',
-                model=application.to_dict('id'))
+            EmailService.queue_email(session, 'hotel_lottery_confirmation', application,
+                                     data={'maybe_swapped': maybe_swapped,
+                                           'new_conf': False,
+                                           'action_str': f"entering the {application.entry_type_label.lower()} lottery"},
+                                           replace_unsent=True)
 
             raise HTTPRedirect('index?id={}&confirm={}&action=confirmation',
                                application.id,
@@ -677,15 +606,9 @@ class Root:
             member = _reset_group_member(member)
         session.commit()
         session.refresh(member)
-        body = render('emails/hotel/removed_from_group.html', {
-            'app': member, 'parent': application, 'group_disbanded': False}, encoding=None)
-        send_email.delay(
-            c.HOTEL_LOTTERY_EMAIL,
-            member.attendee.email_to_address,
-            f'Removed From {c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM} "{application.room_group_name}"',
-            body,
-            format='html',
-            model=member.to_dict('id'))
+        EmailService.queue_email(session, 'hotel_lottery_group_removed', member,
+                                 subject=f'Removed From {c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM} "{application.room_group_name}"',
+                                 data={'parent': application, 'group_disbanded': False})
         raise HTTPRedirect('room_group?id={}&message={}', application.id,
                            f"{member.attendee.full_name} has been removed from your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}.")
 
@@ -725,15 +648,9 @@ class Root:
         session.commit()
 
         for member in all_group_members:
-            body = render('emails/hotel/group_new_leader.html', {
-                    'app': member, 'old_leader': application, 'new_leader': new_leader}, encoding=None)
-            send_email.delay(
-                c.HOTEL_LOTTERY_EMAIL,
-                member.email_to_address,
-                f'{c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM} Leader Changed',
-                body,
-                format='html',
-                model=member.to_dict('id'))
+            EmailService.queue_email(session, 'group_lottery_leader_changed', member,
+                                     data={'old_leader': application, 'new_leader': new_leader},
+                                     replace_unsent=True)
         
         raise HTTPRedirect('index?id={}&message={}', application.id,
                            f"Group leadership successfully transferred to {new_leader.attendee.full_name}.")
@@ -812,27 +729,13 @@ class Root:
                 session.commit()
                 session.refresh(application)
 
-                body = render('emails/hotel/group_member_joined.html', {
-                    'app': room_group, 'member': application}, encoding=None)
-                send_email.delay(
-                    c.HOTEL_LOTTERY_EMAIL,
-                    room_group.attendee.email_to_address,
-                    f'{application.attendee.first_name} has joined your {c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM}',
-                    body,
-                    format='html',
-                    model=room_group.to_dict('id'))
+                EmailService.queue_email(session, 'group_lottery_member_joined', room_group,
+                                         subject=f'{application.attendee.first_name} has joined your {c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM}',
+                                         data={'member': application})
                 
-                body = render('emails/hotel/hotel_lottery_entry.html', {
-                    'app': application,
-                    'new_conf': got_new_conf_num,
-                    'action_str': f"entering the lottery as a roommate"}, encoding=None)
-                send_email.delay(
-                    c.HOTEL_LOTTERY_EMAIL,
-                    application.attendee.email_to_address,
-                    c.EVENT_NAME_AND_YEAR + f' {application.entry_type_label} Lottery Confirmation',
-                    body,
-                    format='html',
-                    model=application.to_dict('id'))
+                EmailService.queue_email(session, 'hotel_lottery_confirmation', application,
+                                         data={'new_conf': got_new_conf_num,
+                                               'action_str': f"entering the lottery as a roommate"})
 
                 raise HTTPRedirect('room_group?id={}&action={}&new_conf={}', application.id, "joined", got_new_conf_num)
 
@@ -848,16 +751,9 @@ class Root:
             room_group = application.parent_application
 
             if room_group.status in [c.COMPLETE, c.PROCESSED, c.AWARDED, c.SECURED]:
-                body = render('emails/hotel/group_member_left.html', {
-                    'app': room_group, 'member': application}, encoding=None)
-                send_email.delay(
-                    c.HOTEL_LOTTERY_EMAIL,
-                    room_group.attendee.email_to_address,
-                    f'{application.attendee.first_name} has left your {c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM}',
-                    body,
-                    format='html',
-                    model=room_group.to_dict('id'))
-            
+                EmailService.queue_email(session, 'hotel_lottery_group_member_left', room_group,
+                                         data={'member': application})
+
             if room_group.status == c.PROCESSED or room_group.finalized:
                 application = _clear_application(application)
             else:

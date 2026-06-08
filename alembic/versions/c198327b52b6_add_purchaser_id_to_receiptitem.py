@@ -15,7 +15,6 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import residue
 
 
 try:
@@ -52,7 +51,7 @@ sqlite_reflect_kwargs = {
 
 
 def upgrade():
-    op.add_column('receipt_item', sa.Column('purchaser_id', residue.UUID(), nullable=True))
+    op.add_column('receipt_item', sa.Column('purchaser_id', sa.Uuid(as_uuid=False), nullable=True))
     op.create_index(op.f('ix_receipt_item_purchaser_id'), 'receipt_item', ['purchaser_id'], unique=False)
 
 

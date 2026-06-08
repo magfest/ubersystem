@@ -16,7 +16,6 @@ depends_on = None
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-import residue
 
 
 try:
@@ -54,12 +53,12 @@ sqlite_reflect_kwargs = {
 
 def upgrade():
     op.create_table('artist_marketplace_application',
-    sa.Column('id', residue.UUID(), nullable=False),
-    sa.Column('created', residue.UTCDateTime(), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
-    sa.Column('last_updated', residue.UTCDateTime(), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
+    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
+    sa.Column('created', sa.DateTime(timezone=True), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
+    sa.Column('last_updated', sa.DateTime(timezone=True), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
     sa.Column('external_id', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False),
     sa.Column('last_synced', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False),
-    sa.Column('attendee_id', residue.UUID(), nullable=False),
+    sa.Column('attendee_id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('name', sa.Unicode(), server_default='', nullable=False),
     sa.Column('display_name', sa.Unicode(), server_default='', nullable=False),
     sa.Column('email_address', sa.Unicode(), server_default='', nullable=False),
@@ -69,15 +68,15 @@ def upgrade():
     sa.Column('accessibility_requests', sa.Unicode(), server_default='', nullable=False),
     sa.Column('terms_accepted', sa.Boolean(), server_default='False', nullable=False),
     sa.Column('status', sa.Integer(), server_default='196944751', nullable=False),
-    sa.Column('registered', residue.UTCDateTime(), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
-    sa.Column('accepted', residue.UTCDateTime(), nullable=True),
+    sa.Column('registered', sa.DateTime(timezone=True), server_default=sa.text("timezone('utc', current_timestamp)"), nullable=False),
+    sa.Column('accepted', sa.DateTime(timezone=True), nullable=True),
     sa.Column('admin_notes', sa.Unicode(), server_default='', nullable=False),
     sa.Column('overridden_price', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['attendee_id'], ['attendee.id'], name=op.f('fk_artist_marketplace_application_attendee_id_attendee')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_artist_marketplace_application'))
     )
     op.drop_table('marketplace_application')
-    op.add_column('receipt_item', sa.Column('fk_id', residue.UUID(), nullable=True))
+    op.add_column('receipt_item', sa.Column('fk_id', sa.Uuid(as_uuid=False), nullable=True))
     op.add_column('receipt_item', sa.Column('fk_model', sa.Unicode(), server_default='', nullable=False))
 
 

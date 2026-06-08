@@ -17,7 +17,6 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import Sequence, CreateSequence, DropSequence
-import residue
 
 
 try:
@@ -59,11 +58,11 @@ def upgrade():
     op.create_unique_constraint(op.f('uq_lottery_application_response_id'), 'lottery_application', ['response_id'])
     op.add_column('lottery_application', sa.Column('confirmation_num', sa.Unicode(), server_default='', nullable=False))
     op.add_column('lottery_application', sa.Column('status', sa.Integer(), server_default='12956888', nullable=False))
-    op.add_column('lottery_application', sa.Column('entry_started', residue.UTCDateTime(), nullable=True))
+    op.add_column('lottery_application', sa.Column('entry_started', sa.DateTime(timezone=True), nullable=True))
     op.add_column('lottery_application', sa.Column('entry_metadata', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False))
     op.add_column('lottery_application', sa.Column('entry_type', sa.Integer(), nullable=True))
     op.add_column('lottery_application', sa.Column('current_step', sa.Integer(), server_default='0', nullable=False))
-    op.add_column('lottery_application', sa.Column('last_submitted', residue.UTCDateTime(), nullable=True))
+    op.add_column('lottery_application', sa.Column('last_submitted', sa.DateTime(timezone=True), nullable=True))
     op.add_column('lottery_application', sa.Column('admin_notes', sa.Unicode(), server_default='', nullable=False))
     op.add_column('lottery_application', sa.Column('earliest_checkin_date', sa.Date(), nullable=True))
     op.add_column('lottery_application', sa.Column('latest_checkin_date', sa.Date(), nullable=True))

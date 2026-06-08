@@ -15,7 +15,8 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-import residue
+from sqlalchemy.types import JSON
+from sqlalchemy.ext.mutable import MutableDict
 
 
 try:
@@ -195,8 +196,8 @@ def upgrade():
         with op.batch_alter_table('guest_merch', reflect_kwargs=sqlite_reflect_kwargs) as batch_op:
             batch_op.add_column(sa.Column('bringing_boxes', sa.Unicode(), server_default='', nullable=False))
             batch_op.add_column(sa.Column('extra_info', sa.Unicode(), server_default='', nullable=False))
-            batch_op.add_column(sa.Column('inventory', residue.JSON(), server_default='{}', nullable=False))
-            batch_op.add_column(sa.Column('handlers', residue.JSON(), server_default='[]', nullable=False))
+            batch_op.add_column(sa.Column('inventory', MutableDict.as_mutable(JSON), server_default='{}', nullable=False))
+            batch_op.add_column(sa.Column('handlers', MutableDict.as_mutable(JSON), server_default='[]', nullable=False))
             batch_op.add_column(sa.Column('poc_email', sa.Unicode(), server_default='', nullable=False))
             batch_op.add_column(sa.Column('poc_first_name', sa.Unicode(), server_default='', nullable=False))
             batch_op.add_column(sa.Column('poc_last_name', sa.Unicode(), server_default='', nullable=False))
@@ -211,8 +212,8 @@ def upgrade():
     else:
         op.add_column('guest_merch', sa.Column('bringing_boxes', sa.Unicode(), server_default='', nullable=False))
         op.add_column('guest_merch', sa.Column('extra_info', sa.Unicode(), server_default='', nullable=False))
-        op.add_column('guest_merch', sa.Column('inventory', residue.JSON(), server_default='{}', nullable=False))
-        op.add_column('guest_merch', sa.Column('handlers', residue.JSON(), server_default='[]', nullable=False))
+        op.add_column('guest_merch', sa.Column('inventory', MutableDict.as_mutable(JSON), server_default='{}', nullable=False))
+        op.add_column('guest_merch', sa.Column('handlers', MutableDict.as_mutable(JSON), server_default='[]', nullable=False))
         op.add_column('guest_merch', sa.Column('poc_email', sa.Unicode(), server_default='', nullable=False))
         op.add_column('guest_merch', sa.Column('poc_first_name', sa.Unicode(), server_default='', nullable=False))
         op.add_column('guest_merch', sa.Column('poc_last_name', sa.Unicode(), server_default='', nullable=False))

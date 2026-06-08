@@ -170,11 +170,7 @@ $().ready(function() {
                 if($('input#checkin_badge_num')) {
                     var $num = $('#checkin_badge_num:text');
                     if ($num.is(':visible')) {
-                        $num.focus().keypress(function (event) {
-                            if (event.keyCode === 13) {
-                                checkIn('{{ attendee.id }}');
-                            }
-                        });
+                        $num.focus()
                     } else {
                         setTimeout(focusBadgeNum, 100);
                     }

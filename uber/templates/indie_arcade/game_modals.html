@@ -36,7 +36,7 @@
 </div>
 {% endif %}
 
-{% if game.submission_images %}
+{% if arcade_game_photos[game.id] %}
 <div
     id="edit-photos-{{ game.id }}"
     class="modal fade"
@@ -53,7 +53,7 @@
         </h4>
         </div>
         <div class="modal-body">
-            {% for image in game.submission_images %}
+            {% for image in arcade_game_photos[game.id] %}
             {{ form_macros.form_validation(image.id ~ '-form', '../indie_arcade/validate_image') }}
             {% endfor %}
             <div class="table-responsive">
@@ -65,8 +65,8 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% set can_delete_photos = not game.submitted or game.submission_images|length > 2 %}
-                    {% for image in game.submission_images %}
+                    {% set can_delete_photos = not game.submitted or arcade_game_photos[game.id]|length > 2 %}
+                    {% for image in arcade_game_photos[game.id] %}
                     {% set arcade_photo = image_forms[image.id]['arcade_photo'] %}
                         <tr x-data="">
                             <td>
@@ -85,6 +85,7 @@
                                 <form method="post" action="../indie_arcade/delete_photo">
                                     {{ csrf_token() }}
                                     <input type="hidden" name="id" value="{{ image.id }}" />
+                                    <input type="hidden" name="studio_id" value="{{ game.studio.id }}" />
                                     <button type="submit" class="btn btn-sm btn-danger"><i class="fa fa-remove"></i></button>
                                 </form>
                                 {% endif %}

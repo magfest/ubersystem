@@ -102,7 +102,7 @@ class Root:
             form_list = [form_list]
         forms = load_forms(params, app, form_list)
 
-        all_errors = validate_model(forms, app, is_admin=True)
+        all_errors = validate_model(session, forms, app, is_admin=True)
         if all_errors:
             return {"error": all_errors}
 
@@ -124,7 +124,7 @@ class Root:
                 c.STRIPE: "Authorize.net" if c.AUTHORIZENET_LOGIN_ID else "Stripe",
                 c.SQUARE: "SPIn" if c.SPIN_TERMINAL_AUTH_KEY else "Square",
                 c.MANUAL: "Stripe"},
-            'emails': session.query(Email).filter(Email.fk_id == id).order_by(Email.when).all(),
+            'emails': session.query(Email).filter(Email.fk_id == id).order_by(Email.generated).all(),
             'changes': session.query(Tracking).filter(
                 or_(Tracking.links.like('%artist_marketplace_application({})%'.format(id)),
                     and_(Tracking.model == 'ArtistMarketplaceApplication',

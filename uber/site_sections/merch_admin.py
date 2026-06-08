@@ -1,6 +1,5 @@
 import cherrypy
 import re
-from pockets import listify
 from sqlalchemy import or_
 
 from uber.config import c
@@ -8,7 +7,7 @@ from uber.decorators import ajax, all_renderable, credit_card, public, kiosk_log
 from uber.errors import HTTPRedirect
 from uber.models import ArbitraryCharge, Attendee, BadgeInfo, MerchDiscount, MerchPickup, \
     MPointsForCash, NoShirt, OldMPointExchange
-from uber.utils import check, check_csrf
+from uber.utils import check, check_csrf, listify
 from uber.payments import TransactionRequest
 
 
@@ -129,7 +128,8 @@ class Root:
     @ajax
     @credit_card
     def arbitrary_charge(self, session, id, amount, description, email, return_to='arbitrary_charge_form'):
-        charge = TransactionRequest(description=description, receipt_email=email, amount=100 * int(amount))
+        charge = TransactionRequest(account=session.current_attendee_account(),
+                                    description=description, receipt_email=email, amount=100 * int(amount))
         message = charge.create_payment_intent()
         if message:
             return {'error': message}

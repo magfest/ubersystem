@@ -9,10 +9,11 @@ import os
 
 from botocore.exceptions import ClientError
 from datetime import datetime
-from pockets.autolog import log
 from xml.etree.ElementTree import XML
 
 from uber.config import c
+
+log = logging.getLogger(__name__)
 
 
 class AmazonSES:
