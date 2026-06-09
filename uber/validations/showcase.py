@@ -19,7 +19,7 @@ DeveloperInfo.field_validation.required_fields = {
     'first_name': "Please provide a first name.",
     'last_name': "Please provide a last name.",
     'email': "Please enter an email address.",
-    'cellphone': ('Please provide a phone number.', 'receives_emails'),
+    'cellphone': 'Please provide a phone number.',
     'agreed_coc': "You must agree to be bound by our Code of Conduct.",
     'agreed_data_policy': "You must agree for your information to be used for determining showcase selection.",
 }

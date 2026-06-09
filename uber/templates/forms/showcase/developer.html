@@ -13,7 +13,6 @@
 
 <div x-data="{ {% block x_data %}
 receives_emails: {{ developer_info.receives_emails.data|jsonize }},
-get cellphoneRequired() { return this.receives_emails },
 {% endblock %} }">
 
 <div class="row g-3 mb-3">
@@ -30,7 +29,7 @@ get cellphoneRequired() { return this.receives_emails },
     {{ form_macros.input(developer_info.email) }}
   </div>
   <div class="col-sm">
-    {{ form_macros.input(developer_info.cellphone, required_if="cellphoneRequired") }}
+    {{ form_macros.input(developer_info.) }}
   </div>
 {% if 'apply' not in c.PAGE_PATH %}
 </div>
