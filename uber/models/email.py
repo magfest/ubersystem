@@ -167,8 +167,8 @@ class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
                                 setattr(pending, attr, changed_vals[attr])
                                 changed = True
                         if changed:
-                            if pending.send_after:
-                                pending.update_send_after()
+                            if pending.send_after and pending.status != c.SENT:
+                                pending.send_after = pending.new_send_after
                             session.add(pending)
                     session.add(automated_email.reconcile(fixture))
             session.commit()
