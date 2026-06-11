@@ -1,0 +1,19 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% import 'macros.html' as macros with context %}
+{% block title %}Marketplace Application Emails - {{ app.attendee.full_name }}{% endblock %}
+{% block content %}
+{{ macros.nav_menu(
+app, c.PAGE_PATH,
+"form?id={id}", "App Form", True,
+"history?id={id}", "History", True,
+"emails?id={id}", "Emails", True,
+"index", "Return to App List", True
+) }}
+
+<h2> Email Queue for {{ app.attendee.full_name }}'s Marketplace Application</h2>
+<hr/>
+{{ macros.email_table(emails, table_classes="table-hover datatable", hidden_cols=['recipient']) }}
+
+{% set email_queue = emails %}
+{% include 'email_admin/manage_email.html' with context %}
+{% endblock %}

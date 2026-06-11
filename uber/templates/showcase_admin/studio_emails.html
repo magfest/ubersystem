@@ -1,0 +1,23 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% import 'macros.html' as macros with context %}
+{% block title %}Indie Studio Emails - {{ studio.name }}{% endblock %}
+{% block content %}
+{{ macros.nav_menu(
+studio, c.PAGE_PATH,
+"studio?id={id}", "Studio Form", True,
+"studio_history?id={id}", "History", True,
+"studio_emails?id={id}", "Emails", True,
+"studios", "Return to Studio List", True
+) }}
+<h2> Email Queue for Indie Studio "{{ studio.name }}"</h2>
+<hr/>
+{{ macros.email_table(studio_emails, table_classes="table-hover datatable") }}
+<hr/>
+<h3>Email Queue for "{{ studio.name }}" Games</h3>
+{{ macros.email_table(game_emails, table_classes="table-hover datatable") }}
+<hr/>
+<h3>Email Queue for "{{ studio.name }}" Developers</h3>
+{{ macros.email_table(dev_emails, table_classes="table-hover datatable") }}
+{% set email_queue = studio_emails + game_emails + dev_emails %}
+{% include 'email_admin/manage_email.html' with context %}
+{% endblock %}

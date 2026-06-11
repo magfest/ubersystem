@@ -132,7 +132,7 @@ class EmailInfo(MagForm):
     admin_desc = True
 
     policy = SelectField("Send Policy", coerce=int, default=0, choices=[(0, "Please select an option")] + c.EMAIL_POLICY_OPTS)
-    policy_permanent = BooleanField("This policy should be kept as-is for future events.")
+    default_policy = SelectField("Default Send Policy", description="The send policy this email should have in future years.", coerce=int, default=0, choices=[(0, "Please select an option")] + c.EMAIL_POLICY_OPTS)
     allow_at_the_con = BooleanField("This email can be generated and sent during the event.")
     allow_post_con = BooleanField("This email can be generated and sent after the event.")
     active_after = StringField("Don't Send Email Before", widget=DateTimePicker())

@@ -23,7 +23,7 @@ def date_in_range(field, str, min, max):
 
 
 def get_earliest_checkout_date(form):
-    if getattr(form, f"earliest_checkout_date").data:
+    if getattr(form, f"earliest_checkout_date") and form.earliest_checkout_date.data:
         return "acceptable check-out date", getattr(form, f"earliest_checkout_date").data
     else:
         return "preferred check-out date", getattr(form, f"latest_checkout_date").data

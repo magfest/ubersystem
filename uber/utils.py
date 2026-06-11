@@ -1553,14 +1553,17 @@ def report_critical_exception(msg, subject="Critical Error"):
             to "Critical Error".
 
     """
-    from uber.tasks.email import send_email
+    from uber.models import Session
+    from uber.email import EmailService
 
     # Log with lots of cherrypy context in here
     uber.server.log_exception_with_verbose_context(msg=msg)
 
     # Also attempt to email the admins
     if c.SEND_EMAILS and not c.DEV_BOX:
-        send_email.delay(c.ADMIN_EMAIL, [c.ADMIN_EMAIL], subject, msg + '\n{}'.format(traceback.format_exc()))
+        with Session() as session:
+            EmailService.queue_email(session, 'critical_exception_admin', to=c.ADMIN_EMAIL, sender=c.ADMIN_EMAIL,
+                                     subject=subject, body=msg + f'\n{traceback.format_exc()}')
 
 
 def get_page(page, queryset):

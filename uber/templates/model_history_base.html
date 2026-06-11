@@ -43,9 +43,8 @@
     {% endfor %}
   </table>
 
-  <hr/>
-
   {% if attendee and attendee.past_years %}
+  <hr/>
     <h2> Past Years' Staffing </h2>
     {% for year in attendee.past_years_json %}
       <h3>{{ year.year }}</h3>
@@ -76,25 +75,4 @@
     {% endfor %}
     <hr/>
   {% endif %}
-
-  <h2> Automated Emails </h2>
-  {% for email in emails %}
-    <h3> {{ email.subject }} ({{ email.generated|full_datetime_local }}) </h3>
-    {{ macros.preview_email(email) }}
-    {% if not read_only %}
-      <form method="post" action="resend_email" id="resend_email_{{ email.id }}">
-        {{ csrf_token() }}
-        <input type="hidden" name="id" value="{{ email.id }}" />
-        <button class="btn btn-primary" type="submit">Resend Email</button>
-      </form>
-    {% endif %}
-    <hr/>
-  {% endfor %}
-  {% if other_emails %}
-    <h3>Other Emails to {{ model.email }} </h3>
-    {% for email in other_emails %}
-    {{ macros.preview_email(email) }}
-    {% endfor %}
-  {% endif %}
-{{ "js/resend-email-form.js"|serve_static_content }}
 </div>

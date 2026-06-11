@@ -16,6 +16,7 @@ from ortools.linear_solver import pywraplp
 from uber.config import c
 from uber.custom_tags import datetime_local_filter
 from uber.decorators import all_renderable, log_pageview, ajax, xlsx_file, csv_file, multifile_zipfile, render
+from uber.email import EmailService
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, Group, LotteryApplication, Email, Tracking, PageViewTracking
@@ -319,13 +320,18 @@ class Root:
         application = session.lottery_application(id)
         return {
             'application':  application,
-            'emails': session.query(Email).filter(Email.model == 'LotteryApplication',
-                                                  Email.fk_id == id
-                                                  ).order_by(Email.generated).all(),
             'changes': session.query(Tracking).filter(Tracking.model == 'LotteryApplication', Tracking.fk_id == id
                                                       ).order_by(Tracking.when).all(),
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(application)
                                                                 ).order_by(PageViewTracking.when).all(),
+        }
+    
+    def emails(self, session, id):
+        application = session.lottery_application(id)
+        return {
+            'application':  application,
+            'emails': session.query(Email).filter(Email.fk_id == id).order_by(Email.generated).all(),
+            'depts_by_sender': EmailService.emails_from_depts(session),
         }
     
     def show_awards(self, session, **params):

@@ -16,7 +16,6 @@ from uber.custom_tags import email_only
 from uber.errors import HTTPRedirect
 from uber.decorators import render
 from uber.models import Attendee, AdminAccount, AttendeeAccount, AccessGroup, Session, PasswordReset
-from uber.tasks.email import send_email
 from uber.utils import normalize_email_legacy
 
 log = logging.getLogger(__name__)

@@ -75,7 +75,7 @@
                             {{ game.status_label }}
                         {% endif %}
                     </td>
-                    <td><a href="#studio-{{ game.studio.id }}" data-bs-toggle="modal" data-bs-target="#studio-{{ game.studio.id }}">{{ game.studio.name }}</a></td>
+                    <td><a href="studio?id={{ game.studio.id }}" target="_blank">{{ game.studio.name }} <i class="fa fa-external-link"></i></a></td>
                     <td>{{ game.studio.primary_contacts[0].full_name if game.studio.primary_contacts else 'N/A' }}</td>
                     <td><a href="edit_game?id={{ game.id }}#judges">{{ game.reviews|length }}</a></td>
                     <td>
@@ -146,8 +146,6 @@
         </div>
     </div>
 </div>
-
-{% include 'showcase_admin/studio_modals.html' with context %}
 
 {{ "js/window-hash-tabload.js"|serve_static_content }}
 {% endblock %}

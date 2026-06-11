@@ -1,5 +1,5 @@
 import cherrypy
-from sqlalchemy import func
+from sqlalchemy import func, and_, or_
 from sqlalchemy.orm import joinedload
 
 from uber.email import EmailService
@@ -8,7 +8,7 @@ from uber.decorators import ajax, all_renderable, csrf_protected, render, site_m
 from uber.errors import HTTPRedirect
 from uber.files import FileService
 from uber.forms import load_forms
-from uber.models import AdminAccount, Attendee, IndieJudge, IndieGameReview, IndieStudio, IndieGame
+from uber.models import AdminAccount, Attendee, Email, IndieJudge, IndieGameReview, IndieStudio, IndieGame, PageViewTracking, Tracking
 from uber.utils import check, get_api_service_from_server, normalize_email_legacy, validate_model, listify
 
 
@@ -52,8 +52,8 @@ class Root:
             'showcase_label': 'All' if showcase_type == 'all' else c.SHOWCASE_GAME_TYPES[showcase_type],
         }
     
-    def update_studio(self, session, message='', **params):
-        studio = session.indie_studio(params.get('id'))
+    def studio(self, session, id, message='', **params):
+        studio = session.get(IndieStudio, id)
 
         forms = load_forms(params, studio, ['AdminStudioInfo'])
 
@@ -65,6 +65,37 @@ class Root:
                 raise HTTPRedirect('index?showcase_type={}&message={}',
                                 params.get('showcase_type', 'all'), message)
             raise HTTPRedirect('studios?message={}', message)
+
+        return {
+            'message': message,
+            'studio': studio,
+            'forms': forms,
+        }
+    
+    def studio_history(self, session, id, message='', **params):
+        studio = session.get(IndieStudio, id)
+
+        return {
+            'studio': studio,
+            'changes': session.query(Tracking).filter(or_(
+                Tracking.links.like('%indie_studio({})%'.format(id)),
+                and_(Tracking.model == 'IndieStudio', Tracking.fk_id == id))).order_by(Tracking.when).all(),
+        }
+    
+    def studio_emails(self, session, id, message='', **params):
+        studio = session.get(IndieStudio, id)
+
+        return {
+            'message': message,
+            'studio': studio,
+            'depts_by_sender': EmailService.emails_from_depts(session),
+            'studio_emails': session.query(Email).filter(Email.model == 'IndieStudio',
+                                                         Email.fk_id == id).order_by(Email.generated).all(),
+            'game_emails': session.query(Email).filter(Email.model == 'IndieGame',
+                                                       Email.fk_id.in_([game.id for game in studio.games])).order_by(Email.generated).all(),
+            'dev_emails': session.query(Email).filter(Email.model == 'IndieDeveloper',
+                                                      Email.fk_id.in_([dev.id for dev in studio.developers])).order_by(Email.generated).all(),
+        }
 
     @ajax
     def validate_studio(self, session, form_list=[], **params):
@@ -83,16 +114,17 @@ class Root:
 
         return {"success": True}
 
-    def studios(self, session, message=''):
+    def studios(self, session, message='', **params):
         studios = session.query(IndieStudio).outerjoin(IndieStudio.games)
-        studio_forms = {}
+        primary_contact_emails = []
         for studio in studios:
-            studio_forms[studio.id] = load_forms({}, studio, ['AdminStudioInfo'])
+            for contact in studio.primary_contacts:
+                primary_contact_emails.append(contact.email_to_address)
 
         return {
             'message': message,
             'studios': studios,
-            'studio_forms': studio_forms,
+            'primary_contact_emails': primary_contact_emails,
         }
 
     def create_judge(self, session, message='', first_name='', last_name='', email='', showcase_type='all', **params):
@@ -145,8 +177,8 @@ class Root:
             'forms': forms,
         }
 
-    def edit_judge(self, session, message='', showcase_type='all', **params):
-        judge = session.indie_judge(params.get('id'))
+    def edit_judge(self, session, id, message='', showcase_type='all', **params):
+        judge = session.indie_judge(id)
         message, showcase_type = _process_showcase_type(showcase_type, message)
 
         forms = load_forms(params, judge, ['JudgeShowcaseInfo', 'MivsJudgeInfo'])
@@ -179,6 +211,12 @@ class Root:
             'matching': matching,
             'nonmatching': nonmatching,
             'matching_genre': matching_genre,
+            'changes': session.query(Tracking).filter(or_(
+                Tracking.links.like('%indie_judge({})%'.format(id)),
+                and_(Tracking.model == 'IndieJudge', Tracking.fk_id == id))).order_by(Tracking.when).all(),
+            'emails': session.query(Email).filter(Email.model == 'IndieJudge',
+                                                  Email.fk_id == judge.id).order_by(Email.generated).all(),
+            'depts_by_sender': EmailService.emails_from_depts(session),
         }
     
     @ajax
@@ -274,6 +312,12 @@ class Root:
             'matching': matching,
             'matching_genre': matching_genre,
             'nonmatching': nonmatching,
+            'changes': session.query(Tracking).filter(or_(
+                Tracking.links.like('%indie_game({})%'.format(id)),
+                and_(Tracking.model == 'IndieGame', Tracking.fk_id == id))).order_by(Tracking.when).all(),
+            'emails': session.query(Email).filter(Email.model == 'IndieGame',
+                                                  Email.fk_id == game.id).order_by(Email.generated).all(),
+            'depts_by_sender': EmailService.emails_from_depts(session),
         }
     
     @ajax

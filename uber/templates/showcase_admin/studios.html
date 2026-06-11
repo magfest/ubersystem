@@ -23,7 +23,7 @@
 <tbody>
 {% for studio in studios %}
   <tr>
-    <td><a href="#studio-{{ studio.id }}" data-bs-toggle="modal" data-bs-target="#studio-{{ studio.id }}">{{ studio.name }}</a></td>
+    <td><a href="studio?id={{ studio.id }}">{{ studio.name }}</a></td>
     <td>
       {% for contact in studio.primary_contacts %}
         {{ contact.full_name }} | 
@@ -51,6 +51,4 @@
 </tbody>
 </table>
 </div>
-
-{% include 'showcase_admin/studio_modals.html' with context %}
 {% endblock %}

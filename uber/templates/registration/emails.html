@@ -1,0 +1,17 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% import 'macros.html' as macros with context %}
+{% block title %}Attendee Emails - {{ attendee.full_name }}{% endblock %}
+{% block content %}
+{% include "registration/menu.html" %}
+<h2> Email Queue for {{ attendee.full_name }}</h2>
+<hr/>
+{{ macros.email_table(emails, table_classes="table-hover datatable", hidden_cols=['recipient']) }}
+
+{% if other_emails %}
+<h2> Other Emails to {{ attendee.email }}</h2>
+{{ macros.email_table(other_emails, table_classes="table-hover datatable", hidden_cols=['recipient']) }}
+{% endif %}
+
+{% set email_queue = emails + other_emails %}
+{% include 'email_admin/manage_email.html' with context %}
+{% endblock %}
