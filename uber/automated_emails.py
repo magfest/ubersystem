@@ -389,6 +389,7 @@ AutomatedEmailFixture(
     "lambda a: (a.paid == c.HAS_PAID and not a.promo_code_groups) or \
         (a.paid == c.NEED_NOT_PAY and (a.confirmed or a.promo_code_id or a.age_discount))",
     'attendee_badge_confirmed',
+    sender=c.REGDESK_EMAIL,
     allow_at_the_con=True)
 
 if c.ATTENDEE_ACCOUNTS_ENABLED:
@@ -398,6 +399,7 @@ if c.ATTENDEE_ACCOUNTS_ENABLED:
         'reg_workflow/account_confirmation.html',
         "lambda a: not a.imported and a.hashed and not a.password_reset and not a.is_sso_account",
         'attendee_account_confirmed',
+        sender=c.REGDESK_EMAIL,
         allow_at_the_con=True)
 
 AutomatedEmailFixture(
@@ -406,6 +408,7 @@ AutomatedEmailFixture(
     'reg_workflow/promo_code_group_confirmation.html',
     "lambda g: g.buyer and g.buyer.amount_paid > 0",
     'pc_group_payment_received',
+    sender=c.REGDESK_EMAIL,
     allow_at_the_con=True)
 
 AutomatedEmailFixture(
@@ -413,14 +416,18 @@ AutomatedEmailFixture(
     f'{c.EVENT_NAME} group payment received',
     'reg_workflow/group_confirmation.html',
     "lambda g: g.amount_paid == g.cost * 100 and g.cost != 0 and g.leader_id",
-    'group_payment_received')
+    'group_payment_received',
+    sender=c.REGDESK_EMAIL,
+    )
 
 AutomatedEmailFixture(
     Group,
     f'{c.EVENT_NAME} group registration successful',
     'reg_workflow/group_confirmation.html',
     "lambda g: g.cost == 0 and g.leader_id and not g.leader.placeholder",
-    'group_registration_confirmation')
+    'group_registration_confirmation',
+    sender=c.REGDESK_EMAIL,
+    )
 
 AutomatedEmailFixture(
     Attendee,
@@ -429,6 +436,7 @@ AutomatedEmailFixture(
     "lambda a: a.group and (a.id != a.group.leader_id or a.group.cost == 0) and not a.placeholder \
         and a.paid == c.PAID_BY_GROUP",
     'attendee_group_reg_confirmation',
+    sender=c.REGDESK_EMAIL,
     allow_at_the_con=True)
 
 AutomatedEmailFixture(
@@ -959,6 +967,7 @@ AutomatedEmailFixture(
     'reg_workflow/under_18_reminder.txt',
     "lambda a: c.CONSENT_FORM_URL and a.age_group_conf['consent_form'] and days_after(14, a.registered)()",
     'under_18_parental_consent_reminder',
+    sender=c.REGDESK_EMAIL,
     when=[days_before(60, c.EPOCH)],
     allow_at_the_con=True)
 
@@ -971,6 +980,7 @@ AutomatedEmailFixture(
     'reg_workflow/attendee_qrcode.html',
     "lambda a: not a.cannot_check_in_reason and c.USE_CHECKIN_BARCODE",
     'qrcode_for_checkin',
+    sender=c.REGDESK_EMAIL,
     when=[days_before(7, c.EPOCH)],
     allow_at_the_con=True)
 
