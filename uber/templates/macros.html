@@ -39,7 +39,7 @@
         </td>
         {% endif %}
         {% if 'department' not in hidden_cols and (not department_id or department_id == 'All') %}
-        <td>{{ depts_by_sender[email.sender|email_only] or 'No Department' }}</td>
+        <td>{{ depts_by_sender[email.sender|email_only]|map(attribute='name')|list|readable_join or '' }}</td>
         {% endif %}
         {% if 'subject' not in hidden_cols %}
         <td>
