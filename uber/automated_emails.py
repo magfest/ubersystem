@@ -183,7 +183,6 @@ AutomatedEmailFixture(
     'accounts/new_account.txt', None,
     'new_admin_account',
     sender=c.ADMIN_EMAIL,
-    send_filter='lambda a: a.admin_account',
 )
 
 
@@ -193,7 +192,6 @@ AutomatedEmailFixture(
     'accounts/password_reset.txt', None,
     'admin_password_reset',
     sender=c.ADMIN_EMAIL,
-    send_filter='lambda a: a.admin_account',
 )
 
 
@@ -203,7 +201,6 @@ AutomatedEmailFixture(
     'accounts/password_reset.html', None,
     'attendee_password_reset',
     sender=c.ADMIN_EMAIL,
-    send_filter='lambda a: a.admin_account',
 )
 
 
