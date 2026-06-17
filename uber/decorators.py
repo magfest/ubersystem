@@ -381,7 +381,17 @@ def requires_email_admin(inherent_role=None):
                 return requires_admin(func, inherent_role, override_access='full_email_admin')
         return protected
     return email_admin_decorator
-    
+
+
+def reconcile_fixtures(func):
+    from uber.models import AutomatedEmail
+    @wraps(func)
+    def protected(*args, **kwargs):
+        if not AutomatedEmail.initialized:
+            AutomatedEmail.reconcile_fixtures()
+            AutomatedEmail.initialized = True
+        return func(*args, **kwargs)
+    return protected
 
 
 def csrf_protected(func):

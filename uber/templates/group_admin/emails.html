@@ -1,0 +1,16 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% import 'macros.html' as macros with context %}
+{% block title %}Group Emails - {{ group.name }}{% endblock %}
+{% block content %}
+{% include "group_admin/nav_menu.html" %}
+<h2> Email Queue for Group "{{ group.name }}"</h2>
+<hr/>
+{{ macros.email_table(group_emails + guest_emails, table_classes="table-hover datatable", hidden_cols=['recipient']) }}
+{% if group.leader %}
+<hr/>
+<h3>Email Queue for "{{ group.name }}" Leader {{ group.leader.full_name }}</h3>
+{{ macros.email_table(leader_emails, table_classes="table-hover datatable", hidden_cols=['recipient']) }}
+{% endif %}
+{% set email_queue = group_emails + guest_emails + leader_emails %}
+{% include 'email_admin/manage_email.html' with context %}
+{% endblock %}

@@ -19,6 +19,7 @@
     "../hotel_lottery_admin/form?id={lottery_application.id}", "Hotel Lottery Entry", attendee.lottery_application and c.HAS_HOTEL_LOTTERY_ADMIN_ACCESS,
     "../registration/shifts?id={id}&return_to=../registration/index", "Shifts", attendee.staffing and c.HAS_SHIFTS_ADMIN_ACCESS,
     "../registration/history?id={id}", "History", True,
+    "../registration/emails?id={id}", "Emails", True,
     "../badge_printing/attendee_print_jobs?id={id}", "Badge Print Jobs", c.HAS_BADGE_PRINTING_ACCESS and c.BADGE_PRINTING_ENABLED,
     "../reg_admin/receipt_items?id={id}", "Receipt Items", c.HAS_REG_ADMIN_ACCESS,
     "../registration/watchlist?id={id}", "Watch List Entry", attendee.banned and c.HAS_SECURITY_ADMIN_ACCESS,

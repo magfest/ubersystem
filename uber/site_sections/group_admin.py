@@ -10,6 +10,7 @@ from sqlalchemy.orm import joinedload
 from uber.config import c
 from uber.custom_tags import format_currency, readable_join
 from uber.decorators import ajax, any_admin_access, all_renderable, csrf_protected, log_pageview
+from uber.email import EmailService
 from uber.errors import HTTPRedirect
 from uber.files import FileService
 from uber.forms import load_forms
@@ -293,22 +294,34 @@ class Root:
     def history(self, session, id):
         group = session.group(id)
 
-        if group.leader:
-            other_emails = session.query(Email).filter(
-                Email.to == group.leader.email).order_by(Email.generated).all()
-        else:
-            other_emails = {}
-
         return {
             'group': group,
-            'emails': session.query(Email).filter(Email.model == 'Group',
-                                                  Email.fk_id == id).order_by(Email.generated).all(),
-            'other_emails': other_emails,
             'changes': session.query(Tracking).filter(or_(
                 Tracking.links.like('%group({})%'.format(id)),
                 and_(Tracking.model == 'Group', Tracking.fk_id == id))).order_by(Tracking.when).all(),
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(group)
                                                                 ).order_by(PageViewTracking.when).all(),
+        }
+    
+    def emails(self, session, id):
+        group = session.group(id)
+        guest_emails = []
+        leader_emails = []
+
+        if group.guest:
+            guest_emails = session.query(Email).filter(Email.model == 'GuestGroup',
+                                                       Email.fk_id == group.guest.id).order_by(Email.generated).all()
+        if group.leader:
+            leader_emails = session.query(Email).filter(Email.model == 'Attendee',
+                                                       Email.fk_id == group.leader.id).order_by(Email.generated).all()
+
+        return {
+            'group': group,
+            'group_emails': session.query(Email).filter(Email.model == 'Group',
+                                                        Email.fk_id == id).order_by(Email.generated).all(),
+            'guest_emails': guest_emails,
+            'leader_emails': leader_emails,
+            'depts_by_sender': EmailService.emails_from_depts(session),
         }
 
     @csrf_protected

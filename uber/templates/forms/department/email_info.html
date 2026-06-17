@@ -14,9 +14,7 @@
   Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
 
-<div x-data="{ {% block x_data %}
-policy: '{{ email.policy or '' }}',
-{% endblock %} }">
+<div x-data="{ {% block x_data %}{% endblock %} }">
 
 <div class="row g-3 mb-3">
 {% block basic_info %}
@@ -62,11 +60,10 @@ policy: '{{ email.policy or '' }}',
 <div class="row g-3 mb-3">
 {% block policy %}
 <div class="col-sm">
-    {% call form_macros.input(email_info.policy, alpine_model="policy") %}
-        {{ form_macros.input(email_info.policy_permanent) }}
-        <div class="form-text" x-show="policy == '{{ c.DISABLED }}'">If checked, this email may be removed from the system for future years.</div>
-        <div class="form-text" x-show="policy == '{{ c.AUTOSEND }}'">If checked, this email will autosend without needing approval in future years.</div>
-    {% endcall %}
+    {{ form_macros.input(email_info.policy) }}
+</div>
+<div class="col-sm">
+    {{ form_macros.input(email_info.default_policy) }}
 </div>
 <div class="col-sm">
     <div class="form-text">Ident</div>

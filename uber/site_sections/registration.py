@@ -670,19 +670,27 @@ class Root:
 
         return png_file_output
 
+    @log_pageview
     def history(self, session, id):
         attendee = session.attendee(id, allow_invalid=True)
         return {
             'attendee':  attendee,
-            'emails': session.query(Email).filter(Email.model == 'Attendee',
-                                                  Email.fk_id == id).order_by(Email.generated).all(),
-            'other_emails': session.query(Email).filter(Email.to == attendee.email,
-                                                        Email.fk_id != id).order_by(Email.generated).all(),
             'changes': session.query(Tracking).filter(
                 or_(and_(Tracking.links.like('%attendee({})%'.format(id))),
                     and_(Tracking.model == 'Attendee', Tracking.fk_id == id))).order_by(Tracking.when).all(),
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(attendee)
                                                                 ).order_by(PageViewTracking.when).all(),
+        }
+    
+    @log_pageview
+    def emails(self, session, id):
+        attendee = session.attendee(id, allow_invalid=True)
+        return {
+            'attendee':  attendee,
+            'emails': session.query(Email).filter(Email.fk_id == id).order_by(Email.generated).all(),
+            'other_emails': session.query(Email).filter(Email.to == attendee.email,
+                                                        Email.fk_id != id).order_by(Email.generated).all(),
+            'depts_by_sender': EmailService.emails_from_depts(session),
         }
 
     def delete(self, session, id, return_to='index?', return_msg=False, **params):
@@ -1596,15 +1604,24 @@ class Root:
 
         return {
             'attendee': attendee,
-            'emails': session.query(Email).filter(Email.model == 'Attendee',
-                                                  Email.fk_id == id).order_by(Email.generated).all(),
-            'other_emails': session.query(Email).filter(Email.to == attendee.email,
-                                                        Email.fk_id != id).order_by(Email.generated).all(),
             'changes': session.query(Tracking).filter(
                 or_(and_(Tracking.links.like('%attendee({})%'.format(id)),
                          Tracking.model == 'Attendee', Tracking.fk_id == id))).order_by(Tracking.when).all(),
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(attendee)
                                                                 ).order_by(PageViewTracking.when).all(),
+        }
+    
+    @log_pageview
+    @attendee_view
+    def attendee_emails(self, session, id, **params):
+        attendee = session.attendee(id, allow_invalid=True)
+
+        return {
+            'attendee': attendee,
+            'emails': session.query(Email).filter(Email.model == 'Attendee',
+                                                  Email.fk_id == id).order_by(Email.generated).all(),
+            'other_emails': session.query(Email).filter(Email.to == attendee.email,
+                                                        Email.fk_id != id).order_by(Email.generated).all(),
         }
 
     @attendee_view

@@ -7,7 +7,7 @@
 
 {% block content %}
 <div class="card card-body">
-<h2>Edit {{ game.title }} <small><a href="index?showcase_type={{ game.showcase_type }}">Back to Index</a></small></h2>
+<h2>Edit {{ game.title }} <small><a href="index?showcase_type={{ game.showcase_type }}">Back to Index</a></small><a href="studio?id={{ game.studio.id }}" class="pull-right btn btn-primary" target="_blank">View "{{ game.studio.name }}" <i class="fa fa-external-link"></i></a></h2>
 
 <ul class="nav nav-tabs flex-grow-1" role="tablist">
     <li class="nav-item" role="presentation">
@@ -46,6 +46,16 @@
     </button>
     </li>
     {% endif %}
+    <li class="nav-item" role="presentation">
+    <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab" aria-controls="history">
+        <i class="fa fa-clock-o"></i>&nbsp;History
+    </button>
+    </li>
+    <li class="nav-item" role="presentation">
+    <button class="nav-link" id="emails-tab" data-bs-toggle="tab" data-bs-target="#emails" type="button" role="tab" aria-controls="emails">
+        <i class="fa fa-envelope"></i>&nbsp;Emails
+    </button>
+    </li>
 </ul>
 <div class="tab-content">
     &nbsp;
@@ -338,11 +348,11 @@
             </table>
             <button type="submit" class="btn btn-danger">Remove Selected Judges</button>
         </form>
-    {% else %}
-        <p>{{ game.title }} currently has no judges assigned to review it.</p>
-    {% endif %}
+        {% else %}
+            <p>{{ game.title }} currently has no judges assigned to review it.</p>
+        {% endif %}
 
-    {% macro judge_list(judges, show_matching_genres=False) %}
+        {% macro judge_list(judges, show_matching_genres=False) %}
         <form method="post" class="mb-3" action="assign">
             {{ csrf_token() }}
             <input type="hidden" name="game_id" value="{{ game.id }}" />
@@ -379,9 +389,9 @@
             </table>
             <button type="submit" class="btn {% if show_matching_genres %}btn-success{% else %}btn-primary{% endif %}">Assign Selected Judges</button>
         </form>
-    {% endmacro %}
+        {% endmacro %}
 
-    {% if matching %}
+        {% if matching %}
         <hr/>
         {% if game.showcase_type == c.MIVS %}
         <h3>Judges Matching {{ game.title }}'s Platforms</h3>
@@ -395,9 +405,9 @@
         {% endif %}
 
         {{ judge_list(matching, show_matching_genres=True) }}
-    {% endif %}
+        {% endif %}
 
-    {% if nonmatching %}
+        {% if nonmatching %}
         <hr/>
         <h3>Other Judges</h3>
 
@@ -405,10 +415,33 @@
         who you may still assign to review this game anyway as you find appropriate.</p>
 
         {{ judge_list(nonmatching) }}
-    {% endif %}
-    {% if not matching and not nonmatching %}
+        {% endif %}
+        {% if not matching and not nonmatching %}
         <p>There are no{% if game.reviews %} other{% endif %} confirmed judges available to assign this game to.</p>
-    {% endif %}
+        {% endif %}
+    </div>
+    <div role="tabpanel" class="tab-pane" id="history" aria-labelledby="history-tab">
+        <table class="table table-striped table-bordered table-sm">
+        <thead><tr>
+            <th>Which</th>
+            <th>What</th>
+            <th>When</th>
+            <th>Who</th>
+            <th>Changes</th>
+        </tr></thead>
+        {% for tracked in changes %}
+            <tr>
+                <td valign="top" style="white-space:nowrap">{{ tracked.model }}</td>
+                <td valign="top" style="white-space:nowrap">{{ tracked.action_label }}</td>
+                <td valign="top" style="white-space:nowrap">{{ tracked.when|full_datetime_local }}</td>
+                <td valign="top" style="white-space:nowrap">{{ tracked.who_repr }}</td>
+                <td valign="top">{{ tracked.data }}</td>
+            </tr>
+        {% endfor %}
+        </table>
+    </div>
+    <div role="tabpanel" class="tab-pane" id="emails" aria-labelledby="emails-tab">
+        {{ macros.email_table(emails, table_classes="table-hover datatable") }}
     </div>
 </div>
 

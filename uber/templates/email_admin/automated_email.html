@@ -133,7 +133,7 @@
     </div>
     {% endif %}
     
-    <h2>Edit "{{ email.subject }}" <small>{% for id, name in email_depts %}<a href="pending?department_id={{ id }}">Back to {{ name }} Emails</a> | {% endfor %}<a href="pending">Back to{% if email_depts %} All{% endif %} Emails</a></small></h2>
+    <h2>Edit "{{ email.subject }}" <small>{% for id, name in email_depts %}<a href="pending?department_id={{ id }}">Back to {{ name }} Emails</a> | {% endfor %}<a href="pending">Back to{% if email_depts %} All{% endif %} Automated Emails</a></small></h2>
     {{ form_macros.form_validation('email-info', 'validate_automated_email') }}
     <form novalidate method="post" action="automated_email" id="email-info">
     {{ csrf_token() }}
@@ -182,11 +182,6 @@
         </button>
         </li>
         {% endif %}
-        <li class="nav-item" role="presentation">
-        <button class="nav-link" id="raw-template-tab" data-bs-toggle="tab" data-bs-target="#raw-template" type="button" role="tab" aria-controls="raw-template">
-            <i class="fa fa-code"></i>&nbsp;Raw Template
-        </button>
-        </li>
         {% if sent_emails %}
         <li class="nav-item" role="presentation">
         <button class="nav-link" id="sent-tab" data-bs-toggle="tab" data-bs-target="#sent" type="button" role="tab" aria-controls="sent">
@@ -194,6 +189,11 @@
         </button>
         </li>
         {% endif %}
+        <li class="nav-item" role="presentation">
+        <button class="nav-link" id="raw-template-tab" data-bs-toggle="tab" data-bs-target="#raw-template" type="button" role="tab" aria-controls="raw-template">
+            <i class="fa fa-code"></i>&nbsp;Raw Template
+        </button>
+        </li>
     </ul>
     <div class="tab-content">
         &nbsp;
@@ -206,59 +206,18 @@
                 If there are a lot of errors, contact your developer.
             </p>
             {% endif %}
-            <table class="table datatable table-hover table-sm">
-                <thead><tr>
-                    <th>Status</th>
-                    <th>Queued</th>
-                    <th>Send After</th>
-                    <th>Recipient</th>
-                    <th></th>
-                    <th data-orderable="false"></th>
-                </tr></thead>
-                {% for queued_email in queued_emails %}
-                <tr id="row-{{ queued_email.id }}">
-                    <td>{{ queued_email.status_label }}</td>
-                    <td>{{ queued_email.generated|datetime_local("%x %X") }}</td>
-                    <td>{% if queued_email.status == c.QUEUED %}{{ queued_email.send_after|datetime_local("%x %X") }}
-                        {% else %}N/A{% endif %}</td>
-                    <td>{{ queued_email.to }}</td>
-                    <td>{{ queued_email.error }}</td>
-                    <td>
-                        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#body-{{ queued_email.id }}">View</button>
-                        {% if queued_email.error %}
-                        <button type="button" class="btn btn-sm btn-danger" onClick="deleteEmail('{{ queued_email.id }}', '{{ queued_email.to }}')">Delete</button>
-                        <button type="button" class="btn btn-sm btn-info" onClick="requeueEmail('{{ queued_email.id }}', '{{ queued_email.to }}')">Requeue</button>
-                        {% endif %}
-                    </td>
-                </tr>
-            {% endfor %}
-            </table>
+            {{ macros.email_table(queued_emails, table_classes="datatable table-hover table-sm", department_id='None', hidden_cols=['subject']) }}
+        </div>
+        {% endif %}
+        {% if sent_emails %}
+        <div role="tabpanel" class="tab-pane" id="sent" aria-labelledby="sent-tab">
+            {{ macros.email_table(sent_emails, table_classes="datatable table-hover table-sm", department_id='None', hidden_cols=['subject'], sent_only=True) }}
         </div>
         {% endif %}
         <div role="tabpanel" class="tab-pane" id="raw-template" aria-labelledby="raw-template-tab">
             {%- set body_html = email.body_as_html if email.format == 'text' else email.body_with_body_tag_stripped -%}
             <code>{{ body_html|safe }}</code>
         </div>
-        {% if sent_emails %}
-        <div role="tabpanel" class="tab-pane" id="sent" aria-labelledby="sent-tab">
-            <table class="table datatable table-hover table-sm">
-                <thead><tr>
-                    <th>Sent</th>
-                    <th>Recipient</th>
-                    <th></th>
-                </tr></thead>
-                {% for sent_email in sent_emails %}
-                <tr>
-                    <td style="white-space:nowrap">{{ sent_email.sent|datetime_local("%x %X") }}</td>
-                    <td>{{ sent_email.to }}</td>
-                    <td>
-                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#body-{{ sent_email.id }}">View</button>
-                    </td>
-                </tr>
-            {% endfor %}
-            </table>
-        </div>
-        {% endif %}
     </div>
 </div>
 {% set email_queue = queued_emails + sent_emails %}

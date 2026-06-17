@@ -1,4 +1,4 @@
-from collections.abc import Mapping
+from collections import defaultdict
 from datetime import timedelta, datetime
 import pytz
 import uuid
@@ -15,7 +15,6 @@ from uber import utils
 from uber.amazon_ses import email_sender
 from uber.automated_emails import AutomatedEmailFixture
 from uber.config import c
-from uber.decorators import render
 from uber.email import EmailService
 from uber.models import AutomatedEmail, Email, MagModel, UberSession, Session
 from uber.tasks import celery
@@ -35,94 +34,6 @@ def _is_dev_email(email):
     return email.endswith('mailinator.com') or email in c.DEVELOPER_EMAIL
 
 
-@celery.task
-def send_email(
-        sender,
-        to,
-        subject,
-        body,
-        format='text',
-        cc=(),
-        bcc=(),
-        replyto=(),
-        model=None,
-        ident=None,
-        automated_email=None,
-        session=None):
-    return
-
-    to, cc, bcc, replyto = map(lambda x: utils.listify(x if x else []), [to, cc, bcc, replyto])
-    original_to, original_cc, original_bcc, original_replyto = to, cc, bcc, replyto
-    ident = ident or subject
-    if c.DEV_BOX:
-        to, cc, bcc, replyto = map(lambda xs: list(filter(_is_dev_email, xs)), [to, cc, bcc, replyto])
-
-    record_email = False
-
-    if c.SEND_EMAILS and to:
-        message = {
-            'bodyText' if format == 'text' else 'bodyHtml': body,
-            'subject': subject,
-            'charset': 'UTF-8',
-            }
-        log.info('Attempting to send email {}', locals())
-
-        try:
-            error_msg = email_sender.sendEmail(
-                            source=sender,
-                            toAddresses=to,
-                            replyToAddresses=replyto,
-                            ccAddresses=cc,
-                            bccAddresses=bcc,
-                            message=message)
-            if error_msg:
-                log.error('Error while sending email: ' + str(error_msg))
-            else:
-                record_email = True
-        except Exception as error:
-            log.error('Error while sending email: {}'.format(str(error)))
-        sleep(0.1)  # Avoid hitting rate limit
-    else:
-        log.error(f'Email sending turned off, so unable to send {locals()}')
-        record_email = True if c.DEV_BOX else False
-
-    if original_to:
-        body = body.decode('utf-8') if isinstance(body, bytes) else body
-        if isinstance(model, MagModel):
-            fk_kwargs = {'fk_id': model.id, 'model': model.__class__.__name__}
-        elif isinstance(model, Mapping):
-            fk_kwargs = {'fk_id': model.get('id', None), 'model': model.get('_model', model.get('__type__', 'n/a'))}
-        else:
-            fk_kwargs = {'model': 'n/a'}
-
-        if automated_email:
-            if isinstance(automated_email, MagModel):
-                fk_kwargs['automated_email_id'] = automated_email.id
-            elif isinstance(model, Mapping):
-                fk_kwargs['automated_email_id'] = automated_email.get('id', None)
-
-        if record_email:
-            email = Email(
-                subject=subject,
-                body=body,
-                sender=sender,
-                to=','.join(original_to),
-                cc=','.join(original_cc),
-                bcc=','.join(original_bcc),
-                replyto=','.join(original_replyto),
-                ident=ident,
-                **fk_kwargs)
-
-            session = session or getattr(model, 'session', getattr(automated_email, 'session', None))
-            if session:
-                session.add(email)
-                session.commit()
-            else:
-                with Session() as session:
-                    session.add(email)
-                    session.commit()
-
-
 @celery.schedule(crontab(hour=6, minute=0, day_of_week=1))
 def notify_admins_of_pending_emails():
     """
@@ -130,33 +41,36 @@ def notify_admins_of_pending_emails():
     emails which are ready to send, but can't be sent until they are approved
     by an admin.
 
-    This is important so we don't forget to let certain automated emails send.
+    Also notifies them if there's any emails with no policy.
     """
-    return
 
     if not c.PRE_CON or not (c.DEV_BOX or c.SEND_EMAILS):
         return
 
     with Session() as session:
-        pending_emails = session.query(AutomatedEmail).filter(*AutomatedEmail.filters_for_pending).all()
-        pending_emails_by_sender = utils.groupify(pending_emails, ['sender', 'ident'])
+        pending_emails = session.query(Email.automated_email_id, func.count(Email.id)).filter(Email.status == c.UNAPPROVED
+                                                                                              ).group_by(Email.automated_email_id)
+        pending_count_by_id = {id: count for id, count in pending_emails}
+        pending_automated_emails = session.query(AutomatedEmail).filter(AutomatedEmail.id.in_(pending_count_by_id.keys()))
+        pending_emails_by_sender = defaultdict(list)
+        depts_by_sender = EmailService.emails_from_depts(session)
 
-        for sender, emails_by_ident in pending_emails_by_sender.items():
+        for email in pending_automated_emails:
+            pending_emails_by_sender[email.sender].append({email: pending_count_by_id[email.id]})
+
+        for sender, automated_emails in pending_emails_by_sender.items():
             if sender == c.STAFF_EMAIL:
                 # STOPS receives a report on ALL the pending emails.
                 emails_by_sender = pending_emails_by_sender
-            elif sender == c.CONTACT_EMAIL:
+            elif sender not in depts_by_sender:
                 continue
             else:
-                emails_by_sender = {sender: emails_by_ident}
+                emails_by_sender = {sender: automated_emails}
 
-            for email in emails_by_ident.values():
-                if isinstance(email[0], AutomatedEmail):
-                    email[0].reconcile(AutomatedEmail._fixtures[email[0].ident])
-
-            EmailService.queue_email(session, 'pending_emails_admin', to=c.REPORTS_EMAIL, sender=sender,
+            EmailService.queue_email(session, 'pending_emails_admin', to=sender, sender=c.REPORTS_EMAIL,
                                      subject=f'{c.EVENT_NAME} Pending Emails Report for {utils.localized_now().strftime('%Y-%m-%d')}',
-                                     data={'pending_emails_by_sender': emails_by_sender, 'primary_sender': sender},
+                                     data={'pending_emails_by_sender': emails_by_sender, 'primary_sender': sender,
+                                           'depts_by_sender': depts_by_sender},
                                      replace_unsent=True)
 
         return utils.groupify(pending_emails, 'sender', 'ident')

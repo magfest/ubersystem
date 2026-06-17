@@ -2,7 +2,7 @@ from wtforms import validators
 from wtforms.validators import ValidationError, StopValidation
 
 from uber.config import c
-from uber.forms.department import DepartmentInfo, BulkPrintingRequestInfo, BaseJobInfo, JobInfo, JobTemplateInfo
+from uber.forms.department import DepartmentInfo, BulkPrintingRequestInfo, BaseJobInfo, JobInfo, JobTemplateInfo, EmailInfo
 from uber.models import Session, Department
 from uber.model_checks import validation
 from uber.utils import localized_now
@@ -83,3 +83,14 @@ BulkPrintingRequestInfo.field_validation.required_fields = {
                   'size', lambda x: x == c.CUSTOM),
     'link_is_shared': "Please verify that you have made sure the link to this document is publically viewable.",
 }
+
+
+@EmailInfo.field_validation('active_after')
+def date_restriction_logical(form, field):
+    if not field.data:
+        return
+
+    active_before = form.active_before.data
+
+    if active_before and field.data >= active_before:
+        raise StopValidation(f"This value cannot be set later than the \"Don't Send After\" date.")

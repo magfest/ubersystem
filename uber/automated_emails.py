@@ -183,7 +183,6 @@ AutomatedEmailFixture(
     'accounts/new_account.txt', None,
     'new_admin_account',
     sender=c.ADMIN_EMAIL,
-    send_filter='lambda a: a.admin_account',
 )
 
 
@@ -193,7 +192,6 @@ AutomatedEmailFixture(
     'accounts/password_reset.txt', None,
     'admin_password_reset',
     sender=c.ADMIN_EMAIL,
-    send_filter='lambda a: a.admin_account',
 )
 
 
@@ -203,7 +201,6 @@ AutomatedEmailFixture(
     'accounts/password_reset.html', None,
     'attendee_password_reset',
     sender=c.ADMIN_EMAIL,
-    send_filter='lambda a: a.admin_account',
 )
 
 
@@ -724,6 +721,14 @@ if c.DEALER_REG_START:
         sender=c.MARKETPLACE_EMAIL,
     )
 
+    AutomatedEmailFixture(
+        Attendee,
+        f'{c.EVENT_NAME} {c.DEALER_LOC_TERM.title()} Waitlist Has Been Exhausted',
+        'dealers/badge_converted.html', None,
+        'dealer_waitlist_exhausted',
+        sender=c.MARKETPLACE_EMAIL,
+    )
+
     MarketplaceEmailFixture(
         f'{c.DEALER_APP_TERM.title()} Received',
         'dealers/application.html', None,
@@ -734,13 +739,15 @@ if c.DEALER_REG_START:
         f'Your {c.EVENT_NAME} {c.DEALER_APP_TERM.capitalize()} has been waitlisted',
         'dealers/waitlisted.txt',
         "lambda g: g.status == c.WAITLISTED",
-        'dealer_reg_waitlisted')
+        'dealer_reg_waitlisted',
+        shared_ident='dealer_reg_waitlisted')
 
     MarketplaceEmailFixture(
         f'Your {c.EVENT_NAME} {c.DEALER_APP_TERM.capitalize()} has been declined',
         'dealers/declined.txt',
         "lambda g: g.status == c.DECLINED",
-        'dealer_reg_declined')
+        'dealer_reg_declined',
+        shared_ident='dealer_reg_declined')
 
     MarketplaceEmailFixture(
         f'Your {c.EVENT_NAME} {c.DEALER_APP_TERM.capitalize()} has been approved',
@@ -1273,7 +1280,6 @@ if c.ENABLED_INDIES_STR:
         'accounts/new_account.txt', None,
         'new_judge_admin_account',
         sender=c.INDIE_SHOWCASE_EMAIL,
-        send_filter=lambda a: a.admin_account,
     )
 
     AutomatedEmailFixture(

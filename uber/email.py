@@ -12,6 +12,7 @@ from uber.amazon_ses import email_sender
 from uber.automated_emails import AutomatedEmailFixture
 from uber.config import c
 from uber.custom_tags import email_only, readable_join
+from uber.decorators import reconcile_fixtures
 from uber.models import AutomatedEmail, Email
 from uber.utils import listify, localized_now
 
@@ -19,11 +20,8 @@ log = logging.getLogger(__name__)
 
 
 class EmailHandler:
+    @reconcile_fixtures
     def __init__(self, fixture_obj=None, to_model=None, email_obj=None, **kwargs):
-        if not AutomatedEmail.initialized:
-            AutomatedEmail.reconcile_fixtures()
-            AutomatedEmail.initialized = True
-
         if email_obj:
             self.email_obj = email_obj
         else:
@@ -270,22 +268,21 @@ class EmailService:
         # Check that the object associated with this email still exists and is still eligible for emails
         if email.fk_id:
             if not to_model:
-                email.error = f"Could not find a {email.model} model with ID {email.fk_id}."
+                email.error = f"Could not find a {email.model} model with ID {email.fk_id}"
                 return
             if not to_model.email_to_address:
-                email.error = f"Model {to_model} does not have an email address."
+                email.error = f"Model {to_model} does not have an email address"
                 return
             if not to_model.gets_emails:
                 session.delete(email)
                 return
 
         if fixture_obj and not fixture_obj.fixture:
-            email.error = f"Fixture {email.ident} is no longer defined and cannot be sent."
+            email.error = f"Fixture {email.ident} is no longer defined and cannot be sent"
             return
-            
-        #email_handler = EmailHandler(fixture_obj, to_model, email)
-        # TODO: Move this code into EmailHandler
+
         fixture = fixture_obj.fixture if fixture_obj else None
+        local_now_str = localized_now().strftime('%b %-d %-I:%M%p')
 
         if to_model:
             def listify_if_exists(x): return ','.join(listify(x if x else []))
@@ -302,6 +299,8 @@ class EmailService:
                 return
 
             if fixture.send_filter is not None and not fixture.send_filter(to_model):
+                email.status_text = f"Requeued {local_now_str}: Model {to_model} does not match the send filter yet"
+                email.send_after = email.new_send_after
                 return
         
         if fixture_obj:
@@ -309,12 +308,15 @@ class EmailService:
                 # Generate body if possible, then check against stored body. If it's different, save the new body and requeue it
                 render_data = fixture_obj.renderable_data(to_model, email.render_data)
 
-                email.subject = (email.subject or fixture_obj.subject).format(render_data)
                 current_body = fixture_obj.render_template(fixture_obj.body, render_data)
                 if current_body != email.body:
                     email.body = current_body
                     email.generated = datetime.now(pytz.UTC)
+                    email.send_after = email.new_send_after
+                    email.status_text = f"Requeued {local_now_str}: Email body changed"
                     return
+
+                email.subject = (email.subject or fixture_obj.subject).format(render_data)
 
         missing = []
         if not email.subject:
@@ -327,7 +329,7 @@ class EmailService:
             missing.append('from address')
 
         if missing:
-            email.error = f"Email {email.id} cannot be sent: missing {readable_join(missing)}."
+            email.error = f"Email {email.id} cannot be sent: missing {readable_join(missing)}"
             return
         
         try:
@@ -347,25 +349,22 @@ class EmailService:
                     message=ses_payload)
 
             if error_msg:
-                email.error = f"Error while sending email: {str(error_msg)}."
-            else:
-                email.status = c.SENT
-                email.sent = datetime.now(pytz.UTC)
-                return email
+                email.error = f"Error while sending email: {str(error_msg)}"
+                return
+            email.status = c.SENT
+            email.sent = datetime.now(pytz.UTC)
+            return email
         except Exception as error:
-            email.error = f"Error while sending email: {str(error)}."
-
+            email.error = f"Error while sending email: {str(error)}"
 
     @staticmethod
+    @reconcile_fixtures
     def queue_email(session, ident='', to_model=None, to='', data={}, limit_one=False, replace_unsent=False, **kwargs):
         """
         Queues a single email, either by ident/fixture or with a custom subject and body passed.
         This would emit a lot of roundtrip DB calls for large operations, so functions like
         `check_emails_for_fixture` and `check_emails_for_model` reimplement this logic using database filters.
         """
-        if not AutomatedEmail.initialized:
-            AutomatedEmail.reconcile_fixtures()
-            AutomatedEmail.initialized = True
 
         if not to_model and not to:
             log.error(f"Misconfigured email '{ident}': no recipient specified.")
@@ -393,8 +392,10 @@ class EmailService:
             return
 
         email_handler.queue_email_obj(session)
+        if 'status_text' in kwargs:
+            email_handler.email_obj.status_text = kwargs['status_text']
 
-    def emails_from_depts(session, dept_ids):
+    def emails_from_depts(session, dept_ids=[]):
         """
         Takes a list of department IDs and returns a dictionary with email addresses as keys and Department objects as values.
         This lets us both filter emails by department and display which departments are associated with a particular email address.

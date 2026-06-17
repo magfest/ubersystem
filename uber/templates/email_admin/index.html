@@ -27,12 +27,10 @@
             <div class="col-sm">
                 <label for="department_id" class="form-text">Department</label>
                 <select id="department_id" onChange="deptIdChanged()" class="form-select">
-                {% if c.ADMIN_DEPARTMENTS|length > 1 %}
                     <option value="">Filter by department</option>
                     {% if c.HAS_FULL_EMAIL_ADMIN_ACCESS %}<option value="None"{% if department_id == 'None' %} selected{% endif %}>No Department</option>{% endif %}
                     <option value="All"{% if department_id == 'All' %} selected{% endif %}>All Departments</option>
-                {% endif %}
-                {{ options(c.ADMIN_DEPARTMENT_OPTS, department_id) }}
+                {{ options(c.get_dept_opts(admin_access=True, has_email=True), department_id) }}
                 </select>
             </div>
             <div class="col-sm">
@@ -80,53 +78,10 @@
     </div>
 <div class="card-body">
     {{ pages(page, count) }}
-<table class="table table-striped table-bordered table-sm">
-<thead><tr>
-    <th>Status</th>
-    <th>Generated</th>
-    <th>Send After</th>
-    {% if not department_id or department_id == 'All' %}
-    <th>Department</th>
-    {% endif %}
-    <th>Subject</th>
-    <th>Recipient</th>
-    <th></th>
-    <th></th>
-</tr></thead>
-{% for email in emails %}
-    <tr>
-        <td>{{ email.status_label }}</td>
-        <td style="white-space:nowrap">{{ email.generated|datetime_local("%x %X") }}</td>
-        <td>
-            {% if email.sent %}Sent {{ email.sent|datetime_local("%x %X") }}
-            {% elif email.status == c.QUEUED %}{{ email.send_after|datetime_local("%x %X") }}
-            {% else %}N/A{% endif %}
-        </td>
-        {% if not department_id or department_id == 'All' %}
-        <td>{{ depts_by_sender[email.sender] or 'N/A' }}</td>
-        {% endif %}
-        <td>{{ email.subject }}</td>
-        <td>{{ email.to }}</td>
-        <td>{{ email.error }}</td>
-        <td>
-            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#body-{{ email.id }}">View</button>
-            {% if email.status == c.SENT and False %}
-            <form method="post" action="resend_email" id="resend_email_{{ email.id }}">
-                {{ csrf_token() }}
-                <input type="hidden" name="id" value="{{ email.id }}" />
-                <button class="btn btn-sm btn-primary" type="submit">Resend Email</button>
-            </form>
-            {% elif email.error %}
-            <button type="button" class="btn btn-sm btn-danger" onClick="deleteEmail('{{ email.id }}', '{{ email.to }}')">Delete</button>
-            <button type="button" class="btn btn-sm btn-info" onClick="requeueEmail('{{ email.id }}', '{{ email.to }}')">Requeue</button>
-            {% endif %}
-        </td>
-    </tr>
-{% endfor %}
-</table>
+{{ macros.email_table(emails, department_id=department_id, index_page=True) }}
 </div>
 </div>
 {% set email_queue = emails %}
+{% set index_page = True %}
 {% include 'email_admin/manage_email.html' with context %}
-{{ "js/resend-email-form.js"|serve_static_content }}
 {% endblock %}
