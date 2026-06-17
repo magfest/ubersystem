@@ -5,6 +5,7 @@ from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.decorators import all_renderable, ajax, xlsx_file
+from uber.email import EmailService
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, BadgeInfo, Tracking, ArtistMarketplaceApplication, Email, PageViewTracking, ReceiptTransaction
@@ -124,7 +125,6 @@ class Root:
                 c.STRIPE: "Authorize.net" if c.AUTHORIZENET_LOGIN_ID else "Stripe",
                 c.SQUARE: "SPIn" if c.SPIN_TERMINAL_AUTH_KEY else "Square",
                 c.MANUAL: "Stripe"},
-            'emails': session.query(Email).filter(Email.fk_id == id).order_by(Email.generated).all(),
             'changes': session.query(Tracking).filter(
                 or_(Tracking.links.like('%artist_marketplace_application({})%'.format(id)),
                     and_(Tracking.model == 'ArtistMarketplaceApplication',
@@ -132,6 +132,14 @@ class Root:
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(app)
                                                                 ).order_by(PageViewTracking.when).all(),
             'receipt_items': marketplace_items_and_txns,
+        }
+    
+    def emails(self, session, id):
+        app = session.artist_marketplace_application(id)
+        return {
+            'app': app,
+            'emails': session.query(Email).filter(Email.fk_id == id).order_by(Email.generated).all(),
+            'depts_by_sender': EmailService.emails_from_depts(session),
         }
 
     @xlsx_file

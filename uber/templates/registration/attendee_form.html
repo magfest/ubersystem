@@ -107,6 +107,11 @@ loadForm("{{ tab_view }}");
               <i class="fa fa-clock-o"></i>&nbsp;History
             </button>
           </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="attendeeEmails-tab" onClick="loadForm('Emails')" data-bs-toggle="tab" data-bs-target="#attendeeEmails" type="button" role="tab" aria-controls="attendeeEmails">
+              <i class="fa fa-envelope"></i>&nbsp;Emails
+            </button>
+          </li>
           {% if attendee.banned and c.HAS_SECURITY_ADMIN_ACCESS %}
           <li class="nav-item" role="presentation">
             <button class="nav-link" id="attendeeWatchlist-tab" onClick="loadForm('Watchlist')" data-bs-toggle="tab" data-bs-target="#attendeeWatchlist" type="button" role="tab" aria-controls="attendeeWatchlist">
@@ -134,6 +139,7 @@ loadForm("{{ tab_view }}");
         {% endif %}
         {% if not attendee.is_new %}
         <div role="tabpanel" class="tab-pane" id="attendeeHistory" aria-labelledby="attendeeHistory-tab"></div>
+        <div role="tabpanel" class="tab-pane" id="attendeeEmails" aria-labelledby="attendeeEmails-tab"></div>
         {% endif %}
         {% if attendee.banned and c.HAS_SECURITY_ADMIN_ACCESS %}
         <div role="tabpanel" class="tab-pane" id="attendeeWatchlist" aria-labelledby="attendeeWatchlist-tab"></div>

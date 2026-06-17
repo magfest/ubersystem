@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Automated Emails Pending Approval{% endblock %}
+{% block title %}Automated Emails{% endblock %}
 {% block content %}
 <script type="text/javascript">
     var deptIdChanged = function () {
@@ -11,6 +11,26 @@
     var goToSender = function () {
       location.href = "#" + $('#sender').val();
     }
+    $().ready(function () {
+      $('.delete-form').on('submit', function(event) {
+        event.preventDefault();
+        var $toSubmit = $(this);
+        bootbox.confirm({
+          backdrop: true,
+          title: "Delete Automated Email?",
+          message: '<p>This email does not have configuration associated with it. If this configuration was removed intentionally, you can delete the email from the database.</p>',
+          buttons: {
+            confirm: { label: '<i class="fa fa-remove"></i> Delete', className: 'btn-danger' },
+            cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+          },
+          callback: function (result) {
+            if (result) {
+              $toSubmit[0].submit();
+            }
+          }
+        });
+      });
+    })
 </script>
 
 {% macro email_table(emails) %}
@@ -44,11 +64,23 @@
         <td>{{ (email.can_generate and (email.policy or not email.filter))|yesno|title }}</td>
         <td>
           {% if email.fixture %}
-          <a href="automated_email?id={{ email.id }}&department_id={{ department_id }}" class="btn btn-primary btn-sm"><i class="fa fa-pencil"></i>&nbsp;View/Edit</a>
+            <a href="automated_email?id={{ email.id }}&department_id={{ department_id }}" class="btn btn-primary btn-sm"><i class="fa fa-pencil"></i>&nbsp;View/Edit</a>
           {% else %}
-          <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="tooltip" data-bs-placement="top" title="This email does not have configuration and cannot be viewed at this time.">
-            <i class="fa fa-exclamation-circle"></i>
-          </button>
+            {% if c.HAS_FULL_EMAIL_ADMIN_ACCESS %}
+              <form action="delete_automated_email" method="post" class="delete-form">
+                {{ csrf_token() }}
+                <input type="hidden" name="id" value="{{ email.id }}" />
+                <input type="hidden" name="department_id" value="{{ department_id }}" />
+                <input type="hidden" name="policy" value="{{ policy }}" />
+                <button type="submit" class="btn btn-sm btn-danger">
+                <i class="fa fa-remove"></i> Delete
+                </button>
+              </form>
+            {% else %}
+            <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="tooltip" data-bs-placement="top" title="This email does not have configuration and cannot be viewed at this time.">
+              <i class="fa fa-exclamation-circle"></i>
+            </button>
+            {% endif %}
           {% endif %}
         </td>
       </tr>
@@ -64,12 +96,10 @@
       <div class="col-6 col-sm-4">
           <label for="department_id" class="form-text">Department</label>
           <select id="department_id" onChange="deptIdChanged()" class="form-select">
-          {% if c.ADMIN_DEPARTMENTS|length > 1 %}
             <option value="">Filter by department</option>
             {% if c.HAS_FULL_EMAIL_ADMIN_ACCESS %}<option value="None"{% if department_id == 'None' %} selected{% endif %}>No Department</option>{% endif %}
             <option value="All"{% if department_id == 'All' %} selected{% endif %}>All Departments</option>
-          {% endif %}
-          {{ options(c.ADMIN_DEPARTMENT_OPTS, department_id) }}
+          {{ options(c.get_dept_opts(admin_access=True, has_email=True), department_id) }}
           </select>
       </div>
       <div class="col-6 col-sm-4">
@@ -97,6 +127,27 @@
     </select>
     </div>
     </div>
+  {% endif %}
+  {% if checklist.relevant and (c.DEPT_CHECKLIST_OPEN or c.DEV_BOX) %}
+    <p>
+    {% if checklist.completed %}
+        You've already indicated that you have configured your department's automated emails but you can change their configuration below as needed.
+    {% else %}
+        <a href="#" onClick="$('#checkoff').show(); return false;">As a head of this department, this looks good to me.</a>
+        <form id="checkoff" style="display:none" method="post" action="../dept_checklist/mark_item_complete">
+        {{ csrf_token() }}
+        <input type="hidden" name="department_id" value="{{ department_id }}" />
+        <input type="hidden" name="slug" value="{{ checklist.conf.slug }}" />
+        By clicking this button, you are telling us you've reviewed your department's automated emails and confirmed:
+        <ul>
+          <li>that all the emails you want to send this year are marked as either {{ c.EMAIL_POLICYS[c.AUTOSEND] }} or {{ c.EMAIL_POLICYS[c.NEEDS_APPROVAL] }}</li>
+          <li>that you have reviewed the wording for these emails and they are either correct or you will request changes for them</li>
+          <li>that you or another department head will review and mark your department's unapproved emails for sending as appropriate</li>
+        </ul>
+        <button type="submit" class="btn btn-primary">I've configured all my department's automated emails</button>
+        </form>
+    {% endif %}
+    </p>
   {% endif %}
   <hr/>
   {% for sender, emails in automated_emails.items() %}

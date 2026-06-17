@@ -15,11 +15,12 @@ from typing import Any, ClassVar
 
 from uber import utils
 from uber.config import c
+from uber.custom_tags import readable_join
 from uber.decorators import presave_adjustment, renderable_data, cached_property, classproperty
 from uber.jinja import JinjaEnv
 from uber.models import MagModel
 from uber.models.types import DefaultField as Field, DefaultRelationship as Relationship, Choice, DefaultColumn as Column
-from uber.utils import normalize_newlines, request_cached_context, groupify
+from uber.utils import normalize_newlines, request_cached_context, groupify, listify
 
 log = logging.getLogger(__name__)
 
@@ -72,7 +73,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
     format: str = 'text'
     ident: str = Field(default='', unique=True)
     policy: int | None = Field(sa_column=Column(Choice(c.EMAIL_POLICY_OPTS), index=True, nullable=True), default=None)
-    policy_permanent: bool = False
+    default_policy: int | None = Field(sa_column=Column(Choice(c.EMAIL_POLICY_OPTS), nullable=True), default=None)
     allow_at_the_con: bool = False
     allow_post_con: bool = False
     active_after: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
@@ -98,6 +99,13 @@ class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
             except ValueError:
                 self.active_before = dateparser.parse(self.active_before)
 
+    @presave_adjustment
+    def null_policies(self):
+        if not self.policy:
+            self.policy = None
+        if not self.default_policy:
+            self.default_policy = None
+
     @classproperty
     def filters_for_allowed(cls):
         allowed = [cls.policy != None, cls.policy != c.DISABLED]
@@ -113,17 +121,6 @@ class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
         return cls.filters_for_allowed + [
             or_(cls.active_after == None, cls.active_after <= now),  # noqa: E711
             or_(cls.active_before == None, cls.active_before >= now)]  # noqa: E711
-
-    @staticmethod
-    def reset_fixture_attr(session, ident, key):
-        fixture = AutomatedEmail._fixtures.get(ident, None)
-        if not fixture:
-            log.error(f"We tried to update fixture ident {ident}, but it wasn't in our list of email fixtures!")
-            return
-        
-        automated_email = session.query(AutomatedEmail).filter_by(ident=ident).first() or AutomatedEmail(ident=ident)
-
-        session.add(automated_email.reconcile(fixture))
 
     @staticmethod
     def reconcile_fixtures():
@@ -268,33 +265,6 @@ class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
         with request_cached_context(clear_cache_on_start=True):
             return JinjaEnv.env().from_string(text).render(data)
 
-    def send_to(self, model_instance, delay=True, raise_errors=False, session=None):
-        return
-        try:
-            from uber.tasks.email import send_email
-            data = self.renderable_data(model_instance)
-            send_func = send_email.delay if delay else send_email
-            send_func(
-                self.sender,
-                model_instance.email_to_address,
-                self.render_template(self.subject, data),
-                self.render_template(self.body, data),
-                self.format,
-                model=model_instance.to_dict('id'),
-                cc=self.cc or model_instance.cc_emails_for_ident(self.ident),
-                bcc=self.bcc or model_instance.bcc_emails_for_ident(self.ident),
-                replyto=self.replyto or model_instance.replyto_emails_for_ident(self.ident),
-                ident=self.ident,
-                automated_email=self.to_dict('id'),
-                session=session)
-            return True
-        except Exception:
-            traceback.print_exc()
-            log.error(f'Error sending {self.subject} email to {model_instance.email_to_address}', exc_info=True)
-            if raise_errors:
-                raise
-        return False
-
     def would_send_if_approved(self, model_instance):
         return model_instance and getattr(model_instance, 'email_to_address', False) and self.filter(model_instance)
 
@@ -308,6 +278,7 @@ class Email(MagModel, BaseEmailMixin, table=True):
     to: str = ''
     render_data: dict[str, Any] = Field(sa_type=JSON, default_factory=dict)
     status: int = Field(sa_column=Column(Choice(c.EMAIL_STATUS_OPTS), index=True), default=c.UNAPPROVED)
+    status_text: str = ''
     generated: str = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
     send_after: str | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
     sent: str | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
@@ -320,14 +291,24 @@ class Email(MagModel, BaseEmailMixin, table=True):
     
     @presave_adjustment
     def set_errored_status(self):
-        if self.error:
+        if self.error and not self.status == c.SENT:
             self.status = c.ERRORED
 
     @property
     def fk_email(self):
         if self.fk:
-            return self.fk.leader.email_to_address if (self.model == 'Group') else self.fk.email_to_address
+            return self.fk.email_to_address
         return self.to
+    
+    @property
+    def readable_fk_email_or_to(self):
+        if self.fk:
+            return readable_join(listify(self.fk.email_to_address))
+        return self.to
+    
+    @property
+    def readable_to(self):
+        return readable_join(self.to.split(','))
 
     @property
     def format(self):

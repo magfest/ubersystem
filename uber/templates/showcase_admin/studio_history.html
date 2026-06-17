@@ -1,18 +1,14 @@
 {% extends "base.html" %}{% set admin_area=True %}
-{% block title %}Art Show {{ c.ART_SHOW_APP_TERM|title }} History - {{ app.attendee.full_name }}{% endblock %}
+{% block title %}Indie Studio History - {{ studio.name }}{% endblock %}
 {% block content %}
-
 {{ macros.nav_menu(
-app, c.PAGE_PATH,
-"form?id={id}", "App Form", True,
-"history?id={id}", "History", True,
-"emails?id={id}", "Emails", True,
-"../reg_admin/receipt_items?id={id}", "Receipt Items", c.HAS_REG_ADMIN_ACCESS,
-"index", "Return to App List", True
+studio, c.PAGE_PATH,
+"studio?id={id}", "Studio Form", True,
+"studio_history?id={id}", "History", True,
+"studio_emails?id={id}", "Emails", True,
+"studios", "Return to Studio List", True
 ) }}
-
-<h2>Changelog for {{ app.attendee.full_name }}'s Art Show {{ c.ART_SHOW_APP_TERM|title }}</h2>
-
+<h2>Changelog for Indie Studio "{{ studio.name }}"</h2>
 <table class="table table-striped table-bordered table-sm">
 <thead><tr>
     <th>Which</th>
@@ -31,5 +27,4 @@ app, c.PAGE_PATH,
     </tr>
 {% endfor %}
 </table>
-
 {% endblock %}

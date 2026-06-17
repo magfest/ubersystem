@@ -142,7 +142,7 @@ class IndieStudio(MagModel, table=True):
     website: str = ''
     other_links: str = Field(sa_type=UniqueList, default='')
 
-    status: int = Field(sa_column=Choice(c.MIVS_STUDIO_STATUS_OPTS), default=c.NEW)
+    status: int = Field(sa_column=Choice(c.MIVS_STUDIO_STATUS_OPTS), default=c.NEW)  # Remove?
     staff_notes: str = ''
     registered: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
 
@@ -309,8 +309,9 @@ class IndieStudio(MagModel, table=True):
 
     @property
     def comped_badges(self):
-        game_count = len([g for g in self.games if g.status == c.ACCEPTED])
-        return c.MIVS_INDIE_BADGE_COMPS * game_count
+        for game in self.games:
+            if game.status == c.ACCEPTED:
+                return c.MIVS_INDIE_BADGE_COMPS
 
     @property
     def unclaimed_badges(self):

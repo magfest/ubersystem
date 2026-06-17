@@ -92,9 +92,9 @@ def decline_and_convert_dealer_group(session, group, status=c.DECLINED, admin_no
         return 'Group {} status removed'.format(c.DEALER_TERM)
 
     if status == c.WAITLISTED:
-        email_subject = f"{c.EVENT_NAME} {c.DEALER_LOC_TERM.title()} Waitlist Has Been Exhausted"
+        ident = 'dealer_waitlist_exhausted'
     else:
-        email_subject = f"Update About Your {c.EVENT_NAME} Registration"
+        ident = 'dealer_decline_convert'
     message = ['Group declined']
     emails_sent = 0
     badges_converted = 0
@@ -105,7 +105,7 @@ def decline_and_convert_dealer_group(session, group, status=c.DECLINED, admin_no
             convert_dealer_badge(session, attendee, admin_note)
             if email_leader or attendee != group.leader:
                 EmailService.queue_email(
-                    session, 'dealer_decline_convert', attendee, subject=email_subject,
+                    session, ident, attendee,
                     data={'group': group, 'other_badges': assigned_badges - 1})
                 emails_sent += 1
 
@@ -202,9 +202,9 @@ class Root:
         group = session.group(id)
         subject = 'Your {} {} has been {}'.format(c.EVENT_NAME, c.DEALER_REG_TERM, action)
         if group.email:
-            ident = 'dealer_reg_waitlisted' if action == 'waitlisted' else 'dealer_reg_declined'
-            EmailService.queue_email(session, ident, group, sender=c.MARKETPLACE_EMAIL, subject=subject,
-                                     body=email_text, bcc=c.MARKETPLACE_NOTIFICATIONS_EMAIL)
+            shared_ident = 'dealer_reg_waitlisted' if action == 'waitlisted' else 'dealer_reg_declined'
+            EmailService.queue_email(session, shared_ident + '_custom', group, sender=c.MARKETPLACE_EMAIL, subject=subject,
+                                     body=email_text, bcc=c.MARKETPLACE_NOTIFICATIONS_EMAIL, shared_ident=shared_ident)
         if action == 'waitlisted':
             group.status = c.WAITLISTED
         elif convert == True:

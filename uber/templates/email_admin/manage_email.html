@@ -10,7 +10,7 @@
     <div class="modal-content">
         <div class="modal-header">
             <h4 class="modal-title" id="body-{{ queued_email.id }}-title">
-                Email Details ({{ queued_email.to }})
+                Email Details
                 {% if queued_email.status == c.SENT %}
                 <span class="badge bg-success">Sent {{ queued_email.sent|full_datetime_local }}</span>
                 {% elif queued_email.status == c.UNAPPROVED %}
@@ -24,7 +24,8 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
         <div class="modal-body">
-            <strong>To</strong>: {{ queued_email.to }}
+            <strong>From</strong>: {{ queued_email.sender }}
+            <br/><strong>To</strong>: {{ queued_email.to }}
             <br/><strong>Subject</strong>: {{ queued_email.subject }}
             {% if queued_email.cc %}<br/><strong>CC</strong>: {{ queued_email.cc }}{% endif %}
             {% if queued_email.bcc %}<br/><strong>BCC</strong>: {{ queued_email.bcc }}{% endif %}
@@ -50,11 +51,12 @@
 {% endfor %}
 
 <script type="text/javascript">
-    var deleteEmail = function (id, recipient) {
+    {% if index_page or c.HAS_FULL_EMAIL_ADMIN_ACCESS %}
+    var deleteEmail = function (id, subject, recipient) {
         bootbox.confirm({
                 backdrop: true,
                 title: "Delete This Email to " + recipient + "?",
-                message: '<p>This queued email to ' + recipient + ' will be permanently deleted. Only do this if you are sure it will never or should never be sent.</p>',
+                message: '<p>This queued email (\"" + subject + "\") to ' + recipient + ' will be permanently deleted. Only do this if you are sure it will never or should never be sent.</p>',
                 buttons: {
                     confirm: { label: 'Delete', className: 'btn-danger' },
                     cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
@@ -63,7 +65,7 @@
                     if (result) {
                         $.ajax({
                         method: 'POST',
-                        url: 'delete_email',
+                        url: '../email_admin/delete_email',
                         dataType: 'json',
                         data: {
                             id: id,
@@ -88,20 +90,20 @@
                 }
             });
     }
-    var requeueEmail = function (id, recipient) {
+    var approveEmail = function (id, subject, recipient) {
         bootbox.confirm({
                 backdrop: true,
-                title: "Requeue This Email to " + recipient + "?",
-                message: "<p>This email's error will be cleared and it will be put back into the queue for sending. The error may occur again if the underlying issue was not fixed.</p>",
+                title: "Approve This Email to " + recipient + "?",
+                message: "<p>This email (\"" + subject + "\") will be approved for sending to " + recipient + ". Other copies of this email to other recipients will remain unapproved.</p>",
                 buttons: {
-                    confirm: { label: 'Requeue', className: 'btn-primary' },
+                    confirm: { label: 'Approve', className: 'btn-primary' },
                     cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
                 },
                 callback: function (result) {
                     if (result) {
                         $.ajax({
                         method: 'POST',
-                        url: 'requeue_email',
+                        url: '../email_admin/approve_email',
                         dataType: 'json',
                         data: {
                             id: id,
@@ -114,6 +116,195 @@
                                 $("#message-alert").addClass("alert-info").show().children('span').html(message);
                                 window.scrollTo(0,0); setTimeout(() => { window.scrollTo(0, 0); }, 100);
                                 $('#row-' + id).remove()
+                            } else {
+                                showErrorMessage(message);
+                            }
+                        },
+                        error: function () {
+                            showErrorMessage('Unable to connect to server, please try again.');
+                        }
+                    });
+                    }
+                }
+            });
+    }
+    var requeueEmail = function (id, subject, recipient) {
+        bootbox.confirm({
+                backdrop: true,
+                title: "Requeue This Email to " + recipient + "?",
+                message: "<p>This email (\"" + subject + "\") will have its error cleared and it will be put back into the queue for sending. The error may occur again if the underlying issue was not fixed.</p>",
+                buttons: {
+                    confirm: { label: 'Requeue', className: 'btn-primary' },
+                    cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+                },
+                callback: function (result) {
+                    if (result) {
+                        $.ajax({
+                        method: 'POST',
+                        url: '../email_admin/requeue_email',
+                        dataType: 'json',
+                        data: {
+                            id: id,
+                            csrf_token: csrf_token,
+                        },
+                        success: function (json) {
+                            hideMessageBox();
+                            var message = json.message;
+                            if (json.success) {
+                                $("#message-alert").addClass("alert-info").show().children('span').html(message);
+                                window.scrollTo(0,0); setTimeout(() => { window.scrollTo(0, 0); }, 100);
+                                $('#row-' + id).remove()
+                            } else {
+                                showErrorMessage(message);
+                            }
+                        },
+                        error: function () {
+                            showErrorMessage('Unable to connect to server, please try again.');
+                        }
+                    });
+                    }
+                }
+            });
+    }
+    var sendEmail = function (id, subject, recipient) {
+        bootbox.confirm({
+                backdrop: true,
+                title: "Send This Email to " + recipient + " Now?",
+                message: "<p>This email (\"" + subject + "\") will be instantly sent to " + recipient + ". Other copies of this email to other recipients will not be affected.</p>",
+                buttons: {
+                    confirm: { label: 'Send Now', className: 'btn-success' },
+                    cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+                },
+                callback: function (result) {
+                    if (result) {
+                        $.ajax({
+                        method: 'POST',
+                        url: '../email_admin/send_email',
+                        dataType: 'json',
+                        data: {
+                            id: id,
+                            csrf_token: csrf_token,
+                        },
+                        success: function (json) {
+                            hideMessageBox();
+                            var message = json.message;
+                            if (json.success) {
+                                $("#message-alert").addClass("alert-info").show().children('span').html(message);
+                                window.scrollTo(0,0); setTimeout(() => { window.scrollTo(0, 0); }, 100);
+                                $('#row-' + id).remove()
+                            } else {
+                                showErrorMessage(message);
+                            }
+                        },
+                        error: function () {
+                            showErrorMessage('Unable to connect to server, please try again.');
+                        }
+                    });
+                    }
+                }
+            });
+    }
+    {% endif %}
+    var resendEmail = function (id, subject, recipient) {
+        bootbox.confirm({
+                backdrop: true,
+                title: "Resend This Email to " + recipient + "?",
+                message: "<p>Another copy of this email (\"" + subject + "\") will be sent to " + recipient + ". This is useful if, e.g., the recipient's original email address was incorrect or invalid.</p>" +
+                         "<p>The email template will also be updated with the recipient's current information where applicable. You'll be able to preview the email for five minutes before it is sent.</p>",
+                buttons: {
+                    confirm: { label: 'Resend', className: 'btn-primary' },
+                    cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+                },
+                callback: function (result) {
+                    if (result) {
+                        $.ajax({
+                        method: 'POST',
+                        url: '../email_admin/resend_email',
+                        dataType: 'json',
+                        data: {
+                            id: id,
+                            csrf_token: csrf_token,
+                        },
+                        success: function (json) {
+                            hideMessageBox();
+                            var message = json.message;
+                            if (json.success) {
+                                $("#message-alert").addClass("alert-info").show().children('span').html(message);
+                                window.scrollTo(0,0); setTimeout(() => { window.scrollTo(0, 0); }, 100);
+                            } else {
+                                showErrorMessage(message);
+                            }
+                        },
+                        error: function () {
+                            showErrorMessage('Unable to connect to server, please try again.');
+                        }
+                    });
+                    }
+                }
+            });
+    }
+    var lockEmail = function (id, subject, recipient) {
+        bootbox.confirm({
+                backdrop: true,
+                title: "Lock This Email to " + recipient + "?",
+                message: "<p>This email (\"" + subject + "\") to " + recipient + " will NOT be sent until it is unlocked.</p>",
+                buttons: {
+                    confirm: { label: 'Lock', className: 'btn-warning' },
+                    cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+                },
+                callback: function (result) {
+                    if (result) {
+                        $.ajax({
+                        method: 'POST',
+                        url: '../email_admin/lock_email',
+                        dataType: 'json',
+                        data: {
+                            id: id,
+                            csrf_token: csrf_token,
+                        },
+                        success: function (json) {
+                            hideMessageBox();
+                            var message = json.message;
+                            if (json.success) {
+                                $("#message-alert").addClass("alert-info").show().children('span').html(message);
+                                window.scrollTo(0,0); setTimeout(() => { window.scrollTo(0, 0); }, 100);
+                            } else {
+                                showErrorMessage(message);
+                            }
+                        },
+                        error: function () {
+                            showErrorMessage('Unable to connect to server, please try again.');
+                        }
+                    });
+                    }
+                }
+            });
+    }
+    var unlockEmail = function (id, subject, recipient) {
+        bootbox.confirm({
+                backdrop: true,
+                title: "Unlock This Email to " + recipient + "?",
+                message: "<p>This email (\"" + subject + "\") to " + recipient + " will placed back in the queue.</p>",
+                buttons: {
+                    confirm: { label: 'Unlock', className: 'btn-primary' },
+                    cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+                },
+                callback: function (result) {
+                    if (result) {
+                        $.ajax({
+                        method: 'POST',
+                        url: '../email_admin/unlock_email',
+                        dataType: 'json',
+                        data: {
+                            id: id,
+                            csrf_token: csrf_token,
+                        },
+                        success: function (json) {
+                            hideMessageBox();
+                            var message = json.message;
+                            if (json.success) {
+                                $("#message-alert").addClass("alert-info").show().children('span').html(message);
+                                window.scrollTo(0,0); setTimeout(() => { window.scrollTo(0, 0); }, 100);
                             } else {
                                 showErrorMessage(message);
                             }

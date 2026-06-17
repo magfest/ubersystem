@@ -1089,6 +1089,28 @@ class Config(_Overridable):
     @property
     def LOCAL_ACCOUNTS_DISABLED(self):
         return c.OIDC_ENABLED and not c.SSO_EMAIL_DOMAINS
+    
+    def get_dept_opts(self, admin_access=False, public=False, has_email=False, include_desc=False):
+        from uber.models import Session, Department
+        with Session() as session:
+            if include_desc:
+                query = session.query(Department.id, Department.name, Department.description)
+            else:
+                query = session.query(Department.id, Department.name)
+
+            if not query.first():
+                return [(-1, -1, '')] if include_desc else [(-1, -1)]
+            
+            if has_email:
+                query = query.filter(Department.from_email != '')
+            if public:
+                query = query.filter(Department.solicits_volunteers == True)
+
+            if admin_access and not self.has_section_or_page_access(full=True):
+                admin_memberships = [str(d.id) for d in session.current_admin_account().attendee.dept_memberships_with_inherent_role]
+                query = query.filter(Department.id.in_(admin_memberships))
+
+            return [tuple(info) for info in query.order_by(Department.name)]
 
     @request_cached_property
     @dynamic
@@ -1098,27 +1120,17 @@ class Config(_Overridable):
     @request_cached_property
     @dynamic
     def DEPARTMENT_OPTS(self):
-        from uber.models import Session, Department
-        with Session() as session:
-            return [(id, name) for id, name in session.query(Department.id, Department.name).order_by(Department.name).all()]
+        return self.get_dept_opts()
 
     @request_cached_property
     @dynamic
     def DEPARTMENT_OPTS_WITH_DESC(self):
-        from uber.models import Session, Department
-        with Session() as session:
-            return [(id, name, desc) for id, name, desc in
-                    session.query(Department.id, Department.name, Department.description).order_by(Department.name).all()]
+        return self.get_dept_opts(include_desc=True)
 
     @request_cached_property
     @dynamic
     def PUBLIC_DEPARTMENT_OPTS_WITH_DESC(self):
-        from uber.models import Session, Department
-        with Session() as session:
-            query = session.query(Department).filter_by(
-                solicits_volunteers=True).order_by(Department.name)
-            return [('All', 'Anywhere', 'I want to help anywhere I can!')] \
-                + [(d.id, d.name, d.description) for d in query]
+        return self.get_dept_opts(public=True, include_desc=True)
 
     @request_cached_property
     @dynamic
@@ -1128,18 +1140,7 @@ class Config(_Overridable):
     @request_cached_property
     @dynamic
     def ADMIN_DEPARTMENT_OPTS(self):
-        from uber.models import Session, Department
-
-        with Session() as session:
-            query = session.query(Department).order_by(Department.name)
-            if not query.first():
-                return [(-1, -1)]
-            current_admin = session.current_admin_account()
-            if self.has_section_or_page_access(full=True):
-                return [(d.id, d.name) for d in query]
-            else:
-                return [(d.id, d.name) for d in query if d.id in
-                        [str(d.id) for d in current_admin.attendee.dept_memberships_with_inherent_role]]
+        return self.get_dept_opts(admin_access=True)
 
     @request_cached_property
     @dynamic

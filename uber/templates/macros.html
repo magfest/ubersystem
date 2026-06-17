@@ -9,6 +9,89 @@
 {%- endmacro %}
 
 
+{% macro email_table(emails, table_classes="table-hover table-bordered table-sm", department_id='', hidden_cols=[], sent_only=False, index_page=False) %}
+<table class="table {{ table_classes }}">
+<thead><tr>
+    {% if sent_only %}
+      <th>Sent</th>
+    {% else %}
+      {% if 'status' not in hidden_cols %}<th>Status</th>{% endif %}
+      {% if 'generated' not in hidden_cols %}<th>Generated</th>{% endif %}
+      {% if 'send_after' not in hidden_cols %}<th>Send After</th>{% endif %}
+    {% endif %}
+    {% if 'department' not in hidden_cols and (not department_id or department_id == 'All') %}
+    <th>Department</th>
+    {% endif %}
+    {% if 'subject' not in hidden_cols %}<th>Subject</th>{% endif %}
+    {% if 'recipient' not in hidden_cols %}<th>Recipient</th>{% endif %}
+    {% if 'status' not in hidden_cols %}<th>Status</th>{% endif %}
+    {% if 'action' not in hidden_cols %}<th></th>{% endif %}
+</tr></thead>
+{% for email in emails %}
+    <tr>
+      {% if not sent_only and 'status' not in hidden_cols %}<td>{{ email.status_label }}</td>{% endif %}
+      {% if not sent_only and 'generated' not in hidden_cols %}<td>{{ email.generated|datetime_local("%x %X") }}</td>{% endif %}
+        {% if 'send_after' not in hidden_cols %}
+        <td>
+            {% if email.sent %}Sent {{ email.sent|datetime_local("%x %X") }}
+            {% elif email.status == c.QUEUED %}{{ email.send_after|datetime_local("%x %X") }}
+            {% else %}N/A{% endif %}
+        </td>
+        {% endif %}
+        {% if 'department' not in hidden_cols and (not department_id or department_id == 'All') %}
+        <td>{{ depts_by_sender[email.sender|email_only] or 'No Department' }}</td>
+        {% endif %}
+        {% if 'subject' not in hidden_cols %}
+        <td>
+            {% if email.automated_email and (index_page or c.HAS_FULL_EMAIL_ADMIN_ACCESS) %}
+            <a href="../email_admin/automated_email?id={{ email.automated_email.id }}" target="_blank">{{ email.subject }} <i class="fa fa-external-link"></i></a>
+            {% else %}{{ email.subject }}{% endif %}
+        </td>
+        {% endif %}
+        {% if 'recipient' not in hidden_cols %}
+        <td>
+          {% for email_address in email.to.split(',') %}
+            {% if index_page %}
+            <a href="../email_admin/index?search_text={{ email_address }}&{{ c.query_str_for_search('search_text') }}">{{ email_address }}</a>{% else %}
+            <a href="../email_admin/index?search_text={{ email_address }}" target="_blank">{{ email_address }} <i class="fa fa-external-link"></i></a>{% endif %}{% if not loop.last %}, {% endif %}
+          {% endfor %}
+        </td>
+        {% endif %}
+        {% if 'status' not in hidden_cols %}
+        <td{% if email.error and email.status != c.SENT and True %} class="text-danger"{% endif %}>{% if email.error and email.status != c.SENT %}{{ email.error|default(email.status_text) }}{% else %}{{ email.status_text }}{% endif %}</td>
+        {% endif %}
+        {% if 'action' not in hidden_cols %}
+        <td>
+            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#body-{{ email.id }}">View</button>
+            {% if email.status == c.SENT %}
+            <button type="button" class="btn btn-sm btn-info" onClick="resendEmail('{{ email.id }}', '{{ email.subject }}', '{{ email.readable_fk_email_or_to }}')">Resend</button>
+            {% elif email.error %}
+              {% if index_page or c.HAS_FULL_EMAIL_ADMIN_ACCESS %}
+              <button type="button" class="btn btn-sm btn-danger" onClick="deleteEmail('{{ email.id }}', '{{ email.subject }}', '{{ email.readable_to }}')">Delete</button>
+              <button type="button" class="btn btn-sm btn-info" onClick="requeueEmail('{{ email.id }}', '{{ email.subject }}', '{{ email.readable_to }}')">Requeue</button>
+              {% endif %}
+            {% else %}
+              {% if email.status == c.LOCKED %}
+                <button type="button" class="btn btn-sm btn-warning" onClick="unlockEmail('{{ email.id }}', '{{ email.subject }}', '{{ email.readable_to }}')">Unlock</button>
+              {% else %}
+                <button type="button" class="btn btn-sm btn-warning" onClick="lockEmail('{{ email.id }}', '{{ email.subject }}', '{{ email.readable_to }}')">Lock</button>
+                {% if index_page or c.HAS_FULL_EMAIL_ADMIN_ACCESS %}
+                  {% if email.status == c.UNAPPROVED %}
+                  <button type="button" class="btn btn-sm btn-info" onClick="approveEmail('{{ email.id }}', '{{ email.subject }}', '{{ email.readable_to }}')">Approve</button>
+                  {% elif email.send_after and (email.send_after > now()|timedelta(minutes=5)) %}
+                  <button type="button" class="btn btn-sm btn-success" onClick="sendEmail('{{ email.id }}', '{{ email.subject }}', '{{ email.readable_to }}')">Send Now</button>
+                  {% endif %}
+                {% endif %}
+              {% endif %}
+            {% endif %}
+        </td>
+        {% endif %}
+    </tr>
+{% endfor %}
+</table>
+{% endmacro %}
+
+
 {% macro upgrade_button(upgrade_btn_id, text="Upgrade", extra_classes=" btn-sm") %}
 {% if receipt and receipt.current_amount_owed <= 0 %}
   <a class="btn btn-success{{ extra_classes }}" id="upgrade-{{ upgrade_btn_id }}-btn" data-bs-toggle="modal" data-bs-target="#upgradeModal">

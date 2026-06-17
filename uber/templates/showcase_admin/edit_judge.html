@@ -25,6 +25,16 @@
         <i class="fa fa-list"></i>&nbsp;Assigned Games
     </button>
     </li>
+    <li class="nav-item" role="presentation">
+    <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab" aria-controls="history">
+        <i class="fa fa-clock-o"></i>&nbsp;History
+    </button>
+    </li>
+    <li class="nav-item" role="presentation">
+    <button class="nav-link" id="emails-tab" data-bs-toggle="tab" data-bs-target="#emails" type="button" role="tab" aria-controls="emails">
+        <i class="fa fa-envelope"></i>&nbsp;Emails
+    </button>
+    </li>
 </ul>
 <div class="tab-content">
     &nbsp;
@@ -195,6 +205,29 @@
     {% if not matching and not nonmatching %}
         <p>There are no{% if judge.reviews %} other{% endif %} submitted games available to assign this judge to.</p>
     {% endif %}
+    </div>
+    <div role="tabpanel" class="tab-pane" id="history" aria-labelledby="history-tab">
+        <table class="table table-striped table-bordered table-sm">
+        <thead><tr>
+            <th>Which</th>
+            <th>What</th>
+            <th>When</th>
+            <th>Who</th>
+            <th>Changes</th>
+        </tr></thead>
+        {% for tracked in changes %}
+            <tr>
+                <td valign="top" style="white-space:nowrap">{{ tracked.model }}</td>
+                <td valign="top" style="white-space:nowrap">{{ tracked.action_label }}</td>
+                <td valign="top" style="white-space:nowrap">{{ tracked.when|full_datetime_local }}</td>
+                <td valign="top" style="white-space:nowrap">{{ tracked.who_repr }}</td>
+                <td valign="top">{{ tracked.data }}</td>
+            </tr>
+        {% endfor %}
+        </table>
+    </div>
+    <div role="tabpanel" class="tab-pane" id="emails" aria-labelledby="emails-tab">
+        {{ macros.email_table(emails, table_classes="table-hover datatable") }}
     </div>
 <script type="text/javascript">
     var confirmDisqualify = function() {

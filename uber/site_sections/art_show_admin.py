@@ -19,6 +19,7 @@ from io import BytesIO
 from uber.config import c
 from uber.custom_tags import format_currency, readable_join
 from uber.decorators import ajax, ajax_gettable, all_renderable, credit_card, public
+from uber.email import EmailService
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import AdminAccount, ArtShowApplication, ArtShowBidder, ArtShowPayment, ArtShowPiece, ArtShowReceipt, ArtShowPanel, \
@@ -139,13 +140,20 @@ class Root:
         app = session.art_show_application(id)
         return {
             'app': app,
-            'emails': session.query(Email).filter(Email.fk_id == id).order_by(Email.generated).all(),
             'changes': session.query(Tracking).filter(
                 or_(Tracking.links.like('%art_show_application({})%'.format(id)),
                     and_(Tracking.model == 'ArtShowApplication', Tracking.fk_id == id))
                     ).order_by(Tracking.when).all(),
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(app)
                                                                 ).order_by(PageViewTracking.when).all(),
+        }
+    
+    def emails(self, session, id):
+        app = session.art_show_application(id)
+        return {
+            'app': app,
+            'emails': session.query(Email).filter(Email.fk_id == id).order_by(Email.generated).all(),
+            'depts_by_sender': EmailService.emails_from_depts(session),
         }
 
     def ops(self, session, message=''):

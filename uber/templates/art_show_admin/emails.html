@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Art Show Emails - {{ app.attendee.full_name }}{% endblock %}
+{% block content %}
+
+{{ macros.nav_menu(
+app, c.PAGE_PATH,
+"form?id={id}", "App Form", True,
+"history?id={id}", "History", True,
+"emails?id={id}", "Emails", True,
+"../reg_admin/receipt_items?id={id}", "Receipt Items", c.HAS_REG_ADMIN_ACCESS,
+"index", "Return to App List", True
+) }}
+
+<h2> Email Queue for {{ app.attendee.full_name }}'s Art Show {{ c.ART_SHOW_APP_TERM|title }}</h2>
+<hr/>
+{{ macros.email_table(emails, table_classes="table-hover datatable", hidden_cols=['recipient']) }}
+
+{% set email_queue = emails %}
+{% include 'email_admin/manage_email.html' with context %}
+{% endblock %}

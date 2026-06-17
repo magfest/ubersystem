@@ -1,0 +1,5 @@
+{% import 'macros.html' as macros with context %}
+{{ macros.email_table(emails, table_classes="table-hover datatable", hidden_cols=['action']) }}
+
+{% set email_queue = emails + other_emails %}
+{% include 'email_admin/manage_email.html' with context %}
