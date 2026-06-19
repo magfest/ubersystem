@@ -2631,6 +2631,12 @@ class AttendeeAccount(MagModel, table=True):
     @property
     def has_applications(self):
         return self.panel_applications or self.indie_studios or self.mits_teams
+    
+    @property
+    def admin_account_id(self):
+        for attendee in self.valid_attendees:
+            if attendee.admin_account:
+                return attendee.admin_account.id
 
     @property
     def has_dealer(self):

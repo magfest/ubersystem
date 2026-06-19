@@ -2063,6 +2063,7 @@ class Root:
                                               account.hashed.encode('utf-8')) == account.hashed.encode('utf-8'):
             return {'success': False, 'message': "Incorrect email/password combination."}
 
+        cherrypy.session['account_id'] = account.admin_account_id
         cherrypy.session['attendee_account_id'] = account.id
         return {'success': True}
 
