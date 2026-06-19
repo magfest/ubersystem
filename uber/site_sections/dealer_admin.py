@@ -37,7 +37,8 @@ def convert_dealer_badge(session, attendee, admin_note=''):
         params['overridden_price'] = c.get_attendee_price(attendee.registered_local)
         attendee.can_transfer = False
 
-    receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, params)
+    if receipt:
+        ReceiptManager.auto_update_receipt(session, attendee, receipt, params)
 
     for key, val in params.items():
         setattr(attendee, key, val)
@@ -51,9 +52,7 @@ def convert_dealer_badge(session, attendee, admin_note=''):
     if admin_note:
         attendee.append_admin_note(admin_note)
 
-    if receipt:
-        session.add_all([item for item in receipt_items if item.amount != 0])
-    else:
+    if not receipt:
         session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
 
 

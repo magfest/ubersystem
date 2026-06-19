@@ -16,7 +16,7 @@ from typing import ClassVar
 from uber.config import c
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
-from uber.models.types import utcnow, DefaultColumn as Column, Choice, DefaultField as Field, DefaultRelationship as Relationship
+from uber.models.types import MultiChoice, DefaultColumn as Column, Choice, DefaultField as Field, DefaultRelationship as Relationship
 from uber.utils import localized_now, RegistrationCode
 
 
@@ -238,16 +238,16 @@ class PromoCode(MagModel, table=True):
         discount_type (int): The type of discount this promo code will apply.
             Valid values are:
 
-            * 0 `_FIXED_DISCOUNT`: `discount` is interpreted as a fixed
+            * 0 `c.FIXED_DISCOUNT`: `discount` is interpreted as a fixed
                 dollar amount by which the badge price should be reduced. If
                 `discount` is 49 and the badge price is normally $100, then
                 the discounted badge price would be $51.
 
-            * 1 `_FIXED_PRICE`: `discount` is interpreted as the actual badge
+            * 1 `c.FIXED_PRICE`: `discount` is interpreted as the actual badge
                 price. If `discount` is 49, then the discounted badge price
                 would be $49.
 
-            * 2 `_PERCENT_DISCOUNT`: `discount` is interpreted as a percentage
+            * 2 `c.PERCENT_DISCOUNT`: `discount` is interpreted as a percentage
                 by which the badge price should be reduced. If `discount` is
                 20 and the badge price is normally $50, then the discounted
                 badge price would $40 ($50 reduced by 20%). If `discount` is
@@ -298,13 +298,6 @@ class PromoCode(MagModel, table=True):
             uses_remaining.
     """
 
-    _FIXED_DISCOUNT: ClassVar = 0
-    _FIXED_PRICE: ClassVar = 1
-    _PERCENT_DISCOUNT: ClassVar = 2
-    _DISCOUNT_TYPE_OPTS: ClassVar = [
-        (_FIXED_DISCOUNT, 'Fixed Discount'),
-        (_FIXED_PRICE, 'Fixed Price'),
-        (_PERCENT_DISCOUNT, 'Percent Discount')]
     email_model_name: ClassVar = 'code'
 
     group_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='promo_code_group.id', nullable=True)
@@ -312,7 +305,9 @@ class PromoCode(MagModel, table=True):
     
     code: str = ''
     discount: int | None = Field(nullable=True, default=None)
-    discount_type: int = Field(sa_column=Column(Choice(_DISCOUNT_TYPE_OPTS)), default=_FIXED_DISCOUNT)
+    discount_type: int = Field(sa_column=Column(Choice(c.DISCOUNT_TYPE_OPTS)), default=c.FIXED_DISCOUNT)
+    discount_on: str = Field(sa_type=MultiChoice(c.DISCOUNT_ON_OPTS), default=c.BASE_BADGE)
+    department: int = Field(sa_column=Column(Choice(c.RECEIPT_ITEM_DEPT_OPTS)), default=c.REG_RECEIPT_ITEM)
     expiration_date: datetime = Field(sa_type=DateTime(timezone=True), default=c.ESCHATON)
     uses_allowed: int | None = Field(nullable=True, default=None)
     cost: int | None = Field(nullable=True, default=None)
@@ -321,6 +316,7 @@ class PromoCode(MagModel, table=True):
     used_by: list['Attendee'] = Relationship(
         back_populates="promo_code", sa_relationship_kwargs={'lazy': 'selectin', 'cascade': 'merge,refresh-expire,expunge'}
     )
+    receipt_discounts: list['ReceiptDiscount'] = Relationship(back_populates="promo_code", sa_relationship_kwargs={'lazy': 'selectin'})
 
     _repr_attr_names: ClassVar = ('code',)
 
@@ -340,22 +336,25 @@ class PromoCode(MagModel, table=True):
 
     @property
     def discount_str(self):
-        if self.discount_type == self._FIXED_DISCOUNT and self.discount == 0:
+        if self.discount_type == c.FIXED_DISCOUNT and self.discount == 0:
             # This is done to account for Art Show Agent codes, which use the PromoCode class
             return 'No discount'
         elif not self.discount:
-            return 'Free badge'
+            return 'Comped item(s)'
 
-        if self.discount_type == self._FIXED_DISCOUNT:
+        if self.discount_type == c.FIXED_DISCOUNT:
             return '${} discount'.format(self.discount)
-        elif self.discount_type == self._FIXED_PRICE:
-            return '${} badge'.format(self.discount)
+        elif self.discount_type == c.FIXED_PRICE:
+            return '${} price'.format(self.discount)
         else:
             return '%{} discount'.format(self.discount)
 
     @hybrid_property
     def is_expired(self):
-        return self.expiration_date < localized_now()
+        expiration = self.expiration_date
+        if isinstance(expiration, six.string_types):        
+            expiration = self.coerce_column_data(PromoCode.__table__.columns.get('expiration_date'), expiration)
+        return expiration < localized_now()
 
     @is_expired.expression
     def is_expired(cls):
@@ -373,10 +372,10 @@ class PromoCode(MagModel, table=True):
     @property
     def is_free(self):
         return not self.discount or (
-            self.discount_type == self._PERCENT_DISCOUNT and
+            self.discount_type == c.PERCENT_DISCOUNT and
             self.discount >= 100
         ) or (
-            self.discount_type == self._FIXED_DISCOUNT and
+            self.discount_type == c.FIXED_DISCOUNT and
             self.discount >= c.BADGE_PRICE)
 
     @hybrid_property
@@ -473,7 +472,7 @@ class PromoCode(MagModel, table=True):
         # Always make expiration_date 11:59pm of the given date
         self.expiration_date = self.normalize_expiration_date(self.expiration_date)
 
-    def calculate_discounted_price(self, price):
+    def calculate_discounted_price(self, price, credit_type=c.BASE_BADGE):
         """
         Returns the discounted price based on the promo code's `discount_type`.
 
@@ -485,21 +484,23 @@ class PromoCode(MagModel, table=True):
                 less than zero or greater than `price`. If `price` is None
                 or a negative number, then the return value will always be 0.
         """
+        if str(credit_type) not in self.discount_on:
+            return price
+
         if not self.discount or not price or price < 0:
             return 0
 
         discounted_price = price
-        if self.discount_type == self._FIXED_DISCOUNT:
+        if self.discount_type == c.FIXED_DISCOUNT:
             discounted_price = price - self.discount
-        elif self.discount_type == self._FIXED_PRICE:
+        elif self.discount_type == c.FIXED_PRICE:
             discounted_price = self.discount
-        elif self.discount_type == self._PERCENT_DISCOUNT:
+        elif self.discount_type == c.PERCENT_DISCOUNT:
             discounted_price = int(price * ((100.0 - self.discount) / 100.0))
 
         return min(max(discounted_price, 0), price)
 
 
-c.PROMO_CODE_DISCOUNT_TYPE_OPTS = PromoCode._DISCOUNT_TYPE_OPTS
 Index(
     'uq_promo_code_normalized_code',
     func.replace(func.replace(func.lower(PromoCode.code), '-', ''), ' ', ''),

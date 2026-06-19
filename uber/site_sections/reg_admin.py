@@ -88,9 +88,7 @@ def revert_receipt_item(session, item):
         setattr(new_model, col_name, item.revert_change[col_name])
 
     for col_name in item.revert_change:
-        receipt_items = ReceiptManager.process_receipt_change(model, col_name, receipt=receipt,
-                                                             new_model=new_model)
-        session.add_all(receipt_items)
+        ReceiptManager.process_receipt_change(model, col_name, receipt=receipt, new_model=new_model)
         model.apply(item.revert_change, restricted=False)
 
     error = check(model)
@@ -464,7 +462,7 @@ class Root:
         if item.receipt_txn and item.receipt_txn.amount_left:
             refund_amount = min(item.amount * item.count, item.receipt_txn.amount_left)
             try:
-                refund = RefundRequest(item.receipt_txn, amount=refund_amount,
+                refund = RefundRequest(session, item.receipt_txn, amount=refund_amount,
                                        method=item.receipt_txn.method, who=AdminAccount.admin_name())
             except ValueError as e:
                 return {'error': e}
@@ -547,7 +545,7 @@ class Root:
                 refund_amount -= processing_fees
 
             try:
-                refund = RefundRequest(item.receipt_txn, amount=refund_amount,
+                refund = RefundRequest(session, item.receipt_txn, amount=refund_amount,
                                        method=item.receipt_txn.method, who=AdminAccount.admin_name())
             except ValueError as e:
                 return {'error': e}
@@ -635,7 +633,7 @@ class Root:
             error = txn.check_stripe_id()
             if error:
                 return {'error': "Error while checking this transaction: " + error}
-            charge_id = txn.check_paid_from_stripe()
+            charge_id = txn.check_paid_from_stripe(session)
             if charge_id:
                 return {'error': "Stripe indicates that this payment has already completed."}
 
@@ -661,7 +659,7 @@ class Root:
         error = txn.check_stripe_id()
         if not error:
             if txn.intent_id and not txn.charge_id:
-                charge_id = txn.check_paid_from_stripe()
+                charge_id = txn.check_paid_from_stripe(session)
                 if charge_id:
                     messages.append("Transaction marked as paid from Stripe.")
 
@@ -723,7 +721,7 @@ class Root:
 
         error = ''
         try:
-            refund = RefundRequest(txn, amount=refund_amount,
+            refund = RefundRequest(session, txn, amount=refund_amount,
                                    method=txn.method, who=AdminAccount.admin_name())
         except ValueError as e:
             error = e
@@ -821,7 +819,7 @@ class Root:
 
             error = ''
             try:
-                refund = RefundRequest(txn, amount=group_refund_amount, who=AdminAccount.admin_name())
+                refund = RefundRequest(session, txn, amount=group_refund_amount, who=AdminAccount.admin_name())
             except ValueError as e:
                 error = e
 
@@ -938,7 +936,7 @@ class Root:
                 receipt_managers[attendee] = receipt_manager
 
         for charge_id, (refund_amount, txns) in all_refunds.items():
-            refund = RefundRequest(txns, refund_amount, skip_errors=True, who=AdminAccount.admin_name())
+            refund = RefundRequest(session, txns, refund_amount, skip_errors=True, who=AdminAccount.admin_name())
 
             error = refund.process_refund()
             if error:
@@ -1015,8 +1013,7 @@ class Root:
             attendee.paid = c.NOT_PAID
         attendee.overridden_price = None
         if receipt:
-            receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, {'promo_code_code': ''})
-            session.add_all(receipt_items)
+            ReceiptManager.auto_update_receipt(session, attendee, receipt, {'promo_code_code': ''})
 
         attendee.promo_code = None
         attendee.badge_status = c.NEW_STATUS
