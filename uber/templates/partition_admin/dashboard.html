@@ -1,0 +1,508 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% import 'hotel_lottery_admin/_macros.html' as hotel_macros with context %}
+{% block title %}{{ partition.name }} - Partition Dashboard{% endblock %}
+{% block content %}
+
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="index">Partitions</a></li>
+    <li class="breadcrumb-item active">{{ partition.name }}</li>
+  </ol>
+</nav>
+
+<h1>{{ partition.name }}</h1>
+{% if partition.description %}<p class="text-muted">{{ partition.description }}</p>{% endif %}
+
+{% if message %}<div class="alert alert-info">{{ message }}</div>{% endif %}
+
+{# Stats summary across the whole partition (not just the current page) #}
+<div class="row g-2 mb-4">
+  <div class="col-md-3">
+    <div class="card card-body text-center">
+      <div class="h4 mb-0">{{ status_counts[c.ASSIGNED] or 0 }}</div>
+      <small class="text-muted">Assigned</small>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card card-body text-center">
+      <div class="h4 mb-0">{{ status_counts[c.SECURED] or 0 }}</div>
+      <small class="text-muted">Secured</small>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card card-body text-center">
+      <div class="h4 mb-0">{{ billing_counts.master_bill or 0 }}</div>
+      <small class="text-muted">Master Bill</small>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card card-body text-center">
+      <div class="h4 mb-0">{{ (status_counts[c.EXPIRED] or 0) + (status_counts[c.CANCELLED] or 0) }}</div>
+      <small class="text-muted">Cancelled / Expired</small>
+    </div>
+  </div>
+</div>
+
+<ul class="nav nav-tabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link {% if tab == 'inventory' %}active{% endif %}" id="tab-inventory" data-bs-toggle="tab" data-bs-target="#pane-inventory" type="button" role="tab">
+      Inventory
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link {% if tab == 'assignments' %}active{% endif %}" id="tab-assignments" data-bs-toggle="tab" data-bs-target="#pane-assignments" type="button" role="tab">
+      Assignments
+      <span class="badge bg-secondary ms-1">{{ roster_total }}</span>
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link {% if tab == 'activity' %}active{% endif %}" id="tab-activity" data-bs-toggle="tab" data-bs-target="#pane-activity" type="button" role="tab">
+      Activity
+      <span class="badge bg-secondary ms-1">{{ activity_total }}</span>
+    </button>
+  </li>
+</ul>
+
+<div class="tab-content border border-top-0 p-3 mb-4">
+
+<div class="tab-pane fade {% if tab == 'inventory' %}show active{% endif %}" id="pane-inventory" role="tabpanel">
+  <h3 class="h5">Inventory Blocks</h3>
+  {% if not blocks %}
+  <div class="alert alert-secondary">No inventory blocks allocated to this partition.</div>
+  {% else %}
+  <table class="table table-sm">
+    <thead>
+      <tr>
+        <th>Block</th>
+        <th>Hotel</th>
+        <th>Type</th>
+        <th class="text-end">Allocated</th>
+        <th class="text-end">Assigned</th>
+        <th class="text-end">Secured</th>
+        <th class="text-end">Unassigned</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in blocks %}
+      <tr>
+        <td>{{ row.inventory.name if row.inventory else '(missing)' }}</td>
+        <td>{% if row.inventory and row.inventory.hotel %}{{ row.inventory.hotel.name }}{% endif %}</td>
+        <td>
+          {% if row.inventory %}
+            {% if row.inventory.is_suite %}Suite{% else %}Room{% endif %}
+            {% if row.inventory.room_or_suite_type %} - {{ row.inventory.room_or_suite_type.name }}{% endif %}
+          {% endif %}
+        </td>
+        <td class="text-end">{{ row.block.quantity }}</td>
+        <td class="text-end">{{ row.assigned }}</td>
+        <td class="text-end">{{ row.secured }}</td>
+        <td class="text-end">
+          {% if row.unassigned == 0 %}
+            <span class="text-danger fw-bold">{{ row.unassigned }}</span>
+          {% else %}
+            {{ row.unassigned }}
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot class="table-light fw-bold">
+      <tr>
+        <td colspan="3">Total</td>
+        <td class="text-end">{{ inventory_totals.allocated }}</td>
+        <td class="text-end">{{ inventory_totals.assigned }}</td>
+        <td class="text-end">{{ inventory_totals.secured }}</td>
+        <td class="text-end">{{ inventory_totals.unassigned }}</td>
+      </tr>
+    </tfoot>
+  </table>
+  {% endif %}
+</div>
+
+<div class="tab-pane fade {% if tab == 'assignments' %}show active{% endif %}" id="pane-assignments" role="tabpanel">
+
+  {% if can_edit_assignments %}
+  <details class="mb-3">
+    <summary class="btn btn-sm btn-outline-primary">+ Assign a new room</summary>
+    <form method="post" action="assign_room" class="card card-body mt-2">
+      {{ csrf_token() }}
+      <input type="hidden" name="partition_id" value="{{ partition.id }}" />
+      <input type="hidden" name="attendee_id" id="assign-attendee-id" />
+
+      {# Attendee search - mirrors the full admin search via session.search() #}
+      <div class="mb-3 position-relative">
+        <label class="form-label">Attendee</label>
+        <input type="text" id="assign-attendee-query" class="form-control"
+               placeholder="Search by name, legal name, email, badge number, or UUID - same fields as the regular attendee search"
+               autocomplete="off" />
+        <div id="assign-attendee-results" class="list-group position-absolute w-100 shadow-sm" style="z-index: 1000; display: none; max-height: 300px; overflow-y: auto;"></div>
+        <div id="assign-attendee-selected" class="mt-2" style="display: none;">
+          Selected:
+          <span class="badge bg-primary"><span id="assign-attendee-name"></span></span>
+          <button type="button" class="btn btn-link btn-sm" id="assign-attendee-clear">change</button>
+        </div>
+      </div>
+
+      <div class="row g-2">
+        <div class="col-md-6">
+          <label class="form-label">Inventory Block</label>
+          <select name="inventory_id" class="form-select form-select-sm" required>
+            <option value="">- Pick a block -</option>
+            {% for row in blocks if row.inventory %}
+            <option value="{{ row.inventory.id }}">
+              {{ row.inventory.name }}
+              ({{ row.unassigned }} unassigned of {{ row.block.quantity }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Check-in</label>
+          <input type="date" name="assigned_check_in_date" class="form-control form-control-sm" />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Check-out</label>
+          <input type="date" name="assigned_check_out_date" class="form-control form-control-sm" />
+        </div>
+      </div>
+      <div class="mt-2 d-flex align-items-center gap-3">
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="require_cc_new" name="require_cc" value="true" checked />
+          <label class="form-check-label" for="require_cc_new">
+            Require credit card
+            <span class="text-muted small">(uncheck for master bill)</span>
+          </label>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm ms-auto">Create Assignment</button>
+      </div>
+    </form>
+  </details>
+  {% endif %}
+
+  {% if not roster %}
+  <div class="alert alert-secondary">No assignments in this partition yet.</div>
+  {% else %}
+  <table class="table table-sm align-middle">
+    <thead>
+      <tr>
+        <th>Attendee</th>
+        <th>Room</th>
+        <th>Dates</th>
+        <th>Status</th>
+        <th>Billing</th>
+        <th>Confirmation</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for ra in roster %}
+      <tr>
+        <td>
+          {% if ra.attendee %}
+            {% if can_view_guest_legal_names %}
+              {{ ra.attendee.legal_first_name or ra.attendee.first_name }}
+              {{ ra.attendee.legal_last_name or ra.attendee.last_name }}
+            {% elif can_view_guest_names %}
+              {{ ra.attendee.first_name }} {{ ra.attendee.last_name }}
+            {% else %}
+              {{ ra.attendee.first_name }} {{ ra.attendee.last_name|first|upper }}.
+            {% endif %}
+            <br/><small class="text-muted">{{ ra.attendee.email }}</small>
+          {% else %}<em>(deleted)</em>{% endif %}
+        </td>
+        <td>
+          {% if ra.inventory %}
+            {{ ra.inventory.name }}
+            {% if ra.inventory.hotel %}<br/><small class="text-muted">{{ ra.inventory.hotel.name }}</small>{% endif %}
+          {% endif %}
+        </td>
+        <td>
+          {% if ra.assigned_check_in_date %}
+            {{ ra.assigned_check_in_date|date("%a %b %-d") }}<br/>-> {{ ra.assigned_check_out_date|date("%a %b %-d") }}
+          {% endif %}
+        </td>
+        <td>{{ hotel_macros.room_status_chip(ra) }}</td>
+        <td>
+          {{ hotel_macros.billing_chip(ra) }}
+          {% if can_edit_assignments %}
+          <form method="post" action="toggle_billing" class="d-inline">
+            {{ csrf_token() }}
+            <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
+            <button type="submit" class="btn btn-link btn-sm p-0 small">
+              Flip to {% if ra.require_cc %}master bill{% else %}self-pay{% endif %}
+            </button>
+          </form>
+          {% endif %}
+        </td>
+        <td>
+          {% if ra.hotel_confirmation_number %}
+            <code>{{ ra.hotel_confirmation_number }}</code>
+          {% else %}
+            <span class="text-muted">-</span>
+          {% endif %}
+        </td>
+        <td class="text-end">
+          {% if can_edit_assignments and ra.attendee_id %}
+          <button type="button" class="btn btn-sm btn-outline-primary"
+                  data-bs-toggle="modal" data-bs-target="#edit-modal-{{ ra.attendee_id }}">
+            Edit
+          </button>
+          {% endif %}
+          {% if can_edit_assignments %}
+          <form method="post" action="unassign" class="d-inline"
+                onsubmit="return confirm('Remove this assignment?');">
+            {{ csrf_token() }}
+            <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
+            <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {# Pagination - shared macro keeps it identical across the section.
+     `activity_page` is preserved across page transitions so the other
+     tab doesn't reset to page 1 when you flip through this one. #}
+  {% set _roster_url = 'dashboard?partition_id=' ~ partition.id ~ '&tab=assignments&activity_page=' ~ activity_page %}
+  {{ hotel_macros.pagination(page, last_page, _roster_url,
+                             total=roster_total, page_size=page_size,
+                             current_count=assignments|length,
+                             label='assignment') }}
+  {% endif %}
+</div>
+
+<div class="tab-pane fade {% if tab == 'activity' %}show active{% endif %}" id="pane-activity" role="tabpanel">
+  {% if not activity %}
+  <div class="alert alert-secondary">No activity recorded yet.</div>
+  {% else %}
+  <table class="table table-sm">
+    <thead>
+      <tr>
+        <th style="width: 13em;">When</th>
+        <th style="width: 14em;">Who</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for entry in activity %}
+      <tr>
+        <td>{{ entry.when|datetime_local("%Y-%m-%d %H:%M") }}</td>
+        <td>
+          {% if entry.admin_account and entry.admin_account.attendee %}
+            {{ entry.admin_account.attendee.full_name }}
+          {% else %}
+            <em>system</em>
+          {% endif %}
+        </td>
+        <td>
+          {{ entry.description }}
+          <br/><small class="text-muted"><code>{{ entry.action }}</code></small>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {# Activity-tab pagination uses `activity_page` instead of `page` so it
+     doesn't collide with the assignments-tab pager above. #}
+  {% set _activity_url = 'dashboard?partition_id=' ~ partition.id ~ '&tab=activity&page=' ~ page %}
+  {{ hotel_macros.pagination(activity_page, activity_last_page, _activity_url,
+                             total=activity_total, page_size=page_size,
+                             current_count=activity|length,
+                             label='entry',
+                             page_param='activity_page') }}
+  {% endif %}
+</div>
+
+</div>{# /.tab-content #}
+
+
+{% if can_edit_assignments %}
+{% for attendee_id, assignments in modal_groups.items() %}
+{% set lead = assignments[0] %}
+{% set lead_attendee = lead.attendee %}
+<div class="modal fade" id="edit-modal-{{ attendee_id }}" tabindex="-1" aria-labelledby="edit-modal-label-{{ attendee_id }}" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="edit-modal-label-{{ attendee_id }}">
+          Edit assignments for
+          {% if lead_attendee %}
+            {% if can_view_guest_names %}{{ lead_attendee.full_name }}{% else %}{{ lead_attendee.first_name }} {{ lead_attendee.last_name|first|upper }}.{% endif %}
+          {% else %}<em>(deleted attendee)</em>{% endif %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small">
+          All rooms currently assigned to this attendee across every partition.
+          You can edit any row scoped to a partition you have edit access on.
+        </p>
+
+        {% for ra in assignments %}
+        <div class="card mb-3">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <div>
+                <strong>{% if ra.inventory %}{{ ra.inventory.name }}{% else %}(unknown block){% endif %}</strong>
+                {% if ra.inventory and ra.inventory.hotel %}<br/><small class="text-muted">{{ ra.inventory.hotel.name }}</small>{% endif %}
+              </div>
+              <div>
+                <span class="badge bg-{% if ra.status == c.SECURED %}success{% elif ra.status == c.ASSIGNED %}warning{% elif ra.status == c.EXPIRED %}danger{% else %}secondary{% endif %}">
+                  {{ ra.status_label }}
+                </span>
+                {% if ra.partition %}
+                <span class="badge bg-light text-dark">{{ ra.partition.name }}</span>
+                {% else %}
+                <span class="badge bg-light text-muted">No partition</span>
+                {% endif %}
+              </div>
+            </div>
+
+            <form method="post" action="update_assignment" class="row g-2">
+              {{ csrf_token() }}
+              <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
+
+              <div class="col-md-6">
+                <label class="form-label small">Inventory block</label>
+                <select name="inventory_id" class="form-select form-select-sm">
+                  {% for inv in all_inventory %}
+                  <option value="{{ inv.id }}"{% if inv.id == ra.inventory_id %} selected{% endif %}>
+                    {{ inv.name }}{% if inv.hotel %} - {{ inv.hotel.name }}{% endif %}{% if inv.is_suite %} (Suite){% endif %}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small">Check-in</label>
+                <input type="date" name="assigned_check_in_date" class="form-control form-control-sm"
+                       value="{% if ra.assigned_check_in_date %}{{ ra.assigned_check_in_date.isoformat() }}{% endif %}" />
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small">Check-out</label>
+                <input type="date" name="assigned_check_out_date" class="form-control form-control-sm"
+                       value="{% if ra.assigned_check_out_date %}{{ ra.assigned_check_out_date.isoformat() }}{% endif %}" />
+              </div>
+
+              <div class="col-md-9 d-flex align-items-end gap-3">
+                <label class="d-inline-flex align-items-center mb-0">
+                  <input type="radio" class="form-check-input me-1" name="require_cc" value="true" {% if ra.require_cc %}checked{% endif %} />
+                  <span class="badge bg-secondary">Self-pay</span>
+                </label>
+                <label class="d-inline-flex align-items-center mb-0">
+                  <input type="radio" class="form-check-input me-1" name="require_cc" value="false" {% if not ra.require_cc %}checked{% endif %} />
+                  <span class="badge bg-info text-dark">Master bill</span>
+                </label>
+              </div>
+              <div class="col-md-3 text-end">
+                <button type="submit" class="btn btn-primary btn-sm">Save changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endfor %}
+{% endif %}
+
+
+{% if can_edit_assignments %}
+<script>
+(function () {
+  var q       = document.getElementById('assign-attendee-query');
+  var results = document.getElementById('assign-attendee-results');
+  var hidden  = document.getElementById('assign-attendee-id');
+  var selBox  = document.getElementById('assign-attendee-selected');
+  var selName = document.getElementById('assign-attendee-name');
+  var clearBtn= document.getElementById('assign-attendee-clear');
+  if (!q) return;
+
+  var debounceTimer = null;
+  var lastQuery = '';
+
+  function clearSelection() {
+    hidden.value = '';
+    selBox.style.display = 'none';
+    q.value = '';
+    q.style.display = '';
+    q.focus();
+  }
+  clearBtn.addEventListener('click', clearSelection);
+
+  function chooseAttendee(item) {
+    hidden.value = item.id;
+    selName.textContent = item.name + (item.email ? ' (' + item.email + ')' : '');
+    selBox.style.display = '';
+    q.style.display = 'none';
+    results.innerHTML = '';
+    results.style.display = 'none';
+  }
+
+  function render(items) {
+    if (!items || items.length === 0) {
+      results.innerHTML = '<div class="list-group-item text-muted small">No matches</div>';
+      results.style.display = 'block';
+      return;
+    }
+    results.innerHTML = '';
+    items.forEach(function (it) {
+      var a = document.createElement('a');
+      a.href = '#';
+      a.className = 'list-group-item list-group-item-action';
+      a.innerHTML = '<strong>' + escapeHtml(it.name) + '</strong>'
+        + (it.email ? ' <span class="text-muted small">' + escapeHtml(it.email) + '</span>' : '')
+        + (it.badge_num ? ' <span class="badge bg-light text-dark ms-1">Badge ' + escapeHtml(it.badge_num) + '</span>' : '')
+        + (it.badge_type ? ' <span class="badge bg-light text-muted ms-1">' + escapeHtml(it.badge_type) + '</span>' : '');
+      a.addEventListener('click', function (e) {
+        e.preventDefault();
+        chooseAttendee(it);
+      });
+      results.appendChild(a);
+    });
+    results.style.display = 'block';
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'})[c];
+    });
+  }
+
+  function runSearch() {
+    var term = q.value.trim();
+    if (term === lastQuery) return;
+    lastQuery = term;
+    if (term.length < 2) {
+      results.style.display = 'none';
+      return;
+    }
+    fetch('search_attendees?partition_id=' + encodeURIComponent('{{ partition.id }}')
+          + '&q=' + encodeURIComponent(term), {credentials: 'same-origin'})
+      .then(function (r) { return r.json(); })
+      .then(function (data) { render(data || []); })
+      .catch(function () { results.style.display = 'none'; });
+  }
+
+  q.addEventListener('input', function () {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(runSearch, 250);
+  });
+  document.addEventListener('click', function (e) {
+    if (e.target !== q && !results.contains(e.target)) {
+      results.style.display = 'none';
+    }
+  });
+})();
+</script>
+{% endif %}
+
+{% endblock %}
