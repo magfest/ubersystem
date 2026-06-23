@@ -130,26 +130,6 @@ def upgrade():
     sa.ForeignKeyConstraint(['hotel_id'], ['lottery_hotel.id'], name=op.f('fk_hotel_export_log_hotel_id_lottery_hotel')),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_hotel_export_log'))
     )
-    op.create_table('hotel_import_file',
-    sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
-    sa.Column('created', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('last_updated', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('external_id', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
-    sa.Column('last_synced', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
-    sa.Column('hotel_id', sa.Uuid(as_uuid=False), nullable=True),
-    sa.Column('filename', sa.Unicode(), nullable=False),
-    sa.Column('content_type', sa.Unicode(), nullable=False),
-    sa.Column('filepath', sa.Unicode(), nullable=False),
-    sa.Column('size', sa.Integer(), nullable=False),
-    sa.Column('source', sa.Unicode(), nullable=False),
-    sa.Column('uploaded_by', sa.Unicode(), nullable=False),
-    sa.Column('uploaded_at', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('updated_count', sa.Integer(), nullable=False),
-    sa.Column('unchanged_count', sa.Integer(), nullable=False),
-    sa.Column('note', sa.Unicode(), nullable=False),
-    sa.ForeignKeyConstraint(['hotel_id'], ['lottery_hotel.id'], name=op.f('fk_hotel_import_file_hotel_id_lottery_hotel')),
-    sa.PrimaryKeyConstraint('id', name=op.f('pk_hotel_import_file'))
-    )
     op.create_table('hotel_room_inventory',
     sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('created', sa.DateTime(timezone=True), nullable=False),
@@ -892,7 +872,6 @@ def downgrade():
     op.drop_table('inventory_partition_block')
     op.drop_table('inventory_night_quantity')
     op.drop_table('hotel_room_inventory')
-    op.drop_table('hotel_import_file')
     op.drop_table('hotel_export_log')
     op.drop_table('lottery_run')
     op.drop_table('lottery_room_type')
