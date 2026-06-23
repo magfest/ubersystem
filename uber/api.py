@@ -1681,7 +1681,7 @@ class HotelLookup:
                 return []
 
             assignments = (session.query(RoomAssignment)
-                           .filter(RoomAssignment.status == c.SECURED,
+                           .filter(RoomAssignment.status.in_([c.ASSIGNED, c.SECURED]),
                                    RoomAssignment.inventory_id.in_(hotel_inv_ids))
                            .order_by(RoomAssignment.parent_assignment_id.asc().nullsfirst(),
                                      RoomAssignment.created.asc())
