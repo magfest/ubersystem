@@ -1650,26 +1650,33 @@ class HotelLookup:
         `parent_assignment_id` pointing at the suite assignment so the
         receiver can group them. Creates an export log entry for tracking.
 
-        Identify the hotel by `hotel` (the LotteryHotel UUID) or, alternatively,
-        by `hotel_name` (its export name or display name).
+        Identify the hotel by `hotel_name` (its export name or display name) or
+        by `hotel` (the LotteryHotel UUID, or a name when called positionally).
         """
         from uber.models.hotel import RoomAssignment
 
         with Session() as session:
-            if hotel:
-                hotel_id = hotel
-            elif hotel_name:
-                hotel_obj = session.query(LotteryHotel).filter(
-                    or_(LotteryHotel.export_name == hotel_name,
-                        LotteryHotel.name == hotel_name)).first()
-                if not hotel_obj:
-                    return []
-                hotel_id = hotel_obj.id
-            else:
+            ident = hotel_name or hotel
+            if not ident:
                 return "You must provide a hotel or hotel_name argument"
 
+            # Resolve by export/display name first; fall back to a UUID lookup
+            # when the identifier is a LotteryHotel id.
+            hotel_obj = session.query(LotteryHotel).filter(
+                or_(LotteryHotel.export_name == ident,
+                    LotteryHotel.name == ident)).first()
+            if not hotel_obj:
+                try:
+                    uuid.UUID(str(ident))
+                except ValueError:
+                    hotel_obj = None
+                else:
+                    hotel_obj = session.query(LotteryHotel).get(ident)
+            if not hotel_obj:
+                return []
+
             hotel_inv_ids = [str(inv.id) for inv in
-                             session.query(HotelRoomInventory).filter_by(hotel_id=hotel_id).all()]
+                             session.query(HotelRoomInventory).filter_by(hotel_id=hotel_obj.id).all()]
             if not hotel_inv_ids:
                 return []
 
@@ -1722,6 +1729,7 @@ class HotelLookup:
                         str(ra.assigned_check_out_date) if ra.assigned_check_out_date else None,
                     'cc_token': ra.cc_token,
                     'hotel_confirmation_number': ra.hotel_confirmation_number,
+                    'hotel_cancellation_number': ra.cancellation_confirmation_number,
                     'cancellation_confirmation_number': ra.cancellation_confirmation_number,
                     'legal_first_name': (app.attendee.effective_hotel_first_name
                                          if app and app.attendee else ''),
@@ -1759,77 +1767,120 @@ class HotelLookup:
             return bookings
 
     @api_auth('api_update')
-    def import_confirmation_numbers(self, mappings=None):
+    def import_confirmation_file(self, reference=None, filename=None, file=None):
         """
-        Import hotel confirmation numbers for room bookings.
+        Apply hotel confirmation and/or cancellation numbers from an uploaded file.
 
-        Accepts a JSON array. Each entry must include `hotel_confirmation_number`
-        plus either `assignment_id` (preferred, unambiguous) or
-        `confirmation_num` (legacy - looks up the matching RoomAssignment
-        via its lottery_application_id). Writes to RoomAssignment only.
+        uber-vault forwards the raw uploaded file (base64) verbatim and ubersystem
+        owns parsing. Supports CSV and XLSX (first sheet, first row is the header).
+        Columns are matched case-insensitively with spaces treated as underscores:
+
+          - confirmation_num (required key; identifies the attendee booking)
+          - hotel_confirmation_number (optional)
+          - hotel_cancellation_number (optional)
+
+        A file may carry either or both hotel-number columns; whichever are
+        present are applied, keyed by confirmation_num. Unknown columns are
+        ignored and rows that don't match a known booking are skipped. Returns
+        {updated, unchanged, changes}.
+
+        uber-vault rejects any file containing a card number before calling this,
+        so the file is assumed card-free; nothing resembling a card number is
+        persisted or echoed back.
         """
+        import base64
+        import csv
+        import io
         from uber.models.hotel import RoomAssignment
 
-        if not mappings:
-            return {'error': 'No mappings provided.'}
+        if not file:
+            return {'error': 'No file provided.'}
 
-        if isinstance(mappings, str):
-            mappings = json.loads(mappings)
+        try:
+            raw = base64.b64decode(file)
+        except Exception:
+            return {'error': 'File is not valid base64.'}
 
-        results = []
+        def norm(value):
+            return str(value if value is not None else '').strip().lower().replace(' ', '_')
+
+        name = (filename or '').lower()
+        rows = []
+        try:
+            if name.endswith(('.xlsx', '.xlsm')) or raw[:2] == b'PK':
+                from openpyxl import load_workbook
+                wb = load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
+                header = None
+                for excel_row in wb.active.iter_rows(values_only=True):
+                    if header is None:
+                        header = [norm(cell) for cell in excel_row]
+                        continue
+                    rows.append({header[i]: ('' if v is None else str(v))
+                                 for i, v in enumerate(excel_row)
+                                 if i < len(header) and header[i]})
+            else:
+                text = raw.decode('utf-8-sig', errors='replace')
+                for record in csv.DictReader(io.StringIO(text)):
+                    rows.append({norm(k): ('' if v is None else str(v))
+                                 for k, v in record.items() if k})
+        except Exception as e:
+            return {'error': f'Could not parse file: {e}'}
+
+        # (file column, RoomAssignment attribute)
+        fields = [('hotel_confirmation_number', 'hotel_confirmation_number'),
+                  ('hotel_cancellation_number', 'cancellation_confirmation_number')]
+
+        updated = 0
+        unchanged = 0
+        changes = []
         with Session() as session:
             hotels_imported = set()
-            for mapping in mappings:
-                assignment_id = mapping.get('assignment_id')
-                conf_num = mapping.get('confirmation_num')
-                hotel_conf = mapping.get('hotel_confirmation_number')
-
-                if not hotel_conf or not (assignment_id or conf_num):
-                    results.append({'confirmation_num': conf_num,
-                                    'assignment_id': assignment_id,
-                                    'status': 'error',
-                                    'message': 'Missing required fields.'})
+            for row in rows:
+                conf_num = (row.get('confirmation_num') or '').strip()
+                if not conf_num:
                     continue
-
-                ras = []
-                if assignment_id:
-                    ra = session.query(RoomAssignment).get(assignment_id)
-                    if ra:
-                        ras = [ra]
-                elif conf_num:
-                    app = session.query(LotteryApplication).filter(
-                        LotteryApplication.confirmation_num == conf_num
-                    ).one_or_none()
-                    if app:
-                        ras = session.query(RoomAssignment).filter_by(
-                            lottery_application_id=app.id).all()
-
+                app = session.query(LotteryApplication).filter(
+                    LotteryApplication.confirmation_num == conf_num).one_or_none()
+                ras = session.query(RoomAssignment).filter_by(
+                    lottery_application_id=app.id).all() if app else []
                 if not ras:
-                    results.append({'confirmation_num': conf_num,
-                                    'assignment_id': assignment_id,
-                                    'status': 'error',
-                                    'message': 'Assignment not found.'})
-                    continue
+                    continue  # no matching booking; skip the row
 
-                for ra in ras:
-                    ra.hotel_confirmation_number = hotel_conf
-                    session.add(ra)
-                    if ra.inventory and ra.inventory.hotel_id:
-                        hotels_imported.add(str(ra.inventory.hotel_id))
-                results.append({'confirmation_num': conf_num,
-                                'assignment_id': assignment_id,
-                                'status': 'success'})
+                row_present = False
+                row_changed = False
+                for col, attr in fields:
+                    if col not in row:
+                        continue
+                    new_val = (row.get(col) or '').strip()
+                    if not new_val:
+                        continue  # empty cell: don't clear an existing value
+                    row_present = True
+                    old_val = getattr(ras[0], attr) or ''
+                    field_changed = False
+                    for ra in ras:
+                        if (getattr(ra, attr) or '') != new_val:
+                            setattr(ra, attr, new_val)
+                            session.add(ra)
+                            field_changed = True
+                            if ra.inventory and ra.inventory.hotel_id:
+                                hotels_imported.add(str(ra.inventory.hotel_id))
+                    if field_changed:
+                        row_changed = True
+                        changes.append({'confirmation_num': conf_num, 'field': col,
+                                        'old': old_val, 'new': new_val})
+                if row_present:
+                    updated += 1 if row_changed else 0
+                    unchanged += 0 if row_changed else 1
 
             for hotel_id in hotels_imported:
-                log_entry = HotelExportLog(
+                session.add(HotelExportLog(
                     hotel_id=hotel_id,
                     export_type='confirmation_import',
-                    record_count=len([r for r in results if r['status'] == 'success']),
-                )
-                session.add(log_entry)
+                    record_count=updated,
+                ))
             session.commit()
 
-        return {'results': results}
+        return {'updated': updated, 'unchanged': unchanged, 'changes': changes}
 
 
 @all_api_auth('api_read')
