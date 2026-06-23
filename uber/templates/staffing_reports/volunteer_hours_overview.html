@@ -106,7 +106,6 @@
         <th>Weighted Hours</th>
         <th>Hours Worked</th>
         <th>Supporter Package</th>
-        <th>Assigned Hotel Space</th>
       </tr>
       </thead>
       <tbody>
@@ -121,7 +120,6 @@
           <td>{{ volunteer.weighted_hours }}</td>
           <td>{{ volunteer.worked_hours }}</td>
           <td>{{ (volunteer.amount_extra >= c.SUPPORTER_LEVEL)|yesno }}</td>
-          <td>{{ 'yes' if volunteer.room_assignments else 'no' }}</td>
         </tr>
       {% endfor %}
       </tbody>
