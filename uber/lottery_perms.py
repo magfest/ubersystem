@@ -164,4 +164,5 @@ def assert_can(check_fn, *args, **kwargs):
     if check_fn(*args, **kwargs):
         return
     from uber.errors import HTTPRedirect
-    raise HTTPRedirect('../accounts/insufficient_privileges')
+    raise HTTPRedirect('../landing/index?message={}',
+                       "You don't have access to that.")
