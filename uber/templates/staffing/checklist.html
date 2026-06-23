@@ -15,6 +15,23 @@
     If you aren't {{ attendee.full_name }}, <a href="login">click here</a> to log in as yourself.
 </div>
 
+{% set _violations = attendee.shift_compliance_violations %}
+{% if _violations %}
+<div class="alert alert-warning">
+  <strong>Heads up:</strong> You currently don't meet the shift requirements for your assigned room nights. To keep your hotel space, you'll need to:
+  <ul class="mb-0">
+    {% for req in _violations %}
+      {% if req.kind == c.CORE %}
+        <li>Reach at least {{ req.required_weighted_hours }} weighted shift hours (you have {{ attendee.weighted_hours }}) - required for the {{ req.night_date|date("%A %b %-d") }} core night.</li>
+      {% else %}
+        <li>Pick up a shift overlapping {{ req.shift_window_start|datetime_local("%a %b %-d %-I:%M%p") }}&nbsp;-&nbsp;{{ req.shift_window_end|datetime_local("%-I:%M%p") }} ({{ req.kind_label }}).</li>
+      {% endif %}
+    {% endfor %}
+  </ul>
+  <a href="../staffing/shifts" class="btn btn-sm btn-warning mt-2">Pick up shifts</a>
+</div>
+{% endif %}
+
 <br/> Thanks for volunteering for {{ c.EVENT_NAME }}! We are so excited to work with you. The following is a list of items you will need to complete in order to volunteer.<br/> <br/>
 <i>You won't be able to move on with the checklist until you've completed the previous steps!</i> <br/> <br/>
 
