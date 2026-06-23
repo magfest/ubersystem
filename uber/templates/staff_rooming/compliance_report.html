@@ -1,0 +1,134 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}{% if department %}{{ department.name }} - {% endif %}Non-Compliant Staffers{% endblock %}
+{% block content %}
+
+{% import 'hotel_lottery_admin/_macros.html' as hotel_macros %}
+{% include 'hotel_lottery_admin/nav.html' %}
+{% include 'staff_rooming/staffing_subnav.html' %}
+
+<h1>
+  {% if department %}{{ department.name }}: Non-Compliant Staffers{% else %}Non-Compliant Staffers{% endif %}
+</h1>
+<p class="text-muted">
+  Staff with hotel rooms who don't meet the shift requirements defined on the
+  <a href="index">Staff Rooming Requirements</a> page. Per-date rules apply
+  to each night the staffer's room covers.
+</p>
+
+{% if message %}
+<div class="alert alert-info">{{ message }}</div>
+{% endif %}
+
+{# Filter form: department picker + free-text search in one card.
+   GET-submitted so the filter survives bookmarking, copy-link, and
+   reload. Submitting always drops `page` so a new query lands on
+   page 1. The pagination links below carry both `search` and
+   `department_id` forward via `base_url`. #}
+<form method="get" action="compliance_report" class="card card-body mb-3">
+  <div class="row g-2 align-items-end">
+    <div class="col-md-4">
+      <label class="form-label small mb-1">Department</label>
+      <select class="form-select form-select-sm" name="department_id">
+        <option value="">(all departments)</option>
+        {% for d in (departments or []) %}
+          <option value="{{ d.id }}" {% if department and department.id == d.id %}selected{% endif %}>{{ d.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-5">
+      <label class="form-label small mb-1">Search</label>
+      <input type="search" class="form-control form-control-sm" name="search"
+             value="{{ search }}"
+             placeholder="Name, email, dept, violation kind/date..."
+             aria-label="Search non-compliant staffers" />
+    </div>
+    <div class="col-md-3 text-end">
+      <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+      {% if department or search %}
+        <a href="compliance_report" class="btn btn-outline-secondary btn-sm">Clear</a>
+      {% endif %}
+    </div>
+  </div>
+</form>
+
+{% if total_unfiltered == 0 %}
+<div class="alert alert-success">
+  Everyone with a hotel room is currently in compliance.
+</div>
+{% elif total == 0 %}
+{# Some non-compliant staffers exist, but none match the active
+   filter. Keep the filter form visible (above) so the admin can
+   revise without re-navigating. #}
+<div class="alert alert-secondary mb-0">
+  No non-compliant staffers match your filter.
+  {% if search %}
+    Try a different search term
+    {% if department %}or removing the department filter{% endif %}.
+  {% elif department %}
+    Try a different department.
+  {% endif %}
+</div>
+{% else %}
+
+{# Build the pagination base URL once. The macro appends `&page=N`
+   (or `?page=N` if no `?` is present yet). Both the department and
+   search params get urlencoded so unusual characters don't break the
+   link. `department_id` is omitted when empty, so the URL stays
+   clean for the cross-department default view. #}
+{% set _base_args = [] %}
+{% if department_id %}{% set _ = _base_args.append('department_id=' ~ department_id|urlencode) %}{% endif %}
+{% if search %}{% set _ = _base_args.append('search=' ~ search|urlencode) %}{% endif %}
+{% if page_size != 50 %}{% set _ = _base_args.append('page_size=' ~ page_size) %}{% endif %}
+{% set _base_url = 'compliance_report' ~ ('?' ~ _base_args|join('&') if _base_args else '') %}
+
+<table class="table table-sm">
+  <thead>
+    <tr>
+      <th>Staffer</th>
+      <th>Departments</th>
+      <th>Weighted Hours</th>
+      <th>Violations</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for attendee, violations in results %}
+    <tr>
+      <td>
+        {# Prefer the lottery-application edit page since this is the
+           hotel-lottery admin area. Fall back to registration when the
+           staffer doesn't have a lottery application on file. #}
+        {% if attendee.lottery_application %}
+          <a href="../hotel_lottery_admin/form?id={{ attendee.lottery_application.id }}">{{ attendee.full_name }}</a>
+        {% else %}
+          <a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a>
+        {% endif %}
+      </td>
+      <td>{{ attendee.assigned_depts_labels|join(' / ') }}</td>
+      <td>{{ attendee.weighted_hours }}</td>
+      <td>
+        <ul class="mb-0">
+          {% for req in violations %}
+            {% if req.kind == c.CORE %}
+            <li>Core night {{ req.night_date|date("%a %b %-d") }} - needs {{ req.required_weighted_hours }} hours.</li>
+            {% else %}
+            <li>{{ req.kind_label }} {{ req.night_date|date("%a %b %-d") }} - no shift overlapping {{ req.shift_window_start|datetime_local("%-I:%M%p") }}&nbsp;-&nbsp;{{ req.shift_window_end|datetime_local("%-I:%M%p") }}.</li>
+            {% endif %}
+          {% endfor %}
+        </ul>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{# Shared pagination macro (Showing X-Y of Z + nav). Same widget the
+   rest of the staff_rooming pages use. #}
+{{ hotel_macros.pagination(
+    page=page, page_count=page_count, base_url=_base_url,
+    total=total, page_size=page_size, current_count=results|length,
+    label=('matching non-compliant staffer' if search or department
+           else 'non-compliant staffer')) }}
+
+{% endif %}
+
+{% endblock %}

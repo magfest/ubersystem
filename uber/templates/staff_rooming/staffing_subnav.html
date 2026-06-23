@@ -1,0 +1,30 @@
+{# Sub-navigation for the Staffing area under the hotel lottery admin.
+
+   Sits below the main hotel_lottery_admin nav and exposes the three
+   staffing-shaped pages: shift-compliance reporting, the
+   staff-rooms inventory view, and the per-staffer hotel-eligibility
+   editor. All URLs are root-absolute so the partial works regardless
+   of which controller it's included from.
+#}
+<ul class="nav nav-pills mb-3">
+  <li class="nav-item">
+    <a class="nav-link{% if 'compliance_report' in c.PAGE_PATH or 'dept_compliance' in c.PAGE_PATH %} active{% endif %}"
+       href="/staff_rooming/compliance_report">Shift Compliance</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link{% if 'staffer_rooms' in c.PAGE_PATH %} active{% endif %}"
+       href="/staff_rooming/staffer_rooms">Staffer Rooms</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link{% if 'hotel_eligibility' in c.PAGE_PATH %} active{% endif %}"
+       href="/staff_rooming/hotel_eligibility">Hotel Eligibility</a>
+  </li>
+  <li class="nav-item">
+    {# Staff Room Nights = the per-date shift-requirement config
+       (`/staff_rooming/index`). Match by URL suffix so it doesn't
+       accidentally light up on any other page that happens to
+       contain the word "index". #}
+    <a class="nav-link{% if c.PAGE_PATH.endswith('/staff_rooming/index') %} active{% endif %}"
+       href="/staff_rooming/index">Staff Room Nights</a>
+  </li>
+</ul>

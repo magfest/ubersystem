@@ -1,0 +1,141 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% import 'hotel_lottery_admin/_macros.html' as hotel_macros with context %}
+{% block title %}Staffer Rooms{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+{% include 'staff_rooming/staffing_subnav.html' %}
+
+<h2>Staffer Rooms</h2>
+<p class="text-muted">
+  Every live <code>RoomAssignment</code> whose booker is a Staff or
+  Contractor badge holder. Filter by billing model to gauge how many
+  staff rooms MAGFest is paying for vs. self-pay.
+</p>
+
+{% if message %}
+<div class="alert alert-info">{{ message }}</div>
+{% endif %}
+
+<div class="d-flex gap-2 align-items-center mb-3 flex-wrap">
+  <span class="badge bg-secondary">Self-pay: {{ total_self }}</span>
+  <span class="badge bg-info text-dark">Master bill: {{ total_master }}</span>
+  <span class="badge bg-primary">Total live: {{ total_self + total_master }}</span>
+</div>
+
+<form method="get" action="staffer_rooms" class="card card-body mb-3">
+  <div class="row g-2 align-items-end">
+    <div class="col-md-3">
+      <label class="form-label small mb-1">Search</label>
+      <input type="text" class="form-control form-control-sm" name="search"
+             value="{{ search }}" placeholder="name, email, hotel conf #" />
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small mb-1">Billing</label>
+      <select class="form-select form-select-sm" name="billing">
+        <option value="all" {% if billing == 'all' %}selected{% endif %}>All</option>
+        <option value="self_pay" {% if billing == 'self_pay' %}selected{% endif %}>Self-pay only</option>
+        <option value="master_bill" {% if billing == 'master_bill' %}selected{% endif %}>Master bill only</option>
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small mb-1">Hotel</label>
+      <select class="form-select form-select-sm" name="hotel_id">
+        <option value="">(any)</option>
+        {% for h in hotels %}
+          <option value="{{ h.id }}" {% if hotel_id == h.id %}selected{% endif %}>{{ h.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-1">
+      <label class="form-label small mb-1">Per page</label>
+      <select class="form-select form-select-sm" name="page_size">
+        {% for ps in [25, 50, 100, 200] %}
+          <option value="{{ ps }}" {% if page_size == ps %}selected{% endif %}>{{ ps }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2 text-end">
+      <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+      <a href="staffer_rooms" class="btn btn-outline-secondary btn-sm">Reset</a>
+    </div>
+  </div>
+</form>
+
+{% if not assignments %}
+<div class="card card-body text-center text-muted">No staff rooms match these filters.</div>
+{% else %}
+
+<table class="table table-sm table-hover align-middle">
+  <thead>
+    <tr>
+      <th>Staffer</th>
+      <th>Department(s)</th>
+      <th>Hotel / Room Type</th>
+      <th>Dates</th>
+      <th>Status</th>
+      <th>Billing</th>
+      <th>Hotel Conf #</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for ra in assignments %}
+    {% set inv = ra.inventory %}
+    {% set a = ra.attendee %}
+    <tr>
+      <td>
+        {% if a %}
+          {# Link straight to the staffer's lottery-application edit
+             page so the admin can manage their hotel state in context.
+             Falls back to the attendee registration record for staffers
+             with no lottery application on file. #}
+          {% if a.lottery_application %}
+            <a href="../hotel_lottery_admin/form?id={{ a.lottery_application.id }}">{{ a.first_name }} {{ a.last_name }}</a>
+          {% else %}
+            <a href="../registration/form?id={{ a.id }}">{{ a.first_name }} {{ a.last_name }}</a>
+          {% endif %}
+          <br/>
+          <small class="text-muted">{{ a.email }}</small>
+        {% else %}<em>(no attendee)</em>{% endif %}
+      </td>
+      <td>
+        {% if a and a.assigned_depts %}
+          <small>
+            {% for d in a.assigned_depts %}{{ d.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+          </small>
+        {% else %}
+          <span class="text-muted">-</span>
+        {% endif %}
+      </td>
+      <td>{{ hotel_macros.hotel_room_cell(ra=ra) }}</td>
+      <td>
+        {% if ra.assigned_check_in_date and ra.assigned_check_out_date %}
+          {{ ra.assigned_check_in_date|date("%a %b %-d") }}<br/>
+          -> {{ ra.assigned_check_out_date|date("%a %b %-d") }}
+        {% else %}
+          <span class="text-warning">- dates missing -</span>
+        {% endif %}
+      </td>
+      <td>{{ hotel_macros.room_status_chip(ra) }}</td>
+      <td>{{ hotel_macros.billing_chip(ra) }}</td>
+      <td>
+        {% if ra.hotel_confirmation_number %}
+          <code>{{ ra.hotel_confirmation_number }}</code>
+        {% else %}
+          <span class="text-muted">-</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% set _qs = 'search=' ~ search|urlencode ~ '&billing=' ~ billing ~ '&hotel_id=' ~ hotel_id ~ '&page_size=' ~ page_size %}
+{{ hotel_macros.pagination(page, page_count, 'staffer_rooms?' ~ _qs,
+                           total=total, page_size=page_size,
+                           current_count=assignments|length,
+                           label='staff room') }}
+
+{% endif %}
+
+{% endblock content %}

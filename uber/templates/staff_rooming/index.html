@@ -1,0 +1,72 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Staff Rooming Requirements{% endblock %}
+{% block content %}
+
+{# Staff Room Nights lives under the Staffing top-level entry - it's
+   about staff shift requirements, not room inventory. #}
+{% include 'hotel_lottery_admin/nav.html' %}
+{% include 'staff_rooming/staffing_subnav.html' %}
+
+<h1>Staff Rooming Requirements</h1>
+<p class="text-muted">
+  Per-date shift compliance rules for staff with a hotel room. A staffer is
+  non-compliant for a setup/teardown date if they have no shift overlapping
+  the configured window. They're non-compliant for core dates if their total
+  weighted hours across the convention are below the required minimum on any
+  of those dates.
+</p>
+
+{% if message %}
+<div class="alert alert-success">{{ message }}</div>
+{% endif %}
+
+<form method="post" action="save">
+  {{ csrf_token() }}
+
+  <table class="table table-sm align-middle">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Day</th>
+        <th style="width: 14rem;">Kind</th>
+        <th style="width: 18rem;">Window Start (setup/teardown only)</th>
+        <th style="width: 18rem;">Window End (setup/teardown only)</th>
+        <th style="width: 10rem;">Required Hours (core only)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for req in requirements %}
+      <tr>
+        <td>{{ req.night_date|date("%Y-%m-%d") }}</td>
+        <td>{{ req.night_date|date("%A") }}</td>
+        <td>
+          <select name="kind_{{ req.id }}" class="form-select form-select-sm">
+            {% for val, desc in night_kind_opts %}
+            <option value="{{ val }}"{% if req.kind == val %} selected{% endif %}>{{ desc }}</option>
+            {% endfor %}
+          </select>
+        </td>
+        <td>
+          <input type="datetime-local" name="window_start_{{ req.id }}"
+                 class="form-control form-control-sm"
+                 value="{% if req.shift_window_start %}{{ req.shift_window_start|datetime_local('%Y-%m-%dT%H:%M') }}{% endif %}" />
+        </td>
+        <td>
+          <input type="datetime-local" name="window_end_{{ req.id }}"
+                 class="form-control form-control-sm"
+                 value="{% if req.shift_window_end %}{{ req.shift_window_end|datetime_local('%Y-%m-%dT%H:%M') }}{% endif %}" />
+        </td>
+        <td>
+          <input type="number" min="0" name="required_weighted_hours_{{ req.id }}"
+                 class="form-control form-control-sm"
+                 value="{{ req.required_weighted_hours }}" />
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <button type="submit" class="btn btn-primary">Save</button>
+</form>
+
+{% endblock %}

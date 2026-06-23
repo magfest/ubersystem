@@ -1,0 +1,208 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% import 'hotel_lottery_admin/_macros.html' as hotel_macros with context %}
+{% block title %}Hotel Eligibility{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+{% include 'staff_rooming/staffing_subnav.html' %}
+
+<h2>Staff Hotel Eligibility</h2>
+<p class="text-muted">
+  Toggle each Staff or Contractor badge's <code>hotel_eligible</code> flag.
+  Only eligible staffers can enter the next staff hotel lottery. Use the
+  per-row switch for one-off changes or the bulk action for batches.
+</p>
+
+{% if message %}
+<div class="alert alert-info">{{ message }}</div>
+{% endif %}
+
+<div class="d-flex gap-2 align-items-center mb-3 flex-wrap">
+  <span class="badge bg-success">Eligible: {{ total_eligible }}</span>
+  <span class="badge bg-secondary">Ineligible: {{ total_ineligible }}</span>
+  <span class="badge bg-primary">Total staff: {{ total_eligible + total_ineligible }}</span>
+</div>
+
+<form method="get" action="hotel_eligibility" class="card card-body mb-3">
+  <div class="row g-2 align-items-end">
+    <div class="col-md-4">
+      <label class="form-label small mb-1">Search</label>
+      <input type="text" class="form-control form-control-sm" name="search"
+             value="{{ search }}" placeholder="name or email" />
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small mb-1">Show</label>
+      <select class="form-select form-select-sm" name="show">
+        <option value="all" {% if show == 'all' %}selected{% endif %}>All staff</option>
+        <option value="eligible" {% if show == 'eligible' %}selected{% endif %}>Eligible only</option>
+        <option value="ineligible" {% if show == 'ineligible' %}selected{% endif %}>Ineligible only</option>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small mb-1">Per page</label>
+      <select class="form-select form-select-sm" name="page_size">
+        {% for ps in [25, 50, 100, 200] %}
+          <option value="{{ ps }}" {% if page_size == ps %}selected{% endif %}>{{ ps }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3 text-end">
+      <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+      <a href="hotel_eligibility" class="btn btn-outline-secondary btn-sm">Reset</a>
+    </div>
+  </div>
+</form>
+
+{% if not staffers %}
+<div class="card card-body text-center text-muted">No staff match these filters.</div>
+{% else %}
+
+{% set _return_url = '/staff_rooming/hotel_eligibility?show=' ~ show ~ '&page=' ~ page ~ '&page_size=' ~ page_size ~ '&search=' ~ search|urlencode %}
+
+{# Bulk action form - kept as a STANDALONE hidden form, NOT wrapping the
+   table. The table cells contain their own per-row `set_hotel_eligibility`
+   forms; nesting those inside the bulk form is invalid HTML, and the
+   browser would reparent each row's `attendee_id` input onto the bulk
+   form and post it to `bulk_set_hotel_eligibility` (which only accepts
+   `attendee_ids`). The checkbox -> comma-joined-ids wiring and the
+   submit are handled in JS below. #}
+<form method="post" action="bulk_set_hotel_eligibility" id="bulk-eligibility-form" class="d-none">
+  {{ csrf_token() }}
+  <input type="hidden" name="return_url" value="{{ _return_url }}" />
+  <input type="hidden" id="bulk-eligible-value" name="eligible" value="true" />
+  <input type="hidden" id="bulk-ids-value" name="attendee_ids" value="" />
+</form>
+
+<div class="d-flex gap-2 mb-2 align-items-center">
+  <button type="button" class="btn btn-sm btn-success" id="bulk-mark-eligible">
+    Mark selected eligible
+  </button>
+  <button type="button" class="btn btn-sm btn-outline-danger" id="bulk-mark-ineligible">
+    Mark selected ineligible
+  </button>
+  <small class="text-muted ms-auto">
+    <span id="bulk-selected-count">0</span> selected
+  </small>
+</div>
+
+<table class="table table-sm table-hover align-middle">
+    <thead>
+      <tr>
+        <th style="width: 30px;">
+          <input type="checkbox" id="bulk-select-all" />
+        </th>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Department(s)</th>
+        <th>Has live room?</th>
+        <th style="width: 160px;">Hotel-eligible</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in staffers %}
+      {% set _has_room = (a.room_assignments|selectattr('status', 'in', [c.ASSIGNED, c.SECURED])|list|length > 0) %}
+      <tr>
+        <td>
+          <input type="checkbox" class="bulk-row-check" value="{{ a.id }}" />
+        </td>
+        <td>
+          {% if a.lottery_application %}
+            <a href="../hotel_lottery_admin/form?id={{ a.lottery_application.id }}">{{ a.first_name }} {{ a.last_name }}</a>
+          {% else %}
+            <a href="../registration/form?id={{ a.id }}">{{ a.first_name }} {{ a.last_name }}</a>
+          {% endif %}
+        </td>
+        <td><small class="text-muted">{{ a.email }}</small></td>
+        <td>
+          {% if a.assigned_depts %}
+            <small>
+              {% for d in a.assigned_depts %}{{ d.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+            </small>
+          {% else %}
+            <span class="text-muted">-</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if _has_room %}{{ hotel_macros.yes_no_chip(true) }}{% else %}<span class="text-muted">-</span>{% endif %}
+        </td>
+        <td>
+          {# Per-row toggle posts to set_hotel_eligibility. The hidden
+             eligible field flips to whatever the OPPOSITE of the
+             current state is, so clicking the button toggles. #}
+          <form method="post" action="set_hotel_eligibility" class="d-inline">
+            {{ csrf_token() }}
+            <input type="hidden" name="attendee_id" value="{{ a.id }}" />
+            <input type="hidden" name="eligible" value="{{ 'false' if a.hotel_eligible else 'true' }}" />
+            <input type="hidden" name="return_url" value="{{ _return_url }}" />
+            {% if a.hotel_eligible %}
+              <button type="submit" class="btn btn-sm btn-success">
+                <i class="fa fa-check"></i> Eligible - revoke
+              </button>
+            {% else %}
+              <button type="submit" class="btn btn-sm btn-outline-secondary">
+                <i class="fa fa-times"></i> Ineligible - grant
+              </button>
+            {% endif %}
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+<script>
+(function () {
+  var form = document.getElementById('bulk-eligibility-form');
+  if (!form) return;
+  var idsInput   = document.getElementById('bulk-ids-value');
+  var eligibleInput = document.getElementById('bulk-eligible-value');
+  var selAll     = document.getElementById('bulk-select-all');
+  var countLabel = document.getElementById('bulk-selected-count');
+  // Checkboxes live in the table, outside the bulk form, so query the
+  // whole document rather than `form`.
+  var rowChecks  = document.querySelectorAll('.bulk-row-check');
+
+  function updateIds() {
+    var ids = [];
+    rowChecks.forEach(function (cb) { if (cb.checked) ids.push(cb.value); });
+    idsInput.value = ids.join(',');
+    countLabel.textContent = ids.length;
+    return ids.length;
+  }
+
+  rowChecks.forEach(function (cb) {
+    cb.addEventListener('change', updateIds);
+  });
+  if (selAll) {
+    selAll.addEventListener('change', function () {
+      rowChecks.forEach(function (cb) { cb.checked = selAll.checked; });
+      updateIds();
+    });
+  }
+
+  function submitBulk(value) {
+    if (updateIds() === 0) {
+      alert('No staffers selected.');
+      return;
+    }
+    eligibleInput.value = value;
+    form.submit();
+  }
+  var markEligible = document.getElementById('bulk-mark-eligible');
+  var markIneligible = document.getElementById('bulk-mark-ineligible');
+  if (markEligible) markEligible.addEventListener('click', function () { submitBulk('true'); });
+  if (markIneligible) markIneligible.addEventListener('click', function () { submitBulk('false'); });
+
+  updateIds();
+})();
+</script>
+
+{% set _qs = 'search=' ~ search|urlencode ~ '&show=' ~ show ~ '&page_size=' ~ page_size %}
+{{ hotel_macros.pagination(page, page_count, 'hotel_eligibility?' ~ _qs,
+                           total=total, page_size=page_size,
+                           current_count=staffers|length,
+                           label='staffer') }}
+
+{% endif %}
+
+{% endblock content %}

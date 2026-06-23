@@ -43,6 +43,21 @@
 <div class="d-none csrf_token"> {{ csrf_token() }} </div>
 <div class="row justify-content-center">
 <div class="col-12 col-md-10">
+  {% set _violations = c.CURRENT_VOLUNTEER.shift_compliance_violations %}
+  {% if _violations %}
+  <div class="alert alert-warning">
+    <strong>Shift requirements not yet met for your hotel room:</strong>
+    <ul class="mb-0">
+      {% for req in _violations %}
+        {% if req.kind == c.CORE %}
+          <li>Need {{ req.required_weighted_hours }} weighted hours by {{ req.night_date|date("%a %b %-d") }} (currently {{ c.CURRENT_VOLUNTEER.weighted_hours }}).</li>
+        {% else %}
+          <li>Need a shift overlapping {{ req.shift_window_start|datetime_local("%a %b %-d %-I:%M%p") }}&nbsp;-&nbsp;{{ req.shift_window_end|datetime_local("%-I:%M%p") }} ({{ req.kind_label }}).</li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
   <div class="d-flex justify-content-between align-items-end">
     <h2>
       {{ attendee.first_name }} {{ attendee.last_name }}'s Available Shifts
