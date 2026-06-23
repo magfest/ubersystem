@@ -27,7 +27,7 @@ __all__ = ['LotteryApplication',
            'HotelRoomInventory', 'InventoryNightQuantity', 'InventoryPartition', 'InventoryPartitionBlock',
            'LotteryRun', 'RoomAssignment', 'RoomAssignmentInvite',
            'PartitionOwner', 'PartitionAuditLog', 'NightShiftRequirement',
-           'WaitlistReveal', 'WaitlistRevealLink', 'HotelExportLog',
+           'WaitlistReveal', 'WaitlistRevealLink', 'HotelExportLog', 'HotelImportFile',
            'HotelRoomIssueNote',
            'LotteryHotel', 'LotteryRoomType']
 
@@ -1246,6 +1246,29 @@ class HotelExportLog(MagModel, table=True):
     exported_by: str = ''
     record_count: int = 0
     notes: str = ''
+
+
+class HotelImportFile(MagModel, table=True):
+    """A raw confirmation/cancellation file uploaded for a hotel.
+
+    Retained verbatim (on disk under UPLOADED_FILES_DIR) so odd hotel
+    formats can be inspected and re-applied after the fact. Files arrive
+    either from the uber-vault hotel portal (source='portal') or the admin
+    upload (source='admin'); both appear in the exports page list.
+    """
+    hotel_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='lottery_hotel.id', nullable=True)
+    hotel: 'LotteryHotel' = Relationship(
+        sa_relationship_kwargs={'foreign_keys': 'HotelImportFile.hotel_id', 'lazy': 'joined'})
+    filename: str = ''
+    content_type: str = ''
+    filepath: str = ''
+    size: int = 0
+    source: str = ''
+    uploaded_by: str = ''
+    uploaded_at: datetime | None = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    updated_count: int = 0
+    unchanged_count: int = 0
+    note: str = ''
 
 
 #

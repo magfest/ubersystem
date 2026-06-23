@@ -86,6 +86,69 @@
   </tbody>
 </table>
 
+<h4 class="mt-4 mb-2">Uploaded confirmation files</h4>
+<p class="text-muted small">
+  Raw files uploaded by hotels (through the hotel portal) or by admins are kept
+  here so formatting issues can be reviewed and re-applied after the fact.
+</p>
+
+<form method="post" action="upload_confirmation_file" enctype="multipart/form-data"
+      class="row g-2 align-items-end mb-3">
+  {{ csrf_token() }}
+  <div class="col-auto">
+    <label class="form-label small mb-0" for="import-hotel">Hotel</label>
+    <select class="form-select form-select-sm" name="hotel_id" id="import-hotel">
+      <option value="">(none)</option>
+      {% for h in all_hotels %}
+      <option value="{{ h.id }}">{{ h.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <label class="form-label small mb-0" for="import-file">Confirmation file (CSV or XLSX)</label>
+    <input class="form-control form-control-sm" type="file" name="import_file" id="import-file"
+           accept=".csv,.xlsx,.xlsm" required />
+  </div>
+  <div class="col-auto">
+    <button type="submit" class="btn btn-success btn-sm">
+      <i class="fa fa-upload"></i> Upload
+    </button>
+  </div>
+</form>
+
+<table class="table table-sm table-hover">
+  <thead>
+    <tr>
+      <th>File</th>
+      <th>Hotel</th>
+      <th>Source</th>
+      <th>Uploaded By</th>
+      <th>Uploaded</th>
+      <th>Result</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for f in import_files %}
+    <tr>
+      <td>{{ f.filename }}</td>
+      <td>{{ f.hotel.name if f.hotel else '-' }}</td>
+      <td>{{ 'Hotel Portal' if f.source == 'portal' else 'Admin' }}</td>
+      <td>{{ f.uploaded_by or '-' }}</td>
+      <td>{{ f.uploaded_at|datetime_local }}</td>
+      <td>{{ f.note or '-' }}</td>
+      <td>
+        <a href="download_import_file?id={{ f.id }}" class="btn btn-outline-primary btn-sm">
+          <i class="fa fa-download"></i> Download
+        </a>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="text-muted">No files uploaded yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
 <div class="modal fade" id="hotel-export-details-modal" tabindex="-1" aria-labelledby="hotel-export-details-modal-label" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
