@@ -1,4 +1,10 @@
-{% set room_type = 'suite' if app.assigned_suite_type else 'room' %}
+{# Cancel notification fires once any RoomAssignment is cancelled.
+   Determine room/suite phrasing by scanning whichever rooms still
+   exist in any award state - or fall back to "room" if all gone. #}
+{% set _existing = (app.attendee.room_assignments if app.attendee else [])
+                   |selectattr('status', 'in', [c.ASSIGNED, c.SECURED, c.CANCELLED, c.EXPIRED])|list %}
+{% set _has_suite = _existing|selectattr('inventory.is_suite')|list|length > 0 %}
+{% set room_type = 'suite' if _has_suite else 'room' %}
 {% set has_or_had_parent = app.parent_application or app.former_parent_id %}
 <html>
 <head></head>

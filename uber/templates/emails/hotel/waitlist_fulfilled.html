@@ -1,0 +1,30 @@
+{# Bare-fragment email body, matching every other template in
+   `emails/hotel/`. The earlier `{% extends "emails/base.html" %}`
+   header pointed at a template that doesn't exist in this codebase -
+   the sender (`uber.tasks.email.send_email`) renders this file directly
+   as the message body, no wrapper required. #}
+
+{# Greeting falls back through the assignment's attendee when we have
+   no lottery application (department / partition / manual rooms). #}
+{% set _to = (app.attendee if app else assignment.attendee) %}
+<p>Hello {{ _to.first_name }},</p>
+
+<p>Great news! Additional room nights have become available for the {{ c.EVENT_NAME }} hotel lottery,
+and your room dates have been updated.</p>
+
+<p><strong>Your updated rooms:</strong></p>
+{% include 'emails/hotel/_rooms_table.html' with context %}
+
+{# Waitlist state is per-RoomAssignment now - reading `app.has_waitlist_request`
+   would tell us about the original lottery entry, not whether this
+   specific room still has unfulfilled demand. #}
+{% if assignment.is_waitlisted %}
+<p>You are still on the waitlist for additional nights on this room. We'll notify you if more availability opens up.</p>
+{% else %}
+<p>All of your requested nights for this room have been confirmed.</p>
+{% endif %}
+
+<p>You can review your room details at any time by visiting your
+<a href="{{ c.URL_BASE }}/hotel_lottery/rooms?attendee_id={{ _to.id }}">rooms page</a>.</p>
+
+<p>If you have any questions, please contact us at {{ c.HOTEL_LOTTERY_EMAIL }}.</p>

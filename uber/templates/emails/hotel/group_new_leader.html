@@ -1,4 +1,7 @@
-{% set room_type = 'suite' if app.assigned_suite_type else 'room' %}
+{% set _existing = (app.attendee.room_assignments if app.attendee else [])
+                   |selectattr('status', 'in', [c.ASSIGNED, c.SECURED])|list %}
+{% set _has_suite = _existing|selectattr('inventory.is_suite')|list|length > 0 %}
+{% set room_type = 'suite' if _has_suite else 'room' %}
 <html>
 <head></head>
 <body>

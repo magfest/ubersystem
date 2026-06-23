@@ -1,0 +1,12 @@
+{{ app.attendee.first_name }},
+
+We're checking in with everyone still in the {{ c.EVENT_NAME_AND_YEAR }} hotel lottery before our next round of awards. If you're still interested in a room, please confirm at the link below.
+
+<p>
+  <a href="{{ c.URL_BASE }}/hotel_lottery/index?id={{ app.id }}">Confirm or withdraw your entry -></a>
+</p>
+
+If we don't hear from you, your entry may be passed over for the next round in favor of attendees who confirmed recently.
+
+Thanks,<br/>
+{{ c.EVENT_NAME }} Hotel Team
