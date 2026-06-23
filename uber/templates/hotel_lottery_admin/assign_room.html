@@ -1,0 +1,100 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}{% if assignment.id %}Edit{% else %}Manual{% endif %} Room Assignment{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+
+<h1>{% if assignment.id %}Edit Room Assignment{% else %}Manual Room Assignment{% endif %}</h1>
+<p class="text-muted">
+  Assign a room outside the lottery flow. Lottery admins record these as
+  MANUAL; partition owners with edit-assignment permission record them as
+  PARTITION_GRANT scoped to their partition.
+</p>
+
+{% if message %}
+<div class="alert alert-danger">{{ message }}</div>
+{% endif %}
+
+<form method="post" action="assign_room">
+  {{ csrf_token() }}
+  {% if assignment.id %}<input type="hidden" name="id" value="{{ assignment.id }}" />{% endif %}
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-6">
+      <label class="form-label">Attendee</label>
+      <select name="attendee_id" class="form-select" required>
+        <option value="">-- Select an attendee --</option>
+        {% for a in attendees %}
+        <option value="{{ a.id }}"{% if assignment.attendee_id == a.id %} selected{% endif %}>
+          {{ a.full_name }} ({{ a.email }})
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Inventory</label>
+      <select name="inventory_id" class="form-select" required>
+        <option value="">-- Select an inventory row --</option>
+        {% for inv in inventory_rows %}
+        <option value="{{ inv.id }}"{% if assignment.inventory_id == inv.id %} selected{% endif %}>
+          {{ inv.name or "Inventory" }}
+          {% if inv.hotel %} - {{ inv.hotel.name }}{% endif %}
+          {% if inv.is_suite %} (Suite){% endif %}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-4">
+      <label class="form-label">Partition <span class="text-muted small">(optional)</span></label>
+      <select name="partition_id" class="form-select">
+        <option value="">-- No partition --</option>
+        {% for p in partitions %}
+        <option value="{{ p.id }}"{% if assignment.partition_id == p.id %} selected{% endif %}>{{ p.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Check-In Date</label>
+      <input type="date" name="assigned_check_in_date" class="form-control"
+             value="{% if assignment.assigned_check_in_date %}{{ assignment.assigned_check_in_date.isoformat() }}{% endif %}" />
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Check-Out Date</label>
+      <input type="date" name="assigned_check_out_date" class="form-control"
+             value="{% if assignment.assigned_check_out_date %}{{ assignment.assigned_check_out_date.isoformat() }}{% endif %}" />
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-4">
+      <label class="form-label">Card Deadline <span class="text-muted small">(blank = inherit from run)</span></label>
+      <input type="date" name="deposit_cutoff_date" class="form-control"
+             value="{% if assignment.deposit_cutoff_date %}{{ assignment.deposit_cutoff_date.isoformat() }}{% endif %}" />
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Billing</label>
+      <div class="form-check mt-2">
+        <input class="form-check-input" type="checkbox"
+               id="require_cc" name="require_cc" value="true"
+               {% if assignment.require_cc or assignment.is_new %}checked{% endif %} />
+        <label class="form-check-label" for="require_cc">
+          Require credit card guarantee
+          <br/><small class="text-muted">Uncheck for master-bill rooms (MAGFest pays).</small>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Admin Notes</label>
+    <textarea name="admin_notes" class="form-control" rows="2">{{ assignment.admin_notes }}</textarea>
+  </div>
+
+  <button type="submit" class="btn btn-primary">Save Assignment</button>
+  <a class="btn btn-outline-secondary" href="index">Cancel</a>
+</form>
+
+{% endblock %}

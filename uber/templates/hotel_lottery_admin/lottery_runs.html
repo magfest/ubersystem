@@ -1,0 +1,187 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Lottery Runs{% endblock %}
+{% block content %}
+
+<script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify"></script>
+<script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.polyfills.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.css" rel="stylesheet" type="text/css" />
+
+{% include 'hotel_lottery_admin/nav.html' %}
+
+<form method="post" action="run_lottery" class="card card-body mb-3">
+  {{ csrf_token() }}
+  <h5>Run New Lottery</h5>
+  <div class="row g-3">
+    <div class="col-md-3">
+      <label for="run_name" class="form-label">Run Name</label>
+      <input type="text" class="form-control" name="run_name" id="run_name" placeholder="e.g., Staff Suites Round 1" />
+    </div>
+    <div class="col-md-2">
+      <label for="lottery_group" class="form-label">Group</label>
+      <select class="form-select" id="lottery_group" name="lottery_group">
+        <option selected value="attendee">Attendee</option>
+        <option value="staff">Staff</option>
+        <option value="both">Both</option>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label for="lottery_type" class="form-label">Type</label>
+      <select class="form-select" id="lottery_type" name="lottery_type">
+        <option selected value="room">Room</option>
+        <option value="suite">Suite</option>
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label for="cutoff" class="form-label">Cutoff (optional)</label>
+      <input type="datetime-local" class="form-control" name="cutoff" id="cutoff" />
+    </div>
+    <div class="col-md-2 d-flex align-items-end">
+      <button type="submit" class="btn btn-primary w-100">Run Lottery</button>
+    </div>
+  </div>
+  <div class="row g-3 mt-1">
+    <div class="col-md-3">
+      <label class="form-label">Hotel Filter <small class="text-muted">(leave empty for all)</small></label>
+      <input type="text" class="form-control" name="hotel_filter" id="hotel_filter" placeholder="Click to select hotels..." />
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">
+        <span id="room_type_filter_label">Room Type</span> Filter
+        <small class="text-muted">(leave empty for all)</small>
+      </label>
+      <input type="text" class="form-control" name="room_type_filter" id="room_type_filter" placeholder="Click to select room types..." />
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Inventory Block <small class="text-muted">(leave empty for all)</small></label>
+      <input type="text" class="form-control" name="inventory_filter" id="inventory_filter" placeholder="Click to select blocks..." />
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Partition <small class="text-muted">(optional)</small></label>
+      <select class="form-select" name="partition_filter" id="partition_filter">
+        <option value="">No partition filter</option>
+        {% for p in partitions %}
+        <option value="{{ p.id }}">{{ p.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+</form>
+
+<script type="text/javascript">
+$(function() {
+  var hotelWhitelist = [
+    {% for hotel in hotels %}
+    { value: "{{ hotel.id }}", label: "{{ hotel.name }}" }{{ "," if not loop.last }}
+    {% endfor %}
+  ];
+
+  var roomTypeWhitelist = [
+    {% for rt in room_types %}
+    { value: "{{ rt.id }}", label: "{{ rt.name }}" }{{ "," if not loop.last }}
+    {% endfor %}
+  ];
+
+  var suiteTypeWhitelist = [
+    {% for st in suite_types %}
+    { value: "{{ st.id }}", label: "{{ st.name }}" }{{ "," if not loop.last }}
+    {% endfor %}
+  ];
+
+  var inventoryWhitelist = [
+    {% for inv in inventory_blocks %}
+    { value: "{{ inv.id }}", label: "{{ inv.hotel.name if inv.hotel else '' }} - {{ inv.name }}" }{{ "," if not loop.last }}
+    {% endfor %}
+  ];
+
+  var tagifySettings = {
+    tagTextProp: 'label',
+    enforceWhitelist: true,
+    autoComplete: { rightKey: true, tabKey: true },
+    dropdown: {
+      enabled: 0,
+      highlightFirst: true,
+      mapValueTo: 'label',
+      searchKeys: ['value', 'label'],
+      maxItems: 20,
+      closeOnSelect: false
+    },
+    // Submit comma-separated IDs as the form value
+    originalInputValueFormat: function(values) {
+      return values.map(function(item) { return item.value; }).join(',');
+    }
+  };
+
+  var hotelTagify = new Tagify(document.getElementById('hotel_filter'),
+    Object.assign({}, tagifySettings, { whitelist: hotelWhitelist })
+  );
+
+  var roomTypeTagify = new Tagify(document.getElementById('room_type_filter'),
+    Object.assign({}, tagifySettings, { whitelist: roomTypeWhitelist })
+  );
+
+  var inventoryTagify = new Tagify(document.getElementById('inventory_filter'),
+    Object.assign({}, tagifySettings, { whitelist: inventoryWhitelist })
+  );
+
+  // Swap room type whitelist when switching between room/suite
+  var lotteryTypeSelect = document.getElementById('lottery_type');
+  var roomTypeLabel = document.getElementById('room_type_filter_label');
+  lotteryTypeSelect.addEventListener('change', function() {
+    roomTypeTagify.removeAllTags();
+    if (this.value === 'suite') {
+      roomTypeTagify.whitelist = suiteTypeWhitelist;
+      roomTypeLabel.textContent = 'Suite Type';
+      roomTypeTagify.DOM.input.setAttribute('data-placeholder', 'Click to select suite types...');
+    } else {
+      roomTypeTagify.whitelist = roomTypeWhitelist;
+      roomTypeLabel.textContent = 'Room Type';
+      roomTypeTagify.DOM.input.setAttribute('data-placeholder', 'Click to select room types...');
+    }
+  });
+});
+</script>
+
+{% if runs %}
+<table class="table table-hover">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Status</th>
+      <th>Run At</th>
+      <th>Group</th>
+      <th>Type</th>
+      <th>Entries</th>
+      <th>Rooms Assigned</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for run in runs %}
+    <tr>
+      <td><a href="lottery_run_detail?id={{ run.id }}">{{ run.name }}</a></td>
+      <td>
+        {% if run.status == c.LOTTERY_PENDING %}
+          <span class="badge bg-warning text-dark">Pending</span>
+        {% elif run.status == c.LOTTERY_AWARDED %}
+          <span class="badge bg-success">Awarded</span>
+        {% elif run.status == c.LOTTERY_REVERTED %}
+          <span class="badge bg-secondary">Reverted</span>
+        {% endif %}
+      </td>
+      <td>{{ run.run_at|datetime_local }}</td>
+      <td>{{ run.lottery_group }}</td>
+      <td>{{ run.lottery_type }}</td>
+      <td>{{ run.entries_considered }}</td>
+      <td>{{ run.rooms_assigned }}</td>
+      <td>
+        <a href="lottery_run_detail?id={{ run.id }}" class="btn btn-sm btn-outline-primary">Details</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="card card-body text-center text-muted">No lottery runs yet.</div>
+{% endif %}
+
+{% endblock content %}

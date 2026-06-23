@@ -1,0 +1,271 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Exports{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+
+<div class="d-flex justify-content-between align-items-end mb-3 flex-wrap gap-2">
+  <div>
+    <h2 class="mb-0">Exports</h2>
+    <p class="text-muted small mb-0">
+      Per-hotel export status, plus the two cross-system exports we
+      hand to MAGFest staff before the con.
+    </p>
+  </div>
+  {# Two existing file downloads, hoisted out of the old "Exports"
+     dropdown into prominent buttons on the page itself. #}
+  <div class="d-flex gap-2">
+    <a href="hotel_inventory_zip" class="btn btn-outline-primary">
+      <i class="fa fa-download"></i> Assigned Rooms by Date (xlsx zip)
+    </a>
+    <a href="assigned_entries" class="btn btn-outline-primary">
+      <i class="fa fa-download"></i> Passkey Export (csv)
+    </a>
+  </div>
+</div>
+
+<h4 class="mb-2">Per-hotel export tracking</h4>
+
+<table class="table table-hover">
+  <thead>
+    <tr>
+      <th>Hotel</th>
+      <th>Total Bookings</th>
+      <th>Last Export</th>
+      <th>Last Confirmation Import</th>
+      <th>Changed Since Export</th>
+      <th>Missing Confirmation #</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for hotel in hotels %}
+    <tr>
+      <td>
+        <button type="button"
+                class="btn btn-link p-0 text-start"
+                data-bs-toggle="modal"
+                data-bs-target="#hotel-export-details-modal"
+                data-hotel-id="{{ hotel.hotel.id }}"
+                data-hotel-name="{{ hotel.hotel.name }}">
+          {{ hotel.hotel.name }}
+        </button>
+      </td>
+      <td>{{ hotel.total_bookings }}</td>
+      <td>{{ hotel.last_export.exported_at|datetime_local if hotel.last_export else 'Never' }}</td>
+      <td>{{ hotel.last_import.exported_at|datetime_local if hotel.last_import else 'Never' }}</td>
+      <td>
+        {% if hotel.dirty_count > 0 %}
+          <span class="text-warning fw-bold">{{ hotel.dirty_count }}</span>
+        {% else %}
+          0
+        {% endif %}
+      </td>
+      <td>
+        {% if hotel.missing_confirmation > 0 %}
+          <span class="text-danger fw-bold">{{ hotel.missing_confirmation }}</span>
+        {% else %}
+          0
+        {% endif %}
+      </td>
+      <td>
+        {% if hotel.total_bookings == 0 %}
+          <span class="badge bg-light text-dark">No bookings</span>
+        {% elif not hotel.last_export %}
+          <span class="badge bg-danger">Not exported</span>
+        {% elif hotel.dirty_count > 0 %}
+          <span class="badge bg-warning text-dark">Pending changes</span>
+        {% elif hotel.missing_confirmation > 0 %}
+          <span class="badge bg-info">Awaiting confirmations</span>
+        {% else %}
+          <span class="badge bg-success">Complete</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="modal fade" id="hotel-export-details-modal" tabindex="-1" aria-labelledby="hotel-export-details-modal-label" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="hotel-export-details-modal-label">Hotel Export Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex flex-wrap gap-2 align-items-center mb-3 border-bottom pb-3">
+          <div class="form-check mb-0 me-auto">
+            <input class="form-check-input" type="checkbox" id="hotel-export-pending-only" />
+            <label class="form-check-label" for="hotel-export-pending-only">
+              Show only pending changes
+              <span class="text-muted small">(hide rows that are in sync)</span>
+            </label>
+          </div>
+
+          {# Export buttons. Both omit cc_token by design. #}
+          <a id="hotel-export-csv-btn" href="#" class="btn btn-outline-primary btn-sm">
+            <i class="fa fa-download"></i> Download CSV
+          </a>
+          <a id="hotel-export-xlsx-btn" href="#" class="btn btn-outline-primary btn-sm">
+            <i class="fa fa-download"></i> Download XLSX
+          </a>
+
+          {# Import - same column layout as the export. Refuses files with cc_token columns. #}
+          <button type="button" class="btn btn-outline-success btn-sm"
+                  id="hotel-import-toggle-btn">
+            <i class="fa fa-upload"></i> Upload back-import...
+          </button>
+        </div>
+
+        <div id="hotel-import-form" class="card card-body mb-3" style="display: none;">
+          <form method="post" action="import_hotel_bookings_csv"
+                enctype="multipart/form-data" id="hotel-import-form-element">
+            {{ csrf_token() }}
+            <input type="hidden" name="hotel_id" id="hotel-import-hotel-id" />
+            <p class="small text-muted mb-2">
+              Upload a CSV or XLSX in the same format you just downloaded.
+              We update <code>hotel_confirmation_number</code> on every
+              matched row and, if a
+              <code>cancellation_confirmation_number</code> column is
+              present, mark those rooms cancelled.
+            </p>
+            <p class="small text-warning mb-3">
+              <i class="fa fa-shield"></i>
+              We refuse uploads that contain any <code>cc_token</code> column.
+              Strip those out before sending.
+            </p>
+            <div class="d-flex gap-2 align-items-end">
+              <div class="flex-grow-1">
+                <label class="form-label small mb-1">CSV or XLSX file</label>
+                <input type="file" name="bookings_file"
+                       accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                       class="form-control form-control-sm" required />
+              </div>
+              <button type="submit" class="btn btn-success btn-sm">Apply Import</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm"
+                      id="hotel-import-cancel-btn">Cancel</button>
+            </div>
+          </form>
+        </div>
+
+        <div id="hotel-export-details-body">
+          <div class="text-center text-muted py-5">
+            <div class="spinner-border" role="status" aria-hidden="true"></div>
+            <p class="mt-2 mb-0">Loading...</p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var modalEl       = document.getElementById('hotel-export-details-modal');
+  var modalLabel    = document.getElementById('hotel-export-details-modal-label');
+  var modalBody     = document.getElementById('hotel-export-details-body');
+  var pendingOnly   = document.getElementById('hotel-export-pending-only');
+  if (!modalEl) return;
+
+  function applyFilter() {
+    var rows = modalBody.querySelectorAll('tr[data-sync-status]');
+    var hideInSync = pendingOnly.checked;
+    var visible = 0;
+    rows.forEach(function (r) {
+      var inSync = r.dataset.syncStatus === 'in_sync';
+      if (hideInSync && inSync) {
+        r.style.display = 'none';
+      } else {
+        r.style.display = '';
+        visible++;
+      }
+    });
+    // Update the row count line emitted by the partial.
+    var countEl = modalBody.querySelector('.hotel-export-row-count');
+    if (countEl) {
+      var total = rows.length;
+      countEl.textContent = (hideInSync && visible !== total)
+        ? (visible + ' of ' + total)
+        : total;
+    }
+  }
+  pendingOnly.addEventListener('change', applyFilter);
+
+  var csvBtn         = document.getElementById('hotel-export-csv-btn');
+  var xlsxBtn        = document.getElementById('hotel-export-xlsx-btn');
+  var importToggle   = document.getElementById('hotel-import-toggle-btn');
+  var importForm     = document.getElementById('hotel-import-form');
+  var importCancel   = document.getElementById('hotel-import-cancel-btn');
+  var importHotelId  = document.getElementById('hotel-import-hotel-id');
+
+  importToggle.addEventListener('click', function () {
+    importForm.style.display = (importForm.style.display === 'none') ? '' : 'none';
+  });
+  importCancel.addEventListener('click', function () {
+    importForm.style.display = 'none';
+  });
+
+  // Currently-open hotel id, so pagination links know what to ask for.
+  var currentHotelId = null;
+
+  function loadPage(hotelId, page) {
+    modalBody.innerHTML =
+      '<div class="text-center text-muted py-5">' +
+      '<div class="spinner-border" role="status" aria-hidden="true"></div>' +
+      '<p class="mt-2 mb-0">Loading...</p></div>';
+
+    var url = 'hotel_export_details?hotel_id=' + encodeURIComponent(hotelId)
+            + '&page=' + encodeURIComponent(page || 1);
+    fetch(url, {credentials: 'same-origin'})
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.text();
+      })
+      .then(function (html) {
+        modalBody.innerHTML = html;
+        applyFilter();
+      })
+      .catch(function (err) {
+        modalBody.innerHTML =
+          '<div class="alert alert-danger mb-0">Failed to load details: ' +
+          (err && err.message ? err.message : 'unknown error') + '</div>';
+      });
+  }
+
+  // Pagination links are inside the swapped-in partial, so delegate
+  // off the always-mounted modalBody. A click on any [data-page] anchor
+  // re-fetches the partial at the requested page.
+  modalBody.addEventListener('click', function (event) {
+    var a = event.target.closest('.hotel-export-pagination [data-page]');
+    if (!a) return;
+    event.preventDefault();
+    var li = a.closest('.page-item');
+    if (li && li.classList.contains('disabled')) return;
+    if (!currentHotelId) return;
+    loadPage(currentHotelId, a.getAttribute('data-page'));
+  });
+
+  modalEl.addEventListener('show.bs.modal', function (event) {
+    var trigger = event.relatedTarget;
+    if (!trigger) return;
+    var hotelId   = trigger.getAttribute('data-hotel-id');
+    var hotelName = trigger.getAttribute('data-hotel-name') || 'Hotel Export Details';
+    modalLabel.textContent = hotelName;
+    currentHotelId = hotelId;
+
+    // Wire up export download links + import target.
+    csvBtn.href  = 'export_hotel_bookings_csv?hotel_id='  + encodeURIComponent(hotelId);
+    xlsxBtn.href = 'export_hotel_bookings_xlsx?hotel_id=' + encodeURIComponent(hotelId);
+    importHotelId.value = hotelId;
+    importForm.style.display = 'none';
+
+    loadPage(hotelId, 1);
+  });
+})();
+</script>
+
+{% endblock content %}

@@ -1,8 +1,11 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% import "forms/macros.html" as form_macros with context %}
+{% import 'hotel_lottery_admin/_macros.html' as hotel_macros with context %}
 {% set lottery_admin_info = lottery_admin_info or forms['lottery_admin_info'] %}
 {% block title %}Lottery Application{% if id != "None" and application.attendee %} for {{ application.attendee_name }}{% endif %}{% endblock %}
 {% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
 
 {{ macros.nav_menu(
     application, c.PAGE_PATH,
@@ -51,8 +54,288 @@
 </div>
 {% endif %}
 
-<div class="card">
-<div class="card-body">
+{# This card sits OUTSIDE the main `#application-form` below. Its nested
+   `<form>` tags (delete_room_assignment / update_room_assignment /
+   add_room_assignment) would be invalid HTML inside the outer form: the
+   inner `</form>` terminates the outer form early and orphans the Save
+   buttons. Keeping these forms above the main form makes them siblings. #}
+<div class="card mb-3">
+  <div class="card-header py-2 d-flex justify-content-between align-items-center">
+    <strong>Room Assignments</strong>
+    <div>
+      {# Export-lock chip - visible at the section header so the admin
+         knows immediately whether changes will reach the hotel. #}
+      {% set _any_locked = namespace(found=False) %}
+      {% for ra in (application.attendee.room_assignments if application.attendee else []) %}
+        {% if ra.export_locked %}{% set _any_locked.found = True %}{% endif %}
+      {% endfor %}
+      {% if _any_locked.found %}
+        <span class="badge bg-warning" title="At least one room has been exported to the hotel and is locked.">
+          <i class="fa fa-lock"></i> Export-locked
+        </span>
+        <button type="button" class="btn btn-sm btn-outline-danger ms-1"
+                onclick="$.post('unlock_application', {id: '{{ application.id }}', csrf_token: csrf_token}, function() { location.reload(); })">
+          Unlock all
+        </button>
+      {% else %}
+        <span class="badge bg-secondary">Not export-locked</span>
+      {% endif %}
+      <button type="button" class="btn btn-sm btn-outline-primary ms-2"
+              data-bs-toggle="modal" data-bs-target="#add-room-modal">
+        <i class="fa fa-plus"></i> Add Room
+      </button>
+    </div>
+  </div>
+  <div class="card-body py-2">
+  {% set rooms = application.attendee.room_assignments if application.attendee else [] %}
+  {% if rooms %}
+    <table class="table table-sm table-borderless align-middle mb-0">
+      <thead>
+        <tr class="small text-muted">
+          <th>Hotel / Type</th>
+          <th>Check-in</th>
+          <th>Check-out</th>
+          <th>Status</th>
+          <th>Billing</th>
+          <th>Reason</th>
+          <th>Hotel Conf #</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for ra in rooms %}
+        {% set inv = ra.inventory %}
+        <tr>
+          <td>{{ hotel_macros.hotel_room_cell(ra=ra) }}</td>
+          <td>{{ ra.assigned_check_in_date or '' }}</td>
+          <td>{{ ra.assigned_check_out_date or '' }}</td>
+          <td>{{ hotel_macros.room_status_chip(ra) }}</td>
+          <td>{{ hotel_macros.billing_chip(ra) }}</td>
+          <td>{{ ra.assignment_reason_label }}</td>
+          <td>{{ ra.hotel_confirmation_number or '-' }}</td>
+          <td class="text-end">
+            <button type="button" class="btn btn-sm btn-outline-secondary"
+                    data-bs-toggle="modal" data-bs-target="#edit-room-modal-{{ ra.id }}">Edit</button>
+            <form method="post" action="delete_room_assignment" class="d-inline">
+              {{ csrf_token() }}
+              <input type="hidden" name="application_id" value="{{ application.id }}" />
+              <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
+              <button type="submit" class="btn btn-sm btn-outline-danger"
+                      onclick="return confirm('Remove this room? Any connector rooms will also be removed.')">
+                Remove
+              </button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+
+    {# Per-row edit modals. Each gets its own ID so they don't collide.
+       Partition select sits ON TOP of the inventory select; changing it
+       fires room_picker_filter() (defined once below) which hides any
+       inventory <option> not allowed in the chosen partition. #}
+    {% for ra in rooms %}
+    <div class="modal fade" id="edit-room-modal-{{ ra.id }}" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <form method="post" action="update_room_assignment">
+            {{ csrf_token() }}
+            <input type="hidden" name="application_id" value="{{ application.id }}" />
+            <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
+            <div class="modal-header">
+              <h5 class="modal-title">Edit Room Assignment</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <div class="mb-3">
+                <label class="form-label">Partition</label>
+                <select class="form-select room-picker-partition" name="partition_id">
+                  <option value="" {% if not ra.partition_id %}selected{% endif %}>(No partition)</option>
+                  {% for p in partitions %}
+                    <option value="{{ p.id }}" {% if ra.partition_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+                  {% endfor %}
+                </select>
+                <div class="form-text">
+                  Picking a partition restricts the inventory choices to
+                  blocks that are part of it.
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Inventory Block</label>
+                <select class="form-select room-picker-inventory" name="inventory_id" required>
+                  <option value="">- Select an inventory block -</option>
+                  {% for inv in inventory_blocks %}
+                    <option value="{{ inv.id }}"
+                            data-partitions="{{ inventory_partitions_map.get(inv.id|string, [])|join(',') }}"
+                            {% if ra.inventory_id == inv.id %}selected{% endif %}>
+                      {{ inv.hotel.name if inv.hotel else '?' }} -
+                      {% if inv.is_suite %}{{ inv.suite_type.name if inv.suite_type else inv.name }}
+                      {% else %}{{ inv.room_type.name if inv.room_type else inv.name }}{% endif %}
+                    </option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="row g-2 mb-3">
+                <div class="col">
+                  <label class="form-label">Check-in</label>
+                  <input type="date" class="form-control" name="assigned_check_in_date"
+                         value="{{ ra.assigned_check_in_date or '' }}" />
+                </div>
+                <div class="col">
+                  <label class="form-label">Check-out</label>
+                  <input type="date" class="form-control" name="assigned_check_out_date"
+                         value="{{ ra.assigned_check_out_date or '' }}" />
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Billing</label>
+                <select class="form-select" name="require_cc">
+                  <option value="false" {% if not ra.require_cc %}selected{% endif %}>Master bill (no CC required)</option>
+                  <option value="true" {% if ra.require_cc %}selected{% endif %}>Self-pay (requires CC)</option>
+                </select>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" class="btn btn-primary">Save</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <p class="text-muted mb-0">No rooms assigned.</p>
+  {% endif %}
+  </div>{# /card-body #}
+</div>{# /card - Room Assignments #}
+
+{# Add Room modal. Drops in a manual MANUAL-reason RoomAssignment for
+   this application's attendee. Lottery-award assignments come from the
+   solver; partition grants come from partition_admin. This is the
+   admin's escape hatch. #}
+<div class="modal fade" id="add-room-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" action="add_room_assignment">
+        {{ csrf_token() }}
+        <input type="hidden" name="application_id" value="{{ application.id }}" />
+        <div class="modal-header">
+          <h5 class="modal-title">Add Room Assignment</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Partition</label>
+            <select class="form-select room-picker-partition" name="partition_id">
+              <option value="" selected>(No partition)</option>
+              {% for p in partitions %}
+                <option value="{{ p.id }}">{{ p.name }}</option>
+              {% endfor %}
+            </select>
+            <div class="form-text">
+              Picking a partition restricts the inventory choices to
+              blocks that are part of it.
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Inventory Block</label>
+            <select class="form-select room-picker-inventory" name="inventory_id" required>
+              <option value="">- Select an inventory block -</option>
+              {% for inv in inventory_blocks %}
+                <option value="{{ inv.id }}"
+                        data-partitions="{{ inventory_partitions_map.get(inv.id|string, [])|join(',') }}">
+                  {{ inv.hotel.name if inv.hotel else '?' }} -
+                  {% if inv.is_suite %}{{ inv.suite_type.name if inv.suite_type else inv.name }}
+                  {% else %}{{ inv.room_type.name if inv.room_type else inv.name }}{% endif %}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col">
+              <label class="form-label">Check-in</label>
+              <input type="date" class="form-control" name="assigned_check_in_date" />
+            </div>
+            <div class="col">
+              <label class="form-label">Check-out</label>
+              <input type="date" class="form-control" name="assigned_check_out_date" />
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Billing</label>
+            <select class="form-select" name="require_cc">
+              <option value="false" selected>Master bill (no CC required)</option>
+              <option value="true">Self-pay (requires CC)</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Add Room</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+// Partition->inventory cascade for every room picker modal on this page.
+// Convention: each picker sits inside a <form> that contains exactly
+// one .room-picker-partition <select> and one .room-picker-inventory
+// <select>. Each inventory <option> carries a data-partitions attribute
+// with the comma-separated list of partition IDs it belongs to. An
+// inventory with no partition memberships is always shown (the
+// "unrestricted" inventory blocks).
+(function () {
+  function filterPicker(form) {
+    var partitionSel = form.querySelector('.room-picker-partition');
+    var inventorySel = form.querySelector('.room-picker-inventory');
+    if (!partitionSel || !inventorySel) return;
+
+    var chosen = partitionSel.value || '';
+    var selectedStillValid = false;
+    var selectedValue = inventorySel.value;
+
+    Array.prototype.forEach.call(inventorySel.options, function (opt) {
+      if (!opt.value) {
+        opt.hidden = false;  // keep the placeholder
+        return;
+      }
+      var raw = opt.getAttribute('data-partitions') || '';
+      var partitions = raw ? raw.split(',') : [];
+      var allowed;
+      if (!chosen) {
+        // No partition picked -> show every inventory block.
+        allowed = true;
+      } else {
+        // Partition picked -> only blocks that include that partition.
+        allowed = partitions.indexOf(chosen) !== -1;
+      }
+      opt.hidden = !allowed;
+      opt.disabled = !allowed;
+      if (opt.value === selectedValue && allowed) selectedStillValid = true;
+    });
+
+    if (!selectedStillValid) {
+      inventorySel.value = '';
+    }
+  }
+
+  function wirePicker(form) {
+    var partitionSel = form.querySelector('.room-picker-partition');
+    if (!partitionSel) return;
+    partitionSel.addEventListener('change', function () { filterPicker(form); });
+    filterPicker(form);  // initial pass
+  }
+
+  document.querySelectorAll('.room-picker-partition').forEach(function (sel) {
+    var form = sel.closest('form');
+    if (form) wirePicker(form);
+  });
+})();
+</script>
 
 {{ form_macros.form_validation('application-form', 'validate_hotel_lottery') }}
 
@@ -75,161 +358,196 @@
     </div>
 </div>
 
-{% if not application.is_new %}
-<div class="row g-3 mb-3">
-    <div class="col-sm">
-        {{ form_macros.input(lottery_admin_info.response_id) }}
-    </div>
-    <div class="col-sm">
-        {{ form_macros.input(lottery_admin_info.confirmation_num) }}
-    </div>
-    {% if application.entry_started %}
-    <div class="col-sm">
-        <div class="form-text">Entry Started</div>
-        {{ application.entry_started|full_datetime_local }}
-    </div>
-    {% endif %}
-    {% if application.last_submitted %}
-    <div class="col-sm">
-        <div class="form-text">Last Submitted</div>
-        {{ application.last_submitted|full_datetime_local }}
-    </div>
-    {% endif %}
-</div>
-{% endif %}
+<div class="card mb-3">
+  <div class="card-header py-2"><strong>Application Status</strong></div>
+  <div class="card-body py-2">
 
-<div class="row g-3 mb-3">
-    <div class="col-sm">{{ form_macros.input(lottery_admin_info.final_status_hidden) }}</div>
-    <div class="col-sm">{{ form_macros.input(lottery_admin_info.can_edit) }}</div>
-    <div class="col-sm">{{ form_macros.input(lottery_admin_info.is_staff_entry) }}</div>
-</div>
+  {% if not application.is_new %}
+  {# Identity row - confirmation/response IDs + the three audit
+     timestamps inline on one row. Pure read-only; renders as small
+     <code>-style chips so it doesn't compete with editable fields. #}
+  <div class="row g-2 mb-2 small">
+      <div class="col-md-2">
+          <div class="form-text mb-0">Response ID</div>
+          <code>{{ application.response_id or '-' }}</code>
+      </div>
+      <div class="col-md-2">
+          <div class="form-text mb-0">Confirmation #</div>
+          <code>{{ application.confirmation_num or '-' }}</code>
+      </div>
+      <div class="col-md-2">
+          <div class="form-text mb-0">Entry Started</div>
+          {{ application.entry_started|full_datetime_local if application.entry_started else '-' }}
+      </div>
+      <div class="col-md-2">
+          <div class="form-text mb-0">Last Submitted</div>
+          {{ application.last_submitted|full_datetime_local if application.last_submitted else '-' }}
+      </div>
+      {# `last_modified_at` only ticks when special_requests change, so
+         it's usually blank; `last_updated` (MagModel base) auto-updates
+         on every save and is the true "last touched" timestamp. #}
+      <div class="col-md-2">
+          <div class="form-text mb-0">Last Updated</div>
+          {{ application.last_updated|full_datetime_local if application.last_updated else '-' }}
+      </div>
+      <div class="col-md-2">
+          <div class="form-text mb-0">Last Modified</div>
+          {{ application.last_modified_at|full_datetime_local if application.last_modified_at else '-' }}
+      </div>
+  </div>
 
-<div class="row g-3 mb-3">
-    <div class="col-sm">
-        {{ form_macros.input(lottery_admin_info.current_step, admin_text="Controls what fields are required and which step is shown to the attendee.") }}
-    </div>
-    <div class="col-sm">{{ form_macros.input(lottery_admin_info.status) }}</div>
-    <div class="col-sm">
-        {{ form_macros.input(lottery_admin_info.entry_type, disabled=application.parent_application|default(False, true)) }}
-    </div>
-</div>
+  {# Confirmation request controls. Setting confirmation_requested_at
+     surfaces the Confirm / Withdraw banner on the attendee's status page
+     and gates LotteryRun.confirmation_window_start filtering. #}
+  <div class="row g-2 mb-2 align-items-center small">
+      <div class="col">
+          <strong>Confirmation Request:</strong>
+          {% if application.confirmation_requested_at %}
+              Sent {{ application.confirmation_requested_at|full_datetime_local }}.
+              {% if application.last_confirmed_at and application.last_confirmed_at >= application.confirmation_requested_at %}
+                  <span class="text-success">Confirmed {{ application.last_confirmed_at|datetime_local("%Y-%m-%d %H:%M") }}.</span>
+              {% else %}
+                  <span class="text-warning">Awaiting attendee response.</span>
+              {% endif %}
+          {% else %}
+              <em>Not requested.</em>
+          {% endif %}
+      </div>
+      <div class="col-auto">
+          {# These actions sit inside the main #application-form, where a
+             nested <form> would be invalid HTML and its `</form>` would
+             terminate the outer form early and orphan the Save buttons.
+             Submit via $.post instead, the same way the "Unlock all"
+             button in Section 1 does. #}
+          <button type="button" class="btn btn-sm btn-outline-primary"
+                  onclick="$.post('request_confirmation', {id: '{{ application.id }}', csrf_token: csrf_token}, function() { location.reload(); })">
+              {% if application.confirmation_requested_at %}Re-request{% else %}Request{% endif %} Confirmation
+          </button>
+          {% if application.confirmation_requested_at %}
+          <button type="button" class="btn btn-sm btn-outline-secondary ms-1"
+                  onclick="$.post('request_confirmation', {id: '{{ application.id }}', clear: '1', csrf_token: csrf_token}, function() { location.reload(); })">
+              Clear
+          </button>
+          {% endif %}
+      </div>
+  </div>
+  <hr class="my-2"/>
+  {% endif %}
 
-<div class="row g-sm-3 mb-3">
-    <div class="col-sm">
-        {{ form_macros.input(lottery_admin_info.assigned_hotel) }}
-    </div>
-    <div class="col-sm">
-        {{ form_macros.input(lottery_admin_info.assigned_check_in_date) }}
-    </div>
-    <div class="col-sm">
-        {{ form_macros.input(lottery_admin_info.assigned_check_out_date) }}
-    </div>
-</div>
+  {# Lifecycle row: status / type / step / staff / can-edit / partition.
+     Six columns, all editable. #}
+  <div class="row g-2 mb-2">
+      <div class="col-md-3">{{ form_macros.input(lottery_admin_info.status) }}</div>
+      <div class="col-md-3">
+          {{ form_macros.input(lottery_admin_info.entry_type, disabled=application.parent_application|default(False, true)) }}
+      </div>
+      <div class="col-md-2">
+          {{ form_macros.input(lottery_admin_info.current_step, admin_text="Controls what fields are required and which step is shown to the attendee.") }}
+      </div>
+      <div class="col-md-2">{{ form_macros.input(lottery_admin_info.is_staff_entry) }}</div>
+      <div class="col-md-2">{{ form_macros.input(lottery_admin_info.can_edit) }}</div>
+  </div>
 
-<div class="row g-sm-3 mb-3">
-    <div class="col-sm">
-        {% call form_macros.input(lottery_admin_info.booking_url) %}
-        {{ form_macros.input(lottery_admin_info.booking_url_hidden) }}
-        {% endcall %}
-    </div>
-    <div class="col-sm">
-        {{ form_macros.input(lottery_admin_info.assigned_room_type) }}
-    </div>
-    <div class="col-sm">
-        {{ form_macros.input(lottery_admin_info.assigned_suite_type) }}
-    </div>
-</div>
+  <div class="row g-2 mb-2">
+      <div class="col-md-4">{{ form_macros.input(lottery_admin_info.partition_id) }}</div>
+      <div class="col-md-4">{{ form_macros.input(lottery_admin_info.hotel_rewards_number) }}</div>
+      <div class="col-md-4">{{ form_macros.input(lottery_admin_info.cellphone) }}</div>
+  </div>
 
-<div class="row g-sm-3 mb-3">
-    <div class="col-sm">
-        {{ form_macros.input(lottery_admin_info.admin_notes) }}
-    </div>
-</div>
+  {# Hotel registration name row (gated by the guest-name view
+     permission). Fields moved off LotteryApplication and onto the
+     Attendee; the form still surfaces them here for admin convenience. #}
+  <div class="row g-2 mb-2">
+      {% if c.HAS_HOTEL_LOTTERY_ADMIN_ACCESS %}
+      <div class="col-md-4">{{ form_macros.input(lottery_admin_info.hotel_first_name) }}</div>
+      <div class="col-md-4">{{ form_macros.input(lottery_admin_info.hotel_last_name) }}</div>
+      {% else %}
+      <div class="col-md-8">
+          <label class="form-label">Hotel Legal Name</label>
+          <input type="text" class="form-control" value="(hidden - requires Hotel Lottery Admin or View Guest Legal Names permission)" disabled />
+      </div>
+      {% endif %}
+  </div>
 
-<div class="row g-3 mb-3">
-    <div class="col-sm">
-        {{ form_macros.input(lottery_admin_info.legal_first_name) }}
-    </div>
-    <div class="col-sm">
-        {{ form_macros.input(lottery_admin_info.legal_last_name) }}
-    </div>
-    <div class="col-sm">
-        {{ form_macros.input(lottery_admin_info.cellphone) }}
-    </div>
-</div>
+  {# Group ownership: room_group_name + member list. Suppressed entirely
+     for group-member sub-applications since the leader's entry owns the
+     room state. #}
+  {% if application.parent_application %}
+  <div class="alert alert-warning py-2 small mb-2">
+      This application is a group member of <a href="form?id={{ application.parent_application.id }}" target="_blank">{{ application.parent_application.attendee_name }}'s entry (conf # {{ application.parent_application.confirmation_num }})</a>.
+      The lottery preferences below are INACTIVE and will not be included in the lottery export. They will become active again if this attendee leaves the group, at which point a new confirmation number will be generated.
+  </div>
+  {% else %}
+  <div class="row g-2 mb-2">
+      <div class="col-md-6">{{ form_macros.input(lottery_admin_info.room_group_name, admin_text="Setting a " ~ c.HOTEL_LOTTERY_GROUP_TERM|lower ~ " name allows attendees to join this application as a " ~ c.HOTEL_LOTTERY_GROUP_TERM|lower ~ ".", readonly=application.parent_application or application.status != c.COMPLETE) }}</div>
+      <div class="col-md-6">
+          <label class="form-label">Group Members</label>
+          <div class="form-control" style="min-height: calc(1.5em + 0.75rem + 2px);">
+          {% if not application.room_group_name %}N/A{% elif not application.group_members %}None{% else %}
+          {% for member in application.group_members %}{% if not loop.first %} / {% endif %}{{ member.attendee|form_link }} ({{ member|form_link }}){% if member not in application.valid_group_members %}[INVALID]{% endif %}{% endfor %}
+          {% endif %}
+          </div>
+      </div>
+  </div>
+  {% endif %}
 
-{% if application.parent_application %}
-<div class="alert alert-warning">
-    This application is a group member of <a href="form?id={{ application.parent_application.id }}" target="_blank">{{ application.parent_application.attendee_name }}'s entry (conf # {{ application.parent_application.confirmation_num }})</a>.
-    The details below are INACTIVE and will not be included in the lottery export. They will become active again if this attendee leaves the group, at which point a new confirmation number will be generated.
-</div>
-{% else %}
-<div class="row g-3 mb-3">
-    <div class="col-sm">{{ form_macros.input(lottery_admin_info.room_group_name, admin_text="Setting a " ~ c.HOTEL_LOTTERY_GROUP_TERM|lower ~ " name allows attendees to join this application as a " ~ c.HOTEL_LOTTERY_GROUP_TERM|lower ~ ".", readonly=application.parent_application or application.status != c.COMPLETE) }}</div>
-    <div class="col-sm">
-        <div class="form-text">Group Members</div>
-        {% if not application.room_group_name %}N/A{% elif not application.group_members %}None{% else %}
-        {% for member in application.group_members %}{% if not loop.first %} / {% endif %}{{ member.attendee|form_link }} ({{ member|form_link }}){% if member not in application.valid_group_members %}[INVALID]{% endif %}{% endfor %}
-        {% endif %}
-    </div>
-    <!-- <div class="col-sm">{{ form_macros.input(lottery_admin_info.invite_code) }}</div> -->
-</div>
-{% endif %}
+  <div class="row g-2 mb-2">
+      <div class="col-12">{{ form_macros.input(lottery_admin_info.admin_notes) }}</div>
+  </div>
 
-{% if 'room_dates' in c.HOTEL_LOTTERY_FORM_STEPS or 'suite_dates' in c.HOTEL_LOTTERY_FORM_STEPS %}
-<div class="row g-3 mb-3">
-    <div class="col-sm">{{ form_macros.input(lottery_admin_info.earliest_checkin_date) }}</div>
-    <div class="col-sm">{{ form_macros.input(lottery_admin_info.latest_checkout_date) }}</div>
-</div>
-<div class="row g-3 mb-3">
-    <div class="col-sm">{{ form_macros.input(lottery_admin_info.latest_checkin_date) }}</div>
-    <div class="col-sm">{{ form_macros.input(lottery_admin_info.earliest_checkout_date) }}</div>
-</div>
-{% endif %}
+  {# Agreements: four boolean acknowledgments collapsed into a single
+     row of small read-only badges. Editable via the underlying hidden
+     fields the macro still emits. #}
+  <div class="row g-2 mb-0">
+      <div class="col-md-3">
+          {{ form_macros.input(lottery_admin_info.terms_accepted, force_hidden=true, hidden_field_text="Yes" if lottery_admin_info.terms_accepted.data else "No") }}
+      </div>
+      <div class="col-md-3">
+          {{ form_macros.input(lottery_admin_info.data_policy_accepted, force_hidden=true, hidden_field_text="Yes" if lottery_admin_info.data_policy_accepted.data else "No") }}
+      </div>
+      <div class="col-md-3">
+          {{ form_macros.input(lottery_admin_info.suite_terms_accepted, force_hidden=true, hidden_field_text="Yes" if lottery_admin_info.suite_terms_accepted.data else "No") }}
+      </div>
+      <div class="col-md-3">
+          {{ form_macros.input(lottery_admin_info.guarantee_policy_accepted, force_hidden=true, hidden_field_text="Yes" if lottery_admin_info.guarantee_policy_accepted.data else "No") }}
+      </div>
+  </div>
 
-<div class="row g-3 mb-3">
-    <div class="col-sm">{{ form_macros.input(lottery_admin_info.wants_ada) }}</div>
-    <div class="col-sm">{{ form_macros.input(lottery_admin_info.ada_requests) }}</div>
-</div>
+  </div>{# /card-body #}
+</div>{# /card - Application Status #}
 
-{{ form_macros.input(lottery_admin_info.suite_type_preference) }}
+{# Read-only when this is a group-member sub-app, since the leader's
+   entry owns these preferences. #}
+<div class="card mb-3">
+  <div class="card-header py-2"><strong>Lottery Preferences</strong></div>
+  <div class="card-body py-2">
 
-<div class="row g-3 mb-3">
-    <div class="col-sm">{{ form_macros.input(lottery_admin_info.room_opt_out) }}</div>
-</div>
+  {% if 'room_dates' in c.HOTEL_LOTTERY_FORM_STEPS or 'suite_dates' in c.HOTEL_LOTTERY_FORM_STEPS %}
+  <div class="row g-2 mb-2">
+      <div class="col-md-3">{{ form_macros.input(lottery_admin_info.earliest_checkin_date) }}</div>
+      <div class="col-md-3">{{ form_macros.input(lottery_admin_info.latest_checkin_date) }}</div>
+      <div class="col-md-3">{{ form_macros.input(lottery_admin_info.earliest_checkout_date) }}</div>
+      <div class="col-md-3">{{ form_macros.input(lottery_admin_info.latest_checkout_date) }}</div>
+  </div>
+  {% endif %}
 
-{{ form_macros.input(lottery_admin_info.hotel_preference) }}
-{{ form_macros.input(lottery_admin_info.room_type_preference) }}
-{% if 'room_selection_pref' in c.HOTEL_LOTTERY_FORM_STEPS or 'suite_selection_pref' in c.HOTEL_LOTTERY_FORM_STEPS %}
-{{ form_macros.input(lottery_admin_info.selection_priorities) }}
-{% endif %}
+  <div class="row g-2 mb-2">
+      <div class="col-md-3">{{ form_macros.input(lottery_admin_info.wants_ada) }}</div>
+      <div class="col-md-6">{{ form_macros.input(lottery_admin_info.ada_requests) }}</div>
+      <div class="col-md-3">{{ form_macros.input(lottery_admin_info.room_opt_out) }}</div>
+  </div>
 
-<div class="row g-3 mb-3">
-    <div class="col-sm">
-        {{ form_macros.input(lottery_admin_info.terms_accepted, force_hidden=true, hidden_field_text="Yes" if lottery_admin_info.terms_accepted.data else "No") }}
-    </div>
-    <div class="col-sm">
-        {{ form_macros.input(lottery_admin_info.data_policy_accepted, force_hidden=true, hidden_field_text="Yes" if lottery_admin_info.data_policy_accepted.data else "No") }}
-    </div>
-</div>
+  {{ form_macros.input(lottery_admin_info.suite_type_preference) }}
+  {{ form_macros.input(lottery_admin_info.hotel_preference) }}
+  {{ form_macros.input(lottery_admin_info.room_type_preference) }}
 
-<div class="row g-3 mb-3">
-    <div class="col-sm">
-        {{ form_macros.input(lottery_admin_info.suite_terms_accepted, force_hidden=true, hidden_field_text="Yes" if lottery_admin_info.suite_terms_accepted.data else "No") }}
-    </div>
-    <div class="col-sm">
-        {{ form_macros.input(lottery_admin_info.guarantee_policy_accepted, force_hidden=true, hidden_field_text="Yes" if lottery_admin_info.guarantee_policy_accepted.data else "No") }}
-    </div>
-</div>
+  </div>{# /card-body #}
+</div>{# /card - Lottery Preferences #}
 
-<div class="form-group">
-    <div class="col-sm-9 col-sm-offset-3">
-        <button type="submit" name="save_return_to_search" class="btn btn-primary" value="1">Save & Return{% if not return_to %} to Search{% endif %}</button>
-        <button type="submit" name="save" class="btn btn-primary" value="1">Save</button>
-    </div>
+<div class="d-flex justify-content-end gap-2">
+    <button type="submit" name="save_return_to_search" class="btn btn-primary" value="1">Save & Return{% if not return_to %} to Search{% endif %}</button>
+    <button type="submit" name="save" class="btn btn-primary" value="1">Save</button>
 </div>
 
 </form>
-</div>
-</div>
 {% endblock %}

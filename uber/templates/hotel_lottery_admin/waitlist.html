@@ -1,0 +1,334 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Hotel Lottery Waitlist{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+{% include 'hotel_lottery_admin/inventory_subnav.html' %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="mb-0">
+    Hotel Lottery Waitlist
+    {# Show the true total on the waitlist (`waitlist_size`), not
+       `queue|length` - that's just the current page slice (capped at
+       the per-page size), so it read "100" whenever the queue was
+       longer than one page. The per-search match count is surfaced
+       separately by the badge in the queue card. #}
+    <small class="text-muted h5">
+      {{ waitlist_size }} room{{ 's' if waitlist_size != 1 }} on the waitlist
+    </small>
+  </h2>
+  <div class="d-flex gap-2">
+    {# Export-first so admins can pull a snapshot before they start
+       running the cron / accepting people off the queue. Direct
+       <a> link (not AJAX) so the browser handles the download. #}
+    <a class="btn btn-outline-secondary" href="export_waitlist_xlsx"
+       title="One sheet per hotel; rows are room types, columns are nights.">
+      <i class="fa fa-file-excel"></i> Export XLSX
+    </a>
+    <button type="button" class="btn btn-outline-primary" onclick="processWaitlist()">
+      <i class="fa fa-list-check"></i> Process Waitlist
+    </button>
+  </div>
+</div>
+
+{% if message %}<div class="alert alert-info">{{ message }}</div>{% endif %}
+
+{# Top-level branching:
+     - `waitlist_size == 0` -> the unfiltered waitlist is genuinely
+       empty. Show the friendly empty state; hide both cards.
+     - Anything else -> render both cards. When a search yields zero
+       results, the queue card surfaces a per-search empty state
+       inside its own body, so the search box stays available for
+       the admin to revise or clear.
+   #}
+{% if waitlist_size == 0 %}
+<div class="alert alert-secondary">
+  No rooms are currently on the waitlist.
+</div>
+{% else %}
+
+{# Per-block demand histogram. Each row is one inventory block with at
+   least one waitlisted assignment; columns are the nights demanded and
+   the count of distinct rooms queued for each night. With search active
+   the histogram re-derives from the filtered set so it tracks the queue
+   view. #}
+{% if block_rows %}
+<div class="card mb-3">
+  <div class="card-header py-2"><strong>Demand by inventory block</strong></div>
+  <div class="card-body py-2">
+    <table class="table table-sm align-middle mb-0">
+      <thead>
+        <tr class="small text-muted">
+          <th>Hotel / Type</th>
+          <th>Block</th>
+          <th>Rooms queued (rolled up)</th>
+          <th class="text-end">Total night-demands</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in block_rows %}
+        <tr>
+          <td>
+            {% if row.inventory and row.inventory.hotel %}
+              {{ row.inventory.hotel.name }}
+            {% else %}<span class="text-muted">(no hotel)</span>{% endif %}
+            <br/><small class="text-muted">
+              {% if row.inventory %}
+                {% if row.inventory.is_suite %}
+                  {{ row.inventory.suite_type.name if row.inventory.suite_type else row.inventory.name }}
+                {% else %}
+                  {{ row.inventory.room_type.name if row.inventory.room_type else row.inventory.name }}
+                {% endif %}
+              {% else %}(deleted block){% endif %}
+            </small>
+          </td>
+          <td><code class="small">{{ row.inventory.name if row.inventory else row.inventory_id }}</code></td>
+          <td>
+            {# Each chip is one night with the count of distinct rooms
+               waiting for it. Sorted chronologically. #}
+            {% for night, count in row.nights %}
+              <span class="badge bg-light text-dark border me-1 mb-1">
+                {{ night.strftime("%a %-m/%-d") }}
+                <span class="badge bg-primary ms-1">{{ count }}</span>
+              </span>
+            {% endfor %}
+          </td>
+          <td class="text-end">
+            <span class="badge bg-secondary">{{ row.total_demand }}</span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}{# /if block_rows #}
+
+{# Per-room queue, FIFO by waitlist_started_at (earliest entrants
+   first). Each row's Accept button overrides the capacity check and
+   extends the assignment's confirmed range to cover its requested
+   range. #}
+<div class="card mb-3">
+  <div class="card-header py-2 d-flex justify-content-between align-items-center gap-2 flex-wrap">
+    <div>
+      <strong>Waitlist queue (FIFO)</strong>
+      <span class="text-muted small ms-2">earliest entrants first</span>
+      {% if search_text %}
+      <span class="badge bg-info-subtle text-dark border ms-2"
+            title="Histogram above is filtered to match these results too.">
+        {{ total_count }} match{{ 'es' if total_count != 1 }} for
+        "{{ search_text }}"
+      </span>
+      {% endif %}
+    </div>
+    {# Search form. GET so admins can bookmark / share a filtered URL,
+       and so reloading the page preserves the filter. The form
+       submits without a `page=` so a new search always lands on
+       page 1; pagination links below carry both `search_text` and
+       `page` forward. #}
+    <form method="get" action="waitlist" class="d-flex gap-2 align-items-center"
+          style="min-width: 320px;">
+      <input type="search" class="form-control form-control-sm"
+             name="search_text" value="{{ search_text }}"
+             placeholder="Search name, email, conf #, hotel, room type..."
+             aria-label="Search waitlist" />
+      <button type="submit" class="btn btn-sm btn-outline-primary">
+        <i class="fa fa-search"></i>
+      </button>
+      {% if search_text %}
+      <a href="waitlist" class="btn btn-sm btn-outline-secondary"
+         title="Clear search">
+        <i class="fa fa-times"></i>
+      </a>
+      {% endif %}
+    </form>
+  </div>
+  <div class="card-body py-2">
+    {% if not queue %}
+    <p class="text-muted text-center my-3 mb-0">
+      {% if search_text %}
+        No waitlist rows match "{{ search_text }}".
+      {% else %}
+        The waitlist is empty.
+      {% endif %}
+    </p>
+    {% else %}
+    <table class="table table-sm align-middle mb-0">
+      <thead>
+        <tr class="small text-muted">
+          <th>#</th>
+          <th>Attendee</th>
+          <th>Block</th>
+          <th>Confirmed</th>
+          <th>Requested</th>
+          <th>Joined waitlist</th>
+          <th class="text-end"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ra in queue %}
+        {# Local labels to keep the row markup readable. #}
+        {% set _wl_ci = ra.waitlisted_check_in_date or ra.assigned_check_in_date %}
+        {% set _wl_co = ra.waitlisted_check_out_date or ra.assigned_check_out_date %}
+        <tr id="waitlist-row-{{ ra.id }}">
+          {# Continuous numbering across pages - loop.index restarts at 1
+             per page, so add the per-page offset to get the absolute
+             FIFO rank. #}
+          <td class="text-muted small">{{ (page - 1) * per_page + loop.index }}</td>
+          <td>
+            {% if ra.attendee %}
+              {{ ra.attendee|form_link }}
+              <br/><small class="text-muted">{{ ra.attendee.email }}</small>
+            {% else %}<span class="text-muted">(no attendee)</span>{% endif %}
+          </td>
+          <td>
+            {% if ra.inventory %}
+              {{ ra.inventory.hotel.name if ra.inventory.hotel else '(no hotel)' }}
+              <br/><small class="text-muted">
+                {% if ra.inventory.is_suite %}
+                  {{ ra.inventory.suite_type.name if ra.inventory.suite_type else ra.inventory.name }}
+                {% else %}
+                  {{ ra.inventory.room_type.name if ra.inventory.room_type else ra.inventory.name }}
+                {% endif %}
+              </small>
+            {% else %}<span class="text-muted">(no inventory)</span>{% endif %}
+          </td>
+          <td>
+            {{ ra.assigned_check_in_date.strftime("%a %-m/%-d") if ra.assigned_check_in_date else '-' }}
+            -
+            {{ ra.assigned_check_out_date.strftime("%a %-m/%-d") if ra.assigned_check_out_date else '-' }}
+          </td>
+          <td>
+            {{ _wl_ci.strftime("%a %-m/%-d") if _wl_ci else '-' }}
+            -
+            {{ _wl_co.strftime("%a %-m/%-d") if _wl_co else '-' }}
+          </td>
+          <td>
+            {% if ra.waitlist_started_at %}
+              <small>{{ ra.waitlist_started_at|datetime_local("%Y-%m-%d %H:%M") }}</small>
+            {% else %}-{% endif %}
+          </td>
+          <td class="text-end">
+            {% if ra.export_locked %}
+              <span class="badge bg-warning" title="Exported to hotel - cannot accept locally.">
+                <i class="fa fa-lock"></i> Locked
+              </span>
+            {% else %}
+              <button type="button" class="btn btn-sm btn-outline-success"
+                      onclick="acceptWaitlist('{{ ra.id }}')">
+                <i class="fa fa-check"></i> Accept
+              </button>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {# Pagination. Only render the nav when there are multiple pages -
+       otherwise the table is "all of it" and a single "Page 1 of 1"
+       chrome would be visual noise. `search_text` is propagated so
+       the next/prev links don't drop the filter. #}
+    {% if pages|length > 1 %}
+    <nav class="d-flex justify-content-between align-items-center mt-3" aria-label="Waitlist pagination">
+      <div class="text-muted small">
+        Showing
+        {{ (page - 1) * per_page + 1 }}-{{ (page - 1) * per_page + queue|length }}
+        of {{ total_count }}{% if search_text %} matching{% endif %} entries
+      </div>
+      <ul class="pagination pagination-sm mb-0">
+        <li class="page-item{% if page <= 1 %} disabled{% endif %}">
+          <a class="page-link"
+             href="waitlist?page={{ page - 1 }}{% if search_text %}&search_text={{ search_text|urlencode }}{% endif %}"
+             aria-label="Previous">&laquo;</a>
+        </li>
+        {# Page link set: first, last, current +/- 2 (and ellipses where
+           there's a gap). This keeps the pagination nav from sprawling
+           on a 250-page waitlist. #}
+        {% set _window = 2 %}
+        {% for p in pages %}
+          {% if p == 1 or p == pages|last or (p >= page - _window and p <= page + _window) %}
+            {% if loop.previtem is defined and p > loop.previtem + 1 %}
+            <li class="page-item disabled"><span class="page-link">...</span></li>
+            {% endif %}
+            <li class="page-item{% if p == page %} active{% endif %}">
+              <a class="page-link"
+                 href="waitlist?page={{ p }}{% if search_text %}&search_text={{ search_text|urlencode }}{% endif %}">{{ p }}</a>
+            </li>
+          {% endif %}
+        {% endfor %}
+        <li class="page-item{% if page >= pages|length %} disabled{% endif %}">
+          <a class="page-link"
+             href="waitlist?page={{ page + 1 }}{% if search_text %}&search_text={{ search_text|urlencode }}{% endif %}"
+             aria-label="Next">&raquo;</a>
+        </li>
+      </ul>
+    </nav>
+    {% endif %}
+    {% endif %}{# /if queue #}
+  </div>
+</div>
+
+{% endif %}
+
+<script>
+function processWaitlist() {
+    if (!confirm('Process the waitlist? This serves entries in FIFO order ' +
+                 '(earliest waitlist start time first) as capacity opens up.')) return;
+    $.ajax({
+        method: 'POST',
+        url: 'process_waitlist',
+        dataType: 'json',
+        data: { csrf_token: csrf_token },
+        success: function(json) {
+            if (json.success) {
+                alert(json.message);
+                location.reload();
+            } else {
+                alert(json.error || 'An error occurred.');
+            }
+        }
+    });
+}
+
+// Per-row FIFO-bypass accept. Pulls one row out of order but still
+// honours the per-night capacity check - same partition-aware capacity
+// helper the cron uses. If some requested nights have capacity and
+// some don't, the row gets partial fulfillment and stays on the queue
+// for the rest (the server returns `still_waiting: true`).
+function acceptWaitlist(assignmentId) {
+    if (!confirm('Accept this attendee off the waitlist out of FIFO order? ' +
+                 'Capacity is still enforced - only nights with availability ' +
+                 'will be confirmed.')) return;
+    $.ajax({
+        method: 'POST',
+        url: 'accept_waitlist',
+        dataType: 'json',
+        data: {
+            csrf_token: csrf_token,
+            assignment_id: assignmentId,
+        },
+        success: function(json) {
+            if (json.success) {
+                // Surface the server's status note so the admin knows
+                // whether the row dropped off the queue or stays
+                // partially waitlisted.
+                if (json.message) alert(json.message);
+                if (json.still_waiting) {
+                    // Reload so the row re-renders with its tightened
+                    // waitlist demand and updated confirmed range.
+                    location.reload();
+                } else {
+                    $('#waitlist-row-' + assignmentId).fadeOut(200, function() {
+                        $(this).remove();
+                    });
+                }
+            } else {
+                alert(json.error || 'An error occurred.');
+            }
+        }
+    });
+}
+</script>
+
+{% endblock %}

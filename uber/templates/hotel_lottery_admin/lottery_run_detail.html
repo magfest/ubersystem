@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% import 'hotel_lottery_admin/_macros.html' as hotel_macros with context %}{% set admin_area=True %}
+{% block title %}Lottery Run: {{ lottery_run.name }}{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+
+<h2>Lottery Run: {{ lottery_run.name }}</h2>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-6">
+    <div class="card card-body">
+      <h5>Run Details</h5>
+      <form method="post" action="update_lottery_run" class="mb-2">
+        {{ csrf_token() }}
+        <input type="hidden" name="id" value="{{ lottery_run.id }}" />
+        <div class="input-group">
+          <input type="text" class="form-control" name="name" value="{{ lottery_run.name }}" placeholder="Run name" />
+          <button type="submit" class="btn btn-outline-primary">Update Name</button>
+        </div>
+      </form>
+
+      {# Card deadline override. Optionally cascades to assignments
+         produced by this run that haven't been individually overridden. #}
+      <form method="post" action="update_run_card_deadline" class="mb-2">
+        {{ csrf_token() }}
+        <input type="hidden" name="id" value="{{ lottery_run.id }}" />
+        <label class="form-label small mb-1">Card Deadline</label>
+        <div class="input-group">
+          <input type="text" class="form-control"
+                 name="card_deadline"
+                 value="{% if lottery_run.card_deadline %}{{ lottery_run.card_deadline|datetime_local('%Y-%m-%d %H:%M') }}{% endif %}"
+                 placeholder="YYYY-MM-DD HH:MM" />
+          <button type="submit" class="btn btn-outline-primary">Save</button>
+        </div>
+        <div class="form-check mt-1">
+          <input class="form-check-input" type="checkbox" id="propagate" name="propagate" value="1" />
+          <label class="form-check-label small" for="propagate">
+            Also push to assignments from this run that match the previous
+            deadline (skips per-assignment overrides).
+          </label>
+        </div>
+      </form>
+      <table class="table table-sm mb-0">
+        <tr><th>Status</th><td>
+          {% if lottery_run.status == c.LOTTERY_PENDING %}
+            <span class="badge bg-warning text-dark">Pending</span>
+          {% elif lottery_run.status == c.LOTTERY_AWARDED %}
+            <span class="badge bg-success">Awarded</span>
+          {% elif lottery_run.status == c.LOTTERY_REVERTED %}
+            <span class="badge bg-secondary">Reverted</span>
+          {% endif %}
+        </td></tr>
+        <tr><th>Run At</th><td>{{ lottery_run.run_at|datetime_local }}</td></tr>
+        {% if lottery_run.awarded_at %}<tr><th>Awarded At</th><td>{{ lottery_run.awarded_at|datetime_local }}</td></tr>{% endif %}
+        {% if lottery_run.reverted_at %}<tr><th>Reverted At</th><td>{{ lottery_run.reverted_at|datetime_local }}</td></tr>{% endif %}
+        <tr><th>Group</th><td>{{ lottery_run.lottery_group }}</td></tr>
+        <tr><th>Type</th><td>{{ lottery_run.lottery_type }}</td></tr>
+        {% if lottery_run.cutoff %}<tr><th>Cutoff</th><td>{{ lottery_run.cutoff|datetime_local }}</td></tr>{% endif %}
+        {% if lottery_run.hotel_filter %}
+        <tr><th>Hotel Filter</th><td>
+          {% set filter_ids = lottery_run.hotel_filter.split(',') %}
+          {% for hotel in hotels if hotel.id in filter_ids %}
+            <span class="badge bg-info text-dark me-1">{{ hotel.name }}</span>
+          {% endfor %}
+        </td></tr>
+        {% endif %}
+        {% if lottery_run.room_type_filter %}
+        <tr><th>Room Type Filter</th><td>
+          {% set filter_ids = lottery_run.room_type_filter.split(',') %}
+          {% for rt in room_types + suite_types if rt.id in filter_ids %}
+            <span class="badge bg-info text-dark me-1">{{ rt.name }}</span>
+          {% endfor %}
+        </td></tr>
+        {% endif %}
+        {% if lottery_run.partition_filter %}
+        <tr><th>Partition</th><td>
+          <span class="badge bg-info text-dark">{{ partition_lookup.get(lottery_run.partition_filter, lottery_run.partition_filter) }}</span>
+        </td></tr>
+        {% endif %}
+      </table>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card card-body">
+      <h5>Summary</h5>
+      <table class="table table-sm mb-0">
+        <tr><th>Entries Considered</th><td>{{ lottery_run.entries_considered }}</td></tr>
+        <tr><th>Rooms Assigned</th><td>{{ lottery_run.rooms_assigned }}</td></tr>
+        <tr><th>Rooms Available Before Run</th><td>{{ lottery_run.rooms_available_before }}</td></tr>
+      </table>
+
+      {% if lottery_run.status == c.LOTTERY_PENDING %}
+      <div class="mt-3 d-flex gap-2">
+        <form method="post" action="award_run">
+          {{ csrf_token() }}
+          <input type="hidden" name="id" value="{{ lottery_run.id }}" />
+          <button type="submit" class="btn btn-success" onclick="return confirm('Award all entries in this run? This cannot be undone.')">Award Winners</button>
+        </form>
+        <form method="post" action="revert_run">
+          {{ csrf_token() }}
+          <input type="hidden" name="id" value="{{ lottery_run.id }}" />
+          <button type="submit" class="btn btn-danger" onclick="return confirm('Revert this run? All assigned entries will be reset to Complete.')">Revert Run</button>
+        </form>
+      </div>
+      {% elif lottery_run.status == c.LOTTERY_REVERTED %}
+      <div class="mt-3">
+        <form method="post" action="delete_run">
+          {{ csrf_token() }}
+          <input type="hidden" name="id" value="{{ lottery_run.id }}" />
+          <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Permanently delete this reverted run?')">Delete Run</button>
+        </form>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<h4>Assigned Applications ({{ applications|length }})</h4>
+{% if applications %}
+<table class="table table-hover table-sm">
+  <thead>
+    <tr>
+      <th>Confirmation #</th>
+      <th>Name</th>
+      <th>Status</th>
+      <th>Hotel</th>
+      <th>Room Type</th>
+      <th>Check-in</th>
+      <th>Check-out</th>
+      <th>Group Members</th>
+    </tr>
+  </thead>
+  <tbody>
+    {# One row per RoomAssignment from this run - connectors render as
+       their own rows alongside the parent. Joined to LotteryApplication
+       for the contact info column. #}
+    {% for app in applications %}
+      {% set _rooms = (app.attendee.room_assignments if app.attendee else [])
+                      |selectattr('lottery_run_id', 'equalto', lottery_run.id)|list %}
+      {% if _rooms %}
+        {% for ra in _rooms %}
+          {% set inv = ra.inventory %}
+          <tr>
+            <td><a href="form?id={{ app.id }}">{{ app.confirmation_num }}</a></td>
+            <td>{{ app.attendee_name }}
+              {% if ra.parent_assignment_id %}{{ hotel_macros.connector_chip() }}{% endif %}
+            </td>
+            <td>{{ ra.status_label }}</td>
+            <td>{{ inv.hotel.name if inv and inv.hotel else '' }}</td>
+            <td>
+              {% if inv and inv.is_suite %}{{ inv.suite_type.name if inv.suite_type else '' }}
+              {% elif inv %}{{ inv.room_type.name if inv.room_type else '' }}{% endif %}
+            </td>
+            <td>{{ ra.assigned_check_in_date or '' }}</td>
+            <td>{{ ra.assigned_check_out_date or '' }}</td>
+            <td>{% if loop.first %}{{ app.valid_group_members|length }}{% endif %}</td>
+          </tr>
+        {% endfor %}
+      {% else %}
+        <tr>
+          <td><a href="form?id={{ app.id }}">{{ app.confirmation_num }}</a></td>
+          <td>{{ app.attendee_name }}</td>
+          <td>{{ app.status_label }}</td>
+          <td colspan="4" class="text-muted">No rooms in this run</td>
+          <td>{{ app.valid_group_members|length }}</td>
+        </tr>
+      {% endif %}
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="card card-body text-center text-muted">No applications assigned in this run.</div>
+{% endif %}
+
+{% endblock content %}

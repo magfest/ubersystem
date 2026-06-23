@@ -1,0 +1,95 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Import Hotel Cancellations{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+
+<h1>Import Hotel Cancellations</h1>
+<p class="text-muted">
+  Upload the cancellation report from the hotel. The CSV must include a
+  <code>confirmation_num</code> column matching
+  <code>RoomAssignment.hotel_confirmation_number</code>, and optionally a
+  <code>cancellation_confirmation_number</code> column with the hotel's
+  internal cancellation record id.
+</p>
+<p class="text-muted">
+  Upload first to see a preview. Tick "Apply changes" and re-submit to
+  actually cancel the matched assignments. The cancellation email goes
+  out on the next email tick.
+</p>
+
+{% if message %}<div class="alert alert-info">{{ message }}</div>{% endif %}
+
+<form method="post" enctype="multipart/form-data" action="import_hotel_cancellations" class="card card-body mb-4">
+  {{ csrf_token() }}
+  <div class="mb-3">
+    <label class="form-label">CSV file</label>
+    <input type="file" name="cancellations_csv" accept=".csv" class="form-control" required />
+  </div>
+  <div class="form-check mb-3">
+    <input class="form-check-input" type="checkbox" id="apply" name="apply" value="true" />
+    <label class="form-check-label" for="apply">
+      <strong>Apply changes</strong> - leave unchecked for a dry-run preview.
+    </label>
+  </div>
+  <button type="submit" class="btn btn-primary">Upload</button>
+</form>
+
+{% if preview %}
+
+<h3 class="h5">Matched and will be cancelled <span class="badge bg-warning text-dark">{{ preview.matched|length }}</span></h3>
+{% if preview.matched %}
+<table class="table table-sm">
+  <thead><tr><th>Attendee</th><th>Hotel Confirmation #</th><th>New Cancellation #</th><th>Status</th></tr></thead>
+  <tbody>
+    {% for row in preview.matched %}
+    <tr>
+      <td>{% if row.assignment.attendee %}{{ row.assignment.attendee.full_name }}{% endif %}</td>
+      <td><code>{{ row.assignment.hotel_confirmation_number }}</code></td>
+      <td><code>{{ row.cancellation_confirmation_number }}</code></td>
+      <td>{{ row.assignment.status_label }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}<p class="text-muted">None.</p>{% endif %}
+
+<h3 class="h5 mt-4">Already cancelled <span class="badge bg-secondary">{{ preview.already|length }}</span></h3>
+{% if preview.already %}
+<table class="table table-sm">
+  <thead><tr><th>Attendee</th><th>Hotel Confirmation #</th><th>Existing Cancellation #</th></tr></thead>
+  <tbody>
+    {% for row in preview.already %}
+    <tr>
+      <td>{% if row.assignment.attendee %}{{ row.assignment.attendee.full_name }}{% endif %}</td>
+      <td><code>{{ row.assignment.hotel_confirmation_number }}</code></td>
+      <td><code>{{ row.assignment.cancellation_confirmation_number or row.cancellation_confirmation_number }}</code></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}<p class="text-muted">None.</p>{% endif %}
+
+<h3 class="h5 mt-4">Unmatched <span class="badge bg-danger">{{ preview.unmatched|length }}</span></h3>
+<p class="text-muted small">
+  Rows where we couldn't find a matching <code>RoomAssignment</code>.
+  These need admin review - typically a typo in the confirmation number
+  or an entry we never exported.
+</p>
+{% if preview.unmatched %}
+<table class="table table-sm">
+  <thead><tr><th>Confirmation #</th><th>Cancellation #</th></tr></thead>
+  <tbody>
+    {% for row in preview.unmatched %}
+    <tr>
+      <td><code>{{ row.confirmation_num }}</code></td>
+      <td><code>{{ row.cancellation_confirmation_number }}</code></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}<p class="text-muted">None.</p>{% endif %}
+
+{% endif %}
+
+{% endblock %}

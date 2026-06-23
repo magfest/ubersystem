@@ -1,0 +1,40 @@
+{# Sub-navigation for the consolidated Inventory area.
+
+   All of the inventory-shaped admin pages - Hotels, Room Types,
+   Inventory Blocks, the Inventory Overview dashboard, Partitions, and
+   Staff Room Night requirements - sit under a single top-level
+   "Inventory" entry in the main nav. This partial renders the row of
+   sub-tabs and highlights whichever one corresponds to the current
+   page (matched by URL substring against `c.PAGE_PATH`).
+
+   URLs are written with a root-absolute leading slash so this partial
+   works whether it's included from `/hotel_lottery_admin/*` (the four
+   core admin pages) or from `/staff_rooming/index` (the Staff Room
+   Nights sub-page lives in a different controller).
+#}
+<ul class="nav nav-pills mb-3">
+  <li class="nav-item">
+    <a class="nav-link{% if 'hotel_inventory' in c.PAGE_PATH %} active{% endif %}"
+       href="/hotel_lottery_admin/hotel_inventory">Inventory Overview</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link{% if ('manage_hotels' in c.PAGE_PATH) or ('edit_hotel' in c.PAGE_PATH and 'edit_hotel_room_type' not in c.PAGE_PATH) %} active{% endif %}"
+       href="/hotel_lottery_admin/manage_hotels">Hotels</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link{% if ('manage_room_types' in c.PAGE_PATH) or ('edit_room_type' in c.PAGE_PATH) %} active{% endif %}"
+       href="/hotel_lottery_admin/manage_room_types">Room Types</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link{% if ('manage_inventory' in c.PAGE_PATH) or ('edit_inventory_item' in c.PAGE_PATH) %} active{% endif %}"
+       href="/hotel_lottery_admin/manage_inventory">Inventory</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link{% if ('manage_partitions' in c.PAGE_PATH) or ('edit_partition' in c.PAGE_PATH) %} active{% endif %}"
+       href="/hotel_lottery_admin/manage_partitions">Partitions</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link{% if c.PAGE_PATH.endswith('/hotel_lottery_admin/waitlist') %} active{% endif %}"
+       href="/hotel_lottery_admin/waitlist">Waitlist</a>
+  </li>
+</ul>

@@ -2,10 +2,9 @@
 {% block title %}Hotel Lottery Results{% endblock %}
 {% block content %}
 
-<h2>
-   Hotel Lottery Results
-  <small><a href="index">View all hotel lottery entries</a></small>
-</h2>
+{% include 'hotel_lottery_admin/nav.html' %}
+
+<h2>Hotel Lottery Results</h2>
 
 <span class="ms-2">{{ num_entries }} group{{ num_entries|pluralize }} entered</span>
 <span class="ms-2">{{ assignments|length }} group{{ num_entries|pluralize }} assigned</span><br>
@@ -32,8 +31,7 @@
             </tr>
         </thead>
         <tbody>
-            {% for ass in assignments %}
-            {% set app, assigned_hotel, assigned_room_type = ass %}
+            {% for app in assignments %}
             <tr{% if app.status != c.COMPLETE %} class="bg-light"{% endif %}>
                 {% block tablerows scoped %}
                 <td>
@@ -48,8 +46,22 @@
                 <td>{{ app.valid_group_members|length if app.room_group_name else "" }}</td>
                 <td>{{ app.admin_notes }}</td>
                 <td>{{ app.is_staff_entry|yesno("Yes,No") }}</td>
-                <td>{{ hotel_lookup[assigned_hotel|int]['name'] }}</td>
-                <td>{{ room_or_suite_lookup[assigned_room_type|int]['name'] }}</td>
+                {# Pre-run preview: just count any current rooms - the run
+                   itself hasn't allocated any yet. #}
+                {% set _rooms = (app.attendee.room_assignments if app.attendee else []) %}
+                <td>
+                  {% if _rooms %}
+                    {% set _hotels = _rooms|map(attribute='inventory.hotel.name')|reject('none')|list|unique|list %}
+                    {{ _hotels|join(', ') }}
+                  {% endif %}
+                </td>
+                <td>
+                  {% for ra in _rooms %}
+                    {% set inv = ra.inventory %}
+                    {% if inv and inv.is_suite %}{{ inv.suite_type.name if inv.suite_type else '' }}
+                    {% elif inv %}{{ inv.room_type.name if inv.room_type else '' }}{% endif %}{% if not loop.last %}, {% endif %}
+                  {% endfor %}
+                </td>
                 {% endblock tablerows %}
             </tr>
             {% endfor %}

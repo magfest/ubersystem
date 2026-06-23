@@ -1,0 +1,86 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Import Hotel Confirmations{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+
+<h1>Import Hotel Confirmations</h1>
+<p class="text-muted">
+  Upload confirmation numbers returned by the hotel. Match either by
+  <code>lottery_application_id</code> (preferred) or by existing
+  <code>confirmation_num</code>. The CSV's <code>new_confirmation_num</code>
+  column is the value to write.
+</p>
+
+{% if message %}<div class="alert alert-info">{{ message }}</div>{% endif %}
+
+<form method="post" enctype="multipart/form-data" action="import_hotel_confirmations" class="card card-body mb-4">
+  {{ csrf_token() }}
+  <div class="mb-3">
+    <label class="form-label">CSV file</label>
+    <input type="file" name="confirmations_csv" accept=".csv" class="form-control" required />
+  </div>
+  <div class="form-check mb-3">
+    <input class="form-check-input" type="checkbox" id="apply" name="apply" value="true" />
+    <label class="form-check-label" for="apply">
+      <strong>Apply changes</strong> - leave unchecked for a dry-run preview.
+    </label>
+  </div>
+  <button type="submit" class="btn btn-primary">Upload</button>
+</form>
+
+{% if preview %}
+
+<h3 class="h5">New confirmations <span class="badge bg-success">{{ preview.new|length }}</span></h3>
+{% if preview.new %}
+<table class="table table-sm">
+  <thead><tr><th>Attendee</th><th>New Confirmation #</th></tr></thead>
+  <tbody>
+    {% for row in preview.new %}
+    <tr>
+      <td>{% if row.assignment.attendee %}{{ row.assignment.attendee.full_name }}{% endif %}</td>
+      <td><code>{{ row.new }}</code></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}<p class="text-muted">None.</p>{% endif %}
+
+<h3 class="h5 mt-4">Changed confirmations <span class="badge bg-warning text-dark">{{ preview.changed|length }}</span></h3>
+{% if preview.changed %}
+<table class="table table-sm">
+  <thead><tr><th>Attendee</th><th>Old</th><th>New</th></tr></thead>
+  <tbody>
+    {% for row in preview.changed %}
+    <tr>
+      <td>{% if row.assignment.attendee %}{{ row.assignment.attendee.full_name }}{% endif %}</td>
+      <td><code>{{ row.old }}</code></td>
+      <td><code>{{ row.new }}</code></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}<p class="text-muted">None.</p>{% endif %}
+
+<h3 class="h5 mt-4">Unchanged <span class="badge bg-secondary">{{ preview.unchanged|length }}</span></h3>
+<p class="text-muted small">Already had the matching confirmation number; skipped.</p>
+
+<h3 class="h5 mt-4">Unmatched <span class="badge bg-danger">{{ preview.unmatched|length }}</span></h3>
+{% if preview.unmatched %}
+<table class="table table-sm">
+  <thead><tr><th>Application ID</th><th>Existing Confirmation #</th><th>New Confirmation #</th></tr></thead>
+  <tbody>
+    {% for row in preview.unmatched %}
+    <tr>
+      <td><code>{{ row.lottery_application_id }}</code></td>
+      <td><code>{{ row.confirmation_num }}</code></td>
+      <td><code>{{ row.new_confirmation_num }}</code></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}<p class="text-muted">None.</p>{% endif %}
+
+{% endif %}
+
+{% endblock %}

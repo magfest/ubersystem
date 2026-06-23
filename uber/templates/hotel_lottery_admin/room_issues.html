@@ -1,0 +1,385 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% import 'hotel_lottery_admin/_macros.html' as hotel_macros with context %}
+{% block title %}Room Issues{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+
+<h2>Hotel Lottery Issues</h2>
+<p class="text-muted">
+  Validation report. Errors are things the hotel will reject or that will
+  leave an attendee without a room; warnings are likely-but-not-certainly
+  bad data worth a second look.
+</p>
+
+{% if message %}
+<div class="alert alert-info">{{ message }}</div>
+{% endif %}
+
+{# Friendly labels for the `kind` column, so the admin doesn't have to
+   memorize the internal constant names. #}
+{% set kind_labels = {
+  'orphan_connector': 'Orphan connector',
+  'childless_parent': 'Suite missing connectors',
+  'over_capacity': 'Over capacity',
+  'under_capacity': 'Under minimum',
+  'empty_room': 'No occupants',
+  'missing_dates': 'Missing dates',
+  'inverted_dates': 'Inverted dates',
+  'too_short': 'Stay too short',
+  'out_of_range': 'Dates out of range',
+  'status_mismatch': 'App / room status mismatch',
+  'double_booked': 'Occupant double-booked',
+  'secured_without_payment': 'Secured without payment',
+  'zero_quantity': 'Active inventory at quantity zero',
+  'inactive_parent': 'Inactive parent (hotel/type)',
+  'type_mismatch': 'Suite/room flag mismatch',
+  'partition_overallocated': 'Partition blocks exceed inventory',
+  'partition_unconfigured': 'Partition without inventory block',
+  'oversubscribed_inventory': 'Inventory oversubscribed',
+  'oversubscribed_partition': 'Partition oversubscribed',
+  'insufficient_connectors': 'Not enough connector inventory',
+  'insufficient_connectors_at_hotel': 'Not enough connector inventory at hotel',
+  'broken_connector_config': 'Broken connector config',
+} %}
+
+{# Combined filter bar: severity + issue type + free-text search, all
+   GET-submitted together so they persist and stack. The issue-type
+   options come from `kind_options` (kind, count) computed over the full
+   pre-filter set, labelled via `kind_labels`. #}
+<form method="get" action="room_issues" class="row g-2 align-items-end mb-3">
+  <div class="col-auto">
+    <label class="form-label small mb-1">Severity</label>
+    <select class="form-select form-select-sm" name="severity">
+      <option value="all"{% if severity == 'all' %} selected{% endif %}>All</option>
+      <option value="error"{% if severity == 'error' %} selected{% endif %}>Errors only</option>
+      <option value="warning"{% if severity == 'warning' %} selected{% endif %}>Warnings only</option>
+    </select>
+  </div>
+  <div class="col-auto">
+    <label class="form-label small mb-1">Issue type</label>
+    <select class="form-select form-select-sm" name="kind">
+      <option value="all"{% if kind in ('all', '', None) %} selected{% endif %}>All types</option>
+      {% for k, cnt in kind_options %}
+      <option value="{{ k }}"{% if kind == k %} selected{% endif %}>{{ kind_labels.get(k, k) }} ({{ cnt }})</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col flex-grow-1" style="min-width: 220px;">
+    <label class="form-label small mb-1">Search</label>
+    <input type="search" class="form-control form-control-sm" name="search"
+           value="{{ search }}"
+           placeholder="Hotel, attendee, conf #, room type, partition..." />
+  </div>
+  <div class="col-auto">
+    {# The checkbox submits show_hidden=1 with the rest of the filters. #}
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" name="show_hidden" value="1"
+             id="show-hidden-check"{% if show_hidden %} checked{% endif %}
+             onchange="this.form.submit()" />
+      <label class="form-check-label small" for="show-hidden-check">
+        Show hidden{% if hidden_count %} <span class="badge bg-secondary">{{ hidden_count }}</span>{% endif %}
+      </label>
+    </div>
+  </div>
+  <div class="col-auto">
+    <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+    {% if severity != 'all' or kind not in ('all', '', None) or search %}
+    <a href="room_issues" class="btn btn-sm btn-outline-secondary">Clear</a>
+    {% endif %}
+  </div>
+</form>
+
+{% set _filters_active = severity != 'all' or kind not in ('all', '', None) or search %}
+
+{# Per-issue hide / unhide / note controls. One form per issue, keyed to
+   the issue's stable identity (kind, target_type, target_id) and carrying
+   the active filters so the redirect lands back on the same view. The
+   note input submits with every button, so Hide also persists the note. #}
+{% macro issue_actions(iss, hidden_mode=False) %}
+<form method="post" action="save_issue_note" class="d-flex gap-2 align-items-center flex-wrap mt-2">
+  {{ csrf_token() }}
+  <input type="hidden" name="issue_kind" value="{{ iss.kind }}" />
+  <input type="hidden" name="target_type" value="{{ iss.target_type }}" />
+  <input type="hidden" name="target_id" value="{{ iss.target_id }}" />
+  <input type="hidden" name="severity" value="{{ severity }}" />
+  <input type="hidden" name="kind" value="{{ kind }}" />
+  <input type="hidden" name="search" value="{{ search }}" />
+  <input type="hidden" name="show_hidden" value="{{ '1' if (show_hidden or hidden_mode) else '' }}" />
+  <input type="text" class="form-control form-control-sm" name="admin_notes"
+         value="{{ iss.admin_notes }}" placeholder="Admin note (optional)"
+         style="max-width: 320px;" />
+  <button type="submit" class="btn btn-sm btn-outline-secondary">Save note</button>
+  {% if hidden_mode %}
+    <button type="submit" formaction="unhide_issue" class="btn btn-sm btn-outline-primary">Unhide</button>
+  {% else %}
+    <button type="submit" formaction="hide_issue" class="btn btn-sm btn-outline-secondary"
+            title="Hide this issue from the active report (saves the note too).">Hide</button>
+  {% endif %}
+</form>
+{% endmacro %}
+
+<ul class="nav nav-tabs mb-3" role="tablist">
+  <li class="nav-item">
+    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-rooms" type="button" role="tab">
+      Room Assignments
+      <span class="badge bg-danger ms-1">{{ counts.error }}</span>
+      <span class="badge bg-warning text-dark">{{ counts.warning }}</span>
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-inventory" type="button" role="tab">
+      Inventory
+      <span class="badge bg-danger ms-1">{{ inv_counts.error }}</span>
+      <span class="badge bg-warning text-dark">{{ inv_counts.warning }}</span>
+    </button>
+  </li>
+</ul>
+
+<div class="tab-content">
+
+<div class="tab-pane fade show active" id="tab-rooms" role="tabpanel">
+{% if not groups %}
+<div class="card card-body text-center{% if not _filters_active %} text-success{% endif %}">
+  {% if _filters_active %}
+  <h4 class="mb-0">No matches.</h4>
+  <p class="text-muted mb-0">No room assignment issues match the current filters.</p>
+  {% else %}
+  <h4 class="mb-0"><i class="fa fa-check-circle"></i> Nothing to fix.</h4>
+  <p class="text-muted mb-0">No room assignment issues found.</p>
+  {% endif %}
+</div>
+{% else %}
+<p class="text-muted small">
+  Issues are grouped by the room assignment they apply to -
+  <strong>{{ groups|length }}</strong> affected.
+</p>
+{% for group in groups %}
+{% set ra = group.assignment %}
+{% set app = group.application %}
+<div class="card mb-3 border-{{ 'danger' if group.severity == 'error' else 'warning' }}">
+  <div class="card-header d-flex justify-content-between align-items-center
+              bg-{{ 'danger' if group.severity == 'error' else 'warning' }}
+              {% if group.severity == 'error' %}text-white{% else %}text-dark{% endif %}">
+    <div>
+      {% if ra %}
+        {% set inv = ra.inventory %}
+        <strong>{{ inv.hotel.name if inv and inv.hotel else '?' }}</strong>
+        -
+        {% if inv and inv.is_suite %}
+          {{ inv.suite_type.name if inv.suite_type else inv.name }}
+        {% elif inv %}
+          {{ inv.room_type.name if inv.room_type else inv.name }}
+        {% else %}
+          (no inventory)
+        {% endif %}
+        {% if ra.parent_assignment_id %}
+          {{ hotel_macros.connector_chip() }}
+        {% endif %}
+        {% if ra.assigned_check_in_date and ra.assigned_check_out_date %}
+          <small class="ms-2 opacity-75">
+            {{ ra.assigned_check_in_date.strftime("%b %-d") }} -> {{ ra.assigned_check_out_date.strftime("%b %-d") }}
+          </small>
+        {% endif %}
+      {% else %}
+        <strong>Application-level issue</strong>
+      {% endif %}
+    </div>
+    <div>
+      {% if app %}
+        <small>
+          <a class="{% if group.severity == 'error' %}text-white{% else %}text-dark{% endif %}"
+             href="form?id={{ app.id }}">
+            {{ app.confirmation_num or app.id }}
+          </a>
+          {% if app.attendee %}
+            - {{ app.attendee.full_name }}
+          {% endif %}
+        </small>
+      {% endif %}
+      {% set _first_fix = group.issues[0].fix_url if group.issues else None %}
+      {% if _first_fix %}
+        <a href="{{ _first_fix }}" class="btn btn-sm btn-light ms-2">Fix</a>
+      {% endif %}
+    </div>
+  </div>
+  <ul class="list-group list-group-flush">
+    {% for iss in group.issues %}
+    <li class="list-group-item">
+      <div class="d-flex gap-2 align-items-start">
+        <div>
+          {% if iss.severity == 'error' %}
+            <span class="badge bg-danger">Error</span>
+          {% else %}
+            <span class="badge bg-warning text-dark">Warning</span>
+          {% endif %}
+        </div>
+        <div class="flex-grow-1">
+          <strong>{{ kind_labels.get(iss.kind, iss.kind) }}</strong>
+          <div class="small">{{ iss.label }}</div>
+          {% if iss.kind == 'double_booked' and iss.extra.get('other_assignment') %}
+            {% set other = iss.extra['other_assignment'] %}
+            <div class="small text-muted">
+              Other room:
+              {% if other.inventory and other.inventory.hotel %}
+                {{ other.inventory.hotel.name }} -
+              {% endif %}
+              {% if other.inventory %}{{ other.inventory.name }}{% endif %}
+            </div>
+          {% endif %}
+          {{ issue_actions(iss) }}
+        </div>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endfor %}
+{% endif %}
+</div>
+
+<div class="tab-pane fade" id="tab-inventory" role="tabpanel">
+{% if not inv_groups %}
+<div class="card card-body text-center{% if not _filters_active %} text-success{% endif %}">
+  {% if _filters_active %}
+  <h4 class="mb-0">No matches.</h4>
+  <p class="text-muted mb-0">No inventory issues match the current filters.</p>
+  {% else %}
+  <h4 class="mb-0"><i class="fa fa-check-circle"></i> Nothing to fix.</h4>
+  <p class="text-muted mb-0">No inventory issues found.</p>
+  {% endif %}
+</div>
+{% else %}
+<p class="text-muted small">
+  Issues are grouped by the inventory item (or connector room type) they
+  apply to - <strong>{{ inv_groups|length }}</strong> affected.
+</p>
+{% for group in inv_groups %}
+{% set inv = group.inventory %}
+{% set rt = group.room_type %}
+<div class="card mb-3 border-{{ 'danger' if group.severity == 'error' else 'warning' }}">
+  <div class="card-header d-flex justify-content-between align-items-center
+              bg-{{ 'danger' if group.severity == 'error' else 'warning' }}
+              {% if group.severity == 'error' %}text-white{% else %}text-dark{% endif %}">
+    <div>
+      {% if inv %}
+        <strong>{{ inv.hotel.name if inv.hotel else '?' }}</strong>
+        -
+        {% if inv.is_suite %}
+          {{ inv.suite_type.name if inv.suite_type else inv.name }}
+        {% else %}
+          {{ inv.room_type.name if inv.room_type else inv.name }}
+        {% endif %}
+        <small class="ms-2 opacity-75">qty {{ inv.quantity }}</small>
+      {% elif rt %}
+        <strong>Room type:</strong>
+        {{ rt.name }}
+        {% if rt.connects_to_type_id %}
+          <small class="ms-2 opacity-75">
+            connector x{{ rt.connector_quantity }}
+          </small>
+        {% endif %}
+      {% else %}
+        <strong>Inventory configuration</strong>
+      {% endif %}
+    </div>
+    <div>
+      {% set _first_fix = group.issues[0].fix_url if group.issues else None %}
+      {% if _first_fix %}
+        <a href="{{ _first_fix }}" class="btn btn-sm btn-light ms-2">Fix</a>
+      {% endif %}
+    </div>
+  </div>
+  <ul class="list-group list-group-flush">
+    {% for iss in group.issues %}
+    <li class="list-group-item">
+      <div class="d-flex gap-2 align-items-start">
+        <div>
+          {% if iss.severity == 'error' %}
+            <span class="badge bg-danger">Error</span>
+          {% else %}
+            <span class="badge bg-warning text-dark">Warning</span>
+          {% endif %}
+        </div>
+        <div class="flex-grow-1">
+          <strong>{{ kind_labels.get(iss.kind, iss.kind) }}</strong>
+          <div class="small">{{ iss.label }}</div>
+          {% if iss.kind in ('oversubscribed_inventory', 'oversubscribed_partition') and iss.extra.get('bad_nights') %}
+            <div class="small text-muted">
+              {% set _show = iss.extra['bad_nights'][:5] %}
+              Bad nights: {% for n, used, cap in _show %}{{ n }} ({{ used }}/{{ cap }}){% if not loop.last %}, {% endif %}{% endfor %}{% if iss.extra['bad_nights']|length > 5 %} ... and {{ iss.extra['bad_nights']|length - 5 }} more{% endif %}.
+            </div>
+          {% endif %}
+          {{ issue_actions(iss) }}
+        </div>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endfor %}
+{% endif %}
+</div>
+
+</div>{# /tab-content #}
+
+{% if show_hidden %}
+<hr class="my-4"/>
+<h3 class="h5">
+  Hidden issues
+  <span class="badge bg-secondary">{{ hidden_count }}</span>
+</h3>
+<p class="text-muted small">
+  Issues an admin has hidden from the active report{% if _filters_active %} (matching the current filters){% endif %}.
+  Each keeps its admin note; click Unhide to return it to the report.
+</p>
+
+{% set _hidden_any = hidden_groups or hidden_inv_groups %}
+{% if not _hidden_any %}
+<div class="card card-body text-muted text-center">
+  No hidden issues{% if _filters_active %} match the current filters{% endif %}.
+</div>
+{% else %}
+
+{% macro hidden_block(grp_list, is_inv=False) %}
+{% for group in grp_list %}
+<div class="card mb-2">
+  <div class="card-header py-2 small bg-light">
+    {% if is_inv %}
+      {% set inv = group.inventory %}{% set rt = group.room_type %}
+      <strong>
+        {% if inv %}{{ inv.hotel.name if inv.hotel else '?' }} - {{ inv.name }}
+        {% elif rt %}Room type: {{ rt.name }}
+        {% else %}Inventory configuration{% endif %}
+      </strong>
+    {% else %}
+      {% set ra = group.assignment %}{% set app = group.application %}
+      <strong>
+        {% if ra and ra.inventory %}{{ ra.inventory.hotel.name if ra.inventory.hotel else '?' }} - {{ ra.inventory.name }}
+        {% else %}Application-level issue{% endif %}
+      </strong>
+      {% if app %}<small class="text-muted ms-2">{{ app.confirmation_num or app.id }}{% if app.attendee %} - {{ app.attendee.full_name }}{% endif %}</small>{% endif %}
+    {% endif %}
+  </div>
+  <ul class="list-group list-group-flush">
+    {% for iss in group.issues %}
+    <li class="list-group-item py-2">
+      <div class="small">
+        <span class="badge bg-{{ 'danger' if iss.severity == 'error' else 'warning text-dark' }}">{{ iss.severity|capitalize }}</span>
+        <strong class="ms-1">{{ kind_labels.get(iss.kind, iss.kind) }}</strong>
+        - {{ iss.label }}
+      </div>
+      {{ issue_actions(iss, hidden_mode=True) }}
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endfor %}
+{% endmacro %}
+
+{{ hidden_block(hidden_groups, is_inv=False) }}
+{{ hidden_block(hidden_inv_groups, is_inv=True) }}
+{% endif %}
+{% endif %}
+
+{% endblock content %}
