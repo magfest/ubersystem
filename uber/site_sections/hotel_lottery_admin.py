@@ -1335,54 +1335,6 @@ class Root:
         except Exception as e:
             return {'success': False, 'error': str(e)}
 
-    def setup_vault_form(self, session, **params):
-        if not c.VAULT_ENABLED:
-            raise HTTPRedirect('settings?message={}', 'Vault integration is not enabled.')
-
-        from uber.vault import setup_capture_form
-
-        form_id = c.VAULT_CAPTURE_FORM_ID or 'hotel-card-capture'
-
-        # Embedded JS reports iframe height to parent via ResizeObserver.
-        # No card data is touched - card metadata comes via webhook.
-        embedded_js = """
-        document.addEventListener('DOMContentLoaded', function() {
-            function postHeight() {
-                var height = document.documentElement.scrollHeight;
-                window.parent.postMessage({ height: height }, '*');
-            }
-            if (typeof ResizeObserver !== 'undefined') {
-                new ResizeObserver(postHeight).observe(document.body);
-            } else {
-                setInterval(postHeight, 500);
-            }
-            postHeight();
-        });
-        """
-
-        # Success callback sends token to parent window via postMessage
-        success_callback_js = """
-        function(data) {
-            window.parent.postMessage({ token: data.token }, '*');
-        }
-        """
-
-        import base64 as b64
-        encoded_js = b64.b64encode(embedded_js.strip().encode()).decode()
-
-        try:
-            result = setup_capture_form(
-                form_id=form_id,
-                success_callback_js=success_callback_js,
-                embedded_js=encoded_js,
-            )
-        except Exception as e:
-            raise HTTPRedirect('settings?message={}',
-                               f"Error setting up vault form: {e}")
-
-        raise HTTPRedirect('settings?message={}',
-                           f"Vault capture form created/updated: {result.get('id', form_id)}")
-
     def manage_hotels(self, session, message=''):
         hotels = session.query(LotteryHotel).order_by(LotteryHotel.name).all()
         return {

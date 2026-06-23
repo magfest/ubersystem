@@ -9,7 +9,6 @@ Flow:
   * Browser sends token back to us
 """
 
-import base64
 import json
 import logging
 
@@ -89,53 +88,6 @@ def get_capture_iframe_url(endpoint_id, secret, form_id=None, reference=None):
 
     result = _invoke_lambda(payload)
     return result.get("url", "")
-
-
-def setup_capture_form(form_id, success_callback_js=None, css_links=None, js_links=None, embedded_js=None):
-    """Create or update a hosted capture form on PCI Vault.
-
-    Deletes any existing form with the same ID first, then creates a new one.
-
-    Args:
-        form_id: Unique identifier for the form.
-        success_callback_js: JS string or base64-encoded JS to run on successful capture.
-        css_links: List of CSS URLs to style the form.
-        js_links: List of JS URLs to include in the form.
-        embedded_js: Base64-encoded JS to include in a script tag in the form.
-
-    Returns:
-        dict with form details including 'id'.
-    """
-    # Delete existing form if present so we can recreate it
-    try:
-        delete_capture_form(form_id)
-    except RuntimeError:
-        pass  # Form didn't exist, that's fine
-
-    payload = {
-        "method": "create_iframe_form",
-        "form_type": "pcd",
-        "form_id": form_id,
-        "css_links": css_links or [],
-        "js_links": js_links or [],
-        "strip_spaces": True,
-    }
-    if success_callback_js:
-        if isinstance(success_callback_js, str):
-            success_callback_js = base64.b64encode(success_callback_js.encode()).decode()
-        payload["success_callback"] = success_callback_js
-    if embedded_js:
-        payload["embedded_js"] = embedded_js
-
-    return _invoke_lambda(payload)
-
-
-def delete_capture_form(form_id):
-    """Delete a hosted capture form."""
-    return _invoke_lambda({
-        "method": "delete_iframe_form",
-        "form_id": form_id,
-    })
 
 
 def delete_capture_endpoint(endpoint_id):
