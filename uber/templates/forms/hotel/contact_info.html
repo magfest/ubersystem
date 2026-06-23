@@ -24,11 +24,16 @@
 {% endif %}
 
 <div class="row g-3 mb-3">
+    {# Hotel names are stored on the `Attendee` as `hotel_first_name` /
+       `hotel_last_name`. The form reads through
+       `Attendee.effective_hotel_first_name` / `effective_hotel_last_name`,
+       which fall back hotel_* -> legal_* -> first/last, so rows that never
+       set the hotel fields still show a populated value. #}
     <div class="col-sm">
-        {{ form_macros.input(lottery_info.legal_first_name, value=lottery_info.legal_first_name.data or attendee.legal_first_name, readonly=not application.is_new) }}
+        {{ form_macros.input(lottery_info.hotel_first_name, value=lottery_info.hotel_first_name.data or attendee.effective_hotel_first_name, readonly=not application.is_new) }}
     </div>
     <div class="col-sm">
-        {{ form_macros.input(lottery_info.legal_last_name, value=lottery_info.legal_last_name.data or attendee.legal_last_name, readonly=not application.is_new) }}
+        {{ form_macros.input(lottery_info.hotel_last_name, value=lottery_info.hotel_last_name.data or attendee.effective_hotel_last_name, readonly=not application.is_new) }}
     </div>
 </div>
 <div class="row g-3 mb-3">

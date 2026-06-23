@@ -1,0 +1,509 @@
+{% extends "./preregistration/preregbase.html" %}
+{% set title_text = "Secure Your Room" %}
+
+{% block content %}
+
+{# Back to the room editor for this assignment, preserving the
+   view-as attendee_id when present. #}
+<div class="mb-3">
+  <a href="room?id={{ assignment.id }}{% if attendee_id %}&attendee_id={{ attendee_id }}{% endif %}"
+     class="btn btn-outline-secondary btn-sm">
+    <i class="fa fa-arrow-left me-1"></i> Back to room
+  </a>
+</div>
+
+{# Secure-deadline reminder. Only render when this specific room has to
+   put down a card; master-bill rooms (require_cc=False) skip it. The
+   deadline lives on the RoomAssignment row, so each room can have its
+   own override. #}
+{% if assignment.require_cc and assignment.deposit_cutoff_date %}
+<div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+  <i class="fa fa-exclamation-triangle me-2"></i>
+  <div>
+    <strong>Card deadline:</strong>
+    {{ assignment.deposit_cutoff_date|date("%A, %B %-d, %Y") }}.
+    If a credit card isn't on file by then, this room will be released to
+    the next attendee in line.
+  </div>
+</div>
+{% endif %}
+
+<div class="d-flex justify-content-center mb-4">
+  <div class="d-flex align-items-center gap-2" id="step-indicators">
+    <span class="badge rounded-pill bg-primary step-badge" id="badge-1">1. Review Dates</span>
+    <i class="fa fa-chevron-right text-muted small"></i>
+    <span class="badge rounded-pill bg-secondary step-badge" id="badge-2">2. Billing Details</span>
+    <i class="fa fa-chevron-right text-muted small"></i>
+    <span class="badge rounded-pill bg-secondary step-badge" id="badge-3">3. Payment</span>
+  </div>
+</div>
+
+<div id="step-1">
+
+{% set inv = assignment.inventory %}
+{% set inv_hotel = inv.hotel if inv else None %}
+
+<div class="card card-body mb-3">
+  <h4>Room Award Summary</h4>
+  <table class="table table-sm mb-0">
+    <tr><th>Hotel</th><td>{{ inv_hotel.name if inv_hotel else '' }}</td></tr>
+    <tr><th>Room Type</th><td>
+      {% if inv and inv.is_suite %}
+        {{ inv.suite_type.name if inv.suite_type else '' }}
+      {% else %}
+        {{ inv.room_type.name if inv and inv.room_type else '' }}
+      {% endif %}
+    </td></tr>
+    {% if inv and inv.info_url %}
+    <tr><th>Room Info</th><td><a href="{{ inv.info_url }}" target="_blank">View room details and photos</a></td></tr>
+    {% endif %}
+    <tr><th>Check-in</th><td>{{ assignment.assigned_check_in_date }}</td></tr>
+    <tr><th>Check-out</th><td>{{ assignment.assigned_check_out_date }}</td></tr>
+    <tr><th>Guests</th><td>
+      {# Occupants live on the RoomAssignment; fall back to leader plus
+         group members when the list is empty. #}
+      {% if assignment.occupants %}
+        {% for occ in assignment.occupants %}
+          {{ occ.effective_hotel_first_name }} {{ occ.effective_hotel_last_name }}{% if not loop.last %}<br/>{% endif %}
+        {% endfor %}
+      {% elif application %}
+        {{ application.attendee.effective_hotel_first_name }} {{ application.attendee.effective_hotel_last_name }}
+        {% for member in application.valid_group_members %}
+          <br/>{{ member.attendee.effective_hotel_first_name }} {{ member.attendee.effective_hotel_last_name }}
+        {% endfor %}
+      {% elif assignment.attendee %}
+        {{ assignment.attendee.effective_hotel_first_name }} {{ assignment.attendee.effective_hotel_last_name }}
+      {% endif %}
+    </td></tr>
+  </table>
+</div>
+
+<div class="card card-body mb-3">
+  <h4>Your Room Dates</h4>
+  <p>You have been awarded the following nights:</p>
+  <p><strong>Check-in:</strong> {{ assignment.assigned_check_in_date.strftime("%B %-d") }}
+     - <strong>Check-out:</strong> {{ assignment.assigned_check_out_date.strftime("%B %-d") }}</p>
+
+  {% if application and (application.earliest_checkin_date != assignment.assigned_check_in_date or application.latest_checkout_date != assignment.assigned_check_out_date) %}
+  <div class="alert alert-info">
+    <strong>Note:</strong> Your original request was for
+    {{ application.earliest_checkin_date.strftime("%B %-d") }} - {{ application.latest_checkout_date.strftime("%B %-d") }}.
+    Not all requested nights were available.
+  </div>
+  {% endif %}
+
+  {% if assignment.parent_assignment_id %}
+  {# Connector rooms inherit their dates from the parent suite, so the
+     waitlist date-change option doesn't apply here - request extra
+     nights from the suite instead. Post a fixed `date_choice=accept`
+     so the secure callback's date handling is a no-op for this room. #}
+  <input type="hidden" name="date_choice" value="accept" />
+  <p class="text-muted small mb-0">
+    These dates follow your suite. To request additional nights, edit
+    the suite's dates.
+  </p>
+  {% else %}
+  <div class="form-check mb-2">
+    <input class="form-check-input" type="radio" name="date_choice" id="accept_dates" value="accept" checked>
+    <label class="form-check-label" for="accept_dates">
+      I accept these dates.
+    </label>
+  </div>
+  <div class="form-check mb-2">
+    <input class="form-check-input" type="radio" name="date_choice" id="request_more" value="waitlist">
+    <label class="form-check-label" for="request_more">
+      I'd like to request additional nights (waitlist). I'll be notified if availability opens up.
+    </label>
+  </div>
+
+  <div id="waitlist-dates" style="display: none;" class="mt-3">
+    <p class="text-muted">Set your preferred dates below. Nights outside your awarded range will be waitlisted.</p>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">Preferred Check-in</label>
+        <input type="date" class="form-control" id="requested_checkin"
+               value="{{ (application.earliest_checkin_date if application else None) or assignment.assigned_check_in_date }}"
+               min="{{ c.HOTEL_LOTTERY_CHECKIN_START.strftime('%Y-%m-%d') }}"
+               max="{{ assignment.assigned_check_in_date }}" />
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Preferred Check-out</label>
+        <input type="date" class="form-control" id="requested_checkout"
+               value="{{ (application.latest_checkout_date if application else None) or assignment.assigned_check_out_date }}"
+               min="{{ assignment.assigned_check_out_date }}"
+               max="{{ c.HOTEL_LOTTERY_CHECKOUT_END.strftime('%Y-%m-%d') }}" />
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<div class="d-flex justify-content-end">
+  <button type="button" class="btn btn-primary" onclick="goToStep(2)">Continue to Billing Details <i class="fa fa-arrow-right ms-1"></i></button>
+</div>
+
+</div>{# /step-1 #}
+
+
+<div id="step-2" style="display: none;">
+
+{# The "booker" is the attendee whose name will appear on the hotel
+   reservation. For a lottery-tied room that's application.attendee;
+   for a non-lottery (department / partition / manual) room it's
+   assignment.attendee - fall back to whichever is present. #}
+{% set _booker = (application.attendee if application else assignment.attendee) %}
+
+<div class="card card-body mb-3">
+  <h4>Billing Address</h4>
+  <p>Please provide the billing address associated with the credit card you will use to secure your room.</p>
+
+  {# Copy billing details from another of the booker's rooms in the same
+     hotel's payment system that already has a card + address on file.
+     Pre-filtered server-side; reuses that room's card and address and
+     secures this room without re-entering the card. #}
+  {% if billing_source_rooms %}
+  <form method="post" action="copy_booking_info" class="mb-3 p-2 bg-light rounded border">
+    {{ csrf_token() }}
+    <input type="hidden" name="attendee_id" value="{{ attendee_id or assignment.attendee_id }}" />
+    <input type="hidden" name="target_id" value="{{ assignment.id }}" />
+    <input type="hidden" name="return_to_room" value="1" />
+    <label for="billing-copy-source" class="form-label mb-1">Copy billing details from another room</label>
+    <div class="d-flex gap-2">
+      <select class="form-select" name="source_id" id="billing-copy-source" required>
+        <option value="">Select a room...</option>
+        {% for src in billing_source_rooms %}
+        <option value="{{ src.id }}">{{ src.label }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-outline-secondary text-nowrap">Copy</button>
+    </div>
+    <div class="form-text">Reuses the card and billing address from the selected room and secures this room.</div>
+  </form>
+  {% endif %}
+
+  <div class="mb-3">
+    <label for="address1" class="form-label">Address Line 1 <span class="text-danger">*</span></label>
+    <input type="text" class="form-control" name="address1" id="address1"
+           value="{{ assignment.address1 or (_booker.address1 if _booker else '') }}" required />
+  </div>
+
+  <div class="mb-3">
+    <label for="address2" class="form-label">Address Line 2</label>
+    <input type="text" class="form-control" name="address2" id="address2"
+           value="{{ assignment.address2 or (_booker.address2 if _booker else '') }}" />
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-5">
+      <label for="city" class="form-label">City <span class="text-danger">*</span></label>
+      <input type="text" class="form-control" name="city" id="city"
+             value="{{ assignment.city or (_booker.city if _booker else '') }}" required />
+    </div>
+    <div class="col-md-4">
+      <label for="region" class="form-label">State/Province/Region <span class="text-danger">*</span></label>
+      <input type="text" class="form-control" name="region" id="region"
+             value="{{ assignment.region or (_booker.region if _booker else '') }}" required />
+    </div>
+    <div class="col-md-3">
+      <label for="zip_code" class="form-label">ZIP/Postal Code <span class="text-danger">*</span></label>
+      <input type="text" class="form-control" name="zip_code" id="zip_code"
+             value="{{ assignment.zip_code or (_booker.zip_code if _booker else '') }}" required />
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <label for="country" class="form-label">Country <span class="text-danger">*</span></label>
+    <select class="form-select" name="country" id="country" required>
+      <option value="">-- Select Country --</option>
+      {% set current_country = assignment.country or (_booker.country if _booker else '') %}
+      {% for opt in c.COUNTRY_OPTS %}
+      <option value="{{ opt.value }}" {% if current_country == opt.value %}selected{% endif %}>{{ opt.label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="mb-3">
+    <label for="hotel_rewards_number" class="form-label">Hotel Rewards Program Number</label>
+    <input type="text" class="form-control" name="hotel_rewards_number" id="hotel_rewards_number"
+           value="{{ assignment.hotel_rewards_number or '' }}"
+           placeholder="Enter your hotel loyalty/rewards number (optional)" />
+    <div class="form-text">If you have a rewards membership with this hotel, enter your number to earn points for your stay.</div>
+  </div>
+</div>
+
+<div id="step2-error" class="alert alert-danger" style="display: none;"></div>
+
+<div class="d-flex justify-content-between">
+  <button type="button" class="btn btn-outline-secondary" onclick="goToStep(1)"><i class="fa fa-arrow-left me-1"></i> Back</button>
+  <button type="button" class="btn btn-primary" onclick="goToStep(3)">Continue to Payment <i class="fa fa-arrow-right ms-1"></i></button>
+</div>
+
+</div>{# /step-2 #}
+
+
+<div id="step-3" style="display: none;">
+
+<div class="card card-body mb-3">
+  <h4>Credit Card Information</h4>
+  <p>Your card information is submitted directly to our secure payment vault and never touches our servers.</p>
+
+  <div id="card-summary" style="display: none;">
+    <div class="d-flex align-items-center gap-3 mb-3">
+      <span>Card on file: <strong id="card-summary-text"></strong></span>
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="change-card-btn">Change Card</button>
+    </div>
+  </div>
+
+  <div id="vault-loading" style="display: none;" class="text-center py-4">
+    <div class="spinner-border" role="status"></div>
+    <p class="mt-2 text-muted">Loading secure card form...</p>
+  </div>
+
+  <div id="vault-iframe-container" style="display: none;">
+    <iframe id="vault-iframe" title="Secure credit card entry form"
+            style="width: 100%; height: 700px; border: none; overflow: hidden;"
+            scrolling="no" allow="payment"></iframe>
+  </div>
+
+  <button type="button" class="btn btn-primary btn-lg w-100 mt-3" id="secure-btn" style="display: none;" onclick="submitWithExistingCard()">
+    <i class="fa fa-lock me-1"></i> Secure Room
+  </button>
+
+  <div id="secure-success" style="display: none;" class="alert alert-success mt-3">
+    Your room has been secured! Redirecting...
+  </div>
+  <div id="secure-error" style="display: none;" class="alert alert-danger mt-3">
+    There was an error securing your room. Please try again or contact us for assistance.
+  </div>
+</div>
+
+<div class="d-flex justify-content-start">
+  <button type="button" class="btn btn-outline-secondary" id="step3-back-btn" onclick="goToStep(2)"><i class="fa fa-arrow-left me-1"></i> Back</button>
+</div>
+
+</div>
+
+
+<script type="text/javascript">
+var iframeUrl = null;       // Set lazily via AJAX
+var vaultSessionLoading = false;
+var vaultSessionReady = false;
+
+// Card state - seeded from server if a card was already captured on this assignment.
+var cardToken = {{ (assignment.cc_token or '')|tojson }} || null;
+var cardLastFour = {{ (assignment.cc_last_four or '')|tojson }};
+var cardType = {{ (assignment.cc_card_type or '')|tojson }};
+var vaultOrigin = null;  // Set when vault iframe URL is loaded
+
+function loadVaultSession(callback) {
+  if (iframeUrl) {
+    if (callback) callback();
+    return;
+  }
+  if (vaultSessionLoading) return;
+  vaultSessionLoading = true;
+
+  $('#vault-loading').show();
+  $('#vault-iframe-container').hide();
+  $('#secure-error').hide();
+
+  $.ajax({
+    url: 'create_vault_session',
+    method: 'POST',
+    data: { assignment_id: '{{ assignment.id }}', csrf_token: csrf_token },
+    success: function(json) {
+      vaultSessionLoading = false;
+      $('#vault-loading').hide();
+      if (json.success) {
+        iframeUrl = json.iframe_url;
+        try { vaultOrigin = new URL(iframeUrl).origin; } catch(e) {}
+        vaultSessionReady = true;
+        document.getElementById('vault-iframe').src = iframeUrl;
+        if (callback) callback();
+      } else {
+        $('#secure-error').text(json.error || 'Failed to load card form.').show();
+      }
+    },
+    error: function() {
+      vaultSessionLoading = false;
+      $('#vault-loading').hide();
+      $('#secure-error').text('Failed to connect to payment service. Please try again.').show();
+    }
+  });
+}
+
+function goToStep(step) {
+  if (step === 3 && !isAddressComplete()) {
+    $('#step2-error').text('Please fill in all required billing address fields.').show();
+    return;
+  }
+  $('#step2-error').hide();
+
+  // Hide all steps
+  $('#step-1, #step-2, #step-3').hide();
+  $('#step-' + step).show();
+
+  // Update step badges
+  for (var i = 1; i <= 3; i++) {
+    var badge = document.getElementById('badge-' + i);
+    badge.className = 'badge rounded-pill step-badge ' + (i === step ? 'bg-primary' : (i < step ? 'bg-success' : 'bg-secondary'));
+  }
+
+  if (step === 3) {
+    if (hasCard()) {
+      // Already has a card - show summary + secure button immediately
+      updateCardDisplay();
+    } else {
+      // No card yet - create vault session and show iframe
+      loadVaultSession(function() { updateCardDisplay(); });
+    }
+  }
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+$(function() {
+  $('input[name="date_choice"]').on('change', function() {
+    $('#waitlist-dates').toggle(this.value === 'waitlist');
+  });
+});
+
+function isAddressComplete() {
+  return document.getElementById('address1').value.trim()
+      && document.getElementById('city').value.trim()
+      && document.getElementById('region').value.trim()
+      && document.getElementById('zip_code').value.trim()
+      && document.getElementById('country').value;
+}
+
+function hasCard() {
+  return !!cardToken;
+}
+
+function cardSummaryText() {
+  if (cardLastFour) {
+    return (cardType ? cardType + ' ' : '') + 'ending in ' + cardLastFour;
+  }
+  return 'Credit card stored';
+}
+
+function updateCardDisplay() {
+  var card = hasCard();
+  var editing = $('#vault-iframe-container').data('showIframe');
+
+  $('#card-summary, #vault-iframe-container, #secure-btn, #vault-loading').hide();
+
+  if (card && !editing) {
+    $('#card-summary-text').text(cardSummaryText());
+    $('#card-summary').show();
+    $('#secure-btn').show();
+  } else if (vaultSessionReady) {
+    $('#vault-iframe-container').show();
+    if (card) {
+      $('#card-summary-text').text(cardSummaryText());
+      $('#card-summary').show();
+    }
+  }
+}
+
+$('#change-card-btn').on('click', function() {
+  $('#vault-iframe-container').data('showIframe', true);
+  // Reset so loadVaultSession creates a fresh capture endpoint
+  iframeUrl = null;
+  vaultSessionReady = false;
+  loadVaultSession(function() {
+    document.getElementById('vault-iframe').src = iframeUrl;
+    updateCardDisplay();
+  });
+});
+
+function submitWithExistingCard() {
+  $('#secure-error').hide();
+  $('#secure-btn').prop('disabled', true);
+
+  $.ajax({
+    url: 'secure_room_callback',
+    method: 'POST',
+    data: {
+      assignment_id: '{{ assignment.id }}',
+      token: cardToken,
+      address1: document.getElementById('address1').value.trim(),
+      address2: document.getElementById('address2').value.trim(),
+      city: document.getElementById('city').value.trim(),
+      region: document.getElementById('region').value.trim(),
+      zip_code: document.getElementById('zip_code').value.trim(),
+      country: document.getElementById('country').value,
+      hotel_rewards_number: document.getElementById('hotel_rewards_number').value.trim(),
+      {# Connector rooms render `date_choice` as a hidden input (no
+         radio / waitlist date pickers), so fall back to the plain
+         value and guard the optional date fields. #}
+      date_choice: ($('input[name="date_choice"]:checked').val()
+                    || $('input[name="date_choice"]').val() || 'accept'),
+      requested_checkin: (document.getElementById('requested_checkin') || {}).value || '',
+      requested_checkout: (document.getElementById('requested_checkout') || {}).value || '',
+      csrf_token: csrf_token
+    },
+    success: function(response) {
+      if (response.success) {
+        $('#card-summary, #vault-iframe-container, #secure-btn, #step3-back-btn').hide();
+        $('#secure-success').show();
+        setTimeout(function() {
+          window.location.href = 'rooms?attendee_id={{ (application.attendee.id if application else assignment.attendee.id) }}&message=Your+room+has+been+secured!';
+        }, 2000);
+      } else {
+        $('#secure-error').text(response.error || 'An error occurred.').show();
+        $('#secure-btn').prop('disabled', false);
+      }
+    },
+    error: function() {
+      $('#secure-error').show();
+      $('#secure-btn').prop('disabled', false);
+    }
+  });
+}
+
+window.addEventListener('message', function(event) {
+  // Only accept messages from the vault iframe origin
+  if (vaultOrigin && event.origin !== vaultOrigin) return;
+
+  var data = event.data;
+  if (!data || typeof data !== 'object') return;
+
+  if (data.height) {
+    document.getElementById('vault-iframe').style.height = data.height + 'px';
+    return;
+  }
+
+  if (data.token) {
+    cardToken = data.token;
+    cardLastFour = '';
+    cardType = '';
+    $('#vault-iframe-container').data('showIframe', false);
+
+    // Save just the token to the server (card metadata arrives via webhook)
+    $.ajax({
+      url: 'save_card_token',
+      method: 'POST',
+      data: {
+        assignment_id: '{{ assignment.id }}',
+        token: cardToken,
+        csrf_token: csrf_token
+      },
+      success: function(response) {
+        if (!response.success) {
+          $('#secure-error').text(response.error || 'Failed to save card token.').show();
+        }
+      },
+      error: function() {
+        $('#secure-error').text('Failed to save card token. Please try again.').show();
+      }
+    });
+
+    updateCardDisplay();
+  } else if (data.error) {
+    $('#secure-error').text(data.error).show();
+  }
+});
+</script>
+
+{% endblock content %}

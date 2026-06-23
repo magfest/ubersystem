@@ -356,7 +356,17 @@ class Ranking():
         return extra_info
     
     def __call__(self, field, choices=None, show_staff_rates=False, **kwargs):
-        choices = choices or self.choices or [('', {"name": "Error", "description": "No choices are configured"})]
+        # Resolve choices in precedence order: an explicit `choices=` kwarg
+        # passed at render time; then whatever bind_field wrote onto the
+        # field, which is where `dynamic_choices_fields` lands its live DB
+        # lookup (`_hotel_ranking_choices` etc.); then the widget's own
+        # `self.choices` for callers that hand a list to the constructor;
+        # and finally an error placeholder.
+        field_choices = getattr(field, 'choices', None)
+        choices = (choices
+                   or (field_choices if field_choices else None)
+                   or self.choices
+                   or [('', {"name": "Error", "description": "No choices are configured"})])
         id = kwargs.pop('id', field.id) or "ranking"
         selected_choices = field.data if isinstance(field.data, list) else [str(field.data)]
         read_only = 'readonly' in kwargs and kwargs['readonly']
@@ -411,28 +421,33 @@ class Ranking():
             SortableExt.initWidget('{id}', 'li.sortable-item');
         </script>"""
 
-        if read_only:
-            html = []
-        else:
-            html = ['<div class="row">']
-
-        html.extend([
+        # Column order: in editable mode "Available" sits on the left
+        # and "Selected" on the right - selected items are the "result"
+        # of the user's actions, and the natural left-to-right reading
+        # order makes Available -> Selected feel like a pick-and-move
+        # workflow. In read-only mode there is no "Available" column,
+        # so Selected just renders alone.
+        selected_block = [
             '<div class="col-sm-6">',
-            f'<span class="form-text">{'' if read_only else 'Selected '}{field.label.text}</span>',
+            f'<span class="form-text">{"" if read_only else "Selected "}{field.label.text}</span>',
             f'<ul class="card card-body bg-light gap-2 p-2 p-sm-3" id="selected_{id}">',
             *selected_html,
             f'</ul></div>',
-            ])
+        ]
 
-        if not read_only:
-            html.extend([
+        if read_only:
+            html = list(selected_block)
+        else:
+            html = [
+                '<div class="row">',
                 '<div class="col-sm-6">',
                 f'<span class="form-text">Available {field.label.text}</span>',
                 f'<ul class="card card-body bg-light gap-2 p-2 p-sm-3" id="deselected_{id}">',
                 *deselected_html,
                 '</ul></div>',
+                *selected_block,
                 script,
                 '</div>',
-                ])
+            ]
 
         return Markup(''.join(html))
