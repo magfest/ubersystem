@@ -64,7 +64,8 @@ def _partitions_for_current_admin(session):
 def _gate_view(session, partition_id):
     if not can_view_assignments_in(session, partition_id) and \
             not can_view_inventory_in(session, partition_id):
-        raise HTTPRedirect('../accounts/insufficient_privileges')
+        raise HTTPRedirect('index?message={}',
+                           "You don't have access to that partition.")
 
 
 def _paginate(query, page):
