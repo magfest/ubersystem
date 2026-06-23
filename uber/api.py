@@ -26,7 +26,7 @@ from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, Attr
                          BadgeInfo, Department, DeptMembership,
                          DeptRole, Event, IndieJudge, IndieStudio, Job, Session, Shift, Group,
                          GuestGroup, LotteryApplication)
-from uber.models.hotel import HotelExportLog, HotelRoomInventory
+from uber.models.hotel import HotelExportLog, HotelRoomInventory, LotteryHotel
 from uber.models.badge_printing import PrintJob
 from uber.serializer import serializer
 from uber.utils import check, check_csrf, normalize_email_legacy, normalize_newlines, is_listy
@@ -1643,20 +1643,33 @@ class HotelLookup:
         }
 
     @api_auth('api_read')
-    def export_room_bookings(self, hotel):
+    def export_room_bookings(self, hotel=None, hotel_name=None):
         """
         Export room booking data including PCI Vault tokens (NOT raw card numbers).
         One entry per RoomAssignment - connectors get their own line, with
         `parent_assignment_id` pointing at the suite assignment so the
         receiver can group them. Creates an export log entry for tracking.
+
+        Identify the hotel by `hotel` (the LotteryHotel UUID) or, alternatively,
+        by `hotel_name` (its export name or display name).
         """
         from uber.models.hotel import RoomAssignment
 
         with Session() as session:
-            if not hotel:
-                return "You must provide a hotel argument"
+            if hotel:
+                hotel_id = hotel
+            elif hotel_name:
+                hotel_obj = session.query(LotteryHotel).filter(
+                    or_(LotteryHotel.export_name == hotel_name,
+                        LotteryHotel.name == hotel_name)).first()
+                if not hotel_obj:
+                    return []
+                hotel_id = hotel_obj.id
+            else:
+                return "You must provide a hotel or hotel_name argument"
+
             hotel_inv_ids = [str(inv.id) for inv in
-                             session.query(HotelRoomInventory).filter_by(hotel_id=hotel).all()]
+                             session.query(HotelRoomInventory).filter_by(hotel_id=hotel_id).all()]
             if not hotel_inv_ids:
                 return []
 
