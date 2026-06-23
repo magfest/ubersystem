@@ -2,14 +2,14 @@ import cherrypy
 from datetime import datetime
 
 from pytz import UTC
-from sqlalchemy.orm import joinedload, subqueryload
+from sqlalchemy.orm import subqueryload
 
 from uber.config import c
 from uber.custom_tags import linebreaksbr, short_datetime_local
 from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, xlsx_file
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
-from uber.models import Attendee, Department, DeptChecklistItem, BulkPrintingRequest, HotelRequests, RoomAssignment, Shift
+from uber.models import Attendee, Department, DeptChecklistItem, BulkPrintingRequest
 from uber.utils import check, check_csrf, days_before, DeptChecklistConf, redirect_to_allowed_dept, validate_model
 
 
@@ -412,72 +412,3 @@ class Root:
             'checklist': checklist,
             'attendees': attendees
         }  # noqa: E712
-
-    def hotel_requests(self, session, department_id=None):
-        redirect_to_allowed_dept(session, department_id, 'hotel_requests')
-
-        if department_id == 'None':
-            department_id = ''
-        elif department_id == 'All':
-            department_id = None
-
-        _check_dept_checklist_open(department_id)
-
-        requests = []
-
-        dept_filter = [] if not department_id else [
-            Attendee.dept_memberships.any(department_id=department_id)]
-
-        if department_id != '':
-            requests = session.query(HotelRequests) \
-                .join(HotelRequests.attendee) \
-                .options(joinedload(HotelRequests.attendee)) \
-                .filter(
-                Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
-                *dept_filter) \
-                .order_by(Attendee.full_name).all()
-
-        attendee = session.admin_attendee()
-
-        try:
-            checklist = session.checklist_status('approve_setup_teardown', department_id)
-        except ValueError:
-            checklist = {'conf': None, 'relevant': False, 'completed': None}
-
-        return {
-            'admin_has_room_access': c.HAS_STAFFING_ADMIN_ACCESS,
-            'attendee': attendee,
-            'requests': requests,
-            'department_id': 'All' if department_id is None else department_id,
-            'department_name': c.DEPARTMENTS.get(department_id, 'All'),
-            'declined_count': len([r for r in requests if r.nights == '']),
-            'checklist': checklist,
-            'staffer_count': session.query(Attendee).filter(
-                Attendee.hotel_eligible == True, *dept_filter).count()  # noqa: E712
-        }
-
-    def hours(self, session):
-        staffers = session.query(Attendee) \
-            .filter(Attendee.hotel_eligible == True, Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS])) \
-            .options(joinedload(Attendee.hotel_requests), subqueryload(Attendee.shifts).subqueryload(Shift.job)) \
-            .order_by(Attendee.full_name).all()  # noqa: E712
-
-        return {'staffers': [s for s in staffers if s.hotel_shifts_required
-                             and s.weighted_hours < c.HOURS_FOR_HOTEL_SPACE]}
-
-    def no_shows(self, session):
-        room_assignments = session.query(RoomAssignment).options(
-            joinedload(RoomAssignment.attendee).joinedload(Attendee.hotel_requests),
-            joinedload(RoomAssignment.attendee).subqueryload(Attendee.room_assignments))
-        staffers = [ra.attendee for ra in room_assignments if not ra.attendee.checked_in]
-        return {'staffers': sorted(staffers, key=lambda a: a.full_name)}
-
-    @ajax
-    def approve(self, session, id, approved):
-        hr = session.hotel_requests(id)
-        if approved == 'approved':
-            hr.approved = True
-        else:
-            hr.decline()
-        session.commit()
-        return {'nights': hr.nights_display}
