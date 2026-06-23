@@ -43,16 +43,6 @@
       <td>{{ 'Configured' if c.VAULT_WEBHOOK_SECRET else 'Not configured' }}</td>
     </tr>
   </table>
-
-  {% if c.VAULT_ENABLED %}
-  <form method="post" action="setup_vault_form" class="d-inline">
-    {{ csrf_token() }}
-    <button type="submit" class="btn btn-outline-warning"
-            onclick="return confirm('This will delete and recreate the PCI Vault capture form. Continue?')">
-      Setup Vault Capture Form
-    </button>
-  </form>
-  {% endif %}
 </div>
 
 {% if c.VAULT_ENABLED %}
