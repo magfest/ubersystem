@@ -1,0 +1,367 @@
+{% extends "./preregistration/preregbase.html" %}
+{% set title_text = "Edit Room Details" %}
+
+{% block content %}
+
+{# `assignment` is the RoomAssignment row this page edits. `application`
+   is the LotteryApplication that owns the booker's contact info - read
+   from there for fields like address overrides, special_requests on
+   the per-room level, etc. #}
+{% set inv = assignment.inventory %}
+{% set inv_hotel = inv.hotel if inv else None %}
+
+<div class="mb-3">
+  <a href="rooms?attendee_id={{ application.attendee.id }}" class="btn btn-outline-secondary">Back to My Rooms</a>
+</div>
+
+<div class="card card-body mb-3">
+  <h4>Room Assignment</h4>
+  <table class="table table-sm mb-0">
+    <tr><th>Hotel</th><td>{{ inv_hotel.name if inv_hotel else '' }}</td></tr>
+    <tr><th>Room Type</th><td>
+      {% if inv and inv.is_suite %}
+        {{ inv.suite_type.name if inv.suite_type else '' }}
+      {% else %}
+        {{ inv.room_type.name if inv and inv.room_type else '' }}
+      {% endif %}
+    </td></tr>
+    <tr><th>Status</th><td>{{ assignment.status_label }}</td></tr>
+    {% if inv and inv.info_url %}
+    <tr><th>Room Info</th><td><a href="{{ inv.info_url }}" target="_blank">View room details and photos</a></td></tr>
+    {% endif %}
+    {% if assignment.hotel_confirmation_number %}
+    <tr><th>Hotel Confirmation #</th><td>{{ assignment.hotel_confirmation_number }}</td></tr>
+    {% endif %}
+  </table>
+</div>
+
+<form method="post" action="edit_room" class="card card-body mb-3">
+  {{ csrf_token() }}
+  <input type="hidden" name="id" value="{{ application.id }}" />
+  <input type="hidden" name="assignment_id" value="{{ assignment.id }}" />
+  <h4>Dates &amp; Requests</h4>
+
+  {# Waitlist state lives on the assignment: these reflect what the
+     attendee re-asked for via the per-room editor, while the lottery
+     entry's earliest_checkin_date / latest_checkout_date are fixed at
+     lottery-entry time. #}
+  {% if assignment.is_waitlisted %}
+  {% set _wl_ci_nights = (assignment.assigned_check_in_date - assignment.waitlisted_check_in_date).days
+                         if assignment.waitlisted_check_in_date and assignment.assigned_check_in_date
+                            and assignment.waitlisted_check_in_date < assignment.assigned_check_in_date
+                         else 0 %}
+  {% set _wl_co_nights = (assignment.waitlisted_check_out_date - assignment.assigned_check_out_date).days
+                         if assignment.waitlisted_check_out_date and assignment.assigned_check_out_date
+                            and assignment.waitlisted_check_out_date > assignment.assigned_check_out_date
+                         else 0 %}
+  <div class="alert alert-info">
+    <strong>Waitlisted nights:</strong>
+    You are on the waitlist for
+    {% if _wl_ci_nights %}{{ _wl_ci_nights }} night{{ "s" if _wl_ci_nights > 1 }} before your check-in{% endif %}
+    {% if _wl_ci_nights and _wl_co_nights %} and {% endif %}
+    {% if _wl_co_nights %}{{ _wl_co_nights }} night{{ "s" if _wl_co_nights > 1 }} after your check-out{% endif %}.
+    You'll be notified if availability opens up.
+    <br><small>Requested: {{ (assignment.waitlisted_check_in_date or assignment.assigned_check_in_date).strftime("%B %-d") }} - {{ (assignment.waitlisted_check_out_date or assignment.assigned_check_out_date).strftime("%B %-d") }}
+    | Confirmed: {{ assignment.assigned_check_in_date.strftime("%B %-d") }} - {{ assignment.assigned_check_out_date.strftime("%B %-d") }}</small>
+  </div>
+  {% endif %}
+
+  <p class="text-muted">To request additional nights, set your desired check-in and check-out dates. Available nights will be confirmed immediately; unavailable nights will be waitlisted.</p>
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-6">
+      <label for="assigned_check_in_date" class="form-label">Check-in Date</label>
+      <input type="date" class="form-control" name="assigned_check_in_date" id="assigned_check_in_date"
+             value="{{ assignment.assigned_check_in_date }}"
+             min="{{ c.HOTEL_LOTTERY_CHECKIN_START.strftime('%Y-%m-%d') }}"
+             max="{{ assignment.assigned_check_in_date }}" required />
+    </div>
+    <div class="col-md-6">
+      <label for="assigned_check_out_date" class="form-label">Check-out Date</label>
+      <input type="date" class="form-control" name="assigned_check_out_date" id="assigned_check_out_date"
+             value="{{ assignment.assigned_check_out_date }}"
+             min="{{ assignment.assigned_check_out_date }}"
+             max="{{ c.HOTEL_LOTTERY_CHECKOUT_END.strftime('%Y-%m-%d') }}" required />
+    </div>
+  </div>
+
+  <h4 class="mt-4">Billing Address</h4>
+
+  <div class="mb-3">
+    <label for="address1" class="form-label">Address Line 1</label>
+    <input type="text" class="form-control" name="address1" id="address1"
+           value="{{ assignment.address1 }}" required />
+  </div>
+
+  <div class="mb-3">
+    <label for="address2" class="form-label">Address Line 2</label>
+    <input type="text" class="form-control" name="address2" id="address2"
+           value="{{ assignment.address2 }}" />
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-5">
+      <label for="city" class="form-label">City</label>
+      <input type="text" class="form-control" name="city" id="city"
+             value="{{ assignment.city }}" required />
+    </div>
+    <div class="col-md-4">
+      <label for="region" class="form-label">State/Province/Region</label>
+      <input type="text" class="form-control" name="region" id="region"
+             value="{{ assignment.region }}" required />
+    </div>
+    <div class="col-md-3">
+      <label for="zip_code" class="form-label">ZIP/Postal Code</label>
+      <input type="text" class="form-control" name="zip_code" id="zip_code"
+             value="{{ assignment.zip_code }}" required />
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <label for="country" class="form-label">Country</label>
+    <select class="form-select" name="country" id="country" required>
+      <option value="">-- Select Country --</option>
+      {% for opt in c.COUNTRY_OPTS %}
+      <option value="{{ opt.value }}" {% if assignment.country == opt.value %}selected{% endif %}>{{ opt.label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="mb-3">
+    <label for="hotel_rewards_number" class="form-label">Hotel Rewards Program Number</label>
+    <input type="text" class="form-control" name="hotel_rewards_number" id="hotel_rewards_number"
+           value="{{ application.hotel_rewards_number }}"
+           placeholder="Enter your hotel loyalty/rewards number (optional)" />
+    <div class="form-text">If you have a rewards membership with this hotel, enter your number to earn points for your stay.</div>
+  </div>
+
+  <div class="mb-3">
+    <label for="special_requests" class="form-label">Special Requests</label>
+    <textarea class="form-control" name="special_requests" id="special_requests" rows="3"
+              placeholder="Any special requests for the hotel (e.g., extra pillows, accessibility needs)">{{ assignment.special_requests }}</textarea>
+  </div>
+
+  <button type="submit" class="btn btn-primary">Save Changes</button>
+</form>
+
+{% if vault_enabled %}
+<div class="card card-body mb-3">
+  <h4>Credit Card Information</h4>
+  <p>Your card information is submitted directly to our secure payment vault and never touches our servers.</p>
+
+  <div id="card-summary" style="display: none;">
+    <div class="d-flex align-items-center gap-3 mb-3">
+      <span>Card on file: <strong id="card-summary-text"></strong></span>
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="change-card-btn">Change Card</button>
+    </div>
+  </div>
+
+  <div id="vault-loading" style="display: none;" class="text-center py-4">
+    <div class="spinner-border spinner-border-sm" role="status"></div>
+    Loading secure card form...
+  </div>
+
+  <div id="vault-iframe-container" style="display: none;">
+    <iframe id="vault-iframe" title="Secure credit card entry form"
+            style="width: 100%; height: 700px; border: none; overflow: hidden;"
+            scrolling="no" allow="payment"></iframe>
+  </div>
+
+  <div id="secure-success" style="display: none;" class="alert alert-success mt-3">
+    Card saved successfully!
+  </div>
+  <div id="secure-error" style="display: none;" class="alert alert-danger mt-3">
+    There was an error saving your card. Please try again or contact us for assistance.
+  </div>
+</div>
+
+<script type="text/javascript">
+var iframeUrl = null;
+var vaultSessionLoading = false;
+var vaultSessionReady = false;
+
+var cardToken = {{ (assignment.cc_token or '')|tojson }} || null;
+var cardLastFour = {{ (assignment.cc_last_four or '')|tojson }};
+var cardType = {{ (assignment.cc_card_type or '')|tojson }};
+var vaultOrigin = null;
+
+function hasCard() {
+  return !!cardToken;
+}
+
+function cardSummaryText() {
+  if (cardLastFour) {
+    return (cardType ? cardType + ' ' : '') + 'ending in ' + cardLastFour;
+  }
+  return 'Credit card stored';
+}
+
+function loadVaultSession(callback) {
+  if (iframeUrl) {
+    if (callback) callback();
+    return;
+  }
+  if (vaultSessionLoading) return;
+  vaultSessionLoading = true;
+
+  $('#vault-loading').show();
+  $('#vault-iframe-container').hide();
+  $('#secure-error').hide();
+
+  $.ajax({
+    url: 'create_vault_session',
+    method: 'POST',
+    data: { assignment_id: '{{ assignment.id }}', csrf_token: csrf_token },
+    success: function(json) {
+      vaultSessionLoading = false;
+      $('#vault-loading').hide();
+      if (json.success) {
+        iframeUrl = json.iframe_url;
+        try { vaultOrigin = new URL(iframeUrl).origin; } catch(e) {}
+        vaultSessionReady = true;
+        document.getElementById('vault-iframe').src = iframeUrl;
+        if (callback) callback();
+      } else {
+        $('#secure-error').text(json.error || 'Failed to load card form.').show();
+      }
+    },
+    error: function() {
+      vaultSessionLoading = false;
+      $('#vault-loading').hide();
+      $('#secure-error').text('Failed to connect to payment service. Please try again.').show();
+    }
+  });
+}
+
+function updateDisplay() {
+  var card = hasCard();
+  var editing = $('#vault-iframe-container').data('showIframe');
+
+  $('#card-summary, #vault-iframe-container, #vault-loading').hide();
+
+  if (card && !editing) {
+    $('#card-summary-text').text(cardSummaryText());
+    $('#card-summary').show();
+  } else if (vaultSessionReady) {
+    $('#vault-iframe-container').show();
+    if (card) {
+      $('#card-summary-text').text(cardSummaryText());
+      $('#card-summary').show();
+    }
+  } else {
+    loadVaultSession(function() { updateDisplay(); });
+  }
+}
+
+$('#change-card-btn').on('click', function() {
+  $('#vault-iframe-container').data('showIframe', true);
+  if (iframeUrl) {
+    iframeUrl = null;
+    vaultSessionReady = false;
+  }
+  loadVaultSession(function() {
+    document.getElementById('vault-iframe').src = iframeUrl;
+    updateDisplay();
+  });
+});
+
+if (hasCard()) {
+  $('#card-summary-text').text(cardSummaryText());
+  $('#card-summary').show();
+} else {
+  updateDisplay();
+}
+
+window.addEventListener('message', function(event) {
+  if (vaultOrigin && event.origin !== vaultOrigin) return;
+
+  var data = event.data;
+  if (!data || typeof data !== 'object') return;
+
+  if (data.height) {
+    document.getElementById('vault-iframe').style.height = data.height + 'px';
+    return;
+  }
+
+  if (data.token) {
+    cardToken = data.token;
+    cardLastFour = '';
+    cardType = '';
+    $('#vault-iframe-container').data('showIframe', false);
+
+    $.ajax({
+      url: 'save_card_token',
+      method: 'POST',
+      data: {
+        assignment_id: '{{ assignment.id }}',
+        token: cardToken,
+        csrf_token: csrf_token
+      },
+      success: function(response) {
+        if (response.success) {
+          $('#secure-success').show().delay(3000).fadeOut();
+        } else {
+          $('#secure-error').text(response.error || 'An error occurred.').show();
+        }
+      },
+      error: function() {
+        $('#secure-error').show();
+      }
+    });
+
+    updateDisplay();
+  } else if (data.error) {
+    $('#secure-error').text(data.error).show();
+  }
+});
+</script>
+{% endif %}
+
+<div class="card card-body mb-3">
+  <h4>Room Guests</h4>
+  <p>You ({{ application.attendee.effective_hotel_first_name }} {{ application.attendee.effective_hotel_last_name }}) are the room leader.</p>
+
+  {% if application.valid_group_members %}
+  <table class="table table-sm">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for member in application.valid_group_members %}
+      <tr>
+        <td>{{ member.attendee.effective_hotel_first_name }} {{ member.attendee.effective_hotel_last_name }}</td>
+        <td>
+          <form method="post" action="remove_room_guest" class="d-inline">
+            {{ csrf_token() }}
+            <input type="hidden" name="id" value="{{ application.id }}" />
+            <input type="hidden" name="member_id" value="{{ member.id }}" />
+            <button type="submit" class="btn btn-sm btn-outline-danger"
+                    onclick="return confirm('Remove this guest from your room?')">Remove</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="text-muted">No additional guests in your room.</p>
+  {% endif %}
+
+  {% if application.valid_group_members|length < max_guests %}
+  <h5 class="mt-3">Invite a Guest</h5>
+  <p>Enter the email address of the attendee you'd like to add to your room.</p>
+  <form method="post" action="invite_room_guest" class="d-flex gap-2" style="max-width: 400px;">
+    {{ csrf_token() }}
+    <input type="hidden" name="id" value="{{ application.id }}" />
+    <input type="email" class="form-control" name="email" placeholder="Email address" required />
+    <button type="submit" class="btn btn-primary">Invite</button>
+  </form>
+  {% else %}
+  <p class="text-muted">Your room is at capacity ({{ max_guests }} guest{{ "s" if max_guests != 1 else "" }}).</p>
+  {% endif %}
+</div>
+
+{% endblock content %}

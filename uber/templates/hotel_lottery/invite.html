@@ -1,0 +1,94 @@
+{% extends "./preregistration/preregbase.html" %}
+{% set title_text = "Room Invite" %}
+{% block content %}
+
+{# Invite page doesn't have a resolved attendee in its handler context,
+   so the tab nav is omitted here; it would point to the wrong account
+   anyway since the redeemer may not yet be logged in. #}
+
+{% if not invite or not assignment %}
+{# Token miss: cancelled, redeemed, or never existed. We render the
+   same view regardless so we don't leak whether a given code was ever
+   a real invite. #}
+<div class="card mb-3">
+  <div class="card-body text-center">
+    <h1 class="h3 mb-3">Invite has expired or been cancelled</h1>
+    <p class="text-muted">
+      The link you followed is no longer valid. The host may have
+      cancelled the invite, you may have already responded, or the
+      code was mistyped.
+    </p>
+    <p class="text-muted">
+      If you think this is a mistake, contact the person who sent you
+      the invite to ask for a fresh one.
+    </p>
+    <a href="rooms{% if attendee_id %}?attendee_id={{ attendee_id }}{% endif %}" class="btn btn-outline-secondary mt-3">Go to my rooms</a>
+  </div>
+</div>
+{% else %}
+{% set ra = assignment %}
+{% set inv = ra.inventory %}
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h1 class="h3 mb-3">You've been invited to share a room</h1>
+    {% if leader %}
+    <p>
+      <strong>{{ leader.first_name }} {{ leader.last_name }}</strong>
+      ({{ leader.email }}) has invited you to be an occupant of their
+      room at the {{ c.EVENT_NAME }} hotel block.
+    </p>
+    {% endif %}
+
+    <table class="table table-sm mb-3" style="max-width: 540px;">
+      <tr>
+        <th>Hotel</th>
+        <td>{{ inv.hotel.name if inv and inv.hotel else '' }}</td>
+      </tr>
+      <tr>
+        <th>Room type</th>
+        <td>
+          {% if inv and inv.is_suite %}{{ inv.suite_type.name if inv.suite_type else '' }}
+          {% elif inv %}{{ inv.room_type.name if inv.room_type else '' }}{% endif %}
+        </td>
+      </tr>
+      {% if ra.assigned_check_in_date %}
+      <tr>
+        <th>Check-in / out</th>
+        <td>
+          {{ ra.assigned_check_in_date|date("%a %b %-d") }}
+          &rarr; {{ ra.assigned_check_out_date|date("%a %b %-d") }}
+        </td>
+      </tr>
+      {% endif %}
+    </table>
+
+    <p class="text-muted small">
+      If you accept, your name and email will be visible to everyone
+      else in the room. Your hotel-legal name and other personal
+      details remain private to you.
+    </p>
+
+    <div class="d-flex gap-2">
+      <form method="post" action="invite">
+        {{ csrf_token() }}
+        <input type="hidden" name="token" value="{{ invite.invite_token }}" />
+        <input type="hidden" name="action" value="accept" />
+        {# Carry the view-as attendee_id so the POST joins the room as
+           the attendee being viewed, not whoever's cookie is set. #}
+        {% if attendee_id %}<input type="hidden" name="attendee_id" value="{{ attendee_id }}" />{% endif %}
+        <button type="submit" class="btn btn-success">Accept invite</button>
+      </form>
+      <form method="post" action="invite">
+        {{ csrf_token() }}
+        <input type="hidden" name="token" value="{{ invite.invite_token }}" />
+        <input type="hidden" name="action" value="reject" />
+        {% if attendee_id %}<input type="hidden" name="attendee_id" value="{{ attendee_id }}" />{% endif %}
+        <button type="submit" class="btn btn-outline-danger">Decline</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

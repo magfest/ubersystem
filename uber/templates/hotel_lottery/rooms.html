@@ -1,0 +1,276 @@
+{% extends "./preregistration/preregbase.html" %}
+{% set title_text = "Your " ~ c.EVENT_NAME ~ " Rooms" %}
+{% block content %}
+
+{# Outer card wrapper to match the visual frame on /hotel_lottery/index
+   (the lottery status page). All page content lives inside one
+   card.card-body so the tabs sit flush with the page title. #}
+<div class="card card-body">
+
+{% if not c.ATTENDEE_ACCOUNTS_ENABLED %}
+  {% include 'confirm_tabs.html' with context %}
+{% endif %}
+
+<h1>Your {{ c.EVENT_NAME }} Hotel Rooms</h1>
+<p class="text-muted">
+  All rooms tied to your account. Some may come from the hotel lottery;
+  others may be exhibitor / panelist / staff rooms assigned by one of
+  the departments. The room booker (the name on the hotel reservation)
+  can edit dates, occupants, and other booking details. Other occupants
+  see the room but can only update their own hotel name.
+</p>
+
+{# `message` renders via base.html's #message-alert JS pipeline; no
+   inline duplicate. #}
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h2 class="h5 mb-2">Have an invite code from a friend?</h2>
+    <p class="text-muted small mb-2">
+      Paste the code you received to join their room as an occupant.
+    </p>
+    <form method="post" action="redeem_code" class="d-flex gap-2"
+          style="max-width: 540px;">
+      {{ csrf_token() }}
+      {# Preserve the view-as context so redeeming joins the room as the
+         attendee being viewed, not whoever's logged in. #}
+      <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
+      <input type="text" class="form-control" name="code"
+             placeholder="Invite code" required />
+      <button type="submit" class="btn btn-primary">Redeem</button>
+    </form>
+  </div>
+</div>
+
+{% set _rooms = primaries|default([]) %}
+{% set _guest_rooms = guest_in|default([]) %}
+
+{% if not _rooms and not _guest_rooms %}
+<div class="alert alert-secondary mb-3">
+  You don't have any room assignments yet.
+</div>
+{% endif %}
+
+{% if _rooms %}
+<h2 class="h4 mt-4">Rooms you booked</h2>
+
+{% for room in _rooms %}
+<div class="card mb-3{% if room.orphan %} border-warning{% endif %}{% if room.needs_card %} border-danger border-2{% endif %}">
+  <div class="card-body">
+    {# Big red warning for any room that still needs a credit-card
+       guarantee, so it's unmissable which rooms aren't secured. #}
+    {% if room.needs_card %}
+    <div class="alert alert-danger d-flex align-items-center gap-2 py-2 mb-3">
+      <i class="fa fa-exclamation-triangle fa-lg"></i>
+      <div>
+        <strong>This room is not secured - a credit card is required.</strong>
+        {% if room.card_deadline %}
+          Put a card down by
+          <strong>{{ room.card_deadline|date("%A, %B %-d") }}</strong>
+          or this room will be released.
+        {% else %}
+          Add a card to guarantee this room.
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+    <div class="d-flex justify-content-between align-items-start">
+      <div>
+        <h3 class="card-title h5 mb-1">
+          {% if room.inventory %}
+            {{ room.inventory.hotel.name if room.inventory.hotel else 'Hotel' }}
+            -
+            {% if room.inventory.is_suite %}{{ room.inventory.suite_type.name if room.inventory.suite_type else room.inventory.name }}
+            {% else %}{{ room.inventory.room_type.name if room.inventory.room_type else room.inventory.name }}{% endif %}
+          {% else %}Room Assignment{% endif %}
+          {% if room.parent_assignment_id %}
+            <span class="badge bg-info text-dark ms-1">Connector</span>
+          {% endif %}
+          {% if room.orphan %}
+            <span class="badge bg-warning text-dark ms-1"
+                  title="This connector room's parent suite isn't on your account anymore.">
+              <i class="fa fa-exclamation-triangle"></i> Missing parent suite
+            </span>
+          {% endif %}
+        </h3>
+        <p class="text-muted mb-2">
+          {% if room.assigned_check_in_date %}
+            {{ room.assigned_check_in_date|date("%a %b %-d") }}
+            &rarr; {{ room.assigned_check_out_date|date("%a %b %-d") }}
+          {% else %}Dates TBD{% endif %}
+        </p>
+      </div>
+      <div>
+        {% if room.export_locked %}
+          <span class="badge bg-warning text-dark"
+                title="This booking has been transferred to the hotel.">
+            <i class="fa fa-lock"></i> Booking exported
+          </span>
+        {% else %}
+          <span class="badge bg-{% if room.status == c.SECURED %}success{% elif room.status == c.ASSIGNED %}warning text-dark{% elif room.status == c.EXPIRED %}danger{% else %}secondary{% endif %}">
+            {{ room.status_label }}
+          </span>
+        {% endif %}
+        {% if not room.require_cc %}
+          <span class="badge bg-info text-dark ms-1"
+                title="{{ c.EVENT_NAME }} pays - no credit card needed.">
+            Master bill
+          </span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="d-flex gap-2 mt-2">
+      <a href="room?id={{ room.id }}&attendee_id={{ attendee.id }}" class="btn btn-sm btn-outline-primary">
+        {% if room.export_locked %}View{% else %}Edit{% endif %}
+      </a>
+      {% if not room.export_locked and room.require_cc and room.status == c.ASSIGNED %}
+        <a href="secure_room?assignment_id={{ room.id }}&attendee_id={{ attendee.id }}" class="btn btn-sm btn-success">
+          Secure
+        </a>
+      {% endif %}
+      {# Declining the suite cancels its connector rooms too, so the
+         Decline action lives only on the parent. #}
+      {% if not room.export_locked and room.status == c.ASSIGNED %}
+        <a href="decline?id={{ attendee.lottery_application.id if attendee.lottery_application else '' }}&assignment_id={{ room.id }}"
+           class="btn btn-sm btn-outline-danger">Decline</a>
+      {% endif %}
+    </div>
+
+    {# Connector rooms included with this suite.
+       Each connector is its own RoomAssignment with its own dates
+       (inherited from the suite), occupants, and card on file - all
+       separately editable from its own row. They can't be declined
+       on their own; declining the suite above cancels them too. #}
+    {% if room.children %}
+    <hr class="my-3"/>
+    <h4 class="h6 text-muted">
+      Connector rooms included with this suite ({{ room.children|length }})
+    </h4>
+    {% for child in room.children %}
+    <div class="card mb-2 {% if child.needs_card %}border-danger border-2{% else %}border-info-subtle{% endif %}">
+      <div class="card-body py-2">
+        {% if child.needs_card %}
+        <div class="alert alert-danger d-flex align-items-center gap-2 py-2 mb-2">
+          <i class="fa fa-exclamation-triangle"></i>
+          <div class="small">
+            <strong>Not secured - a credit card is required.</strong>
+            {% if child.card_deadline %}
+              Put a card down by <strong>{{ child.card_deadline|date("%A, %B %-d") }}</strong>
+              or this room will be released.
+            {% else %}
+              Add a card to guarantee this room.
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <strong>
+              {% if child.inventory %}
+                {{ child.inventory.hotel.name if child.inventory.hotel else 'Hotel' }}
+                -
+                {% if child.inventory.is_suite %}{{ child.inventory.suite_type.name if child.inventory.suite_type else child.inventory.name }}
+                {% else %}{{ child.inventory.room_type.name if child.inventory.room_type else child.inventory.name }}{% endif %}
+              {% else %}Connector Room{% endif %}
+            </strong>
+            <span class="badge bg-info text-dark ms-1">Connector</span>
+            <div class="text-muted small">
+              {% if child.assigned_check_in_date %}
+                {{ child.assigned_check_in_date|date("%a %b %-d") }}
+                &rarr; {{ child.assigned_check_out_date|date("%a %b %-d") }}
+              {% else %}Dates follow the suite{% endif %}
+            </div>
+          </div>
+          <div>
+            {% if child.export_locked %}
+              <span class="badge bg-warning text-dark"
+                    title="This booking has been transferred to the hotel.">
+                <i class="fa fa-lock"></i> Booking exported
+              </span>
+            {% else %}
+              <span class="badge bg-{% if child.status == c.SECURED %}success{% elif child.status == c.ASSIGNED %}warning text-dark{% elif child.status == c.EXPIRED %}danger{% else %}secondary{% endif %}">
+                {{ child.status_label }}
+              </span>
+            {% endif %}
+            {% if not child.require_cc %}
+              <span class="badge bg-info text-dark ms-1"
+                    title="{{ c.EVENT_NAME }} pays - no credit card needed.">
+                Master bill
+              </span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="d-flex gap-2 mt-2">
+          <a href="room?id={{ child.id }}&attendee_id={{ attendee.id }}" class="btn btn-sm btn-outline-primary">
+            {% if child.export_locked %}View{% else %}Edit{% endif %}
+          </a>
+          {% if not child.export_locked and child.require_cc and child.status == c.ASSIGNED %}
+            <a href="secure_room?assignment_id={{ child.id }}&attendee_id={{ attendee.id }}" class="btn btn-sm btn-success">
+              Secure
+            </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+  </div>
+</div>
+{% endfor %}
+{% endif %}
+
+{% if _guest_rooms %}
+<h2 class="h4 mt-4">Rooms you're a guest in</h2>
+
+{% for room in _guest_rooms %}
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start">
+      <div>
+        <h3 class="card-title h5 mb-1">
+          {% if room.inventory %}
+            {{ room.inventory.hotel.name if room.inventory.hotel else 'Hotel' }}
+            -
+            {% if room.inventory.is_suite %}{{ room.inventory.suite_type.name if room.inventory.suite_type else room.inventory.name }}
+            {% else %}{{ room.inventory.room_type.name if room.inventory.room_type else room.inventory.name }}{% endif %}
+          {% else %}Room Assignment{% endif %}
+        </h3>
+        <p class="text-muted mb-2">
+          {% if room.assigned_check_in_date %}
+            {{ room.assigned_check_in_date|date("%a %b %-d") }}
+            &rarr; {{ room.assigned_check_out_date|date("%a %b %-d") }}
+          {% else %}Dates TBD{% endif %}
+          {% if room.attendee %}
+            - Booked by {{ room.attendee.first_name }} {{ room.attendee.last_name }}
+          {% endif %}
+        </p>
+      </div>
+      <div>
+        <span class="badge bg-{% if room.status == c.SECURED %}success{% elif room.status == c.ASSIGNED %}warning text-dark{% else %}secondary{% endif %}">
+          {{ room.status_label }}
+        </span>
+      </div>
+    </div>
+
+    <div class="d-flex gap-2 mt-2">
+      <a href="room?id={{ room.id }}&attendee_id={{ attendee.id }}" class="btn btn-sm btn-outline-primary">View</a>
+      {% if not room.export_locked %}
+        <form method="post" action="leave_room" class="d-inline">
+          {{ csrf_token() }}
+          <input type="hidden" name="assignment_id" value="{{ room.id }}" />
+          <button type="submit" class="btn btn-sm btn-outline-secondary"
+                  onclick="return confirm('Leave this room? You will be removed from the occupant list.');">
+            Leave room
+          </button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endfor %}
+{% endif %}
+
+</div>{# /card-body - outer page frame #}
+
+{% endblock %}

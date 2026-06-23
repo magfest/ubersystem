@@ -1,11 +1,65 @@
-<h3>{{ 'Suite' if app_or_parent.assigned_suite_type else 'Room' }} Award Information</h3>
-<ul class="list-group list-group-flush">
-    <li class="list-group-item"><strong>{{ app_or_parent.assigned_hotel_label['name'] }}</strong></li>
-    <li class="list-group-item">{{ app_or_parent.assigned_suite_type_label['name'] if app_or_parent.assigned_suite_type else app_or_parent.assigned_room_type_label['name'] }}</li>
-    <li class="list-group-item">{{ app_or_parent.assigned_check_in_date.strftime("%B %-d") }} to {{ app_or_parent.assigned_check_out_date.strftime("%B %-d") }}</li>
-    {% if not application.parent_application and application.wants_ada %}<li class="list-group-item"><em>Requested Accommodations</em>: {{ application.ada_requests }}</li>{% endif %}
-</ul>
-<br/>
+{# Award summary partial. Used by decline.html, etc.
+   Reads from `app_or_parent.attendee.room_assignments` - every awarded
+   room is its own RoomAssignment row. Connector rooms render with the
+   "follows another room" explanation. #}
+{% set _rooms = (app_or_parent.attendee.room_assignments if app_or_parent.attendee else [])
+                |selectattr('status', 'in', [c.ASSIGNED, c.SECURED])|list %}
+
+{% if _rooms %}
+{% set _has_suite = _rooms|selectattr('inventory.is_suite')|list|length > 0 %}
+{# Build the id-set of rooms the attendee actually holds so we can
+   flag any connector whose parent isn't in here (i.e. orphan - the
+   parent suite was deleted, cancelled, or transferred). #}
+{% set _attendee_assignment_ids = _rooms|map(attribute='id')|list %}
+<h3>
+  {{ 'Suite' if _has_suite else 'Room' }} Award Information
+  <small class="text-muted">({{ _rooms|length }} room{{ 's' if _rooms|length != 1 else '' }} awarded)</small>
+</h3>
+{# One card per room so it's easy to see the count at a glance. #}
+<div class="row g-3 mb-3">
+{% for ra in _rooms %}
+  {% set inv = ra.inventory %}
+  {% set _orphan = (ra.parent_assignment_id and ra.parent_assignment_id not in _attendee_assignment_ids) %}
+  <div class="col-md-6">
+    <div class="card h-100{% if _orphan %} border-warning{% endif %}">
+      <div class="card-body">
+        {% if _orphan %}
+          <div class="alert alert-warning small mb-3">
+            <strong><i class="fa fa-exclamation-triangle"></i> Missing parent suite.</strong>
+            This connector room expects a matching suite reservation, but we
+            can't see one on your account. Please
+            <a href="{{ c.CONTACT_URL }}">contact us</a> so we can fix it
+            before check-in.
+          </div>
+        {% elif ra.parent_assignment_id %}
+          <div class="alert alert-info small mb-3">
+            <em>This is a connector room. It is physically attached to another
+            room you have been assigned, and they are awarded as a block.</em>
+          </div>
+        {% endif %}
+        <h4 class="card-title h5 mb-1">{{ inv.hotel.name if inv and inv.hotel else '' }}</h4>
+        <p class="card-subtitle text-muted mb-2">
+          {% if inv and inv.is_suite %}{{ inv.suite_type.name if inv.suite_type else '' }}
+          {% elif inv %}{{ inv.room_type.name if inv.room_type else '' }}{% endif %}
+          {% if inv and inv.info_url %}
+            - <a href="{{ inv.info_url }}" target="_blank">View room details</a>
+          {% endif %}
+        </p>
+        <p class="mb-0">
+          {{ ra.assigned_check_in_date.strftime("%B %-d") if ra.assigned_check_in_date else '' }}
+          to
+          {{ ra.assigned_check_out_date.strftime("%B %-d") if ra.assigned_check_out_date else '' }}
+        </p>
+      </div>
+    </div>
+  </div>
+{% endfor %}
+</div>
+{% if not application.parent_application and application.wants_ada %}
+  <p><em>Requested Accommodations</em>: {{ application.ada_requests }}</p>
+{% endif %}
+{% endif %}
+
 {% if not application.parent_application %}
 <h3>Guests</h3>
 <table class="table table-hover">
@@ -19,18 +73,18 @@
     </thead>
     <tbody>
         <tr>
-            <td>{{ application.legal_first_name }} {{ application.legal_last_name }}</td>
+            <td>{{ application.attendee.effective_hotel_first_name }} {{ application.attendee.effective_hotel_last_name }}</td>
             <td>{{ application.cellphone }}</td>
             <td>{{ application.email }}</td>
             <td><em>Primary Guest</em></td>
         </tr>
         {% for member in application.valid_group_members %}
         <tr>
-            <td>{{ member.legal_first_name }} {{ member.legal_last_name }}</td>
+            <td>{{ member.attendee.effective_hotel_first_name }} {{ member.attendee.effective_hotel_last_name }}</td>
             <td>{{ member.cellphone }}</td>
             <td>{{ member.email }}</td>
             <td>
-                {% if app_editable or application.finalized and not application.final_status_hidden %}
+                {% if app_editable or application.finalized %}
                 <form method="post" action="transfer_leadership" class="make-leader">
                     <input type="hidden" name="id" value="{{ application.id }}">
                     {{ csrf_token() }}

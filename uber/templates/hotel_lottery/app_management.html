@@ -2,11 +2,6 @@
 <div id="select-action" class="collapse">
     <p>
         Welcome {% if application.status != c.PARTIAL %}back {% endif %} to the {{ c.EVENT_NAME }} hotel lottery!
-        {% if c.BEFORE_HOTEL_LOTTERY_DEADLINE and c.HOTEL_LOTTERY_FORM_WAITLIST and not (c.STAFF_HOTEL_LOTTERY_OPEN and app_or_parent.qualifies_for_staff_lottery) %}
-            The initial deadline for the first round of the lottery {% if c.AFTER_HOTEL_LOTTERY_FORM_WAITLIST %}was {{ c.HOTEL_LOTTERY_FORM_WAITLIST|datetime_local("%B %-d, %Y at %-I:%M%p %Z") }}{% else %}is <strong>{{ c.HOTEL_LOTTERY_FORM_WAITLIST|datetime_local("%B %-d, %Y at %-I:%M%p %Z") }}</strong>{% endif %}.
-            {% if c.AFTER_HOTEL_LOTTERY_FORM_WAITLIST and not application.qualifies_for_first_round %}Your lottery entry will still be considered when allocating cancelled rooms.{% endif %}
-        </p><p>
-        {% endif %}
         {% if not (application.status == c.PROCESSED or application.finalized or application.current_lottery_closed) and application.current_lottery_deadline %}
         The hotel lottery form will close at <strong>{{ application.current_lottery_deadline|datetime_local }}</strong>.
         {% endif %}
@@ -17,25 +12,18 @@
         You are currently {{ application.application_status_str }}.
     </p>
     {% endif %}
-    {% if application.qualifies_for_first_round and c.AFTER_HOTEL_LOTTERY_FORM_WAITLIST %}
-        <p>
-            Your{% if application.parent_application %} {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}'s{% endif %} lottery entry is being considered in the first round of the lottery{% if not application.parent_application %}, so your entry details{% if application.room_group_name %} and {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}{% endif %} are locked{% endif %}.
-            You should receive an email in the next few days letting you know whether you were awarded a room{% if app_or_parent.entry_type == c.SUITE_ENTRY %} or suite{% endif %}.
-        </p>
-    {% elif application.current_lottery_closed %}
+    {% if application.current_lottery_closed %}
         {% block lottery_closed_info %}
         {% if application.is_staff_entry %}
             <p>
                 <strong><span class="text-danger">The staff lottery is now closed.</span></strong>
-                {% if not c.HOTEL_LOTTERY_ROOM_INVENTORY %}
-                    {% if application.status == c.PROCESSED %}
-                    You can opt into the attendee lottery using the button below. You'll be able to edit your lottery entry after opting in.
-                    {% else %}
-                    You can view your entry details below. You will be able to opt into the attendee lottery after staff rooms are awarded.
-                    {% endif %}
+                {% if application.status == c.PROCESSED %}
+                You can opt into the attendee lottery using the button below. You'll be able to edit your lottery entry after opting in.
+                {% else %}
+                You can view your entry details below. You will be able to opt into the attendee lottery after staff rooms are awarded.
                 {% endif %}
             </p>
-            {% if application.status == c.PROCESSED and not c.HOTEL_LOTTERY_ROOM_INVENTORY %}
+            {% if application.status == c.PROCESSED %}
                 {% include 'hotel_lottery/staff_attendee_lottery_info.html' with context %}
                 <p>
                     <form method="post" action="enter_attendee_lottery">

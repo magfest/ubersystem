@@ -1,0 +1,28 @@
+{% extends "./preregistration/preregbase.html" %}
+{% set title_text = "Accept Group Invite" %}
+
+{% block content %}
+<div class="card card-body">
+    <h1>{{ c.EVENT_NAME }} Hotel Lottery {{ c.HOTEL_LOTTERY_GROUP_TERM }} Invite</h1>
+    <hr/>
+
+    <p>
+        {{ leader_app.group_leader_name }} has invited you to join their {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}
+        "<strong>{{ leader_app.room_group_name }}</strong>".
+    </p>
+
+    <p>By joining this group:</p>
+    <ul>
+        <li>Your current individual lottery entry (if any) will be converted to a group entry.</li>
+        <li>Your group leader's preferences will be used for the lottery drawing.</li>
+        <li>A new confirmation number will be generated for your entry.</li>
+    </ul>
+
+    <form method="post" action="accept_invite">
+        {{ csrf_token() }}
+        <input type="hidden" name="token" value="{{ token }}" />
+        <button type="submit" class="btn btn-success">Accept and Join "{{ leader_app.room_group_name }}"</button>
+        <a href="../preregistration/homepage" class="btn btn-outline-secondary">No Thanks</a>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,141 @@
+{% extends "./preregistration/preregbase.html" %}
+{% set title_text = "Your " ~ c.EVENT_NAME ~ " Rooms" %}
+
+{% block content %}
+
+<h1>Your {{ c.EVENT_NAME }} Hotel Rooms</h1>
+<p class="text-muted">
+  All room assignments tied to your account. Some may come from the lottery
+  you entered; others may be exhibitor / panelist / staff rooms assigned by
+  one of the departments.
+</p>
+
+{% if message %}
+<div class="alert alert-info">{{ message }}</div>
+{% endif %}
+
+{% if not primaries %}
+<div class="alert alert-secondary">You don't have any room assignments yet.</div>
+{% else %}
+
+{# Build a set of (id, last_four) for the dropdown of source assignments to copy from. #}
+{% set copy_sources = [] %}
+{% for room in primaries if room.cc_token %}
+  {% set _ = copy_sources.append(room) %}
+{% endfor %}
+
+{% for room in primaries %}
+<div class="card mb-3{% if room.orphan %} border-warning{% endif %}">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start">
+      <div>
+        <h3 class="card-title h5 mb-1">
+          {% if room.inventory %}
+            {{ room.inventory.name or room.inventory.room_or_suite_type.name if room.inventory.room_or_suite_type else 'Room' }}
+            {% if room.inventory.hotel %} - {{ room.inventory.hotel.name }}{% endif %}
+          {% else %}Room Assignment{% endif %}
+          {% if room.orphan %}
+            <span class="badge bg-warning text-dark ms-2"
+                  title="This connector room is supposed to be attached to a suite, but the matching suite reservation isn't showing up on your account. Please contact us so we can fix it.">
+              <i class="fa fa-exclamation-triangle"></i> Missing parent suite
+            </span>
+          {% endif %}
+        </h3>
+        <p class="text-muted mb-2">
+          {% if room.assigned_check_in_date %}{{ room.assigned_check_in_date|date("%a %b %-d") }} -> {{ room.assigned_check_out_date|date("%a %b %-d") }}{% else %}Dates TBD{% endif %}
+        </p>
+      </div>
+      <div>
+        <span class="badge bg-{% if room.status == c.SECURED %}success{% elif room.status == c.ASSIGNED %}warning{% elif room.status == c.EXPIRED %}danger{% else %}secondary{% endif %}">
+          {{ room.status_label }}
+        </span>
+        {% if not room.require_cc %}
+        <span class="badge bg-info ms-1" title="MAGFest pays - no credit card needed.">Master bill</span>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if room.orphan %}
+    <div class="alert alert-warning small mb-3 mt-2 mb-0">
+      <strong>Heads up:</strong> this is a <em>connector room</em>, which means
+      it's only supposed to exist alongside a larger suite reservation. We
+      can't currently see that suite on your account - it may have been
+      cancelled or transferred to another attendee. Please
+      <a href="{{ c.CONTACT_URL }}">contact us</a> so we can sort it out
+      before check-in.
+    </div>
+    {% endif %}
+
+    <dl class="row mb-0 small">
+      {% if room.deposit_cutoff_date and room.require_cc and room.status == c.ASSIGNED %}
+      <dt class="col-sm-3">Card deadline</dt>
+      <dd class="col-sm-9 text-danger fw-bold">{{ room.deposit_cutoff_date|date("%A, %B %-d, %Y") }}</dd>
+      {% endif %}
+      {% if room.hotel_confirmation_number %}
+      <dt class="col-sm-3">Confirmation #</dt>
+      <dd class="col-sm-9"><code>{{ room.hotel_confirmation_number }}</code></dd>
+      {% endif %}
+      {% if room.cc_last_four %}
+      <dt class="col-sm-3">Card on file</dt>
+      <dd class="col-sm-9">Ending in {{ room.cc_last_four }}{% if room.cc_card_type %} ({{ room.cc_card_type }}){% endif %}</dd>
+      {% endif %}
+      {% if room.booking_url %}
+      <dt class="col-sm-3">Booking</dt>
+      <dd class="col-sm-9"><a href="{{ room.booking_url }}" target="_blank">Open booking page</a></dd>
+      {% endif %}
+      {% if room.assignment_reason and room.assignment_reason != c.LOTTERY_AWARD %}
+      <dt class="col-sm-3">Source</dt>
+      <dd class="col-sm-9">{{ room.assignment_reason_label }}</dd>
+      {% endif %}
+    </dl>
+
+    {% if room.children %}
+    <hr class="my-3"/>
+    <h4 class="h6 mb-2">Connecting rooms (assigned with this suite)</h4>
+    <ul class="mb-0 small">
+      {% for child in room.children %}
+      <li>
+        {% if child.inventory %}{{ child.inventory.name }}{% else %}Connecting room{% endif %}
+        - {{ child.status_label }}
+        {% if child.hotel_confirmation_number %}  Confirmation <code>{{ child.hotel_confirmation_number }}</code>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+    {% if room.require_cc and room.status == c.ASSIGNED and not room.cc_token and copy_sources %}
+    <hr class="my-3"/>
+    <form method="post" action="copy_booking_info" class="d-flex align-items-end gap-2 small">
+      {{ csrf_token() }}
+      <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
+      <input type="hidden" name="target_id" value="{{ room.id }}" />
+      <div class="flex-grow-1">
+        <label class="form-label">Use the same booking info from another room</label>
+        <select name="source_id" class="form-select form-select-sm" required>
+          <option value="">- Select a room with a card on file -</option>
+          {% for src in copy_sources if src.id != room.id %}
+          <option value="{{ src.id }}">
+            {% if src.inventory and src.inventory.hotel %}{{ src.inventory.hotel.name }} - {% endif %}
+            {% if src.inventory %}{{ src.inventory.name }} - {% endif %}
+            card ending {{ src.cc_last_four }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-outline-primary btn-sm">Copy</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endfor %}
+{% endif %}
+
+{% if attendee.lottery_application %}
+<p class="mt-3">
+  <a href="index?id={{ attendee.lottery_application.id }}" class="btn btn-outline-secondary btn-sm">
+    Back to lottery status
+  </a>
+</p>
+{% endif %}
+
+{% endblock %}

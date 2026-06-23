@@ -1,0 +1,606 @@
+{% extends "./preregistration/preregbase.html" %}
+{% set title_text = "Edit Room" %}
+{% block content %}
+
+{# Outer card wrapper matches /hotel_lottery/index and /hotel_lottery/rooms
+   so all three pages frame their content the same way. #}
+<div class="card card-body">
+
+{# Surface the cross-section tab nav so attendees can flip between
+   their info / lottery / rooms while editing. Sources `attendee` from
+   the viewer's resolved record so the rooms count shows correctly. #}
+{% if not c.ATTENDEE_ACCOUNTS_ENABLED %}
+  {% set attendee = viewer %}
+  {% include 'confirm_tabs.html' with context %}
+{% endif %}
+
+{% set ra = assignment %}
+{% set inv = ra.inventory %}
+{% set inv_hotel = inv.hotel if inv else None %}
+{% set locked = ra.export_locked %}
+{% set is_connector = ra.parent_assignment_id is not none and ra.parent_assignment_id != '' %}
+
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div>
+    <h1 class="h3 mb-0">
+      {% if inv_hotel %}{{ inv_hotel.name }}{% endif %}
+      {% if inv %}
+        -
+        {% if inv.is_suite %}{{ inv.suite_type.name if inv.suite_type else inv.name }}
+        {% else %}{{ inv.room_type.name if inv.room_type else inv.name }}{% endif %}
+      {% endif %}
+      {% if is_connector %}
+        <span class="badge bg-info text-dark ms-1">Connector</span>
+      {% endif %}
+    </h1>
+    <p class="text-muted mb-0">
+      {% if ra.assigned_check_in_date %}
+        {{ ra.assigned_check_in_date|date("%a %b %-d") }}
+        &rarr; {{ ra.assigned_check_out_date|date("%a %b %-d") }}
+      {% endif %}
+      - <span class="text-capitalize">{{ ra.status_label }}</span>
+    </p>
+  </div>
+  <a href="rooms?attendee_id={{ viewer.id }}" class="btn btn-outline-secondary">All rooms</a>
+</div>
+
+{# `message` is rendered by base.html into the global `#message-alert`
+   element via JS; do NOT re-render it inline here or it shows up twice. #}
+
+{% if locked %}
+<div class="alert alert-warning d-flex align-items-start gap-2">
+  <i class="fa fa-lock fa-lg mt-1"></i>
+  <div>
+    <strong>This booking has been transferred to the hotel's system.</strong>
+    The information shown here may not reflect the realtime state of
+    your reservation. For changes, please contact the hotel directly.
+  </div>
+</div>
+{% endif %}
+
+<div class="card mb-3">
+  <div class="card-header py-2"><strong>Dates</strong></div>
+  <div class="card-body py-2">
+    {# Per-room waitlist banner. `assignment.is_waitlisted` is true
+       iff the attendee asked for a wider window than they currently
+       hold confirmed; the diff between waitlisted_* and assigned_*
+       drives the cron in hotel_lottery_admin._fulfill_waitlist. #}
+    {% if ra.is_waitlisted %}
+    <div class="alert alert-info py-2 mb-2 small">
+      <strong>Waitlisted nights:</strong>
+      You're on the waitlist for additional nights on this room.
+      We'll update the dates here automatically when availability opens up.
+      <br/>
+      <span class="text-muted">
+        Requested:
+        {{ (ra.waitlisted_check_in_date or ra.assigned_check_in_date).strftime("%a %b %-d") }} -
+        {{ (ra.waitlisted_check_out_date or ra.assigned_check_out_date).strftime("%a %b %-d") }}
+        &nbsp;|&nbsp; Confirmed:
+        {{ ra.assigned_check_in_date.strftime("%a %b %-d") }} -
+        {{ ra.assigned_check_out_date.strftime("%a %b %-d") }}
+      </span>
+    </div>
+    {% endif %}
+    {% if is_connector %}
+      <div class="row g-2 mb-2">
+        <div class="col-md-4">
+          <label class="form-label">Check-in</label>
+          <input type="date" class="form-control" disabled
+                 value="{{ ra.assigned_check_in_date or '' }}" />
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Check-out</label>
+          <input type="date" class="form-control" disabled
+                 value="{{ ra.assigned_check_out_date or '' }}" />
+        </div>
+        <div class="col-md-4 d-flex align-items-end">
+          <div class="form-text mb-2">
+            This connector room's dates follow its parent suite.
+            {% if ra.parent_assignment_id %}
+              <a href="room?id={{ ra.parent_assignment_id }}&attendee_id={{ viewer.id }}">Edit there &rarr;</a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    {% elif is_leader and not locked %}
+      <form method="post" action="edit_room">
+        {{ csrf_token() }}
+        {% if application %}<input type="hidden" name="id" value="{{ application.id }}" />{% endif %}
+        <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
+        <input type="hidden" name="attendee_id" value="{{ viewer.id }}" />
+        <div class="row g-2 mb-2">
+          <div class="col-md-4">
+            <label class="form-label">Check-in</label>
+            <input type="date" class="form-control" name="assigned_check_in_date"
+                   value="{{ ra.assigned_check_in_date or '' }}" required />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Check-out</label>
+            <input type="date" class="form-control" name="assigned_check_out_date"
+                   value="{{ ra.assigned_check_out_date or '' }}" required />
+          </div>
+          <div class="col-md-4 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary">Save dates</button>
+          </div>
+        </div>
+      </form>
+    {% else %}
+      <div class="row g-2 mb-2">
+        <div class="col-md-4">
+          <label class="form-label">Check-in</label>
+          <input type="date" class="form-control" disabled
+                 value="{{ ra.assigned_check_in_date or '' }}" />
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Check-out</label>
+          <input type="date" class="form-control" disabled
+                 value="{{ ra.assigned_check_out_date or '' }}" />
+        </div>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header py-2"><strong>Hotel registration</strong></div>
+  <div class="card-body py-2">
+    <p class="text-muted small mb-2">
+      The name on your photo ID, used by the hotel to verify check-in.
+      This is set on your attendee profile and applies to every room
+      you book or occupy.
+    </p>
+    {% if not locked %}
+    <form method="post" action="save_hotel_name">
+      {{ csrf_token() }}
+      <input type="hidden" name="attendee_id" value="{{ viewer.id }}" />
+      <input type="hidden" name="return_to" value="room?id={{ ra.id }}&attendee_id={{ viewer.id }}" />
+      <div class="row g-2 mb-2">
+        <div class="col-md-5">
+          <label class="form-label">Hotel first name</label>
+          <input type="text" class="form-control" name="hotel_first_name"
+                 value="{{ viewer.hotel_first_name or '' }}"
+                 placeholder="{{ viewer.legal_first_name }}" />
+        </div>
+        <div class="col-md-5">
+          <label class="form-label">Hotel last name</label>
+          <input type="text" class="form-control" name="hotel_last_name"
+                 value="{{ viewer.hotel_last_name or '' }}"
+                 placeholder="{{ viewer.legal_last_name }}" />
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </div>
+    </form>
+    {% else %}
+      <div class="row g-2 mb-2">
+        <div class="col-md-5">
+          <label class="form-label">Hotel first name</label>
+          <input type="text" class="form-control" disabled
+                 value="{{ viewer.effective_hotel_first_name }}" />
+        </div>
+        <div class="col-md-5">
+          <label class="form-label">Hotel last name</label>
+          <input type="text" class="form-control" disabled
+                 value="{{ viewer.effective_hotel_last_name }}" />
+        </div>
+      </div>
+    {% endif %}
+
+    {% if is_leader %}
+    <hr class="my-3"/>
+    {% if not locked %}
+    <form method="post" action="save_rewards_number">
+      {{ csrf_token() }}
+      <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
+      <input type="hidden" name="attendee_id" value="{{ viewer.id }}" />
+      <div class="row g-2 mb-2">
+        <div class="col-md-10">
+          <label class="form-label">Hotel rewards number for this room</label>
+          <input type="text" class="form-control" name="hotel_rewards_number"
+                 value="{{ ra.hotel_rewards_number or '' }}" />
+          <div class="form-text small">
+            Each room can have its own rewards number.
+          </div>
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </div>
+    </form>
+    {% else %}
+      <div class="row g-2 mb-2">
+        <div class="col-md-10">
+          <label class="form-label">Hotel rewards number for this room</label>
+          <input type="text" class="form-control" disabled
+                 value="{{ ra.hotel_rewards_number or '' }}" />
+        </div>
+      </div>
+    {% endif %}
+    {% endif %}
+  </div>
+</div>
+
+{% if is_leader %}
+<div class="card mb-3">
+  <div class="card-header py-2"><strong>Special requests</strong></div>
+  <div class="card-body py-2">
+    {% if not locked %}
+    <form method="post" action="save_special_requests">
+      {{ csrf_token() }}
+      <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
+      <input type="hidden" name="attendee_id" value="{{ viewer.id }}" />
+      <textarea class="form-control mb-2" name="special_requests" rows="3"
+                placeholder="Anything the hotel should know (e.g. extra pillows, accessibility needs)">{{ ra.special_requests or '' }}</textarea>
+      <button type="submit" class="btn btn-primary">Save</button>
+    </form>
+    {% else %}
+    <textarea class="form-control" rows="3" disabled>{{ ra.special_requests or '' }}</textarea>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% if is_leader and ra.require_cc %}
+<div class="card mb-3">
+  <div class="card-header py-2"><strong>Card on file</strong></div>
+  <div class="card-body py-2">
+    {# A card is "on file" when a vault token exists - `cc_last_four` is
+       only populated asynchronously by the vault webhook, so it can lag
+       (or never arrive in dev). Gate the whole display on `cc_token`,
+       and show the last-four detail only when we actually have it
+       (mirrors secure_room.html's hasCard()/cardSummaryText()). #}
+    {% if locked %}
+      <p class="text-muted mb-0">
+        {% if ra.cc_token %}
+          {% if ra.cc_last_four %}Ending in {{ ra.cc_last_four }}{% if ra.cc_card_type %} ({{ ra.cc_card_type }}){% endif %}.{% else %}A card is on file.{% endif %}
+        {% else %}
+          No card on file.
+        {% endif %}
+        Contact the hotel to update the card on this reservation.
+      </p>
+    {% else %}
+      {# Big red warning + deadline when this room still needs a card. #}
+      {% if ra.needs_card %}
+      <div class="alert alert-danger d-flex align-items-center gap-2 py-2 mb-2">
+        <i class="fa fa-exclamation-triangle fa-lg"></i>
+        <div>
+          <strong>This room is not secured - a credit card is required.</strong>
+          {% if ra.card_deadline %}
+            Put a card down by
+            <strong>{{ ra.card_deadline|date("%A, %B %-d") }}</strong>
+            or this room will be released.
+          {% else %}
+            Add a card below to guarantee this room.
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+      <p class="mb-2">
+        {% if ra.cc_token %}
+          <strong>Card on file:</strong>
+          {% if ra.cc_last_four %}ending in {{ ra.cc_last_four }}{% if ra.cc_card_type %} ({{ ra.cc_card_type }}){% endif %}.{% else %}a credit card is stored.{% endif %}
+        {% else %}
+          <em>No card on file.</em>
+          {% if ra.card_deadline %}
+            <span class="text-danger">Card due by {{ ra.card_deadline|date("%A, %B %-d") }}.</span>
+          {% endif %}
+        {% endif %}
+      </p>
+      <a href="secure_room?assignment_id={{ ra.id }}&attendee_id={{ viewer.id }}" class="btn btn-{% if ra.needs_card %}danger{% else %}outline-primary{% endif %} btn-sm">
+        {% if ra.cc_token %}Change card{% else %}Add a card{% endif %}
+      </a>
+
+      {# Reuse a card already on file for another of this attendee's
+         rooms in the same hotel's payment system. `card_source_rooms`
+         is pre-filtered server-side to rooms with a token and a
+         matching vault scope, so any choice here is valid. #}
+      {% if card_source_rooms %}
+      <hr class="my-3"/>
+      <form method="post" action="copy_booking_info" class="row g-2 align-items-end">
+        {{ csrf_token() }}
+        <input type="hidden" name="attendee_id" value="{{ viewer.id }}" />
+        <input type="hidden" name="target_id" value="{{ ra.id }}" />
+        <input type="hidden" name="return_to_room" value="1" />
+        <div class="col-md-9">
+          <label class="form-label">Reuse a card from another of your rooms</label>
+          <select class="form-select" name="source_id" required>
+            <option value="">Select a room...</option>
+            {% for src in card_source_rooms %}
+            <option value="{{ src.id }}">
+              {% if src.inventory and src.inventory.hotel %}{{ src.inventory.hotel.name }} - {% endif %}
+              {% if src.inventory %}
+                {% if src.inventory.is_suite %}{{ src.inventory.suite_type.name if src.inventory.suite_type else src.inventory.name }}
+                {% else %}{{ src.inventory.room_type.name if src.inventory.room_type else src.inventory.name }}{% endif %}
+              {% else %}Room{% endif %}
+              {% if src.cc_last_four %}(card {{ src.cc_last_four }}){% endif %}
+            </option>
+            {% endfor %}
+          </select>
+          <div class="form-text small">
+            Copies the card and billing address from the selected room onto this one.
+          </div>
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+          <button type="submit" class="btn btn-outline-secondary w-100">Use this card</button>
+        </div>
+      </form>
+      {% endif %}
+
+      {# Billing address for the card. Captured during the secure flow,
+         but editable here so attendees can correct it without having to
+         re-enter their card. #}
+      <hr class="my-3"/>
+      <h4 class="h6">Billing address</h4>
+      <p class="text-muted small mb-2">
+        The billing address associated with the card on file.
+      </p>
+      <form method="post" action="save_billing_address" class="row g-2">
+        {{ csrf_token() }}
+        <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
+        <input type="hidden" name="attendee_id" value="{{ viewer.id }}" />
+        <div class="col-12">
+          <label class="form-label">Address line 1</label>
+          <input type="text" class="form-control" name="address1" value="{{ ra.address1 or '' }}" />
+        </div>
+        <div class="col-12">
+          <label class="form-label">Address line 2</label>
+          <input type="text" class="form-control" name="address2" value="{{ ra.address2 or '' }}" />
+        </div>
+        <div class="col-md-5">
+          <label class="form-label">City</label>
+          <input type="text" class="form-control" name="city" value="{{ ra.city or '' }}" />
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">State / Province / Region</label>
+          <input type="text" class="form-control" name="region" value="{{ ra.region or '' }}" />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">ZIP / Postal code</label>
+          <input type="text" class="form-control" name="zip_code" value="{{ ra.zip_code or '' }}" />
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Country</label>
+          <select class="form-select" name="country">
+            <option value="">- Select country -</option>
+            {% for opt in c.COUNTRY_OPTS %}
+            <option value="{{ opt.value }}" {% if ra.country == opt.value %}selected{% endif %}>{{ opt.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12">
+          <button type="submit" class="btn btn-primary">Save billing address</button>
+        </div>
+      </form>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<div class="card mb-3">
+  <div class="card-header py-2"><strong>Occupants</strong></div>
+  <div class="card-body py-2">
+    <p class="text-muted small mb-2">
+      Everyone staying in this room. All occupants can see each other's
+      public name and email. Hotel legal names are private.
+    </p>
+    <table class="table table-sm mb-3">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for occ in (ra.occupants or []) %}
+        <tr>
+          <td>
+            {{ occ.first_name }} {{ occ.last_name }}
+            {% if occ.id == ra.attendee_id %}<span class="badge bg-primary">Booker</span>{% endif %}
+          </td>
+          <td><small class="text-muted">{{ occ.email }}</small></td>
+          <td class="text-end">
+            {% if not locked and occ.id != ra.attendee_id %}
+              {% if is_leader %}
+                <form method="post" action="remove_occupant" class="d-inline"
+                      onsubmit="return confirm('Remove {{ occ.first_name }} {{ occ.last_name }} from this room?');">
+                  {{ csrf_token() }}
+                  <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
+                  <input type="hidden" name="attendee_id" value="{{ viewer.id }}" />
+                  <input type="hidden" name="occupant_attendee_id" value="{{ occ.id }}" />
+                  <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+                </form>
+              {% elif occ.id == viewer.id %}
+                <form method="post" action="leave_room" class="d-inline"
+                      onsubmit="return confirm('Leave this room?');">
+                  {{ csrf_token() }}
+                  <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
+                  <input type="hidden" name="attendee_id" value="{{ viewer.id }}" />
+                  <button type="submit" class="btn btn-sm btn-outline-secondary">Leave</button>
+                </form>
+              {% endif %}
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if is_leader and not locked %}
+      {# Pending invites #}
+      {% if pending_invites %}
+      <h3 class="h6 mt-3">Pending invites</h3>
+      <table class="table table-sm">
+        <thead>
+          <tr>
+            <th>Recipient</th>
+            <th>Code</th>
+            <th>Created</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for inv_row in pending_invites %}
+          <tr>
+            <td>{{ inv_row.email or '(code only)' }}</td>
+            <td>
+              <code>{{ inv_row.invite_token }}</code>
+              <button type="button" class="btn btn-sm btn-link p-0 ms-1 align-baseline copy-invite-code"
+                      data-code="{{ inv_row.invite_token }}"
+                      title="Copy invite code">
+                <i class="fa fa-copy"></i>
+              </button>
+            </td>
+            <td><small class="text-muted">{{ inv_row.created|datetime_local("%Y-%m-%d %H:%M") if inv_row.created else '' }}</small></td>
+            <td class="text-end">
+              <form method="post" action="cancel_room_invite" class="d-inline"
+                    onsubmit="return confirm('Cancel this invite? The code will stop working.');">
+                {{ csrf_token() }}
+                <input type="hidden" name="invite_id" value="{{ inv_row.id }}" />
+                <input type="hidden" name="attendee_id" value="{{ viewer.id }}" />
+                <button type="submit" class="btn btn-sm btn-outline-danger">Cancel</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+
+      <hr class="my-3"/>
+      {% if open_seats > 0 %}
+        <h3 class="h6">Invite a roommate</h3>
+        <div class="row g-2">
+          <div class="col-md-7">
+            <form method="post" action="invite_email" class="d-flex gap-2">
+              {{ csrf_token() }}
+              <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
+              <input type="hidden" name="attendee_id" value="{{ viewer.id }}" />
+              <input type="email" class="form-control" name="email"
+                     placeholder="Email address" required />
+              <button type="submit" class="btn btn-primary">Email invite</button>
+            </form>
+          </div>
+          <div class="col-md-5">
+            <form method="post" action="invite_code">
+              {{ csrf_token() }}
+              <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
+              <input type="hidden" name="attendee_id" value="{{ viewer.id }}" />
+              <button type="submit" class="btn btn-outline-primary w-100">
+                Generate invite code
+              </button>
+            </form>
+          </div>
+        </div>
+        <p class="form-text small mb-0">
+          {{ open_seats }} seat{{ 's' if open_seats != 1 }} open. Each invite
+          counts against the room's capacity until accepted or cancelled.
+        </p>
+      {% else %}
+        <p class="text-muted mb-0">
+          <i class="fa fa-info-circle"></i> This room is at capacity.
+          Cancel a pending invite or remove an occupant to free up a seat.
+        </p>
+      {% endif %}
+
+      {# Cross-room copy: only when the leader has multiple rooms with at least one candidate. #}
+      {% if copy_candidates %}
+      <hr class="my-3"/>
+      <h3 class="h6">Copy guests from another of your rooms</h3>
+      <form method="post" action="copy_occupants" class="d-flex gap-2 align-items-end">
+        {{ csrf_token() }}
+        <input type="hidden" name="target_assignment_id" value="{{ ra.id }}" />
+        <input type="hidden" name="attendee_id" value="{{ viewer.id }}" />
+        <div class="flex-grow-1">
+          <label class="form-label small mb-1">Select roommates already on your other rooms</label>
+          <select class="form-select" name="source_attendee_ids" multiple size="4">
+            {% for cand in copy_candidates %}
+              <option value="{{ cand.id }}">{{ cand.first_name }} {{ cand.last_name }} - {{ cand.email }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Add</button>
+      </form>
+      <p class="form-text small mb-0">
+        No new invite emails are sent - these guests already accepted
+        an invite on another of your rooms.
+      </p>
+      {% endif %}
+    {% endif %}
+  </div>
+</div>
+
+{% if is_leader and not locked and ra.status == c.ASSIGNED %}
+  {% if is_connector %}
+  {# Connectors are part of the suite; they can't be declined on their
+     own. Point back to the parent suite, where Decline cancels the
+     whole block. #}
+  <div class="d-flex justify-content-end">
+    <span class="text-muted small me-2 align-self-center">
+      This connector room is included with your suite.
+    </span>
+    {% if ra.parent_assignment_id %}
+    <a href="room?id={{ ra.parent_assignment_id }}&attendee_id={{ viewer.id }}"
+       class="btn btn-outline-secondary">Go to suite</a>
+    {% endif %}
+  </div>
+  {% else %}
+  <div class="d-flex justify-content-end">
+    <a href="decline?id={{ application.id if application else '' }}&assignment_id={{ ra.id }}"
+       class="btn btn-outline-danger">Decline this room</a>
+  </div>
+  {% endif %}
+{% endif %}
+
+</div>{# /card-body - outer page frame #}
+
+<script>
+(function () {
+  // Copy-to-clipboard for the pending-invite codes. Delegated off the
+  // page so it works for every row without per-row handlers; falls back
+  // to a hidden-textarea + execCommand on browsers/contexts where the
+  // async Clipboard API isn't available (e.g. non-HTTPS dev origins).
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    return new Promise(function (resolve, reject) {
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        resolve();
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.copy-invite-code');
+    if (!btn) return;
+    e.preventDefault();
+    var code = btn.getAttribute('data-code') || '';
+    copyText(code).then(function () {
+      // Brief visual confirmation: swap the icon to a check, then revert.
+      var icon = btn.querySelector('i');
+      var prev = icon ? icon.className : null;
+      if (icon) icon.className = 'fa fa-check text-success';
+      btn.setAttribute('title', 'Copied!');
+      setTimeout(function () {
+        if (icon && prev !== null) icon.className = prev;
+        btn.setAttribute('title', 'Copy invite code');
+      }, 1200);
+    });
+  });
+})();
+</script>
+
+{% endblock %}

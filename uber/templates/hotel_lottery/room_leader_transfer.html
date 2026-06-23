@@ -11,7 +11,7 @@
                         {% if not application.finalized %}
                         " You will then be able to withdraw from the lottery without disbanding the group." +
                         {% else %}
-                        " You will no longer be able to view your group's reservation, but you'll be able to withdraw from the lottery without affecting your group's {{ 'suite' if application.assigned_suite_type else 'room' }} award." +
+                        " You will no longer be able to view your group's reservation, but you'll be able to withdraw from the lottery without affecting your group's room or suite award." +
                         {% endif %}
                      {% endif %}
                      "</p><p>Are you sure?</p>",
