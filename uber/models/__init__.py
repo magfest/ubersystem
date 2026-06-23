@@ -30,7 +30,7 @@ import sqlalchemy.orm
 from sqlalchemy.orm.attributes import get_history, instance_state
 from sqlalchemy.orm.collections import InstrumentedList
 from sqlalchemy.schema import MetaData, UniqueConstraint
-from sqlalchemy.types import Boolean, Integer, Float, Date, Numeric, DateTime, Uuid, JSON
+from sqlalchemy.types import Boolean, Integer, Float, Date, Numeric, DateTime, Uuid, JSON, String, Text
 from sqlmodel import SQLModel
 
 import uber
@@ -272,9 +272,11 @@ class MagModel(SQLModel):
         callbacks = []
         for name, attr in self._class_attrs.items():
             if hasattr(attr, '__call__') and hasattr(attr, label):
-                callbacks.append(getattr(self, name))
-        callbacks.sort(key=lambda f: getattr(f, label))
-        for function in callbacks:
+                # Use sort key from the class attr (which has the decorator attribute),
+                # not from the bound method (which may have been monkeypatched to a plain function).
+                callbacks.append((getattr(attr, label), getattr(self, name)))
+        callbacks.sort(key=lambda x: x[0])
+        for _, function in callbacks:
             function()
 
     def presave_adjustments(self):
@@ -621,6 +623,31 @@ class MagModel(SQLModel):
         if isinstance(value, six.string_types):
             value = value.strip()
 
+        def _is_string_like_column(col_type):
+            # Plain `isinstance(col_type, String)` misses SQLModel's
+            # `AutoString` (a TypeDecorator wrapping String) and any
+            # other TypeDecorator over String/Text. Walk the impl chain
+            # and also accept anything whose `python_type` is `str`.
+            from sqlalchemy.types import TypeDecorator
+            if isinstance(col_type, (String, Text)):
+                return True
+            seen = col_type
+            while isinstance(seen, TypeDecorator):
+                seen = getattr(seen, 'impl_instance', None) or getattr(seen, 'impl', None)
+                if seen is None:
+                    break
+                if isinstance(seen, type):
+                    # `.impl` can be the *class* rather than an instance.
+                    if issubclass(seen, (String, Text)):
+                        return True
+                    break
+                if isinstance(seen, (String, Text)):
+                    return True
+            try:
+                return col_type.python_type is str
+            except (AttributeError, NotImplementedError):
+                return False
+
         try:
             if value is None:
                 return  # Totally fine for value to be None
@@ -685,6 +712,20 @@ class MagModel(SQLModel):
                     return json.loads(value)
                 elif isinstance(value, (datetime, date)):
                     return value.isoformat()
+
+            elif isinstance(value, list) and _is_string_like_column(column.type):
+                # SelectMultipleField hands back a Python list. Plain
+                # String/Text columns (e.g. `LotteryApplication.
+                # hotel_preference`, stored as "comma-separated UUIDs")
+                # would otherwise get persisted via psycopg2's list
+                # adaptation as Postgres array text `{uuid1,uuid2}`,
+                # which then breaks on read when downstream code does
+                # `value.split(',')`. Join here so the on-disk shape
+                # matches the documented "comma-separated" contract.
+                # `_is_string_like_column` handles SQLModel's AutoString
+                # (a TypeDecorator that wraps String but doesn't subclass
+                # it, so plain `isinstance(..., String)` is False).
+                return ','.join(str(x).strip() for x in value if str(x).strip())
 
         except Exception as error:
             log.debug(
@@ -784,7 +825,7 @@ from uber.models.department import Job, Shift, Department, DeptRole  # noqa: E40
 from uber.models.email import Email  # noqa: E402
 from uber.models.group import Group  # noqa: E402
 from uber.models.guests import GuestGroup  # noqa: E402
-from uber.models.hotel import LotteryApplication
+from uber.models.hotel import LotteryApplication, LotteryHotel, LotteryRoomType
 from uber.models.mits import MITSApplicant, MITSTeam  # noqa: E402
 from uber.models.showcase import IndieJudge, IndieGame, IndieStudio  # noqa: E402
 from uber.models.panels import PanelApplication, PanelApplicant  # noqa: E402
@@ -905,10 +946,10 @@ class UberSession(sqlalchemy.orm.Session):
                 return logged_in_account
             elif len(attendee.managers) == 1:
                 return attendee.managers[0]
-            
+
         def volunteer_from_id(self, id):
             return self.get(Attendee, id, options=[
-                selectinload(Attendee.hotel_requests), selectinload(Attendee.food_restrictions),
+                selectinload(Attendee.food_restrictions),
                 selectinload(Attendee.shifts)
             ])
 
@@ -1204,18 +1245,17 @@ class UberSession(sqlalchemy.orm.Session):
                 Attendee.is_valid == True  # noqa: E712
             )
 
-            if attendees:
-                statuses = defaultdict(lambda: six.MAXSIZE, {
-                    c.COMPLETED_STATUS: 0,
-                    c.NEW_STATUS: 1,
-                    c.REFUNDED_STATUS: 2,
-                    c.DEFERRED_STATUS: 3,
-                    c.WATCHED_STATUS: 4,
-                    c.UNAPPROVED_DEALER_STATUS: 5,
-                    c.NOT_ATTENDING: 6})
+            statuses = defaultdict(lambda: six.MAXSIZE, {
+                c.COMPLETED_STATUS: 0,
+                c.NEW_STATUS: 1,
+                c.REFUNDED_STATUS: 2,
+                c.DEFERRED_STATUS: 3,
+                c.WATCHED_STATUS: 4,
+                c.UNAPPROVED_DEALER_STATUS: 5,
+                c.NOT_ATTENDING: 6})
 
-                attendees = sorted(
-                    attendees, key=lambda a: statuses[a.badge_status])
+            attendees = sorted(attendees, key=lambda a: statuses[a.badge_status])
+            if attendees:
                 return attendees[0]
 
             raise ValueError('Attendee not found')
@@ -1505,7 +1545,7 @@ class UberSession(sqlalchemy.orm.Session):
                 Either the matching object of the given model,
                  or None if not found.
             """
-            if isinstance(code, uuid.Uuid(as_uuid=False)):
+            if isinstance(code, uuid.UUID):
                 code = code.hex
 
             normalized_code = RegistrationCode.normalize_code(code)
@@ -1515,10 +1555,9 @@ class UberSession(sqlalchemy.orm.Session):
             unambiguous_code = RegistrationCode.disambiguate_code(code)
             clause = or_(model.normalized_code == normalized_code, model.normalized_code == unambiguous_code)
 
-            # Make sure that code is a valid Uuid(as_uuid=False) before adding
-            # PromoCode.id to the filter clause
+            # Make sure that code is a valid UUID before adding PromoCode.id to the filter clause
             try:
-                promo_code_id = uuid.Uuid(as_uuid=False)(normalized_code).hex
+                promo_code_id = uuid.UUID(normalized_code).hex
             except Exception:
                 pass
             else:
@@ -1742,8 +1781,7 @@ class UberSession(sqlalchemy.orm.Session):
                 .options(
                     subqueryload(Attendee.dept_memberships),
                     subqueryload(Attendee.group),
-                    subqueryload(Attendee.shifts).subqueryload(Shift.job).subqueryload(Job.department),
-                    subqueryload(Attendee.room_assignments)) \
+                    subqueryload(Attendee.shifts).subqueryload(Shift.job).subqueryload(Job.department)) \
                 .order_by(Attendee.full_name, Attendee.id)
 
         def staffers(self, pending=False):
@@ -2339,6 +2377,7 @@ _ScopedSession.engine = engine
 _ScopedSession.BaseClass = SQLModel
 _ScopedSession.SessionMixin = UberSession.SessionMixin
 _ScopedSession.session_factory = SessionFactory
+_ScopedSession.QuerySubclass = UberSession.QuerySubclass
 
 class HybridSessionProxy:
     """
@@ -2393,6 +2432,7 @@ def initialize_db():
         if not hasattr(Session.SessionMixin, model.__tablename__):
             setattr(Session.SessionMixin, model.__tablename__, _make_getter(model))
 cherrypy.engine.subscribe('start', initialize_db, priority=97)
+
 
 def _attendee_validity_check():
     orig_getter = Session.SessionMixin.attendee
