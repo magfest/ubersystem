@@ -1,0 +1,139 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}{{ 'Edit' if room_type.id else 'Add' }} Room Type{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+
+<h2>{{ 'Edit' if room_type.id else 'Add' }} Room Type</h2>
+
+<div class="mb-3">
+  <a href="manage_room_types" class="btn btn-outline-secondary">Back to Room Types</a>
+</div>
+
+<form method="post" action="edit_room_type" class="card card-body" style="max-width: 700px;">
+  {{ csrf_token() }}
+  {% if room_type.id %}
+  <input type="hidden" name="id" value="{{ room_type.id }}" />
+  {% endif %}
+
+  <div class="mb-3">
+    <label for="name" class="form-label">Room Type Name</label>
+    <input type="text" class="form-control" name="name" id="name" value="{{ room_type.name or '' }}" required />
+  </div>
+
+  <div class="mb-3">
+    <label for="export_name" class="form-label">Export Name</label>
+    <input type="text" class="form-control" name="export_name" id="export_name" value="{{ room_type.export_name or '' }}" />
+    <div class="form-text">Name used when exporting data. Leave blank to use the room type name.</div>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Is Suite?</label>
+    <select class="form-select" name="is_suite">
+      <option value="false" {% if not room_type.is_suite %}selected{% endif %}>No (Standard Room Type)</option>
+      <option value="true" {% if room_type.is_suite %}selected{% endif %}>Yes (Suite Type)</option>
+    </select>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col">
+      <label for="capacity" class="form-label">Capacity</label>
+      <input type="number" class="form-control" name="capacity" id="capacity" value="{{ room_type.capacity }}" min="1" required />
+    </div>
+    <div class="col">
+      <label for="min_capacity" class="form-label">Min Capacity</label>
+      <input type="number" class="form-control" name="min_capacity" id="min_capacity" value="{{ room_type.min_capacity }}" min="1" required />
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <label for="description" class="form-label">Description (Left)</label>
+    <textarea class="form-control" name="description" id="description" rows="3">{{ room_type.description or '' }}</textarea>
+  </div>
+
+  <div class="mb-3">
+    <label for="description_right" class="form-label">Description (Right)</label>
+    <textarea class="form-control" name="description_right" id="description_right" rows="3">{{ room_type.description_right or '' }}</textarea>
+  </div>
+
+  <div class="mb-3">
+    <label for="footnote" class="form-label">Footnote</label>
+    <input type="text" class="form-control" name="footnote" id="footnote" value="{{ room_type.footnote or '' }}" />
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Active</label>
+    <select class="form-select" name="active">
+      <option value="true" {% if room_type.active or not room_type.id %}selected{% endif %}>Yes</option>
+      <option value="false" {% if room_type.id and not room_type.active %}selected{% endif %}>No</option>
+    </select>
+  </div>
+
+  {# Type-level "follows another room type": this room type gets
+     automatically awarded alongside its parent in the lottery, in
+     the specified quantity. We don't allow chains, so if this type
+     is itself a parent (children list non-empty) the controls
+     render read-only with a pointer to detach the children first. #}
+  <fieldset class="mb-3 p-3 border rounded">
+    <legend class="float-none w-auto fs-6 px-2">Mandatory Connected Room(s)</legend>
+
+    {% if children %}
+      <p class="text-muted mb-2">
+        This room type is a <strong>parent</strong>. The following room
+        type{{ 's' if children|length != 1 else '' }} are awarded with it
+        whenever it is awarded:
+      </p>
+      <ul class="mb-2">
+        {% for child in children %}
+          <li>
+            {{ child.connector_quantity }}x
+            <a href="edit_room_type?id={{ child.id }}">{{ child.name }}</a>
+          </li>
+        {% endfor %}
+      </ul>
+      <p class="form-text mb-0">
+        A parent cannot itself follow another room type. Detach
+        {{ "these children" if children|length != 1 else "this child" }}
+        first if you want to change that.
+      </p>
+      <input type="hidden" name="connects_to_type_id" value="" />
+      <input type="hidden" name="connector_quantity" value="0" />
+    {% else %}
+      <div class="row g-3">
+        <div class="col-md-8">
+          <label for="connects_to_type_id" class="form-label">
+            Follows this room type
+          </label>
+          <select class="form-select" name="connects_to_type_id" id="connects_to_type_id">
+            <option value="">(None - standalone room type)</option>
+            {% for sib in siblings %}
+              {# Don't offer types that already follow another - we
+                 disallow chains and would just reject the save. #}
+              {% if not sib.connects_to_type_id %}
+                <option value="{{ sib.id }}"
+                  {% if room_type.connects_to_type_id == sib.id %}selected{% endif %}>
+                  {{ sib.name }}{% if sib.is_suite %} (suite){% endif %}
+                </option>
+              {% endif %}
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label for="connector_quantity" class="form-label">Quantity per parent</label>
+          <input type="number" class="form-control" name="connector_quantity"
+                 id="connector_quantity" min="1"
+                 value="{{ room_type.connector_quantity or 1 }}" />
+        </div>
+      </div>
+      <div class="form-text mt-2">
+        Each time the parent is awarded by the lottery, this many of
+        this room type are awarded along with it to the same attendee.
+        Leave the parent blank for standalone room types.
+      </div>
+    {% endif %}
+  </fieldset>
+
+  <button type="submit" class="btn btn-primary">Save</button>
+</form>
+
+{% endblock content %}

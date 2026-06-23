@@ -1,0 +1,100 @@
+{% import 'hotel_lottery_admin/_macros.html' as hotel_macros with context %}
+
+{% if not hotel %}
+<div class="alert alert-warning mb-0">Hotel not found.</div>
+{% else %}
+
+<p class="text-muted small mb-3">
+  {% if last_export %}
+    Last export: <strong>{{ last_export.exported_at|datetime_local }}</strong>
+    (by {{ last_export.exported_by or 'unknown' }}).
+  {% else %}
+    <span class="text-danger">This hotel has never been exported.</span>
+  {% endif %}
+</p>
+
+{% if not bookings %}
+<div class="alert alert-secondary mb-0">No awarded bookings at this hotel yet.</div>
+{% else %}
+
+<table class="table table-sm align-middle hotel-export-details-table">
+  <thead>
+    <tr>
+      <th>Conf. #</th>
+      <th>Attendee</th>
+      <th>Room</th>
+      <th>Dates</th>
+      <th>Last Modified</th>
+      <th>Hotel Conf. #</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in bookings %}
+    <tr data-sync-status="{{ row.sync_status }}">
+      <td><code>{{ row.app.confirmation_num }}</code></td>
+      <td>
+        {% if row.app.attendee %}
+          {% if c.HAS_HOTEL_LOTTERY_ADMIN_ACCESS %}
+            {{ row.app.attendee.effective_hotel_first_name }}
+            {{ row.app.attendee.effective_hotel_last_name }}
+          {% else %}
+            {{ row.app.attendee.first_name }} {{ row.app.attendee.last_name|first|upper }}.
+          {% endif %}
+          <br/><small class="text-muted">{{ row.app.attendee.email }}</small>
+        {% else %}<em>(deleted)</em>{% endif %}
+      </td>
+      {# Each `row` is per-RoomAssignment; connector rooms render their
+         own line with a flag. #}
+      <td>{{ hotel_macros.hotel_room_cell(ra=row.assignment) }}</td>
+      <td>
+        {% if row.assignment.assigned_check_in_date %}
+          {{ row.assignment.assigned_check_in_date|date("%a %b %-d") }}<br/>
+          -> {{ row.assignment.assigned_check_out_date|date("%a %b %-d") }}
+        {% else %}
+          <span class="text-muted">-</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if row.assignment.last_modified_at %}
+          <span title="{{ row.assignment.last_modified_at|datetime_local }}">{{ row.assignment.last_modified_at|datetime_local("%Y-%m-%d %H:%M") }}</span>
+        {% else %}
+          <span class="text-muted">-</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if row.assignment.hotel_confirmation_number %}
+          <code>{{ row.assignment.hotel_confirmation_number }}</code>
+        {% else %}
+          <span class="text-muted">-</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if row.sync_status == 'in_sync' %}
+          <span class="badge bg-success">In sync</span>
+        {% elif row.sync_status == 'pending_export' %}
+          <span class="badge bg-warning text-dark">Pending export</span>
+        {% elif row.sync_status == 'awaiting_confirmation' %}
+          <span class="badge bg-info">Awaiting confirmation</span>
+        {% elif row.sync_status == 'never_exported' %}
+          <span class="badge bg-danger">Never exported</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="d-flex justify-content-between align-items-center mt-2">
+  <p class="text-muted small mb-0">
+    Showing
+    <strong>{{ ((page - 1) * page_size) + 1 }}-{{ ((page - 1) * page_size) + bookings|length }}</strong>
+    of
+    <strong class="hotel-export-row-count">{{ total }}</strong>
+    booking{{ 's' if total != 1 else '' }}.
+  </p>
+  {{ hotel_macros.pagination_js(page, page_count) }}
+</div>
+
+{% endif %}
+{% endif %}

@@ -2,7 +2,9 @@
 {% block title %}Recent Changes to Lottery Applications{% endblock %}
 {% block content %}
 
-<h2>Feed of Database Changes to Lottery Applications <a href="index" class="btn btn-primary">Back to Application List</a></h2>
+{% include 'hotel_lottery_admin/nav.html' %}
+
+<h2>Feed of Database Changes to Lottery Applications</h2>
 
 <div class="card card-body">
 <form method="get" action="feed" style="text-align:center">

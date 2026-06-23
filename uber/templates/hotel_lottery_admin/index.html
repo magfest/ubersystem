@@ -1,8 +1,9 @@
 {% extends "base.html" %}{% set admin_area=True %}
+{% import 'hotel_lottery_admin/_macros.html' as hotel_macros with context %}
 {% block title %}Hotel Lottery Admin{% endblock %}
 {% block content %}
 
-<h2>Hotel Lottery Applications</h2>
+{% include 'hotel_lottery_admin/nav.html' %}
 
 <div class="row g-3 mb-3">
   <div class="col-sm">
@@ -28,77 +29,91 @@
   </div>
 </div>
 
-<div class="d-flex gap-3 mb-3 justify-content-between">
-  <div>
-    {{ total_count }} total application{{ total_count|pluralize }}
-    | {{ complete_count }} completed valid application{{ complete_count|pluralize }}
-    <br/>{{ room_count }} requested room{{ room_count|pluralize }}
-    | {{ suite_count }} requested suite{{ suite_count|pluralize }}
-  </div>
-  {% if c.HOTEL_LOTTERY_ROOM_INVENTORY %}
-  <div class="text-end">
-  <a href="hotel_inventory">View Room/Suite Inventory</a>
-  &nbsp;
-  <a href="hotel_inventory_zip"><i class="fa fa-download"></i> Assigned Rooms by Date</a>
-  &nbsp;
-  <a href="assigned_entries"><i class="fa fa-download"></i> Passkey Export</a>
-  </div>
-  {% else %}
-  <div>
-    Download <a href="interchange_export"><i class="fa fa-download"></i> Interchange CSV</a>
-    OR <a href="interchange_export?staff_lottery=True"><i class="fa fa-download"></i> Staff Lottery CSV</a>
-  </div>
-  {% endif %}
+<div class="mb-3">
+  {{ total_count }} total application{{ total_count|pluralize }}
+  | {{ complete_count }} completed valid application{{ complete_count|pluralize }}
+  <br/>{{ room_count }} requested room{{ room_count|pluralize }}
+  | {{ suite_count }} requested suite{{ suite_count|pluralize }}
 </div>
-{% if c.HOTEL_LOTTERY_ROOM_INVENTORY %}
-<form method="post" action="run_lottery" class="d-flex gap-3 mb-3 justify-content-between">
-  <div>
-    <div class="form-text">&nbsp;</div>
-    <button type="submit" formaction="show_awards" class="btn btn-success">Show Awards</button>
-    <button type="submit" formaction="publish_booking_links" class="btn btn-primary">Publish Booking URLs</button>
-    <button type="submit" formaction="close_waitlist" class="btn btn-danger">Close First Round</button>
-  </div>
-  <div class="d-flex gap-3 justify-content-end">
-    <div>
-      <div class="form-text">
-        <label for="lottery_group">Lottery Cutoff</label>
-        <input type="datetime-local" class="form-control" name="cutoff" id="cutoff" placeholder="N/A" />
+
+<div class="mb-3">
+  <a class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" href="#advancedSearch">
+    <i class="fa fa-filter"></i> Advanced Filters
+  </a>
+  {% if advanced_filters %}<span class="badge bg-info ms-2">{{ advanced_filters|length }} filter{{ advanced_filters|length|pluralize }} active</span>{% endif %}
+</div>
+<div class="collapse{% if advanced_filters %} show{% endif %}" id="advancedSearch">
+  <form method="get" action="index" class="card card-body mb-3">
+    <input type="hidden" name="order" value="{{ order }}" />
+    <div class="row g-2">
+      <div class="col-md-2">
+        <label class="form-label small">Status</label>
+        <select class="form-select form-select-sm" name="filter_status">
+          <option value="">All</option>
+          {% for val, label in c.HOTEL_LOTTERY_STATUS_OPTS %}
+          <option value="{{ val }}" {% if advanced_filters.get('filter_status') == val|string %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small">Entry Type</label>
+        <select class="form-select form-select-sm" name="filter_entry_type">
+          <option value="">All</option>
+          {% for val, label in c.HOTEL_LOTTERY_ENTRY_TYPE_OPTS %}
+          <option value="{{ val }}" {% if advanced_filters.get('filter_entry_type') == val|string %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small">Hotel</label>
+        <select class="form-select form-select-sm" name="filter_hotel">
+          <option value="">All</option>
+          {% for hotel in hotels %}
+          <option value="{{ hotel.id }}" {% if advanced_filters.get('filter_hotel') == hotel.id|string %}selected{% endif %}>{{ hotel.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small">Inventory Block</label>
+        <select class="form-select form-select-sm" name="filter_inventory">
+          <option value="">All</option>
+          {% for inv in inventory_blocks %}
+          <option value="{{ inv.id }}" {% if advanced_filters.get('filter_inventory') == inv.id|string %}selected{% endif %}>{{ inv.hotel.name if inv.hotel else '' }} - {{ inv.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small">Partition</label>
+        <select class="form-select form-select-sm" name="filter_partition">
+          <option value="">All</option>
+          {% for p in partitions %}
+          <option value="{{ p.id }}" {% if advanced_filters.get('filter_partition') == p.id|string %}selected{% endif %}>{{ p.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-1">
+        <label class="form-label small">Locked</label>
+        <select class="form-select form-select-sm" name="filter_export_locked">
+          <option value="">All</option>
+          <option value="true" {% if advanced_filters.get('filter_export_locked') == 'true' %}selected{% endif %}>Yes</option>
+          <option value="false" {% if advanced_filters.get('filter_export_locked') == 'false' %}selected{% endif %}>No</option>
+        </select>
+      </div>
+      <div class="col-md-1">
+        <label class="form-label small">Staff</label>
+        <select class="form-select form-select-sm" name="filter_staff">
+          <option value="">All</option>
+          <option value="true" {% if advanced_filters.get('filter_staff') == 'true' %}selected{% endif %}>Yes</option>
+          <option value="false" {% if advanced_filters.get('filter_staff') == 'false' %}selected{% endif %}>No</option>
+        </select>
       </div>
     </div>
-    <div>
-      {{ csrf_token() }}
-      <div class="form-text">
-        <label for="lottery_group">Lottery Group</label>
-      </div>
-      <select class="form-select" id="lottery_group" name="lottery_group">
-        <option selected="true" value="attendee">Attendee</option>
-        <option value="staff">Staff</option>
-        <option value="both">Both</option>
-      </select>
+    <div class="mt-2">
+      <button type="submit" class="btn btn-sm btn-primary">Apply Filters</button>
+      <a href="index" class="btn btn-sm btn-outline-secondary">Clear</a>
     </div>
-    <div>
-      <div class="form-text">
-        <label for="lottery_type">Lottery Type</label>
-      </div>
-      <select class="form-select" id="lottery_type" name="lottery_type">
-        <option selected="true" value="room">Room</option>
-        <option value="suite">Suite</option>
-      </select>
-    </div>
-    <div>
-      <div class="form-text">&nbsp;</div>
-      <button type="submit" formaction="run_lottery" class="btn btn-primary">Run Lottery</button>
-      <button type="submit" formaction="reset_lottery" class="btn btn-danger">Reset Lottery</button>
-      <button type="submit" formaction="award_lottery" class="btn btn-warning">Award Winners</button>
-    </div>
-  </div>
-</form>
-{% else %}
-<form method="post" action="mark_staff_processed">
-  {{ csrf_token() }}
-  <button type="submit" class="btn btn-primary">Unlock Staff Entries</button>
-</form>
-{% endif %}
+  </form>
+</div>
 
 {% if search_results %}
   <div class="card mt-3 mb-3">
@@ -149,11 +164,8 @@
             <th># Group Members</th>
             <th>Admin Notes</th>
             <th><a href="index?order={{ order.is_staff_entry }}&page={{ page }}&search_text={{ search_text|urlencode }}">Staff Entry</a></th>
-            {% if c.HOTEL_LOTTERY_ROOM_INVENTORY %}
-            <th><a href="index?order={{ order.assigned_hotel }}&page={{ page }}&search_text={{ search_text|urlencode }}">Hotel</a></th>
-            <th><a href="index?order={{ order.assigned_room_type }}&page={{ page }}&search_text={{ search_text|urlencode }}">Room Type</a></th>
-            <th><a href="index?order={{ order.assigned_suite_type }}&page={{ page }}&search_text={{ search_text|urlencode }}">Suite Type</a></th>
-            {% endif %}
+            <th><a href="index?order={{ order.assigned_inventory_id }}&page={{ page }}&search_text={{ search_text|urlencode }}">Assigned Room</a></th>
+            <th><a href="index?order={{ order.last_modified_at }}&page={{ page }}&search_text={{ search_text|urlencode }}">Last Modified</a></th>
             {% endblock tableheadings %}
           </tr>
         </thead>
@@ -179,11 +191,38 @@
                 <td>{{ app.valid_group_members|length if app.room_group_name else "" }}</td>
                 <td>{{ app.admin_notes }}</td>
                 <td>{{ app.is_staff_entry|yesno("Yes,No") }}</td>
-                {% if c.HOTEL_LOTTERY_ROOM_INVENTORY %}
-                <td>{{ app.assigned_hotel_label['name'] }}</td>
-                <td>{{ app.assigned_room_type_label['name'] }}</td>
-                <td>{{ app.assigned_suite_type_label['name'] }}</td>
-                {% endif %}
+                <td>
+                  {# Multi-room column: count badge sits to the LEFT of the
+                     room list (vertically aligned) instead of above it, so
+                     the eye scans count -> rooms in a single row. Connectors
+                     are flagged inline with a small badge. #}
+                  {% set _rooms = (app.attendee.room_assignments if app.attendee else [])
+                                  |selectattr('status', 'in', [c.ASSIGNED, c.SECURED])|list %}
+                  {% if _rooms %}
+                    <div class="d-flex align-items-start gap-2">
+                      <span class="badge bg-primary" title="Number of rooms">{{ _rooms|length }}</span>
+                      <div>
+                        {% for ra in _rooms %}
+                          {% set inv = ra.inventory %}
+                          <div class="small">
+                            {% if ra.export_locked %}<i class="fa fa-lock text-warning" title="Export Locked"></i> {% endif %}
+                            {{ inv.hotel.name if inv and inv.hotel else '' }} -
+                            {% if inv and inv.is_suite %}{{ inv.suite_type.name if inv.suite_type else '' }}
+                            {% elif inv %}{{ inv.room_type.name if inv.room_type else '' }}{% endif %}
+                            {% if ra.parent_assignment_id %}{{ hotel_macros.connector_chip() }}{% endif %}
+                          </div>
+                        {% endfor %}
+                      </div>
+                    </div>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if app.last_modified_at %}
+                    <span title="{{ app.last_modified_at|datetime_local }}">{{ app.last_modified_at|datetime_local("%Y-%m-%d %H:%M") }}</span>
+                  {% else %}
+                    <span class="text-muted">-</span>
+                  {% endif %}
+                </td>
               {% endblock tablerows %}
             </tr>
           {% endfor %}

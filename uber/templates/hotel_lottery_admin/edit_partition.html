@@ -1,0 +1,236 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}{{ 'Edit' if partition.id else 'Add' }} Partition{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+
+<h2>{{ 'Edit' if partition.id else 'Add' }} Inventory Partition</h2>
+
+<div class="mb-3">
+  <a href="manage_partitions" class="btn btn-outline-secondary">Back to Partitions</a>
+</div>
+
+{% if message %}<div class="alert alert-info">{{ message }}</div>{% endif %}
+
+<form method="post" action="edit_partition" class="card card-body" style="max-width: 800px;">
+  {{ csrf_token() }}
+  {% if partition.id %}
+  <input type="hidden" name="id" value="{{ partition.id }}" />
+  {% endif %}
+
+  <div class="mb-3">
+    <label for="name" class="form-label">Name</label>
+    <input type="text" class="form-control" name="name" id="name" value="{{ partition.name }}" required />
+  </div>
+
+  <div class="mb-3">
+    <label for="description" class="form-label">Description</label>
+    <textarea class="form-control" name="description" id="description" rows="2">{{ partition.description }}</textarea>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Active</label>
+    <select class="form-select" name="active">
+      <option value="true" {% if partition.active or not partition.id %}selected{% endif %}>Yes</option>
+      <option value="false" {% if partition.id and not partition.active %}selected{% endif %}>No</option>
+    </select>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Block Allocations</label>
+    <div class="form-text mb-2">Set how many rooms from each inventory block this partition can use. Leave blank or 0 to exclude a block.</div>
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th>Hotel</th>
+          <th>Type</th>
+          <th>Block Name</th>
+          <th>Block Total</th>
+          <th title="Peak per-night rooms currently assigned within this partition for this block.">In Use (peak/night)</th>
+          <th>Partition Qty</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for inv in inventory_blocks %}
+        {% set _use = usage_by_block.get(inv.id|string, 0) %}
+        {% set _alloc = existing_blocks.get(inv.id|string, 0) %}
+        <tr>
+          <td>{{ inv.hotel.name if inv.hotel else 'Unknown' }}</td>
+          <td>{{ inv.room_or_suite_type.name if inv.room_or_suite_type else '' }}{% if inv.is_suite %} <span class="badge bg-info">Suite</span>{% endif %}</td>
+          <td>{{ inv.name }}</td>
+          <td>{{ inv.quantity }}</td>
+          <td>
+            {% if _use %}
+              {# Red when usage already meets/exceeds the current
+                 allocation - reducing the quantity below this would
+                 over-commit the peak night. #}
+              <span class="badge bg-{% if _alloc and _use >= _alloc %}danger{% else %}secondary{% endif %}">
+                {{ _use }}{% if _alloc %} / {{ _alloc }}{% endif %}
+              </span>
+              {% set _total = rooms_by_block.get(inv.id|string, 0) %}
+              {% if _total and _total != _use %}
+                <span class="text-muted small ms-1" title="Total distinct rooms assigned in this partition for this block (across all nights).">({{ _total }} total)</span>
+              {% endif %}
+            {% else %}
+              <span class="text-muted">-</span>
+            {% endif %}
+          </td>
+          <td>
+            <input type="number" class="form-control form-control-sm" style="width: 80px;"
+                   name="block_qty_{{ inv.id }}"
+                   value="{{ existing_blocks.get(inv.id|string, '') }}"
+                   min="0" placeholder="0" />
+            {% if _use %}
+            <div class="form-text small mb-0">>= {{ _use }} in use</div>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <button type="submit" class="btn btn-primary">Save</button>
+</form>
+
+{% if partition.id %}
+
+{# Each scope is a single dropdown (None / View only / Edit) - the
+   underlying view/edit flag pair lives on the model but the UI only
+   exposes states where edit implies view. #}
+{% set scope_cols = [
+  ('inventory_level',   'can_view_inventory',   'can_edit_inventory',   'Inventory'),
+  ('assignments_level', 'can_view_assignments', 'can_edit_assignments', 'Assignments'),
+  ('guest_names_level', 'can_view_guest_names', 'can_edit_guest_names', 'Guest names'),
+] %}
+
+{% macro _resolve_level(grant, view_flag, edit_flag) -%}
+  {%- if grant[edit_flag] -%}edit
+  {%- elif grant[view_flag] -%}view
+  {%- else -%}none
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro _level_select(name, current='none', cls='form-select form-select-sm') -%}
+  <select class="{{ cls }}" name="{{ name }}">
+    <option value="none" {% if current == 'none' %}selected{% endif %}>None</option>
+    <option value="view" {% if current == 'view' %}selected{% endif %}>View only</option>
+    <option value="edit" {% if current == 'edit' %}selected{% endif %}>Edit</option>
+  </select>
+{%- endmacro %}
+
+<h3 class="h5 mt-4">Partition Owners</h3>
+<p class="text-muted small">
+  Admin accounts granted scoped access to this partition. For each
+  scope, pick None / View only / Edit. Edit always includes view -
+  there's no edit-without-view state.
+</p>
+
+<div class="card card-body mb-3" style="max-width: 1100px;">
+
+{% if grants %}
+<div class="table-responsive">
+<table class="table table-sm align-middle">
+  <thead>
+    <tr>
+      <th>Admin</th>
+      {% for _f, _v, _e, label in scope_cols %}
+      <th>{{ label }}</th>
+      {% endfor %}
+      <th class="text-center" title="Send partition-scoped automated emails.">Emails</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for g in grants %}
+    <tr>
+      <form method="post" action="edit_partition_owner">
+        {{ csrf_token() }}
+        <input type="hidden" name="id" value="{{ g.id }}" />
+        <input type="hidden" name="partition_id" value="{{ partition.id }}" />
+        <input type="hidden" name="admin_account_id" value="{{ g.admin_account_id }}" />
+        <input type="hidden" name="return_to" value="edit_partition" />
+        <td>
+          {% if g.admin_account and g.admin_account.attendee %}
+            <a href="edit_partition_owner?id={{ g.id }}">{{ g.admin_account.attendee.full_name }}</a>
+            <br/><small class="text-muted">{{ g.admin_account.attendee.email }}</small>
+          {% else %}
+            <em>(orphan)</em>
+          {% endif %}
+        </td>
+        {% for field, view_f, edit_f, _label in scope_cols %}
+        <td>{{ _level_select(field, current=_resolve_level(g, view_f, edit_f)) }}</td>
+        {% endfor %}
+        <td class="text-center">
+          <input type="checkbox" class="form-check-input"
+                 name="can_send_emails" value="true"
+                 {% if g.can_send_emails %}checked{% endif %} />
+        </td>
+        <td class="text-end" style="white-space: nowrap;">
+          <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+      </form>
+      <form method="post" action="delete_partition_owner" class="d-inline"
+            onsubmit="return confirm('Revoke this grant?');">
+        {{ csrf_token() }}
+        <input type="hidden" name="id" value="{{ g.id }}" />
+        <input type="hidden" name="return_to" value="edit_partition" />
+        <button type="submit" class="btn btn-sm btn-outline-danger">Revoke</button>
+      </form>
+        </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="text-muted mb-3">No partition owners yet.</p>
+{% endif %}
+
+<hr/>
+
+<h4 class="h6">Grant access to a new admin</h4>
+{% if not ungranted_admins %}
+<p class="text-muted small mb-0">All admin accounts already have a grant on this partition.</p>
+{% else %}
+<form method="post" action="edit_partition_owner" class="row g-2 align-items-end">
+  {{ csrf_token() }}
+  <input type="hidden" name="partition_id" value="{{ partition.id }}" />
+  <input type="hidden" name="return_to" value="edit_partition" />
+
+  <div class="col-md-4">
+    <label class="form-label small">Admin Account</label>
+    <select name="admin_account_id" class="form-select form-select-sm" required>
+      <option value="">- Select an admin -</option>
+      {% for a in ungranted_admins %}
+      <option value="{{ a.id }}">{{ a.attendee.full_name }} ({{ a.attendee.email }})</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  {% for field, _v, _e, label in scope_cols %}
+  <div class="col-md-2">
+    <label class="form-label small">{{ label }}</label>
+    {# Default a new grant to View only on inventory + assignments to
+       match the previous checkbox defaults; everything else None. #}
+    {% set _default = 'view' if field in ('inventory_level', 'assignments_level') else 'none' %}
+    {{ _level_select(field, current=_default) }}
+  </div>
+  {% endfor %}
+
+  <div class="col-md-2">
+    <label class="form-check form-check-inline mb-0 mt-3">
+      <input class="form-check-input" type="checkbox" name="can_send_emails" value="true" />
+      Emails
+    </label>
+  </div>
+
+  <div class="col-12 text-end">
+    <button type="submit" class="btn btn-primary btn-sm">Grant Access</button>
+  </div>
+</form>
+{% endif %}
+
+</div>{# /card #}
+{% endif %}
+
+{% endblock content %}

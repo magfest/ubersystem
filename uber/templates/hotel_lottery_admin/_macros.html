@@ -1,0 +1,205 @@
+{# Shared macros for the hotel section (hotel_lottery_admin,
+   staff_rooming, partition_admin). Goal: one definition of pagination
+   controls, status chips, and other repeated bits so every page in the
+   section looks and behaves the same.
+
+   Import at the top of any consumer template with:
+
+       {% import 'hotel_lottery_admin/_macros.html' as hotel_macros %}
+#}
+
+{# Pagination
+
+   `pagination` renders the standard compact Bootstrap pagination bar:
+   <<  1  ... window-around-current ...  N  >>
+
+   Arguments:
+     page          - int, current page (1-based)
+     page_count    - int, total number of pages
+     base_url      - string, page URL minus the page parameter
+                     (e.g. `'rooms?search=foo&status=live'`).
+                     We append `&page=N` (or `?page=N` if no `?` yet).
+     show_summary  - bool, when True (default) also emits the
+                     "Showing X-Y of Z" sentence on the left side
+                     inside a flex container.
+     total         - int, total result count (only used for summary)
+     page_size     - int, page size (only used for summary)
+     current_count - int, items on this page (only used for summary)
+     label         - string, what we're counting (default "result")
+#}
+{% macro pagination(page, page_count, base_url,
+                    show_summary=True, total=None, page_size=None,
+                    current_count=None, label='result',
+                    page_param='page') %}
+  {% set _sep = '&' if '?' in base_url else '?' %}
+  {% if show_summary %}
+  <div class="d-flex justify-content-between align-items-center">
+    {% if total is not none and page_size is not none and current_count is not none %}
+      <p class="text-muted small mb-0">
+        Showing
+        <strong>{{ ((page - 1) * page_size) + 1 }}-{{ ((page - 1) * page_size) + current_count }}</strong>
+        of <strong>{{ total }}</strong>
+        {{ label }}{{ 's' if total != 1 else '' }}.
+      </p>
+    {% else %}
+      <span></span>
+    {% endif %}
+    {{ _pagination_nav(page, page_count, base_url, _sep, page_param) }}
+  </div>
+  {% else %}
+    {{ _pagination_nav(page, page_count, base_url, _sep, page_param) }}
+  {% endif %}
+{% endmacro %}
+
+{% macro _pagination_nav(page, page_count, base_url, sep, page_param) %}
+  {% if page_count > 1 %}
+  <nav>
+    <ul class="pagination pagination-sm mb-0">
+      <li class="page-item{% if page <= 1 %} disabled{% endif %}">
+        <a class="page-link" href="{{ base_url }}{{ sep }}{{ page_param }}={{ page - 1 }}"><<</a>
+      </li>
+      {% for p in range(1, page_count + 1) %}
+        {% if p == 1 or p == page_count or (p >= page - 2 and p <= page + 2) %}
+          <li class="page-item{% if p == page %} active{% endif %}">
+            <a class="page-link" href="{{ base_url }}{{ sep }}{{ page_param }}={{ p }}">{{ p }}</a>
+          </li>
+        {% elif p == page - 3 or p == page + 3 %}
+          <li class="page-item disabled"><span class="page-link">...</span></li>
+        {% endif %}
+      {% endfor %}
+      <li class="page-item{% if page >= page_count %} disabled{% endif %}">
+        <a class="page-link" href="{{ base_url }}{{ sep }}{{ page_param }}={{ page + 1 }}">>></a>
+      </li>
+    </ul>
+  </nav>
+  {% endif %}
+{% endmacro %}
+
+{# JS-driven variant for partials loaded inside a modal - links carry a
+   data-page attribute and rely on a delegated click handler to refetch
+   the partial. See export_tracking.html for the canonical wiring. #}
+{% macro pagination_js(page, page_count, css_class='hotel-export-pagination') %}
+  {% if page_count > 1 %}
+  <nav>
+    <ul class="pagination pagination-sm mb-0 {{ css_class }}">
+      <li class="page-item{% if page <= 1 %} disabled{% endif %}">
+        <a class="page-link" href="#" data-page="{{ page - 1 }}"><<</a>
+      </li>
+      {% for p in range(1, page_count + 1) %}
+        {% if p == 1 or p == page_count or (p >= page - 2 and p <= page + 2) %}
+          <li class="page-item{% if p == page %} active{% endif %}">
+            <a class="page-link" href="#" data-page="{{ p }}">{{ p }}</a>
+          </li>
+        {% elif p == page - 3 or p == page + 3 %}
+          <li class="page-item disabled"><span class="page-link">...</span></li>
+        {% endif %}
+      {% endfor %}
+      <li class="page-item{% if page >= page_count %} disabled{% endif %}">
+        <a class="page-link" href="#" data-page="{{ page + 1 }}">>></a>
+      </li>
+    </ul>
+  </nav>
+  {% endif %}
+{% endmacro %}
+
+
+{# Chip styling
+
+   Centralised so every page agrees on what color a SECURED room is, etc.
+   Add new chip types here rather than inlining ad-hoc badge HTML.
+#}
+
+{# RoomAssignment status chip.
+   ASSIGNED  -> yellow  (awaiting CC / awaiting confirmation)
+   SECURED   -> green   (good to go)
+   CANCELLED -> red
+   EXPIRED   -> red
+   other     -> grey   #}
+{% macro room_status_chip(ra) %}
+  <span class="badge bg-{% if ra.status == c.SECURED %}success{% elif ra.status == c.ASSIGNED %}warning text-dark{% elif ra.status in (c.CANCELLED, c.EXPIRED) %}danger{% else %}secondary{% endif %}">
+    {{ ra.status_label }}
+  </span>
+{% endmacro %}
+
+{# LotteryApplication status chip. Distinct enum from RoomAssignment;
+   different state machine - AWARDED/PROCESSED are positive,
+   WITHDRAWN/DISQUALIFIED/REJECTED are negative. #}
+{% macro app_status_chip(app) %}
+  {% set _ok = [c.AWARDED, c.PROCESSED, c.COMPLETE, c.PARTIAL] %}
+  {% set _bad = [c.WITHDRAWN, c.DISQUALIFIED, c.REJECTED, c.CANCELLED, c.REMOVED] %}
+  <span class="badge bg-{% if app.status in _ok %}success{% elif app.status in _bad %}danger{% else %}secondary{% endif %}">
+    {{ app.status_label }}
+  </span>
+{% endmacro %}
+
+{# Billing chip for a RoomAssignment. Self-pay shows the CC tail when
+   one is captured; otherwise a small red warning when the room is
+   still ASSIGNED and a card is required. #}
+{% macro billing_chip(ra) %}
+  {% if ra.require_cc %}
+    <span class="badge bg-secondary">Self-pay</span>
+    {% if ra.cc_last_four %}
+      <small class="text-muted ms-1">{{ ra.cc_last_four }}</small>
+    {% elif ra.status == c.ASSIGNED %}
+      <small class="text-danger ms-1">no card</small>
+    {% endif %}
+  {% else %}
+    <span class="badge bg-info text-dark">Master bill</span>
+  {% endif %}
+{% endmacro %}
+
+{# Tiny pill that flags a connector RoomAssignment. Used everywhere a
+   ra renders (room lists, issues page, export modal). #}
+{% macro connector_chip() %}
+  <span class="badge bg-info text-dark">Connector</span>
+{% endmacro %}
+
+{# Yes/No chip for booleans. Use sparingly - for hot/cold flags. #}
+{% macro yes_no_chip(value) %}
+  {% if value %}
+    <span class="badge bg-success">Yes</span>
+  {% else %}
+    <span class="badge bg-secondary">No</span>
+  {% endif %}
+{% endmacro %}
+
+
+{# Hotel + room type
+
+   Two-line "Hotel - Room Type" cell used in nearly every table that
+   shows a RoomAssignment or HotelRoomInventory row. Optional connector
+   chip on the second line. Pass either a RoomAssignment (recommended)
+   or just an inventory directly. #}
+{% macro hotel_room_cell(ra=None, inv=None) %}
+  {% set _inv = inv if inv else (ra.inventory if ra else None) %}
+  {% set _is_connector = ra and ra.parent_assignment_id %}
+  {{ _inv.hotel.name if _inv and _inv.hotel else '?' }}
+  <small class="d-block text-muted">
+    {% if _inv and _inv.is_suite %}
+      {{ _inv.suite_type.name if _inv.suite_type else _inv.name }}
+    {% elif _inv %}
+      {{ _inv.room_type.name if _inv.room_type else _inv.name }}
+    {% endif %}
+    {% if _is_connector %}{{ connector_chip() }}{% endif %}
+  </small>
+{% endmacro %}
+
+
+{# Form-bottom actions
+
+   Standard right-aligned action bar at the bottom of an edit form.
+   Pass `extra_buttons` as a Jinja2 caller block if you need additional
+   tertiary buttons (e.g. Delete). The primary submit is always rightmost.
+#}
+{% macro form_actions(primary_label='Save', secondary_label='Save & Return',
+                     secondary_name='save_return_to_search') %}
+  <div class="d-flex justify-content-end gap-2 mt-3">
+    {{ caller() if caller else '' }}
+    {% if secondary_label %}
+    <button type="submit" name="{{ secondary_name }}" class="btn btn-outline-primary" value="1">
+      {{ secondary_label }}
+    </button>
+    {% endif %}
+    <button type="submit" name="save" class="btn btn-primary" value="1">{{ primary_label }}</button>
+  </div>
+{% endmacro %}

@@ -1,0 +1,93 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Partition Owners{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+
+<h1>
+  Partition Owners
+  {% if partition %}<small class="text-muted">- {{ partition.name }}</small>{% endif %}
+</h1>
+
+<p class="text-muted">
+  Per-partition admin grants. Each grant ties an admin account to one
+  partition with a bundle of capabilities (inventory edit, assignment
+  edit, guest-name visibility, email send). Grant scope is strictly
+  partition-bound: a grantee cannot touch other partitions or the
+  hotel-wide inventory totals.
+</p>
+
+{% if message %}
+<div class="alert alert-info">{{ message }}</div>
+{% endif %}
+
+<div class="mb-3">
+  <a class="btn btn-primary btn-sm"
+     href="edit_partition_owner{% if partition %}?partition_id={{ partition.id }}{% endif %}">
+    + Grant access
+  </a>
+  {% if partition %}
+  <a class="btn btn-outline-secondary btn-sm" href="partition_owners">All partitions</a>
+  {% endif %}
+  <a class="btn btn-outline-secondary btn-sm" href="manage_partitions">Manage partitions</a>
+</div>
+
+{% if not grants %}
+<div class="alert alert-secondary">No grants yet.</div>
+{% else %}
+<table class="table table-sm align-middle">
+  <thead>
+    <tr>
+      <th>Admin</th>
+      <th>Partition</th>
+      <th>Inventory</th>
+      <th>Assignments</th>
+      <th>Guest Names</th>
+      <th>Send Emails</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for g in grants %}
+    <tr>
+      <td>
+        {% if g.admin_account and g.admin_account.attendee %}
+          {{ g.admin_account.attendee.full_name }}
+          <br/><small class="text-muted">{{ g.admin_account.attendee.email }}</small>
+        {% else %}
+          <em>(deleted account)</em>
+        {% endif %}
+      </td>
+      <td>
+        {% if g.partition %}
+          <a href="edit_partition?id={{ g.partition.id }}">{{ g.partition.name }}</a>
+        {% else %}
+          <em>(deleted)</em>
+        {% endif %}
+      </td>
+      <td>
+        {% if g.can_edit_inventory %}edit{% elif g.can_view_inventory %}view{% else %}-{% endif %}
+      </td>
+      <td>
+        {% if g.can_edit_assignments %}edit{% elif g.can_view_assignments %}view{% else %}-{% endif %}
+      </td>
+      <td>
+        {% if g.can_edit_guest_names %}edit{% elif g.can_view_guest_names %}view{% else %}-{% endif %}
+      </td>
+      <td>{% if g.can_send_emails %}yes{% else %}-{% endif %}</td>
+      <td>
+        <a class="btn btn-outline-secondary btn-sm" href="edit_partition_owner?id={{ g.id }}">Edit</a>
+        <form method="post" action="delete_partition_owner" class="d-inline"
+              onsubmit="return confirm('Revoke this grant?');">
+          {{ csrf_token() }}
+          <input type="hidden" name="id" value="{{ g.id }}" />
+          <button type="submit" class="btn btn-outline-danger btn-sm">Revoke</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{% endblock %}

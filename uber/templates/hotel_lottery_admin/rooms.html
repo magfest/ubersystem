@@ -1,0 +1,153 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% import 'hotel_lottery_admin/_macros.html' as hotel_macros with context %}
+{% block title %}Rooms{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+
+<h2>Room Assignments</h2>
+<p class="text-muted">
+  Every <code>RoomAssignment</code> in the system. Filter by hotel,
+  partition, or status; search by confirmation number, hotel
+  confirmation number, attendee email, or name.
+</p>
+
+{% if message %}
+<div class="alert alert-info">{{ message }}</div>
+{% endif %}
+
+<form method="get" action="rooms" class="card card-body mb-3">
+  <div class="row g-2 align-items-end">
+    <div class="col-md-3">
+      <label class="form-label small mb-1">Search</label>
+      <input type="text" class="form-control form-control-sm" name="search"
+             value="{{ search }}" placeholder="conf #, hotel conf #, name, email" />
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small mb-1">Hotel</label>
+      <select class="form-select form-select-sm" name="hotel_id">
+        <option value="">(any)</option>
+        {% for h in hotels %}
+          <option value="{{ h.id }}" {% if hotel_id == h.id %}selected{% endif %}>{{ h.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small mb-1">Partition</label>
+      <select class="form-select form-select-sm" name="partition_id">
+        <option value="">(any)</option>
+        <option value="none" {% if partition_id == 'none' %}selected{% endif %}>(no partition)</option>
+        {% for p in partitions %}
+          <option value="{{ p.id }}" {% if partition_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small mb-1">Status</label>
+      <select class="form-select form-select-sm" name="status">
+        <option value="live" {% if status == 'live' %}selected{% endif %}>Live (Assigned + Secured)</option>
+        <option value="all" {% if status == 'all' %}selected{% endif %}>All</option>
+        {% for value, label in status_opts %}
+          <option value="{{ value }}" {% if status == (value|string) %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-1">
+      <label class="form-label small mb-1">Per page</label>
+      <select class="form-select form-select-sm" name="page_size">
+        {% for ps in [25, 50, 100, 200] %}
+          <option value="{{ ps }}" {% if page_size == ps %}selected{% endif %}>{{ ps }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2 text-end">
+      <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+      <a href="rooms" class="btn btn-outline-secondary btn-sm">Reset</a>
+    </div>
+  </div>
+</form>
+
+{% if not assignments %}
+<div class="card card-body text-center text-muted">No room assignments match these filters.</div>
+{% else %}
+
+<table class="table table-sm table-hover align-middle">
+  <thead>
+    <tr>
+      <th>Hotel / Room Type</th>
+      <th>Attendee</th>
+      <th>Dates</th>
+      <th>Status</th>
+      <th>Billing</th>
+      <th>Partition</th>
+      <th>Hotel Conf #</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for ra in assignments %}
+    {% set inv = ra.inventory %}
+    {% set app = ra.lottery_application %}
+    <tr>
+      <td>{{ hotel_macros.hotel_room_cell(ra=ra) }}</td>
+      <td>
+        {% if ra.attendee %}
+          {% if c.HAS_HOTEL_LOTTERY_ADMIN_ACCESS %}
+            {{ ra.attendee.effective_hotel_first_name }}
+            {{ ra.attendee.effective_hotel_last_name }}
+          {% else %}
+            {{ ra.attendee.first_name }} {{ ra.attendee.last_name|first|upper }}.
+          {% endif %}
+          <br/><small class="text-muted">{{ ra.attendee.email }}</small>
+        {% else %}<em>(no attendee)</em>{% endif %}
+        {% if app %}
+          <br/><small class="text-muted">
+            App <a href="form?id={{ app.id }}">{{ app.confirmation_num or app.id }}</a>
+          </small>
+        {% endif %}
+      </td>
+      <td>
+        {% if ra.assigned_check_in_date and ra.assigned_check_out_date %}
+          {{ ra.assigned_check_in_date|date("%a %b %-d") }}<br/>
+          -> {{ ra.assigned_check_out_date|date("%a %b %-d") }}
+        {% else %}
+          <span class="text-warning">- dates missing -</span>
+        {% endif %}
+      </td>
+      <td>{{ hotel_macros.room_status_chip(ra) }}</td>
+      <td>{{ hotel_macros.billing_chip(ra) }}</td>
+      <td>
+        {% if ra.partition_id and ra.partition %}
+          {{ ra.partition.name }}
+        {% else %}
+          <span class="text-muted">-</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if ra.hotel_confirmation_number %}
+          <code>{{ ra.hotel_confirmation_number }}</code>
+        {% else %}
+          <span class="text-muted">-</span>
+        {% endif %}
+      </td>
+      <td>
+        {# Every row gets an Edit button - the standalone edit page
+           handles both lottery-tied and non-lottery (manual / partition
+           grant) rooms, so we don't have to gate on `app` here. #}
+        <a href="edit_room_assignment?id={{ ra.id }}" class="btn btn-sm btn-outline-primary">Edit</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{# Pagination - shared macro keeps it identical across the section. #}
+{% set _qs = 'search=' ~ search|urlencode ~ '&hotel_id=' ~ hotel_id ~ '&partition_id=' ~ partition_id ~ '&status=' ~ status ~ '&page_size=' ~ page_size %}
+{{ hotel_macros.pagination(page, page_count, 'rooms?' ~ _qs,
+                           total=total, page_size=page_size,
+                           current_count=assignments|length,
+                           label='room assignment') }}
+
+{% endif %}
+
+{% endblock content %}

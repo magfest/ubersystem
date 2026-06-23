@@ -1,0 +1,68 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Waitlist Reveals{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+
+<h1>Waitlist Reveals</h1>
+<p class="text-muted">
+  Time-gated booking-link reveals for attendees who didn't get a room from
+  the lottery. Each eligible attendee gets a unique tokenised ubersystem
+  URL via email; the page shows a countdown and reveals the booking URL
+  only after the configured time.
+</p>
+
+{% if message %}
+<div class="alert alert-info">{{ message }}</div>
+{% endif %}
+
+<a href="edit_waitlist_reveal" class="btn btn-primary mb-3">+ New Reveal</a>
+
+{% if not reveals %}
+<div class="alert alert-secondary">No reveals configured yet.</div>
+{% else %}
+<table class="table table-sm">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Reveal At</th>
+      <th>External URL</th>
+      <th>Active</th>
+      <th>Emailed / Clicked</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in reveals %}
+    <tr{% if not r.active %} class="text-muted"{% endif %}>
+      <td>{{ r.name or '(unnamed)' }}</td>
+      <td>{% if r.reveal_at %}{{ r.reveal_at|datetime_local("%Y-%m-%d %H:%M %Z") }}{% else %}-{% endif %}</td>
+      <td>
+        {% if r.external_url %}
+        <a href="{{ r.external_url }}" target="_blank" class="text-truncate d-inline-block" style="max-width: 30em;">{{ r.external_url }}</a>
+        {% endif %}
+      </td>
+      <td>{{ "Yes" if r.active else "No" }}</td>
+      <td>
+        {% set emailed = r.links|selectattr("emailed_at")|list|length %}
+        {% set clicked = r.links|selectattr("clicked_at")|list|length %}
+        {{ emailed }} sent / {{ clicked }} clicked
+      </td>
+      <td>
+        <a href="edit_waitlist_reveal?id={{ r.id }}" class="btn btn-sm btn-outline-primary">Edit</a>
+        {% if r.active and r.external_url %}
+        <form method="post" action="send_waitlist_reveal_emails" class="d-inline"
+              onsubmit="return confirm('Email all eligible attendees who have not received a link for this reveal yet?');">
+          {{ csrf_token() }}
+          <input type="hidden" name="id" value="{{ r.id }}" />
+          <button type="submit" class="btn btn-sm btn-outline-success">Send Emails</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{% endblock %}
