@@ -1,8 +1,10 @@
 import base64
 import csv
+import os
 import pycountry
 import cherrypy
 import logging
+from cherrypy.lib.static import serve_file
 import random
 import math
 from copy import deepcopy
@@ -26,7 +28,8 @@ from uber.lottery_perms import record_partition_audit
 from uber.models.hotel import (HotelRoomInventory, InventoryNightQuantity, InventoryPartition,
                                InventoryPartitionBlock, LotteryRun, HotelExportLog, LotteryHotel, LotteryRoomType,
                                PartitionAuditLog, PartitionOwner, RoomAssignment,
-                               WaitlistReveal, WaitlistRevealLink, HotelRoomIssueNote)
+                               WaitlistReveal, WaitlistRevealLink, HotelRoomIssueNote,
+                               HotelImportFile)
 from uber.email import EmailService
 from uber.utils import (Order, check_csrf, get_page, localized_now,
                         validate_model, get_age_from_birthday,
@@ -1951,11 +1954,59 @@ class Root:
                 'dirty_count': dirty_count,
             })
 
+        import_files = session.query(HotelImportFile).order_by(
+            HotelImportFile.uploaded_at.desc()).all()
+
         return {
             'hotels': hotels,
             'message': message,
+            'import_files': import_files,
+            'all_hotels': session.query(LotteryHotel).order_by(LotteryHotel.name).all(),
         }
-        
+
+    def upload_confirmation_file(self, session, hotel_id=None, message='', **params):
+        """Admin upload of a hotel confirmation/cancellation file.
+
+        Uses the same parsing, application, and file retention as the
+        uber-vault hotel portal, so admin-uploaded files appear in the exports
+        list alongside portal uploads.
+        """
+        if cherrypy.request.method != 'POST':
+            raise HTTPRedirect('export_tracking')
+
+        upload = params.get('import_file')
+        if upload is None or not getattr(upload, 'file', None):
+            raise HTTPRedirect('export_tracking?message={}', 'Please choose a file to upload.')
+
+        raw = upload.file.read()
+        if len(raw) > 5 * 1024 * 1024:
+            raise HTTPRedirect('export_tracking?message={}', 'File is too large (5 MB max).')
+
+        hotel = session.query(LotteryHotel).get(hotel_id) if hotel_id else None
+        account = session.current_admin_account()
+        uploaded_by = account.attendee.full_name if account and account.attendee else 'Admin'
+
+        from uber.hotel_imports import import_confirmation_file
+        result = import_confirmation_file(
+            session, raw, getattr(upload, 'filename', ''), hotel=hotel,
+            source='admin', uploaded_by=uploaded_by,
+            content_type=getattr(upload, 'content_type', '') or '')
+
+        if result.get('error'):
+            message = f"File saved, but could not be parsed: {result['error']}"
+        else:
+            message = f"Imported {result['updated']} update(s), {result['unchanged']} unchanged."
+        raise HTTPRedirect('export_tracking?message={}', message)
+
+    def download_import_file(self, session, id):
+        """Download a previously uploaded hotel import file."""
+        record = session.query(HotelImportFile).get(id)
+        if not record or not record.filepath or not os.path.exists(record.filepath):
+            raise cherrypy.HTTPError(404, "File not found")
+        return serve_file(record.filepath, disposition='attachment',
+                          name=record.filename or os.path.basename(record.filepath),
+                          content_type=record.content_type or 'application/octet-stream')
+
     def run_lottery(self, session, lottery_group="attendee", lottery_type="room", run_name="", **params):
         if lottery_type == "room":
             lottery_type_val = c.ROOM_ENTRY

@@ -1784,14 +1784,12 @@ class HotelLookup:
         ignored and rows that don't match a known booking are skipped. Returns
         {updated, unchanged, changes}.
 
-        uber-vault rejects any file containing a card number before calling this,
-        so the file is assumed card-free; nothing resembling a card number is
-        persisted or echoed back.
+        The raw file is retained for later debugging; uber-vault rejects any
+        file containing a card number before calling this, so the file is
+        assumed card-free and nothing resembling a card number is echoed back.
         """
         import base64
-        import csv
-        import io
-        from uber.models.hotel import RoomAssignment
+        from uber.hotel_imports import import_confirmation_file as apply_import_file
 
         if not file:
             return {'error': 'No file provided.'}
@@ -1801,86 +1799,21 @@ class HotelLookup:
         except Exception:
             return {'error': 'File is not valid base64.'}
 
-        def norm(value):
-            return str(value if value is not None else '').strip().lower().replace(' ', '_')
-
-        name = (filename or '').lower()
-        rows = []
-        try:
-            if name.endswith(('.xlsx', '.xlsm')) or raw[:2] == b'PK':
-                from openpyxl import load_workbook
-                wb = load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
-                header = None
-                for excel_row in wb.active.iter_rows(values_only=True):
-                    if header is None:
-                        header = [norm(cell) for cell in excel_row]
-                        continue
-                    rows.append({header[i]: ('' if v is None else str(v))
-                                 for i, v in enumerate(excel_row)
-                                 if i < len(header) and header[i]})
-            else:
-                text = raw.decode('utf-8-sig', errors='replace')
-                for record in csv.DictReader(io.StringIO(text)):
-                    rows.append({norm(k): ('' if v is None else str(v))
-                                 for k, v in record.items() if k})
-        except Exception as e:
-            return {'error': f'Could not parse file: {e}'}
-
-        # (file column, RoomAssignment attribute)
-        fields = [('hotel_confirmation_number', 'hotel_confirmation_number'),
-                  ('hotel_cancellation_number', 'cancellation_confirmation_number')]
-
-        updated = 0
-        unchanged = 0
-        changes = []
         with Session() as session:
-            hotels_imported = set()
-            for row in rows:
-                conf_num = (row.get('confirmation_num') or '').strip()
-                if not conf_num:
-                    continue
-                app = session.query(LotteryApplication).filter(
-                    LotteryApplication.confirmation_num == conf_num).one_or_none()
-                ras = session.query(RoomAssignment).filter_by(
-                    lottery_application_id=app.id).all() if app else []
-                if not ras:
-                    continue  # no matching booking; skip the row
+            hotel = None
+            if reference:
+                hotel = session.query(LotteryHotel).filter(
+                    or_(LotteryHotel.export_name == reference,
+                        LotteryHotel.name == reference)).first()
+            result = apply_import_file(
+                session, raw, filename, hotel=hotel,
+                source='portal', uploaded_by='Hotel Portal')
 
-                row_present = False
-                row_changed = False
-                for col, attr in fields:
-                    if col not in row:
-                        continue
-                    new_val = (row.get(col) or '').strip()
-                    if not new_val:
-                        continue  # empty cell: don't clear an existing value
-                    row_present = True
-                    old_val = getattr(ras[0], attr) or ''
-                    field_changed = False
-                    for ra in ras:
-                        if (getattr(ra, attr) or '') != new_val:
-                            setattr(ra, attr, new_val)
-                            session.add(ra)
-                            field_changed = True
-                            if ra.inventory and ra.inventory.hotel_id:
-                                hotels_imported.add(str(ra.inventory.hotel_id))
-                    if field_changed:
-                        row_changed = True
-                        changes.append({'confirmation_num': conf_num, 'field': col,
-                                        'old': old_val, 'new': new_val})
-                if row_present:
-                    updated += 1 if row_changed else 0
-                    unchanged += 0 if row_changed else 1
-
-            for hotel_id in hotels_imported:
-                session.add(HotelExportLog(
-                    hotel_id=hotel_id,
-                    export_type='confirmation_import',
-                    record_count=updated,
-                ))
-            session.commit()
-
-        return {'updated': updated, 'unchanged': unchanged, 'changes': changes}
+        summary = {'updated': result['updated'], 'unchanged': result['unchanged'],
+                   'changes': result['changes']}
+        if result.get('error'):
+            summary['error'] = result['error']
+        return summary
 
 
 @all_api_auth('api_read')
