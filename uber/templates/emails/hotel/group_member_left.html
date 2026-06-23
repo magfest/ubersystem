@@ -15,9 +15,13 @@
 </p>
 {% else %}
 </p>
-{% if app.booking_url %}
+{# Only nag about removing the name when there's at least one awarded
+   room - otherwise the leader has nothing to update yet. #}
+{% set _existing = (app.attendee.room_assignments if app.attendee else [])
+                   |selectattr('status', 'in', [c.ASSIGNED, c.SECURED])|list %}
+{% if _existing %}
 <p>
-    We ask that you remove their name from your <a href="{{ c.URL_BASE }}/hotel_lottery/confirm?id={{ app.id }}" target="_blank">group's hotel reservation</a> as soon as possible.
+    We ask that you remove their name from your <a href="{{ c.URL_BASE }}/hotel_lottery/rooms?attendee_id={{ app.attendee.id }}" target="_blank">group's hotel reservation</a> as soon as possible.
     Per {{ c.EVENT_NAME }} policy, all names on hotel reservations must match attendees with badges.
 </p>
 {% endif %}

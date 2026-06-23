@@ -25,7 +25,8 @@ from uber.errors import CSRFException
 from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, Attraction, AttractionFeature, AttractionEvent,
                          BadgeInfo, Department, DeptMembership,
                          DeptRole, Event, IndieJudge, IndieStudio, Job, Session, Shift, Group,
-                         GuestGroup, Room, HotelRequests, RoomAssignment)
+                         GuestGroup, LotteryApplication)
+from uber.models.hotel import HotelExportLog, HotelRoomInventory
 from uber.models.badge_printing import PrintJob
 from uber.serializer import serializer
 from uber.utils import check, check_csrf, normalize_email_legacy, normalize_newlines, is_listy
@@ -1521,61 +1522,93 @@ class HotelLookup:
             return [x.id for x in attendees]
 
     @api_auth('api_update')
-    def update_room(self, id=None, **kwargs):
+    def update_inventory(self, id=None, **kwargs):
         """
-        Create or update a hotel room. If the id of an existing room is
-        supplied then it will attempt to update an existing room.
-        Possible attributes are notes, message, locked_in, nights, and created.
+        Create or update a HotelRoomInventory row. Replaces the legacy
+        update_room endpoint. If `id` is supplied, the inventory row with
+        that id is updated; otherwise a new row is created.
 
-        Returns the created room, with its id.
+        Recognised attributes: hotel_id, room_type_id, suite_type_id,
+        quantity, capacity, min_capacity, name, is_suite, active, price,
+        staff_price, info_url, vault_reference. (Connector relationships
+        are now type-level on `LotteryRoomType.connects_to_type_id`.)
         """
+        from uber.models import HotelRoomInventory
         with Session() as session:
             if id:
-                room = session.get(Room, id)
-                if not room:
-                    return HTTPError(404, "Could not locate room {}".format(id))
+                inv = session.query(HotelRoomInventory).filter(HotelRoomInventory.id == id).one_or_none()
+                if not inv:
+                    return HTTPError(404, "Could not locate inventory {}".format(id))
             else:
-                room = Room()
-            for attr in ['notes', 'message', 'locked_in', 'nights', 'created']:
+                inv = HotelRoomInventory()
+            for attr in ['hotel_id', 'room_type_id', 'suite_type_id', 'quantity',
+                         'capacity', 'min_capacity', 'name', 'is_suite', 'active',
+                         'price', 'staff_price', 'info_url', 'vault_reference']:
                 if attr in kwargs:
-                    setattr(room, attr, kwargs[attr])
-            session.add(room)
+                    setattr(inv, attr, kwargs[attr])
+            session.add(inv)
             session.commit()
-            return room.to_dict()
+            return inv.to_dict()
 
     @api_auth('api_update')
-    def update_request(self, id=None, **kwargs):
+    def update_application(self, id=None, **kwargs):
         """
-        Create or update a hotel request. If the id is supplied then it will
-        attempt to update the given request.
-        Possible attributes are attendee_id, nights, wanted_roommates, unwanted_roommates, special_needs, and approved.
+        Create or update a LotteryApplication. Replaces the legacy
+        update_request endpoint. If `id` is supplied, that application is
+        updated; otherwise a new one is created.
 
-        Returns the created or updated request.
+        Recognised attributes: attendee_id, status, entry_type, is_staff_entry,
+        cellphone, hotel_preference, room_type_preference,
+        suite_type_preference, earliest_checkin_date, latest_checkin_date,
+        earliest_checkout_date, latest_checkout_date, wants_ada,
+        ada_requests, room_opt_out, admin_notes, can_edit.
+
+        Legal-name fields (`legal_first_name` / `legal_last_name`) moved
+        off LotteryApplication. Update them on the linked Attendee
+        (`hotel_first_name` / `hotel_last_name`) via the attendee API
+        instead.
         """
         with Session() as session:
             if id:
-                hotel_request = session.get(HotelRequests, id)
-                if not hotel_request:
-                    return HTTPError(404, "Could not locate request {}".format(id))
+                app = session.query(LotteryApplication).filter(LotteryApplication.id == id).one_or_none()
+                if not app:
+                    return HTTPError(404, "Could not locate application {}".format(id))
             else:
-                hotel_request = HotelRequests()
-            for attr in ['attendee_id', 'nights', 'wanted_roommates', 'unwanted_roommates',
-                         'special_needs', 'approved']:
+                app = LotteryApplication()
+            for attr in ['attendee_id', 'status', 'entry_type', 'is_staff_entry',
+                         'cellphone',
+                         'hotel_preference', 'room_type_preference', 'suite_type_preference',
+                         'earliest_checkin_date', 'latest_checkin_date',
+                         'earliest_checkout_date', 'latest_checkout_date',
+                         'wants_ada', 'ada_requests', 'room_opt_out',
+                         'admin_notes', 'can_edit']:
                 if attr in kwargs:
-                    setattr(hotel_request, attr, kwargs[attr])
-            session.add(hotel_request)
+                    setattr(app, attr, kwargs[attr])
+            session.add(app)
             session.commit()
-            return hotel_request.to_dict()
+            return app.to_dict()
 
     @api_auth('api_update')
     def update_assignment(self, id=None, **kwargs):
         """
-        Create or update a hotel room assignment. If the id is supplied then it will
-        attempt to update the given request. Otherwise a new one is created.
-        Possible attributes are room_id, and attendee_id.
+        Create or update a RoomAssignment. Replaces the legacy endpoint of
+        the same name (which assigned to the now-deleted staff hotel Room).
+        If `id` is supplied, that assignment is updated; otherwise a new
+        one is created.
 
-        Returns the created or updated assignment.
+        Recognised attributes: attendee_id, inventory_id, lottery_application_id,
+        lottery_run_id, parent_assignment_id, partition_id, assignment_reason,
+        status, require_cc, assigned_check_in_date, assigned_check_out_date,
+        deposit_cutoff_date, booking_url, hotel_confirmation_number,
+        cancellation_confirmation_number, special_requests, hotel_rewards_number,
+        admin_notes.
+
+        The hotel back-import flow uses this to set hotel_confirmation_number
+        and cancellation_confirmation_number on an existing assignment;
+        setting cancellation_confirmation_number flips status to CANCELLED via
+        a presave on the model.
         """
+        from uber.models import RoomAssignment
         with Session() as session:
             if id:
                 assignment = session.query(RoomAssignment).filter(RoomAssignment.id == id).one_or_none()
@@ -1583,7 +1616,13 @@ class HotelLookup:
                     return HTTPError(404, "Could not locate room assignment {}".format(id))
             else:
                 assignment = RoomAssignment()
-            for attr in ['room_id', 'attendee_id']:
+            for attr in ['attendee_id', 'inventory_id', 'lottery_application_id',
+                         'lottery_run_id', 'parent_assignment_id', 'partition_id',
+                         'assignment_reason', 'status', 'require_cc',
+                         'assigned_check_in_date', 'assigned_check_out_date',
+                         'deposit_cutoff_date', 'booking_url',
+                         'hotel_confirmation_number', 'cancellation_confirmation_number',
+                         'special_requests', 'hotel_rewards_number', 'admin_notes']:
                 if attr in kwargs:
                     setattr(assignment, attr, kwargs[attr])
             session.add(assignment)
@@ -1602,6 +1641,182 @@ class HotelLookup:
             "order": c.NIGHT_DISPLAY_ORDER,
             "names": c.NIGHT_NAMES
         }
+
+    @api_auth('api_read')
+    def export_room_bookings(self, hotel):
+        """
+        Export room booking data including PCI Vault tokens (NOT raw card numbers).
+        One entry per RoomAssignment - connectors get their own line, with
+        `parent_assignment_id` pointing at the suite assignment so the
+        receiver can group them. Creates an export log entry for tracking.
+        """
+        from uber.models.hotel import RoomAssignment
+
+        with Session() as session:
+            if not hotel:
+                return "You must provide a hotel argument"
+            hotel_inv_ids = [str(inv.id) for inv in
+                             session.query(HotelRoomInventory).filter_by(hotel_id=hotel).all()]
+            if not hotel_inv_ids:
+                return []
+
+            assignments = (session.query(RoomAssignment)
+                           .filter(RoomAssignment.status == c.SECURED,
+                                   RoomAssignment.inventory_id.in_(hotel_inv_ids))
+                           .order_by(RoomAssignment.parent_assignment_id.asc().nullsfirst(),
+                                     RoomAssignment.created.asc())
+                           .all())
+
+            bookings = []
+            hotels_exported = set()
+            for ra in assignments:
+                inv = ra.inventory
+                app = ra.lottery_application
+
+                guests = []
+                for occupant in (getattr(ra, 'occupants', None) or []):
+                    if occupant.id == ra.attendee_id:
+                        continue
+                    # Keep legacy column names but read from the new
+                    # attendee-level hotel-name override.
+                    guests.append({
+                        'legal_first_name': occupant.effective_hotel_first_name,
+                        'legal_last_name': occupant.effective_hotel_last_name,
+                        'cellphone': occupant.cellphone,
+                        'email': occupant.email,
+                    })
+
+                suite_type_label = (inv.suite_type.name
+                                    if inv and inv.is_suite and inv.suite_type else None)
+                room_type_label = (inv.room_type.name
+                                   if inv and not inv.is_suite and inv.room_type else None)
+                hotel_obj = inv.hotel if inv else None
+
+                bookings.append({
+                    'assignment_id': ra.id,
+                    'parent_assignment_id': ra.parent_assignment_id,
+                    'assignment_reason': ra.assignment_reason_label,
+                    'lottery_application_id': ra.lottery_application_id,
+                    'confirmation_num': app.confirmation_num if app else None,
+                    'response_id': app.response_id if app else None,
+                    'assigned_hotel': hotel_obj.name if hotel_obj else '',
+                    'assigned_hotel_id': str(inv.hotel_id) if inv and inv.hotel_id else None,
+                    'assigned_room_type': room_type_label,
+                    'assigned_suite_type': suite_type_label,
+                    'assigned_check_in_date':
+                        str(ra.assigned_check_in_date) if ra.assigned_check_in_date else None,
+                    'assigned_check_out_date':
+                        str(ra.assigned_check_out_date) if ra.assigned_check_out_date else None,
+                    'cc_token': ra.cc_token,
+                    'hotel_confirmation_number': ra.hotel_confirmation_number,
+                    'cancellation_confirmation_number': ra.cancellation_confirmation_number,
+                    'legal_first_name': (app.attendee.effective_hotel_first_name
+                                         if app and app.attendee else ''),
+                    'legal_last_name': (app.attendee.effective_hotel_last_name
+                                        if app and app.attendee else ''),
+                    'cellphone': (app.cellphone if app else ''),
+                    'email': (app.email if app else ''),
+                    'address1': ra.address1,
+                    'address2': ra.address2,
+                    'city': ra.city,
+                    'region': ra.region,
+                    'zip_code': ra.zip_code,
+                    'country': ra.country,
+                    'wants_ada': (app.wants_ada if app else False),
+                    'ada_requests': (app.ada_requests if app else ''),
+                    'special_requests': ra.special_requests,
+                    'guests': guests,
+                    'last_modified_at':
+                        str(ra.last_modified_at) if ra.last_modified_at else None,
+                    'cc_captured_at':
+                        str(ra.cc_captured_at) if ra.cc_captured_at else None,
+                })
+                if inv and inv.hotel_id:
+                    hotels_exported.add(str(inv.hotel_id))
+
+            for hotel_id in hotels_exported:
+                log_entry = HotelExportLog(
+                    hotel_id=hotel_id,
+                    export_type='room_export',
+                    record_count=len([b for b in bookings if b['assigned_hotel_id'] == hotel_id]),
+                )
+                session.add(log_entry)
+            session.commit()
+
+            return bookings
+
+    @api_auth('api_update')
+    def import_confirmation_numbers(self, mappings=None):
+        """
+        Import hotel confirmation numbers for room bookings.
+
+        Accepts a JSON array. Each entry must include `hotel_confirmation_number`
+        plus either `assignment_id` (preferred, unambiguous) or
+        `confirmation_num` (legacy - looks up the matching RoomAssignment
+        via its lottery_application_id). Writes to RoomAssignment only.
+        """
+        from uber.models.hotel import RoomAssignment
+
+        if not mappings:
+            return {'error': 'No mappings provided.'}
+
+        if isinstance(mappings, str):
+            mappings = json.loads(mappings)
+
+        results = []
+        with Session() as session:
+            hotels_imported = set()
+            for mapping in mappings:
+                assignment_id = mapping.get('assignment_id')
+                conf_num = mapping.get('confirmation_num')
+                hotel_conf = mapping.get('hotel_confirmation_number')
+
+                if not hotel_conf or not (assignment_id or conf_num):
+                    results.append({'confirmation_num': conf_num,
+                                    'assignment_id': assignment_id,
+                                    'status': 'error',
+                                    'message': 'Missing required fields.'})
+                    continue
+
+                ras = []
+                if assignment_id:
+                    ra = session.query(RoomAssignment).get(assignment_id)
+                    if ra:
+                        ras = [ra]
+                elif conf_num:
+                    app = session.query(LotteryApplication).filter(
+                        LotteryApplication.confirmation_num == conf_num
+                    ).one_or_none()
+                    if app:
+                        ras = session.query(RoomAssignment).filter_by(
+                            lottery_application_id=app.id).all()
+
+                if not ras:
+                    results.append({'confirmation_num': conf_num,
+                                    'assignment_id': assignment_id,
+                                    'status': 'error',
+                                    'message': 'Assignment not found.'})
+                    continue
+
+                for ra in ras:
+                    ra.hotel_confirmation_number = hotel_conf
+                    session.add(ra)
+                    if ra.inventory and ra.inventory.hotel_id:
+                        hotels_imported.add(str(ra.inventory.hotel_id))
+                results.append({'confirmation_num': conf_num,
+                                'assignment_id': assignment_id,
+                                'status': 'success'})
+
+            for hotel_id in hotels_imported:
+                log_entry = HotelExportLog(
+                    hotel_id=hotel_id,
+                    export_type='confirmation_import',
+                    record_count=len([r for r in results if r['status'] == 'success']),
+                )
+                session.add(log_entry)
+            session.commit()
+
+        return {'results': results}
 
 
 @all_api_auth('api_read')

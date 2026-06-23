@@ -1,0 +1,46 @@
+{% set ra = assignment %}
+{% set inv = ra.inventory %}
+<html>
+<head></head>
+<body>
+<p>
+  {% if leader %}{{ leader.first_name }} {{ leader.last_name }}{% else %}A {{ c.EVENT_NAME }} attendee{% endif %}
+  has invited you to share their hotel room at {{ c.EVENT_NAME_AND_YEAR }}.
+</p>
+
+<p>The room they'd like to add you to:</p>
+<ul>
+  {% if inv and inv.hotel %}<li><strong>Hotel:</strong> {{ inv.hotel.name }}</li>{% endif %}
+  {% if inv %}
+    <li><strong>Room type:</strong>
+      {% if inv.is_suite %}{{ inv.suite_type.name if inv.suite_type else inv.name }}
+      {% else %}{{ inv.room_type.name if inv.room_type else inv.name }}{% endif %}
+    </li>
+  {% endif %}
+  {% if ra.assigned_check_in_date and ra.assigned_check_out_date %}
+    <li><strong>Dates:</strong>
+      {{ ra.assigned_check_in_date.strftime("%B %-d") }}
+      to {{ ra.assigned_check_out_date.strftime("%B %-d") }}
+    </li>
+  {% endif %}
+</ul>
+
+<p>
+  <a href="{{ c.URL_BASE }}/hotel_lottery/invite?token={{ token }}">
+    Click here to accept or reject the invite
+  </a>
+  - you'll be asked to log in to your {{ c.EVENT_NAME }} account first.
+</p>
+
+<p>
+  If you accept, your name and email will be visible to everyone else
+  staying in the room. Your photo-ID legal name and other personal
+  details remain private to you.
+</p>
+
+<p>
+  If you don't recognize this invite or weren't expecting it, you can
+  safely ignore this email.
+</p>
+</body>
+</html>

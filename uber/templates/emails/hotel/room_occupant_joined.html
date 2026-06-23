@@ -1,0 +1,27 @@
+{% set ra = assignment %}
+{% set inv = ra.inventory %}
+<html>
+<head></head>
+<body>
+<p>{{ leader.first_name }} {{ leader.last_name }},</p>
+
+<p>
+  <strong>{{ guest.first_name }} {{ guest.last_name }}</strong>
+  ({{ guest.email }}) has accepted your invitation and is now an
+  occupant of your room at {{ c.EVENT_NAME_AND_YEAR }}.
+</p>
+
+{% if inv %}
+<p>Room:
+  {{ inv.hotel.name if inv.hotel else '' }} -
+  {% if inv.is_suite %}{{ inv.suite_type.name if inv.suite_type else inv.name }}
+  {% else %}{{ inv.room_type.name if inv.room_type else inv.name }}{% endif %}.
+</p>
+{% endif %}
+
+<p>
+  You can manage occupants for this room from your
+  <a href="{{ c.URL_BASE }}/hotel_lottery/room?id={{ ra.id }}">room editor</a>.
+</p>
+</body>
+</html>

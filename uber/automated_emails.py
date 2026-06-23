@@ -12,7 +12,7 @@ from uber import decorators
 from uber.jinja import JinjaEnv
 from uber.models import (AdminAccount, Attendee, AttendeeAccount, ArtShowApplication, ArtShowBidder, AutomatedEmail, AttractionSignup, Department,
                          Email, Group, GuestGroup, IndieGame, IndieJudge, IndieStudio, ArtistMarketplaceApplication, MITSTeam,
-                         MITSApplicant, ReceiptInfo, PanelApplication, PanelApplicant, PromoCode, PromoCodeGroup, Room, RoomAssignment, LotteryApplication, Shift)
+                         MITSApplicant, ReceiptInfo, PanelApplication, PanelApplicant, PromoCode, PromoCodeGroup, LotteryApplication, Shift)
 from uber.utils import after, before, days_after, days_before, days_between, localized_now, DeptChecklistConf
 
 log = logging.getLogger(__name__)
@@ -35,7 +35,6 @@ class AutomatedEmailFixture:
             subqueryload(Attendee.dept_memberships),
             subqueryload(Attendee.dept_memberships_with_role),
             subqueryload(Attendee.depts_where_working),
-            subqueryload(Attendee.hotel_requests),
             subqueryload(Attendee.promo_code_groups),
             subqueryload(Attendee.promo_code),
             subqueryload(Attendee.assigned_panelists)],
@@ -46,7 +45,6 @@ class AutomatedEmailFixture:
         Group: [subqueryload(Group.attendees)],
         LotteryApplication: [subqueryload(LotteryApplication.attendee)],
         PromoCodeGroup: [subqueryload(PromoCodeGroup.buyer)],
-        Room: [subqueryload(Room.assignments).subqueryload(RoomAssignment.attendee)],
         IndieStudio: [subqueryload(IndieStudio.developers), subqueryload(IndieStudio.games)],
         IndieGame: [joinedload(IndieGame.studio).subqueryload(IndieStudio.developers)],
         IndieJudge: [joinedload(IndieJudge.admin_account).joinedload(AdminAccount.attendee)],
@@ -1160,61 +1158,53 @@ if c.HOTEL_LOTTERY_STAFF_START or c.HOTEL_LOTTERY_FORM_START:
         'group_lottery_member_joined'
     )
 
-
-if c.HOTELS_ENABLED and c.HOURS_FOR_HOTEL_SPACE:
-    AutomatedEmailFixture(
-        Attendee,
-        f'Want volunteer hotel room space at {c.EVENT_NAME}?',
-        'hotel/hotel_rooms.txt',
-        "lambda a: a.badge_type != c.CONTRACTOR_BADGE and a.hotel_eligible and not a.hotel_requests and a.takes_shifts",
-        'volunteer_hotel_room_inquiry',
-        sender=c.ROOM_EMAIL_SENDER,
-        when=[days_before(45, c.ROOM_DEADLINE, 14)])
-
-    AutomatedEmailFixture(
-        Attendee,
-        f'Reminder to sign up for {c.EVENT_NAME} hotel room space',
-        'hotel/hotel_reminder.txt',
-        "lambda a: a.badge_type != c.CONTRACTOR_BADGE and a.hotel_eligible and not a.hotel_requests and a.takes_shifts",
-        'hotel_sign_up_reminder',
-        sender=c.ROOM_EMAIL_SENDER,
-        when=[days_before(14, c.ROOM_DEADLINE, 2)])
-
-    AutomatedEmailFixture(
-        Attendee,
-        f'Last chance to sign up for {c.EVENT_NAME} hotel room space',
-        'hotel/hotel_reminder.txt',
-        "lambda a: a.badge_type != c.CONTRACTOR_BADGE and a.hotel_eligible and not a.hotel_requests and a.takes_shifts",
-        'hotel_sign_up_reminder_last_chance',
-        sender=c.ROOM_EMAIL_SENDER,
-        when=[days_before(2, c.ROOM_DEADLINE)])
-
-    AutomatedEmailFixture(
-        Attendee,
-        f'Reminder to meet your {c.EVENT_NAME} hotel room requirements',
-        'hotel/hotel_hours.txt',
-        "lambda a: a.badge_type != c.CONTRACTOR_BADGE and a.hotel_shifts_required and a.weighted_hours < c.HOURS_FOR_HOTEL_SPACE",
-        'hotel_requirements_reminder',
-        sender=c.ROOM_EMAIL_SENDER,
-        when=[days_before(14, c.FINAL_EMAIL_DEADLINE, 7)])
-
-    AutomatedEmailFixture(
-        Attendee,
-        f'Final reminder to meet your {c.EVENT_NAME} hotel room requirements',
-        'hotel/hotel_hours.txt',
-        "lambda a: a.badge_type != c.CONTRACTOR_BADGE and a.hotel_shifts_required and a.weighted_hours < c.HOURS_FOR_HOTEL_SPACE",
-        'hotel_requirements_reminder_last_chance',
-        sender=c.ROOM_EMAIL_SENDER,
-        when=[days_before(7, c.FINAL_EMAIL_DEADLINE)])
-
-    if not c.HOTEL_REQUESTS_URL:
-        AutomatedEmailFixture(
-            Room,
-            f'{c.EVENT_NAME} Hotel Room Assignment',
-            'hotel/room_assignment.txt',
-            "lambda r: r.locked_in",
-            'hotel_room_assignment',
-            sender=c.ROOM_EMAIL_SENDER,)
+    # Transactional lottery emails queued directly via EmailService.queue_email
+    # (filter=None: they are not sent by the automated sweep).
+    HotelLotteryEmailFixture(
+        f'You have a room at {c.EVENT_NAME}',
+        'hotel/room_occupant_invite.html', None,
+        'room_occupant_invite'
+    )
+    HotelLotteryEmailFixture(
+        f'Someone joined your {c.EVENT_NAME} room',
+        'hotel/room_occupant_joined.html', None,
+        'room_occupant_joined'
+    )
+    HotelLotteryEmailFixture(
+        f'You have been invited to a room at {c.EVENT_NAME}',
+        'hotel/room_guest_invite.html', None,
+        'room_guest_invite'
+    )
+    HotelLotteryEmailFixture(
+        f'Still interested in a {c.EVENT_NAME_AND_YEAR} hotel room?',
+        'hotel/confirm_interest_request.html', None,
+        'hotel_lottery_confirm_interest'
+    )
+    HotelLotteryEmailFixture(
+        f'{c.EVENT_NAME_AND_YEAR} Hotel Reservation Updated',
+        'hotel/confirmation_updated.html', None,
+        'hotel_lottery_confirmation_updated'
+    )
+    HotelLotteryEmailFixture(
+        f'A {c.EVENT_NAME_AND_YEAR} hotel preference is no longer available',
+        'hotel/inventory_changed_applicant.html', None,
+        'hotel_lottery_inventory_changed_applicant'
+    )
+    HotelLotteryEmailFixture(
+        f'{c.EVENT_NAME_AND_YEAR} hotel inventory changed',
+        'hotel/inventory_changed_owner.html', None,
+        'hotel_lottery_inventory_changed_owner'
+    )
+    HotelLotteryEmailFixture(
+        f'{c.EVENT_NAME} Hotel Lottery - Room Dates Updated',
+        'hotel/waitlist_fulfilled.html', None,
+        'hotel_lottery_waitlist_fulfilled'
+    )
+    HotelLotteryEmailFixture(
+        f'{c.EVENT_NAME_AND_YEAR} hotel waitlist',
+        'hotel/waitlist_reveal.html', None,
+        'hotel_lottery_waitlist_reveal'
+    )
 
 
 # =============================
