@@ -136,6 +136,8 @@ class OIDC(cherrypy.Tool):
         Cryptographically verifies the JWT signature using Keycloak's public keys.
         Returns the decoded payload if valid, raises Exception if not.
         """
+        if not token:
+            return None
         try:
             # Get the header to find the Key ID (kid)
             headers = jwt.get_unverified_header(token)
@@ -266,6 +268,8 @@ class OIDC(cherrypy.Tool):
         if not tokens:
             return "Login failed."
         claims = self._verify_token(tokens.get('id_token', None))
+        if not claims:
+            return "Login failed."
         sso_id = claims.get('sub', None)
         if not sso_id:
             return "No account ID provided. Please contact your developer."
