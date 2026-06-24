@@ -42,10 +42,7 @@ withdrawConfirm = function() {
            caller doesn't define it - fall back to the local application
            (or its parent for group entries) so the include works in
            every context. #}
-        {% set _fallback_app_or_parent = application.parent_application
-                                         if application.entry_type == c.GROUP_ENTRY
-                                         else application %}
-        {% set _app_or_parent = app_or_parent|default(_fallback_app_or_parent, true) %}
+        {% set _app_or_parent = app_or_parent|default(application.app_or_parent, true) %}
         {% set _has_award = (_app_or_parent.attendee.room_assignments if _app_or_parent and _app_or_parent.attendee else [])
                             |selectattr('status', 'in', [c.ASSIGNED, c.SECURED])|list|length > 0 %}
         '<p>This will <strong>delete your lottery entry{% if application.group_members %} and disband your group{% endif %}</strong>{% if application.parent_application %} and your group leader will be {% if _has_award %}instructed to remove your name from the reservation{% else %}notified{% endif %}{% endif %}. ' +

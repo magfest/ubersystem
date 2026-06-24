@@ -293,10 +293,12 @@ def generate_lottery_test_data(session):
         cc_last_four='4242', cc_card_type='Visa', cc_captured_at=now))
     summary.append('Regular attendee with a secured awarded room')
 
-    # (b) Roommate group: leader + two accepted members sharing one room
+    # (b) Roommate group: leader + two accepted members sharing one room. The
+    # leader is a normal room entry with a group name; only members are
+    # GROUP_ENTRY (with a parent_application_id pointing at the leader).
     leader = make_attendee('Group', 'Leader')
     leader_app = make_application(
-        leader, status=c.AWARDED, entry_type=c.GROUP_ENTRY,
+        leader, status=c.AWARDED, entry_type=c.ROOM_ENTRY,
         room_group_name='Test Roommates', hotel_preference=str(hotel.id),
         room_type_preference=str(std_type.id), **date_window)
     members = [make_attendee('Group', 'MemberOne'), make_attendee('Group', 'MemberTwo')]
