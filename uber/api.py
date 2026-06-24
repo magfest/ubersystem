@@ -1660,37 +1660,40 @@ class HotelLookup:
             if not ident:
                 return "You must provide a hotel or hotel_name argument"
 
-            # Resolve by export/display name first.
-            hotel_obj = session.query(LotteryHotel).filter(
-                or_(LotteryHotel.export_name == ident,
-                    LotteryHotel.name == ident)).first()
-
-            # Then tolerate slug/casing/spacing differences, e.g. a reference of
-            # "gaylord-national-resort" against a hotel named "Gaylord National
-            # Resort" or export_name "Gaylord_National_Resort".
-            if not hotel_obj:
-                def slug(value):
-                    return re.sub(r'[^a-z0-9]+', '-', (value or '').strip().lower()).strip('-')
-                target = slug(ident)
-                if target:
-                    for h in session.query(LotteryHotel).all():
-                        if target in (slug(h.export_name), slug(h.name)):
-                            hotel_obj = h
-                            break
-
-            # Finally fall back to a UUID lookup when the identifier is an id.
-            if not hotel_obj:
-                try:
-                    uuid.UUID(str(ident))
-                except ValueError:
-                    hotel_obj = None
-                else:
-                    hotel_obj = session.query(LotteryHotel).get(ident)
-            if not hotel_obj:
-                return []
-
+            # The hotel portal scopes itself to a PCI Vault reference, which is
+            # stored on each inventory block as `vault_reference`. Match those
+            # blocks directly first - that's how the portal's reference maps to
+            # rooms.
             hotel_inv_ids = [str(inv.id) for inv in
-                             session.query(HotelRoomInventory).filter_by(hotel_id=hotel_obj.id).all()]
+                             session.query(HotelRoomInventory).filter_by(vault_reference=ident).all()]
+
+            # Otherwise resolve a LotteryHotel by id, export/display name, or a
+            # slugified name (tolerating casing/spacing), and take all of its
+            # inventory.
+            if not hotel_inv_ids:
+                hotel_obj = session.query(LotteryHotel).filter(
+                    or_(LotteryHotel.export_name == ident,
+                        LotteryHotel.name == ident)).first()
+                if not hotel_obj:
+                    def slug(value):
+                        return re.sub(r'[^a-z0-9]+', '-', (value or '').strip().lower()).strip('-')
+                    target = slug(ident)
+                    if target:
+                        for h in session.query(LotteryHotel).all():
+                            if target in (slug(h.export_name), slug(h.name)):
+                                hotel_obj = h
+                                break
+                if not hotel_obj:
+                    try:
+                        uuid.UUID(str(ident))
+                    except ValueError:
+                        hotel_obj = None
+                    else:
+                        hotel_obj = session.query(LotteryHotel).get(ident)
+                if hotel_obj:
+                    hotel_inv_ids = [str(inv.id) for inv in
+                                     session.query(HotelRoomInventory).filter_by(hotel_id=hotel_obj.id).all()]
+
             if not hotel_inv_ids:
                 return []
 
