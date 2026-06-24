@@ -1745,6 +1745,13 @@ class HotelLookup:
                     'assigned_check_out_date':
                         str(ra.assigned_check_out_date) if ra.assigned_check_out_date else None,
                     'cc_token': ra.cc_token,
+                    # Stored card metadata (NOT the full PAN, which stays in the
+                    # vault behind cc_token). Lets a rooming list fill CC Type /
+                    # Exp Date / cardholder without a vault round-trip.
+                    'cc_last_four': ra.cc_last_four,
+                    'cc_card_type': ra.cc_card_type,
+                    'cc_card_expiry': ra.cc_card_expiry,
+                    'cc_card_holder': ra.cc_card_holder,
                     'hotel_confirmation_number': ra.hotel_confirmation_number,
                     'hotel_cancellation_number': ra.cancellation_confirmation_number,
                     'cancellation_confirmation_number': ra.cancellation_confirmation_number,
@@ -1763,6 +1770,17 @@ class HotelLookup:
                     'wants_ada': (app.wants_ada if app else False),
                     'ada_requests': (app.ada_requests if app else ''),
                     'special_requests': ra.special_requests,
+                    # Occupancy: booker plus the additional roommate occupants.
+                    'num_occupants': 1 + len(guests),
+                    'num_nights': (
+                        (ra.assigned_check_out_date - ra.assigned_check_in_date).days
+                        if ra.assigned_check_in_date and ra.assigned_check_out_date else None),
+                    # Loyalty / rewards program number (e.g. Hilton Honors).
+                    'hotel_rewards_number':
+                        ra.hotel_rewards_number or (app.hotel_rewards_number if app else ''),
+                    # Billing: True = self-pay (guest's card guarantees the room,
+                    # "individual pays own"); False = on the master bill ("room & tax").
+                    'require_cc': ra.require_cc,
                     'guests': guests,
                     'last_modified_at':
                         str(ra.last_modified_at) if ra.last_modified_at else None,
