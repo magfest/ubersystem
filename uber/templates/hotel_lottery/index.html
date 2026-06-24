@@ -1,6 +1,6 @@
 {% extends "./preregistration/preregbase.html" %}
 {% set title_text = "Hotel Lottery Applications for " ~ application.attendee.full_name %}
-{% set app_or_parent = application.parent_application if application.entry_type == c.GROUP_ENTRY else application %}
+{% set app_or_parent = application.app_or_parent %}
 
 {% block content %}
 {% include 'hotel_lottery/withdraw_confirm.html' with context %}

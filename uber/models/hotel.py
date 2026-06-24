@@ -263,8 +263,19 @@ class LotteryApplication(MagModel, table=True):
         return self.attendee.full_name if self.attendee else "[DISASSOCIATED]"
 
     @property
+    def app_or_parent(self):
+        # A group member (GROUP_ENTRY with a parent) defers to its leader for
+        # award/room data; everyone else - including the group leader - is its
+        # own application. Guarding on parent_application keeps a mislabeled or
+        # orphaned GROUP_ENTRY (e.g. a leader whose entry_type is wrong, or a
+        # member whose leader was deleted) from blowing up the attendee page.
+        if self.entry_type == c.GROUP_ENTRY and self.parent_application:
+            return self.parent_application
+        return self
+
+    @property
     def application_status_str(self):
-        app_or_parent = self.parent_application if self.entry_type == c.GROUP_ENTRY else self
+        app_or_parent = self.app_or_parent
         if not app_or_parent.complete_or_processed:
             return "NOT entered in the hotel room or suite lottery"
 
@@ -281,7 +292,7 @@ class LotteryApplication(MagModel, table=True):
 
     @property
     def award_status_str(self):
-        app_or_parent = self.parent_application if self.entry_type == c.GROUP_ENTRY else self
+        app_or_parent = self.app_or_parent
         if not self.finalized:
             return ''
         if self.staff_award_status_str:
@@ -350,7 +361,7 @@ class LotteryApplication(MagModel, table=True):
         # Multi-room: "ready" = at least one of the attendee's RoomAssignment
         # rows has its booking URL populated. The URL is per-assignment:
         # each room has its own booking link from the hotel.
-        app_or_parent = self.parent_application if self.entry_type == c.GROUP_ENTRY else self
+        app_or_parent = self.app_or_parent
         attendee = app_or_parent.attendee
         if not attendee:
             return False
