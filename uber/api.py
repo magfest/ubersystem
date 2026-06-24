@@ -1695,7 +1695,23 @@ class HotelLookup:
                                      session.query(HotelRoomInventory).filter_by(hotel_id=hotel_obj.id).all()]
 
             if not hotel_inv_ids:
-                return []
+                return {'last_export_time': '', 'bookings': []}
+
+            # Per-hotel export watermark: capture the previous export time to
+            # return, then the HotelExportLog rows added below advance it to now.
+            # The viewer defaults its "changed since" filter to last_export_time.
+            export_hotel_ids = {
+                row[0] for row in session.query(HotelRoomInventory.hotel_id)
+                .filter(HotelRoomInventory.id.in_(hotel_inv_ids)).distinct().all()
+                if row[0]}
+            last_export_time = ''
+            if export_hotel_ids:
+                prev = (session.query(HotelExportLog.exported_at)
+                        .filter(HotelExportLog.export_type == 'room_export',
+                                HotelExportLog.hotel_id.in_(export_hotel_ids))
+                        .order_by(HotelExportLog.exported_at.desc()).first())
+                if prev and prev[0]:
+                    last_export_time = prev[0].isoformat()
 
             assignments = (session.query(RoomAssignment)
                            .filter(RoomAssignment.status.in_([c.ASSIGNED, c.SECURED]),
@@ -1729,7 +1745,12 @@ class HotelLookup:
                                    if inv and not inv.is_suite and inv.room_type else None)
                 hotel_obj = inv.hotel if inv else None
 
+                # Stable per-room id (distinct from the application's response_id)
+                # so the portal can reconcile rows across exports.
+                _last_modified = ra.last_modified_at or ra.last_updated
                 bookings.append({
+                    'room_id': str(ra.id),
+                    'last_modified': _last_modified.isoformat() if _last_modified else None,
                     'assignment_id': ra.id,
                     'parent_assignment_id': ra.parent_assignment_id,
                     'assignment_reason': ra.assignment_reason_label,
@@ -1799,7 +1820,7 @@ class HotelLookup:
                 session.add(log_entry)
             session.commit()
 
-            return bookings
+            return {'last_export_time': last_export_time, 'bookings': bookings}
 
     @api_auth('api_update')
     def import_confirmation_file(self, reference=None, filename=None, file=None, uploaded_by=None):
