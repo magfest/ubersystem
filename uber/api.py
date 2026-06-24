@@ -1660,11 +1660,25 @@ class HotelLookup:
             if not ident:
                 return "You must provide a hotel or hotel_name argument"
 
-            # Resolve by export/display name first; fall back to a UUID lookup
-            # when the identifier is a LotteryHotel id.
+            # Resolve by export/display name first.
             hotel_obj = session.query(LotteryHotel).filter(
                 or_(LotteryHotel.export_name == ident,
                     LotteryHotel.name == ident)).first()
+
+            # Then tolerate slug/casing/spacing differences, e.g. a reference of
+            # "gaylord-national-resort" against a hotel named "Gaylord National
+            # Resort" or export_name "Gaylord_National_Resort".
+            if not hotel_obj:
+                def slug(value):
+                    return re.sub(r'[^a-z0-9]+', '-', (value or '').strip().lower()).strip('-')
+                target = slug(ident)
+                if target:
+                    for h in session.query(LotteryHotel).all():
+                        if target in (slug(h.export_name), slug(h.name)):
+                            hotel_obj = h
+                            break
+
+            # Finally fall back to a UUID lookup when the identifier is an id.
             if not hotel_obj:
                 try:
                     uuid.UUID(str(ident))
