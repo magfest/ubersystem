@@ -1802,7 +1802,7 @@ class HotelLookup:
             return bookings
 
     @api_auth('api_update')
-    def import_confirmation_file(self, reference=None, filename=None, file=None):
+    def import_confirmation_file(self, reference=None, filename=None, file=None, uploaded_by=None):
         """
         Apply hotel confirmation and/or cancellation numbers from an uploaded file.
 
@@ -1818,6 +1818,9 @@ class HotelLookup:
         present are applied, keyed by confirmation_num. Unknown columns are
         ignored and rows that don't match a known booking are skipped. Returns
         {updated, unchanged, changes}.
+
+        `uploaded_by` is the authenticated portal username of the uploader; it's
+        recorded for the exports page "Uploaded By" column (display/audit only).
 
         The raw file is retained for later debugging; uber-vault rejects any
         file containing a card number before calling this, so the file is
@@ -1842,7 +1845,7 @@ class HotelLookup:
                         LotteryHotel.name == reference)).first()
             result = apply_import_file(
                 session, raw, filename, hotel=hotel,
-                source='portal', uploaded_by='Hotel Portal')
+                source='portal', uploaded_by=uploaded_by or 'Hotel Portal')
 
         summary = {'updated': result['updated'], 'unchanged': result['unchanged'],
                    'changes': result['changes']}
