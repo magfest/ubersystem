@@ -5112,10 +5112,11 @@ class Root:
             'Issue hidden.', severity, kind, search, show_hidden))
 
     def unhide_issue(self, session, issue_kind='', target_type='',
-                     target_id='', severity='all', kind='all', search='',
+                     target_id='', admin_notes='', severity='all', kind='all', search='',
                      show_hidden='1', csrf_token=None):
         """Un-hide an issue so it returns to the active report. The note
-        text is preserved (the row stays, just `hidden=False`)."""
+        text is preserved (the row stays, just `hidden=False`); `admin_notes`
+        is accepted from the shared form but intentionally ignored here."""
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect(_room_issues_url())
         check_csrf(csrf_token)
