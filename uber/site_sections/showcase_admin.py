@@ -114,7 +114,7 @@ class Root:
 
         return {"success": True}
 
-    def studios(self, session, message='', **params):
+    def studios(self, session, message=''):
         studios = session.query(IndieStudio).outerjoin(IndieStudio.games)
         primary_contact_emails = []
         for studio in studios:

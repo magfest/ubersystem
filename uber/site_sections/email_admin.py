@@ -24,15 +24,15 @@ def filter_emails_by_dept_id(session, email_model, emails, department_id, email_
     depts_by_sender = {}
     dept_ids = []
 
-    if department_id == 'All':
-        dept_ids = email_depts
-    elif department_id and department_id != 'None':
+    if department_id and department_id not in ['None', 'All']:
         dept_ids = [department_id]
+    elif department_id == 'All' or not c.HAS_FULL_EMAIL_ADMIN_ACCESS:
+        dept_ids = email_depts
 
     depts_by_sender = EmailService.emails_from_depts(session, dept_ids)
     dept_email_re = [fr'(^|<){email.replace('.', '\\.')}(>|$)' for email in depts_by_sender.keys()]
 
-    if not department_id:
+    if not department_id and c.HAS_FULL_EMAIL_ADMIN_ACCESS:
         return emails, depts_by_sender
     elif department_id == 'None':
         emails = emails.filter(~email_model.sender.regexp_match(any_(dept_email_re), flags="i"))
@@ -57,7 +57,7 @@ class Root:
         search_text = search_text.strip()
         automated_email = None
 
-        email_depts = [str(d.id) for d in session.admin_attendee().dept_memberships_with_inherent_role]
+        email_depts = [str(d.department_id) for d in session.admin_attendee().dept_memberships_with_inherent_role]
         emails, depts_by_sender = filter_emails_by_dept_id(session, Email, emails,
                                                            params.get('department_id', ''), email_depts)
 
@@ -123,7 +123,7 @@ class Root:
                     '../dept_checklist/index?department_id={}&message={}', department_id, message)
 
         emails = session.query(AutomatedEmail).filter(AutomatedEmail.subject != '', AutomatedEmail.sender != '')
-        email_depts = [str(d.id) for d in session.admin_attendee().dept_memberships_with_inherent_role]
+        email_depts = [str(d.department_id) for d in session.admin_attendee().dept_memberships_with_inherent_role]
         emails, depts_by_sender = filter_emails_by_dept_id(session, AutomatedEmail, emails,
                                                            params.get('department_id', ''), email_depts)
 
