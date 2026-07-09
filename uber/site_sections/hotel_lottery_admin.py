@@ -1561,6 +1561,13 @@ class Root:
                           content_type=record.content_type or 'application/octet-stream')
 
     def run_lottery(self, session, lottery_group="attendee", lottery_type="room", run_name="", **params):
+        # Running a lottery mutates dozens of applications and creates
+        # RoomAssignment rows - it must never fire on a bare GET (a
+        # crawler or prefetch would silently run a lottery).
+        if cherrypy.request.method != 'POST':
+            raise HTTPRedirect('lottery_runs')
+        check_csrf(params.get('csrf_token'))
+
         if lottery_type == "room":
             lottery_type_val = c.ROOM_ENTRY
         elif lottery_type == "suite":

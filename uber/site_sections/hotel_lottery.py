@@ -1757,8 +1757,8 @@ class Root:
         if not ra:
             raise HTTPRedirect('index?id={}&message={}', id,
                                f"{you_str} entry does not have a room or suite award.")
-        booking_url = (ra.inventory.hotel.booking_url
-                       if ra.inventory and ra.inventory.hotel else '')
+        # Booking links are per-assignment (there is no hotel-wide link).
+        booking_url = ra.booking_url
         if not booking_url:
             raise HTTPRedirect(
                 'index?id={}&message={}', id,

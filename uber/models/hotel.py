@@ -387,16 +387,13 @@ class LotteryApplication(MagModel, table=True):
     def booking_url_ready(self):
         # Multi-room: "ready" = at least one of the attendee's RoomAssignment
         # rows has its booking URL populated. The URL is per-assignment:
-        # each room has its own booking link from the hotel.
+        # each room has its own booking link from the hotel (LotteryHotel
+        # deliberately has no hotel-wide booking link column).
         app_or_parent = self.app_or_parent
         attendee = app_or_parent.attendee
         if not attendee:
             return False
-        return any(
-            (ra.booking_url or (ra.inventory and ra.inventory.hotel and ra.inventory.hotel.booking_url))
-            for ra in (attendee.room_assignments or [])
-            if ra.is_live
-        )
+        return any(ra.booking_url for ra in attendee.active_room_assignments)
 
     @property
     def group_status_str(self):
