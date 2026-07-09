@@ -31,8 +31,6 @@
 </p>
 {% endif %}
 
-{% if message %}<div class="alert alert-info">{{ message }}</div>{% endif %}
-
 <form method="post" enctype="multipart/form-data"
       action="import_hotel_{{ 'cancellations' if kind == 'cancellation' else 'confirmations' }}"
       class="card card-body mb-4">

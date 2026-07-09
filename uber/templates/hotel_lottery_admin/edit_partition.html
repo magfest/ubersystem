@@ -13,8 +13,6 @@
   <a href="manage_partitions" class="btn btn-outline-secondary">Back to Partitions</a>
 </div>
 
-{% if message %}<div class="alert alert-info">{{ message }}</div>{% endif %}
-
 <form method="post" action="edit_partition" class="card card-body" style="max-width: 800px;">
   {{ csrf_token() }}
   {% if not partition.is_new %}

@@ -11,10 +11,6 @@
   PARTITION_GRANT scoped to their partition.
 </p>
 
-{% if message %}
-<div class="alert alert-danger">{{ message }}</div>
-{% endif %}
-
 <form method="post" action="assign_room">
   {{ csrf_token() }}
   {% if not assignment.is_new %}<input type="hidden" name="id" value="{{ assignment.id }}" />{% endif %}

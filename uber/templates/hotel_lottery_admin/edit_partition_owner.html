@@ -8,10 +8,6 @@
   {% if grant.id %}Edit Partition Access{% else %}Grant Partition Access{% endif %}
 </h1>
 
-{% if message %}
-<div class="alert alert-danger">{{ message }}</div>
-{% endif %}
-
 <form method="post" action="edit_partition_owner">
   {{ csrf_token() }}
   {% if grant.id %}<input type="hidden" name="id" value="{{ grant.id }}" />{% endif %}

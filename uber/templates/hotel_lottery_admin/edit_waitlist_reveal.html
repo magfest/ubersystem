@@ -8,8 +8,6 @@
 
 <h1>{% if reveal.is_new %}New{% else %}Edit{% endif %} Waitlist Reveal</h1>
 
-{% if message %}<div class="alert alert-danger">{{ message }}</div>{% endif %}
-
 <form method="post" action="edit_waitlist_reveal">
   {{ csrf_token() }}
   {% if not reveal.is_new %}<input type="hidden" name="id" value="{{ reveal.id }}" />{% endif %}

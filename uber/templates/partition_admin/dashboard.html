@@ -13,8 +13,6 @@
 <h1>{{ partition.name }}</h1>
 {% if partition.description %}<p class="text-muted">{{ partition.description }}</p>{% endif %}
 
-{% if message %}<div class="alert alert-info">{{ message }}</div>{% endif %}
-
 {# Stats summary across the whole partition (not just the current page) #}
 <div class="row g-2 mb-4">
   <div class="col-md-3">
@@ -324,7 +322,6 @@
 
 </div>{# /.tab-content #}
 
-
 {% if can_edit_assignments %}
 {% for attendee_id, assignments in modal_groups.items() %}
 {% set lead = assignments[0] %}
@@ -433,7 +430,6 @@
 </div>
 {% endfor %}
 {% endif %}
-
 
 {% if can_edit_assignments %}
 <script>

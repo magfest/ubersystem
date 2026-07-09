@@ -16,10 +16,6 @@
   of those dates.
 </p>
 
-{% if message %}
-<div class="alert alert-success">{{ message }}</div>
-{% endif %}
-
 <form method="post" action="save">
   {{ csrf_token() }}
 
