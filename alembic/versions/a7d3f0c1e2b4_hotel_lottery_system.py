@@ -7,7 +7,7 @@ and room-issue notes. Replaces the legacy room/hotel_requests tables and
 migrates existing lottery applications onto the new room_assignment model.
 
 Revision ID: a7d3f0c1e2b4
-Revises: 4df6bfee2c69
+Revises: 4885cb7df802
 Create Date: 2026-06-10 00:00:00.000000
 """
 
@@ -183,8 +183,8 @@ def upgrade():
     )
     op.add_column('lottery_application', sa.Column('assigned_inventory_id', sa.Uuid(as_uuid=False), nullable=True))
     op.add_column('lottery_application', sa.Column('partition_id', sa.Uuid(as_uuid=False), nullable=True))
-    op.add_column('lottery_application', sa.Column('export_locked', sa.Boolean(), nullable=False))
-    op.add_column('lottery_application', sa.Column('invite_token', sa.Unicode(), nullable=False))
+    op.add_column('lottery_application', sa.Column('export_locked', sa.Boolean(), server_default=sa.text('false'), nullable=False))
+    op.add_column('lottery_application', sa.Column('invite_token', sa.Unicode(), server_default='', nullable=False))
     op.add_column('lottery_application', sa.Column('invited_by_id', sa.Uuid(as_uuid=False), nullable=True))
     op.add_column('lottery_application', sa.Column('invite_status', sa.Integer(), server_default='117453886', nullable=False))
     op.add_column('lottery_application', sa.Column('invite_expires_at', sa.DateTime(timezone=True), nullable=True))
@@ -199,26 +199,25 @@ def upgrade():
     op.add_column('lottery_application', sa.Column('cc_issuer_card_type', sa.Unicode(), nullable=True))
     op.add_column('lottery_application', sa.Column('cc_issuer_card_level', sa.Unicode(), nullable=True))
     op.add_column('lottery_application', sa.Column('cc_captured_at', sa.DateTime(timezone=True), nullable=True))
-    op.add_column('lottery_application', sa.Column('address1', sa.Unicode(), nullable=False))
-    op.add_column('lottery_application', sa.Column('address2', sa.Unicode(), nullable=False))
-    op.add_column('lottery_application', sa.Column('city', sa.Unicode(), nullable=False))
-    op.add_column('lottery_application', sa.Column('region', sa.Unicode(), nullable=False))
-    op.add_column('lottery_application', sa.Column('zip_code', sa.Unicode(), nullable=False))
-    op.add_column('lottery_application', sa.Column('country', sa.Unicode(), nullable=False))
+    op.add_column('lottery_application', sa.Column('address1', sa.Unicode(), server_default='', nullable=False))
+    op.add_column('lottery_application', sa.Column('address2', sa.Unicode(), server_default='', nullable=False))
+    op.add_column('lottery_application', sa.Column('city', sa.Unicode(), server_default='', nullable=False))
+    op.add_column('lottery_application', sa.Column('region', sa.Unicode(), server_default='', nullable=False))
+    op.add_column('lottery_application', sa.Column('zip_code', sa.Unicode(), server_default='', nullable=False))
+    op.add_column('lottery_application', sa.Column('country', sa.Unicode(), server_default='', nullable=False))
     op.add_column('lottery_application', sa.Column('hotel_confirmation_number', sa.Unicode(), nullable=True))
-    op.add_column('lottery_application', sa.Column('special_requests', sa.Unicode(), nullable=False))
-    op.add_column('lottery_application', sa.Column('hotel_rewards_number', sa.Unicode(), nullable=False))
+    op.add_column('lottery_application', sa.Column('special_requests', sa.Unicode(), server_default='', nullable=False))
+    op.add_column('lottery_application', sa.Column('hotel_rewards_number', sa.Unicode(), server_default='', nullable=False))
     op.add_column('lottery_application', sa.Column('last_modified_at', sa.DateTime(timezone=True), nullable=True))
     op.add_column('lottery_application', sa.Column('lottery_run_id', sa.Uuid(as_uuid=False), nullable=True))
     op.create_foreign_key(op.f('fk_lottery_application_invited_by_id_lottery_application'), 'lottery_application', 'lottery_application', ['invited_by_id'], ['id'])
     op.create_foreign_key(op.f('fk_lottery_application_assigned_inventory_id_hotel_room_inventory'), 'lottery_application', 'hotel_room_inventory', ['assigned_inventory_id'], ['id'])
     op.create_foreign_key(op.f('fk_lottery_application_lottery_run_id_lottery_run'), 'lottery_application', 'lottery_run', ['lottery_run_id'], ['id'])
     op.create_foreign_key(op.f('fk_lottery_application_partition_id_inventory_partition'), 'lottery_application', 'inventory_partition', ['partition_id'], ['id'])
-    op.drop_column('lottery_application', 'final_status_hidden')
-    op.drop_column('lottery_application', 'booking_url_hidden')
-    op.drop_column('lottery_application', 'assigned_room_type')
-    op.drop_column('lottery_application', 'assigned_suite_type')
-    op.drop_column('lottery_application', 'assigned_hotel')
+    # final_status_hidden / booking_url_hidden / assigned_room_type /
+    # assigned_suite_type / assigned_hotel are dropped later, together with
+    # LEGACY_COLUMNS, after the legacy-award backfill below has converted
+    # their data into room_assignment rows.
 
     op.drop_table('room_assignment')
     op.drop_table('hotel_requests')
@@ -355,6 +354,150 @@ def upgrade():
         FROM lottery_application
         WHERE assigned_inventory_id IS NOT NULL
           AND attendee_id IS NOT NULL
+    """))
+
+    # Legacy-award backfill: databases coming straight from main store awards
+    # as config-enum ints (assigned_hotel / assigned_room_type /
+    # assigned_suite_type) plus dates and booking_url directly on the
+    # application - assigned_inventory_id doesn't exist there, so the
+    # intermediate backfill above matches nothing. The enum ints are hashes
+    # of config option names that were removed from configspec, so the
+    # original display names are unrecoverable here; instead, each distinct
+    # legacy value becomes an inactive "Legacy ..." placeholder
+    # hotel/room-type/inventory row (rename them in the admin afterwards)
+    # and each awarded application gets a room_assignment pointing at the
+    # matching placeholder. Preference CSVs (hotel_preference etc.) are NOT
+    # converted - they only affect future runs, which should use the real,
+    # admin-entered inventory.
+    #
+    # Every statement no-ops on databases with no legacy award data.
+    op.execute(sa.text("""
+        CREATE TEMPORARY TABLE _legacy_hotel_map AS
+        SELECT val,
+               gen_random_uuid() AS new_id,
+               row_number() OVER (ORDER BY val) AS ord
+        FROM (SELECT DISTINCT assigned_hotel AS val
+              FROM lottery_application
+              WHERE assigned_hotel IS NOT NULL) s
+    """))
+    op.execute(sa.text("""
+        CREATE TEMPORARY TABLE _legacy_type_map AS
+        SELECT val, is_suite,
+               gen_random_uuid() AS new_id,
+               row_number() OVER (PARTITION BY is_suite ORDER BY val) AS ord
+        FROM (SELECT DISTINCT assigned_room_type AS val, false AS is_suite
+              FROM lottery_application WHERE assigned_room_type IS NOT NULL
+              UNION
+              SELECT DISTINCT assigned_suite_type AS val, true AS is_suite
+              FROM lottery_application WHERE assigned_suite_type IS NOT NULL) s
+    """))
+    op.execute(sa.text("""
+        INSERT INTO lottery_hotel (
+            id, created, last_updated, external_id, last_synced,
+            name, export_name, description, description_right, footnote, active)
+        SELECT new_id, timezone('utc', now()), timezone('utc', now()),
+               '{}'::jsonb, '{}'::jsonb,
+               'Legacy Hotel ' || ord, '', '', '', '', false
+        FROM _legacy_hotel_map
+    """))
+    op.execute(sa.text("""
+        INSERT INTO lottery_room_type (
+            id, created, last_updated, external_id, last_synced,
+            name, export_name, description, description_right, footnote,
+            capacity, min_capacity, is_suite, active)
+        SELECT new_id, timezone('utc', now()), timezone('utc', now()),
+               '{}'::jsonb, '{}'::jsonb,
+               CASE WHEN is_suite THEN 'Legacy Suite Type ' ELSE 'Legacy Room Type ' END || ord,
+               '', '', '', '', 4, 1, is_suite, false
+        FROM _legacy_type_map
+    """))
+    op.execute(sa.text("""
+        CREATE TEMPORARY TABLE _legacy_inv_map AS
+        SELECT s.h_val, s.t_val, s.t_is_suite,
+               gen_random_uuid() AS new_id,
+               hm.new_id AS hotel_id,
+               tm.new_id AS type_id,
+               COALESCE('Legacy Hotel ' || hm.ord, 'Unknown hotel')
+                   || ' - '
+                   || COALESCE(
+                        CASE WHEN s.t_is_suite THEN 'Legacy Suite Type '
+                             ELSE 'Legacy Room Type ' END || tm.ord,
+                        'unknown type') AS block_name
+        FROM (SELECT DISTINCT
+                  assigned_hotel AS h_val,
+                  COALESCE(assigned_suite_type, assigned_room_type) AS t_val,
+                  (assigned_suite_type IS NOT NULL) AS t_is_suite
+              FROM lottery_application
+              WHERE assigned_hotel IS NOT NULL
+                 OR assigned_room_type IS NOT NULL
+                 OR assigned_suite_type IS NOT NULL) s
+        LEFT JOIN _legacy_hotel_map hm ON hm.val = s.h_val
+        LEFT JOIN _legacy_type_map tm
+               ON tm.val = s.t_val AND tm.is_suite = s.t_is_suite
+    """))
+    op.execute(sa.text("""
+        INSERT INTO hotel_room_inventory (
+            id, created, last_updated, external_id, last_synced,
+            hotel_id, room_type_id, suite_type_id,
+            quantity, capacity, min_capacity, name, is_suite, active,
+            vault_reference, info_url, price, staff_price)
+        SELECT new_id, timezone('utc', now()), timezone('utc', now()),
+               '{}'::jsonb, '{}'::jsonb,
+               hotel_id,
+               CASE WHEN NOT t_is_suite THEN type_id END,
+               CASE WHEN t_is_suite THEN type_id END,
+               0, 4, 1, block_name, t_is_suite, false,
+               NULL, '', '', ''
+        FROM _legacy_inv_map
+    """))
+    op.execute(sa.text(f"""
+        INSERT INTO room_assignment (
+            id, created, last_updated, external_id, last_synced,
+            attendee_id, inventory_id, lottery_application_id,
+            assignment_reason, status, require_cc,
+            assigned_check_in_date, assigned_check_out_date, deposit_cutoff_date,
+            booking_url, special_requests, hotel_rewards_number,
+            address1, address2, city, region, zip_code, country,
+            last_modified_at, admin_notes
+        )
+        SELECT
+            gen_random_uuid(),
+            timezone('utc', now()), timezone('utc', now()),
+            '{{}}'::jsonb, '{{}}'::jsonb,
+            la.attendee_id, im.new_id, la.id,
+            {c.MIGRATED},
+            CASE
+                WHEN la.status = {c.SECURED} THEN {c.SECURED}
+                WHEN la.status = {c.CANCELLED} THEN {c.CANCELLED}
+                ELSE {c.ASSIGNED}
+            END,
+            true,
+            la.assigned_check_in_date, la.assigned_check_out_date,
+            la.deposit_cutoff_date,
+            COALESCE(la.booking_url, ''), COALESCE(la.special_requests, ''),
+            COALESCE(la.hotel_rewards_number, ''),
+            COALESCE(la.address1, ''), COALESCE(la.address2, ''),
+            COALESCE(la.city, ''), COALESCE(la.region, ''),
+            COALESCE(la.zip_code, ''), COALESCE(la.country, ''),
+            la.last_modified_at,
+            'Migrated from pre-lottery-system award (legacy enum values: hotel='
+                || COALESCE(la.assigned_hotel::text, '-')
+                || ', room_type=' || COALESCE(la.assigned_room_type::text, '-')
+                || ', suite_type=' || COALESCE(la.assigned_suite_type::text, '-') || ')'
+        FROM lottery_application la
+        LEFT JOIN _legacy_inv_map im
+               ON im.h_val IS NOT DISTINCT FROM la.assigned_hotel
+              AND im.t_val IS NOT DISTINCT FROM
+                  COALESCE(la.assigned_suite_type, la.assigned_room_type)
+              AND im.t_is_suite = (la.assigned_suite_type IS NOT NULL)
+        WHERE la.attendee_id IS NOT NULL
+          AND la.assigned_inventory_id IS NULL
+          AND (la.assigned_hotel IS NOT NULL
+               OR la.assigned_room_type IS NOT NULL
+               OR la.assigned_suite_type IS NOT NULL)
+    """))
+    op.execute(sa.text("""
+        DROP TABLE IF EXISTS _legacy_inv_map, _legacy_type_map, _legacy_hotel_map
     """))
 
     with op.batch_alter_table('lottery_run') as batch_op:
@@ -539,6 +682,8 @@ def upgrade():
                     'lottery_room_type', ['connects_to_type_id'], unique=False)
 
     # The FK on assigned_inventory_id needs to be dropped before the column.
+    # The enum award columns and hidden flags are dropped here too, now that
+    # both backfills above have consumed them.
     with op.batch_alter_table('lottery_application') as batch_op:
         batch_op.drop_constraint(
             op.f('fk_lottery_application_assigned_inventory_id_hotel_room_inventory'),
@@ -546,6 +691,11 @@ def upgrade():
         batch_op.drop_column('assigned_inventory_id')
         for col in LEGACY_COLUMNS:
             batch_op.drop_column(col)
+        batch_op.drop_column('final_status_hidden')
+        batch_op.drop_column('booking_url_hidden')
+        batch_op.drop_column('assigned_room_type')
+        batch_op.drop_column('assigned_suite_type')
+        batch_op.drop_column('assigned_hotel')
 
     op.create_table(
         'room_assignment_occupant',
