@@ -135,7 +135,7 @@
                 <p>
                     <strong>Other badges on your account are NOT automatically part of your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}.</strong>
                     {% set potential_room_group_members = application.attendee.managers[0].get_potential_room_group_members(staff=application.is_staff_entry) %}
-                    {% if application.valid_group_members|length < 3 and potential_room_group_members|length > 1 %}
+                    {% if application.valid_group_members|length < max_group and potential_room_group_members|length > 1 %}
                     Below is a list of the badges on your account that are currently eligible to join the group.
                 </p>
                 <p>
@@ -157,7 +157,7 @@
                 
                 {% include 'hotel_lottery/room_group_members.html' with context %}
 
-                {% if application.valid_group_members|length < 3 %}
+                {% if application.valid_group_members|length < max_group %}
                 <div class="card card-body mb-3">
                     <h5>Invite by Email</h5>
                     <p>Enter an attendee's email address to send them a group invite.</p>

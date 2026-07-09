@@ -18,11 +18,19 @@
         <li>A new confirmation number will be generated for your entry.</li>
     </ul>
 
-    <form method="post" action="accept_invite">
-        {{ csrf_token() }}
-        <input type="hidden" name="token" value="{{ token }}" />
-        <button type="submit" class="btn btn-success">Accept and Join "{{ leader_app.room_group_name }}"</button>
-        <a href="../preregistration/homepage" class="btn btn-outline-secondary">No Thanks</a>
-    </form>
+    <div class="d-flex gap-2">
+        <form method="post" action="accept_invite">
+            {{ csrf_token() }}
+            <input type="hidden" name="token" value="{{ token }}" />
+            <button type="submit" class="btn btn-success">Accept and Join "{{ leader_app.room_group_name }}"</button>
+        </form>
+        {# A real decline (not just a link home) so the invite stops
+           showing as pending on the leader's group page. #}
+        <form method="post" action="decline_invite">
+            {{ csrf_token() }}
+            <input type="hidden" name="token" value="{{ token }}" />
+            <button type="submit" class="btn btn-outline-secondary">Decline Invite</button>
+        </form>
+    </div>
 </div>
 {% endblock %}

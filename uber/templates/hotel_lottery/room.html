@@ -1,5 +1,5 @@
 {% extends "./preregistration/preregbase.html" %}
-{% set title_text = "Edit Room" %}
+{% set title_text = "Edit Room" if is_leader else "Your Room" %}
 {% block content %}
 
 {# Outer card wrapper matches /hotel_lottery/index and /hotel_lottery/rooms

@@ -193,7 +193,13 @@ def _viewer_attendee(session):
     if aa_id:
         aa = session.query(AttendeeAccount).get(aa_id)
         if aa and aa.attendees:
-            return aa.attendees[0]
+            # Multi-badge accounts: prefer the badge with actual hotel
+            # involvement (booked or occupied rooms) over an arbitrary
+            # first badge. Handlers acting on a specific room should
+            # still pass attendee_id explicitly.
+            with_rooms = [a for a in aa.attendees
+                          if a.active_room_assignments or a.occupied_rooms]
+            return with_rooms[0] if with_rooms else aa.attendees[0]
     # Admin fallback - for support flows where a lottery admin opens
     # an attendee's page directly.
     admin_id = (cherrypy.session.get('account_id')
@@ -266,7 +272,7 @@ def _join_room_group(session, application, group_id):
     except NoResultFound:
         message = f"No {c.HOTEL_LOTTERY_GROUP_TERM.lower()} found!"
     else:
-        if len(room_group.valid_group_members) == 3:
+        if len(room_group.valid_group_members) >= _max_room_capacity_for_group(session, room_group):
             message = f"This {c.HOTEL_LOTTERY_GROUP_TERM.lower()} is full."
         elif room_group.is_staff_entry and not application.qualifies_for_staff_lottery:
             message = f"You are not eligible to join this {c.HOTEL_LOTTERY_GROUP_TERM.lower()}."
@@ -1465,12 +1471,6 @@ class Root:
         
 
     @requires_account(LotteryApplication)
-    def lottery_group(self, session, id=None, message='', **params):
-        """URL for the application-level lottery group flow (distinct from
-        per-room occupants). Delegates to `room_group`."""
-        return self.room_group(session, id=id, message=message, **params)
-
-    @requires_account(LotteryApplication)
     def room_group(self, session, id=None, message="", **params):
         application = session.lottery_application(id)
 
@@ -1495,6 +1495,10 @@ class Root:
             'message': message,
             'application': application,
             'pending_invites': pending_invites,
+            # The template gates member/invite UI on this instead of a
+            # hardcoded count, so it always matches the server-side cap
+            # in send_room_invite / _join_room_group.
+            'max_group': _max_room_capacity_for_group(session, application),
             'create': params.get('create'),
             'action': params.get('action', ''),
             'new_conf': True if params.get('new_conf', "False") != "False" else False,
@@ -1523,13 +1527,6 @@ class Root:
                 application.last_submitted = datetime.now()
                 raise HTTPRedirect('room_group?id={}&action={}', application.id, action)
 
-    @requires_account(LotteryApplication)
-    def new_invite_code(self, session, id=None, message="", **params):
-        application = session.lottery_application(id)
-        application.invite_code = RegistrationCode.generate_random_code(LotteryApplication.invite_code)
-        raise HTTPRedirect('room_group?id={}&message={}', application.id,
-                           f"New invite code generated. Your new code is {application.invite_code}.")
-    
     @requires_account(LotteryApplication)
     def remove_group_member(self, session, id=None, member_id=None, message="", **params):
         application = session.lottery_application(id)
@@ -1731,6 +1728,7 @@ class Root:
                                "suite" if application.entry_type == c.SUITE_ENTRY else "room",
                                're-entered')
 
+    @requires_account(LotteryApplication)
     def confirm(self, session, id, assignment_id=None, message='', **params):
         """Redirect to the hotel's booking URL for a specific RoomAssignment.
 
@@ -1775,6 +1773,7 @@ class Root:
                 "link is not available yet.")
         raise HTTPRedirect(booking_url)
 
+    @requires_account(LotteryApplication)
     def decline(self, session, id, assignment_id=None, message='', **params):
         """Cancel one of the attendee's awarded RoomAssignments.
 
@@ -1873,6 +1872,7 @@ class Root:
             'message': message,
         }
 
+    @requires_account()
     def secure_room(self, session, id=None, assignment_id=None, attendee_id='',
                     message='', **params):
         """Render the credit-card capture page for a specific RoomAssignment.
@@ -1914,6 +1914,11 @@ class Root:
             raise HTTPRedirect(
                 'rooms?message={}',
                 "This room is not in a state that can be secured.")
+
+        # The assignment_id path has no application-ownership check of
+        # its own, so gate on the room's booker like the other
+        # attendee-facing room views.
+        _require_view_as_attendee(session, ra.attendee_id)
 
         application = ra.lottery_application
         # Only block when this attendee is a *guest* in a lottery group -
@@ -2194,6 +2199,7 @@ class Root:
 
         return {'success': True}
 
+    @requires_account(LotteryApplication)
     def edit_room(self, session, id, assignment_id=None, attendee_id='',
                   message='', **params):
         """Edit a specific RoomAssignment's check-in/out dates and special
@@ -2227,17 +2233,17 @@ class Root:
 
         if ra.parent_assignment_id:
             # Connector rooms follow the parent's dates - redirect to it.
-            raise HTTPRedirect(
-                'edit_room?id={}&assignment_id={}&message={}',
-                application.id, ra.parent_assignment_id,
-                "Connector rooms inherit their dates from the parent room.")
+            raise HTTPRedirect(_room_url(
+                ra.parent_assignment_id,
+                attendee_id or application.attendee.id,
+                message="Connector rooms inherit their dates from the parent room."))
 
         if cherrypy.request.method == "POST":
             if ra.export_locked:
-                raise HTTPRedirect(
-                    'edit_room?id={}&assignment_id={}&message={}', id, ra.id,
-                    'Your room details have been exported to the hotel and '
-                    'cannot be changed. Please contact us for assistance.')
+                raise HTTPRedirect(_room_url(
+                    ra.id, attendee_id or application.attendee.id,
+                    message='Your room details have been exported to the hotel and '
+                            'cannot be changed. Please contact us for assistance.'))
 
             from dateutil import parser as dateparser
             from datetime import timedelta as td
@@ -2410,21 +2416,14 @@ class Root:
             session.commit()
             if not message:
                 message = 'Room details updated.'
-            raise HTTPRedirect(_room_url(
-                ra.id,
-                attendee_id or application.attendee.id,
-                message=message))
 
-        inventory_item = ra.inventory
-        max_guests = inventory_item.capacity - 1 if inventory_item else 3
-
-        return {
-            'application': application,
-            'assignment': ra,
-            'max_guests': max_guests,
-            'vault_enabled': c.VAULT_ENABLED,
-            'message': message,
-        }
+        # No standalone edit page anymore - the per-room editor (`room`)
+        # is the one place room details are viewed and changed, so GETs
+        # land there too.
+        raise HTTPRedirect(_room_url(
+            ra.id,
+            attendee_id or application.attendee.id,
+            message=message))
 
     # Per-room occupants live on `room_assignment_occupant` and are managed
     # via the RoomAssignmentInvite flow (the `invite_email` / `invite_code` /
@@ -2553,6 +2552,28 @@ class Root:
             'leader_app': leader_app,
             'token': token,
         }
+
+    def decline_invite(self, session, token, csrf_token=None, **params):
+        """Decline a pending group invite. Clears the pending state so the
+        invite stops showing on the leader's group page (a bare link home
+        used to leave it pending forever)."""
+        if cherrypy.request.method != 'POST':
+            raise HTTPRedirect('accept_invite?token={}', token)
+        from uber.utils import check_csrf
+        check_csrf(csrf_token)
+
+        guest_app = session.query(LotteryApplication).filter_by(invite_token=token).first()
+        if not guest_app or guest_app.invite_status != c.INVITE_PENDING:
+            raise HTTPRedirect('../preregistration/homepage?message={}',
+                               'Invite not found or already handled.')
+
+        guest_app.invite_status = c.INVITE_DECLINED
+        guest_app.invite_token = ''
+        guest_app.invited_by_id = None
+        session.add(guest_app)
+        session.commit()
+        raise HTTPRedirect('../preregistration/homepage?message={}',
+                           'You have declined the invitation.')
 
     @requires_account(Attendee)
     def cancel_invite(self, session, id, invite_app_id, **params):

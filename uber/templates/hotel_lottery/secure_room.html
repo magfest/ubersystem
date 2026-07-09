@@ -3,6 +3,15 @@
 
 {% block content %}
 
+{# Same framing as index / rooms / room: an outer card plus the
+   cross-section tab nav, so the secure wizard doesn't feel like it
+   left the app shell. #}
+<div class="card card-body">
+{% if not c.ATTENDEE_ACCOUNTS_ENABLED %}
+  {% set attendee = assignment.attendee %}
+  {% include 'confirm_tabs.html' with context %}
+{% endif %}
+
 {# Back to the room editor for this assignment, preserving the
    view-as attendee_id when present. #}
 <div class="mb-3">
@@ -505,5 +514,7 @@ window.addEventListener('message', function(event) {
   }
 });
 </script>
+
+</div>{# /card #}
 
 {% endblock content %}

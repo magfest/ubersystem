@@ -213,9 +213,6 @@ class LotteryApplication(MagModel, table=True):
     def normalized_code(cls):
         return RegistrationCode.sql_normalized_code(cls.invite_code)
 
-    def generate_new_invite_code(self):
-        return RegistrationCode.generate_random_code(LotteryApplication.invite_code)
-    
     def _generate_conf_num(self, generator):
         from uber.models import Session
         with Session() as session:

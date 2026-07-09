@@ -121,7 +121,9 @@ class LotteryRoomGroup(MagForm):
     room_group_name = StringField(f'{c.HOTEL_LOTTERY_GROUP_TERM} Name',
                                   description=f'This will be shared with anyone you invite to your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}.')
     invite_code = StringField(f'{c.HOTEL_LOTTERY_GROUP_TERM} Invite Code',
-                              description=f'Send this code to up to three friends to invite them to your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}.',
+                              description=f'Send this code to friends to invite them to your '
+                                          f'{c.HOTEL_LOTTERY_GROUP_TERM.lower()}. Group size is limited '
+                                          f'by the capacity of your largest awarded room.',
                               render_kw={'readonly': "true"})
     
     def get_non_admin_locked_fields(self, app):

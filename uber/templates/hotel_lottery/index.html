@@ -121,7 +121,9 @@
           <input type="hidden" name="id" value="{{ application.id }}" />
           <button type="submit" class="btn btn-primary btn-sm">Yes, still interested</button>
         </form>
-        <form method="post" action="withdraw_entry" class="d-inline ms-1">
+        {# Withdrawing is irreversible, so this goes through the same
+           bootbox confirmation as the main withdraw button below. #}
+        <form method="post" action="withdraw_entry" class="d-inline ms-1 withdraw-lottery-form">
           {{ csrf_token() }}
           <input type="hidden" name="id" value="{{ application.id }}" />
           <button type="submit" class="btn btn-outline-danger btn-sm">No, withdraw</button>
