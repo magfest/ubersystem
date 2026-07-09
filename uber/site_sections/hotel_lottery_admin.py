@@ -1,12 +1,10 @@
 import base64
 import os
-import pycountry
 import cherrypy
 import logging
 from cherrypy.lib.static import serve_file
 import random
 import math
-from copy import deepcopy
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from pytz import UTC
@@ -15,10 +13,8 @@ import sqlalchemy as sa
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.types import String
-from ortools.linear_solver import pywraplp
 
 from uber.config import c
-from uber.custom_tags import datetime_local_filter
 from uber.decorators import all_renderable, log_pageview, ajax, ajax_gettable, xlsx_file, csv_file, multifile_zipfile, render
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
@@ -30,7 +26,21 @@ from uber.models.hotel import (HotelRoomInventory, InventoryNightQuantity, Inven
                                WaitlistReveal, WaitlistRevealLink, HotelRoomIssueNote,
                                HotelImportFile)
 from uber.email import EmailService
+from uber.hotel_exports import (booking_columns, booking_export_data,
+                                build_waitlist_xlsx, compute_export_tracking,
+                                derive_sync_status, write_hotel_inventory_xlsx,
+                                write_interchange_export)
 from uber.hotel_imports import parse_confirmation_rows, parse_iso_date, parse_spreadsheet
+from uber.hotel_lottery_solver import (adjust_available_rooms,
+                                       build_eligible_applications,
+                                       count_assigned_per_block_night,
+                                       filter_inventory_table,
+                                       materialize_room_assignments,
+                                       solve_lottery)
+from uber.hotel_room_audit import (annotate_issues, collect_issues,
+                                   filter_issues, get_or_make_issue_note,
+                                   group_inventory_issues, group_room_issues,
+                                   load_issue_notes)
 from uber.hotel_room_queries import build_room_assignment_query, clamp_page_size, paginate
 from uber.utils import (Order, check_csrf, get_page, localized_now,
                         validate_model, get_age_from_birthday,
@@ -57,6 +67,19 @@ def _picker_context(session):
         'partitions': session.query(InventoryPartition).filter_by(
             active=True).order_by(InventoryPartition.name).all(),
     }
+
+
+def _event_nights():
+    """Hotel night dates for the lottery window, from the first check-in
+    night through the night before the last check-out. Drives the
+    per-night quantity grid and the inventory overview columns."""
+    nights = []
+    day = c.HOTEL_LOTTERY_CHECKIN_START.date()
+    end = c.HOTEL_LOTTERY_CHECKOUT_END.date()
+    while day < end:
+        nights.append(day)
+        day += timedelta(days=1)
+    return nights
 
 
 def _search(session, text):
@@ -168,6 +191,70 @@ def _partition_capacity(session, inv, night, partition_id):
     return capacity, assigned_count, max(0, capacity - assigned_count)
 
 
+def _wl_ci(ra):
+    """Effective waitlisted check-in for an assignment, coalesced to the
+    assigned date when only the other end of the range is waitlisted."""
+    return ra.waitlisted_check_in_date or ra.assigned_check_in_date
+
+
+def _wl_co(ra):
+    """Effective waitlisted check-out (see _wl_ci)."""
+    return ra.waitlisted_check_out_date or ra.assigned_check_out_date
+
+
+def _waitlist_pairs_to_process(base_q, inventory_id, night_date):
+    """Discover the (inventory_id, night) pairs with waitlist demand for
+    _fulfill_waitlist, sorted by night. An explicit inventory + night
+    short-circuits; otherwise every candidate's front/back gap nights
+    are collected."""
+    if inventory_id and night_date:
+        return [(str(inventory_id), night_date)]
+
+    candidates = base_q.all()
+    if inventory_id:
+        candidates = [ra for ra in candidates
+                      if str(ra.inventory_id) == str(inventory_id)]
+
+    pairs = set()
+    for ra in candidates:
+        block_id = str(ra.inventory_id)
+        wl_ci = _wl_ci(ra)
+        wl_co = _wl_co(ra)
+        if wl_ci and ra.assigned_check_in_date and wl_ci < ra.assigned_check_in_date:
+            d = wl_ci
+            while d < ra.assigned_check_in_date:
+                pairs.add((block_id, d))
+                d += timedelta(days=1)
+        if wl_co and ra.assigned_check_out_date and wl_co > ra.assigned_check_out_date:
+            d = ra.assigned_check_out_date
+            while d < wl_co:
+                pairs.add((block_id, d))
+                d += timedelta(days=1)
+    return sorted(pairs, key=lambda p: p[1])
+
+
+def _eligible_waitlist_extensions(candidates, night):
+    """Of `candidates`, the assignments extendable by this specific
+    night, as ('checkin'|'checkout', assignment) pairs. We walk the gap
+    one night at a time on either end - we only extend by one contiguous
+    night per pass."""
+    eligible = []
+    for ra in candidates:
+        wl_ci = _wl_ci(ra)
+        wl_co = _wl_co(ra)
+        if (wl_ci and ra.assigned_check_in_date
+                and night < ra.assigned_check_in_date
+                and night >= wl_ci
+                and night == ra.assigned_check_in_date - timedelta(days=1)):
+            eligible.append(('checkin', ra))
+        elif (wl_co and ra.assigned_check_out_date
+                and night >= ra.assigned_check_out_date
+                and night < wl_co
+                and night == ra.assigned_check_out_date):
+            eligible.append(('checkout', ra))
+    return eligible
+
+
 def _fulfill_waitlist(session, inventory_id=None, night_date=None):
     """Process waitlist by extending the assigned dates on SECURED
     RoomAssignment rows that have unfulfilled per-room waitlist demand.
@@ -206,36 +293,7 @@ def _fulfill_waitlist(session, inventory_id=None, night_date=None):
                       sa.or_(RoomAssignment.waitlisted_check_in_date.isnot(None),
                              RoomAssignment.waitlisted_check_out_date.isnot(None))))
 
-    def _wl_ci(ra):
-        return ra.waitlisted_check_in_date or ra.assigned_check_in_date
-
-    def _wl_co(ra):
-        return ra.waitlisted_check_out_date or ra.assigned_check_out_date
-
-    if inventory_id and night_date:
-        pairs_to_process = [(str(inventory_id), night_date)]
-    else:
-        candidates = base_q.all()
-        if inventory_id:
-            candidates = [ra for ra in candidates
-                          if str(ra.inventory_id) == str(inventory_id)]
-
-        pairs = set()
-        for ra in candidates:
-            block_id = str(ra.inventory_id)
-            wl_ci = _wl_ci(ra)
-            wl_co = _wl_co(ra)
-            if wl_ci and ra.assigned_check_in_date and wl_ci < ra.assigned_check_in_date:
-                d = wl_ci
-                while d < ra.assigned_check_in_date:
-                    pairs.add((block_id, d))
-                    d += timedelta(days=1)
-            if wl_co and ra.assigned_check_out_date and wl_co > ra.assigned_check_out_date:
-                d = ra.assigned_check_out_date
-                while d < wl_co:
-                    pairs.add((block_id, d))
-                    d += timedelta(days=1)
-        pairs_to_process = sorted(pairs, key=lambda p: p[1])
+    pairs_to_process = _waitlist_pairs_to_process(base_q, inventory_id, night_date)
 
     for block_id, night in pairs_to_process:
         inv = session.query(HotelRoomInventory).get(block_id)
@@ -285,22 +343,7 @@ def _fulfill_waitlist(session, inventory_id=None, night_date=None):
                     part_filter,
                 ).all()
 
-                eligible = []
-                for ra in candidates:
-                    wl_ci = _wl_ci(ra)
-                    wl_co = _wl_co(ra)
-                    # Walk the gap one night at a time on either end -
-                    # we only extend by one contiguous night per pass.
-                    if (wl_ci and ra.assigned_check_in_date
-                            and night < ra.assigned_check_in_date
-                            and night >= wl_ci
-                            and night == ra.assigned_check_in_date - timedelta(days=1)):
-                        eligible.append(('checkin', ra))
-                    elif (wl_co and ra.assigned_check_out_date
-                            and night >= ra.assigned_check_out_date
-                            and night < wl_co
-                            and night == ra.assigned_check_out_date):
-                        eligible.append(('checkout', ra))
+                eligible = _eligible_waitlist_extensions(candidates, night)
 
                 if not eligible:
                     break
@@ -357,239 +400,98 @@ def _fulfill_waitlist(session, inventory_id=None, night_date=None):
     }
 
 
-def weight_entry(entry, hotel_room, base_weight):
-    """Takes a lottery entry and a hotel room and returns an arbitrary score for how likely that applicant
-        should be to get that particular room.
+def _count_inventory_usage(assigned_ras):
+    """Tally the live assignments for the inventory overview.
+
+    Builds per-block per-night assignment counts + per-block status
+    counts, plus per-block per-night waitlist demand from each
+    assignment's own waitlisted_* range. For the waitlist demand, either
+    column NULL means no demand on that end; we coalesce to the assigned
+    date so the gap calculation is symmetric.
+
+    Returns (assigned_per_block_night, status_per_block,
+    waitlist_per_block_night).
     """
-    weight = 0
+    assigned_per_block_night = defaultdict(lambda: defaultdict(int))
+    status_per_block = defaultdict(lambda: defaultdict(int))
+    for ra in assigned_ras:
+        block_id = str(ra.inventory_id)
+        status_per_block[block_id][ra.status] += 1
+        if ra.assigned_check_in_date and ra.assigned_check_out_date:
+            d = ra.assigned_check_in_date
+            while d < ra.assigned_check_out_date:
+                assigned_per_block_night[block_id][d] += 1
+                d += timedelta(days=1)
 
-    # Give 10 points for being the first choice hotel, 9 points for the second, etc
-    hotel_choice_rank = 10 - entry["hotels"].index(hotel_room["hotel_id"])
-    weight += hotel_choice_rank
+    waitlist_per_block_night = defaultdict(lambda: defaultdict(int))
+    for ra in assigned_ras:
+        if ra.status != c.SECURED:
+            continue
+        if not (ra.waitlisted_check_in_date or ra.waitlisted_check_out_date):
+            continue
+        block_id = str(ra.inventory_id)
+        wl_ci = ra.waitlisted_check_in_date or ra.assigned_check_in_date
+        wl_co = ra.waitlisted_check_out_date or ra.assigned_check_out_date
+        if wl_ci and ra.assigned_check_in_date and wl_ci < ra.assigned_check_in_date:
+            d = wl_ci
+            while d < ra.assigned_check_in_date:
+                waitlist_per_block_night[block_id][d] += 1
+                d += timedelta(days=1)
+        if wl_co and ra.assigned_check_out_date and wl_co > ra.assigned_check_out_date:
+            d = ra.assigned_check_out_date
+            while d < wl_co:
+                waitlist_per_block_night[block_id][d] += 1
+                d += timedelta(days=1)
 
-    # Give 10 points for being the first choice room type, 9 points for the second, etc
-    try:
-        room_type_rank = 10 - entry["room_types"].index(hotel_room["room_type"])
-        assert room_type_rank >= 0
-        weight += room_type_rank
-    except ValueError:
-        # room types are optional, so we need to figure out how much weight to give people who don't choose any
-        weight += 9 # Probably fine?
+    return assigned_per_block_night, status_per_block, waitlist_per_block_night
 
-    return weight + base_weight
 
-def solve_lottery(applications, hotel_rooms, lottery_type=c.ROOM_ENTRY,
-                  connector_map=None):
-    """Takes a set of hotel_rooms and applications and assigns the
-    hotel_rooms with mandatory connector-room coupling.
+def _waitlist_block_rows(session, filtered):
+    """Per-block per-night waitlist demand rows for the admin Waitlist
+    dashboard, derived from the (possibly search-filtered) set of
+    waitlisted assignments. One row per inventory block, with the
+    per-night queue depth and total demand, sorted by hotel then block
+    name."""
+    demand_by_block = defaultdict(lambda: defaultdict(list))
+    for ra in filtered:
+        block_id = str(ra.inventory_id) if ra.inventory_id else None
+        if not block_id:
+            continue
+        wl_ci = ra.waitlisted_check_in_date or ra.assigned_check_in_date
+        wl_co = ra.waitlisted_check_out_date or ra.assigned_check_out_date
+        if wl_ci and ra.assigned_check_in_date and wl_ci < ra.assigned_check_in_date:
+            d = wl_ci
+            while d < ra.assigned_check_in_date:
+                demand_by_block[block_id][d].append(ra)
+                d += timedelta(days=1)
+        if wl_co and ra.assigned_check_out_date and wl_co > ra.assigned_check_out_date:
+            d = ra.assigned_check_out_date
+            while d < wl_co:
+                demand_by_block[block_id][d].append(ra)
+                d += timedelta(days=1)
 
-    Each inventory block can be tagged as a "connector" via
-    `connector_map`: a dict mapping `child_type_id` ->
-    `(parent_type_id, qty)`. Connector inventory does not participate
-    in the per-app "max 1 room" cap, but each connector still respects
-    its own per-inventory capacity. The solver adds an equality coupling
-    constraint per app and parent inventory:
+    block_ids = list(demand_by_block.keys())
+    inventory_by_id = {}
+    if block_ids:
+        for inv in session.query(HotelRoomInventory).filter(
+                HotelRoomInventory.id.in_(block_ids)).all():
+            inventory_by_id[str(inv.id)] = inv
 
-        sum(child_vars for app over child_type inventory)
-            == parent_var[app, p] * qty
+    block_rows = []
+    for block_id in block_ids:
+        nights = demand_by_block[block_id]
+        block_rows.append({
+            'inventory': inventory_by_id.get(block_id),
+            'inventory_id': block_id,
+            'nights': sorted(((n, len(ras)) for n, ras in nights.items()),
+                             key=lambda p: p[0]),
+            'total_demand': sum(len(ras) for ras in nights.values()),
+        })
+    block_rows.sort(key=lambda r: (
+        r['inventory'].hotel.name if r['inventory'] and r['inventory'].hotel else '',
+        r['inventory'].name if r['inventory'] else ''))
+    return block_rows
 
-    so awarding the parent forces exactly `qty` connectors to the same
-    app, and a parent cannot be awarded if its connectors can't be
-    satisfied.
-
-    Parameters:
-        applications List[Application]: Iterable set of Application
-            objects to assign.
-        hotel_rooms List[dict]: Iterable set of hotel rooms; each dict
-            has id, hotel_id, capacity, min_capacity, room_type,
-            quantity, night_quantities.
-        lottery_type: c.ROOM_ENTRY or c.SUITE_ENTRY.
-        connector_map: dict {child_type_id: (parent_type_id, qty)}.
-            Empty / None when no types are configured as connectors.
-
-    Returns:
-        List[Tuple[application_id, inventory_id, role]] where role is
-        'primary' or 'connector'. The same application id can appear
-        more than once. Returns None on solver failure.
-    """
-    connector_map = connector_map or {}
-    connector_types = set(connector_map.keys())
-    # parent_type -> list of (child_type, qty)
-    parent_to_children = {}
-    for child_type, (parent_type, qty) in connector_map.items():
-        parent_to_children.setdefault(parent_type, []).append((child_type, qty))
-
-    random.shuffle(applications)
-    solver = pywraplp.Solver.CreateSolver("SAT")
-    solver.SetSolverSpecificParametersAsString("log_search_progress: true")
-
-    # Collect all nights across all inventory blocks.
-    all_nights = set()
-    inventory_by_id = {hr["id"]: hr for hr in hotel_rooms}
-    inventory_by_type = {}  # type_id -> [hotel_room_dict, ...]
-    for hr in hotel_rooms:
-        hr["primary_constraints"] = []   # [(BoolVar, entry)] for per-app cap + per-inv cap
-        hr["connector_constraints"] = []  # [(BoolVar, entry, parent_inv_id)] for per-inv cap only
-        if hr.get("night_quantities"):
-            all_nights.update(hr["night_quantities"].keys())
-        inventory_by_type.setdefault(hr["room_type"], []).append(hr)
-
-    # Build entries (one per non-group app), then absorb group members.
-    entries = {}
-    for app in applications:
-        if app.entry_type == lottery_type or (
-                lottery_type == c.ROOM_ENTRY
-                and app.entry_type == c.SUITE_ENTRY
-                and app.room_opt_out is False):
-            type_pref = (app.room_type_preference if lottery_type == c.ROOM_ENTRY
-                         else app.suite_type_preference)
-            entries[app.id] = {
-                "app": app,
-                "members": [app],
-                "hotels": app.hotel_preference.split(","),
-                "room_types": type_pref.split(","),
-                "primary_vars": [],     # [(BoolVar, weight, hotel_room)]
-                "connector_vars": [],   # [(BoolVar, hotel_room, parent_inv_id, child_type, qty)]
-                "check_in": app.earliest_checkin_date,
-                "check_out": app.latest_checkout_date,
-            }
-
-    for app in applications:
-        if app.parent_application and app.parent_application.id in entries:
-            entries[app.parent_application.id]["members"].append(app)
-
-    # Create BoolVars: primary for every eligible (app, non-connector inv),
-    # plus connector vars for every (app, parent_inv, child_inv) where the
-    # app might win the parent.
-    for app_id, entry in entries.items():
-        # Bias weights based on group size.
-        base_weight = 0
-        weights_cfg = c.HOTEL_LOTTERY["weights"]
-        if random.random() < weights_cfg[f"group_weight_{len(entry['members'])}"]:
-            base_weight = weights_cfg[f"group_base_{len(entry['members'])}"]
-
-        for hr in hotel_rooms:
-            # An app's preferences only consider primary (non-connector)
-            # types. Connector rooms can never be a primary preference.
-            if hr["room_type"] in connector_types:
-                continue
-            if hr["hotel_id"] not in entry["hotels"]:
-                continue
-            if hr["room_type"] not in entry["room_types"]:
-                continue
-            if not (hr["min_capacity"] <= len(entry["members"]) <= hr["capacity"]):
-                continue
-
-            weight = weight_entry(entry, hr, base_weight)
-            primary_var = solver.BoolVar(f'{app_id}_primary_{hr["id"]}')
-            entry["primary_vars"].append((primary_var, weight, hr))
-            hr["primary_constraints"].append((primary_var, entry))
-
-            # For each child type of this primary's room type, also create
-            # connector BoolVars over every child-type inventory. We index
-            # by parent_inventory_id so the coupling constraint can be
-            # local to (app, parent_inv).
-            for child_type, qty in parent_to_children.get(hr["room_type"], []):
-                for child_hr in inventory_by_type.get(child_type, []):
-                    cvar = solver.BoolVar(
-                        f'{app_id}_connector_{child_hr["id"]}_for_{hr["id"]}')
-                    entry["connector_vars"].append(
-                        (cvar, child_hr, hr["id"], child_type, qty))
-                    child_hr["connector_constraints"].append(
-                        (cvar, entry, hr["id"]))
-
-    # Per-inventory capacity. Each inventory's pool is the union of its
-    # primary BoolVars (apps using it as their main award) plus its
-    # connector BoolVars (apps using it as a ride-along for some parent).
-    def _vars_for_inventory(hr):
-        primary = [(cv, entry) for cv, entry in hr["primary_constraints"]]
-        connector = [(cv, entry) for cv, entry, _ in hr["connector_constraints"]]
-        return primary + connector
-
-    if all_nights:
-        for hr in hotel_rooms:
-            inv_vars = _vars_for_inventory(hr)
-            if not inv_vars:
-                continue
-            nq = hr.get("night_quantities", {})
-            for night_iso in sorted(all_nights):
-                night_qty = nq.get(night_iso, 0)
-                if night_qty <= 0:
-                    continue
-                night_date = date.fromisoformat(night_iso)
-                night_vars = [
-                    cv for cv, entry in inv_vars
-                    if entry["check_in"] and entry["check_out"]
-                    and entry["check_in"] <= night_date < entry["check_out"]
-                ]
-                if night_vars:
-                    solver.Add(sum(night_vars) <= night_qty)
-    else:
-        # Fallback when no per-night data is available.
-        for hr in hotel_rooms:
-            inv_vars = _vars_for_inventory(hr)
-            if inv_vars:
-                solver.Add(sum(cv for cv, _ in inv_vars) <= hr["quantity"])
-
-    # Per-app "max one primary award" cap. Connector BoolVars are
-    # intentionally excluded - connector rooms ride along with the
-    # parent and don't count as separate awards.
-    for app_id, entry in entries.items():
-        if entry["primary_vars"]:
-            solver.Add(sum(v for v, _, _ in entry["primary_vars"]) <= 1)
-
-    # Connector coupling. For each (app, parent_inventory, child_type),
-    # the sum of connector BoolVars over all inventory of that child
-    # type for that (app, parent_inv) must equal qty if the parent is
-    # awarded, and 0 otherwise. We express this as a single equality
-    # constraint per (app, parent_inv, child_type).
-    for app_id, entry in entries.items():
-        # Bucket connector vars by (parent_inv_id, child_type, qty).
-        bucket = {}  # (parent_inv_id, child_type) -> (qty, [child_vars])
-        for cvar, child_hr, parent_inv_id, child_type, qty in entry["connector_vars"]:
-            bucket.setdefault((parent_inv_id, child_type), (qty, []))
-            bucket[(parent_inv_id, child_type)][1].append(cvar)
-
-        for (parent_inv_id, child_type), (qty, cvars) in bucket.items():
-            # Find the parent BoolVar for this app and parent inventory.
-            parent_var = None
-            for pvar, _w, hr in entry["primary_vars"]:
-                if hr["id"] == parent_inv_id:
-                    parent_var = pvar
-                    break
-            if parent_var is None or not cvars:
-                continue
-            # sum(connectors) == parent * qty
-            solver.Add(sum(cvars) == parent_var * qty)
-
-    # Objective: weighted sum on primary BoolVars only. Connectors ride
-    # along and don't contribute to the maximization signal.
-    objective = solver.Objective()
-    for entry in entries.values():
-        for pvar, weight, _hr in entry["primary_vars"]:
-            objective.SetCoefficient(pvar, weight)
-    objective.SetMaximization()
-
-    status = solver.Solve()
-    if status not in (pywraplp.Solver.OPTIMAL, pywraplp.Solver.FEASIBLE):
-        log.error(f"Error solving room lottery: {status}")
-        return None
-
-    # Output: list of (leader_application_id, inventory_id, role). Group
-    # members do NOT appear separately - they get added as occupants on
-    # each leader-owned RoomAssignment during materialization.
-    allocations = []
-    for app_id, entry in entries.items():
-        leader_id = entry["app"].id
-        for pvar, _weight, hr in entry["primary_vars"]:
-            if pvar.solution_value() > 0.5:
-                allocations.append((leader_id, hr["id"], 'primary'))
-
-        for cvar, child_hr, _pid, _ct, _qty in entry["connector_vars"]:
-            if cvar.solution_value() > 0.5:
-                allocations.append((leader_id, child_hr["id"], 'connector'))
-
-    return allocations
 
 def _notify_applicants_of_inventory_change(session, inventory):
     """When an inventory row is deactivated, email applicants whose
@@ -690,100 +592,6 @@ def _room_issues_url(message='', severity='all', kind='all', search='',
 
 @all_renderable()
 class Root:
-    def _materialize_room_assignments(self, session, applications, allocations,
-                                       lottery_run, run_deadline, partition_filter):
-        """Create RoomAssignment rows for the solver output.
-
-        `allocations` is the list of (leader_application_id, inventory_id,
-        role) tuples produced by solve_lottery. Group members are added as
-        occupants on each leader-owned RoomAssignment.
-
-        Connector rows are created with parent_assignment_id pointing at
-        the primary RoomAssignment for the same (app, parent_inventory).
-        Each connector lives as its own row so the hotel export emits one
-        line per physical room.
-
-        Returns the number of distinct leaders that got at least one
-        primary award (so the caller can stamp lottery_run.rooms_assigned).
-        """
-        from uber.models import RoomAssignment
-
-        app_by_id = {a.id: a for a in applications}
-
-        # Group allocations by leader app + role.
-        by_leader = {}  # leader_id -> {'primary': [inv_id...], 'connector': [inv_id...]}
-        for leader_id, inv_id, role in allocations:
-            by_leader.setdefault(leader_id, {'primary': [], 'connector': []})[role].append(inv_id)
-
-        leaders_with_primary = 0
-        for leader_id, roles in by_leader.items():
-            leader = app_by_id.get(leader_id)
-            if not leader or not leader.attendee_id:
-                continue
-
-            # Default occupants: the leader's attendee + every valid group
-            # member's attendee. Leaders edit per-room later.
-            occupant_ids = [leader.attendee_id]
-            for member in leader.valid_group_members or []:
-                if member.attendee_id and member.attendee_id not in occupant_ids:
-                    occupant_ids.append(member.attendee_id)
-
-            # Primary first so we can hang connectors off its id.
-            primaries_by_inv = {}
-            for inv_id in roles['primary']:
-                primary = RoomAssignment(
-                    attendee_id=leader.attendee_id,
-                    inventory_id=inv_id,
-                    lottery_application_id=leader.id,
-                    lottery_run_id=lottery_run.id,
-                    partition_id=partition_filter or None,
-                    assignment_reason=c.LOTTERY_AWARD,
-                    status=c.ASSIGNED,
-                    require_cc=True,
-                    assigned_check_in_date=leader.earliest_checkin_date,
-                    assigned_check_out_date=leader.latest_checkout_date,
-                    deposit_cutoff_date=run_deadline,
-                )
-                session.add(primary)
-                session.flush()  # need primary.id
-                primaries_by_inv[inv_id] = primary
-                self._set_occupants(session, primary, occupant_ids)
-                leaders_with_primary += 1
-
-            # Connectors - for each, find the parent primary in this leader's
-            # set (any primary will do as the structural parent; the solver's
-            # coupling already guaranteed there's one).
-            parent_primary = next(iter(primaries_by_inv.values()), None)
-            for inv_id in roles['connector']:
-                child = RoomAssignment(
-                    attendee_id=leader.attendee_id,
-                    inventory_id=inv_id,
-                    lottery_application_id=leader.id,
-                    lottery_run_id=lottery_run.id,
-                    parent_assignment_id=parent_primary.id if parent_primary else None,
-                    partition_id=partition_filter or None,
-                    assignment_reason=c.SUITE_CONNECTOR,
-                    status=c.ASSIGNED,
-                    require_cc=True,
-                    assigned_check_in_date=leader.earliest_checkin_date,
-                    assigned_check_out_date=leader.latest_checkout_date,
-                    deposit_cutoff_date=run_deadline,
-                )
-                session.add(child)
-                session.flush()
-                self._set_occupants(session, child, occupant_ids)
-
-        return leaders_with_primary
-
-    def _set_occupants(self, session, assignment, attendee_ids):
-        """Replace the room_assignment_occupant rows for `assignment`."""
-        from uber.models.hotel import room_assignment_occupant
-        session.execute(room_assignment_occupant.delete().where(
-            room_assignment_occupant.c.room_assignment_id == assignment.id))
-        for aid in attendee_ids:
-            session.execute(room_assignment_occupant.insert().values(
-                room_assignment_id=assignment.id, attendee_id=aid))
-
     def index(self, session, message='', page='0', search_text='', order='status', **params):
         if c.DEV_BOX and not int(page):
             page = 1
@@ -1243,12 +1051,7 @@ class Root:
             item = session.hotel_room_inventory(id)
 
         # Build hotel night dates for per-night quantity grid
-        event_nights = []
-        day = c.HOTEL_LOTTERY_CHECKIN_START.date()
-        end = c.HOTEL_LOTTERY_CHECKOUT_END.date()
-        while day < end:
-            event_nights.append(day)
-            day += timedelta(days=1)
+        event_nights = _event_nights()
 
         forms = load_forms(params, item, ['HotelInventoryConfig'])
 
@@ -1464,157 +1267,27 @@ class Root:
             'message': message,
         }
 
-    # CSV/XLSX export + CSV import used by the export-tracking modal. The
-    # column layout intentionally mirrors the JSON shape of the
-    # `HotelLookup.export_room_bookings` API so that a hotel that prefers
-    # spreadsheets to API calls can use the same field names.
-    #
-    # Credit-card vault tokens are deliberately omitted on export and
-    # actively refused on import - the rest of the system treats them as
-    # PCI-sensitive, so they never leave the database in a spreadsheet
-    # and we won't accept new ones from one either.
-
-    _BOOKING_BASE_COLS = [
-        'assignment_id', 'lottery_application_id', 'parent_assignment_id',
-        'confirmation_num', 'assignment_reason', 'status',
-        'hotel', 'room_type', 'suite_type',
-        'check_in_date', 'check_out_date',
-        'hotel_confirmation_number', 'cancellation_confirmation_number',
-        'legal_first_name', 'legal_last_name', 'cellphone', 'email',
-        'address1', 'address2', 'city', 'region', 'zip_code', 'country',
-        'wants_ada', 'ada_requests', 'special_requests',
-        'last_modified_at', 'cc_captured_at', 'cc_last_four',
-    ]
-    _BOOKING_GUEST_FIELDS = [
-        'legal_first_name', 'legal_last_name', 'cellphone', 'email',
-    ]
-    _BOOKING_MAX_GUESTS = 4
-
-    def _booking_columns(self):
-        cols = list(self._BOOKING_BASE_COLS)
-        for i in range(1, self._BOOKING_MAX_GUESTS + 1):
-            for f in self._BOOKING_GUEST_FIELDS:
-                cols.append(f'guest{i}_{f}')
-        return cols
-
-    def _booking_row(self, ra, app):
-        """Build the base (no-guest) column values for one RoomAssignment.
-
-        Dates and datetimes are explicitly serialized to ISO 8601 strings
-        (`YYYY-MM-DD` / `YYYY-MM-DDTHH:MM:SS+00:00`) - without this, xlsxwriter
-        treats date objects as numeric serial values, which Excel displays as
-        bare integers that look like opaque IDs to anyone opening the file.
-        """
-        def iso(v):
-            return v.isoformat() if v else ''
-
-        inv = ra.inventory
-        hotel_name = inv.hotel.name if inv and inv.hotel else ''
-        room_type_name = (inv.room_type.name
-                          if inv and not inv.is_suite and inv.room_type else '')
-        suite_type_name = (inv.suite_type.name
-                           if inv and inv.is_suite and inv.suite_type else '')
-
-        return [
-            ra.id, ra.lottery_application_id or '', ra.parent_assignment_id or '',
-            (app.confirmation_num if app else ''),
-            ra.assignment_reason_label if hasattr(ra, 'assignment_reason_label') else ra.assignment_reason,
-            ra.status_label if hasattr(ra, 'status_label') else ra.status,
-            hotel_name, room_type_name, suite_type_name,
-            iso(ra.assigned_check_in_date),
-            iso(ra.assigned_check_out_date),
-            ra.hotel_confirmation_number or '',
-            ra.cancellation_confirmation_number or '',
-            # Legal-name fields live on the attendee (hotel_first_name /
-            # hotel_last_name with the legal/first/last fallback chain).
-            (app.attendee.effective_hotel_first_name if app and app.attendee else '') or '',
-            (app.attendee.effective_hotel_last_name if app and app.attendee else '') or '',
-            (app.cellphone if app else '') or '',
-            (app.email if app else '') or '',
-            ra.address1 or '', ra.address2 or '', ra.city or '',
-            ra.region or '', ra.zip_code or '', ra.country or '',
-            ('yes' if (app and app.wants_ada) else ''),
-            (app.ada_requests if app else '') or '',
-            ra.special_requests or '',
-            iso(ra.last_modified_at),
-            iso(ra.cc_captured_at),
-            ra.cc_last_four or '',
-        ]
-
-    def _booking_export_data(self, session, hotel_id):
-        """Common query + per-row construction for both CSV and XLSX export.
-
-        Source is now RoomAssignment - one row per assigned room.
-        Connectors get their own line; their `parent_assignment_id`
-        column points at the parent (suite) assignment's id so the hotel
-        can group them.
-        """
-        hotel = session.query(LotteryHotel).filter_by(id=hotel_id).first()
-        if not hotel:
-            return None, []
-
-        inv_ids = [str(inv.id) for inv in
-                   session.query(HotelRoomInventory).filter_by(hotel_id=hotel.id).all()]
-        if not inv_ids:
-            return hotel, []
-
-        assignments = (session.query(RoomAssignment)
-                       .filter(RoomAssignment.inventory_id.in_(inv_ids),
-                               RoomAssignment.is_live)
-                       .order_by(RoomAssignment.parent_assignment_id.asc().nullsfirst(),
-                                 RoomAssignment.created.asc())
-                       .all())
-
-        # Bulk-fetch each assignment's source LotteryApplication.
-        app_ids = {ra.lottery_application_id for ra in assignments
-                   if ra.lottery_application_id}
-        apps_by_id = {}
-        if app_ids:
-            for app in session.query(LotteryApplication).filter(
-                    LotteryApplication.id.in_(app_ids)).all():
-                apps_by_id[app.id] = app
-
-        rows = []
-        for ra in assignments:
-            app = apps_by_id.get(ra.lottery_application_id)
-            row = self._booking_row(ra, app)
-
-            # Guest columns: everyone sleeping in the room except the
-            # booker, who already has their own columns. The model's
-            # effective_occupants handles the occupants-vs-group-members
-            # fallback and always returns Attendee records.
-            members = [a for a in ra.effective_occupants
-                       if a.id != ra.attendee_id]
-            for i in range(self._BOOKING_MAX_GUESTS):
-                if i < len(members):
-                    a = members[i]
-                    row += [a.effective_hotel_first_name or '',
-                            a.effective_hotel_last_name or '',
-                            a.cellphone or '',
-                            a.email or '']
-                else:
-                    row += ['', '', '', '']
-            rows.append(row)
-
-        return hotel, rows
+    # The booking spreadsheet layout (and the guard rails around CC
+    # data) lives in uber.hotel_exports; these handlers are the routes
+    # that serve it per hotel.
 
     @csv_file
     def export_hotel_bookings_csv(self, out, session, hotel_id):
         """Per-hotel booking CSV. CC tokens omitted by design."""
-        hotel, rows = self._booking_export_data(session, hotel_id)
+        hotel, rows = booking_export_data(session, hotel_id)
         if hotel is None:
             return
-        out.writerow(self._booking_columns())
+        out.writerow(booking_columns())
         for row in rows:
             out.writerow(row)
 
     @xlsx_file
     def export_hotel_bookings_xlsx(self, out, session, hotel_id):
         """Per-hotel booking XLSX. CC tokens omitted by design."""
-        hotel, rows = self._booking_export_data(session, hotel_id)
+        hotel, rows = booking_export_data(session, hotel_id)
         if hotel is None:
             return
-        out.writerow(self._booking_columns())
+        out.writerow(booking_columns())
         for row in rows:
             out.writerow(row)
 
@@ -1815,23 +1488,11 @@ class Root:
                        .limit(ps)
                        .all())
 
-        bookings = []
-        for ra in assignments:
-            has_conf = bool(ra.hotel_confirmation_number and ra.hotel_confirmation_number.strip())
-            modified = ra.last_modified_at
-            if not last_export:
-                status = 'never_exported'
-            elif modified and modified > last_export.exported_at:
-                status = 'pending_export'
-            elif not has_conf:
-                status = 'awaiting_confirmation'
-            else:
-                status = 'in_sync'
-            bookings.append({
-                'assignment': ra,
-                'app': ra.lottery_application,
-                'sync_status': status,
-            })
+        bookings = [{
+            'assignment': ra,
+            'app': ra.lottery_application,
+            'sync_status': derive_sync_status(ra, last_export),
+        } for ra in assignments]
 
         return {
             'hotel': hotel,
@@ -1844,43 +1505,7 @@ class Root:
         }
 
     def export_tracking(self, session, message=''):
-        hotels = []
-        for hotel in session.query(LotteryHotel).filter_by(active=True).all():
-            last_export = session.query(HotelExportLog).filter(
-                HotelExportLog.hotel_id == hotel.id, HotelExportLog.export_type == 'room_export'
-            ).order_by(HotelExportLog.exported_at.desc()).first()
-
-            last_import = session.query(HotelExportLog).filter(
-                HotelExportLog.hotel_id == hotel.id, HotelExportLog.export_type == 'confirmation_import'
-            ).order_by(HotelExportLog.exported_at.desc()).first()
-
-            hotel_inventory_ids = [str(inv.id) for inv in
-                                    session.query(HotelRoomInventory).filter_by(hotel_id=hotel.id).all()]
-            bookings = session.query(RoomAssignment).filter(
-                RoomAssignment.inventory_id.in_(hotel_inventory_ids),
-                RoomAssignment.is_live,
-            )
-
-            total_bookings = bookings.count()
-            missing_confirmation = bookings.filter(
-                or_(RoomAssignment.hotel_confirmation_number == None,  # noqa: E711
-                    RoomAssignment.hotel_confirmation_number == '')
-            ).count()
-
-            dirty_count = 0
-            if last_export:
-                dirty_count = bookings.filter(
-                    RoomAssignment.last_modified_at > last_export.exported_at
-                ).count()
-
-            hotels.append({
-                'hotel': hotel,
-                'last_export': last_export,
-                'last_import': last_import,
-                'total_bookings': total_bookings,
-                'missing_confirmation': missing_confirmation,
-                'dirty_count': dirty_count,
-            })
+        hotels = compute_export_tracking(session)
 
         import_files = session.query(HotelImportFile).order_by(
             HotelImportFile.uploaded_at.desc()).all()
@@ -1942,43 +1567,20 @@ class Root:
             lottery_type_val = c.SUITE_ENTRY
         else:
             return {'error': f'Invalid lottery type: {lottery_type}'}
-        applications = session.query(LotteryApplication).join(LotteryApplication.attendee
-                                                              ).filter(LotteryApplication.status == c.COMPLETE,
-                                                                       Attendee.hotel_lottery_eligible == True)
-
         cutoff = None
         if params.get('cutoff', ''):
             cutoff = dateparser.parse(params['cutoff']).replace(tzinfo=c.EVENT_TIMEZONE)
-            applications = applications.filter(LotteryApplication.last_submitted < cutoff)
 
-        # Optional re-confirmation gate. When set, only apps whose
-        # attendee has clicked Confirm since this datetime are considered.
-        # Apps that were awarded and then expired sit in COMPLETE and must
-        # re-confirm when the admin sets this filter.
         confirmation_window_start = None
         if params.get('confirmation_window_start', ''):
             confirmation_window_start = dateparser.parse(
                 params['confirmation_window_start']).replace(tzinfo=c.EVENT_TIMEZONE)
-            applications = applications.filter(
-                LotteryApplication.last_confirmed_at.isnot(None),
-                LotteryApplication.last_confirmed_at >= confirmation_window_start,
-            )
 
-        # We always grab all roommate entries, but the solver only looks at those that have a matching parent
-        # in the lottery batch.
-        if lottery_type_val == c.SUITE_ENTRY:
-            applications = applications.filter(LotteryApplication.entry_type.in_([lottery_type_val, c.GROUP_ENTRY]))
-        else:
-            applications = applications.filter(or_(LotteryApplication.entry_type.in_([lottery_type_val, c.GROUP_ENTRY]),
-                                                   LotteryApplication.room_opt_out == False))
-
-        # If lottery_group is "both" don't filter either way
-        if lottery_group == "staff":
-            applications = applications.filter(LotteryApplication.is_staff_entry == True)
-        elif lottery_group == "attendee":
-            applications = applications.filter(LotteryApplication.is_staff_entry == False)
-
-        applications = applications.all()
+        # Eligibility (status, cutoff, optional re-confirmation gate,
+        # entry-type + staff/attendee scoping) lives with the solver.
+        applications = build_eligible_applications(
+            session, lottery_type_val, lottery_group,
+            cutoff=cutoff, confirmation_window_start=confirmation_window_start)
 
         # Count already-assigned rooms per inventory block per night,
         # sourced from RoomAssignment. Connector rooms count against their
@@ -2000,13 +1602,7 @@ class Root:
             already_assigned = already_assigned_query.filter(
                 RoomAssignment.partition_id == None).all()  # noqa: E711
 
-        assigned_per_block_night = defaultdict(lambda: defaultdict(int))
-        for ra in already_assigned:
-            if ra.assigned_check_in_date and ra.assigned_check_out_date:
-                day = ra.assigned_check_in_date
-                while day < ra.assigned_check_out_date:
-                    assigned_per_block_night[str(ra.inventory_id)][day.isoformat()] += 1
-                    day += timedelta(days=1)
+        assigned_per_block_night = count_assigned_per_block_night(already_assigned)
 
         is_suite = lottery_type_val == c.SUITE_ENTRY
         inventory_table = HotelRoomInventory.get_inventory(session, is_suite=is_suite)
@@ -2014,15 +1610,8 @@ class Root:
         # Apply filters
         hotel_filter = params.get('hotel_filter', '')
         room_type_filter = params.get('room_type_filter', '')
-        if hotel_filter:
-            hotel_filter_set = set(hotel_filter.split(','))
-            inventory_table = [r for r in inventory_table if r['hotel_id'] in hotel_filter_set]
-        if room_type_filter:
-            room_type_filter_set = set(room_type_filter.split(','))
-            inventory_table = [r for r in inventory_table if r['room_type'] in room_type_filter_set]
-        if inventory_filter:
-            inventory_filter_set = set(inventory_filter.split(','))
-            inventory_table = [r for r in inventory_table if r['id'] in inventory_filter_set]
+        inventory_table = filter_inventory_table(
+            inventory_table, hotel_filter, room_type_filter, inventory_filter)
 
         # Build partition allocation maps
         partition_qty_map = {}  # {block_id: cap} for the selected partition
@@ -2036,37 +1625,9 @@ class Root:
                 bid = str(pb.inventory_id)
                 total_partitioned_map[bid] = total_partitioned_map.get(bid, 0) + pb.quantity
 
-        available_rooms = deepcopy(inventory_table)
-        for block in available_rooms:
-            block_id = block['id']
-
-            if partition_filter:
-                # Partitioned run: cap at partition allocation
-                partition_cap = partition_qty_map.get(block_id, 0)
-                if partition_cap <= 0:
-                    block['quantity'] = 0
-                    if block.get('night_quantities'):
-                        block['night_quantities'] = {k: 0 for k in block['night_quantities']}
-                    continue
-                block['quantity'] = min(block['quantity'], partition_cap)
-                if block.get('night_quantities'):
-                    block['night_quantities'] = {k: min(v, partition_cap) for k, v in block['night_quantities'].items()}
-            else:
-                # Non-partitioned run: subtract total partition allocations from capacity
-                reserved = total_partitioned_map.get(block_id, 0)
-                if reserved:
-                    block['quantity'] = max(0, block['quantity'] - reserved)
-                    if block.get('night_quantities'):
-                        block['night_quantities'] = {k: max(0, v - reserved) for k, v in block['night_quantities'].items()}
-
-            if block.get('night_quantities'):
-                for night_iso, qty in block['night_quantities'].items():
-                    already = assigned_per_block_night.get(block_id, {}).get(night_iso, 0)
-                    block['night_quantities'][night_iso] = max(0, qty - already)
-            else:
-                total_assigned = sum(assigned_per_block_night.get(block_id, {}).values())
-                if total_assigned:
-                    block['quantity'] = max(0, block['quantity'] - total_assigned)
+        available_rooms = adjust_available_rooms(
+            inventory_table, partition_filter, partition_qty_map,
+            total_partitioned_map, assigned_per_block_night)
 
         rooms_available_before = sum([x['quantity'] for x in available_rooms])
 
@@ -2119,7 +1680,7 @@ class Root:
                 session.add(application)
 
         # Materialize RoomAssignment rows (primary + connectors) per leader.
-        num_rooms_assigned = self._materialize_room_assignments(
+        num_rooms_assigned = materialize_room_assignments(
             session, applications, allocations, lottery_run, run_deadline,
             partition_filter)
 
@@ -2131,12 +1692,7 @@ class Root:
     
     def hotel_inventory(self, session, message='', partition='all'):
         # Build event night dates
-        event_nights = []
-        day = c.HOTEL_LOTTERY_CHECKIN_START.date()
-        end = c.HOTEL_LOTTERY_CHECKOUT_END.date()
-        while day < end:
-            event_nights.append(day)
-            day += timedelta(days=1)
+        event_nights = _event_nights()
 
         partitions = session.query(InventoryPartition).filter_by(active=True).order_by(InventoryPartition.name).all()
 
@@ -2164,41 +1720,8 @@ class Root:
             ra_query = ra_query.filter(RoomAssignment.partition_id == None)  # noqa: E711
         assigned_ras = ra_query.all()
 
-        # Build per-block per-night assignment counts + status counts.
-        assigned_per_block_night = defaultdict(lambda: defaultdict(int))
-        status_per_block = defaultdict(lambda: defaultdict(int))
-        for ra in assigned_ras:
-            block_id = str(ra.inventory_id)
-            status_per_block[block_id][ra.status] += 1
-            if ra.assigned_check_in_date and ra.assigned_check_out_date:
-                d = ra.assigned_check_in_date
-                while d < ra.assigned_check_out_date:
-                    assigned_per_block_night[block_id][d] += 1
-                    d += timedelta(days=1)
-
-        # Build per-block per-night waitlist demand from each
-        # assignment's own waitlisted_* range. Either column NULL means
-        # no demand on that end; we coalesce to the assigned date so the
-        # gap calculation is symmetric.
-        waitlist_per_block_night = defaultdict(lambda: defaultdict(int))
-        for ra in assigned_ras:
-            if ra.status != c.SECURED:
-                continue
-            if not (ra.waitlisted_check_in_date or ra.waitlisted_check_out_date):
-                continue
-            block_id = str(ra.inventory_id)
-            wl_ci = ra.waitlisted_check_in_date or ra.assigned_check_in_date
-            wl_co = ra.waitlisted_check_out_date or ra.assigned_check_out_date
-            if wl_ci and ra.assigned_check_in_date and wl_ci < ra.assigned_check_in_date:
-                d = wl_ci
-                while d < ra.assigned_check_in_date:
-                    waitlist_per_block_night[block_id][d] += 1
-                    d += timedelta(days=1)
-            if wl_co and ra.assigned_check_out_date and wl_co > ra.assigned_check_out_date:
-                d = ra.assigned_check_out_date
-                while d < wl_co:
-                    waitlist_per_block_night[block_id][d] += 1
-                    d += timedelta(days=1)
+        (assigned_per_block_night, status_per_block,
+         waitlist_per_block_night) = _count_inventory_usage(assigned_ras)
 
         # Build partition allocation maps for capacity adjustments
         partition_alloc_per_block = {}  # {block_id: allocation} for the selected partition
@@ -2392,63 +1915,7 @@ class Root:
     
     @xlsx_file
     def hotel_inventory_xlsx(self, out, session, hotel_id):
-        rows = []
-
-        hotel_inventory_ids = [str(inv.id) for inv in
-                               session.query(HotelRoomInventory).filter_by(hotel_id=hotel_id).all()]
-        assignments_q = session.query(RoomAssignment).filter(
-            RoomAssignment.is_live,
-            RoomAssignment.inventory_id.in_(hotel_inventory_ids),
-        )
-
-        first_assignment = assignments_q.order_by(RoomAssignment.assigned_check_in_date).first()
-        if not first_assignment:
-            return  # No assignments for this hotel
-        earliest_check_in = first_assignment.assigned_check_in_date
-        latest_check_out = assignments_q.order_by(
-            RoomAssignment.assigned_check_out_date.desc()).first().assigned_check_out_date
-        date_range = [earliest_check_in + timedelta(days=x)
-                      for x in range(0, (latest_check_out - earliest_check_in).days)] + [latest_check_out]
-
-        inv_by_room_type = defaultdict(list)
-        inv_by_suite_type = defaultdict(list)
-        for inv in session.query(HotelRoomInventory).filter(
-                HotelRoomInventory.id.in_(hotel_inventory_ids)).all():
-            if inv.is_suite:
-                inv_by_suite_type[str(inv.suite_type_id)].append(str(inv.id))
-            else:
-                inv_by_room_type[str(inv.room_type_id)].append(str(inv.id))
-
-        header_row = [''] + [d.strftime("%A %-m/%-d") for d in date_range]
-        for rt in session.query(LotteryRoomType).filter_by(
-                is_suite=False, active=True).order_by(LotteryRoomType.name).all():
-            inv_ids = inv_by_room_type.get(str(rt.id), [])
-            row = [rt.name]
-            for d in date_range:
-                row.append(
-                    assignments_q.filter(
-                        RoomAssignment.inventory_id.in_(inv_ids),
-                        RoomAssignment.assigned_check_in_date <= d,
-                        RoomAssignment.assigned_check_out_date >= d,
-                    ).count() if inv_ids else 0)
-            rows.append(row)
-
-        has_suites = any(inv_by_suite_type.values())
-        if has_suites:
-            for st in session.query(LotteryRoomType).filter_by(
-                    is_suite=True, active=True).order_by(LotteryRoomType.name).all():
-                inv_ids = inv_by_suite_type.get(str(st.id), [])
-                row = [st.name]
-                for d in date_range:
-                    row.append(
-                        assignments_q.filter(
-                            RoomAssignment.inventory_id.in_(inv_ids),
-                            RoomAssignment.assigned_check_in_date <= d,
-                            RoomAssignment.assigned_check_out_date >= d,
-                        ).count() if inv_ids else 0)
-                rows.append(row)
-
-        out.writerows(header_row, rows)
+        write_hotel_inventory_xlsx(out, session, hotel_id)
 
     @multifile_zipfile
     def hotel_inventory_zip(self, zip_file, session):
@@ -2473,158 +1940,7 @@ class Root:
 
     @csv_file
     def interchange_export(self, out, session, staff_lottery=False):
-        def print_dt(dt):
-            if not dt:
-                return ""
-
-            if isinstance(dt, datetime):
-                return dt.astimezone(c.EVENT_TIMEZONE).strftime('%m/%d/%Y %H:%M:%S')
-            else:
-                return dt.strftime('%m/%d/%Y')
-        
-        def print_bool(bool):
-            return "TRUE" if bool else "FALSE"
-
-        country_codes = {}
-        for country in list(pycountry.countries):
-            value = country.name if "Taiwan" not in country.name else "Taiwan"
-            country_codes[value] = f"{country.alpha_2};{country.name}"
-
-        header_row = []
-        # Config data and IDs
-        header_row.extend(["Lottery Close", "suite_cutoff", "year", "Response ID", "Confirmation Code",
-                           "SessionID", "Survey ID", "entry_id", "dealer_group_id"])
-
-        # Contact data
-        header_row.extend(["is_staff", "email", "first_name:contact", "last_name:contact", "Title:contact",
-                           "Company Name:contact", "street_address:contact", "apt_suite_office:contact",
-                           "city:contact", "state:contact", "zip:contact", "country:contact", "phone:contact",
-                           "Mobile Phone:contact"])
-
-        # Entry metadata
-        header_row.extend(["Time Started", "Date Submitted", "entry_confirmed", "Status", "edit_link", "I agree:agree",
-                           "Comments", "payment_valid", "reg_conf_code", "entry_type", "Referer",
-                           "User Agent", "IP Address", "Longitude", "Latitude", "Country", "City", "State/Region",
-                           "Postal"])
-
-        # Entry data
-        header_row.extend(["group_conf", "group_email", "Yes:age_ack", "special_room", "ada_req_text",
-                           "I agree, understand and will comply:suite_agree",
-                           "desired_arrival", "latest_arrival", "desired_departure", "earliest_departure"])
-
-        all_hotels = session.query(LotteryHotel).filter_by(active=True).order_by(LotteryHotel.name).all()
-        all_room_types = session.query(LotteryRoomType).filter_by(is_suite=False, active=True).order_by(LotteryRoomType.name).all()
-        all_suite_types = session.query(LotteryRoomType).filter_by(is_suite=True, active=True).order_by(LotteryRoomType.name).all()
-
-        for hotel in all_hotels:
-            header_row.append(f"{hotel.export_name or hotel.name}:hotel_pref")
-
-        for rt in all_room_types:
-            header_row.append(f"{rt.export_name or rt.name}:room_pref")
-
-        for st in all_suite_types:
-            header_row.append(f"{st.export_name or st.name}:suite_type")
-
-        out.writerow(header_row)
-
-        applications = session.query(LotteryApplication).join(LotteryApplication.attendee
-                                                              ).filter(LotteryApplication.status != c.PROCESSED,
-                                                                       Attendee.hotel_lottery_eligible == True)
-        if staff_lottery:
-            applications = applications.filter(LotteryApplication.is_staff_entry == True)
-        else:
-            applications = applications.filter(LotteryApplication.is_staff_entry == False)
-
-        for app in applications:
-            attendee = app.attendee
-            row = []
-
-            # Config data and IDs
-            dealer_id = ''
-            if app.attendee.is_dealer and app.attendee.group and app.attendee.group.status in c.DEALER_ACCEPTED_STATUSES:
-                dealer_id = app.attendee.group.id
-            current_lottery_deadline = c.HOTEL_LOTTERY_STAFF_DEADLINE if app.is_staff_entry else c.HOTEL_LOTTERY_FORM_DEADLINE
-            row.extend([datetime_local_filter(current_lottery_deadline), datetime_local_filter(c.HOTEL_LOTTERY_SUITE_CUTOFF),
-                        c.EVENT_YEAR, app.response_id, app.confirmation_num, app.id, "RAMS_1", app.id, dealer_id])
-
-            # Contact data
-            base_cellphone = app.cellphone or app.attendee.cellphone
-            row.extend([print_bool(attendee.badge_type == c.STAFF_BADGE or c.STAFF_RIBBON in attendee.ribbon_ints),
-                        attendee.email,
-                        attendee.effective_hotel_first_name,
-                        attendee.effective_hotel_last_name,
-                        "", "", attendee.address1,
-                        attendee.address2, attendee.city, attendee.region, attendee.zip_code,
-                        country_codes.get(attendee.country, attendee.country),
-                        ''.join(filter(str.isdigit, base_cellphone)) if base_cellphone else "", ""])
-
-            # Entry metadata
-            if app.entry_type:
-                type_str = "I am entering as a roommate" if app.entry_type == c.GROUP_ENTRY else "I am requesting a room"
-            else:
-                type_str = "I am withdrawing from the lottery"
-            row.extend([print_dt(app.entry_started), print_dt(app.last_submitted), print_bool(app.status == c.COMPLETE),
-                        app.status_label, f"{c.URL_BASE}/hotel_lottery/index?attendee_id={app.attendee.id}",
-                        print_bool(app.terms_accepted), app.admin_notes, "FALSE", attendee.id, type_str])
-            if app.entry_metadata:
-                row.extend([app.entry_metadata.get('referer'), app.entry_metadata.get('user_agent'), app.entry_metadata.get('ip_address')])
-            else:
-                row.extend(['', '', ''])
-            row.extend(['', '', '', '', '', ''])
-
-            # Entry data
-            if app.parent_application:
-                row.extend([app.parent_application.confirmation_num, app.parent_application.email,
-                            '', '', '', '', '', '', '', ''])
-            else:
-                row.extend(['', '', print_bool(app.entry_form_completed)])
-
-                entry_type_base = app.entry_type or c.ROOM_ENTRY
-                if entry_type_base == c.ROOM_ENTRY:
-                    if app.wants_ada:
-                        row.extend(['ADA Room', app.ada_requests, ''])
-                    else:
-                        row.extend(['Standard Rooms with no Special Requests', '', ''])
-                elif entry_type_base == c.SUITE_ENTRY:
-                    row.extend(['Hyatt Regency O\'Hare Suites', '', print_bool(app.suite_terms_accepted)])
-                
-                row.extend([print_dt(app.earliest_checkin_date), print_dt(app.latest_checkin_date),
-                            print_dt(app.latest_checkout_date), print_dt(app.earliest_checkout_date)])
-
-            if app.parent_application or not app.hotel_preference or (
-                    app.entry_type and app.entry_type == c.SUITE_ENTRY and app.room_opt_out):
-                row.extend(['' for _ in range(len(all_hotels))])
-            else:
-                hotels_ranking = {}
-                for index, item in enumerate(app.hotel_preference.split(','), start=1):
-                    hotels_ranking[item] = index
-
-                for hotel in all_hotels:
-                    row.append(hotels_ranking.get(str(hotel.id), ''))
-
-            if app.parent_application or not app.room_type_preference or (
-                    app.entry_type and app.entry_type == c.SUITE_ENTRY and app.room_opt_out):
-                row.extend(['' for _ in range(len(all_room_types))])
-            else:
-                room_types_ranking = {}
-                for index, item in enumerate(app.room_type_preference.split(','), start=1):
-                    room_types_ranking[item] = index
-
-                for rt in all_room_types:
-                    row.append(room_types_ranking.get(str(rt.id), ''))
-
-            if app.parent_application or not app.suite_type_preference or (
-                    app.entry_type and app.entry_type == c.ROOM_ENTRY):
-                row.extend(['' for _ in range(len(all_suite_types))])
-            else:
-                suite_types_ranking = {}
-                for index, item in enumerate(app.suite_type_preference.split(','), start=1):
-                    suite_types_ranking[item] = index
-
-                for st in all_suite_types:
-                    row.append(suite_types_ranking.get(str(st.id), ''))
-
-            out.writerow(row)
+        write_interchange_export(out, session, staff_lottery)
 
     def manage_partitions(self, session, message=''):
         partitions = session.query(InventoryPartition).order_by(InventoryPartition.name).all()
@@ -3842,44 +3158,7 @@ class Root:
         # filtered set so the histogram and the FIFO table represent
         # the same population - search "hampton" and you see only the
         # Hampton blocks light up.
-        demand_by_block = defaultdict(lambda: defaultdict(list))
-        for ra in filtered:
-            block_id = str(ra.inventory_id) if ra.inventory_id else None
-            if not block_id:
-                continue
-            wl_ci = ra.waitlisted_check_in_date or ra.assigned_check_in_date
-            wl_co = ra.waitlisted_check_out_date or ra.assigned_check_out_date
-            if wl_ci and ra.assigned_check_in_date and wl_ci < ra.assigned_check_in_date:
-                d = wl_ci
-                while d < ra.assigned_check_in_date:
-                    demand_by_block[block_id][d].append(ra)
-                    d += timedelta(days=1)
-            if wl_co and ra.assigned_check_out_date and wl_co > ra.assigned_check_out_date:
-                d = ra.assigned_check_out_date
-                while d < wl_co:
-                    demand_by_block[block_id][d].append(ra)
-                    d += timedelta(days=1)
-
-        block_ids = list(demand_by_block.keys())
-        inventory_by_id = {}
-        if block_ids:
-            for inv in session.query(HotelRoomInventory).filter(
-                    HotelRoomInventory.id.in_(block_ids)).all():
-                inventory_by_id[str(inv.id)] = inv
-
-        block_rows = []
-        for block_id in block_ids:
-            nights = demand_by_block[block_id]
-            block_rows.append({
-                'inventory': inventory_by_id.get(block_id),
-                'inventory_id': block_id,
-                'nights': sorted(((n, len(ras)) for n, ras in nights.items()),
-                                 key=lambda p: p[0]),
-                'total_demand': sum(len(ras) for ras in nights.values()),
-            })
-        block_rows.sort(key=lambda r: (
-            r['inventory'].hotel.name if r['inventory'] and r['inventory'].hotel else '',
-            r['inventory'].name if r['inventory'] else ''))
+        block_rows = _waitlist_block_rows(session, filtered)
 
         # Pagination. `get_page` is the same helper the rest of the
         # admin uses (`uber.utils.get_page`), but its 100-per-page
@@ -3908,218 +3187,23 @@ class Root:
         }
 
     def export_waitlist_xlsx(self, session):
-        """One-XLSX-per-call export of the current waitlist demand,
-        with one worksheet per hotel that has any waitlisted rooms.
-
-        Sheet layout (within each hotel):
-
-            row 1:  Hotel name (merged across the night columns)
-            row 2:  blank spacer
-            row 3:  header - ["Room type", <night 1>, <night 2>, ..., "Total"]
-            row 4+: one row per room type at this hotel, with the count of
-                    distinct waitlisted RoomAssignment rows demanding each
-                    (type, night) pair.
-            last:   "Total" row summing each column.
+        """One-XLSX-per-call export of the current waitlist demand, with
+        one worksheet per hotel that has any waitlisted rooms. The sheet
+        layout lives with the builder (uber.hotel_exports.build_waitlist_xlsx).
 
         Built manually (no `@xlsx_file` decorator) because that helper
-        only hands out a single worksheet, and we need one sheet per
-        hotel. We still match the decorator's response shape: same
-        Content-Type, a filename derived from the handler name plus a
-        timestamp, and we participate in `track_report` so admin
-        exports show up in the usage log.
+        only hands out a single worksheet. We still match the decorator's
+        response shape: same Content-Type, a filename derived from the
+        handler name plus a timestamp, and we participate in
+        `track_report` so admin exports show up in the usage log.
         """
-        from io import BytesIO
-        from datetime import datetime as _dt
-        import xlsxwriter
-        from uber.models.hotel import RoomAssignment
-
-        # Gather every waitlisted assignment.
-        waitlisted = (session.query(RoomAssignment)
-                      .filter(sa.or_(
-                          RoomAssignment.waitlisted_check_in_date.isnot(None),
-                          RoomAssignment.waitlisted_check_out_date.isnot(None)))
-                      .all())
-
-        # Build a {hotel_id: {(type_name, type_is_suite): {night: count}}}
-        # nested histogram, plus parallel lookup tables for hotel display
-        # names. Multiple inventory blocks of the same room type at the same
-        # hotel collapse together so the report shows room type by night
-        # within a hotel: two Standard King blocks at the same hotel roll
-        # into one "Standard King" row.
-        from collections import defaultdict as _dd
-        per_hotel = _dd(lambda: _dd(lambda: _dd(int)))  # hotel_id -> type_label -> night -> count
-        hotel_name_by_id = {}
-        nights_by_hotel = _dd(set)
-        type_order_by_hotel = _dd(list)  # preserve first-seen order per hotel
-        type_seen_by_hotel = _dd(set)
-
-        for ra in waitlisted:
-            inv = ra.inventory
-            if not inv or not inv.hotel:
-                continue
-            hotel = inv.hotel
-            hotel_id = str(hotel.id)
-            hotel_name_by_id[hotel_id] = hotel.name or '(unnamed hotel)'
-
-            # Resolve a stable label for this room type. Suite types
-            # and standard types both live in `LotteryRoomType`; an
-            # inventory block points at one via `suite_type_id` or
-            # `room_type_id` depending on `is_suite`.
-            if inv.is_suite:
-                rt = inv.suite_type
-                label = (rt.name if rt else inv.name) + ' (suite)'
-            else:
-                rt = inv.room_type
-                label = rt.name if rt else inv.name
-            label = label or '(unnamed type)'
-
-            if label not in type_seen_by_hotel[hotel_id]:
-                type_seen_by_hotel[hotel_id].add(label)
-                type_order_by_hotel[hotel_id].append(label)
-
-            # Walk this assignment's waitlist gap and tick each
-            # (type, night) cell. Front gap = nights before
-            # assigned_check_in_date; back gap = nights at or after
-            # assigned_check_out_date.
-            wl_ci = ra.waitlisted_check_in_date or ra.assigned_check_in_date
-            wl_co = ra.waitlisted_check_out_date or ra.assigned_check_out_date
-
-            if wl_ci and ra.assigned_check_in_date and wl_ci < ra.assigned_check_in_date:
-                d = wl_ci
-                while d < ra.assigned_check_in_date:
-                    per_hotel[hotel_id][label][d] += 1
-                    nights_by_hotel[hotel_id].add(d)
-                    d += timedelta(days=1)
-            if wl_co and ra.assigned_check_out_date and wl_co > ra.assigned_check_out_date:
-                d = ra.assigned_check_out_date
-                while d < wl_co:
-                    per_hotel[hotel_id][label][d] += 1
-                    nights_by_hotel[hotel_id].add(d)
-                    d += timedelta(days=1)
-
-        # Build the workbook. Sheet name has a 31-char cap and can't
-        # contain :\/?*[]; truncate and substitute.
-        def _safe_sheet_name(name, taken):
-            cleaned = ''
-            for ch in (name or 'Waitlist'):
-                cleaned += ' ' if ch in ':\\/?*[]' else ch
-            cleaned = cleaned.strip()[:31] or 'Waitlist'
-            # Disambiguate collisions (rare - two hotels with names
-            # truncating to the same 31 chars).
-            base = cleaned
-            n = 2
-            while cleaned in taken:
-                suffix = f' ({n})'
-                cleaned = base[:31 - len(suffix)] + suffix
-                n += 1
-            taken.add(cleaned)
-            return cleaned
-
-        rawoutput = BytesIO()
-        with xlsxwriter.Workbook(rawoutput, {'in_memory': True}) as workbook:
-            title_fmt = workbook.add_format(
-                {'bold': True, 'font_size': 14, 'align': 'left'})
-            header_fmt = workbook.add_format(
-                {'bold': True, 'bg_color': '#EFEFEF', 'border': 1})
-            total_fmt = workbook.add_format(
-                {'bold': True, 'top': 1})
-            date_fmt = workbook.add_format(
-                {'bold': True, 'bg_color': '#EFEFEF', 'border': 1,
-                 'align': 'center', 'num_format': 'ddd m/d'})
-            cell_fmt = workbook.add_format({'align': 'center'})
-
-            if not per_hotel:
-                # Always produce at least one sheet so the file is
-                # openable - an empty workbook would be confusing
-                # output for an admin who clicked Export.
-                ws = workbook.add_worksheet('Waitlist')
-                ws.write(0, 0, 'No rooms are currently on the waitlist.',
-                         title_fmt)
-            else:
-                taken_sheet_names = set()
-                # Stable sheet order: alphabetical by hotel name so the
-                # tab strip across the bottom of Excel is predictable.
-                hotel_ids_sorted = sorted(
-                    per_hotel.keys(),
-                    key=lambda hid: hotel_name_by_id.get(hid, ''))
-
-                for hotel_id in hotel_ids_sorted:
-                    hotel_name = hotel_name_by_id[hotel_id]
-                    sheet_name = _safe_sheet_name(
-                        hotel_name, taken_sheet_names)
-                    ws = workbook.add_worksheet(sheet_name)
-
-                    nights_sorted = sorted(nights_by_hotel[hotel_id])
-                    types_sorted = type_order_by_hotel[hotel_id]
-                    n_cols = 1 + len(nights_sorted) + 1  # type + nights + total
-
-                    # Row 0: hotel title spanning the night columns.
-                    ws.merge_range(0, 0, 0, n_cols - 1,
-                                   f'{hotel_name} - Waitlist demand',
-                                   title_fmt)
-                    # Row 1: spacer (left blank).
-
-                    # Row 2: header.
-                    ws.write(2, 0, 'Room type', header_fmt)
-                    for i, night in enumerate(nights_sorted):
-                        # Write as a real date so admins can re-sort
-                        # or compute on it; format string handles
-                        # display.
-                        ws.write_datetime(
-                            2, 1 + i, _dt.combine(night, _dt.min.time()),
-                            date_fmt)
-                    ws.write(2, 1 + len(nights_sorted), 'Total', header_fmt)
-
-                    # Rows 3..N: one row per room type.
-                    col_totals = [0] * len(nights_sorted)
-                    for r_offset, label in enumerate(types_sorted):
-                        row_idx = 3 + r_offset
-                        ws.write(row_idx, 0, label)
-                        row_total = 0
-                        for c_offset, night in enumerate(nights_sorted):
-                            count = per_hotel[hotel_id][label].get(night, 0)
-                            if count:
-                                ws.write_number(
-                                    row_idx, 1 + c_offset, count, cell_fmt)
-                                row_total += count
-                                col_totals[c_offset] += count
-                            else:
-                                # Leave blank rather than writing 0
-                                # so the sparse cells visually
-                                # disappear and the populated ones
-                                # pop.
-                                ws.write_blank(
-                                    row_idx, 1 + c_offset, None, cell_fmt)
-                        ws.write_number(
-                            row_idx, 1 + len(nights_sorted), row_total,
-                            total_fmt)
-
-                    # Final row: per-night totals.
-                    total_row = 3 + len(types_sorted)
-                    ws.write(total_row, 0, 'Total', total_fmt)
-                    for c_offset, total in enumerate(col_totals):
-                        ws.write_number(
-                            total_row, 1 + c_offset, total, total_fmt)
-                    ws.write_number(
-                        total_row, 1 + len(nights_sorted), sum(col_totals),
-                        total_fmt)
-
-                    # Modest column widths so the sheet is readable
-                    # without manual resizing.
-                    ws.set_column(0, 0, 28)
-                    ws.set_column(1, len(nights_sorted), 11)
-                    ws.set_column(1 + len(nights_sorted),
-                                  1 + len(nights_sorted), 8)
-                    ws.freeze_panes(3, 1)
-
-        output = rawoutput.getvalue()
+        output = build_waitlist_xlsx(session)
         cherrypy.response.headers['Content-Type'] = (
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         # Real `datetime.now()` rather than the project's `localized_now()`
         # because the file name doesn't need timezone fidelity - same
         # convention as `@xlsx_file`.
-        from datetime import datetime as _dt2
-        stamp = _dt2.now().strftime('%Y%m%d_%H%M')
+        stamp = datetime.now().strftime('%Y%m%d_%H%M')
         cherrypy.response.headers['Content-Disposition'] = (
             f'attachment; filename="export_waitlist_xlsx{stamp}.xlsx"')
         return output
@@ -4257,8 +3341,9 @@ class Root:
     # A read-only "what's wrong with our room data" report. Issues are
     # surfaced as a flat list, each one carrying severity (error/warning),
     # a human label, and a deep-link to wherever the admin can fix it
-    # (usually the application's edit form). The scan is intentionally
-    # all in Python - no SQL view - so it's easy to add new checks.
+    # (usually the application's edit form). The checks themselves live
+    # in uber.hotel_room_audit (all in Python - no SQL view - so it's
+    # easy to add new ones); this section keeps the routes.
 
     def room_issues(self, session, message='', severity='all', kind='all',
                     search='', show_hidden=''):
@@ -4289,532 +3374,20 @@ class Root:
           - secured_without_payment: self-pay room flipped to SECURED
             without a captured CC vault token. The hotel will treat the
             reservation as unguaranteed; master-bill rooms exempt.
+
+        Plus the inventory/configuration checks registered in
+        uber.hotel_room_audit.INVENTORY_CHECKS (oversubscription,
+        partition misconfiguration, connector capacity, etc.).
         """
-        from datetime import timedelta as _td
-        from collections import defaultdict
-
-        # All live assignments - these are what we audit.
-        live = (session.query(RoomAssignment)
-                .filter(RoomAssignment.is_live)
-                .all())
-
-        by_id = {ra.id: ra for ra in live}
-        # Build group-by-attendee for orphan detection (an orphan child
-        # is one whose parent isn't tied to the SAME attendee).
-        by_attendee = defaultdict(list)
-        for ra in live:
-            by_attendee[ra.attendee_id].append(ra)
-
-        # Build group-by-parent for childless-parent detection.
-        children_of = defaultdict(list)
-        for ra in live:
-            if ra.parent_assignment_id:
-                children_of[ra.parent_assignment_id].append(ra)
-
-        # Lookup: room_type_id -> list of (parent_type_id, qty) it must
-        # follow. With the current single-parent model that's at most
-        # one entry, but we model it as a list so the same code handles
-        # any future multi-parent extension.
-        room_type_parents = {}
-        room_type_children_needed = defaultdict(list)
-        for rt in session.query(LotteryRoomType).all():
-            if rt.connects_to_type_id:
-                room_type_parents[rt.id] = (rt.connects_to_type_id,
-                                            rt.connector_quantity)
-                room_type_children_needed[rt.connects_to_type_id].append(
-                    (rt.id, rt.connector_quantity, rt.name))
-
-        issues = []
-
-        def _add(severity, kind, label, assignment, fix_url=None, extra=None):
-            issues.append({
-                'severity': severity,
-                'kind': kind,
-                'label': label,
-                'assignment': assignment,
-                'fix_url': fix_url,
-                'extra': extra or {},
-            })
-
-        ci_start = c.HOTEL_LOTTERY_CHECKIN_START.date() if c.HOTEL_LOTTERY_CHECKIN_START else None
-        co_end = c.HOTEL_LOTTERY_CHECKOUT_END.date() if c.HOTEL_LOTTERY_CHECKOUT_END else None
-
-        for ra in live:
-            app_id = ra.lottery_application_id
-            fix = f'form?id={app_id}' if app_id else None
-            inv = ra.inventory
-
-            # Orphan connector
-            if ra.parent_assignment_id:
-                parent = by_id.get(ra.parent_assignment_id)
-                if not parent or parent.attendee_id != ra.attendee_id:
-                    _add('error', 'orphan_connector',
-                         "Connector room without a matching parent suite "
-                         "assigned to the same attendee.",
-                         ra, fix)
-                elif not parent.is_live:
-                    _add('error', 'orphan_connector',
-                         f"Connector's parent suite is in status "
-                         f"{parent.status_label}, not live.",
-                         ra, fix)
-                else:
-                    # Parent exists and is live - but does it actually
-                    # require a connector of THIS type? If an admin edited
-                    # the parent's inventory to a different room type, the
-                    # connector is now hanging off something that doesn't
-                    # need it.
-                    child_inv = ra.inventory
-                    child_type_id = (child_inv.room_type_id
-                                     or child_inv.suite_type_id) if child_inv else None
-                    parent_inv = parent.inventory
-                    parent_type_id = (parent_inv.room_type_id
-                                      or parent_inv.suite_type_id) if parent_inv else None
-                    expected_parent_type_id = None
-                    if child_type_id and child_type_id in room_type_parents:
-                        expected_parent_type_id = room_type_parents[child_type_id][0]
-                    if not expected_parent_type_id:
-                        # This child's room type isn't configured as a
-                        # connector at all anymore - somebody removed the
-                        # `connects_to_type_id` mapping after the room
-                        # was awarded.
-                        _add('error', 'orphan_connector',
-                             "Connector's room type is no longer "
-                             "configured to follow any parent.",
-                             ra, fix)
-                    elif expected_parent_type_id != parent_type_id:
-                        _add('error', 'orphan_connector',
-                             "Connector's parent assignment is no longer "
-                             "the correct room type to require this "
-                             "connector.",
-                             ra, fix)
-
-            # Dates
-            if not ra.assigned_check_in_date or not ra.assigned_check_out_date:
-                _add('error', 'missing_dates',
-                     "Assignment is missing check-in and/or check-out date.",
-                     ra, fix)
-            else:
-                if ra.assigned_check_in_date >= ra.assigned_check_out_date:
-                    _add('error', 'inverted_dates',
-                         "Check-out date is on or before the check-in date.",
-                         ra, fix)
-                else:
-                    nights = (ra.assigned_check_out_date
-                              - ra.assigned_check_in_date).days
-                    if nights < 1:
-                        _add('error', 'too_short',
-                             "Stay is less than one night long.",
-                             ra, fix)
-                if ci_start and ra.assigned_check_in_date < ci_start:
-                    _add('warning', 'out_of_range',
-                         f"Check-in {ra.assigned_check_in_date} is before "
-                         f"the event window opens ({ci_start}).",
-                         ra, fix)
-                if co_end and ra.assigned_check_out_date > co_end:
-                    _add('warning', 'out_of_range',
-                         f"Check-out {ra.assigned_check_out_date} is after "
-                         f"the event window closes ({co_end}).",
-                         ra, fix)
-
-            # Occupants vs inventory capacity. The booker (attendee_id)
-            # is ALWAYS implicitly an occupant - they're the name on the
-            # reservation - even when the room_assignment_occupant M2M
-            # row is missing (the ensure_booker_is_occupant presave keeps
-            # it in sync, but older/imported rows may lack it). Fold the
-            # booker into the set so a room with a booker is never flagged
-            # "empty", and the booker still counts toward capacity.
-            occupant_ids = {o.id for o in (getattr(ra, 'occupants', None) or [])}
-            if ra.attendee_id:
-                occupant_ids.add(ra.attendee_id)
-            occupant_count = len(occupant_ids)
-            if inv:
-                cap = inv.capacity or 0
-                min_cap = inv.min_capacity or 0
-                if occupant_count == 0:
-                    _add('error', 'empty_room',
-                         "No occupants assigned - the hotel needs a name "
-                         "on the reservation.",
-                         ra, fix)
-                elif cap and occupant_count > cap:
-                    _add('error', 'over_capacity',
-                         f"{occupant_count} occupants in a room with "
-                         f"capacity {cap}.",
-                         ra, fix)
-                elif min_cap and occupant_count < min_cap:
-                    _add('warning', 'under_capacity',
-                         f"{occupant_count} occupants in a room with "
-                         f"minimum {min_cap}.",
-                         ra, fix)
-
-            # Secured-without-payment: status flipped to SECURED on a
-            # self-pay room but no CC vault token was ever captured. The
-            # secure flow normally requires the token before flipping, so
-            # this means the row was edited around the flow (admin override,
-            # imported state, etc.). Master-bill rooms (require_cc=False)
-            # are exempt - they have no payment info by design.
-            if ra.status == c.SECURED and ra.require_cc and not ra.cc_token:
-                _add('error', 'secured_without_payment',
-                     "Room is marked Secured but has no credit card on "
-                     "file - the hotel will treat the reservation as "
-                     "unguaranteed.",
-                     ra, fix)
-
-        # For each live primary whose room type is a connector parent,
-        # tally the live children by type and warn when any required
-        # type is short.
-        for parent_ra in live:
-            if parent_ra.parent_assignment_id:
-                continue  # only check primaries
-            inv = parent_ra.inventory
-            if not inv:
-                continue
-            parent_type_id = inv.room_type_id or inv.suite_type_id
-            specs = room_type_children_needed.get(parent_type_id, [])
-            if not specs:
-                continue
-            kids_by_type = defaultdict(int)
-            for child in children_of.get(parent_ra.id, []):
-                ci = child.inventory
-                if ci:
-                    kt = ci.room_type_id or ci.suite_type_id
-                    kids_by_type[kt] += 1
-            for child_type_id, needed_qty, child_type_name in specs:
-                got = kids_by_type.get(child_type_id, 0)
-                if got < needed_qty:
-                    fix = f'form?id={parent_ra.lottery_application_id}' if parent_ra.lottery_application_id else None
-                    _add('error', 'childless_parent',
-                         f"Suite is missing required connector "
-                         f"'{child_type_name}': has {got}, needs "
-                         f"{needed_qty}.",
-                         parent_ra, fix)
-
-        # Apps with rooms should be AWARDED; apps without any live rooms
-        # should NOT be AWARDED. The listener flips these in real time,
-        # so any hit here means data was edited around the listener.
-        app_ids_with_rooms = {ra.lottery_application_id for ra in live
-                              if ra.lottery_application_id}
-        if app_ids_with_rooms:
-            mismatched = (session.query(LotteryApplication)
-                          .filter(LotteryApplication.id.in_(app_ids_with_rooms))
-                          .filter(LotteryApplication.status != c.AWARDED)
-                          .filter(LotteryApplication.status != c.PROCESSED)
-                          .all())
-            for app in mismatched:
-                _add('warning', 'status_mismatch',
-                     f"Application has live rooms but status is "
-                     f"{app.status_label}.",
-                     None,
-                     fix_url=f'form?id={app.id}',
-                     extra={'application': app})
-
-        # Apps marked AWARDED with zero live rooms - same story, other side.
-        awarded_apps = (session.query(LotteryApplication)
-                        .filter(LotteryApplication.status == c.AWARDED).all())
-        for app in awarded_apps:
-            if app.id not in app_ids_with_rooms:
-                _add('warning', 'status_mismatch',
-                     "Application is marked AWARDED but has no live rooms.",
-                     None,
-                     fix_url=f'form?id={app.id}',
-                     extra={'application': app})
-
-        # An attendee listed as occupant of two assignments whose dates
-        # overlap. We check across `occupants` (the M2M), not
-        # `attendee_id` - the booker can hold many rooms intentionally,
-        # but an occupant can't be in two rooms on the same night.
-        occupant_rooms = defaultdict(list)
-        for ra in live:
-            if not ra.assigned_check_in_date or not ra.assigned_check_out_date:
-                continue
-            for occ in (getattr(ra, 'occupants', None) or []):
-                occupant_rooms[occ.id].append(ra)
-        for occ_id, ras in occupant_rooms.items():
-            if len(ras) < 2:
-                continue
-            # Pairwise overlap check (n is small in practice).
-            for i, a in enumerate(ras):
-                for b in ras[i+1:]:
-                    if (a.assigned_check_in_date < b.assigned_check_out_date
-                            and b.assigned_check_in_date < a.assigned_check_out_date):
-                        # Connector + its own parent overlapping doesn't count
-                        # - the connector is part of the same block.
-                        if (a.parent_assignment_id == b.id
-                                or b.parent_assignment_id == a.id):
-                            continue
-                        fix = f'form?id={a.lottery_application_id}' if a.lottery_application_id else None
-                        _add('warning', 'double_booked',
-                             f"Occupant is on two overlapping rooms "
-                             f"({a.assigned_check_in_date}->"
-                             f"{a.assigned_check_out_date} and "
-                             f"{b.assigned_check_in_date}->"
-                             f"{b.assigned_check_out_date}).",
-                             a, fix,
-                             extra={'other_assignment': b})
-
-        # These don't attach to a RoomAssignment - they describe a
-        # mismatch between configured inventory and the lottery's load
-        # (or static configuration mistakes). Collected into a separate
-        # list so the template can put them on their own tab.
-        inv_issues = []
-
-        def _inv_add(severity, kind, label, inventory=None, partition=None,
-                     room_type=None, fix_url=None, extra=None):
-            inv_issues.append({
-                'severity': severity,
-                'kind': kind,
-                'label': label,
-                'inventory': inventory,
-                'partition': partition,
-                'room_type': room_type,
-                'fix_url': fix_url,
-                'extra': extra or {},
-            })
-
-        # All active inventory, plus the partition-block index keyed by
-        # inventory_id so the per-partition oversubscription check is a
-        # constant-time lookup per row.
-        all_inventory = (session.query(HotelRoomInventory)
-                         .filter_by(active=True).all())
-        partition_blocks_by_inv = defaultdict(list)
-        for pb in session.query(InventoryPartitionBlock).all():
-            partition_blocks_by_inv[str(pb.inventory_id)].append(pb)
-
-        # Live RAs grouped by inventory for the oversubscription scans.
-        live_by_inv = defaultdict(list)
-        for ra in live:
-            if ra.inventory_id:
-                live_by_inv[str(ra.inventory_id)].append(ra)
-
-        for inv in all_inventory:
-            inv_id = str(inv.id)
-            ras = live_by_inv.get(inv_id, [])
-            fix = f'edit_inventory_item?id={inv.id}'
-
-            # Static config sanity:
-            #   - active inventory at quantity 0 = mistake
-            #   - active inventory whose hotel/type is inactive = stranded
-            if inv.quantity == 0:
-                _inv_add('warning', 'zero_quantity',
-                         "Active inventory configured with quantity zero - "
-                         "either deactivate it or set a non-zero quantity.",
-                         inventory=inv, fix_url=fix)
-            if inv.hotel and not inv.hotel.active:
-                _inv_add('warning', 'inactive_parent',
-                         f"Inventory points at inactive hotel "
-                         f"'{inv.hotel.name}'.",
-                         inventory=inv, fix_url=fix)
-            rt = inv.suite_type if inv.is_suite else inv.room_type
-            if rt and not rt.active:
-                _inv_add('warning', 'inactive_parent',
-                         f"Inventory points at inactive room type "
-                         f"'{rt.name}'.",
-                         inventory=inv, fix_url=fix)
-            if inv.is_suite and not inv.suite_type:
-                _inv_add('warning', 'type_mismatch',
-                         "Inventory is flagged as a suite but has no "
-                         "suite_type set.",
-                         inventory=inv, fix_url=fix)
-            if not inv.is_suite and not inv.room_type:
-                _inv_add('warning', 'type_mismatch',
-                         "Inventory is flagged as a standard room but has "
-                         "no room_type set.",
-                         inventory=inv, fix_url=fix)
-
-            # Partition blocks summing to more than the inventory's cap:
-            # a configuration bug, not a runtime overlap.
-            blocks = partition_blocks_by_inv.get(inv_id, [])
-            partition_total = sum(pb.quantity for pb in blocks)
-            if inv.quantity and partition_total > inv.quantity:
-                _inv_add('error', 'partition_overallocated',
-                         f"Partition blocks sum to {partition_total} rooms "
-                         f"but this inventory only has {inv.quantity}.",
-                         inventory=inv, fix_url=fix,
-                         extra={'partition_total': partition_total})
-
-            # Night-level oversubscription: walk every night in the
-            # event window covered by an assignment and tally occupancy
-            # vs. capacity. inv.night_quantity_map (when populated)
-            # overrides inv.quantity per-night.
-            if not ras:
-                continue
-            nq_map = getattr(inv, 'night_quantity_map', None) or {}
-            night_occupancy = defaultdict(int)
-            night_partition_occupancy = defaultdict(lambda: defaultdict(int))
-            for ra in ras:
-                if not ra.assigned_check_in_date or not ra.assigned_check_out_date:
-                    continue
-                d = ra.assigned_check_in_date
-                while d < ra.assigned_check_out_date:
-                    night_occupancy[d] += 1
-                    if ra.partition_id:
-                        night_partition_occupancy[ra.partition_id][d] += 1
-                    d = d + timedelta(days=1)
-
-            # Inventory-wide oversubscription.
-            bad_nights = []
-            for night, used in sorted(night_occupancy.items()):
-                cap = nq_map.get(night, inv.quantity)
-                if used > cap:
-                    bad_nights.append((night, used, cap))
-            if bad_nights:
-                _inv_add('error', 'oversubscribed_inventory',
-                         f"Inventory is oversubscribed on "
-                         f"{len(bad_nights)} night(s). First: "
-                         f"{bad_nights[0][0]} ({bad_nights[0][1]} "
-                         f"assigned vs cap {bad_nights[0][2]}).",
-                         inventory=inv, fix_url=fix,
-                         extra={'bad_nights': bad_nights})
-
-            # Per-partition oversubscription. Each partition block has a
-            # carve-out quantity, so an inventory can be fine in aggregate
-            # but still exceed a single partition's slice.
-            blocks_by_partition = {str(pb.partition_id): pb for pb in blocks}
-            for part_id, by_night in night_partition_occupancy.items():
-                pb = blocks_by_partition.get(str(part_id))
-                if not pb:
-                    # Live RAs assigned to a partition that has no block
-                    # on this inventory - also a configuration issue.
-                    bad_partition = session.query(InventoryPartition).get(part_id)
-                    part_name = (bad_partition.name
-                                 if bad_partition else f"id {part_id}")
-                    _inv_add('error', 'partition_unconfigured',
-                             f"Partition '{part_name}' has live "
-                             f"assignments on this inventory but no "
-                             f"matching partition block. Add a block "
-                             f"(or move the assignments).",
-                             inventory=inv,
-                             partition=bad_partition,
-                             fix_url=(f'edit_partition?id={part_id}'
-                                      if bad_partition else fix))
-                    continue
-                bad = []
-                for night, used in sorted(by_night.items()):
-                    cap = pb.quantity
-                    if used > cap:
-                        bad.append((night, used, cap))
-                if bad:
-                    _inv_add('error', 'oversubscribed_partition',
-                             f"Partition '{pb.partition.name}' is "
-                             f"oversubscribed on {len(bad)} night(s). "
-                             f"First: {bad[0][0]} ({bad[0][1]} "
-                             f"assigned vs cap {bad[0][2]}).",
-                             inventory=inv, partition=pb.partition,
-                             fix_url=fix, extra={'bad_nights': bad})
-
-        # If a room type follows another, the lottery (when it awards a
-        # full parent inventory) needs enough child inventory to satisfy
-        # the coupling. Check at two granularities: globally and per-hotel
-        # (so an Exec Suite that's only offered at hotel X must have its
-        # Standard King connectors also at hotel X).
-        inv_qty_by_type = defaultdict(int)
-        inv_qty_by_hotel_type = defaultdict(lambda: defaultdict(int))
-        for inv in all_inventory:
-            tid = inv.suite_type_id if inv.is_suite else inv.room_type_id
-            if not tid:
-                continue
-            inv_qty_by_type[tid] += inv.quantity or 0
-            inv_qty_by_hotel_type[inv.hotel_id][tid] += inv.quantity or 0
-
-        all_types_by_id = {rt.id: rt for rt in
-                           session.query(LotteryRoomType).all()}
-
-        for rt in all_types_by_id.values():
-            if not rt.connects_to_type_id or rt.connector_quantity <= 0:
-                continue
-            parent = all_types_by_id.get(rt.connects_to_type_id)
-            if not parent:
-                _inv_add('error', 'broken_connector_config',
-                         f"Room type '{rt.name}' follows a parent that "
-                         "no longer exists.",
-                         room_type=rt,
-                         fix_url=f'edit_room_type?id={rt.id}')
-                continue
-
-            parent_total = inv_qty_by_type.get(parent.id, 0)
-            child_total = inv_qty_by_type.get(rt.id, 0)
-            needed = parent_total * rt.connector_quantity
-            if parent_total > 0 and child_total < needed:
-                _inv_add('error', 'insufficient_connectors',
-                         f"Configured inventory of connector '{rt.name}' "
-                         f"({child_total}) is below what parent "
-                         f"'{parent.name}' would need if fully awarded "
-                         f"({parent_total} x {rt.connector_quantity} = "
-                         f"{needed}).",
-                         room_type=rt,
-                         fix_url=f'edit_room_type?id={rt.id}',
-                         extra={'parent_total': parent_total,
-                                'child_total': child_total,
-                                'needed': needed})
-
-            # Per-hotel: every hotel offering the parent needs the
-            # child inventory locally too - connectors are physical
-            # neighbors, they can't follow across properties.
-            for hotel_id, types_at_hotel in inv_qty_by_hotel_type.items():
-                p_here = types_at_hotel.get(parent.id, 0)
-                if p_here <= 0:
-                    continue
-                c_here = types_at_hotel.get(rt.id, 0)
-                local_needed = p_here * rt.connector_quantity
-                if c_here < local_needed:
-                    hotel = session.query(LotteryHotel).get(hotel_id)
-                    _inv_add('error', 'insufficient_connectors_at_hotel',
-                             f"Hotel '{hotel.name if hotel else hotel_id}' "
-                             f"offers {p_here} '{parent.name}' rooms but "
-                             f"only has {c_here} '{rt.name}' connector "
-                             f"rooms (needs {local_needed}).",
-                             room_type=rt,
-                             fix_url=f'edit_room_type?id={rt.id}',
-                             extra={'hotel': hotel,
-                                    'parent_total_here': p_here,
-                                    'child_total_here': c_here,
-                                    'needed_here': local_needed})
+        issues, inv_issues = collect_issues(session)
 
         # Issues are recomputed every load, so admin hide-flags + notes
         # live in HotelRoomIssueNote keyed to each issue's STABLE identity
         # (kind, target_type, target_id). Annotate every issue with its
         # note + hidden flag, then split shown vs hidden.
-        notes_by_key = {
-            (n.issue_kind, n.target_type, n.target_id): n
-            for n in session.query(HotelRoomIssueNote).all()
-        }
-
-        def _issue_identity(iss):
-            ra = iss.get('assignment')
-            inv = iss.get('inventory')
-            rt = iss.get('room_type')
-            part = iss.get('partition')
-            extra_app = (iss.get('extra') or {}).get('application')
-            if ra is not None:
-                return ('room_assignment', str(ra.id))
-            if inv is not None:
-                # Pair inventory + partition for partition-scoped issues so
-                # hiding one partition's oversubscription doesn't hide the
-                # whole block's.
-                tid = str(inv.id)
-                if part is not None:
-                    tid += '|' + str(part.id)
-                return ('inventory', tid)
-            if rt is not None:
-                return ('room_type', str(rt.id))
-            if part is not None:
-                return ('partition', str(part.id))
-            if extra_app is not None:
-                return ('lottery_application', str(extra_app.id))
-            return ('other', iss.get('kind') or 'unknown')
-
-        def _annotate(iss):
-            ttype, tid = _issue_identity(iss)
-            iss['target_type'] = ttype
-            iss['target_id'] = tid
-            note = notes_by_key.get((iss.get('kind'), ttype, tid))
-            iss['note'] = note
-            iss['admin_notes'] = note.admin_notes if note else ''
-            iss['hidden'] = bool(note and note.hidden)
-
-        for iss in issues:
-            _annotate(iss)
-        for iss in inv_issues:
-            _annotate(iss)
+        notes_by_key = load_issue_notes(session)
+        annotate_issues(issues, notes_by_key)
+        annotate_issues(inv_issues, notes_by_key)
 
         shown_room = [i for i in issues if not i['hidden']]
         hidden_room = [i for i in issues if i['hidden']]
@@ -4839,142 +3412,20 @@ class Root:
             kind_counts[k] = kind_counts.get(k, 0) + 1
         kind_options = sorted(kind_counts.items())
 
-        # Free-text search builds a lowercase haystack per issue from the
-        # human-relevant context (hotel, room type, attendee, conf #,
-        # partition) plus the issue kind/label, so admins can search by
-        # any of them. Keep the original-case string for redisplay; match
-        # on the lowercased needle.
+        # Free-text search matches on the lowercased needle; keep the
+        # original-case string for redisplay.
         search = (search or '').strip()
         needle = search.lower()
 
-        def _haystack(iss):
-            parts = [iss.get('kind') or '', iss.get('label') or '',
-                     iss.get('severity') or '']
-            ra = iss.get('assignment')
-            if ra is not None:
-                inv = ra.inventory
-                if inv:
-                    parts.append(inv.name or '')
-                    if inv.hotel:
-                        parts.append(inv.hotel.name or '')
-                    rt = inv.suite_type if inv.is_suite else inv.room_type
-                    if rt:
-                        parts.append(rt.name or '')
-                if ra.attendee:
-                    parts.append(ra.attendee.full_name or '')
-                    parts.append(ra.attendee.email or '')
-                app = ra.lottery_application
-                if app and app.confirmation_num:
-                    parts.append(app.confirmation_num)
-            # Inventory-level issue context.
-            inv2 = iss.get('inventory')
-            if inv2 is not None:
-                parts.append(inv2.name or '')
-                if inv2.hotel:
-                    parts.append(inv2.hotel.name or '')
-            rt2 = iss.get('room_type')
-            if rt2 is not None:
-                parts.append(rt2.name or '')
-            part = iss.get('partition')
-            if part is not None:
-                parts.append(part.name or '')
-            # status_mismatch and friends stash the application in extra.
-            extra_app = (iss.get('extra') or {}).get('application')
-            if extra_app is not None:
-                if extra_app.confirmation_num:
-                    parts.append(extra_app.confirmation_num)
-                if extra_app.attendee:
-                    parts.append(extra_app.attendee.full_name or '')
-            return ' '.join(parts).lower()
+        shown_room = filter_issues(shown_room, severity, kind, needle)
+        shown_inv = filter_issues(shown_inv, severity, kind, needle)
+        hidden_room = filter_issues(hidden_room, severity, kind, needle)
+        hidden_inv = filter_issues(hidden_inv, severity, kind, needle)
 
-        def _passes(iss):
-            if severity in ('error', 'warning') and iss['severity'] != severity:
-                return False
-            if kind not in ('all', '', None) and iss.get('kind') != kind:
-                return False
-            if needle and needle not in _haystack(iss):
-                return False
-            return True
-
-        shown_room = [i for i in shown_room if _passes(i)]
-        shown_inv = [i for i in shown_inv if _passes(i)]
-        hidden_room = [i for i in hidden_room if _passes(i)]
-        hidden_inv = [i for i in hidden_inv if _passes(i)]
-
-        # Room issues group by RA id (or `app:<id>` for application-level
-        # issues); inventory issues group by inventory (or room type).
-        # Each group inherits the worst severity of its issues. The same
-        # helpers group the shown and hidden lists.
-        def _group_sort_key(g):
-            sev = 0 if g['severity'] == 'error' else 1
-            ra = g['assignment']
-            hotel_name = (ra.inventory.hotel.name
-                          if ra and ra.inventory and ra.inventory.hotel else '~')
-            conf = (g['application'].confirmation_num
-                    if g['application'] else '~')
-            return (sev, hotel_name, conf or '~')
-
-        def _inv_group_sort_key(g):
-            sev = 0 if g['severity'] == 'error' else 1
-            inv = g['inventory']
-            rt = g['room_type']
-            hotel_name = (inv.hotel.name if inv and inv.hotel else '~')
-            inv_name = (inv.name if inv else (rt.name if rt else '~'))
-            return (sev, hotel_name, inv_name)
-
-        def _group_rooms(issue_list):
-            by_key = {}
-            order = []
-            for iss in issue_list:
-                ra = iss.get('assignment')
-                app = (iss.get('extra') or {}).get('application')
-                if ra:
-                    key = ra.id
-                    group_app = app or ra.lottery_application
-                elif app:
-                    key = f'app:{app.id}'
-                    group_app = app
-                else:
-                    key = f'orphaned-issue-{len(order)}'
-                    group_app = None
-                if key not in by_key:
-                    by_key[key] = {
-                        'key': key, 'assignment': ra, 'application': group_app,
-                        'issues': [], 'severity': 'warning',
-                    }
-                    order.append(key)
-                by_key[key]['issues'].append(iss)
-                if iss['severity'] == 'error':
-                    by_key[key]['severity'] = 'error'
-            return sorted([by_key[k] for k in order], key=_group_sort_key)
-
-        def _group_inv(issue_list):
-            by_key = {}
-            order = []
-            for iss in issue_list:
-                inv = iss.get('inventory')
-                rt = iss.get('room_type')
-                if inv:
-                    key = f'inv:{inv.id}'
-                elif rt:
-                    key = f'rt:{rt.id}'
-                else:
-                    key = f'other:{len(order)}'
-                if key not in by_key:
-                    by_key[key] = {
-                        'key': key, 'inventory': inv, 'room_type': rt,
-                        'issues': [], 'severity': 'warning',
-                    }
-                    order.append(key)
-                by_key[key]['issues'].append(iss)
-                if iss['severity'] == 'error':
-                    by_key[key]['severity'] = 'error'
-            return sorted([by_key[k] for k in order], key=_inv_group_sort_key)
-
-        groups = _group_rooms(shown_room)
-        inv_groups = _group_inv(shown_inv)
-        hidden_groups = _group_rooms(hidden_room)
-        hidden_inv_groups = _group_inv(hidden_inv)
+        groups = group_room_issues(shown_room)
+        inv_groups = group_inventory_issues(shown_inv)
+        hidden_groups = group_room_issues(hidden_room)
+        hidden_inv_groups = group_inventory_issues(hidden_inv)
 
         return {
             'groups': groups,
@@ -4992,25 +3443,6 @@ class Root:
             'message': message,
         }
 
-    def _get_or_make_issue_note(self, session, issue_kind, target_type,
-                                target_id):
-        """Fetch (or create, unsaved) the HotelRoomIssueNote for an
-        issue's stable identity. Stamps the acting admin so we know who
-        last touched it."""
-        from uber.lottery_perms import _current_admin_account
-        note = (session.query(HotelRoomIssueNote)
-                .filter_by(issue_kind=issue_kind, target_type=target_type,
-                           target_id=str(target_id))
-                .one_or_none())
-        if not note:
-            note = HotelRoomIssueNote(
-                issue_kind=issue_kind, target_type=target_type,
-                target_id=str(target_id))
-        admin = _current_admin_account(session)
-        if admin:
-            note.admin_account_id = admin.id
-        return note
-
     def hide_issue(self, session, issue_kind='', target_type='',
                    target_id='', admin_notes='', severity='all', kind='all',
                    search='', show_hidden='', csrf_token=None):
@@ -5023,7 +3455,7 @@ class Root:
             raise HTTPRedirect(_room_issues_url(
                 'Could not identify which issue to hide.',
                 severity, kind, search, show_hidden))
-        note = self._get_or_make_issue_note(
+        note = get_or_make_issue_note(
             session, issue_kind, target_type, target_id)
         note.hidden = True
         note.admin_notes = (admin_notes or '').strip()
@@ -5079,7 +3511,7 @@ class Root:
                 session.commit()
             raise HTTPRedirect(_room_issues_url(
                 'Note cleared.', severity, kind, search, show_hidden))
-        note = existing or self._get_or_make_issue_note(
+        note = existing or get_or_make_issue_note(
             session, issue_kind, target_type, target_id)
         note.admin_notes = notes
         session.add(note)
