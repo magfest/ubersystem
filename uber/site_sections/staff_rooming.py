@@ -19,9 +19,11 @@ from sqlalchemy import or_
 from uber.config import c
 from uber.decorators import all_renderable
 from uber.errors import HTTPRedirect
+from uber.hotel_room_queries import (build_room_assignment_query,
+                                     clamp_page_size, paginate)
 from uber.models import (Attendee, Department, NightShiftRequirement,
                          RoomAssignment)
-from uber.models.hotel import HotelRoomInventory, LotteryHotel
+from uber.models.hotel import LotteryHotel
 from uber.shift_compliance import non_compliant_staffers
 from uber.utils import check_csrf
 
@@ -172,14 +174,7 @@ class Root:
         cheap. Page size defaults to 50, matches the convention on
         `staffer_rooms`.
         """
-        try:
-            page_num = max(1, int(page))
-        except (TypeError, ValueError):
-            page_num = 1
-        try:
-            ps = max(10, min(500, int(page_size)))
-        except (TypeError, ValueError):
-            ps = 50
+        ps = clamp_page_size(page_size)
         search_text = (search or '').strip()
 
         department = None
@@ -226,11 +221,7 @@ class Root:
         else:
             filtered = all_results
 
-        total = len(filtered)
-        page_count = max(1, (total + ps - 1) // ps) if total else 1
-        if page_num > page_count:
-            page_num = page_count
-        page_slice = filtered[(page_num - 1) * ps: page_num * ps]
+        page_slice, total, page_num, page_count = paginate(filtered, page, ps)
 
         departments = (session.query(Department)
                        .order_by(Department.name).all())
@@ -249,62 +240,30 @@ class Root:
 
     def staffer_rooms(self, session, message='', page='1', page_size='50',
                       billing='all', hotel_id='', search=''):
-        try:
-            page_num = max(1, int(page))
-        except (TypeError, ValueError):
-            page_num = 1
-        try:
-            ps = max(10, min(500, int(page_size)))
-        except (TypeError, ValueError):
-            ps = 50
+        ps = clamp_page_size(page_size)
+        staff_badges = [c.STAFF_BADGE, c.CONTRACTOR_BADGE]
 
         # Only live (ASSIGNED + SECURED) RAs whose booker is staff.
-        q = (session.query(RoomAssignment)
-             .join(Attendee, Attendee.id == RoomAssignment.attendee_id)
-             .filter(RoomAssignment.is_live)
-             .filter(Attendee.badge_type.in_(
-                 [c.STAFF_BADGE, c.CONTRACTOR_BADGE])))
+        # badge_types inner-joins Attendee, so the ordering below can
+        # sort on Attendee.last_name.
+        q = build_room_assignment_query(
+            session, status='live', hotel_id=hotel_id, search=search,
+            badge_types=staff_badges)
 
         if billing == 'self_pay':
             q = q.filter(RoomAssignment.require_cc.is_(True))
         elif billing == 'master_bill':
             q = q.filter(RoomAssignment.require_cc.is_(False))
 
-        if hotel_id:
-            inv_ids = [str(inv.id) for inv in
-                       session.query(HotelRoomInventory)
-                       .filter_by(hotel_id=hotel_id).all()]
-            q = q.filter(RoomAssignment.inventory_id.in_(inv_ids))
-
-        if search:
-            like = f'%{search.strip()}%'
-            q = q.filter(or_(
-                Attendee.first_name.ilike(like),
-                Attendee.last_name.ilike(like),
-                Attendee.email.ilike(like),
-                RoomAssignment.hotel_confirmation_number.ilike(like),
-            ))
-
-        total = q.count()
-        page_count = max(1, (total + ps - 1) // ps)
-        if page_num > page_count:
-            page_num = page_count
-
-        assignments = (q
-                       .order_by(RoomAssignment.assigned_check_in_date.asc().nullsfirst(),
-                                 Attendee.last_name.asc())
-                       .offset((page_num - 1) * ps)
-                       .limit(ps)
-                       .all())
+        q = q.order_by(RoomAssignment.assigned_check_in_date.asc().nullsfirst(),
+                       Attendee.last_name.asc())
+        assignments, total, page_num, page_count = paginate(q, page, ps)
 
         # Aggregates ignore page / billing filter so the badges always
         # show the full picture (lets the admin gauge how the filter
         # narrows the view).
-        live_q = (session.query(RoomAssignment)
-                  .join(Attendee, Attendee.id == RoomAssignment.attendee_id)
-                  .filter(RoomAssignment.is_live)
-                  .filter(Attendee.badge_type.in_(
-                      [c.STAFF_BADGE, c.CONTRACTOR_BADGE])))
+        live_q = build_room_assignment_query(
+            session, status='live', badge_types=staff_badges)
         total_self = live_q.filter(RoomAssignment.require_cc.is_(True)).count()
         total_master = live_q.filter(RoomAssignment.require_cc.is_(False)).count()
 
@@ -334,14 +293,7 @@ class Root:
 
     def hotel_eligibility(self, session, message='', page='1', page_size='50',
                           show='eligible', search=''):
-        try:
-            page_num = max(1, int(page))
-        except (TypeError, ValueError):
-            page_num = 1
-        try:
-            ps = max(10, min(500, int(page_size)))
-        except (TypeError, ValueError):
-            ps = 50
+        ps = clamp_page_size(page_size)
 
         q = session.query(Attendee).filter(Attendee.badge_type.in_(
             [c.STAFF_BADGE, c.CONTRACTOR_BADGE]))
@@ -358,16 +310,8 @@ class Root:
                 Attendee.email.ilike(like),
             ))
 
-        total = q.count()
-        page_count = max(1, (total + ps - 1) // ps)
-        if page_num > page_count:
-            page_num = page_count
-
-        staffers = (q.order_by(Attendee.last_name.asc(),
-                               Attendee.first_name.asc())
-                    .offset((page_num - 1) * ps)
-                    .limit(ps)
-                    .all())
+        q = q.order_by(Attendee.last_name.asc(), Attendee.first_name.asc())
+        staffers, total, page_num, page_count = paginate(q, page, ps)
 
         # Cross-status counts for the header badges.
         all_staff_q = session.query(Attendee).filter(Attendee.badge_type.in_(

@@ -31,6 +31,7 @@ from uber.models.hotel import (HotelRoomInventory, InventoryNightQuantity, Inven
                                HotelImportFile)
 from uber.email import EmailService
 from uber.hotel_imports import parse_confirmation_rows, parse_iso_date, parse_spreadsheet
+from uber.hotel_room_queries import build_room_assignment_query, clamp_page_size, paginate
 from uber.utils import (Order, check_csrf, get_page, localized_now,
                         validate_model, get_age_from_birthday,
                         normalize_email_legacy)
@@ -3662,81 +3663,26 @@ class Root:
     def rooms(self, session, message='', page='1', page_size='50',
               status='live', hotel_id='', partition_id='', search='',
               attendee_id=''):
-        try:
-            page_num = max(1, int(page))
-        except (TypeError, ValueError):
-            page_num = 1
-        try:
-            ps = max(10, min(500, int(page_size)))
-        except (TypeError, ValueError):
-            ps = 50
-
-        q = session.query(RoomAssignment)
+        ps = clamp_page_size(page_size)
+        search_term = (search or '').strip()
 
         # Scope to one attendee's rooms - this is where the registration
-        # page's "Hotel Rooms" tab lands. Show every status in that case,
-        # since the admin wants the attendee's full history.
-        if attendee_id:
-            q = q.filter(RoomAssignment.attendee_id == attendee_id)
-            if status == 'live':
-                status = 'all'
+        # page's "Hotel Rooms" tab lands. The shared query layer widens a
+        # 'live' status filter to 'all' in that case; mirror that here so
+        # the status dropdown in the template reflects what's shown.
+        if attendee_id and status == 'live':
+            status = 'all'
 
-        # `live` (default) = ASSIGNED + SECURED. `all` = no status filter.
-        # Anything else = exact status int from the model's status enum.
-        if status == 'live':
-            q = q.filter(RoomAssignment.is_live)
-        elif status and status != 'all':
-            try:
-                q = q.filter(RoomAssignment.status == int(status))
-            except (TypeError, ValueError):
-                pass
+        q = build_room_assignment_query(
+            session, status=status, hotel_id=hotel_id,
+            partition_id=partition_id, search=search_term,
+            attendee_id=attendee_id)
 
-        if hotel_id:
-            inv_ids = [str(inv.id) for inv in
-                       session.query(HotelRoomInventory)
-                       .filter_by(hotel_id=hotel_id).all()]
-            q = q.filter(RoomAssignment.inventory_id.in_(inv_ids))
-        if partition_id:
-            if partition_id == 'none':
-                q = q.filter(RoomAssignment.partition_id.is_(None))
-            else:
-                q = q.filter(RoomAssignment.partition_id == partition_id)
-
-        # Search hits the application's confirmation #, attendee email/
-        # name, and the hotel confirmation #. We can't easily search the
-        # attendee name across the RA join in raw SQLAlchemy without
-        # joining, so do the join when needed.
-        search_term = (search or '').strip()
-        if search_term:
-            from uber.models import Attendee as _Attendee
-            like = f'%{search_term}%'
-            q = (q.join(LotteryApplication,
-                        LotteryApplication.id == RoomAssignment.lottery_application_id,
-                        isouter=True)
-                  .join(_Attendee,
-                        _Attendee.id == RoomAssignment.attendee_id,
-                        isouter=True)
-                  .filter(or_(
-                      LotteryApplication.confirmation_num.ilike(like),
-                      RoomAssignment.hotel_confirmation_number.ilike(like),
-                      _Attendee.email.ilike(like),
-                      _Attendee.first_name.ilike(like),
-                      _Attendee.last_name.ilike(like),
-                  )))
-
-        total = q.count()
-        page_count = max(1, (total + ps - 1) // ps)
-        if page_num > page_count:
-            page_num = page_count
-
-        # Sort: hotel name, then check-in date (nulls first so missing
-        # dates pop to the top and get noticed), then created order.
-        assignments = (q
-                       .order_by(RoomAssignment.assigned_check_in_date.asc().nullsfirst(),
-                                 RoomAssignment.created.asc())
-                       .offset((page_num - 1) * ps)
-                       .limit(ps)
-                       .all())
+        # Sort: check-in date (nulls first so missing dates pop to the
+        # top and get noticed), then created order.
+        q = q.order_by(RoomAssignment.assigned_check_in_date.asc().nullsfirst(),
+                       RoomAssignment.created.asc())
+        assignments, total, page_num, page_count = paginate(q, page, ps)
 
         hotels = (session.query(LotteryHotel)
                   .filter_by(active=True)

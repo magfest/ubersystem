@@ -2,7 +2,7 @@
 {% block title %}{% if department %}{{ department.name }} - {% endif %}Non-Compliant Staffers{% endblock %}
 {% block content %}
 
-{% import 'hotel_lottery_admin/_macros.html' as hotel_macros %}
+{% import 'hotel_lottery_admin/_macros.html' as hotel_macros with context %}
 {% include 'hotel_lottery_admin/nav.html' %}
 {% include 'staff_rooming/staffing_subnav.html' %}
 
@@ -95,12 +95,13 @@
     <tr>
       <td>
         {# Prefer the lottery-application edit page since this is the
-           hotel-lottery admin area. Fall back to registration when the
-           staffer doesn't have a lottery application on file. #}
+           hotel-lottery admin area. Fall back to the shared attendee
+           cell (registration link) when the staffer doesn't have a
+           lottery application on file. #}
         {% if attendee.lottery_application %}
           <a href="../hotel_lottery_admin/form?id={{ attendee.lottery_application.id }}">{{ attendee.full_name }}</a>
         {% else %}
-          <a href="../registration/form?id={{ attendee.id }}">{{ attendee.full_name }}</a>
+          {{ hotel_macros.attendee_cell(attendee, show_email=False) }}
         {% endif %}
       </td>
       <td>{{ attendee.assigned_depts_labels|join(' / ') }}</td>

@@ -109,7 +109,8 @@
           {% if a.lottery_application %}
             <a href="../hotel_lottery_admin/form?id={{ a.lottery_application.id }}">{{ a.first_name }} {{ a.last_name }}</a>
           {% else %}
-            <a href="../registration/form?id={{ a.id }}">{{ a.first_name }} {{ a.last_name }}</a>
+            {# Email lives in its own column, so name only here. #}
+            {{ hotel_macros.attendee_cell(a, show_email=False) }}
           {% endif %}
         </td>
         <td><small class="text-muted">{{ a.email }}</small></td>

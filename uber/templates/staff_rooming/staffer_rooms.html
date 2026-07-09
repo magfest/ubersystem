@@ -84,19 +84,16 @@
     {% set a = ra.attendee %}
     <tr>
       <td>
-        {% if a %}
-          {# Link straight to the staffer's lottery-application edit
-             page so the admin can manage their hotel state in context.
-             Falls back to the attendee registration record for staffers
-             with no lottery application on file. #}
-          {% if a.lottery_application %}
-            <a href="../hotel_lottery_admin/form?id={{ a.lottery_application.id }}">{{ a.first_name }} {{ a.last_name }}</a>
-          {% else %}
-            <a href="../registration/form?id={{ a.id }}">{{ a.first_name }} {{ a.last_name }}</a>
-          {% endif %}
-          <br/>
-          <small class="text-muted">{{ a.email }}</small>
-        {% else %}<em>(no attendee)</em>{% endif %}
+        {# Link straight to the staffer's lottery-application edit
+           page so the admin can manage their hotel state in context.
+           Staffers with no lottery application on file fall back to
+           the shared attendee cell (registration link + muted email). #}
+        {% if a and a.lottery_application %}
+          <a href="../hotel_lottery_admin/form?id={{ a.lottery_application.id }}">{{ a.first_name }} {{ a.last_name }}</a>
+          {% if a.email %}<br/><small class="text-muted">{{ a.email }}</small>{% endif %}
+        {% else %}
+          {{ hotel_macros.attendee_cell(a) }}
+        {% endif %}
       </td>
       <td>
         {% if a and a.assigned_depts %}

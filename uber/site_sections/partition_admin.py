@@ -18,6 +18,7 @@ import cherrypy
 from uber.config import c
 from uber.decorators import all_renderable, ajax_gettable
 from uber.errors import HTTPRedirect
+from uber.hotel_room_queries import build_room_assignment_query, paginate
 from uber.lottery_perms import (
     can_edit_assignments_in,
     can_edit_inventory_in,
@@ -79,15 +80,6 @@ def _partition_block_inventory_ids(session, partition_id):
             if b.inventory_id}
 
 
-def _paginate(query, page):
-    """Return (rows, total_count, page) where page is clamped to a valid value."""
-    total = query.count()
-    last_page = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
-    page = max(1, min(page, last_page))
-    rows = query.offset((page - 1) * PAGE_SIZE).limit(PAGE_SIZE).all()
-    return rows, total, page, last_page
-
-
 @all_renderable()
 class Root:
     def index(self, session, message=''):
@@ -138,15 +130,6 @@ class Root:
         if tab not in allowed_tabs:
             tab = allowed_tabs[0]
 
-        try:
-            page = int(page or 1)
-        except (TypeError, ValueError):
-            page = 1
-        try:
-            activity_page = int(activity_page or 1)
-        except (TypeError, ValueError):
-            activity_page = 1
-
         blocks = []
         totals = {'allocated': 0, 'assigned': 0, 'secured': 0, 'unassigned': 0}
         for b in (partition.blocks if can_view_inventory else []):
@@ -172,13 +155,16 @@ class Root:
             totals['secured'] += secured
             totals['unassigned'] += unassigned
 
-        roster_q = session.query(RoomAssignment).filter_by(
-            partition_id=partition.id).order_by(
+        # Shared query layer: partition-scoped roster, every status
+        # (partition owners manage their full list, not just live rows).
+        roster_q = build_room_assignment_query(
+            session, status='all', partition_id=str(partition.id)).order_by(
             RoomAssignment.status.asc(),
             RoomAssignment.assigned_check_in_date.asc().nullsfirst(),
             RoomAssignment.created.asc())
         if can_view_assignments:
-            roster, roster_total, page, last_page = _paginate(roster_q, page)
+            roster, roster_total, page, last_page = paginate(
+                roster_q, page, PAGE_SIZE)
         else:
             roster, roster_total, page, last_page = [], roster_q.count(), 1, 1
 
@@ -202,7 +188,7 @@ class Root:
             partition_id=partition.id).order_by(
             PartitionAuditLog.when.desc())
         activity, activity_total, activity_page, activity_last_page = \
-            _paginate(activity_q, activity_page)
+            paginate(activity_q, activity_page, PAGE_SIZE)
 
         all_status_rows = session.query(
             RoomAssignment.status, RoomAssignment.require_cc).filter_by(
