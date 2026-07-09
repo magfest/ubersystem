@@ -1,5 +1,4 @@
 import base64
-import csv
 import os
 import pycountry
 import cherrypy
@@ -31,6 +30,7 @@ from uber.models.hotel import (HotelRoomInventory, InventoryNightQuantity, Inven
                                WaitlistReveal, WaitlistRevealLink, HotelRoomIssueNote,
                                HotelImportFile)
 from uber.email import EmailService
+from uber.hotel_imports import parse_confirmation_rows, parse_iso_date, parse_spreadsheet
 from uber.utils import (Order, check_csrf, get_page, localized_now,
                         validate_model, get_age_from_birthday,
                         normalize_email_legacy)
@@ -1586,24 +1586,19 @@ class Root:
             app = apps_by_id.get(ra.lottery_application_id)
             row = self._booking_row(ra, app)
 
-            # Guest columns: occupants take precedence (multi-room
-            # explicit occupants); fall back to the application's
-            # valid_group_members for back-compat with old data.
-            members = list(getattr(ra, 'occupants', None) or [])
-            if not members and app:
-                members = list(app.valid_group_members or [])
+            # Guest columns: everyone sleeping in the room except the
+            # booker, who already has their own columns. The model's
+            # effective_occupants handles the occupants-vs-group-members
+            # fallback and always returns Attendee records.
+            members = [a for a in ra.effective_occupants
+                       if a.id != ra.attendee_id]
             for i in range(self._BOOKING_MAX_GUESTS):
                 if i < len(members):
-                    m = members[i]
-                    # `m` may be either an Attendee (from `ra.occupants`)
-                    # or a LotteryApplication (from valid_group_members);
-                    # both expose `.attendee` (the LA has a FK to one;
-                    # Attendees return themselves via a tiny shim below).
-                    a = getattr(m, 'attendee', None) or m
+                    a = members[i]
                     row += [a.effective_hotel_first_name or '',
                             a.effective_hotel_last_name or '',
-                            (getattr(m, 'cellphone', '') or getattr(a, 'cellphone', '') or ''),
-                            (getattr(m, 'email', '') or getattr(a, 'email', '') or '')]
+                            a.cellphone or '',
+                            a.email or '']
                 else:
                     row += ['', '', '', '']
             rows.append(row)
@@ -1656,60 +1651,16 @@ class Root:
                 'No file uploaded.')
 
         filename = (getattr(upload, 'filename', '') or '').lower()
-        is_xlsx = filename.endswith('.xlsx') or filename.endswith('.xlsm')
+        raw = upload.file.read()
+        is_xlsx = filename.endswith(('.xlsx', '.xlsm')) or raw[:2] == b'PK'
 
-        if is_xlsx:
-            # XLSX path: openpyxl read-only mode to keep memory bounded.
-            try:
-                from openpyxl import load_workbook
-            except ImportError:
-                raise HTTPRedirect(
-                    'export_tracking?message={}',
-                    "XLSX import is unavailable on this server: openpyxl "
-                    "is not installed.")
-            try:
-                wb = load_workbook(upload.file, read_only=True, data_only=True)
-            except Exception as e:
-                raise HTTPRedirect(
-                    'export_tracking?message={}',
-                    f"Could not read uploaded XLSX file: {e}")
-            ws = wb.active
-            rows_iter = ws.iter_rows(values_only=True)
-            try:
-                header = next(rows_iter)
-            except StopIteration:
-                header = ()
-
-            def _cell_to_str(v):
-                # openpyxl returns datetimes for date cells - render them
-                # as ISO so the existing _parse_iso_date matcher works.
-                if v is None:
-                    return ''
-                from datetime import date as _d, datetime as _dt
-                if isinstance(v, (_d, _dt)):
-                    return v.isoformat()
-                return str(v)
-
-            fieldnames = [(h or '').strip() for h in header]
-            rows = []
-            for raw in rows_iter:
-                if raw is None:
-                    continue
-                cells = list(raw)
-                # Pad short rows so zip() doesn't drop trailing blanks.
-                if len(cells) < len(fieldnames):
-                    cells = cells + [None] * (len(fieldnames) - len(cells))
-                rows.append({fn: _cell_to_str(cells[i])
-                             for i, fn in enumerate(fieldnames) if fn})
-            reader_fieldnames = fieldnames
-            reader_iter = rows
-        else:
-            raw = upload.file.read()
-            if isinstance(raw, bytes):
-                raw = raw.decode('utf-8', errors='replace')
-            reader = csv.DictReader(raw.splitlines())
-            reader_fieldnames = reader.fieldnames or []
-            reader_iter = reader
+        # Shared CSV/XLSX parser (uber.hotel_imports): case-insensitive
+        # headers, XLSX date cells rendered as ISO strings.
+        reader_fieldnames, reader_iter, parse_error = parse_spreadsheet(raw, filename)
+        if parse_error:
+            raise HTTPRedirect(
+                'export_tracking?message={}',
+                f"Could not read uploaded file: {parse_error}")
 
         # Guard against any column carrying CC vault tokens.
         sensitive = [
@@ -1723,22 +1674,6 @@ class Root:
                 f"column(s) ({', '.join(sensitive)}). "
                 f"Strip them and re-upload.")
 
-        def _parse_iso_date(raw):
-            """Accept ISO 8601 dates (YYYY-MM-DD) and any ISO 8601 datetime
-            with optional offset - the hotel may quote either back. Returns
-            None if the cell is blank or unparseable."""
-            if not raw:
-                return None
-            raw = raw.strip()
-            if not raw:
-                return None
-            # date.fromisoformat handles 'YYYY-MM-DD' on its own. For
-            # datetimes we parse and project to date.
-            try:
-                return date.fromisoformat(raw[:10])
-            except ValueError:
-                return None
-
         updated = 0
         cancelled = 0
         date_updates = 0
@@ -1749,8 +1684,8 @@ class Root:
             conf = (row.get('confirmation_num') or '').strip()
             new_conf = (row.get('hotel_confirmation_number') or '').strip()
             cancel_num = (row.get('cancellation_confirmation_number') or '').strip()
-            new_ci = _parse_iso_date(row.get('check_in_date'))
-            new_co = _parse_iso_date(row.get('check_out_date'))
+            new_ci = parse_iso_date(row.get('check_in_date'))
+            new_co = parse_iso_date(row.get('check_out_date'))
 
             if not (new_conf or cancel_num or new_ci or new_co):
                 continue  # Nothing to update for this row.
@@ -2432,9 +2367,7 @@ class Root:
             inv = ra.inventory
             check_in_date = ra.assigned_check_in_date
             check_out_date = ra.assigned_check_out_date
-            occupants = list(getattr(ra, 'occupants', None) or [])
-            if not occupants and app:
-                occupants = [app.attendee] + list(app.valid_group_members or [])
+            occupants = ra.effective_occupants
             num_guests = len(occupants)
             hotel_name = (inv.hotel.name if inv and inv.hotel else '')
             if inv and inv.is_suite and inv.suite_type:
@@ -2454,16 +2387,12 @@ class Root:
             ]
             for i in range(4):
                 if i < len(occupants):
-                    o = occupants[i]
-                    # `o` is an Attendee or a LotteryApplication.attendee;
-                    # either way the effective-hotel-name properties
-                    # resolve to the right hotel-facing legal name.
-                    a = getattr(o, 'attendee', None) or o
+                    a = occupants[i]
                     row.extend([check_in_date, check_out_date,
-                                getattr(a, 'effective_hotel_first_name', '') or '',
-                                getattr(a, 'effective_hotel_last_name', '') or '',
-                                getattr(o, 'cellphone', '') or '',
-                                getattr(o, 'email', '') or ''])
+                                a.effective_hotel_first_name or '',
+                                a.effective_hotel_last_name or '',
+                                a.cellphone or '',
+                                a.email or ''])
                 else:
                     row.extend(['', '', '', '', '', ''])
             out.writerow(row)
@@ -2782,161 +2711,183 @@ class Root:
             'index?message={}',
             f'Confirmation requested for {len(apps)} application(s).')
 
-    def import_hotel_cancellations(self, session, message='', **params):
-        """Back-import cancellations from the hotel.
+    def _apply_cancellation_rows(self, session, rows, apply_changes):
+        """Row loop for import_hotel_cancellations. Returns the preview dict.
 
-        Expected CSV columns (header row required):
-          - confirmation_num         (matches RoomAssignment.hotel_confirmation_number)
-          - cancellation_confirmation_number  (the hotel's cancel record id, optional)
-
-        Two-step UX: upload shows a preview of matched / already-cancelled /
-        unmatched rows. The admin then ticks "apply" and resubmits to write.
-        Setting cancellation_confirmation_number triggers the model presave
-        that flips status to CANCELLED. The cancellation email fires on
-        the next email tick.
+        confirmation_num matches RoomAssignment.hotel_confirmation_number;
+        cancellation_confirmation_number is the hotel's cancel record id
+        (optional). Setting cancellation_confirmation_number triggers the
+        model presave that flips status to CANCELLED; the cancellation
+        email fires on the next email tick.
         """
         from uber.models import RoomAssignment
 
-        upload = params.get('cancellations_csv')
+        preview = {'matched': [], 'already': [], 'unmatched': [], 'applied': 0}
+
+        for row in rows:
+            conf = (row.get('confirmation_num') or '').strip()
+            cancel_num = (row.get('cancellation_confirmation_number') or '').strip()
+            if not conf:
+                continue
+
+            assignment = session.query(RoomAssignment).filter_by(
+                hotel_confirmation_number=conf).first()
+            if not assignment:
+                preview['unmatched'].append({
+                    'confirmation_num': conf,
+                    'cancellation_confirmation_number': cancel_num,
+                })
+                continue
+
+            if assignment.status == c.CANCELLED:
+                preview['already'].append({
+                    'assignment': assignment,
+                    'cancellation_confirmation_number': cancel_num,
+                })
+                if apply_changes and cancel_num and not assignment.cancellation_confirmation_number:
+                    assignment.cancellation_confirmation_number = cancel_num
+                    session.add(assignment)
+                    preview['applied'] += 1
+                continue
+
+            preview['matched'].append({
+                'assignment': assignment,
+                'cancellation_confirmation_number': cancel_num,
+            })
+
+            if apply_changes:
+                assignment.cancellation_confirmation_number = cancel_num or 'imported'
+                # cancellation_flips_status presave on the model takes
+                # care of status = CANCELLED.
+                session.add(assignment)
+                preview['applied'] += 1
+
+        return preview
+
+    def _apply_confirmation_rows(self, session, rows, apply_changes):
+        """Row loop for import_hotel_confirmations. Returns the preview dict.
+
+        lottery_application_id (preferred) or confirmation_num (matching
+        RoomAssignment.hotel_confirmation_number) identify the assignment;
+        new_confirmation_num is the value to write.
+        """
+        from uber.models import RoomAssignment
+
+        preview = {'new': [], 'changed': [], 'unchanged': [], 'unmatched': [], 'applied': 0}
+
+        for row in rows:
+            app_id = (row.get('lottery_application_id') or '').strip()
+            conf = (row.get('confirmation_num') or '').strip()
+            new_conf = (row.get('new_confirmation_num') or '').strip()
+            if not new_conf:
+                continue
+
+            assignment = None
+            if app_id:
+                assignment = session.query(RoomAssignment).filter_by(
+                    lottery_application_id=app_id).first()
+            if not assignment and conf:
+                assignment = session.query(RoomAssignment).filter_by(
+                    hotel_confirmation_number=conf).first()
+
+            if not assignment:
+                preview['unmatched'].append({
+                    'lottery_application_id': app_id,
+                    'confirmation_num': conf,
+                    'new_confirmation_num': new_conf,
+                })
+                continue
+
+            existing = assignment.hotel_confirmation_number or ''
+            if existing == new_conf:
+                preview['unchanged'].append({'assignment': assignment})
+                continue
+
+            bucket = 'changed' if existing else 'new'
+            preview[bucket].append({
+                'assignment': assignment,
+                'old': existing,
+                'new': new_conf,
+            })
+
+            if apply_changes:
+                assignment.hotel_confirmation_number = new_conf
+                session.add(assignment)
+                preview['applied'] += 1
+                _send_confirmation_updated_email(session, assignment)
+
+        return preview
+
+    def _import_hotel_numbers(self, session, kind, message='', **params):
+        """Shared implementation behind import_hotel_confirmations and
+        import_hotel_cancellations.
+
+        Parses the upload with uber.hotel_imports.parse_confirmation_rows -
+        the same parser as the hotel portal - so both pages accept CSV and
+        XLSX with case-insensitive headers (spaces treated as underscores).
+
+        Two-step UX: upload shows a preview of what would change. The admin
+        then ticks "apply" and resubmits the file to write. Matching
+        semantics per kind live in _apply_confirmation_rows /
+        _apply_cancellation_rows.
+        """
+        upload = (params.get('import_file')
+                  or params.get('confirmations_csv')
+                  or params.get('cancellations_csv'))
         apply_changes = params.get('apply') == 'true'
 
-        rows = []
+        if cherrypy.request.method == 'POST':
+            check_csrf(params.get('csrf_token'))
+
         preview = None
 
         if upload is not None and getattr(upload, 'file', None):
             raw = upload.file.read()
-            if isinstance(raw, bytes):
-                raw = raw.decode('utf-8', errors='replace')
-            reader = csv.DictReader(raw.splitlines())
-            preview = {'matched': [], 'already': [], 'unmatched': [], 'applied': 0}
+            rows, parse_error = parse_confirmation_rows(raw, getattr(upload, 'filename', ''))
+            if parse_error:
+                return {'kind': kind, 'preview': None, 'message': parse_error}
 
-            for row in reader:
-                conf = (row.get('confirmation_num') or '').strip()
-                cancel_num = (row.get('cancellation_confirmation_number') or '').strip()
-                if not conf:
-                    continue
-
-                assignment = session.query(RoomAssignment).filter_by(
-                    hotel_confirmation_number=conf).first()
-                if not assignment:
-                    preview['unmatched'].append({
-                        'confirmation_num': conf,
-                        'cancellation_confirmation_number': cancel_num,
-                    })
-                    continue
-
-                if assignment.status == c.CANCELLED:
-                    preview['already'].append({
-                        'assignment': assignment,
-                        'cancellation_confirmation_number': cancel_num,
-                    })
-                    if apply_changes and cancel_num and not assignment.cancellation_confirmation_number:
-                        assignment.cancellation_confirmation_number = cancel_num
-                        session.add(assignment)
-                        preview['applied'] += 1
-                    continue
-
-                preview['matched'].append({
-                    'assignment': assignment,
-                    'cancellation_confirmation_number': cancel_num,
-                })
-
-                if apply_changes:
-                    assignment.cancellation_confirmation_number = cancel_num or 'imported'
-                    # cancellation_flips_status presave on the model takes
-                    # care of status = CANCELLED.
-                    session.add(assignment)
-                    preview['applied'] += 1
+            if kind == 'cancellation':
+                preview = self._apply_cancellation_rows(session, rows, apply_changes)
+            else:
+                preview = self._apply_confirmation_rows(session, rows, apply_changes)
 
             if apply_changes and preview['applied']:
                 session.commit()
                 message = (
-                    f"Applied {preview['applied']} cancellation update(s). "
+                    f"Applied {preview['applied']} {kind} update(s). "
                     f"{len(preview['unmatched'])} row(s) couldn't be matched."
                 )
 
         return {
+            'kind': kind,
             'preview': preview,
             'message': message,
         }
 
-    def import_hotel_confirmations(self, session, message='', **params):
-        """Back-import confirmation numbers from the hotel.
+    def import_hotel_cancellations(self, session, message='', **params):
+        """Back-import cancellations from the hotel (CSV or XLSX).
 
-        Expected CSV columns:
+        Expected columns (header row required, case-insensitive):
+          - confirmation_num         (matches RoomAssignment.hotel_confirmation_number)
+          - cancellation_confirmation_number  (the hotel's cancel record id, optional)
+
+        See _import_hotel_numbers for the shared preview/apply flow.
+        """
+        return self._import_hotel_numbers(session, 'cancellation', message, **params)
+
+    def import_hotel_confirmations(self, session, message='', **params):
+        """Back-import confirmation numbers from the hotel (CSV or XLSX).
+
+        Expected columns (case-insensitive):
           - lottery_application_id   (preferred) OR
           - confirmation_num         (matches RoomAssignment.hotel_confirmation_number,
                                       when updating an existing record)
           - new_confirmation_num     (the value to write)
 
-        Same two-step UX as cancellations.
+        See _import_hotel_numbers for the shared preview/apply flow.
         """
-        from uber.models import RoomAssignment
-
-        upload = params.get('confirmations_csv')
-        apply_changes = params.get('apply') == 'true'
-
-        preview = None
-
-        if upload is not None and getattr(upload, 'file', None):
-            raw = upload.file.read()
-            if isinstance(raw, bytes):
-                raw = raw.decode('utf-8', errors='replace')
-            reader = csv.DictReader(raw.splitlines())
-            preview = {'new': [], 'changed': [], 'unchanged': [], 'unmatched': [], 'applied': 0}
-
-            for row in reader:
-                app_id = (row.get('lottery_application_id') or '').strip()
-                conf = (row.get('confirmation_num') or '').strip()
-                new_conf = (row.get('new_confirmation_num') or '').strip()
-                if not new_conf:
-                    continue
-
-                assignment = None
-                if app_id:
-                    assignment = session.query(RoomAssignment).filter_by(
-                        lottery_application_id=app_id).first()
-                if not assignment and conf:
-                    assignment = session.query(RoomAssignment).filter_by(
-                        hotel_confirmation_number=conf).first()
-
-                if not assignment:
-                    preview['unmatched'].append({
-                        'lottery_application_id': app_id,
-                        'confirmation_num': conf,
-                        'new_confirmation_num': new_conf,
-                    })
-                    continue
-
-                existing = assignment.hotel_confirmation_number or ''
-                if existing == new_conf:
-                    preview['unchanged'].append({'assignment': assignment})
-                    continue
-
-                bucket = 'changed' if existing else 'new'
-                preview[bucket].append({
-                    'assignment': assignment,
-                    'old': existing,
-                    'new': new_conf,
-                })
-
-                if apply_changes:
-                    assignment.hotel_confirmation_number = new_conf
-                    session.add(assignment)
-                    preview['applied'] += 1
-                    _send_confirmation_updated_email(session, assignment)
-
-            if apply_changes and preview['applied']:
-                session.commit()
-                message = (
-                    f"Applied {preview['applied']} confirmation update(s). "
-                    f"{len(preview['unmatched'])} row(s) couldn't be matched."
-                )
-
-        return {
-            'preview': preview,
-            'message': message,
-        }
+        return self._import_hotel_numbers(session, 'confirmation', message, **params)
 
     def waitlist_reveals(self, session, message=''):
         """List configured waitlist reveals."""

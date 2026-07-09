@@ -58,6 +58,36 @@ def _require_unlocked(ra, attendee_id=''):
                     'and can no longer be edited from here.'))
 
 
+def room_action(func):
+    """Boilerplate wrapper for POST-only per-room mutations.
+
+    Handles what every such handler repeats by hand: bounce GETs back to
+    the room page, check CSRF, resolve `assignment_id` to a RoomAssignment
+    (consistent "Room not found." redirect), and refuse export-locked
+    rooms. The wrapped handler receives the resolved row as `ra`:
+
+        @requires_account(Attendee)
+        @room_action
+        def my_action(self, session, ra, attendee_id='', **params): ...
+    """
+    from functools import wraps
+
+    @wraps(func)
+    def wrapper(self, session, assignment_id=None, attendee_id='',
+                csrf_token=None, **params):
+        from uber.utils import check_csrf
+        if cherrypy.request.method != 'POST':
+            raise HTTPRedirect(_room_url(assignment_id or '', attendee_id))
+        check_csrf(csrf_token)
+        ra = (session.query(RoomAssignment).get(assignment_id)
+              if assignment_id else None)
+        if not ra:
+            raise HTTPRedirect('rooms?message={}', 'Room not found.')
+        _require_unlocked(ra, attendee_id)
+        return func(self, session, ra=ra, attendee_id=attendee_id, **params)
+    return wrapper
+
+
 def _open_seats(session, ra):
     """How many more people can be added to this room (occupants +
     pending invites combined). Capacity comes from the inventory."""
@@ -88,6 +118,22 @@ def _effective_vault_reference(ra):
     if inv:
         return f"hotel_{inv.hotel_id}"
     return "default"
+
+
+def _card_reuse_sources(session, ra):
+    """The booker's other rooms whose vaulted card could secure this one:
+    a card on file AND the same effective vault reference (a token is only
+    valid within its own vault scope). Callers layer on their own extra
+    filters (live-only, has-billing-address) and presentation."""
+    if not ra.attendee_id:
+        return []
+    target_ref = _effective_vault_reference(ra)
+    return [other for other in
+            session.query(RoomAssignment)
+            .filter(RoomAssignment.attendee_id == ra.attendee_id,
+                    RoomAssignment.id != ra.id,
+                    RoomAssignment.cc_token.isnot(None)).all()
+            if _effective_vault_reference(other) == target_ref]
 
 
 def _render_room_detail(session, assignment_id, attendee_id, message):
@@ -152,18 +198,14 @@ def _render_room_detail(session, assignment_id, attendee_id, message):
                 seen_ids.add(occ.id)
                 copy_candidates.append(occ)
 
-        # Card-reuse candidates: the leader's other rooms that already
-        # have a card on file AND share this room's vault scope (so the
-        # token is actually valid here - see `_effective_vault_reference`).
-        # Only offered when this room still needs a card and isn't locked.
+        # Card-reuse candidates: the leader's other live rooms that
+        # already have a card on file AND share this room's vault scope
+        # (so the token is actually valid here). Only offered when this
+        # room still needs a card and isn't locked.
         if ra.require_cc and not ra.export_locked:
-            target_ref = _effective_vault_reference(ra)
-            for other in other_rooms:
-                if not other.cc_token:
-                    continue
-                if _effective_vault_reference(other) != target_ref:
-                    continue
-                card_source_rooms.append(other)
+            card_source_rooms = [
+                other for other in _card_reuse_sources(session, ra)
+                if other.is_live]
 
     return {
         'assignment': ra,
@@ -607,25 +649,16 @@ class Root:
 
 
     @requires_account(Attendee)
-    def invite_email(self, session, assignment_id, attendee_id='',
-                     email='', csrf_token=None):
-        from uber.utils import check_csrf
-        if cherrypy.request.method != 'POST':
-            raise HTTPRedirect(_room_url(assignment_id, attendee_id))
-        check_csrf(csrf_token)
-        ra = session.query(RoomAssignment).get(assignment_id)
-        if not ra:
-            raise HTTPRedirect('rooms?message={}', 'Room not found.')
-        _require_unlocked(ra, attendee_id)
-
+    @room_action
+    def invite_email(self, session, ra, attendee_id='', email='', **params):
         if _open_seats(session, ra) <= 0:
             raise HTTPRedirect(_room_url(
-                assignment_id, attendee_id,
+                ra.id, attendee_id,
                 message='Room is at capacity.'))
         email = (email or '').strip()
         if not email:
             raise HTTPRedirect(_room_url(
-                assignment_id, attendee_id,
+                ra.id, attendee_id,
                 message='Please enter an email address.'))
 
         token = _generate_invite_token()
@@ -655,24 +688,15 @@ class Root:
             log.exception("Failed to send room invite email")
 
         raise HTTPRedirect(_room_url(
-            assignment_id, attendee_id,
+            ra.id, attendee_id,
             message=f'Invite sent to {email}.'))
 
     @requires_account(Attendee)
-    def invite_code(self, session, assignment_id, attendee_id='',
-                    csrf_token=None):
-        from uber.utils import check_csrf
-        if cherrypy.request.method != 'POST':
-            raise HTTPRedirect(_room_url(assignment_id, attendee_id))
-        check_csrf(csrf_token)
-        ra = session.query(RoomAssignment).get(assignment_id)
-        if not ra:
-            raise HTTPRedirect('rooms?message={}', 'Room not found.')
-        _require_unlocked(ra, attendee_id)
-
+    @room_action
+    def invite_code(self, session, ra, attendee_id='', **params):
         if _open_seats(session, ra) <= 0:
             raise HTTPRedirect(_room_url(
-                assignment_id, attendee_id,
+                ra.id, attendee_id,
                 message='Room is at capacity.'))
 
         token = _generate_invite_token()
@@ -685,7 +709,7 @@ class Root:
         # Surface the code via the standard message-alert flow so the
         # editor's chrome doesn't sprout an extra inline alert.
         raise HTTPRedirect(_room_url(
-            assignment_id, attendee_id,
+            ra.id, attendee_id,
             message=f"New invite code generated: {token}. Share it with "
                     "one friend; they enter it on their own Hotel Rooms "
                     "page."))
@@ -798,20 +822,12 @@ class Root:
         raise HTTPRedirect('invite?token={}', code)
 
     @requires_account(Attendee)
-    def remove_occupant(self, session, assignment_id, occupant_attendee_id,
-                        attendee_id='', csrf_token=None):
-        from uber.utils import check_csrf
-        if cherrypy.request.method != 'POST':
-            raise HTTPRedirect(_room_url(assignment_id, attendee_id))
-        check_csrf(csrf_token)
-        ra = session.query(RoomAssignment).get(assignment_id)
-        if not ra:
-            raise HTTPRedirect('rooms?message={}', 'Room not found.')
-        _require_unlocked(ra, attendee_id)
-
+    @room_action
+    def remove_occupant(self, session, ra, occupant_attendee_id=None,
+                        attendee_id='', **params):
         if occupant_attendee_id == ra.attendee_id:
             raise HTTPRedirect(_room_url(
-                assignment_id, attendee_id,
+                ra.id, attendee_id,
                 message='The room booker cannot be removed.'))
 
         target = session.attendee(occupant_attendee_id)
@@ -820,21 +836,12 @@ class Root:
             session.add(ra)
             session.commit()
         raise HTTPRedirect(_room_url(
-            assignment_id, attendee_id,
+            ra.id, attendee_id,
             message='Occupant removed.'))
 
     @requires_account(Attendee)
-    def leave_room(self, session, assignment_id, attendee_id='',
-                   csrf_token=None):
-        from uber.utils import check_csrf
-        if cherrypy.request.method != 'POST':
-            raise HTTPRedirect(_room_url(assignment_id, attendee_id))
-        check_csrf(csrf_token)
-        ra = session.query(RoomAssignment).get(assignment_id)
-        if not ra:
-            raise HTTPRedirect('rooms?message={}', 'Room not found.')
-        _require_unlocked(ra, attendee_id)
-
+    @room_action
+    def leave_room(self, session, ra, attendee_id='', **params):
         # Whoever's logged in removes themselves; refuse for the booker.
         viewer = _viewer_attendee(session)
         if not viewer:
@@ -842,7 +849,7 @@ class Root:
                                'Please log in as an attendee to leave a room.')
         if viewer.id == ra.attendee_id:
             raise HTTPRedirect(_room_url(
-                assignment_id, attendee_id,
+                ra.id, attendee_id,
                 message='The room booker cannot leave; use Decline instead.'))
         if viewer in (ra.occupants or []):
             ra.occupants.remove(viewer)
@@ -893,39 +900,25 @@ class Root:
             base + sep + 'message=' + quote('Hotel name updated.'))
 
     @requires_account(Attendee)
-    def save_rewards_number(self, session, assignment_id, attendee_id='',
-                            hotel_rewards_number='', csrf_token=None):
-        from uber.utils import check_csrf
-        if cherrypy.request.method != 'POST':
-            raise HTTPRedirect(_room_url(assignment_id, attendee_id))
-        check_csrf(csrf_token)
-        ra = session.query(RoomAssignment).get(assignment_id)
-        if not ra:
-            raise HTTPRedirect('rooms?message={}', 'Room not found.')
-        _require_unlocked(ra, attendee_id)
+    @room_action
+    def save_rewards_number(self, session, ra, attendee_id='',
+                            hotel_rewards_number='', **params):
         ra.hotel_rewards_number = (hotel_rewards_number or '').strip()
         session.add(ra)
         session.commit()
         raise HTTPRedirect(_room_url(
-            assignment_id, attendee_id,
+            ra.id, attendee_id,
             message='Rewards number updated.'))
 
     @requires_account(Attendee)
-    def save_special_requests(self, session, assignment_id, attendee_id='',
-                              special_requests='', csrf_token=None):
-        from uber.utils import check_csrf
-        if cherrypy.request.method != 'POST':
-            raise HTTPRedirect(_room_url(assignment_id, attendee_id))
-        check_csrf(csrf_token)
-        ra = session.query(RoomAssignment).get(assignment_id)
-        if not ra:
-            raise HTTPRedirect('rooms?message={}', 'Room not found.')
-        _require_unlocked(ra, attendee_id)
+    @room_action
+    def save_special_requests(self, session, ra, attendee_id='',
+                              special_requests='', **params):
         ra.special_requests = (special_requests or '').strip()
         session.add(ra)
         session.commit()
         raise HTTPRedirect(_room_url(
-            assignment_id, attendee_id,
+            ra.id, attendee_id,
             message='Special requests updated.'))
 
     @requires_account(Attendee)
@@ -1936,16 +1929,8 @@ class Root:
         # reuses its card and address via copy_booking_info and secures
         # this room without re-entering the card.
         billing_source_rooms = []
-        target_ref = _effective_vault_reference(ra)
-        siblings = (session.query(RoomAssignment)
-                    .filter(RoomAssignment.attendee_id == ra.attendee_id,
-                            RoomAssignment.id != ra.id,
-                            RoomAssignment.cc_token.isnot(None))
-                    .all())
-        for other in siblings:
+        for other in _card_reuse_sources(session, ra):
             if not (other.address1 and other.address1.strip()):
-                continue
-            if _effective_vault_reference(other) != target_ref:
                 continue
             inv = other.inventory
             if inv and inv.hotel:
@@ -1991,11 +1976,7 @@ class Root:
         if not ra.is_live:
             return {'error': 'This room is not in a state that can be secured.'}
 
-        inventory_item = ra.inventory
-        vault_reference = (inventory_item.vault_reference
-                           if inventory_item and inventory_item.vault_reference
-                           else f"hotel_{inventory_item.hotel_id}" if inventory_item
-                           else "default")
+        vault_reference = _effective_vault_reference(ra)
 
         from uber.vault import create_capture_session, get_capture_iframe_url
         capture = create_capture_session(

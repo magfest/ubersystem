@@ -10,6 +10,7 @@ import csv
 import io
 import os
 import uuid
+from datetime import date, datetime
 
 from uber.config import c
 
@@ -18,14 +19,52 @@ def _normalize(value):
     return str(value if value is not None else '').strip().lower().replace(' ', '_')
 
 
-def parse_confirmation_rows(raw, filename):
-    """Parse a CSV or XLSX file into a list of normalized-key dict rows.
+def cell_to_str(value):
+    """Render one spreadsheet cell as a string.
 
-    Returns (rows, error). Columns are matched case-insensitively with spaces
-    treated as underscores. Parse failures come back as an error string rather
-    than raising.
+    openpyxl returns date/datetime objects for date-formatted XLSX cells;
+    those are rendered as ISO 8601 so downstream date parsing
+    (parse_iso_date) and string matching behave identically for CSV and
+    XLSX uploads. None becomes ''.
+    """
+    if value is None:
+        return ''
+    if isinstance(value, (date, datetime)):
+        return value.isoformat()
+    return str(value)
+
+
+def parse_iso_date(raw):
+    """Parse an ISO 8601 date ('YYYY-MM-DD') or datetime string to a date.
+
+    Hotels may quote back either a bare date or a full datetime with
+    optional offset; datetimes are projected to their date. Returns None if
+    the value is blank or unparseable.
+    """
+    if not raw:
+        return None
+    raw = raw.strip()
+    if not raw:
+        return None
+    # date.fromisoformat handles 'YYYY-MM-DD' on its own. For datetimes we
+    # take the leading date portion.
+    try:
+        return date.fromisoformat(raw[:10])
+    except ValueError:
+        return None
+
+
+def parse_spreadsheet(raw, filename):
+    """Parse CSV or XLSX file bytes into (fieldnames, rows, error).
+
+    fieldnames are the normalized header cells (lowercased, stripped, spaces
+    treated as underscores) and rows are dicts keyed by those names, with
+    every value a string (dates/datetimes rendered as ISO 8601 via
+    cell_to_str). XLSX is detected by filename extension or the PK zip magic
+    bytes. Parse failures come back as an error string rather than raising.
     """
     name = (filename or '').lower()
+    fieldnames = []
     rows = []
     try:
         if name.endswith(('.xlsx', '.xlsm')) or raw[:2] == b'PK':
@@ -36,17 +75,31 @@ def parse_confirmation_rows(raw, filename):
                 if header is None:
                     header = [_normalize(cell) for cell in excel_row]
                     continue
-                rows.append({header[i]: ('' if v is None else str(v))
+                rows.append({header[i]: cell_to_str(v)
                              for i, v in enumerate(excel_row)
                              if i < len(header) and header[i]})
+            fieldnames = [h for h in (header or []) if h]
         else:
             text = raw.decode('utf-8-sig', errors='replace')
-            for record in csv.DictReader(io.StringIO(text)):
-                rows.append({_normalize(k): ('' if v is None else str(v))
+            reader = csv.DictReader(io.StringIO(text))
+            for record in reader:
+                rows.append({_normalize(k): cell_to_str(v)
                              for k, v in record.items() if k})
+            fieldnames = [_normalize(f) for f in (reader.fieldnames or []) if f]
     except Exception as e:
-        return [], f'Could not parse file: {e}'
-    return rows, None
+        return [], [], f'Could not parse file: {e}'
+    return fieldnames, rows, None
+
+
+def parse_confirmation_rows(raw, filename):
+    """Parse a CSV or XLSX file into a list of normalized-key dict rows.
+
+    Returns (rows, error). Columns are matched case-insensitively with spaces
+    treated as underscores. Parse failures come back as an error string rather
+    than raising.
+    """
+    _fieldnames, rows, error = parse_spreadsheet(raw, filename)
+    return rows, error
 
 
 def _store_file(session, raw, filename, content_type, hotel, source, uploaded_by):

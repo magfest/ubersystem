@@ -58,21 +58,14 @@ def expire_unsecured_assignments():
             if ra.lottery_application_id:
                 impacted_app_ids.add(ra.lottery_application_id)
 
+        # Applications whose last live room just expired reset to COMPLETE
+        # (via the shared transition rule) so they re-enter the next run.
+        # To gate re-eligibility behind opt-in, the admin configures
+        # confirmation_window_start on the next run.
         for app_id in impacted_app_ids:
             app = session.query(LotteryApplication).get(app_id)
-            if not app:
-                continue
-            live_siblings = session.query(RoomAssignment).filter(
-                RoomAssignment.lottery_application_id == app_id,
-                RoomAssignment.is_live,
-            ).count()
-            if live_siblings == 0 and app.status in (c.AWARDED, c.PROCESSED):
-                # Reset the application so it re-enters the next run. To gate
-                # re-eligibility behind opt-in, the admin configures
-                # confirmation_window_start on the next run.
-                app.status = c.COMPLETE
-                app.lottery_run_id = None
-                session.add(app)
+            if app:
+                app.sync_award_status(session)
 
         if expired_count:
             session.commit()

@@ -17,7 +17,7 @@ from uber.config import c
 from uber.custom_tags import readable_join, datetime_local_filter
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
-from uber.models.types import Choice, UniqueList, DefaultColumn as Column, DefaultField as Field, DefaultRelationship as Relationship
+from uber.models.types import Choice, RankedList, UniqueList, DefaultColumn as Column, DefaultField as Field, DefaultRelationship as Relationship
 from uber.utils import RegistrationCode
 
 log = logging.getLogger(__name__)
@@ -76,17 +76,17 @@ class LotteryApplication(MagModel, table=True):
     latest_checkin_date: date | None = Field(sa_type=Date, nullable=True)
     earliest_checkout_date: date | None = Field(sa_type=Date, nullable=True)
     latest_checkout_date: date | None = Field(sa_type=Date, nullable=True)
-    hotel_preference: str = Field(sa_type=UniqueList, default='')  # LotteryHotel UUIDs
-    room_type_preference: str = Field(sa_type=UniqueList, default='')  # LotteryRoomType UUIDs
+    hotel_preference: str = Field(sa_type=RankedList, default='')  # LotteryHotel UUIDs, ranked
+    room_type_preference: str = Field(sa_type=RankedList, default='')  # LotteryRoomType UUIDs, ranked
     wants_ada: bool = False
     ada_requests: str = ''
 
     room_opt_out: bool = False
-    suite_type_preference: str = Field(sa_type=UniqueList, default='')  # LotteryRoomType UUIDs (suites)
+    suite_type_preference: str = Field(sa_type=RankedList, default='')  # LotteryRoomType UUIDs (suites), ranked
 
     # Ranked priority keys (e.g. hotel/dates/room) when the optional
     # HOTEL_LOTTERY_PRIORITIES_ENABLED step is on. See HOTEL_LOTTERY_PRIORITIES_OPTS.
-    selection_priorities: str = Field(sa_type=UniqueList, default='')
+    selection_priorities: str = Field(sa_type=RankedList, default='')
 
     terms_accepted: bool = False
     data_policy_accepted: bool = False
@@ -359,6 +359,29 @@ class LotteryApplication(MagModel, table=True):
     @property
     def complete_or_processed(self):
         return self.status in [c.COMPLETE, c.PROCESSED] or self.finalized
+
+    def sync_award_status(self, session):
+        """Recompute this application's COMPLETE <-> AWARDED state from its
+        live room assignments: AWARDED requires at least one live room, and
+        with none left an AWARDED/PROCESSED app returns to COMPLETE (and
+        drops its lottery_run_id) so it re-enters future runs. Terminal app
+        states (WITHDRAWN, DISQUALIFIED, ...) are never overridden.
+
+        The RoomAssignment after_insert/after_delete listeners at the
+        bottom of this module apply the same rule at the SQL layer during
+        flush; call this from ORM code paths (the expiry cron, admin status
+        changes) that flip assignment status without inserting or deleting
+        rows."""
+        live = session.query(RoomAssignment).filter(
+            RoomAssignment.lottery_application_id == self.id,
+            RoomAssignment.is_live).count()
+        if live and self.status == c.COMPLETE:
+            self.status = c.AWARDED
+            session.add(self)
+        elif not live and self.status in (c.AWARDED, c.PROCESSED):
+            self.status = c.COMPLETE
+            self.lottery_run_id = None
+            session.add(self)
 
     @property
     def booking_url_ready(self):
@@ -921,6 +944,20 @@ class RoomAssignment(MagModel, table=True):
         # can promote this to a real column without breaking the
         # template/API contract (everything reads through this property).
         return bool(self.lottery_application and self.lottery_application.export_locked)
+
+    @property
+    def effective_occupants(self):
+        """Attendees sleeping in this room: the managed occupants list when
+        set, else the booker plus their group members (the solver's default
+        before anyone edits the list). Always a list of Attendee records."""
+        if self.occupants:
+            return list(self.occupants)
+        occupants = [self.attendee] if self.attendee else []
+        app = self.lottery_application
+        if app:
+            occupants.extend(m.attendee for m in (app.valid_group_members or [])
+                             if m.attendee)
+        return occupants
 
     @property
     def needs_card(self):
