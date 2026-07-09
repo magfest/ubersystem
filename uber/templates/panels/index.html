@@ -12,7 +12,7 @@
         <p>Panel applications will open {{ c.PANELS_START|datetime_local }}.</p>
       {% else %}
         {% if is_guest %}
-          {% if c.APP_LIMIT and attendee.submitted_panels|length >= c.APP_LIMIT %}
+          {% if c.APP_LIMIT and panelist.attendee.submitted_panels|length >= c.APP_LIMIT %}
             <p>You have already submitted the maximum number of panels ({{ c.APP_LIMIT }}). Please contact your liaison if
             you need to change a panel or submit more ideas.</p>
 
@@ -20,8 +20,8 @@
           {% else %}
             {% if c.APP_LIMIT and return_to %}
               You may submit up to {{ c.APP_LIMIT }} panel ideas.
-              {% if attendee.submitted_panels %}
-                You have already submitted {{ attendee.submitted_panels|length }}.
+              {% if panelist.attendee.submitted_panels %}
+                You have already submitted {{ panelist.attendee.submitted_panels|length }}.
               {% endif %}
             {% endif %}
           {% endif %}
