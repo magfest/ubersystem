@@ -97,25 +97,26 @@
 
 {# Each scope is a single dropdown (None / View only / Edit) - the
    underlying view/edit flag pair lives on the model but the UI only
-   exposes states where edit implies view. #}
+   exposes states where edit implies view. Guest names have no edit
+   feature, so that scope only offers None / View only. #}
 {% set scope_cols = [
   ('inventory_level',   'can_view_inventory',   'can_edit_inventory',   'Inventory'),
   ('assignments_level', 'can_view_assignments', 'can_edit_assignments', 'Assignments'),
-  ('guest_names_level', 'can_view_guest_names', 'can_edit_guest_names', 'Guest names'),
+  ('guest_names_level', 'can_view_guest_names', none,                   'Guest names'),
 ] %}
 
 {% macro _resolve_level(grant, view_flag, edit_flag) -%}
-  {%- if grant[edit_flag] -%}edit
+  {%- if edit_flag and grant[edit_flag] -%}edit
   {%- elif grant[view_flag] -%}view
   {%- else -%}none
   {%- endif -%}
 {%- endmacro %}
 
-{% macro _level_select(name, current='none', cls='form-select form-select-sm') -%}
+{% macro _level_select(name, current='none', allow_edit=True, cls='form-select form-select-sm') -%}
   <select class="{{ cls }}" name="{{ name }}">
     <option value="none" {% if current == 'none' %}selected{% endif %}>None</option>
     <option value="view" {% if current == 'view' %}selected{% endif %}>View only</option>
-    <option value="edit" {% if current == 'edit' %}selected{% endif %}>Edit</option>
+    {% if allow_edit %}<option value="edit" {% if current == 'edit' %}selected{% endif %}>Edit</option>{% endif %}
   </select>
 {%- endmacro %}
 
@@ -137,7 +138,6 @@
       {% for _f, _v, _e, label in scope_cols %}
       <th>{{ label }}</th>
       {% endfor %}
-      <th class="text-center" title="Send partition-scoped automated emails.">Emails</th>
       <th></th>
     </tr>
   </thead>
@@ -159,13 +159,8 @@
           {% endif %}
         </td>
         {% for field, view_f, edit_f, _label in scope_cols %}
-        <td>{{ _level_select(field, current=_resolve_level(g, view_f, edit_f)) }}</td>
+        <td>{{ _level_select(field, current=_resolve_level(g, view_f, edit_f), allow_edit=(edit_f is not none)) }}</td>
         {% endfor %}
-        <td class="text-center">
-          <input type="checkbox" class="form-check-input"
-                 name="can_send_emails" value="true"
-                 {% if g.can_send_emails %}checked{% endif %} />
-        </td>
         <td class="text-end" style="white-space: nowrap;">
           <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
       </form>
@@ -207,22 +202,15 @@
     </select>
   </div>
 
-  {% for field, _v, _e, label in scope_cols %}
+  {% for field, _v, edit_f, label in scope_cols %}
   <div class="col-md-2">
     <label class="form-label small">{{ label }}</label>
     {# Default a new grant to View only on inventory + assignments to
        match the previous checkbox defaults; everything else None. #}
     {% set _default = 'view' if field in ('inventory_level', 'assignments_level') else 'none' %}
-    {{ _level_select(field, current=_default) }}
+    {{ _level_select(field, current=_default, allow_edit=(edit_f is not none)) }}
   </div>
   {% endfor %}
-
-  <div class="col-md-2">
-    <label class="form-check form-check-inline mb-0 mt-3">
-      <input class="form-check-input" type="checkbox" name="can_send_emails" value="true" />
-      Emails
-    </label>
-  </div>
 
   <div class="col-12 text-end">
     <button type="submit" class="btn btn-primary btn-sm">Grant Access</button>

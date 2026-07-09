@@ -68,6 +68,20 @@ def _gate_view(session, partition_id):
                            "You don't have access to that partition.")
 
 
+def _partition_block_inventory_ids(session, partition_id):
+    """Inventory ids allocated to this partition via its blocks.
+
+    Server-side bound for every inventory_id a partition-scoped route will
+    accept: without it, a partition owner could point an assignment at the
+    main lottery's (or another partition's) inventory and corrupt the
+    capacity accounting, which counts by (partition, inventory) pair.
+    """
+    return {b.inventory_id
+            for b in session.query(InventoryPartitionBlock)
+            .filter_by(partition_id=str(partition_id)).all()
+            if b.inventory_id}
+
+
 def _paginate(query, page):
     """Return (rows, total_count, page) where page is clamped to a valid value."""
     total = query.count()
@@ -114,6 +128,19 @@ class Root:
         if not partition:
             raise HTTPRedirect('index?message={}', 'Partition not found.')
 
+        # Per-tab gating: an inventory-only grant must not see the roster,
+        # and vice versa. The activity log is available to anyone who
+        # passed _gate_view.
+        can_view_inventory = can_view_inventory_in(session, partition_id)
+        can_view_assignments = can_view_assignments_in(session, partition_id)
+        allowed_tabs = ['activity']
+        if can_view_assignments:
+            allowed_tabs.insert(0, 'assignments')
+        if can_view_inventory:
+            allowed_tabs.insert(0, 'inventory')
+        if tab not in allowed_tabs:
+            tab = allowed_tabs[0]
+
         try:
             page = int(page or 1)
         except (TypeError, ValueError):
@@ -125,7 +152,7 @@ class Root:
 
         blocks = []
         totals = {'allocated': 0, 'assigned': 0, 'secured': 0, 'unassigned': 0}
-        for b in partition.blocks:
+        for b in (partition.blocks if can_view_inventory else []):
             inv = b.inventory
             block_assignments = session.query(RoomAssignment).filter_by(
                 partition_id=partition.id,
@@ -153,7 +180,10 @@ class Root:
             RoomAssignment.status.asc(),
             RoomAssignment.assigned_check_in_date.asc().nullsfirst(),
             RoomAssignment.created.asc())
-        roster, roster_total, page, last_page = _paginate(roster_q, page)
+        if can_view_assignments:
+            roster, roster_total, page, last_page = _paginate(roster_q, page)
+        else:
+            roster, roster_total, page, last_page = [], roster_q.count(), 1, 1
 
         # All assignments for the attendees showing on this page (so the
         # edit modal can show every room they hold, not just this
@@ -186,16 +216,23 @@ class Root:
             for s, rc in all_status_rows
             if s in (c.ASSIGNED, c.SECURED))
 
-        # Inventory the modals' block-picker can pivot to. Restrict to
-        # active rows; the modal further filters down to blocks in
-        # partitions the editor has access to.
-        all_inventory = session.query(HotelRoomInventory).filter_by(
-            active=True).order_by(
-            HotelRoomInventory.hotel_id, HotelRoomInventory.name).all()
+        # Inventory the modals' block-picker can pivot to: only active rows
+        # allocated to THIS partition via a block. update_assignment and
+        # assign_room enforce the same bound server-side.
+        block_inv_ids = _partition_block_inventory_ids(session, partition.id)
+        if block_inv_ids:
+            all_inventory = session.query(HotelRoomInventory).filter(
+                HotelRoomInventory.id.in_(block_inv_ids),
+                HotelRoomInventory.active.is_(True)).order_by(
+                HotelRoomInventory.hotel_id, HotelRoomInventory.name).all()
+        else:
+            all_inventory = []
 
         return {
             'partition': partition,
-            'tab': tab if tab in ('inventory', 'assignments', 'activity') else 'inventory',
+            'tab': tab,
+            'can_view_inventory': can_view_inventory,
+            'can_view_assignments': can_view_assignments,
             'blocks': blocks,
             'inventory_totals': totals,
             'roster': roster,
@@ -267,6 +304,12 @@ class Root:
                 'dashboard?partition_id={}&tab=assignments&message={}',
                 partition_id, 'Attendee and inventory are required.')
 
+        if inventory_id not in _partition_block_inventory_ids(session, partition_id):
+            raise HTTPRedirect(
+                'dashboard?partition_id={}&tab=assignments&message={}',
+                partition_id,
+                'That room block is not allocated to this partition.')
+
         ra = RoomAssignment(
             attendee_id=attendee_id,
             inventory_id=inventory_id,
@@ -324,6 +367,12 @@ class Root:
         changes = []
         new_inventory = params.get('inventory_id', '').strip()
         if new_inventory and new_inventory != assignment.inventory_id:
+            if new_inventory not in _partition_block_inventory_ids(
+                    session, target_partition):
+                raise HTTPRedirect(
+                    'dashboard?partition_id={}&tab=assignments&message={}',
+                    target_partition,
+                    'That room block is not allocated to this partition.')
             changes.append('block')
             assignment.inventory_id = new_inventory
         new_require_cc = params.get('require_cc') == 'true'

@@ -1050,7 +1050,7 @@ if c.HOTEL_LOTTERY_STAFF_START:
 
 
 if c.HOTEL_LOTTERY_FORM_START:
-    earliest_hotel_deadline = c.HOTEL_LOTTERY_FORM_WAITLIST if c.HOTEL_LOTTERY_FORM_WAITLIST else c.HOTEL_LOTTERY_FORM_DEADLINE
+    earliest_hotel_deadline = c.HOTEL_LOTTERY_FORM_DEADLINE
 
     AutomatedEmailFixture(
         Attendee,
@@ -1074,25 +1074,16 @@ if c.HOTEL_LOTTERY_STAFF_START or c.HOTEL_LOTTERY_FORM_START:
     HotelLotteryEmailFixture(
         f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Notification',
         'hotel/award_notification.html',
-        "lambda a: a.status == c.AWARDED and not a.final_status_hidden and a.booking_url_ready",
+        "lambda a: a.status == c.AWARDED and a.booking_url_ready",
         'hotel_lottery_awarded'
     )
 
     HotelLotteryEmailFixture(
         f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Notification',
         'hotel/reject_notification.html',
-        "lambda a: a.status == c.REJECTED and not a.final_status_hidden",
+        "lambda a: a.status == c.REJECTED",
         'hotel_lottery_rejected'
     )
-
-    if c.HOTEL_LOTTERY_FORM_WAITLIST:
-        HotelLotteryEmailFixture(
-            f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Notification',
-            'hotel/reject_notification.html',
-            "lambda a: a.status == c.COMPLETE and a.qualifies_for_first_round",
-            'hotel_lottery_first_round_rejected',
-            when=[after(c.HOTEL_LOTTERY_FORM_WAITLIST)],
-        )
 
     HotelLotteryEmailFixture(
         f'Reminder to confirm your {c.EVENT_NAME_AND_YEAR} hotel reservation',
@@ -1204,6 +1195,11 @@ if c.HOTEL_LOTTERY_STAFF_START or c.HOTEL_LOTTERY_FORM_START:
         f'{c.EVENT_NAME_AND_YEAR} hotel waitlist',
         'hotel/waitlist_reveal.html', None,
         'hotel_lottery_waitlist_reveal'
+    )
+    HotelLotteryEmailFixture(
+        f'Your {c.EVENT_NAME_AND_YEAR} hotel room has been released',
+        'hotel/room_expired.html', None,
+        'hotel_lottery_room_expired'
     )
 
 

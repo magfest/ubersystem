@@ -50,18 +50,20 @@
 
   {# Resolve the current state of each scope into the dropdown value. #}
   {% macro _level(view_flag, edit_flag) -%}
-    {%- if grant[edit_flag] -%}edit
+    {%- if edit_flag and grant[edit_flag] -%}edit
     {%- elif grant[view_flag] -%}view
     {%- else -%}none
     {%- endif -%}
   {%- endmacro %}
 
+  {# Guest names have no edit feature, so that scope only offers
+     None / View only. #}
   {% set scopes = [
     ('inventory_level',  'can_view_inventory',  'can_edit_inventory',
      'Inventory',  'Per-block counts and metadata for this partition.'),
     ('assignments_level','can_view_assignments','can_edit_assignments',
      'Assignments','The assignment roster and per-room billing/dates.'),
-    ('guest_names_level','can_view_guest_names','can_edit_guest_names',
+    ('guest_names_level','can_view_guest_names', none,
      'Guest names','Attendee display names within this partition. Legal names are gated separately.'),
   ] %}
 
@@ -73,21 +75,11 @@
         {% set current = _level(view_f, edit_f) %}
         <option value="none" {% if current == 'none' %}selected{% endif %}>None</option>
         <option value="view" {% if current == 'view' %}selected{% endif %}>View only</option>
-        <option value="edit" {% if current == 'edit' %}selected{% endif %}>Edit</option>
+        {% if edit_f %}<option value="edit" {% if current == 'edit' %}selected{% endif %}>Edit</option>{% endif %}
       </select>
       <div class="form-text small">{{ desc }}</div>
     </div>
     {% endfor %}
-  </div>
-
-  <div class="form-check mb-3">
-    <input class="form-check-input" type="checkbox"
-           id="can_send_emails" name="can_send_emails" value="true"
-           {% if grant.can_send_emails %}checked{% endif %} />
-    <label class="form-check-label" for="can_send_emails">
-      <strong>Send partition emails</strong>
-      <br/><small class="text-muted">Trigger automated emails scoped to this partition.</small>
-    </label>
   </div>
 
   <div class="mt-4">

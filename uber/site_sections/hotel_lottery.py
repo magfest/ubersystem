@@ -2080,10 +2080,12 @@ class Root:
         ra.zip_code = zip_code
         ra.country = country
 
+        # Rewards numbers are per-room (each room is its own booking);
+        # the application-level field only reflects the original entry.
+        ra.hotel_rewards_number = params.get('hotel_rewards_number', '').strip()
+
         application = ra.lottery_application
         if application:
-            application.hotel_rewards_number = params.get(
-                'hotel_rewards_number', '').strip()
             session.add(application)
 
         # Handle date choice: accept assigned dates or request waitlist
@@ -2251,7 +2253,6 @@ class Root:
 
             new_check_in = params.get('assigned_check_in_date')
             new_check_out = params.get('assigned_check_out_date')
-            special_requests = params.get('special_requests', '')
 
             inv = ra.inventory
 
@@ -2397,16 +2398,21 @@ class Root:
                 if new_check_out:
                     ra.assigned_check_out_date = dateparser.parse(new_check_out).date()
 
-            ra.special_requests = special_requests
-            application.hotel_rewards_number = params.get('hotel_rewards_number', '').strip()
+            # Only update fields the submitted form actually included -
+            # room.html saves dates, requests, and billing address from
+            # separate forms, and a dates-only POST must not blank the
+            # other sections. Rewards numbers are per-room; the
+            # application-level field only reflects the original entry.
+            if 'special_requests' in params:
+                ra.special_requests = params.get('special_requests', '')
+            if 'hotel_rewards_number' in params:
+                ra.hotel_rewards_number = params.get('hotel_rewards_number', '').strip()
 
             # Address fields live on the RoomAssignment.
-            ra.address1 = params.get('address1', '').strip()
-            ra.address2 = params.get('address2', '').strip()
-            ra.city = params.get('city', '').strip()
-            ra.region = params.get('region', '').strip()
-            ra.zip_code = params.get('zip_code', '').strip()
-            ra.country = params.get('country', '').strip()
+            for field in ('address1', 'address2', 'city', 'region',
+                          'zip_code', 'country'):
+                if field in params:
+                    setattr(ra, field, params.get(field, '').strip())
 
             session.add(ra)
             session.add(application)

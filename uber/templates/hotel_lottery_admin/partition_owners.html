@@ -43,7 +43,6 @@
       <th>Inventory</th>
       <th>Assignments</th>
       <th>Guest Names</th>
-      <th>Send Emails</th>
       <th></th>
     </tr>
   </thead>
@@ -72,9 +71,8 @@
         {% if g.can_edit_assignments %}edit{% elif g.can_view_assignments %}view{% else %}-{% endif %}
       </td>
       <td>
-        {% if g.can_edit_guest_names %}edit{% elif g.can_view_guest_names %}view{% else %}-{% endif %}
+        {% if g.can_view_guest_names %}view{% else %}-{% endif %}
       </td>
-      <td>{% if g.can_send_emails %}yes{% else %}-{% endif %}</td>
       <td>
         <a class="btn btn-outline-secondary btn-sm" href="edit_partition_owner?id={{ g.id }}">Edit</a>
         <form method="post" action="delete_partition_owner" class="d-inline"

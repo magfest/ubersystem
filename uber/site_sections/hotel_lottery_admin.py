@@ -3177,7 +3177,6 @@ class Root:
                 level_scopes = [
                     ('inventory_level',  'can_view_inventory',  'can_edit_inventory'),
                     ('assignments_level', 'can_view_assignments', 'can_edit_assignments'),
-                    ('guest_names_level', 'can_view_guest_names', 'can_edit_guest_names'),
                 ]
                 for level_field, view_flag, edit_flag in level_scopes:
                     level = (params.get(level_field) or '').strip()
@@ -3192,7 +3191,14 @@ class Root:
                         setattr(grant, view_flag, False)
                         setattr(grant, edit_flag, False)
 
-                grant.can_send_emails = params.get('can_send_emails') == 'true'
+                # Guest names are view-only: no guest-name editing feature
+                # exists, so the UI offers None / View only. The reserved
+                # can_edit_guest_names / can_send_emails columns are always
+                # cleared until real features enforce them.
+                grant.can_view_guest_names = \
+                    (params.get('guest_names_level') or '').strip() == 'view'
+                grant.can_edit_guest_names = False
+                grant.can_send_emails = False
                 session.add(grant)
                 session.flush()
                 record_partition_audit(

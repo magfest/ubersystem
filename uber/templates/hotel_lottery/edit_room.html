@@ -130,7 +130,7 @@
   <div class="mb-3">
     <label for="hotel_rewards_number" class="form-label">Hotel Rewards Program Number</label>
     <input type="text" class="form-control" name="hotel_rewards_number" id="hotel_rewards_number"
-           value="{{ application.hotel_rewards_number }}"
+           value="{{ assignment.hotel_rewards_number or '' }}"
            placeholder="Enter your hotel loyalty/rewards number (optional)" />
     <div class="form-text">If you have a rewards membership with this hotel, enter your number to earn points for your stay.</div>
   </div>

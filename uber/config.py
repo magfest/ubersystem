@@ -376,21 +376,13 @@ class Config(_Overridable):
             return True
 
         # partition_admin: any admin with at least one PartitionOwner grant
-        # may visit the partition-scoped pages; the per-page methods then
-        # gate further via uber.lottery_perms helpers. Hotel-lottery admins
-        # already have full access via their own section.
-        if section == 'partition_admin':
-            try:
-                account_id = cherrypy.session.get('account_id')
-                if account_id:
-                    with uber.models.Session() as sess:
-                        from uber.models.hotel import PartitionOwner
-                        if sess.query(PartitionOwner).filter_by(
-                                admin_account_id=account_id).first():
-                            return True
-            except Exception:
-                pass
-        
+        # (or a global lottery admin) may visit the partition-scoped pages;
+        # the per-page methods then gate further via uber.lottery_perms
+        # helpers. HAS_HOTEL_LOTTERY_ACCESS is request-cached, so repeated
+        # access checks during one render don't re-query.
+        if section == 'partition_admin' and self.HAS_HOTEL_LOTTERY_ACCESS:
+            return True
+
     def update_name_problems(self):
         c.PROBLEM_NAMES = {}
         file_loc = os.path.join(c.UPLOADED_FILES_DIR, 'problem_names.csv')

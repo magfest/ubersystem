@@ -44,17 +44,21 @@
 </div>
 
 <ul class="nav nav-tabs" role="tablist">
+  {% if can_view_inventory %}
   <li class="nav-item" role="presentation">
     <button class="nav-link {% if tab == 'inventory' %}active{% endif %}" id="tab-inventory" data-bs-toggle="tab" data-bs-target="#pane-inventory" type="button" role="tab">
       Inventory
     </button>
   </li>
+  {% endif %}
+  {% if can_view_assignments %}
   <li class="nav-item" role="presentation">
     <button class="nav-link {% if tab == 'assignments' %}active{% endif %}" id="tab-assignments" data-bs-toggle="tab" data-bs-target="#pane-assignments" type="button" role="tab">
       Assignments
       <span class="badge bg-secondary ms-1">{{ roster_total }}</span>
     </button>
   </li>
+  {% endif %}
   <li class="nav-item" role="presentation">
     <button class="nav-link {% if tab == 'activity' %}active{% endif %}" id="tab-activity" data-bs-toggle="tab" data-bs-target="#pane-activity" type="button" role="tab">
       Activity
@@ -66,6 +70,7 @@
 <div class="tab-content border border-top-0 p-3 mb-4">
 
 <div class="tab-pane fade {% if tab == 'inventory' %}show active{% endif %}" id="pane-inventory" role="tabpanel">
+  {% if can_view_inventory %}
   <h3 class="h5">Inventory Blocks</h3>
   {% if not blocks %}
   <div class="alert alert-secondary">No inventory blocks allocated to this partition.</div>
@@ -117,10 +122,11 @@
     </tfoot>
   </table>
   {% endif %}
+  {% endif %}
 </div>
 
 <div class="tab-pane fade {% if tab == 'assignments' %}show active{% endif %}" id="pane-assignments" role="tabpanel">
-
+  {% if can_view_assignments %}
   {% if can_edit_assignments %}
   <details class="mb-3">
     <summary class="btn btn-sm btn-outline-primary">+ Assign a new room</summary>
@@ -207,7 +213,11 @@
             {% else %}
               {{ ra.attendee.first_name }} {{ ra.attendee.last_name|first|upper }}.
             {% endif %}
+            {# The email usually reveals the full name, so it follows the
+               same gate as name visibility. #}
+            {% if can_view_guest_names or can_view_guest_legal_names %}
             <br/><small class="text-muted">{{ ra.attendee.email }}</small>
+            {% endif %}
           {% else %}<em>(deleted)</em>{% endif %}
         </td>
         <td>
@@ -268,8 +278,9 @@
   {% set _roster_url = 'dashboard?partition_id=' ~ partition.id ~ '&tab=assignments&activity_page=' ~ activity_page %}
   {{ hotel_macros.pagination(page, last_page, _roster_url,
                              total=roster_total, page_size=page_size,
-                             current_count=assignments|length,
+                             current_count=roster|length,
                              label='assignment') }}
+  {% endif %}
   {% endif %}
 </div>
 
@@ -367,13 +378,29 @@
 
               <div class="col-md-6">
                 <label class="form-label small">Inventory block</label>
+                {% if ra.partition_id == partition.id %}
                 <select name="inventory_id" class="form-select form-select-sm">
+                  {# all_inventory only holds this partition's blocks; keep
+                     the current (possibly deactivated) block selectable. #}
+                  {% if ra.inventory and ra.inventory_id not in all_inventory|map(attribute='id')|list %}
+                  <option value="{{ ra.inventory_id }}" selected>
+                    {{ ra.inventory.name }}{% if ra.inventory.hotel %} - {{ ra.inventory.hotel.name }}{% endif %} (current)
+                  </option>
+                  {% endif %}
                   {% for inv in all_inventory %}
                   <option value="{{ inv.id }}"{% if inv.id == ra.inventory_id %} selected{% endif %}>
                     {{ inv.name }}{% if inv.hotel %} - {{ inv.hotel.name }}{% endif %}{% if inv.is_suite %} (Suite){% endif %}
                   </option>
                   {% endfor %}
                 </select>
+                {% else %}
+                {# Rooms scoped to another partition (or the main lottery)
+                   can't be repointed from here - the server enforces the
+                   same bound in update_assignment. #}
+                <div class="form-control-plaintext form-control-sm">
+                  {% if ra.inventory %}{{ ra.inventory.name }}{% if ra.inventory.hotel %} - {{ ra.inventory.hotel.name }}{% endif %}{% else %}(unknown block){% endif %}
+                </div>
+                {% endif %}
               </div>
               <div class="col-md-3">
                 <label class="form-label small">Check-in</label>

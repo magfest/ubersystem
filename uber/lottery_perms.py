@@ -45,9 +45,10 @@ def is_lottery_admin(admin_account=None):
     if admin_account is None:
         return bool(c.HAS_HOTEL_LOTTERY_ADMIN_ACCESS)
     # When an explicit admin is passed, walk their access groups directly so
-    # the check is testable without a live cherrypy request.
-    return 'hotel_lottery_admin' in admin_account.write_access_set \
-        or 'hotel_lottery_admin' in admin_account.read_access_set
+    # the check is testable without a live cherrypy request. Write access
+    # only: read-only section access must not confer edit capabilities
+    # (is_lottery_admin short-circuits every can_edit_* check to True).
+    return 'hotel_lottery_admin' in admin_account.write_access_set
 
 
 def _partition_grant(session, admin_account, partition_id):
@@ -92,19 +93,9 @@ def can_edit_assignments_in(session, partition_id, *, admin_account=None):
                                  admin_account=admin_account)
 
 
-def can_send_emails_for(session, partition_id, *, admin_account=None):
-    return _partition_capability(session, partition_id, 'can_send_emails',
-                                 admin_account=admin_account)
-
-
 def can_view_guest_names_in(session, partition_id, *, admin_account=None):
     """Display-name (preferred/known) visibility within a partition."""
     return _partition_capability(session, partition_id, 'can_view_guest_names',
-                                 admin_account=admin_account)
-
-
-def can_edit_guest_names_in(session, partition_id, *, admin_account=None):
-    return _partition_capability(session, partition_id, 'can_edit_guest_names',
                                  admin_account=admin_account)
 
 
@@ -153,16 +144,3 @@ def record_partition_audit(session, partition_id, action, description='',
         target_id=str(target_id) if target_id else None,
     )
     session.add(entry)
-
-
-def assert_can(check_fn, *args, **kwargs):
-    """Raise HTTPRedirect to a 403-style page if check_fn returns False.
-
-    Lightweight gate for admin routes. Call sites can also handle the
-    boolean directly; this is provided so common usage stays short.
-    """
-    if check_fn(*args, **kwargs):
-        return
-    from uber.errors import HTTPRedirect
-    raise HTTPRedirect('../landing/index?message={}',
-                       "You don't have access to that.")

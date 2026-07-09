@@ -187,6 +187,15 @@ class LotteryApplication(MagModel, table=True):
         return [rt_map[i] for i in ids if i in rt_map]
 
     @property
+    def selection_priorities_labels(self):
+        """Return ranked priority names from the stored priority keys."""
+        if not self.selection_priorities:
+            return []
+        opts = dict(c.HOTEL_LOTTERY_PRIORITIES_OPTS)
+        keys = [x.strip() for x in self.selection_priorities.split(',') if x.strip()]
+        return [opts[k]['name'] for k in keys if k in opts]
+
+    @property
     def suite_type_preference_labels(self):
         """Return list of suite type names from preference UUIDs."""
         from sqlalchemy import inspect as sa_inspect
@@ -1107,9 +1116,11 @@ class PartitionOwner(MagModel, table=True):
     # Legal-name visibility is gated separately by
     # AdminAccount.view_guest_legal_names.
     can_view_guest_names: bool = False
-    can_edit_guest_names: bool = False
 
-    # Permission to trigger automated emails scoped to this partition.
+    # RESERVED, not enforced anywhere and not exposed in the UI: kept as
+    # columns so already-migrated databases stay in sync with the model.
+    # Wire real checks before granting either of these any meaning.
+    can_edit_guest_names: bool = False
     can_send_emails: bool = False
 
 
