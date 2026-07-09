@@ -143,7 +143,7 @@
           {% set inv = ra.inventory %}
           <tr>
             <td><a href="form?id={{ app.id }}">{{ app.confirmation_num }}</a></td>
-            <td>{{ app.attendee_name }}
+            <td>{{ hotel_macros.attendee_cell(app.attendee, show_email=False) }}
               {% if ra.parent_assignment_id %}{{ hotel_macros.connector_chip() }}{% endif %}
             </td>
             <td>{{ ra.status_label }}</td>
@@ -160,7 +160,7 @@
       {% else %}
         <tr>
           <td><a href="form?id={{ app.id }}">{{ app.confirmation_num }}</a></td>
-          <td>{{ app.attendee_name }}</td>
+          <td>{{ hotel_macros.attendee_cell(app.attendee, show_email=False) }}</td>
           <td>{{ app.status_label }}</td>
           <td colspan="4" class="text-muted">No rooms in this run</td>
           <td>{{ app.valid_group_members|length }}</td>

@@ -100,7 +100,7 @@
     </thead>
     <tbody>
       {% for a in staffers %}
-      {% set _has_room = (a.room_assignments|selectattr('status', 'in', [c.ASSIGNED, c.SECURED])|list|length > 0) %}
+      {% set _has_room = (a.active_room_assignments|length > 0) %}
       <tr>
         <td>
           <input type="checkbox" class="bulk-row-check" value="{{ a.id }}" />

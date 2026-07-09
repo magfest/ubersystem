@@ -44,7 +44,7 @@ withdrawConfirm = function() {
            every context. #}
         {% set _app_or_parent = app_or_parent|default(application.app_or_parent, true) %}
         {% set _has_award = (_app_or_parent.attendee.room_assignments if _app_or_parent and _app_or_parent.attendee else [])
-                            |selectattr('status', 'in', [c.ASSIGNED, c.SECURED])|list|length > 0 %}
+                            |selectattr('is_live')|list|length > 0 %}
         '<p>This will <strong>delete your lottery entry{% if application.group_members %} and disband your group{% endif %}</strong>{% if application.parent_application %} and your group leader will be {% if _has_award %}instructed to remove your name from the reservation{% else %}notified{% endif %}{% endif %}. ' +
         '{% if not application.current_lottery_closed and not application.finalized %}You will need to re-enter the hotel lottery from the beginning to be eligible for a room or suite.{% endif %}</p>',
     buttons: {

@@ -1,7 +1,7 @@
 {# Multi-room: scan the attendee's awarded rooms once to decide phrasing
    (singular/plural, "room"/"suite"). #}
 {% set _award_rooms = (app.attendee.room_assignments if app.attendee else [])
-                      |selectattr('status', 'in', [c.ASSIGNED, c.SECURED])|list %}
+                      |selectattr('is_live')|list %}
 {% set _has_suite = _award_rooms|selectattr('inventory.is_suite')|list|length > 0 %}
 {% set room_type = 'suite' if _has_suite else 'room' %}
 {% set app_or_parent = app.parent_application if app.entry_type == c.GROUP_ENTRY else app %}

@@ -16,7 +16,19 @@
 <div class="alert alert-info">{{ message }}</div>
 {% endif %}
 
+{% if scoped_attendee %}
+<div class="alert alert-secondary d-flex justify-content-between align-items-center">
+  <span>
+    Showing all rooms (every status) for
+    {{ hotel_macros.attendee_cell(scoped_attendee, show_email=False) }}
+    {%- if scoped_attendee.hotel_status %} &mdash; {{ scoped_attendee.hotel_status }}{% endif %}
+  </span>
+  <a class="btn btn-sm btn-outline-secondary" href="rooms">Show all rooms</a>
+</div>
+{% endif %}
+
 <form method="get" action="rooms" class="card card-body mb-3">
+  {% if attendee_id %}<input type="hidden" name="attendee_id" value="{{ attendee_id }}" />{% endif %}
   <div class="row g-2 align-items-end">
     <div class="col-md-3">
       <label class="form-label small mb-1">Search</label>
@@ -93,12 +105,11 @@
       <td>
         {% if ra.attendee %}
           {% if c.HAS_HOTEL_LOTTERY_ADMIN_ACCESS %}
-            {{ ra.attendee.effective_hotel_first_name }}
-            {{ ra.attendee.effective_hotel_last_name }}
+            {{ hotel_macros.attendee_cell(ra.attendee, hotel_names=True) }}
           {% else %}
             {{ ra.attendee.first_name }} {{ ra.attendee.last_name|first|upper }}.
+            <br/><small class="text-muted">{{ ra.attendee.email }}</small>
           {% endif %}
-          <br/><small class="text-muted">{{ ra.attendee.email }}</small>
         {% else %}<em>(no attendee)</em>{% endif %}
         {% if app %}
           <br/><small class="text-muted">
@@ -142,7 +153,7 @@
 </table>
 
 {# Pagination - shared macro keeps it identical across the section. #}
-{% set _qs = 'search=' ~ search|urlencode ~ '&hotel_id=' ~ hotel_id ~ '&partition_id=' ~ partition_id ~ '&status=' ~ status ~ '&page_size=' ~ page_size %}
+{% set _qs = 'search=' ~ search|urlencode ~ '&hotel_id=' ~ hotel_id ~ '&partition_id=' ~ partition_id ~ '&status=' ~ status ~ '&page_size=' ~ page_size ~ ('&attendee_id=' ~ attendee_id if attendee_id else '') %}
 {{ hotel_macros.pagination(page, page_count, 'rooms?' ~ _qs,
                            total=total, page_size=page_size,
                            current_count=assignments|length,

@@ -36,12 +36,11 @@
       <td>
         {% if row.app.attendee %}
           {% if c.HAS_HOTEL_LOTTERY_ADMIN_ACCESS %}
-            {{ row.app.attendee.effective_hotel_first_name }}
-            {{ row.app.attendee.effective_hotel_last_name }}
+            {{ hotel_macros.attendee_cell(row.app.attendee, hotel_names=True) }}
           {% else %}
             {{ row.app.attendee.first_name }} {{ row.app.attendee.last_name|first|upper }}.
+            <br/><small class="text-muted">{{ row.app.attendee.email }}</small>
           {% endif %}
-          <br/><small class="text-muted">{{ row.app.attendee.email }}</small>
         {% else %}<em>(deleted)</em>{% endif %}
       </td>
       {# Each `row` is per-RoomAssignment; connector rooms render their

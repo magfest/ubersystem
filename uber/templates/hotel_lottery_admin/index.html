@@ -197,7 +197,7 @@
                      the eye scans count -> rooms in a single row. Connectors
                      are flagged inline with a small badge. #}
                   {% set _rooms = (app.attendee.room_assignments if app.attendee else [])
-                                  |selectattr('status', 'in', [c.ASSIGNED, c.SECURED])|list %}
+                                  |selectattr('is_live')|list %}
                   {% if _rooms %}
                     <div class="d-flex align-items-start gap-2">
                       <span class="badge bg-primary" title="Number of rooms">{{ _rooms|length }}</span>

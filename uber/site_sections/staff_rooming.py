@@ -261,7 +261,7 @@ class Root:
         # Only live (ASSIGNED + SECURED) RAs whose booker is staff.
         q = (session.query(RoomAssignment)
              .join(Attendee, Attendee.id == RoomAssignment.attendee_id)
-             .filter(RoomAssignment.status.in_([c.ASSIGNED, c.SECURED]))
+             .filter(RoomAssignment.is_live)
              .filter(Attendee.badge_type.in_(
                  [c.STAFF_BADGE, c.CONTRACTOR_BADGE])))
 
@@ -302,7 +302,7 @@ class Root:
         # narrows the view).
         live_q = (session.query(RoomAssignment)
                   .join(Attendee, Attendee.id == RoomAssignment.attendee_id)
-                  .filter(RoomAssignment.status.in_([c.ASSIGNED, c.SECURED]))
+                  .filter(RoomAssignment.is_live)
                   .filter(Attendee.badge_type.in_(
                       [c.STAFF_BADGE, c.CONTRACTOR_BADGE])))
         total_self = live_q.filter(RoomAssignment.require_cc.is_(True)).count()

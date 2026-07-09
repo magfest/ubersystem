@@ -2097,6 +2097,12 @@ c.HOTEL_LOTTERY_PRIORITIES_OPTS = [
 
 c.HOTEL_LOTTERY_AWARD_STATUSES = [c.PROCESSED, c.AWARDED, c.SECURED]
 
+# RoomAssignment statuses that still hold inventory - the canonical "live
+# room" predicate used by capacity math, exports, and the attendee-facing
+# rooms views. Prefer RoomAssignment.is_live / Attendee.active_room_assignments
+# over spelling this list out at call sites.
+c.HOTEL_LIVE_ASSIGNMENT_STATUSES = [c.ASSIGNED, c.SECURED]
+
 # Allows 0-9, a-z, A-Z, and a handful of punctuation characters
 c.VALID_BADGE_PRINTED_CHARS = r'[a-zA-Z0-9!"#$%&\'()*+,\-\./:;<=>?@\[\\\]^_`\{|\}~ "]'
 c.EVENT_QR_ID = c.EVENT_QR_ID or c.EVENT_NAME_AND_YEAR.replace(' ', '_').lower()

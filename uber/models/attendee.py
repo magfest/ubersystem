@@ -485,6 +485,11 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         sa_relationship_kwargs={'cascade': 'all,delete-orphan',
                                 'passive_deletes': True,
                                 'foreign_keys': 'RoomAssignment.attendee_id'})
+    # Rooms this attendee sleeps in (occupant), as opposed to
+    # room_assignments, which they booked (booker / name on reservation).
+    occupied_rooms: list['RoomAssignment'] = Relationship(
+        back_populates="occupants",
+        sa_relationship_kwargs={'secondary': 'room_assignment_occupant'})
 
     # =========================
     # mits
@@ -2383,6 +2388,34 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     @property
     def staff_hotel_lottery_eligible(self):
         return self.badge_type == c.STAFF_BADGE
+
+    @property
+    def active_room_assignments(self):
+        """RoomAssignments this attendee booked that still hold inventory
+        (not cancelled / expired / removed). The list every "does this
+        person have a room?" check should use."""
+        return [ra for ra in (self.room_assignments or []) if ra.is_live]
+
+    @property
+    def hotel_status(self):
+        """Compact summary of this attendee's live rooms for inline admin
+        display, e.g. "2 rooms: 1 secured, 1 awaiting card". Empty string
+        when they hold no live rooms."""
+        live = self.active_room_assignments
+        if not live:
+            return ''
+        secured = sum(1 for ra in live if ra.status == c.SECURED)
+        needs_card = sum(1 for ra in live if ra.needs_card)
+        other = len(live) - secured - needs_card
+        parts = []
+        if secured:
+            parts.append(f'{secured} secured')
+        if needs_card:
+            parts.append(f'{needs_card} awaiting card')
+        if other:
+            parts.append(f'{other} assigned')
+        noun = 'room' if len(live) == 1 else 'rooms'
+        return f'{len(live)} {noun}: ' + ', '.join(parts)
 
     @property
     def legal_first_name(self):

@@ -64,7 +64,7 @@ def expire_unsecured_assignments():
                 continue
             live_siblings = session.query(RoomAssignment).filter(
                 RoomAssignment.lottery_application_id == app_id,
-                RoomAssignment.status.in_([c.ASSIGNED, c.SECURED]),
+                RoomAssignment.is_live,
             ).count()
             if live_siblings == 0 and app.status in (c.AWARDED, c.PROCESSED):
                 # Reset the application so it re-enters the next run. To gate

@@ -3,7 +3,7 @@
    room is its own RoomAssignment row. Connector rooms render with the
    "follows another room" explanation. #}
 {% set _rooms = (app_or_parent.attendee.room_assignments if app_or_parent.attendee else [])
-                |selectattr('status', 'in', [c.ASSIGNED, c.SECURED])|list %}
+                |selectattr('is_live')|list %}
 
 {% if _rooms %}
 {% set _has_suite = _rooms|selectattr('inventory.is_suite')|list|length > 0 %}

@@ -118,7 +118,7 @@ def _partition_capacity(session, inv, night, partition_id):
 
     base_filters = [
         RoomAssignment.inventory_id == str(inv.id),
-        RoomAssignment.status.in_([c.ASSIGNED, c.SECURED]),
+        RoomAssignment.is_live,
         RoomAssignment.assigned_check_in_date <= night,
         RoomAssignment.assigned_check_out_date > night,
     ]
@@ -1221,7 +1221,7 @@ class Root:
         assigned_counts = session.query(
             RoomAssignment.inventory_id, func.count(RoomAssignment.id)
         ).filter(
-            RoomAssignment.status.in_([c.ASSIGNED, c.SECURED]),
+            RoomAssignment.is_live,
             RoomAssignment.inventory_id.isnot(None),
         ).group_by(RoomAssignment.inventory_id).all()
         assigned_per_block = defaultdict(int, {str(inv_id): cnt for inv_id, cnt in assigned_counts})
@@ -1567,7 +1567,7 @@ class Root:
 
         assignments = (session.query(RoomAssignment)
                        .filter(RoomAssignment.inventory_id.in_(inv_ids),
-                               RoomAssignment.status.in_([c.ASSIGNED, c.SECURED]))
+                               RoomAssignment.is_live)
                        .order_by(RoomAssignment.parent_assignment_id.asc().nullsfirst(),
                                  RoomAssignment.created.asc())
                        .all())
@@ -1874,7 +1874,7 @@ class Root:
 
         base_q = (session.query(RoomAssignment)
                   .filter(RoomAssignment.inventory_id.in_(hotel_inventory_ids),
-                          RoomAssignment.status.in_([c.ASSIGNED, c.SECURED])))
+                          RoomAssignment.is_live))
         total = base_q.count()
         page_count = max(1, (total + ps - 1) // ps)
         if page_num > page_count:
@@ -1930,7 +1930,7 @@ class Root:
                                     session.query(HotelRoomInventory).filter_by(hotel_id=hotel.id).all()]
             bookings = session.query(RoomAssignment).filter(
                 RoomAssignment.inventory_id.in_(hotel_inventory_ids),
-                RoomAssignment.status.in_([c.ASSIGNED, c.SECURED]),
+                RoomAssignment.is_live,
             )
 
             total_bookings = bookings.count()
@@ -2057,7 +2057,7 @@ class Root:
         # own inventory's capacity; primary rooms count against theirs -
         # both are RoomAssignment rows.
         already_assigned_query = session.query(RoomAssignment).filter(
-            RoomAssignment.status.in_([c.ASSIGNED, c.SECURED]),
+            RoomAssignment.is_live,
             RoomAssignment.inventory_id.isnot(None),
         )
 
@@ -2228,7 +2228,7 @@ class Root:
         # assignment's waitlisted_* columns, which reflect the current
         # per-room request rather than the original lottery entry.
         ra_query = (session.query(RoomAssignment)
-                    .filter(RoomAssignment.status.in_([c.ASSIGNED, c.SECURED]),
+                    .filter(RoomAssignment.is_live,
                             RoomAssignment.inventory_id.isnot(None)))
         if filter_partition_id:
             ra_query = ra_query.filter(RoomAssignment.partition_id == filter_partition_id)
@@ -2368,7 +2368,7 @@ class Root:
     def inventory_assignees(self, session, inventory_id, night_date='', partition='all'):
         query = session.query(RoomAssignment).filter(
             RoomAssignment.inventory_id == inventory_id,
-            RoomAssignment.status.in_([c.ASSIGNED, c.SECURED]),
+            RoomAssignment.is_live,
         )
         if night_date:
             nd = date.fromisoformat(night_date)
@@ -2412,7 +2412,7 @@ class Root:
         # (connectors included). Each line is the hotel's view of one
         # physical reservation.
         assignments = (session.query(RoomAssignment)
-                       .filter(RoomAssignment.status.in_([c.ASSIGNED, c.SECURED]))
+                       .filter(RoomAssignment.is_live)
                        .order_by(RoomAssignment.inventory_id, RoomAssignment.created))
 
         if lock_entries:
@@ -2475,7 +2475,7 @@ class Root:
         hotel_inventory_ids = [str(inv.id) for inv in
                                session.query(HotelRoomInventory).filter_by(hotel_id=hotel_id).all()]
         assignments_q = session.query(RoomAssignment).filter(
-            RoomAssignment.status.in_([c.ASSIGNED, c.SECURED]),
+            RoomAssignment.is_live,
             RoomAssignment.inventory_id.in_(hotel_inventory_ids),
         )
 
@@ -2534,7 +2534,7 @@ class Root:
             hotel_inv_ids = [str(inv.id) for inv in
                              session.query(HotelRoomInventory).filter_by(hotel_id=hotel.id).all()]
             has_assignments = session.query(RoomAssignment).filter(
-                RoomAssignment.status.in_([c.ASSIGNED, c.SECURED]),
+                RoomAssignment.is_live,
                 RoomAssignment.inventory_id.in_(hotel_inv_ids),
             ).first()
             if has_assignments:
@@ -2710,7 +2710,7 @@ class Root:
         # Count assigned per partition (RoomAssignment-sourced).
         assigned_per_partition = defaultdict(int)
         for ra in session.query(RoomAssignment).filter(
-            RoomAssignment.status.in_([c.ASSIGNED, c.SECURED]),
+            RoomAssignment.is_live,
             RoomAssignment.inventory_id.isnot(None),
         ).all():
             key = str(ra.partition_id) if ra.partition_id else '_none'
@@ -2998,7 +2998,7 @@ class Root:
             RoomAssignment,
             sa.and_(
                 RoomAssignment.attendee_id == Attendee.id,
-                RoomAssignment.status.in_([c.ASSIGNED, c.SECURED]),
+                RoomAssignment.is_live,
             )
         ).filter(
             Attendee.hotel_lottery_eligible == True,  # noqa: E712
@@ -3339,7 +3339,7 @@ class Root:
         if partition.id:
             live_ras = (session.query(RoomAssignment)
                         .filter(RoomAssignment.partition_id == partition.id,
-                                RoomAssignment.status.in_([c.ASSIGNED, c.SECURED]),
+                                RoomAssignment.is_live,
                                 RoomAssignment.inventory_id.isnot(None))
                         .all())
             per_block_night = {}
@@ -3383,7 +3383,7 @@ class Root:
         # after_delete listener handles the status flip).
         candidate_ras = session.query(RoomAssignment).filter(
             RoomAssignment.inventory_id == inventory_id,
-            RoomAssignment.status.in_([c.ASSIGNED, c.SECURED]),
+            RoomAssignment.is_live,
             RoomAssignment.assigned_check_in_date <= night,
             RoomAssignment.assigned_check_out_date > night,
         ).all()
@@ -3704,7 +3704,8 @@ class Root:
     # still the right tool.
 
     def rooms(self, session, message='', page='1', page_size='50',
-              status='live', hotel_id='', partition_id='', search=''):
+              status='live', hotel_id='', partition_id='', search='',
+              attendee_id=''):
         try:
             page_num = max(1, int(page))
         except (TypeError, ValueError):
@@ -3716,10 +3717,18 @@ class Root:
 
         q = session.query(RoomAssignment)
 
+        # Scope to one attendee's rooms - this is where the registration
+        # page's "Hotel Rooms" tab lands. Show every status in that case,
+        # since the admin wants the attendee's full history.
+        if attendee_id:
+            q = q.filter(RoomAssignment.attendee_id == attendee_id)
+            if status == 'live':
+                status = 'all'
+
         # `live` (default) = ASSIGNED + SECURED. `all` = no status filter.
         # Anything else = exact status int from the model's status enum.
         if status == 'live':
-            q = q.filter(RoomAssignment.status.in_([c.ASSIGNED, c.SECURED]))
+            q = q.filter(RoomAssignment.is_live)
         elif status and status != 'all':
             try:
                 q = q.filter(RoomAssignment.status == int(status))
@@ -3780,6 +3789,9 @@ class Root:
                       .filter_by(active=True)
                       .order_by(InventoryPartition.name).all())
 
+        scoped_attendee = (session.query(Attendee).get(attendee_id)
+                           if attendee_id else None)
+
         return {
             'message': message,
             'assignments': assignments,
@@ -3791,6 +3803,8 @@ class Root:
             'hotel_id': hotel_id,
             'partition_id': partition_id,
             'search': search_term,
+            'attendee_id': attendee_id,
+            'scoped_attendee': scoped_attendee,
             'hotels': hotels,
             'partitions': partitions,
             'status_opts': c.HOTEL_ASSIGNMENT_STATUS_OPTS,
@@ -4379,8 +4393,7 @@ class Root:
 
         # All live assignments - these are what we audit.
         live = (session.query(RoomAssignment)
-                .filter(RoomAssignment.status.in_(
-                    [c.ASSIGNED, c.SECURED]))
+                .filter(RoomAssignment.is_live)
                 .all())
 
         by_id = {ra.id: ra for ra in live}
@@ -4437,7 +4450,7 @@ class Root:
                          "Connector room without a matching parent suite "
                          "assigned to the same attendee.",
                          ra, fix)
-                elif parent.status not in (c.ASSIGNED, c.SECURED):
+                elif not parent.is_live:
                     _add('error', 'orphan_connector',
                          f"Connector's parent suite is in status "
                          f"{parent.status_label}, not live.",

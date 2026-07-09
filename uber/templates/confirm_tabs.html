@@ -95,7 +95,7 @@
 <li class="nav-item" role="presentation">
   <a href="../hotel_lottery/rooms?attendee_id={{ attendee.id }}" class="nav-link{% if _on_rooms %} active{% endif %}">
     <span class="fa fa-bed"></span> Hotel Rooms
-    {% set _room_count = attendee.room_assignments|length %}
+    {% set _room_count = attendee.active_room_assignments|length %}
     {% if _room_count %}
       <span class="badge bg-primary ms-1">{{ _room_count }}</span>
     {% endif %}
@@ -136,4 +136,5 @@
     {% endif %}
   </div>
 </li>
+{% endif %}
 </ul>

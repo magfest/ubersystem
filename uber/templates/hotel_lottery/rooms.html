@@ -55,7 +55,7 @@
 <h2 class="h4 mt-4">Rooms you booked</h2>
 
 {% for room in _rooms %}
-<div class="card mb-3{% if room.orphan %} border-warning{% endif %}{% if room.needs_card %} border-danger border-2{% endif %}">
+<div class="card mb-3{% if room.parent_assignment_id %} border-warning{% endif %}{% if room.needs_card %} border-danger border-2{% endif %}">
   <div class="card-body">
     {# Big red warning for any room that still needs a credit-card
        guarantee, so it's unmissable which rooms aren't secured. #}
@@ -86,7 +86,7 @@
           {% if room.parent_assignment_id %}
             <span class="badge bg-info text-dark ms-1">Connector</span>
           {% endif %}
-          {% if room.orphan %}
+          {% if room.parent_assignment_id %}
             <span class="badge bg-warning text-dark ms-1"
                   title="This connector room's parent suite isn't on your account anymore.">
               <i class="fa fa-exclamation-triangle"></i> Missing parent suite
@@ -142,12 +142,12 @@
        (inherited from the suite), occupants, and card on file - all
        separately editable from its own row. They can't be declined
        on their own; declining the suite above cancels them too. #}
-    {% if room.children %}
+    {% if room.child_assignments %}
     <hr class="my-3"/>
     <h4 class="h6 text-muted">
-      Connector rooms included with this suite ({{ room.children|length }})
+      Connector rooms included with this suite ({{ room.child_assignments|length }})
     </h4>
-    {% for child in room.children %}
+    {% for child in room.child_assignments %}
     <div class="card mb-2 {% if child.needs_card %}border-danger border-2{% else %}border-info-subtle{% endif %}">
       <div class="card-body py-2">
         {% if child.needs_card %}

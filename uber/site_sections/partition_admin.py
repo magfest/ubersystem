@@ -156,7 +156,7 @@ class Root:
                 inventory_id=inv.id if inv else None,
             ).all() if inv else []
             assigned = sum(1 for ra in block_assignments
-                           if ra.status in (c.ASSIGNED, c.SECURED))
+                           if ra.is_live)
             secured = sum(1 for ra in block_assignments
                           if ra.status == c.SECURED)
             unassigned = max(0, b.quantity - assigned)
@@ -211,7 +211,7 @@ class Root:
         billing_counts = Counter(
             ('require_cc' if rc else 'master_bill')
             for s, rc in all_status_rows
-            if s in (c.ASSIGNED, c.SECURED))
+            if s in c.HOTEL_LIVE_ASSIGNMENT_STATUSES)
 
         # Inventory the modals' block-picker can pivot to: only active rows
         # allocated to THIS partition via a block. update_assignment and

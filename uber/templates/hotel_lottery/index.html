@@ -160,7 +160,7 @@
                exists. Per-room status (SECURED, ASSIGNED, etc.) lives on
                the RoomAssignment rows now - summarise across them. #}
             {% set _rooms = (app_or_parent.attendee.room_assignments if app_or_parent.attendee else [])
-                            |selectattr('status', 'in', [c.ASSIGNED, c.SECURED])|list %}
+                            |selectattr('is_live')|list %}
             {% set _all_secured = _rooms and (_rooms|rejectattr('status', 'equalto', c.SECURED)|list|length == 0) %}
             {% set _any_secured = _rooms|selectattr('status', 'equalto', c.SECURED)|list|length > 0 %}
             {% set _any_pending = _rooms|selectattr('status', 'equalto', c.ASSIGNED)|list|length > 0 %}

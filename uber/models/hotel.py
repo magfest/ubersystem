@@ -320,7 +320,7 @@ class LotteryApplication(MagModel, table=True):
             ra for ra in (_attendee.room_assignments if _attendee else [])
             if ra.status in (c.ASSIGNED, c.SECURED, c.CANCELLED, c.EXPIRED)
         ]
-        _live = [ra for ra in _existing if ra.status in (c.ASSIGNED, c.SECURED)]
+        _live = [ra for ra in _existing if ra.is_live]
         _has_suite = any(ra.inventory and ra.inventory.is_suite for ra in _existing)
         room_type = 'suite' if _has_suite else 'room'
 
@@ -375,7 +375,7 @@ class LotteryApplication(MagModel, table=True):
         return any(
             (ra.booking_url or (ra.inventory and ra.inventory.hotel and ra.inventory.hotel.booking_url))
             for ra in (attendee.room_assignments or [])
-            if ra.status in (c.ASSIGNED, c.SECURED)
+            if ra.is_live
         )
 
     @property
@@ -810,8 +810,12 @@ class RoomAssignment(MagModel, table=True):
     parent_assignment_id: str | None = Field(
         sa_type=Uuid(as_uuid=False), foreign_key='room_assignment.id', nullable=True)
     parent_assignment: 'RoomAssignment' = Relationship(
+        back_populates="child_assignments",
         sa_relationship_kwargs={'foreign_keys': 'RoomAssignment.parent_assignment_id',
                                 'remote_side': 'RoomAssignment.id'})
+    child_assignments: list['RoomAssignment'] = Relationship(
+        back_populates="parent_assignment",
+        sa_relationship_kwargs={'foreign_keys': 'RoomAssignment.parent_assignment_id'})
 
     partition_id: str | None = Field(
         sa_type=Uuid(as_uuid=False), foreign_key='inventory_partition.id', nullable=True)
@@ -896,8 +900,21 @@ class RoomAssignment(MagModel, table=True):
     # room from the rooms UI; the solver pre-populates with all valid
     # group members on every awarded room.
     occupants: list['Attendee'] = Relationship(
+        back_populates="occupied_rooms",
         sa_relationship_kwargs={'secondary': 'room_assignment_occupant',
                                 'lazy': 'selectin'})
+
+    @hybrid_property
+    def is_live(self):
+        """True while this assignment still holds inventory - i.e. it has
+        not been cancelled, expired, or removed. The canonical "counts as
+        a room" predicate for capacity math, exports, and attendee-facing
+        views; usable in queries via RoomAssignment.is_live."""
+        return self.status in c.HOTEL_LIVE_ASSIGNMENT_STATUSES
+
+    @is_live.expression
+    def is_live(cls):
+        return cls.status.in_(c.HOTEL_LIVE_ASSIGNMENT_STATUSES)
 
     @property
     def export_locked(self):

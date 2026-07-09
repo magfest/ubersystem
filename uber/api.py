@@ -1716,7 +1716,7 @@ class HotelLookup:
                     last_export_time = prev[0].isoformat()
 
             assignments = (session.query(RoomAssignment)
-                           .filter(RoomAssignment.status.in_([c.ASSIGNED, c.SECURED]),
+                           .filter(RoomAssignment.is_live,
                                    RoomAssignment.inventory_id.in_(hotel_inv_ids))
                            .order_by(RoomAssignment.parent_assignment_id.asc().nullsfirst(),
                                      RoomAssignment.created.asc())

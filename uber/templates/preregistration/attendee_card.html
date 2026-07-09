@@ -25,7 +25,7 @@
     <div>{{ left }}</div>
     <div>{{ right }}</div>
 </div>
-{% set _has_rooms = attendee.room_assignments|length > 0 %}
+{% set _has_rooms = attendee.active_room_assignments|length > 0 %}
 {% set _lottery_active = c.HOTEL_LOTTERY_OPEN or c.STAFF_HOTEL_LOTTERY_OPEN and (attendee.badge_type == c.STAFF_BADGE or c.STAFF_RIBBON in attendee.ribbon_ints) %}
 {% set _has_entry = attendee.lottery_application and attendee.lottery_application.complete_or_processed %}
 {% if _lottery_active or _has_rooms or _has_entry %}
@@ -49,7 +49,7 @@
     {% if _has_rooms %}
     <a href="../hotel_lottery/rooms?attendee_id={{ attendee.id }}" class="btn btn-sm btn-primary">
         <i class="fa fa-bed"></i>&nbsp; Hotel Rooms
-        <span class="badge bg-light text-dark ms-1">{{ attendee.room_assignments|length }}</span>
+        <span class="badge bg-light text-dark ms-1">{{ attendee.active_room_assignments|length }}</span>
     </a>
     {% endif %}
     {% if (_lottery_active and attendee.hotel_lottery_eligible) or _has_entry %}

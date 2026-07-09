@@ -203,3 +203,29 @@
     <button type="submit" name="save" class="btn btn-primary" value="1">{{ primary_label }}</button>
   </div>
 {% endmacro %}
+
+
+{# Attendee cell
+
+   The one way to render an attendee in any hotel-section table: name
+   linked to their registration record (via the app-wide form_link
+   filter, which respects registration access), with their email muted
+   underneath. Pass hotel_names=True on pages that must show the
+   effective hotel (legal) name - the link still goes to the same
+   record.
+#}
+{% macro attendee_cell(attendee, show_email=True, hotel_names=False) %}
+  {%- if attendee -%}
+    {%- if hotel_names -%}
+      {%- set _name = attendee.effective_hotel_first_name ~ ' ' ~ attendee.effective_hotel_last_name -%}
+      {%- if c.HAS_REGISTRATION_ACCESS -%}
+        <a href="../registration/form?id={{ attendee.id }}">{{ _name }}</a>
+      {%- else -%}{{ _name }}{%- endif -%}
+    {%- else -%}
+      {{ attendee|form_link }}
+    {%- endif -%}
+    {%- if show_email and attendee.email %}
+      <br/><small class="text-muted">{{ attendee.email }}</small>
+    {%- endif -%}
+  {%- else -%}<em>(no attendee)</em>{%- endif -%}
+{% endmacro %}

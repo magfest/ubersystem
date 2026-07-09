@@ -143,8 +143,7 @@ def _render_room_detail(session, assignment_id, attendee_id, message):
         other_rooms = (session.query(RoomAssignment)
                        .filter(RoomAssignment.attendee_id == viewer.id,
                                RoomAssignment.id != ra.id,
-                               RoomAssignment.status.in_(
-                                   [c.ASSIGNED, c.SECURED])).all())
+                               RoomAssignment.is_live).all())
         seen_ids = {o.id for o in (ra.occupants or [])}
         for other in other_rooms:
             for occ in (other.occupants or []):
@@ -334,7 +333,7 @@ def _max_room_capacity_for_group(session, application):
         (ra.inventory.capacity if ra.inventory else 0)
         for ra in (session.query(RoomAssignment)
                    .filter(RoomAssignment.lottery_application_id == application.id,
-                           RoomAssignment.status.in_([c.ASSIGNED, c.SECURED]))
+                           RoomAssignment.is_live)
                    .all())
     ]
     if not capacities:
@@ -574,27 +573,19 @@ class Root:
 
         # Also include rooms where this attendee is an occupant but
         # not the booker (so guests see the rooms they're part of).
-        guest_in = (session.query(RoomAssignment)
-                    .join(room_assignment_occupant,
-                          room_assignment_occupant.c.room_assignment_id == RoomAssignment.id)
-                    .filter(room_assignment_occupant.c.attendee_id == attendee.id)
-                    .filter(RoomAssignment.attendee_id != attendee.id).all())
+        guest_in = [ra for ra in attendee.occupied_rooms
+                    if ra.attendee_id != attendee.id]
 
+        # Connector children render under their parent suite via the
+        # child_assignments relationship. A child whose parent isn't in
+        # this attendee's own list (e.g. the suite is booked by someone
+        # else) is appended as its own top-level "orphan" card - the
+        # template detects that case via parent_assignment_id.
         primaries = [ra for ra in assignments if not ra.parent_assignment_id]
-        children_by_parent = {}
-        for ra in assignments:
-            if ra.parent_assignment_id:
-                children_by_parent.setdefault(
-                    ra.parent_assignment_id, []).append(ra)
         primary_ids = {p.id for p in primaries}
-        for p in primaries:
-            p.children = children_by_parent.get(p.id, [])
-            p.orphan = False
-        for ra in assignments:
-            if ra.parent_assignment_id and ra.parent_assignment_id not in primary_ids:
-                ra.children = []
-                ra.orphan = True
-                primaries.append(ra)
+        primaries.extend(
+            ra for ra in assignments
+            if ra.parent_assignment_id and ra.parent_assignment_id not in primary_ids)
 
         return {
             'attendee': attendee,
@@ -1768,7 +1759,7 @@ class Root:
             ra = (session.query(RoomAssignment)
                   .filter(RoomAssignment.lottery_application_id == application.id,
                           RoomAssignment.parent_assignment_id.is_(None),
-                          RoomAssignment.status.in_([c.ASSIGNED, c.SECURED]))
+                          RoomAssignment.is_live)
                   .order_by(RoomAssignment.assigned_check_in_date.asc().nullsfirst())
                   .first())
 
@@ -1864,7 +1855,7 @@ class Root:
 
             still_live = (session.query(RoomAssignment)
                           .filter(RoomAssignment.lottery_application_id == application.id,
-                                  RoomAssignment.status.in_([c.ASSIGNED, c.SECURED]))
+                                  RoomAssignment.is_live)
                           .count())
             if still_live == 0:
                 message = (f"You have declined your {room_type} award and your "
@@ -1919,7 +1910,7 @@ class Root:
             raise HTTPRedirect(
                 'rooms?message={}',
                 "Room not found or no longer needs a credit card.")
-        if ra.status not in (c.ASSIGNED, c.SECURED):
+        if not ra.is_live:
             raise HTTPRedirect(
                 'rooms?message={}',
                 "This room is not in a state that can be secured.")
@@ -1992,7 +1983,7 @@ class Root:
         if ra.export_locked:
             return {'error': 'This booking has been transferred to the hotel '
                              'and the card on file cannot be changed here.'}
-        if ra.status not in (c.ASSIGNED, c.SECURED):
+        if not ra.is_live:
             return {'error': 'This room is not in a state that can be secured.'}
 
         inventory_item = ra.inventory
@@ -2026,7 +2017,7 @@ class Root:
         if ra.export_locked:
             return {'error': 'This booking has been transferred to the hotel '
                              'and the card on file cannot be changed here.'}
-        if ra.status not in (c.ASSIGNED, c.SECURED):
+        if not ra.is_live:
             return {'error': 'This room is not in a state that can be secured.'}
         if not token:
             return {'error': 'No card token received.'}
@@ -2052,7 +2043,7 @@ class Root:
         if ra.export_locked:
             return {'error': 'This booking has been transferred to the hotel '
                              'and the card on file cannot be changed here.'}
-        if ra.status not in (c.ASSIGNED, c.SECURED):
+        if not ra.is_live:
             return {'error': 'This room is not in a state that can be secured.'}
         if not token:
             return {'error': 'No card token received.'}
@@ -2226,7 +2217,7 @@ class Root:
             ra = (session.query(RoomAssignment)
                   .filter(RoomAssignment.lottery_application_id == application.id,
                           RoomAssignment.parent_assignment_id.is_(None),
-                          RoomAssignment.status.in_([c.ASSIGNED, c.SECURED]))
+                          RoomAssignment.is_live)
                   .order_by(RoomAssignment.assigned_check_in_date.asc().nullsfirst())
                   .first())
         if not ra or ra.lottery_application_id != application.id:
@@ -2318,7 +2309,7 @@ class Root:
                                    (RoomAssignment.partition_id.is_(None)))
                     assigned_count = session.query(RoomAssignment).filter(
                         RoomAssignment.inventory_id == ra.inventory_id,
-                        RoomAssignment.status.in_([c.ASSIGNED, c.SECURED]),
+                        RoomAssignment.is_live,
                         RoomAssignment.id != ra.id,
                         RoomAssignment.assigned_check_in_date <= day,
                         RoomAssignment.assigned_check_out_date > day,

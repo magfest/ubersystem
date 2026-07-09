@@ -193,7 +193,7 @@
             {{ app.confirmation_num or app.id }}
           </a>
           {% if app.attendee %}
-            - {{ app.attendee.full_name }}
+            - {{ hotel_macros.attendee_cell(app.attendee, show_email=False) }}
           {% endif %}
         </small>
       {% endif %}
@@ -358,7 +358,7 @@
         {% if ra and ra.inventory %}{{ ra.inventory.hotel.name if ra.inventory.hotel else '?' }} - {{ ra.inventory.name }}
         {% else %}Application-level issue{% endif %}
       </strong>
-      {% if app %}<small class="text-muted ms-2">{{ app.confirmation_num or app.id }}{% if app.attendee %} - {{ app.attendee.full_name }}{% endif %}</small>{% endif %}
+      {% if app %}<small class="text-muted ms-2">{{ app.confirmation_num or app.id }}{% if app.attendee %} - {{ hotel_macros.attendee_cell(app.attendee, show_email=False) }}{% endif %}</small>{% endif %}
     {% endif %}
   </div>
   <ul class="list-group list-group-flush">
