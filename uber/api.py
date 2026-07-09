@@ -26,7 +26,7 @@ from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, Attr
                          BadgeInfo, Department, DeptMembership,
                          DeptRole, Event, IndieJudge, IndieStudio, Job, Session, Shift, Group,
                          GuestGroup, LotteryApplication)
-from uber.models.hotel import HotelExportLog, HotelRoomInventory, LotteryHotel
+from uber.models.hotel import HotelExportLog, HotelRoomInventory, LotteryHotel, RoomAssignment
 from uber.models.badge_printing import PrintJob
 from uber.serializer import serializer
 from uber.utils import check, check_csrf, normalize_email_legacy, normalize_newlines, is_listy
@@ -1533,7 +1533,6 @@ class HotelLookup:
         staff_price, info_url, vault_reference. (Connector relationships
         are now type-level on `LotteryRoomType.connects_to_type_id`.)
         """
-        from uber.models import HotelRoomInventory
         with Session() as session:
             if id:
                 inv = session.query(HotelRoomInventory).filter(HotelRoomInventory.id == id).one_or_none()
@@ -1608,7 +1607,6 @@ class HotelLookup:
         setting cancellation_confirmation_number flips status to CANCELLED via
         a presave on the model.
         """
-        from uber.models import RoomAssignment
         with Session() as session:
             if id:
                 assignment = session.query(RoomAssignment).filter(RoomAssignment.id == id).one_or_none()
@@ -1652,8 +1650,12 @@ class HotelLookup:
 
         Identify the hotel by `hotel_name` (its export name or display name) or
         by `hotel` (the LotteryHotel UUID, or a name when called positionally).
+
+        Note: although this endpoint only needs api_read, it records a
+        HotelExportLog row per call - the per-hotel watermark that drives
+        the export's incremental `last_export_time` envelope - so repeated
+        calls observe each other.
         """
-        from uber.models.hotel import RoomAssignment
 
         with Session() as session:
             ident = hotel_name or hotel

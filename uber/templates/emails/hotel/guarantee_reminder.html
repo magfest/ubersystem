@@ -1,19 +1,23 @@
 {# Reminder fires while at least one unsecured RoomAssignment exists.
-   The earliest unsecured deposit_cutoff_date drives the deadline copy. #}
+   app.guarantee_deadline is the earliest unsecured deposit_cutoff_date
+   (a date), falling back to the config guarantee deadline (a datetime) -
+   the same value the rest of the app shows. #}
 {% set _unsecured = (app.attendee.room_assignments if app.attendee else [])
                     |selectattr('status', 'equalto', c.ASSIGNED)
                     |selectattr('require_cc', 'equalto', True)|list %}
 {% set _has_suite = _unsecured|selectattr('inventory.is_suite')|list|length > 0 %}
 {% set room_type = 'suite' if _has_suite else 'room' %}
-{% set _earliest_deadline = _unsecured|map(attribute='deposit_cutoff_date')|reject('none')|list|sort|first %}
+{% set _deadline = app.guarantee_deadline %}
 <html>
 <head></head>
 <body>
 <p>
     {{ app.attendee.full_name }},<br/>
     You still have not provided a credit card guarantee for your {{ room_type }} award in the {{ c.EVENT_NAME_AND_YEAR }} hotel lottery.
-    {% if _earliest_deadline %}
-    You <strong>must</strong> place a credit card down to secure your {{ room_type }} before {{ _earliest_deadline|datetime_local('%-I:%M%p %Z on %A, %B %-d') }}.
+    {% if _deadline %}
+    You <strong>must</strong> place a credit card down to secure your {{ room_type }} before
+    {%- if _deadline.hour is defined %} {{ _deadline|datetime_local('%-I:%M%p %Z on %A, %B %-d') }}
+    {%- else %} the end of {{ _deadline.strftime('%A, %B %-d') }}{% endif %}.
     {% else %}
     You <strong>must</strong> place a credit card down to secure your {{ room_type }} as soon as possible.
     {% endif %}

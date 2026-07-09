@@ -196,15 +196,6 @@
                             <button type="submit" class="btn btn-primary mt-3">Update Group Name</button>
                         </form>
                     </div>
-                    {% if False %}
-                    <div class="col-sm">
-                        <form method="post" action="new_invite_code">
-                            <input type="hidden" name="id" value="{{ application.id }}">
-                            {{ form_macros.input(lottery_room_group.invite_code) }}
-                            <button type="submit" class="btn btn-warning mb-3">Generate New Code</button>
-                        </form>
-                    </div>
-                    {% endif %}
                 </div>
             {% endif %}
             {% if application.room_group_name %}
@@ -249,12 +240,6 @@
             <input type="hidden" name="member_id" value="{{ application.id }}" />
             {{ csrf_token() }}
             <div class="row g-3 mb-3">
-                {% if False %}
-                <div class="col-12 col-sm-4">
-                    <div class="form-text">Invite Code</div>
-                    <input type="text" class="form-control" id="invite_code" name="invite_code" placeholder="XXX-XXX-XXX">
-                </div>
-                {% endif %}
                 <div class="col-12 col-sm-4">
                     <div class="form-text">Confirmation Number</div>
                     <input type="text" class="form-control" id="confirmation_num" name="confirmation_num" placeholder="##########">

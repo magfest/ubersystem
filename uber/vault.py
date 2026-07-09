@@ -90,14 +90,6 @@ def get_capture_iframe_url(endpoint_id, secret, form_id=None, reference=None):
     return result.get("url", "")
 
 
-def delete_capture_endpoint(endpoint_id):
-    """Delete a capture endpoint (cleanup)."""
-    return _invoke_lambda({
-        "method": "delete_endpoint",
-        "endpoint_id": endpoint_id,
-    })
-
-
 def get_usage(month=None):
     """Get usage statistics from PCI Vault.
 

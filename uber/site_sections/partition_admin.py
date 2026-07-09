@@ -10,12 +10,10 @@ touching the broader hotel_lottery_admin pages.
 """
 
 from collections import Counter, defaultdict
-from datetime import date, datetime
+from datetime import date
 import logging
 
 import cherrypy
-import sqlalchemy as sa
-from pytz import UTC
 
 from uber.config import c
 from uber.decorators import all_renderable, ajax_gettable
@@ -30,7 +28,6 @@ from uber.lottery_perms import (
     is_lottery_admin,
     record_partition_audit,
 )
-from uber.models import Attendee
 from uber.models.hotel import (
     HotelRoomInventory, InventoryPartition, InventoryPartitionBlock,
     PartitionAuditLog, PartitionOwner, RoomAssignment,

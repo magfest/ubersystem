@@ -15,7 +15,7 @@ lookup) is one query for the whole table; cache it once per request via
 from datetime import timedelta
 
 from sqlalchemy import inspect as sa_inspect
-from sqlalchemy.orm import joinedload, subqueryload
+from sqlalchemy.orm import subqueryload
 
 from uber.config import c
 

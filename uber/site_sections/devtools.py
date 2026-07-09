@@ -383,9 +383,11 @@ class Root:
     def index(self):
         return {}
 
-    def generate(self, session, message=''):
+    def generate(self, session, message='', csrf_token=None):
         summary = None
         if c.TEST_DATA_GENERATOR_ENABLED and cherrypy.request.method == 'POST':
+            from uber.utils import check_csrf
+            check_csrf(csrf_token)
             try:
                 summary = generate_lottery_test_data(session)
                 session.commit()

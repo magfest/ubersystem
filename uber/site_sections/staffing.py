@@ -229,8 +229,6 @@ class Root:
         other_filters = [
             {'id': 'public', 'title': "Public Shifts",},
             ]
-        
-        requested_hotel_nights = []
 
         return {
             'attendee': volunteer,
@@ -246,8 +244,6 @@ class Root:
             'highlighted_dates': event_dates,
             'setup_duration': (c.EPOCH - c.SHIFTS_EPOCH).days,
             'teardown_duration': (c.SHIFTS_ESCHATON - c.ESCHATON).days,
-            'requested_setup_nights': [c.NIGHTS[night] for night in requested_hotel_nights if night in c.SETUP_NIGHTS],
-            'requested_teardown_nights': [c.NIGHTS[night] for night in requested_hotel_nights if night in c.TEARDOWN_NIGHTS],
         }
 
     @requires_account()

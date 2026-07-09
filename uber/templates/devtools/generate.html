@@ -25,6 +25,7 @@
 <p><strong>This is for test environments only. Do not run it against production data.</strong></p>
 
 <form action="generate" method="post">
+    {{ csrf_token() }}
     <input type="submit" class="btn btn-primary" value="Generate Test Data" />
 </form>
 

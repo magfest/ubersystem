@@ -1231,7 +1231,7 @@ class Root:
 
         if application.parent_application:
             message = f"You cannot edit your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}'s application."
-            raise HTTPRedirect(f'index?id={application.id}&messsage={message}')
+            raise HTTPRedirect(f'index?id={application.id}&message={message}')
         elif application.locked:
             raise HTTPRedirect('index?id={}&message={}', application.id,
                                "You cannot edit your lottery entry at this time.")
@@ -1293,7 +1293,7 @@ class Root:
 
         if application.parent_application:
             message = f"You cannot edit your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}'s application."
-            raise HTTPRedirect(f'index?id={application.id}&messsage={message}')
+            raise HTTPRedirect(f'index?id={application.id}&message={message}')
         elif application.locked:
             raise HTTPRedirect('index?id={}&message={}', application.id,
                                "You cannot edit your lottery entry at this time.")

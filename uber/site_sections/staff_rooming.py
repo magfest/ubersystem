@@ -36,6 +36,10 @@ def _redirect_back(return_url, fallback_url, message):
     doubled so they survive str.format() unchanged.
     """
     target = return_url or fallback_url
+    # Only same-section relative paths are allowed: a client-supplied
+    # absolute URL (or protocol-relative //host) would be an open redirect.
+    if target.startswith(('http://', 'https://', '//')) or target.startswith('/'):
+        target = fallback_url
     sep = '&' if '?' in target else '?'
     final = target + sep + 'message=' + _quote(message)
     # Defend against any stray `{` or `}` characters in return_url
@@ -242,15 +246,6 @@ class Root:
             'department': department,
             'departments': departments,
         }
-
-    def dept_compliance(self, session, department_id=None, message=''):
-        """Backwards-compat shim - redirects to the unified
-        compliance_report with the department filter applied. Kept
-        around so any deep links / bookmarks pointed at this URL keep
-        working."""
-        if not department_id:
-            raise HTTPRedirect('compliance_report')
-        raise HTTPRedirect('compliance_report?department_id={}', department_id)
 
     def staffer_rooms(self, session, message='', page='1', page_size='50',
                       billing='all', hotel_id='', search=''):

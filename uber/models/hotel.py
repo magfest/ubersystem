@@ -149,8 +149,6 @@ class LotteryApplication(MagModel, table=True):
         if any(getattr(self, f) != self.orig_value_of(f) for f in dominated_fields):
             self.last_modified_at = datetime.now(UTC)
 
-    email_model_name: ClassVar = 'app'
-
     @presave_adjustment
     def unset_entry_type(self):
         if self.entry_type == 0:
@@ -490,7 +488,7 @@ class LotteryApplication(MagModel, table=True):
         elif self.entry_type == c.SUITE_ENTRY:
             return f'suite_lottery?id={self.id}', f"Finish {entry_text}"
         elif self.entry_type == c.ROOM_ENTRY:
-            f'room_lottery?id={self.id}', f"Finish {entry_text}"
+            return f'room_lottery?id={self.id}', f"Finish {entry_text}"
         return f'start?attendee_id={self.attendee.id}', "Enter Hotel Lottery"
 
     def build_nights_map(self, check_in, check_out):
@@ -518,21 +516,9 @@ class LotteryApplication(MagModel, table=True):
     def suite_requirements_str(self):
         return Markup("Suites require a three-night minimum, including <em>both</em> Friday <em>and</em> Saturday.")
 
-    @property
-    def waitlisted_checkin_nights(self):
-        if not self.earliest_checkin_date or not self.assigned_check_in_date:
-            return 0
-        return max(0, (self.assigned_check_in_date - self.earliest_checkin_date).days)
-
-    @property
-    def waitlisted_checkout_nights(self):
-        if not self.latest_checkout_date or not self.assigned_check_out_date:
-            return 0
-        return max(0, (self.latest_checkout_date - self.assigned_check_out_date).days)
-
-    @property
-    def has_waitlist_request(self):
-        return self.waitlisted_checkin_nights > 0 or self.waitlisted_checkout_nights > 0
+    # Waitlist state is per-RoomAssignment (waitlisted_check_in_date /
+    # waitlisted_check_out_date / is_waitlisted); the application only
+    # records the originally-requested date range.
 
     @property
     def shortest_check_in_out_dates(self):
