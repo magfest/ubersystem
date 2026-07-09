@@ -1,0 +1,216 @@
+{# Shared macros for the attendee-facing hotel lottery section
+   (hotel_lottery). Goal: one definition of the room title, status
+   badges, needs-card alert, summary table, and card-reuse picker so
+   every page in the section looks and behaves the same.
+
+   Import at the top of any consumer template with:
+
+       {% import 'hotel_lottery/_macros.html' as room_macros with context %}
+
+   (`with context` is required - several macros read `c` and call
+   `csrf_token()`.)
+#}
+
+{# Room name
+
+   `room_name` renders the "Hotel - Room/Suite Type" title for a
+   RoomAssignment, e.g. "Hyatt Regency - Double Queen Suite".
+
+   Arguments:
+     ra        - RoomAssignment
+     fallback  - string shown when the assignment has no inventory
+                 (default "Room Assignment")
+#}
+{% macro room_name(ra, fallback='Room Assignment') -%}
+  {%- if ra.inventory -%}
+    {{ ra.inventory.hotel.name if ra.inventory.hotel else 'Hotel' }} - {{ ra.inventory.display_name }}
+  {%- else -%}
+    {{ fallback }}
+  {%- endif -%}
+{%- endmacro %}
+
+{# Room dates
+
+   `room_dates` renders "Thu Jan 15 &rarr; Sun Jan 18" for an
+   assignment's check-in/check-out, or the fallback when no dates are
+   assigned yet.
+
+   Arguments:
+     ra        - RoomAssignment
+     fallback  - string shown when assigned_check_in_date is empty
+                 (default "Dates TBD"; pass '' to render nothing)
+#}
+{% macro room_dates(ra, fallback='Dates TBD') -%}
+  {%- if ra.assigned_check_in_date -%}
+    {{ ra.assigned_check_in_date|date("%a %b %-d") }}
+    &rarr; {{ ra.assigned_check_out_date|date("%a %b %-d") }}
+  {%- else -%}
+    {{ fallback }}
+  {%- endif -%}
+{%- endmacro %}
+
+{# Needs-card alert
+
+   `needs_card_alert` renders the big red "not secured - credit card
+   required" banner, including the card deadline when one is set. The
+   `ra.needs_card` guard lives inside the macro, so call it
+   unconditionally.
+
+   Arguments:
+     ra        - RoomAssignment
+     compact   - bool, True for the smaller inline variant used on
+                 nested (connector) room cards: small text, no fa-lg
+                 icon, shorter heading (default False)
+     classes   - extra classes on the alert div (default 'mb-3')
+     add_hint  - the no-deadline fallback sentence
+                 (default 'Add a card to guarantee this room.')
+#}
+{% macro needs_card_alert(ra, compact=False, classes='mb-3',
+                          add_hint='Add a card to guarantee this room.') %}
+  {% if ra.needs_card %}
+  <div class="alert alert-danger d-flex align-items-center gap-2 py-2 {{ classes }}">
+    <i class="fa fa-exclamation-triangle{% if not compact %} fa-lg{% endif %}"></i>
+    <div{% if compact %} class="small"{% endif %}>
+      <strong>{% if compact %}Not secured - a credit card is required.{% else %}This room is not secured - a credit card is required.{% endif %}</strong>
+      {% if ra.card_deadline %}
+        Put a card down by
+        <strong>{{ ra.card_deadline|date("%A, %B %-d") }}</strong>
+        or this room will be released.
+      {% else %}
+        {{ add_hint }}
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+{% endmacro %}
+
+{# Status badges
+
+   `room_status_badges` renders the badge cluster for a room card:
+   either the "Booking exported" lock badge (once the booking has been
+   transferred to the hotel) or the status badge (Secured / Assigned /
+   Expired / other), plus the "Master bill" badge for rooms that don't
+   require a credit card.
+
+   Arguments:
+     ra - RoomAssignment
+#}
+{% macro room_status_badges(ra) %}
+  {% if ra.export_locked %}
+    <span class="badge bg-warning text-dark"
+          title="This booking has been transferred to the hotel.">
+      <i class="fa fa-lock"></i> Booking exported
+    </span>
+  {% else %}
+    <span class="badge bg-{% if ra.status == c.SECURED %}success{% elif ra.status == c.ASSIGNED %}warning text-dark{% elif ra.status == c.EXPIRED %}danger{% else %}secondary{% endif %}">
+      {{ ra.status_label }}
+    </span>
+  {% endif %}
+  {% if not ra.require_cc %}
+    <span class="badge bg-info text-dark ms-1"
+          title="{{ c.EVENT_NAME }} pays - no credit card needed.">
+      Master bill
+    </span>
+  {% endif %}
+{% endmacro %}
+
+{# Room summary table
+
+   `room_summary_table` renders the compact Hotel / Room Type /
+   info-url / Check-in / Check-out table used by the secure wizard and
+   the room invite page. Extra rows (e.g. the guest list) can be
+   appended via `{% call %}`:
+
+       {% call room_macros.room_summary_table(ra) %}
+         <tr><th>Guests</th><td>...</td></tr>
+       {% endcall %}
+
+   Arguments:
+     ra          - RoomAssignment
+     table_class - class attribute for the <table>
+                   (default 'table table-sm mb-0')
+     table_style - optional inline style for the <table>
+     date_fmt    - strftime format for the date rows
+                   (default '%a %b %-d')
+#}
+{% macro room_summary_table(ra, table_class='table table-sm mb-0',
+                            table_style='', date_fmt='%a %b %-d') %}
+  {% set inv = ra.inventory %}
+  <table class="{{ table_class }}"{% if table_style %} style="{{ table_style }}"{% endif %}>
+    <tr><th>Hotel</th><td>{{ inv.hotel.name if inv and inv.hotel else '' }}</td></tr>
+    <tr><th>Room Type</th><td>{{ inv.display_name if inv else '' }}</td></tr>
+    {% if inv and inv.info_url %}
+    <tr><th>Room Info</th><td><a href="{{ inv.info_url }}" target="_blank">View room details and photos</a></td></tr>
+    {% endif %}
+    {% if ra.assigned_check_in_date %}
+    <tr><th>Check-in</th><td>{{ ra.assigned_check_in_date|date(date_fmt) }}</td></tr>
+    <tr><th>Check-out</th><td>{{ ra.assigned_check_out_date|date(date_fmt) }}</td></tr>
+    {% endif %}
+    {% if caller %}{{ caller() }}{% endif %}
+  </table>
+{% endmacro %}
+
+{# Card-reuse picker
+
+   `card_reuse_picker` renders the copy_booking_info form: a select of
+   the booker's other rooms whose vaulted card can secure the target
+   room. Takes raw RoomAssignment rows (pre-filtered server-side via
+   `_card_reuse_sources`) and builds option labels itself from
+   inventory.display_name + cc_last_four. Renders nothing when
+   `sources` is empty, so call it unconditionally.
+
+   Arguments:
+     sources     - list of RoomAssignment rows to offer as card sources
+     target      - RoomAssignment the card/address is copied onto
+     attendee_id - attendee id posted with the form (view-as context)
+     label       - label text above the select
+     button_text - submit button text
+     help_text   - form-text hint below/inside the form
+     boxed       - bool; True renders the highlighted bg-light box used
+                   inside the secure wizard, False the two-column row
+                   layout used on the room editor (default False)
+#}
+{% macro card_reuse_picker(sources, target, attendee_id,
+                           label='Reuse a card from another of your rooms',
+                           button_text='Use this card',
+                           help_text='Copies the card and billing address from the selected room onto this one.',
+                           boxed=False) %}
+  {% if sources %}
+  <form method="post" action="copy_booking_info"
+        class="{% if boxed %}mb-3 p-2 bg-light rounded border{% else %}row g-2 align-items-end{% endif %}">
+    {{ csrf_token() }}
+    <input type="hidden" name="attendee_id" value="{{ attendee_id }}" />
+    <input type="hidden" name="target_id" value="{{ target.id }}" />
+    <input type="hidden" name="return_to_room" value="1" />
+    {% if boxed %}
+      <label for="billing-copy-source" class="form-label mb-1">{{ label }}</label>
+      <div class="d-flex gap-2">
+        {{ _card_source_select(sources, select_id='billing-copy-source') }}
+        <button type="submit" class="btn btn-outline-secondary text-nowrap">{{ button_text }}</button>
+      </div>
+      <div class="form-text">{{ help_text }}</div>
+    {% else %}
+      <div class="col-md-9">
+        <label class="form-label">{{ label }}</label>
+        {{ _card_source_select(sources) }}
+        <div class="form-text small">{{ help_text }}</div>
+      </div>
+      <div class="col-md-3 d-flex align-items-end">
+        <button type="submit" class="btn btn-outline-secondary w-100">{{ button_text }}</button>
+      </div>
+    {% endif %}
+  </form>
+  {% endif %}
+{% endmacro %}
+
+{% macro _card_source_select(sources, select_id=None) %}
+  <select class="form-select" name="source_id"{% if select_id %} id="{{ select_id }}"{% endif %} required>
+    <option value="">Select a room...</option>
+    {% for src in sources %}
+    <option value="{{ src.id }}">
+      {%- if src.inventory and src.inventory.hotel %}{{ src.inventory.hotel.name }} - {{ src.inventory.display_name }}{% else %}Another room{% endif %}
+      {%- if src.cc_last_four %} (card {{ src.cc_last_four }}){% endif -%}
+    </option>
+    {% endfor %}
+  </select>
+{% endmacro %}

@@ -19,7 +19,7 @@ from ortools.linear_solver import pywraplp
 
 from uber.config import c
 from uber.custom_tags import datetime_local_filter
-from uber.decorators import all_renderable, log_pageview, ajax, xlsx_file, csv_file, multifile_zipfile, render
+from uber.decorators import all_renderable, log_pageview, ajax, ajax_gettable, xlsx_file, csv_file, multifile_zipfile, render
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, Group, LotteryApplication, Email, Tracking, PageViewTracking
@@ -36,6 +36,27 @@ from uber.utils import (Order, check_csrf, get_page, localized_now,
                         normalize_email_legacy)
 
 log = logging.getLogger(__name__)
+
+def _picker_context(session):
+    """Shared dropdown option lists for the hotel-lottery admin pages.
+
+    Most pages in this section offer some combination of hotel / room type /
+    inventory-block / partition pickers; this builds all of them once so the
+    handlers don't each hand-roll the same queries.
+    """
+    return {
+        'hotels': session.query(LotteryHotel).filter_by(
+            active=True).order_by(LotteryHotel.name).all(),
+        'room_types': session.query(LotteryRoomType).filter_by(
+            is_suite=False, active=True).order_by(LotteryRoomType.name).all(),
+        'suite_types': session.query(LotteryRoomType).filter_by(
+            is_suite=True, active=True).order_by(LotteryRoomType.name).all(),
+        'inventory_blocks': session.query(HotelRoomInventory).filter_by(
+            active=True).order_by(HotelRoomInventory.hotel_id, HotelRoomInventory.name).all(),
+        'partitions': session.query(InventoryPartition).filter_by(
+            active=True).order_by(InventoryPartition.name).all(),
+    }
+
 
 def _search(session, text):
     applications = session.query(LotteryApplication)
@@ -876,9 +897,7 @@ class Root:
             'room_count': room_count_base.filter(or_(LotteryApplication.entry_type == c.ROOM_ENTRY,
                                                      LotteryApplication.room_opt_out == False)).count(),
             'advanced_filters': advanced_filters,
-            'hotels': session.query(LotteryHotel).filter_by(active=True).order_by(LotteryHotel.name).all(),
-            'inventory_blocks': session.query(HotelRoomInventory).filter_by(active=True).all(),
-            'partitions': session.query(InventoryPartition).filter_by(active=True).order_by(InventoryPartition.name).all(),
+            **_picker_context(session),
         }  # noqa: E711
 
     def feed(self, session, message='', page='1', who='', what='', action=''):
@@ -962,12 +981,7 @@ class Root:
         # partition on top; JS filters the inventory options to those in
         # the selected partition (or all unpartitioned + every block when
         # "no partition" is chosen).
-        partitions = session.query(InventoryPartition).filter_by(
-            active=True).order_by(InventoryPartition.name).all()
-        inventory_blocks = (session.query(HotelRoomInventory)
-                            .filter_by(active=True)
-                            .order_by(HotelRoomInventory.hotel_id,
-                                      HotelRoomInventory.name).all())
+        picker = _picker_context(session)
         # {inventory_id: [partition_id, ...]} - drives the JS filter.
         # An inventory with no entry in this dict has no partition
         # restriction and is always offered.
@@ -982,8 +996,8 @@ class Root:
             'application':   application,
             'forms': forms,
             'return_to':  return_to,
-            'partitions': partitions,
-            'inventory_blocks': inventory_blocks,
+            'partitions': picker['partitions'],
+            'inventory_blocks': picker['inventory_blocks'],
             'inventory_partitions_map': inventory_partitions_map,
         }
 
@@ -1002,20 +1016,10 @@ class Root:
     
     def lottery_runs(self, session, message=''):
         runs = session.query(LotteryRun).order_by(LotteryRun.run_at.desc()).all()
-        hotels = session.query(LotteryHotel).filter_by(active=True).order_by(LotteryHotel.name).all()
-        room_types = session.query(LotteryRoomType).filter_by(active=True, is_suite=False).order_by(LotteryRoomType.name).all()
-        suite_types = session.query(LotteryRoomType).filter_by(active=True, is_suite=True).order_by(LotteryRoomType.name).all()
-        inventory_blocks = session.query(HotelRoomInventory).filter_by(active=True).order_by(
-            HotelRoomInventory.hotel_id, HotelRoomInventory.name).all()
-        partitions = session.query(InventoryPartition).filter_by(active=True).order_by(InventoryPartition.name).all()
         return {
             'runs': runs,
-            'hotels': hotels,
-            'room_types': room_types,
-            'suite_types': suite_types,
-            'inventory_blocks': inventory_blocks,
-            'partitions': partitions,
             'message': message,
+            **_picker_context(session),
         }
 
     def lottery_run_detail(self, session, id, message=''):
@@ -1024,16 +1028,14 @@ class Root:
             LotteryApplication.lottery_run_id == id,
             LotteryApplication.entry_type != c.GROUP_ENTRY,
         ).order_by(LotteryApplication.confirmation_num).all()
-        partitions = session.query(InventoryPartition).filter_by(active=True).order_by(InventoryPartition.name).all()
-        partition_lookup = {str(p.id): p.name for p in partitions}
+        picker = _picker_context(session)
+        partition_lookup = {str(p.id): p.name for p in picker['partitions']}
         return {
             'lottery_run': lottery_run,
             'applications': applications,
-            'hotels': session.query(LotteryHotel).filter_by(active=True).order_by(LotteryHotel.name).all(),
-            'room_types': session.query(LotteryRoomType).filter_by(is_suite=False, active=True).order_by(LotteryRoomType.name).all(),
-            'suite_types': session.query(LotteryRoomType).filter_by(is_suite=True, active=True).order_by(LotteryRoomType.name).all(),
             'partition_lookup': partition_lookup,
             'message': message,
+            **picker,
         }
 
     def update_lottery_run(self, session, id, name, **params):
@@ -1229,20 +1231,15 @@ class Root:
         return {
             'inventory': inventory,
             'assigned_per_block': assigned_per_block,
-            'hotels': session.query(LotteryHotel).filter_by(active=True).order_by(LotteryHotel.name).all(),
-            'room_types': session.query(LotteryRoomType).filter_by(is_suite=False, active=True).order_by(LotteryRoomType.name).all(),
-            'suite_types': session.query(LotteryRoomType).filter_by(is_suite=True, active=True).order_by(LotteryRoomType.name).all(),
             'message': message,
+            **_picker_context(session),
         }
 
     def edit_inventory_item(self, session, id=None, message='', **params):
-        if id and id != 'None' and id != '':
-            item = session.query(HotelRoomInventory).get(id)
-        else:
-            item = None
-
-        if not item:
+        if id in [None, '', 'None']:
             item = HotelRoomInventory()
+        else:
+            item = session.hotel_room_inventory(id)
 
         # Build hotel night dates for per-night quantity grid
         event_nights = []
@@ -1252,30 +1249,27 @@ class Root:
             event_nights.append(day)
             day += timedelta(days=1)
 
+        forms = load_forms(params, item, ['HotelInventoryConfig'])
+
         if cherrypy.request.method == 'POST':
-            was_active = bool(item.id) and item.active
-            item.hotel_id = params['hotel']
-            item.is_suite = params.get('is_suite') == 'true'
+            config = forms['hotel_inventory_config']
+            if any(getattr(config, f).data is None
+                   for f in ('quantity', 'capacity', 'min_capacity')):
+                raise HTTPRedirect('edit_inventory_item?id={}&message={}',
+                                   '' if item.is_new else item.id,
+                                   'Quantity, capacity, and min capacity must be numbers.')
+
+            was_active = not item.is_new and item.active
+            for form in forms.values():
+                form.populate_obj(item, is_admin=True)
+            # A block is either a room block or a suite block - blank out
+            # whichever type doesn't apply.
             if item.is_suite:
-                item.suite_type_id = params.get('suite_type') or None
                 item.room_type_id = None
             else:
-                item.room_type_id = params.get('room_type') or None
                 item.suite_type_id = None
-            try:
-                item.quantity = int(params.get('quantity', 0))
-                item.capacity = int(params.get('capacity', 2))
-                item.min_capacity = int(params.get('min_capacity', 1))
-            except (ValueError, TypeError):
-                raise HTTPRedirect('edit_inventory_item?id={}&message={}', item.id if item.id else '',
-                                   'Quantity, capacity, and min capacity must be numbers.')
-            item.name = params.get('name', '')
-            item.active = params.get('active') == 'true'
+            item.vault_reference = item.vault_reference or None
             became_inactive = was_active and not item.active
-            item.vault_reference = params.get('vault_reference', '') or None
-            item.info_url = params.get('info_url', '').strip()
-            item.price = params.get('price', '').strip()
-            item.staff_price = params.get('staff_price', '').strip()
             session.add(item)
             session.flush()
 
@@ -1312,9 +1306,7 @@ class Root:
 
         return {
             'item': item,
-            'hotels': session.query(LotteryHotel).filter_by(active=True).all(),
-            'room_types': session.query(LotteryRoomType).filter_by(is_suite=False, active=True).all(),
-            'suite_types': session.query(LotteryRoomType).filter_by(is_suite=True, active=True).all(),
+            'forms': forms,
             'event_nights': event_nights,
             'message': message,
         }
@@ -1346,27 +1338,23 @@ class Root:
         }
 
     def edit_hotel(self, session, id=None, message='', **params):
-        if id and id not in ('None', ''):
-            hotel = session.query(LotteryHotel).get(id)
-        else:
-            hotel = None
-
-        if not hotel:
+        if id in [None, '', 'None']:
             hotel = LotteryHotel()
+        else:
+            hotel = session.lottery_hotel(id)
+
+        forms = load_forms(params, hotel, ['LotteryHotelConfig'])
 
         if cherrypy.request.method == 'POST':
-            hotel.name = params.get('name', '').strip()
-            hotel.export_name = params.get('export_name', '').strip()
-            hotel.description = params.get('description', '').strip()
-            hotel.description_right = params.get('description_right', '').strip()
-            hotel.footnote = params.get('footnote', '').strip()
-            hotel.active = params.get('active') == 'true'
+            for form in forms.values():
+                form.populate_obj(hotel, is_admin=True)
             session.add(hotel)
             session.commit()
             raise HTTPRedirect('manage_hotels?message={}', f"Hotel '{hotel.name}' saved.")
 
         return {
             'hotel': hotel,
+            'forms': forms,
             'message': message,
         }
 
@@ -1389,20 +1377,19 @@ class Root:
         }
 
     def edit_room_type(self, session, id=None, message='', **params):
-        if id and id not in ('None', ''):
-            room_type = session.query(LotteryRoomType).get(id)
-        else:
-            room_type = None
-
-        if not room_type:
+        if id in [None, '', 'None']:
             room_type = LotteryRoomType()
+            is_new = True
+        else:
+            room_type = session.lottery_room_type(id)
+            is_new = False
 
         # All other active types - drives the "Follows another room type"
         # select. Sorted by suite-first then name so visually grouped.
         siblings = (session.query(LotteryRoomType)
                     .filter(LotteryRoomType.id != room_type.id)
                     .order_by(LotteryRoomType.is_suite.desc(), LotteryRoomType.name)
-                    .all()) if room_type.id else (
+                    .all()) if not is_new else (
                         session.query(LotteryRoomType)
                         .order_by(LotteryRoomType.is_suite.desc(), LotteryRoomType.name)
                         .all())
@@ -1411,51 +1398,55 @@ class Root:
         # template renders the connector controls read-only.
         children = (session.query(LotteryRoomType)
                     .filter(LotteryRoomType.connects_to_type_id == room_type.id)
-                    .order_by(LotteryRoomType.name).all()) if room_type.id else []
+                    .order_by(LotteryRoomType.name).all()) if not is_new else []
+
+        forms = load_forms(params, room_type, ['LotteryRoomTypeConfig'])
+        # The "follows" options depend on the row being edited (no self,
+        # no types that already follow another), so they're filled in
+        # per-request rather than via dynamic_choices_fields.
+        forms['lottery_room_type_config'].connects_to_type_id.choices = (
+            [('', '(None - standalone room type)')] +
+            [(str(sib.id), '{}{}'.format(sib.name, ' (suite)' if sib.is_suite else ''))
+             for sib in siblings if not sib.connects_to_type_id])
 
         if cherrypy.request.method == 'POST':
-            room_type.name = params.get('name', '').strip()
-            room_type.export_name = params.get('export_name', '').strip()
-            room_type.description = params.get('description', '').strip()
-            room_type.description_right = params.get('description_right', '').strip()
-            room_type.footnote = params.get('footnote', '').strip()
-            room_type.capacity = int(params.get('capacity', 4))
-            room_type.min_capacity = int(params.get('min_capacity', 1))
-            room_type.is_suite = params.get('is_suite') == 'true'
-            room_type.active = params.get('active') == 'true'
+            config = forms['lottery_room_type_config']
+            return_id = '' if room_type.is_new else room_type.id
 
             # Connector ("follows") config. The cycle/chain guard runs
             # both here (clear feedback) and in the model_checks.py
             # validator (catches API/back-door writes).
-            raw_parent = (params.get('connects_to_type_id') or '').strip()
-            raw_qty = (params.get('connector_quantity') or '').strip()
+            raw_parent = (config.connects_to_type_id.data or '').strip()
+            parent = None
             if raw_parent:
                 if children:
                     raise HTTPRedirect(
-                        'edit_room_type?id={}&message={}', room_type.id,
+                        'edit_room_type?id={}&message={}', return_id,
                         "Cannot make this room type follow another while other "
                         "room types follow it. Detach the children first.")
                 if raw_parent == room_type.id:
                     raise HTTPRedirect(
-                        'edit_room_type?id={}&message={}', room_type.id,
+                        'edit_room_type?id={}&message={}', return_id,
                         "A room type cannot follow itself.")
                 parent = session.query(LotteryRoomType).get(raw_parent)
                 if not parent:
                     raise HTTPRedirect(
-                        'edit_room_type?id={}&message={}', room_type.id,
+                        'edit_room_type?id={}&message={}', return_id,
                         "Selected parent room type not found.")
                 # Don't allow chains: refuse if the chosen parent itself
                 # follows another type.
                 if parent.connects_to_type_id:
                     raise HTTPRedirect(
-                        'edit_room_type?id={}&message={}', room_type.id,
+                        'edit_room_type?id={}&message={}', return_id,
                         "Cannot follow a room type that already follows another. "
                         "Chains are not supported.")
+
+            for form in forms.values():
+                form.populate_obj(room_type, is_admin=True)
+
+            if parent:
                 room_type.connects_to_type_id = parent.id
-                try:
-                    room_type.connector_quantity = max(1, int(raw_qty or '1'))
-                except ValueError:
-                    room_type.connector_quantity = 1
+                room_type.connector_quantity = max(1, config.connector_quantity.data or 1)
             else:
                 room_type.connects_to_type_id = None
                 room_type.connector_quantity = 0
@@ -1466,6 +1457,7 @@ class Root:
 
         return {
             'room_type': room_type,
+            'forms': forms,
             'siblings': siblings,
             'children': children,
             'message': message,
@@ -2897,34 +2889,33 @@ class Root:
 
     def edit_waitlist_reveal(self, session, id=None, message='', **params):
         """Create or edit one WaitlistReveal."""
-        reveal = None
-        if id and id not in ('None', ''):
-            reveal = session.query(WaitlistReveal).get(id)
-        if reveal is None:
+        if id in [None, '', 'None']:
             reveal = WaitlistReveal()
+        else:
+            reveal = session.waitlist_reveal(id)
+
+        forms = load_forms(params, reveal, ['WaitlistRevealConfig'])
 
         if cherrypy.request.method == 'POST':
-            reveal.name = params.get('name', '').strip()
-            reveal.external_url = params.get('external_url', '').strip()
-            reveal.audience_description = params.get('audience_description', '').strip()
-            reveal.active = params.get('active') == 'true'
-            raw = params.get('reveal_at', '').strip()
+            # Pre-validate the reveal time: populate_obj's DateTime coercion
+            # raises on unparseable text, and we want a friendly message
+            # (with the submitted values still on the form) instead.
+            raw = (forms['waitlist_reveal_config'].reveal_at.data or '').strip()
             if raw:
-                from dateutil import parser as dateparser
                 try:
-                    reveal.reveal_at = dateparser.parse(raw).replace(tzinfo=c.EVENT_TIMEZONE)
-                except (ValueError, TypeError):
+                    dateparser.parse(raw)
+                except (ValueError, TypeError, OverflowError):
                     message = "Could not parse reveal time."
-            else:
-                reveal.reveal_at = None
 
             if not message:
+                for form in forms.values():
+                    form.populate_obj(reveal, is_admin=True)
                 session.add(reveal)
                 session.commit()
                 raise HTTPRedirect('waitlist_reveals?message={}',
                                    f"Reveal '{reveal.name}' saved.")
 
-        return {'reveal': reveal, 'message': message}
+        return {'reveal': reveal, 'forms': forms, 'message': message}
 
     def send_waitlist_reveal_emails(self, session, id, csrf_token=None):
         """Materialize one WaitlistRevealLink per eligible attendee (anyone
@@ -2998,7 +2989,7 @@ class Root:
         partition_id is locked to their grant's scope. Used by Marketplace,
         Belvedere, Panels, Accessibility to assign exhibitor/panelist rooms.
         """
-        from uber.models import Attendee, RoomAssignment
+        from uber.models import RoomAssignment
         from uber.lottery_perms import is_lottery_admin, can_edit_assignments_in
 
         assignment = None
@@ -3051,26 +3042,55 @@ class Root:
                         'Assignment saved.')
 
         # Scope option lists to what the actor is allowed to see
-        partitions = session.query(InventoryPartition).filter_by(active=True).order_by(
-            InventoryPartition.name).all()
+        picker = _picker_context(session)
+        partitions = picker['partitions']
         if not is_lottery_admin():
             partitions = [
                 p for p in partitions
                 if can_edit_assignments_in(session, p.id)
             ]
 
-        inventory_rows = session.query(HotelRoomInventory).filter_by(active=True).order_by(
-            HotelRoomInventory.hotel_id, HotelRoomInventory.name).all()
-        attendees = session.query(Attendee).order_by(
-            Attendee.last_name, Attendee.first_name).all()
-
         return {
             'assignment': assignment,
             'partitions': partitions,
-            'inventory_rows': inventory_rows,
-            'attendees': attendees,
+            'inventory_rows': picker['inventory_blocks'],
             'message': message,
         }
+
+    @ajax_gettable
+    def search_attendees(self, session, q='', **params):
+        """JSON helper for the assign-room attendee picker.
+
+        Mirrors partition_admin.search_attendees but without partition
+        scoping: access here is gated by this section's admin ACL, the
+        same gate as the assign_room page itself. Reuses Session.search()
+        so every field the normal admin search covers (names, legal name,
+        email, badge ID, badge number, UUID, promo group, etc.) works.
+        """
+        q = (q or '').strip()
+        if len(q) < 2:
+            return []
+
+        try:
+            results, _ = session.search(q)
+        except Exception:
+            return []
+
+        out = []
+        for a in results.limit(25).all():
+            badge = ''
+            try:
+                badge = str(a.badge_num) if a.badge_num else ''
+            except Exception:
+                pass
+            out.append({
+                'id': a.id,
+                'name': a.full_name,
+                'email': a.email or '',
+                'badge_num': badge,
+                'badge_type': a.badge_type_label or '',
+            })
+        return out
 
     def partition_owners(self, session, partition_id=None, message=''):
         """List PartitionOwner grants, optionally filtered to one partition."""
@@ -3205,21 +3225,19 @@ class Root:
         raise HTTPRedirect('partition_owners?message={}', 'Grant not found.')
 
     def edit_partition(self, session, id=None, message='', **params):
-        if id and id not in ('None', ''):
-            partition = session.query(InventoryPartition).get(id)
-        else:
-            partition = None
-        if not partition:
+        if id in [None, '', 'None']:
             partition = InventoryPartition()
+        else:
+            partition = session.inventory_partition(id)
 
-        inventory_blocks = session.query(HotelRoomInventory).filter_by(active=True).order_by(
-            HotelRoomInventory.hotel_id, HotelRoomInventory.name).all()
-        existing_blocks = {str(pb.inventory_id): pb.quantity for pb in partition.blocks} if partition.id else {}
+        inventory_blocks = _picker_context(session)['inventory_blocks']
+        existing_blocks = {str(pb.inventory_id): pb.quantity for pb in partition.blocks}
+
+        forms = load_forms(params, partition, ['InventoryPartitionConfig'])
 
         if cherrypy.request.method == 'POST':
-            partition.name = params.get('name', '').strip()
-            partition.description = params.get('description', '').strip()
-            partition.active = params.get('active') == 'true'
+            for form in forms.values():
+                form.populate_obj(partition, is_admin=True)
             session.add(partition)
             session.flush()
 
@@ -3311,6 +3329,7 @@ class Root:
 
         return {
             'partition': partition,
+            'forms': forms,
             'inventory_blocks': inventory_blocks,
             'existing_blocks': existing_blocks,
             'usage_by_block': usage_by_block,
@@ -3436,6 +3455,84 @@ class Root:
         session.commit()
         raise HTTPRedirect('form?id={}&message={}', application_id, 'Room added.')
 
+    def _apply_room_assignment_edits(self, session, ra, params,
+                                     audit_prefix, fail):
+        """Shared save path for the two RoomAssignment edit surfaces (the
+        application form's per-room modal and the standalone edit page).
+
+        Only touches fields actually present in `params`, so each surface
+        keeps its own field set: the modal posts inventory / partition /
+        billing / dates; the standalone page additionally posts status,
+        deposit cutoff, confirmation numbers, and special requests.
+
+        `fail(message)` is called on invalid input and must raise (both
+        callers redirect back to their own page with the message).
+        Returns the user-facing result message; commits when anything
+        changed and writes one partition audit row prefixed with
+        `audit_prefix`.
+        """
+        changes = []
+
+        if 'inventory_id' in params:
+            new_inv = params.get('inventory_id', '').strip()
+            if new_inv and new_inv != ra.inventory_id:
+                changes.append('inventory'); ra.inventory_id = new_inv
+        if 'partition_id' in params:
+            new_part = params.get('partition_id', '').strip() or None
+            if new_part != ra.partition_id:
+                changes.append('partition'); ra.partition_id = new_part
+        if 'require_cc' in params:
+            new_require_cc = params.get('require_cc') == 'true'
+            if new_require_cc != ra.require_cc:
+                changes.append('billing'); ra.require_cc = new_require_cc
+
+        for name, label in (('assigned_check_in_date', 'check-in'),
+                            ('assigned_check_out_date', 'check-out'),
+                            ('deposit_cutoff_date', 'deposit cutoff')):
+            if name not in params:
+                continue
+            raw = (params.get(name, '') or '').strip()
+            if raw:
+                try:
+                    new_val = date.fromisoformat(raw)
+                except ValueError:
+                    fail(f"Could not parse the {label} date.")
+            else:
+                new_val = None
+            if new_val != getattr(ra, name):
+                changes.append(label); setattr(ra, name, new_val)
+
+        raw_status = (params.get('status', '') or '').strip()
+        if raw_status:
+            try:
+                new_status = int(raw_status)
+            except ValueError:
+                fail("Invalid status.")
+            if new_status != ra.status:
+                changes.append('status'); ra.status = new_status
+
+        for field in ('hotel_confirmation_number',
+                      'cancellation_confirmation_number',
+                      'special_requests'):
+            if field not in params:
+                continue
+            raw = (params.get(field, '') or '').strip()
+            if raw != (getattr(ra, field) or ''):
+                changes.append(field.replace('_', ' '))
+                setattr(ra, field, raw or None)
+
+        if changes:
+            session.add(ra)
+            if ra.partition_id:
+                record_partition_audit(
+                    session, ra.partition_id,
+                    action='assignment.updated',
+                    description=f"{audit_prefix} {', '.join(changes)}",
+                    target_type='assignment', target_id=ra.id)
+            session.commit()
+            return f"Updated {', '.join(changes)}."
+        return 'No changes.'
+
     def update_room_assignment(self, session, application_id, assignment_id,
                                csrf_token=None, **params):
         if cherrypy.request.method != 'POST':
@@ -3446,44 +3543,11 @@ class Root:
             raise HTTPRedirect('form?id={}&message={}', application_id,
                                'Assignment not found.')
 
-        changes = []
-        new_inv = params.get('inventory_id', '').strip()
-        if new_inv and new_inv != ra.inventory_id:
-            changes.append('inventory'); ra.inventory_id = new_inv
-        new_part = params.get('partition_id', '').strip() or None
-        if new_part != ra.partition_id:
-            changes.append('partition'); ra.partition_id = new_part
-        new_require_cc = params.get('require_cc') == 'true'
-        if new_require_cc != ra.require_cc:
-            changes.append('billing'); ra.require_cc = new_require_cc
+        def fail(msg):
+            raise HTTPRedirect('form?id={}&message={}', application_id, msg)
 
-        ci = params.get('assigned_check_in_date', '').strip()
-        co = params.get('assigned_check_out_date', '').strip()
-        try:
-            new_ci = date.fromisoformat(ci) if ci else None
-        except ValueError:
-            new_ci = ra.assigned_check_in_date
-        try:
-            new_co = date.fromisoformat(co) if co else None
-        except ValueError:
-            new_co = ra.assigned_check_out_date
-        if new_ci != ra.assigned_check_in_date:
-            changes.append('check-in'); ra.assigned_check_in_date = new_ci
-        if new_co != ra.assigned_check_out_date:
-            changes.append('check-out'); ra.assigned_check_out_date = new_co
-
-        if changes:
-            session.add(ra)
-            if ra.partition_id:
-                record_partition_audit(
-                    session, ra.partition_id,
-                    action='assignment.updated',
-                    description=f"Lottery admin updated {', '.join(changes)}",
-                    target_type='assignment', target_id=ra.id)
-            session.commit()
-            msg = f"Updated {', '.join(changes)}."
-        else:
-            msg = 'No changes.'
+        msg = self._apply_room_assignment_edits(
+            session, ra, params, 'Lottery admin updated', fail)
         raise HTTPRedirect('form?id={}&message={}', application_id, msg)
 
     def delete_room_assignment(self, session, assignment_id,
@@ -3536,13 +3600,7 @@ class Root:
         if not ra:
             raise HTTPRedirect('rooms?message={}', 'Assignment not found.')
 
-        partitions = (session.query(InventoryPartition)
-                      .filter_by(active=True)
-                      .order_by(InventoryPartition.name).all())
-        inventory_blocks = (session.query(HotelRoomInventory)
-                            .filter_by(active=True)
-                            .order_by(HotelRoomInventory.hotel_id,
-                                      HotelRoomInventory.name).all())
+        picker = _picker_context(session)
         # {inventory_id: [partition_id, ...]} for the partition-filter JS.
         inventory_partitions_map = {}
         for pb in session.query(InventoryPartitionBlock).all():
@@ -3551,19 +3609,20 @@ class Root:
 
         return {
             'assignment': ra,
-            'partitions': partitions,
-            'inventory_blocks': inventory_blocks,
+            'partitions': picker['partitions'],
+            'inventory_blocks': picker['inventory_blocks'],
             'inventory_partitions_map': inventory_partitions_map,
             'message': message,
         }
 
     def save_room_assignment(self, session, assignment_id,
                              csrf_token=None, **params):
-        """Standalone-page version of update_room_assignment that also
-        accepts the per-room fields not exposed in the form modal
-        (status, hotel confirmation, cancellation, deposit cutoff,
-        special requests). Redirects back to the standalone edit page
-        on success."""
+        """Standalone-page version of update_room_assignment. Shares
+        _apply_room_assignment_edits; the standalone page additionally
+        posts status, hotel confirmation, cancellation, deposit cutoff,
+        and special requests, which the shared path picks up because
+        they're present in params. Redirects back to the standalone edit
+        page."""
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect('edit_room_assignment?id={}', assignment_id)
         check_csrf(csrf_token)
@@ -3571,66 +3630,12 @@ class Root:
         if not ra:
             raise HTTPRedirect('rooms?message={}', 'Assignment not found.')
 
-        changes = []
+        def fail(msg):
+            raise HTTPRedirect('edit_room_assignment?id={}&message={}',
+                               assignment_id, msg)
 
-        new_inv = params.get('inventory_id', '').strip()
-        if new_inv and new_inv != ra.inventory_id:
-            changes.append('inventory'); ra.inventory_id = new_inv
-        new_part = params.get('partition_id', '').strip() or None
-        if new_part != ra.partition_id:
-            changes.append('partition'); ra.partition_id = new_part
-        new_require_cc = params.get('require_cc') == 'true'
-        if new_require_cc != ra.require_cc:
-            changes.append('billing'); ra.require_cc = new_require_cc
-
-        def _parse_date(name, current):
-            raw = (params.get(name, '') or '').strip()
-            if not raw:
-                return None
-            try:
-                return date.fromisoformat(raw)
-            except ValueError:
-                return current
-
-        new_ci = _parse_date('assigned_check_in_date', ra.assigned_check_in_date)
-        if new_ci != ra.assigned_check_in_date:
-            changes.append('check-in'); ra.assigned_check_in_date = new_ci
-        new_co = _parse_date('assigned_check_out_date', ra.assigned_check_out_date)
-        if new_co != ra.assigned_check_out_date:
-            changes.append('check-out'); ra.assigned_check_out_date = new_co
-        new_cutoff = _parse_date('deposit_cutoff_date', ra.deposit_cutoff_date)
-        if new_cutoff != ra.deposit_cutoff_date:
-            changes.append('deposit cutoff'); ra.deposit_cutoff_date = new_cutoff
-
-        raw_status = params.get('status', '').strip()
-        if raw_status:
-            try:
-                new_status = int(raw_status)
-                if new_status != ra.status:
-                    changes.append('status'); ra.status = new_status
-            except ValueError:
-                pass
-
-        for field in ('hotel_confirmation_number',
-                      'cancellation_confirmation_number',
-                      'special_requests'):
-            raw = (params.get(field, '') or '').strip()
-            if raw != (getattr(ra, field) or ''):
-                changes.append(field.replace('_', ' '))
-                setattr(ra, field, raw or None)
-
-        if changes:
-            session.add(ra)
-            if ra.partition_id:
-                record_partition_audit(
-                    session, ra.partition_id,
-                    action='assignment.updated',
-                    description=f"Edit page updated {', '.join(changes)}",
-                    target_type='assignment', target_id=ra.id)
-            session.commit()
-            msg = f"Updated {', '.join(changes)}."
-        else:
-            msg = 'No changes.'
+        msg = self._apply_room_assignment_edits(
+            session, ra, params, 'Edit page updated', fail)
         raise HTTPRedirect('edit_room_assignment?id={}&message={}',
                            assignment_id, msg)
 

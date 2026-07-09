@@ -1,4 +1,5 @@
 {% extends "./preregistration/preregbase.html" %}
+{% import 'hotel_lottery/_macros.html' as room_macros with context %}
 {% set title_text = "Secure Your Room" %}
 
 {% block content %}
@@ -49,25 +50,9 @@
 
 <div id="step-1">
 
-{% set inv = assignment.inventory %}
-{% set inv_hotel = inv.hotel if inv else None %}
-
 <div class="card card-body mb-3">
   <h4>Room Award Summary</h4>
-  <table class="table table-sm mb-0">
-    <tr><th>Hotel</th><td>{{ inv_hotel.name if inv_hotel else '' }}</td></tr>
-    <tr><th>Room Type</th><td>
-      {% if inv and inv.is_suite %}
-        {{ inv.suite_type.name if inv.suite_type else '' }}
-      {% else %}
-        {{ inv.room_type.name if inv and inv.room_type else '' }}
-      {% endif %}
-    </td></tr>
-    {% if inv and inv.info_url %}
-    <tr><th>Room Info</th><td><a href="{{ inv.info_url }}" target="_blank">View room details and photos</a></td></tr>
-    {% endif %}
-    <tr><th>Check-in</th><td>{{ assignment.assigned_check_in_date }}</td></tr>
-    <tr><th>Check-out</th><td>{{ assignment.assigned_check_out_date }}</td></tr>
+  {% call room_macros.room_summary_table(assignment) %}
     <tr><th>Guests</th><td>
       {# Occupants live on the RoomAssignment; fall back to leader plus
          group members when the list is empty. #}
@@ -84,7 +69,7 @@
         {{ assignment.attendee.effective_hotel_first_name }} {{ assignment.attendee.effective_hotel_last_name }}
       {% endif %}
     </td></tr>
-  </table>
+  {% endcall %}
 </div>
 
 <div class="card card-body mb-3">
@@ -170,25 +155,12 @@
      hotel's payment system that already has a card + address on file.
      Pre-filtered server-side; reuses that room's card and address and
      secures this room without re-entering the card. #}
-  {% if billing_source_rooms %}
-  <form method="post" action="copy_booking_info" class="mb-3 p-2 bg-light rounded border">
-    {{ csrf_token() }}
-    <input type="hidden" name="attendee_id" value="{{ attendee_id or assignment.attendee_id }}" />
-    <input type="hidden" name="target_id" value="{{ assignment.id }}" />
-    <input type="hidden" name="return_to_room" value="1" />
-    <label for="billing-copy-source" class="form-label mb-1">Copy billing details from another room</label>
-    <div class="d-flex gap-2">
-      <select class="form-select" name="source_id" id="billing-copy-source" required>
-        <option value="">Select a room...</option>
-        {% for src in billing_source_rooms %}
-        <option value="{{ src.id }}">{{ src.label }}</option>
-        {% endfor %}
-      </select>
-      <button type="submit" class="btn btn-outline-secondary text-nowrap">Copy</button>
-    </div>
-    <div class="form-text">Reuses the card and billing address from the selected room and secures this room.</div>
-  </form>
-  {% endif %}
+  {{ room_macros.card_reuse_picker(
+        billing_source_rooms, assignment, attendee_id or assignment.attendee_id,
+        label='Copy billing details from another room',
+        button_text='Copy',
+        help_text='Reuses the card and billing address from the selected room and secures this room.',
+        boxed=True) }}
 
   <div class="mb-3">
     <label for="address1" class="form-label">Address Line 1 <span class="text-danger">*</span></label>

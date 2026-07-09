@@ -695,6 +695,13 @@ class HotelRoomInventory(MagModel, table=True):
         return self.suite_type_id if self.is_suite else self.room_type_id
 
     @property
+    def display_name(self):
+        """Human-facing type name: the suite/room type's name, falling
+        back to this inventory row's own name when no type is linked."""
+        room_or_suite_type = self.room_or_suite_type
+        return room_or_suite_type.name if room_or_suite_type else self.name
+
+    @property
     def night_quantity_map(self):
         """Return {date: quantity} dict from night_quantities."""
         return {nq.night_date: nq.quantity for nq in self.night_quantities}

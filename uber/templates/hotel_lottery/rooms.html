@@ -1,4 +1,5 @@
 {% extends "./preregistration/preregbase.html" %}
+{% import 'hotel_lottery/_macros.html' as room_macros with context %}
 {% set title_text = "Your " ~ c.EVENT_NAME ~ " Rooms" %}
 {% block content %}
 
@@ -59,30 +60,11 @@
   <div class="card-body">
     {# Big red warning for any room that still needs a credit-card
        guarantee, so it's unmissable which rooms aren't secured. #}
-    {% if room.needs_card %}
-    <div class="alert alert-danger d-flex align-items-center gap-2 py-2 mb-3">
-      <i class="fa fa-exclamation-triangle fa-lg"></i>
-      <div>
-        <strong>This room is not secured - a credit card is required.</strong>
-        {% if room.card_deadline %}
-          Put a card down by
-          <strong>{{ room.card_deadline|date("%A, %B %-d") }}</strong>
-          or this room will be released.
-        {% else %}
-          Add a card to guarantee this room.
-        {% endif %}
-      </div>
-    </div>
-    {% endif %}
+    {{ room_macros.needs_card_alert(room) }}
     <div class="d-flex justify-content-between align-items-start">
       <div>
         <h3 class="card-title h5 mb-1">
-          {% if room.inventory %}
-            {{ room.inventory.hotel.name if room.inventory.hotel else 'Hotel' }}
-            -
-            {% if room.inventory.is_suite %}{{ room.inventory.suite_type.name if room.inventory.suite_type else room.inventory.name }}
-            {% else %}{{ room.inventory.room_type.name if room.inventory.room_type else room.inventory.name }}{% endif %}
-          {% else %}Room Assignment{% endif %}
+          {{ room_macros.room_name(room) }}
           {% if room.parent_assignment_id %}
             <span class="badge bg-info text-dark ms-1">Connector</span>
           {% endif %}
@@ -94,29 +76,11 @@
           {% endif %}
         </h3>
         <p class="text-muted mb-2">
-          {% if room.assigned_check_in_date %}
-            {{ room.assigned_check_in_date|date("%a %b %-d") }}
-            &rarr; {{ room.assigned_check_out_date|date("%a %b %-d") }}
-          {% else %}Dates TBD{% endif %}
+          {{ room_macros.room_dates(room) }}
         </p>
       </div>
       <div>
-        {% if room.export_locked %}
-          <span class="badge bg-warning text-dark"
-                title="This booking has been transferred to the hotel.">
-            <i class="fa fa-lock"></i> Booking exported
-          </span>
-        {% else %}
-          <span class="badge bg-{% if room.status == c.SECURED %}success{% elif room.status == c.ASSIGNED %}warning text-dark{% elif room.status == c.EXPIRED %}danger{% else %}secondary{% endif %}">
-            {{ room.status_label }}
-          </span>
-        {% endif %}
-        {% if not room.require_cc %}
-          <span class="badge bg-info text-dark ms-1"
-                title="{{ c.EVENT_NAME }} pays - no credit card needed.">
-            Master bill
-          </span>
-        {% endif %}
+        {{ room_macros.room_status_badges(room) }}
       </div>
     </div>
 
@@ -150,55 +114,19 @@
     {% for child in room.child_assignments %}
     <div class="card mb-2 {% if child.needs_card %}border-danger border-2{% else %}border-info-subtle{% endif %}">
       <div class="card-body py-2">
-        {% if child.needs_card %}
-        <div class="alert alert-danger d-flex align-items-center gap-2 py-2 mb-2">
-          <i class="fa fa-exclamation-triangle"></i>
-          <div class="small">
-            <strong>Not secured - a credit card is required.</strong>
-            {% if child.card_deadline %}
-              Put a card down by <strong>{{ child.card_deadline|date("%A, %B %-d") }}</strong>
-              or this room will be released.
-            {% else %}
-              Add a card to guarantee this room.
-            {% endif %}
-          </div>
-        </div>
-        {% endif %}
+        {{ room_macros.needs_card_alert(child, compact=True, classes='mb-2') }}
         <div class="d-flex justify-content-between align-items-start">
           <div>
             <strong>
-              {% if child.inventory %}
-                {{ child.inventory.hotel.name if child.inventory.hotel else 'Hotel' }}
-                -
-                {% if child.inventory.is_suite %}{{ child.inventory.suite_type.name if child.inventory.suite_type else child.inventory.name }}
-                {% else %}{{ child.inventory.room_type.name if child.inventory.room_type else child.inventory.name }}{% endif %}
-              {% else %}Connector Room{% endif %}
+              {{ room_macros.room_name(child, fallback='Connector Room') }}
             </strong>
             <span class="badge bg-info text-dark ms-1">Connector</span>
             <div class="text-muted small">
-              {% if child.assigned_check_in_date %}
-                {{ child.assigned_check_in_date|date("%a %b %-d") }}
-                &rarr; {{ child.assigned_check_out_date|date("%a %b %-d") }}
-              {% else %}Dates follow the suite{% endif %}
+              {{ room_macros.room_dates(child, fallback='Dates follow the suite') }}
             </div>
           </div>
           <div>
-            {% if child.export_locked %}
-              <span class="badge bg-warning text-dark"
-                    title="This booking has been transferred to the hotel.">
-                <i class="fa fa-lock"></i> Booking exported
-              </span>
-            {% else %}
-              <span class="badge bg-{% if child.status == c.SECURED %}success{% elif child.status == c.ASSIGNED %}warning text-dark{% elif child.status == c.EXPIRED %}danger{% else %}secondary{% endif %}">
-                {{ child.status_label }}
-              </span>
-            {% endif %}
-            {% if not child.require_cc %}
-              <span class="badge bg-info text-dark ms-1"
-                    title="{{ c.EVENT_NAME }} pays - no credit card needed.">
-                Master bill
-              </span>
-            {% endif %}
+            {{ room_macros.room_status_badges(child) }}
           </div>
         </div>
         <div class="d-flex gap-2 mt-2">
@@ -229,27 +157,19 @@
     <div class="d-flex justify-content-between align-items-start">
       <div>
         <h3 class="card-title h5 mb-1">
-          {% if room.inventory %}
-            {{ room.inventory.hotel.name if room.inventory.hotel else 'Hotel' }}
-            -
-            {% if room.inventory.is_suite %}{{ room.inventory.suite_type.name if room.inventory.suite_type else room.inventory.name }}
-            {% else %}{{ room.inventory.room_type.name if room.inventory.room_type else room.inventory.name }}{% endif %}
-          {% else %}Room Assignment{% endif %}
+          {{ room_macros.room_name(room) }}
         </h3>
         <p class="text-muted mb-2">
-          {% if room.assigned_check_in_date %}
-            {{ room.assigned_check_in_date|date("%a %b %-d") }}
-            &rarr; {{ room.assigned_check_out_date|date("%a %b %-d") }}
-          {% else %}Dates TBD{% endif %}
+          {{ room_macros.room_dates(room) }}
           {% if room.attendee %}
             - Booked by {{ room.attendee.first_name }} {{ room.attendee.last_name }}
           {% endif %}
         </p>
       </div>
       <div>
-        <span class="badge bg-{% if room.status == c.SECURED %}success{% elif room.status == c.ASSIGNED %}warning text-dark{% else %}secondary{% endif %}">
-          {{ room.status_label }}
-        </span>
+        {# Shared badge cluster; previously this guest view dropped the
+           EXPIRED case - the macro renders it consistently. #}
+        {{ room_macros.room_status_badges(room) }}
       </div>
     </div>
 

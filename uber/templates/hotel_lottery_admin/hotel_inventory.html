@@ -152,11 +152,7 @@ var currentPartition = {{ current_partition|tojson }};
 // dedicated Waitlist sub-tab). The button at the top of this page
 // now navigates there.
 
-function escapeHtml(str) {
-    var div = document.createElement('div');
-    div.appendChild(document.createTextNode(str));
-    return div.innerHTML;
-}
+{% include 'hotel_lottery_admin/_shared_js.html' %}
 
 function showAssignees(inventoryId, nightDate, title) {
     document.getElementById('assignees-title').textContent = 'Assigned: ' + title;

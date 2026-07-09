@@ -1,4 +1,5 @@
 {% extends "./preregistration/preregbase.html" %}
+{% import 'hotel_lottery/_macros.html' as room_macros with context %}
 {% set title_text = "Room Invite" %}
 {% block content %}
 
@@ -27,7 +28,6 @@
 </div>
 {% else %}
 {% set ra = assignment %}
-{% set inv = ra.inventory %}
 
 <div class="card mb-3">
   <div class="card-body">
@@ -40,28 +40,8 @@
     </p>
     {% endif %}
 
-    <table class="table table-sm mb-3" style="max-width: 540px;">
-      <tr>
-        <th>Hotel</th>
-        <td>{{ inv.hotel.name if inv and inv.hotel else '' }}</td>
-      </tr>
-      <tr>
-        <th>Room type</th>
-        <td>
-          {% if inv and inv.is_suite %}{{ inv.suite_type.name if inv.suite_type else '' }}
-          {% elif inv %}{{ inv.room_type.name if inv.room_type else '' }}{% endif %}
-        </td>
-      </tr>
-      {% if ra.assigned_check_in_date %}
-      <tr>
-        <th>Check-in / out</th>
-        <td>
-          {{ ra.assigned_check_in_date|date("%a %b %-d") }}
-          &rarr; {{ ra.assigned_check_out_date|date("%a %b %-d") }}
-        </td>
-      </tr>
-      {% endif %}
-    </table>
+    {{ room_macros.room_summary_table(ra, table_class='table table-sm mb-3',
+                                      table_style='max-width: 540px;') }}
 
     <p class="text-muted small">
       If you accept, your name and email will be visible to everyone

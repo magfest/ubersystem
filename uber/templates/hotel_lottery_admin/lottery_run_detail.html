@@ -146,7 +146,7 @@
             <td>{{ hotel_macros.attendee_cell(app.attendee, show_email=False) }}
               {% if ra.parent_assignment_id %}{{ hotel_macros.connector_chip() }}{% endif %}
             </td>
-            <td>{{ ra.status_label }}</td>
+            <td>{{ hotel_macros.room_status_chip(ra) }}</td>
             <td>{{ inv.hotel.name if inv and inv.hotel else '' }}</td>
             <td>
               {% if inv and inv.is_suite %}{{ inv.suite_type.name if inv.suite_type else '' }}

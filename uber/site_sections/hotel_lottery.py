@@ -1927,26 +1927,11 @@ class Root:
         # same vault scope (same hotel's payment system) that already
         # have both a card on file and a billing address. Selecting one
         # reuses its card and address via copy_booking_info and secures
-        # this room without re-entering the card.
-        billing_source_rooms = []
-        for other in _card_reuse_sources(session, ra):
-            if not (other.address1 and other.address1.strip()):
-                continue
-            inv = other.inventory
-            if inv and inv.hotel:
-                if inv.is_suite:
-                    type_name = inv.suite_type.name if inv.suite_type else inv.name
-                else:
-                    type_name = inv.room_type.name if inv.room_type else inv.name
-                label = f"{inv.hotel.name} - {type_name}"
-            else:
-                label = "Another room"
-            if other.cc_last_four:
-                label += f" (card {other.cc_last_four})"
-            billing_source_rooms.append({
-                'id': str(other.id),
-                'label': label,
-            })
+        # this room without re-entering the card. Raw RoomAssignment
+        # rows - the card_reuse_picker macro builds the labels.
+        billing_source_rooms = [
+            other for other in _card_reuse_sources(session, ra)
+            if other.address1 and other.address1.strip()]
 
         return {
             'application': application,

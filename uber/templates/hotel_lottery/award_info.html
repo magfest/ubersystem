@@ -39,8 +39,7 @@
         {% endif %}
         <h4 class="card-title h5 mb-1">{{ inv.hotel.name if inv and inv.hotel else '' }}</h4>
         <p class="card-subtitle text-muted mb-2">
-          {% if inv and inv.is_suite %}{{ inv.suite_type.name if inv.suite_type else '' }}
-          {% elif inv %}{{ inv.room_type.name if inv.room_type else '' }}{% endif %}
+          {% if inv %}{{ inv.display_name }}{% endif %}
           {% if inv and inv.info_url %}
             - <a href="{{ inv.info_url }}" target="_blank">View room details</a>
           {% endif %}

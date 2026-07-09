@@ -1,4 +1,5 @@
 {% extends "./preregistration/preregbase.html" %}
+{% import 'hotel_lottery/_macros.html' as room_macros with context %}
 {% set title_text = "Edit Room" if is_leader else "Your Room" %}
 {% block content %}
 
@@ -15,29 +16,19 @@
 {% endif %}
 
 {% set ra = assignment %}
-{% set inv = ra.inventory %}
-{% set inv_hotel = inv.hotel if inv else None %}
 {% set locked = ra.export_locked %}
 {% set is_connector = ra.parent_assignment_id is not none and ra.parent_assignment_id != '' %}
 
 <div class="d-flex justify-content-between align-items-start mb-3">
   <div>
     <h1 class="h3 mb-0">
-      {% if inv_hotel %}{{ inv_hotel.name }}{% endif %}
-      {% if inv %}
-        -
-        {% if inv.is_suite %}{{ inv.suite_type.name if inv.suite_type else inv.name }}
-        {% else %}{{ inv.room_type.name if inv.room_type else inv.name }}{% endif %}
-      {% endif %}
+      {{ room_macros.room_name(ra) }}
       {% if is_connector %}
         <span class="badge bg-info text-dark ms-1">Connector</span>
       {% endif %}
     </h1>
     <p class="text-muted mb-0">
-      {% if ra.assigned_check_in_date %}
-        {{ ra.assigned_check_in_date|date("%a %b %-d") }}
-        &rarr; {{ ra.assigned_check_out_date|date("%a %b %-d") }}
-      {% endif %}
+      {{ room_macros.room_dates(ra, fallback='') }}
       - <span class="text-capitalize">{{ ra.status_label }}</span>
     </p>
   </div>
@@ -261,21 +252,8 @@
       </p>
     {% else %}
       {# Big red warning + deadline when this room still needs a card. #}
-      {% if ra.needs_card %}
-      <div class="alert alert-danger d-flex align-items-center gap-2 py-2 mb-2">
-        <i class="fa fa-exclamation-triangle fa-lg"></i>
-        <div>
-          <strong>This room is not secured - a credit card is required.</strong>
-          {% if ra.card_deadline %}
-            Put a card down by
-            <strong>{{ ra.card_deadline|date("%A, %B %-d") }}</strong>
-            or this room will be released.
-          {% else %}
-            Add a card below to guarantee this room.
-          {% endif %}
-        </div>
-      </div>
-      {% endif %}
+      {{ room_macros.needs_card_alert(ra, classes='mb-2',
+                                      add_hint='Add a card below to guarantee this room.') }}
       <p class="mb-2">
         {% if ra.cc_token %}
           <strong>Card on file:</strong>
@@ -297,34 +275,7 @@
          matching vault scope, so any choice here is valid. #}
       {% if card_source_rooms %}
       <hr class="my-3"/>
-      <form method="post" action="copy_booking_info" class="row g-2 align-items-end">
-        {{ csrf_token() }}
-        <input type="hidden" name="attendee_id" value="{{ viewer.id }}" />
-        <input type="hidden" name="target_id" value="{{ ra.id }}" />
-        <input type="hidden" name="return_to_room" value="1" />
-        <div class="col-md-9">
-          <label class="form-label">Reuse a card from another of your rooms</label>
-          <select class="form-select" name="source_id" required>
-            <option value="">Select a room...</option>
-            {% for src in card_source_rooms %}
-            <option value="{{ src.id }}">
-              {% if src.inventory and src.inventory.hotel %}{{ src.inventory.hotel.name }} - {% endif %}
-              {% if src.inventory %}
-                {% if src.inventory.is_suite %}{{ src.inventory.suite_type.name if src.inventory.suite_type else src.inventory.name }}
-                {% else %}{{ src.inventory.room_type.name if src.inventory.room_type else src.inventory.name }}{% endif %}
-              {% else %}Room{% endif %}
-              {% if src.cc_last_four %}(card {{ src.cc_last_four }}){% endif %}
-            </option>
-            {% endfor %}
-          </select>
-          <div class="form-text small">
-            Copies the card and billing address from the selected room onto this one.
-          </div>
-        </div>
-        <div class="col-md-3 d-flex align-items-end">
-          <button type="submit" class="btn btn-outline-secondary w-100">Use this card</button>
-        </div>
-      </form>
+      {{ room_macros.card_reuse_picker(card_source_rooms, ra, viewer.id) }}
       {% endif %}
 
       {# Billing address for the card. Captured during the secure flow,

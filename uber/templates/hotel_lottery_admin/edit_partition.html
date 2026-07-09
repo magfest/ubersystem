@@ -1,11 +1,13 @@
 {% extends "base.html" %}{% set admin_area=True %}
+{% import "forms/macros.html" as form_macros with context %}
 {% import 'hotel_lottery_admin/_macros.html' as hotel_macros with context %}
-{% block title %}{{ 'Edit' if partition.id else 'Add' }} Partition{% endblock %}
+{% set partition_config = forms['inventory_partition_config'] %}
+{% block title %}{{ 'Add' if partition.is_new else 'Edit' }} Partition{% endblock %}
 {% block content %}
 
 {% include 'hotel_lottery_admin/nav.html' %}
 
-<h2>{{ 'Edit' if partition.id else 'Add' }} Inventory Partition</h2>
+<h2>{{ 'Add' if partition.is_new else 'Edit' }} Inventory Partition</h2>
 
 <div class="mb-3">
   <a href="manage_partitions" class="btn btn-outline-secondary">Back to Partitions</a>
@@ -15,27 +17,13 @@
 
 <form method="post" action="edit_partition" class="card card-body" style="max-width: 800px;">
   {{ csrf_token() }}
-  {% if partition.id %}
+  {% if not partition.is_new %}
   <input type="hidden" name="id" value="{{ partition.id }}" />
   {% endif %}
 
-  <div class="mb-3">
-    <label for="name" class="form-label">Name</label>
-    <input type="text" class="form-control" name="name" id="name" value="{{ partition.name }}" required />
-  </div>
-
-  <div class="mb-3">
-    <label for="description" class="form-label">Description</label>
-    <textarea class="form-control" name="description" id="description" rows="2">{{ partition.description }}</textarea>
-  </div>
-
-  <div class="mb-3">
-    <label class="form-label">Active</label>
-    <select class="form-select" name="active">
-      <option value="true" {% if partition.active or not partition.id %}selected{% endif %}>Yes</option>
-      <option value="false" {% if partition.id and not partition.active %}selected{% endif %}>No</option>
-    </select>
-  </div>
+  <div class="mb-3">{{ form_macros.input(partition_config.name) }}</div>
+  <div class="mb-3">{{ form_macros.input(partition_config.description) }}</div>
+  <div class="mb-3">{{ form_macros.input(partition_config.active) }}</div>
 
   <div class="mb-3">
     <label class="form-label">Block Allocations</label>

@@ -1,15 +1,18 @@
 from markupsafe import Markup
 from wtforms import (BooleanField, DateField, HiddenField, SelectField, SelectMultipleField,
-                     IntegerField, StringField, validators, TextAreaField, TelField)
+                     IntegerField, StringField, URLField, validators, TextAreaField, TelField)
 from wtforms.validators import ValidationError, StopValidation
+from wtforms.widgets import Select
 
 from uber.config import c
-from uber.forms import (MagForm, CustomValidation, Ranking)
+from uber.forms import (MagForm, CustomValidation, Ranking, SelectBooleanField)
 from uber.custom_tags import readable_join
 from uber.model_checks import invalid_phone_number
 
 
-__all__ = ['LotteryInfo', 'LotteryConfirm', 'LotteryRoomGroup', 'RoomLottery', 'SuiteLottery', 'LotteryAdminInfo']
+__all__ = ['LotteryInfo', 'LotteryConfirm', 'LotteryRoomGroup', 'RoomLottery', 'SuiteLottery', 'LotteryAdminInfo',
+           'LotteryHotelConfig', 'LotteryRoomTypeConfig', 'HotelInventoryConfig', 'InventoryPartitionConfig',
+           'WaitlistRevealConfig']
 
 
 def html_format_date(dt):
@@ -231,3 +234,152 @@ class LotteryAdminInfo(SuiteLottery):
     suite_terms_accepted = BooleanField(f'Agreed to Suite Policies', render_kw={'readonly': "true"})
     partition_id = SelectField('Partition', coerce=str, choices=[('', "None")])
     hotel_rewards_number = StringField('Hotel Rewards Number')
+
+
+def _select_hotel_choices():
+    from uber.models import Session
+    from uber.models.hotel import LotteryHotel
+    with Session() as session:
+        return [('', '-- Select Hotel --')] + [
+            (str(h.id), h.name) for h in session.query(LotteryHotel).filter_by(
+                active=True).order_by(LotteryHotel.name).all()]
+
+
+def _select_room_type_choices(is_suite=False):
+    from uber.models import Session
+    from uber.models.hotel import LotteryRoomType
+    with Session() as session:
+        label = 'Suite Type' if is_suite else 'Room Type'
+        return [('', f'-- Select {label} --')] + [
+            (str(rt.id), rt.name) for rt in session.query(LotteryRoomType).filter_by(
+                active=True, is_suite=is_suite).order_by(LotteryRoomType.name).all()]
+
+
+class EventTimeStringField(StringField):
+    """Free-text entry for a tz-aware DateTime column, displayed in the
+    event timezone.
+
+    MagModel.coerce_column_data parses whatever string this field posts
+    (via dateutil) and localizes naive values to the event timezone, so
+    this field only needs to *render* the stored value as event-local
+    text. Handlers should pre-validate parseability before populate_obj.
+
+    Datetimes can arrive through either process_data (existing rows) or
+    process_formdata (MagForm's force-form-defaults path copies model
+    values into formdata), so both format them.
+    """
+    @staticmethod
+    def _display(value):
+        if value is not None and hasattr(value, 'astimezone'):
+            return value.astimezone(c.EVENT_TIMEZONE).strftime('%Y-%m-%d %H:%M')
+        return value
+
+    def process_data(self, value):
+        self.data = self._display(value)
+
+    def process_formdata(self, valuelist):
+        if valuelist:
+            self.data = self._display(valuelist[0])
+
+
+class LotteryHotelConfig(MagForm):
+    admin_desc = True
+
+    name = StringField('Hotel Name', render_kw={'required': True})
+    export_name = StringField(
+        'Export Name',
+        description='Name used when exporting data to hotels. Leave blank to use the hotel name.')
+    description = TextAreaField('Description (Left)')
+    description_right = TextAreaField('Description (Right)')
+    footnote = StringField('Footnote')
+    active = SelectBooleanField('Active', widget=Select())
+
+
+class LotteryRoomTypeConfig(MagForm):
+    admin_desc = True
+
+    name = StringField('Room Type Name', render_kw={'required': True})
+    export_name = StringField(
+        'Export Name',
+        description='Name used when exporting data. Leave blank to use the room type name.')
+    is_suite = SelectBooleanField(
+        'Is Suite?', widget=Select(),
+        choices=[('false', 'No (Standard Room Type)'), ('true', 'Yes (Suite Type)')])
+    capacity = IntegerField('Capacity', render_kw={'min': 1, 'required': True})
+    min_capacity = IntegerField('Min Capacity', render_kw={'min': 1, 'required': True})
+    description = TextAreaField('Description (Left)')
+    description_right = TextAreaField('Description (Right)')
+    footnote = StringField('Footnote')
+    active = SelectBooleanField('Active', widget=Select())
+    # Choices depend on the row being edited (a type can't follow itself,
+    # and types that already follow another aren't offered), so the
+    # handler fills them in per-request after load_forms.
+    connects_to_type_id = SelectField(
+        'Follows this room type', coerce=str,
+        choices=[('', '(None - standalone room type)')])
+    connector_quantity = IntegerField('Quantity per parent', render_kw={'min': 1})
+
+
+class HotelInventoryConfig(MagForm):
+    admin_desc = True
+    dynamic_choices_fields = {
+        'hotel_id': _select_hotel_choices,
+        'room_type_id': lambda: _select_room_type_choices(is_suite=False),
+        'suite_type_id': lambda: _select_room_type_choices(is_suite=True),
+    }
+
+    hotel_id = SelectField('Hotel', coerce=str, choices=[], render_kw={'required': True})
+    is_suite = SelectBooleanField(
+        'Is Suite?', widget=Select(),
+        choices=[('false', 'No (Standard Room)'), ('true', 'Yes (Suite)')],
+        render_kw={'onchange': 'toggleTypeFields()'})
+    room_type_id = SelectField('Room Type', coerce=str, choices=[])
+    suite_type_id = SelectField('Suite Type', coerce=str, choices=[])
+    name = StringField('Display Name', render_kw={'required': True})
+    quantity = IntegerField(
+        'Default Quantity',
+        description='Fallback quantity when per-night quantities are not set.',
+        render_kw={'min': 0, 'required': True})
+    capacity = IntegerField('Capacity', render_kw={'min': 1, 'required': True})
+    min_capacity = IntegerField('Min Capacity', render_kw={'min': 1, 'required': True})
+    info_url = URLField(
+        'Info Page URL',
+        description='Link to an informational page about this room type (photos, amenities, etc). '
+                    'Shown to attendees on their room assignment.',
+        render_kw={'placeholder': 'https://example.com/room-details'})
+    price = StringField('Price', render_kw={'placeholder': 'e.g., $199/night'})
+    staff_price = StringField('Staff Price', render_kw={'placeholder': 'e.g., $149/night'})
+    vault_reference = StringField(
+        'Vault Reference',
+        description='PCI Vault reference used to group cards for this hotel. '
+                    'All room types in the same hotel should share the same reference.',
+        render_kw={'placeholder': 'e.g., gaylord-national'})
+    active = SelectBooleanField('Active', widget=Select())
+
+
+class InventoryPartitionConfig(MagForm):
+    admin_desc = True
+
+    name = StringField('Name', render_kw={'required': True})
+    description = TextAreaField('Description', render_kw={'rows': 2})
+    active = SelectBooleanField('Active', widget=Select())
+
+
+class WaitlistRevealConfig(MagForm):
+    admin_desc = True
+
+    name = StringField(
+        'Name', description='Internal label, shown in the email subject and admin list.',
+        render_kw={'required': True})
+    external_url = URLField(
+        'External Booking URL', description='Where attendees go after the reveal time.',
+        render_kw={'required': True})
+    reveal_at = EventTimeStringField(
+        'Reveal At',
+        description='In event timezone. Leave blank to keep this reveal hidden until set.',
+        render_kw={'placeholder': 'YYYY-MM-DD HH:MM'})
+    audience_description = TextAreaField(
+        'Audience Description',
+        description='Shown to the attendee on the reveal page above the countdown. Optional.',
+        render_kw={'rows': 2})
+    active = BooleanField('Active')

@@ -175,11 +175,7 @@
   {% set _is_connector = ra and ra.parent_assignment_id %}
   {{ _inv.hotel.name if _inv and _inv.hotel else '?' }}
   <small class="d-block text-muted">
-    {% if _inv and _inv.is_suite %}
-      {{ _inv.suite_type.name if _inv.suite_type else _inv.name }}
-    {% elif _inv %}
-      {{ _inv.room_type.name if _inv.room_type else _inv.name }}
-    {% endif %}
+    {% if _inv %}{{ _inv.display_name }}{% endif %}
     {% if _is_connector %}{{ connector_chip() }}{% endif %}
   </small>
 {% endmacro %}

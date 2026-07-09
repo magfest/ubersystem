@@ -1,19 +1,11 @@
+{% import 'emails/hotel/_room_summary.html' as room_summary_macros with context %}
 {{ attendee.first_name }},
 
 Your hotel reservation for {{ c.EVENT_NAME_AND_YEAR }} has a new confirmation number on file.
 
-<ul>
-  <li><strong>Hotel</strong>:
-    {% if assignment.inventory and assignment.inventory.hotel %}{{ assignment.inventory.hotel.name }}{% else %}-{% endif %}
-  </li>
-  {% if assignment.assigned_check_in_date %}
-  <li><strong>Check-in</strong>: {{ assignment.assigned_check_in_date|date("%A, %B %-d, %Y") }}</li>
-  {% endif %}
-  {% if assignment.assigned_check_out_date %}
-  <li><strong>Check-out</strong>: {{ assignment.assigned_check_out_date|date("%A, %B %-d, %Y") }}</li>
-  {% endif %}
+{% call room_summary_macros.room_summary(assignment, date_fmt="%A, %B %-d, %Y", split_dates=True) %}
   <li><strong>Confirmation #</strong>: <code>{{ assignment.hotel_confirmation_number }}</code></li>
-</ul>
+{% endcall %}
 
 If you weren't expecting this update, please reply to this email so we can sort it out.
 
