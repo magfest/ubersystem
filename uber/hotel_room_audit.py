@@ -136,6 +136,15 @@ def build_audit_context(session):
     ci_start = c.HOTEL_LOTTERY_CHECKIN_START.date() if c.HOTEL_LOTTERY_CHECKIN_START else None
     co_end = c.HOTEL_LOTTERY_CHECKOUT_END.date() if c.HOTEL_LOTTERY_CHECKOUT_END else None
 
+    # Physical-room catalog: rooms by id, and live assignments grouped by
+    # physical room for the double-booking scan.
+    from uber.models.hotel import PhysicalRoom
+    physical_rooms = {r.id: r for r in session.query(PhysicalRoom).all()}
+    live_by_physical = defaultdict(list)
+    for ra in live:
+        if ra.physical_room_id:
+            live_by_physical[ra.physical_room_id].append(ra)
+
     return {
         'session': session,
         'live': live,
@@ -152,6 +161,8 @@ def build_audit_context(session):
         'awarded_apps': awarded_apps,
         'ci_start': ci_start,
         'co_end': co_end,
+        'physical_rooms': physical_rooms,
+        'live_by_physical': live_by_physical,
     }
 
 
@@ -648,6 +659,91 @@ def check_connector_capacity(ctx):
 # into a separate list so the template can put them on their own tab.
 # Order matters only for display: per-assignment groups list their
 # issues in registry order.
+
+def check_physical_double_booked(ctx):
+    """physical_double_booked: two live assignments on the same physical
+    room with overlapping nights (checkout day exclusive, so back-to-back
+    turnover is fine)."""
+    issues = []
+    for room_id, ras in ctx['live_by_physical'].items():
+        if len(ras) < 2:
+            continue
+        room = ctx['physical_rooms'].get(room_id)
+        number = room.room_number if room else '?'
+        dated = [ra for ra in ras
+                 if ra.assigned_check_in_date and ra.assigned_check_out_date]
+        for i, a in enumerate(dated):
+            for b in dated[i + 1:]:
+                if (a.assigned_check_in_date < b.assigned_check_out_date
+                        and b.assigned_check_in_date < a.assigned_check_out_date):
+                    issues.append(_room_issue(
+                        'error', 'physical_double_booked',
+                        f"Physical room {number} is double-booked "
+                        f"({a.assigned_check_in_date}->{a.assigned_check_out_date} "
+                        f"overlaps {b.assigned_check_in_date}->"
+                        f"{b.assigned_check_out_date}).",
+                        a, fix_url=_fix_url_for(a)))
+    return issues
+
+
+def check_physical_block_mismatch(ctx):
+    """physical_block_mismatch: an assignment whose physical room belongs
+    to a different inventory block than the assignment itself - the guest
+    would get a different room category than they were awarded."""
+    issues = []
+    for ra in ctx['live']:
+        if not ra.physical_room_id:
+            continue
+        room = ctx['physical_rooms'].get(ra.physical_room_id)
+        if room and room.inventory_id and ra.inventory_id \
+                and room.inventory_id != ra.inventory_id:
+            issues.append(_room_issue(
+                'warning', 'physical_block_mismatch',
+                f"Physical room {room.room_number} is in a different "
+                f"inventory block than this booking.",
+                ra, fix_url=_fix_url_for(ra)))
+    return issues
+
+
+def check_physical_catalog_counts(ctx):
+    """catalog_count_mismatch: for blocks that HAVE a physical-room
+    catalog, the in-service room count differs from the block quantity.
+    Quantities are deliberately independent of the catalog - this is an
+    advisory warning, not an enforcement."""
+    issues = []
+    per_block = defaultdict(int)
+    for room in ctx['physical_rooms'].values():
+        if room.inventory_id and not room.out_of_service:
+            per_block[room.inventory_id] += 1
+    for inv in ctx['all_inventory']:
+        count = per_block.get(inv.id)
+        if count is not None and count != inv.quantity:
+            issues.append(_inv_issue(
+                'warning', 'catalog_count_mismatch',
+                f"Block quantity is {inv.quantity} but the physical-room "
+                f"catalog has {count} in-service room(s).",
+                inventory=inv,
+                fix_url=f'physical_rooms?hotel_id={inv.hotel_id}'))
+    return issues
+
+
+def check_physical_room_wrong_hotel(ctx):
+    """physical_room_wrong_hotel: a physical room categorized into an
+    inventory block that belongs to a different hotel."""
+    issues = []
+    inv_by_id = {inv.id: inv for inv in ctx['all_inventory']}
+    for room in ctx['physical_rooms'].values():
+        inv = inv_by_id.get(room.inventory_id) if room.inventory_id else None
+        if inv and inv.hotel_id and inv.hotel_id != room.hotel_id:
+            issues.append(_inv_issue(
+                'error', 'physical_room_wrong_hotel',
+                f"Physical room {room.room_number} belongs to a block at a "
+                f"different hotel.",
+                inventory=inv,
+                fix_url=f'edit_physical_room?id={room.id}'))
+    return issues
+
+
 ROOM_CHECKS = [
     check_orphan_connectors,
     check_assignment_dates,
@@ -656,11 +752,15 @@ ROOM_CHECKS = [
     check_childless_parents,
     check_status_mismatch,
     check_double_booked,
+    check_physical_double_booked,
+    check_physical_block_mismatch,
 ]
 
 INVENTORY_CHECKS = [
     check_inventory_blocks,
     check_connector_capacity,
+    check_physical_catalog_counts,
+    check_physical_room_wrong_hotel,
 ]
 
 

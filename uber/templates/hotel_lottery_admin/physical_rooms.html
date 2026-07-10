@@ -1,0 +1,157 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% import 'hotel_lottery_admin/_macros.html' as hotel_macros with context %}
+{% block title %}Physical Rooms{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+{% include 'hotel_lottery_admin/inventory_subnav.html' %}
+
+<h2>Physical Rooms</h2>
+<p class="text-muted">
+  The per-hotel catalog of real rooms: each room's number, floor,
+  sellable block, ADA flag, and connecting doors. Optional per hotel -
+  block quantities stay independent of the catalog (the room-issues page
+  flags mismatches). The <a href="room_board">Rooming Board</a> places
+  bookings onto these rooms.
+</p>
+
+<form method="get" action="physical_rooms" class="row g-2 align-items-end mb-3" style="max-width: 480px;">
+  <div class="col-8">
+    <label class="form-label small mb-1">Hotel</label>
+    <select class="form-select form-select-sm" name="hotel_id" onchange="this.form.submit()">
+      <option value="">- Pick a hotel -</option>
+      {% for h in hotels %}
+      <option value="{{ h.id }}" {% if hotel and hotel.id == h.id %}selected{% endif %}>{{ h.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-4">
+    <noscript><button type="submit" class="btn btn-sm btn-primary">Go</button></noscript>
+  </div>
+</form>
+
+{% if hotel %}
+
+<div class="d-flex gap-2 mb-3">
+  <a class="btn btn-sm btn-primary" href="edit_physical_room?hotel_id={{ hotel.id }}">
+    <i class="fa fa-plus"></i> Add Room
+  </a>
+  <a class="btn btn-sm btn-outline-primary" href="import_physical_rooms?hotel_id={{ hotel.id }}">
+    Import Spreadsheet
+  </a>
+  <a class="btn btn-sm btn-outline-secondary" href="../hotel_lottery_admin/front_desk_csv?hotel_id={{ hotel.id }}">
+    Front Desk CSV
+  </a>
+  <span class="ms-auto text-muted small align-self-center">{{ total_rooms }} room(s) catalogued</span>
+</div>
+
+<details class="mb-3">
+  <summary class="btn btn-sm btn-outline-primary">+ Bulk add rooms</summary>
+  <form method="post" action="bulk_add_physical_rooms" class="card card-body mt-2" style="max-width: 900px;">
+    {{ csrf_token() }}
+    <input type="hidden" name="hotel_id" value="{{ hotel.id }}" />
+    <div class="row g-2 align-items-end">
+      <div class="col-md-2">
+        <label class="form-label small">Floor</label>
+        <input type="text" class="form-control form-control-sm" name="floor" placeholder="4" />
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small">Number prefix</label>
+        <input type="text" class="form-control form-control-sm" name="prefix" placeholder="4" />
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small">Start</label>
+        <input type="number" class="form-control form-control-sm" name="start" value="1" required />
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small">End</label>
+        <input type="number" class="form-control form-control-sm" name="end" value="40" required />
+      </div>
+      <div class="col-md-1">
+        <label class="form-label small">Zero-pad</label>
+        <input type="number" class="form-control form-control-sm" name="pad" value="2" min="0" max="6" />
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small">Block</label>
+        <select class="form-select form-select-sm" name="inventory_id">
+          <option value="">(uncategorized)</option>
+          {% for inv in blocks %}
+          <option value="{{ inv.id }}">{{ inv.display_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="form-text small">
+      Example: floor 4, prefix 4, 1&ndash;40, pad 2 creates rooms 401&ndash;440.
+      Numbers that already exist are skipped.
+    </div>
+    <div><button type="submit" class="btn btn-sm btn-primary mt-2">Create Rooms</button></div>
+  </form>
+</details>
+
+{% if not floors %}
+<div class="card card-body text-center text-muted">
+  No rooms catalogued for {{ hotel.name }} yet - add some above or import a spreadsheet.
+</div>
+{% endif %}
+
+{% for floor, rooms in floors %}
+<div class="card mb-3">
+  <div class="card-header py-2">
+    <strong>Floor {{ floor or '(none)' }}</strong>
+    <span class="text-muted small ms-2">{{ rooms|length }} room(s)</span>
+  </div>
+  <div class="card-body py-2">
+    <table class="table table-sm table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Room</th>
+          <th>Block</th>
+          <th>Flags</th>
+          <th>Connects To</th>
+          <th>Current Booking</th>
+          <th>Notes</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for room in rooms %}
+        <tr{% if room.out_of_service %} class="table-secondary"{% endif %}>
+          <td><strong>{{ room.room_number }}</strong></td>
+          <td>
+            {% if room.inventory %}{{ room.inventory.display_name }}
+            {% else %}<span class="badge bg-warning text-dark">uncategorized</span>{% endif %}
+          </td>
+          <td>
+            {% if room.ada %}<span class="badge bg-info text-dark">ADA</span>{% endif %}
+            {% if room.out_of_service %}<span class="badge bg-secondary">out of service</span>{% endif %}
+          </td>
+          <td class="small">{{ connections.get(room.id, [])|join(', ') or '-' }}</td>
+          <td class="small">
+            {% for ra in bookings.get(room.id, []) %}
+              {{ hotel_macros.attendee_cell(ra.attendee, show_email=False) }}
+              <span class="text-muted">{{ ra.assigned_check_in_date or '?' }} &rarr; {{ ra.assigned_check_out_date or '?' }}</span>
+              {% if not loop.last %}<br/>{% endif %}
+            {% else %}<span class="text-muted">vacant</span>{% endfor %}
+          </td>
+          <td class="small text-muted">{{ room.notes }}</td>
+          <td class="text-end" style="white-space: nowrap;">
+            <a class="btn btn-sm btn-outline-primary" href="edit_physical_room?id={{ room.id }}">Edit</a>
+            <form method="post" action="delete_physical_room" class="d-inline"
+                  onsubmit="return confirm('Delete room {{ room.room_number }}? Its connection edges go with it.');">
+              {{ csrf_token() }}
+              <input type="hidden" name="id" value="{{ room.id }}" />
+              <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endfor %}
+
+{% endif %}
+
+{% endblock content %}

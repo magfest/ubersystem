@@ -590,6 +590,30 @@ def _room_issues_url(message='', severity='all', kind='all', search='',
     return 'room_issues' + ('?' + qs if qs else '')
 
 
+
+def _validate_physical_room(session, ra, room):
+    """Why a physical room can't take this booking, or None if it can."""
+    from uber.hotel_room_queries import physical_room_conflicts
+
+    inv = ra.inventory
+    if not inv or not inv.hotel_id:
+        return 'This booking has no inventory block, so no hotel to match.'
+    if room.hotel_id != inv.hotel_id:
+        return (f'Room {room.room_number} is at a different hotel than '
+                'this booking.')
+    if room.out_of_service:
+        return f'Room {room.room_number} is out of service.'
+    conflicts = physical_room_conflicts(
+        session, room.id, ra.assigned_check_in_date,
+        ra.assigned_check_out_date, exclude_assignment_id=ra.id)
+    if conflicts:
+        other = conflicts[0]
+        return (f'Room {room.room_number} is already booked '
+                f'{other.assigned_check_in_date} -> '
+                f'{other.assigned_check_out_date}.')
+    return None
+
+
 @all_renderable()
 class Root:
     def index(self, session, message='', page='0', search_text='', order='status', **params):
@@ -2134,6 +2158,346 @@ class Root:
 
         return preview
 
+    # ------------------------------------------------------------------
+    # Physical-room catalog: the per-hotel map of real rooms
+    # (PhysicalRoom / PhysicalRoomConnection). Logic in uber.hotel_physical.
+    # ------------------------------------------------------------------
+
+    def physical_rooms(self, session, hotel_id='', message=''):
+        """Per-hotel catalog of physical rooms, grouped by floor."""
+        from uber import hotel_physical
+
+        picker = _picker_context(session)
+        hotels = picker['hotels']
+        hotel = None
+        if hotel_id:
+            hotel = session.query(LotteryHotel).get(hotel_id)
+        elif len(hotels) == 1:
+            hotel = hotels[0]
+
+        floors, connections, bookings, blocks = [], {}, {}, []
+        if hotel:
+            floors = hotel_physical.rooms_by_floor(session, hotel.id)
+            connections = hotel_physical.connection_map(session, hotel.id)
+            bookings = hotel_physical.live_bookings_by_room(session, hotel.id)
+            blocks = [inv for inv in picker['inventory_blocks']
+                      if inv.hotel_id == hotel.id]
+
+        return {
+            'message': message,
+            'hotels': hotels,
+            'hotel': hotel,
+            'floors': floors,
+            'connections': connections,
+            'bookings': bookings,
+            'blocks': blocks,
+            'total_rooms': sum(len(rooms) for _, rooms in floors),
+        }
+
+    def edit_physical_room(self, session, id=None, hotel_id='', message='',
+                           **params):
+        """Create or edit one PhysicalRoom, including its connections."""
+        from uber import hotel_physical
+        from uber.models.hotel import PhysicalRoom
+
+        if id in [None, '', 'None']:
+            room = PhysicalRoom()
+            if hotel_id:
+                room.hotel_id = hotel_id
+        else:
+            room = session.physical_room(id)
+
+        forms = load_forms(params, room, ['PhysicalRoomConfig'])
+
+        if cherrypy.request.method == 'POST':
+            check_csrf(params.get('csrf_token'))
+            for form in forms.values():
+                form.populate_obj(room, is_admin=True)
+            room.inventory_id = room.inventory_id or None
+            if not (room.hotel_id and (room.room_number or '').strip()):
+                message = 'Hotel and room number are required.'
+            else:
+                room.room_number = room.room_number.strip()
+                duplicate = session.query(PhysicalRoom).filter(
+                    PhysicalRoom.hotel_id == room.hotel_id,
+                    PhysicalRoom.room_number == room.room_number,
+                    PhysicalRoom.id != room.id).first()
+                if duplicate:
+                    message = (f'Room {room.room_number} already exists '
+                               'at this hotel.')
+            if not message:
+                session.add(room)
+                session.flush()
+                connects = (params.get('connects_to') or '').split(',')
+                error = hotel_physical.set_connections(session, room, connects)
+                if error:
+                    session.rollback()
+                    message = error
+                else:
+                    session.commit()
+                    raise HTTPRedirect('physical_rooms?hotel_id={}&message={}',
+                                       room.hotel_id,
+                                       f'Room {room.room_number} saved.')
+
+        from uber.hotel_physical import connection_map
+        current_connections = ''
+        if not room.is_new:
+            current_connections = ', '.join(
+                connection_map(session, room.hotel_id).get(room.id, []))
+
+        return {
+            'room': room,
+            'forms': forms,
+            'connects_to': params.get('connects_to', current_connections),
+            'message': message,
+        }
+
+    def delete_physical_room(self, session, id, csrf_token=None):
+        from uber.models.hotel import PhysicalRoom
+        if cherrypy.request.method != 'POST':
+            raise HTTPRedirect('physical_rooms')
+        check_csrf(csrf_token)
+        room = session.query(PhysicalRoom).get(id)
+        if not room:
+            raise HTTPRedirect('physical_rooms?message={}', 'Room not found.')
+        live = session.query(RoomAssignment).filter(
+            RoomAssignment.physical_room_id == room.id,
+            RoomAssignment.is_live).count()
+        if live:
+            raise HTTPRedirect(
+                'physical_rooms?hotel_id={}&message={}', room.hotel_id,
+                f'Room {room.room_number} has {live} live booking(s) - '
+                'unassign them first.')
+        hotel_id, number = room.hotel_id, room.room_number
+        session.delete(room)  # connection edges cascade via FK
+        session.commit()
+        raise HTTPRedirect('physical_rooms?hotel_id={}&message={}',
+                           hotel_id, f'Room {number} deleted.')
+
+    def bulk_add_physical_rooms(self, session, hotel_id, floor='',
+                                prefix='', start='', end='', pad='0',
+                                inventory_id='', csrf_token=None):
+        from uber import hotel_physical
+        if cherrypy.request.method != 'POST':
+            raise HTTPRedirect('physical_rooms?hotel_id={}', hotel_id)
+        check_csrf(csrf_token)
+        try:
+            start_n, end_n = int(start), int(end)
+            pad_n = int(pad or 0)
+        except (TypeError, ValueError):
+            raise HTTPRedirect('physical_rooms?hotel_id={}&message={}',
+                               hotel_id, 'Start, end, and pad must be numbers.')
+        if end_n < start_n or end_n - start_n > 999:
+            raise HTTPRedirect('physical_rooms?hotel_id={}&message={}',
+                               hotel_id,
+                               'End must be >= start (max 1000 rooms per add).')
+        created, skipped = hotel_physical.bulk_add_rooms(
+            session, hotel_id, floor, start_n, end_n,
+            prefix=prefix.strip(), pad=pad_n, inventory_id=inventory_id or None)
+        session.commit()
+        raise HTTPRedirect(
+            'physical_rooms?hotel_id={}&message={}', hotel_id,
+            f'{created} room(s) created, {skipped} already existed.')
+
+    def import_physical_rooms(self, session, hotel_id='', message='', **params):
+        """Spreadsheet import for the physical-room catalog. Two-step
+        preview/apply like the confirmation imports; CSV and XLSX via the
+        shared parser. Re-imports update rooms in place (keyed by
+        room_number within the hotel)."""
+        from uber import hotel_physical
+        from uber.hotel_imports import parse_spreadsheet
+
+        if cherrypy.request.method == 'POST':
+            check_csrf(params.get('csrf_token'))
+
+        picker = _picker_context(session)
+        hotel = session.query(LotteryHotel).get(hotel_id) if hotel_id else None
+        preview = None
+        applied = False
+
+        upload = params.get('import_file')
+        if hotel and upload is not None and getattr(upload, 'file', None):
+            raw = upload.file.read()
+            fieldnames, rows, parse_error = parse_spreadsheet(
+                raw, getattr(upload, 'filename', ''))
+            if parse_error:
+                message = parse_error
+            elif 'room_number' not in (fieldnames or []):
+                message = 'The file needs a room_number column.'
+            else:
+                blocks = [inv for inv in picker['inventory_blocks']
+                          if inv.hotel_id == hotel.id]
+                apply_changes = params.get('apply') == 'true'
+                preview = hotel_physical.import_rows(
+                    session, hotel, blocks, rows,
+                    apply_changes=apply_changes)
+                if apply_changes and not preview['errors']:
+                    session.commit()
+                    applied = True
+                    message = (f"Imported {len(preview['created'])} new and "
+                               f"{len(preview['updated'])} updated room(s).")
+
+        return {
+            'message': message,
+            'hotels': picker['hotels'],
+            'hotel': hotel,
+            'preview': preview,
+            'applied': applied,
+        }
+
+    # ------------------------------------------------------------------
+    # Rooming board: place bookings onto physical rooms.
+    # ------------------------------------------------------------------
+
+    def room_board(self, session, hotel_id='', message=''):
+        """Per-hotel assignment board: unroomed live bookings on top,
+        the catalog by floor (with current occupants) below."""
+        from uber import hotel_physical
+        from uber.hotel_room_queries import vacant_physical_rooms
+
+        picker = _picker_context(session)
+        hotels = picker['hotels']
+        hotel = session.query(LotteryHotel).get(hotel_id) if hotel_id else (
+            hotels[0] if len(hotels) == 1 else None)
+
+        floors, connections, bookings_by_room = [], {}, {}
+        unroomed = []
+        if hotel:
+            floors = hotel_physical.rooms_by_floor(session, hotel.id)
+            connections = hotel_physical.connection_map(session, hotel.id)
+            bookings_by_room = hotel_physical.live_bookings_by_room(
+                session, hotel.id)
+            hotel_inv_ids = [inv.id for inv in picker['inventory_blocks']
+                             if inv.hotel_id == hotel.id]
+            if hotel_inv_ids:
+                pending = (session.query(RoomAssignment).filter(
+                    RoomAssignment.physical_room_id.is_(None),
+                    RoomAssignment.is_live,
+                    RoomAssignment.inventory_id.in_(hotel_inv_ids))
+                    .order_by(
+                        RoomAssignment.assigned_check_in_date.asc().nullsfirst(),
+                        RoomAssignment.created.asc()).all())
+                for ra in pending:
+                    options = vacant_physical_rooms(
+                        session, hotel.id, ra.assigned_check_in_date,
+                        ra.assigned_check_out_date,
+                        inventory_id=ra.inventory_id)
+                    unroomed.append({'ra': ra, 'options': options})
+
+        return {
+            'message': message,
+            'hotels': hotels,
+            'hotel': hotel,
+            'floors': floors,
+            'connections': connections,
+            'bookings': bookings_by_room,
+            'unroomed': unroomed,
+        }
+
+    def board_assign(self, session, assignment_id, physical_room_id,
+                     hotel_id='', csrf_token=None):
+        from uber.hotel_room_queries import physical_room_conflicts
+        from uber.models.hotel import PhysicalRoom
+        if cherrypy.request.method != 'POST':
+            raise HTTPRedirect('room_board?hotel_id={}', hotel_id)
+        check_csrf(csrf_token)
+        ra = session.query(RoomAssignment).get(assignment_id)
+        room = session.query(PhysicalRoom).get(physical_room_id)
+        if not ra or not room:
+            raise HTTPRedirect('room_board?hotel_id={}&message={}',
+                               hotel_id, 'Booking or room not found.')
+        error = _validate_physical_room(session, ra, room)
+        if error:
+            raise HTTPRedirect('room_board?hotel_id={}&message={}',
+                               hotel_id or room.hotel_id, error)
+        ra.physical_room_id = room.id
+        session.add(ra)
+        session.commit()
+        raise HTTPRedirect(
+            'room_board?hotel_id={}&message={}', hotel_id or room.hotel_id,
+            f'Room {room.room_number} assigned.')
+
+    def board_unassign(self, session, assignment_id, hotel_id='',
+                       csrf_token=None):
+        if cherrypy.request.method != 'POST':
+            raise HTTPRedirect('room_board?hotel_id={}', hotel_id)
+        check_csrf(csrf_token)
+        ra = session.query(RoomAssignment).get(assignment_id)
+        if not ra:
+            raise HTTPRedirect('room_board?hotel_id={}&message={}',
+                               hotel_id, 'Booking not found.')
+        ra.physical_room_id = None
+        session.add(ra)
+        session.commit()
+        raise HTTPRedirect('room_board?hotel_id={}&message={}', hotel_id,
+                           'Physical room unassigned (the room number text '
+                           'is kept for reference).')
+
+    def auto_assign_physical(self, session, hotel_id, csrf_token=None):
+        from uber import hotel_physical
+        if cherrypy.request.method != 'POST':
+            raise HTTPRedirect('room_board?hotel_id={}', hotel_id)
+        check_csrf(csrf_token)
+        result = hotel_physical.auto_assign_physical_rooms(session, hotel_id)
+        msg = f"Auto-assigned {result['assigned']} booking(s)."
+        if result['skipped']:
+            msg += f" {len(result['skipped'])} could not be placed."
+        raise HTTPRedirect('room_board?hotel_id={}&message={}', hotel_id, msg)
+
+    def clear_physical_assignments(self, session, hotel_id, csrf_token=None):
+        from uber.models.hotel import PhysicalRoom
+        if cherrypy.request.method != 'POST':
+            raise HTTPRedirect('room_board?hotel_id={}', hotel_id)
+        check_csrf(csrf_token)
+        room_ids = [r.id for r in session.query(PhysicalRoom.id)
+                    .filter_by(hotel_id=hotel_id).all()]
+        cleared = 0
+        if room_ids:
+            for ra in session.query(RoomAssignment).filter(
+                    RoomAssignment.physical_room_id.in_(room_ids),
+                    RoomAssignment.is_live).all():
+                ra.physical_room_id = None
+                session.add(ra)
+                cleared += 1
+            session.commit()
+        raise HTTPRedirect('room_board?hotel_id={}&message={}', hotel_id,
+                           f'Cleared {cleared} physical assignment(s).')
+
+    @csv_file
+    def front_desk_csv(self, out, session, hotel_id):
+        """Front-desk / housekeeping export: every catalogued room in
+        floor order with its current booking, for handing to the hotel.
+        They may reassign at check-in; we don't get that back."""
+        from uber import hotel_physical
+        out.writerow(['floor', 'room_number', 'block', 'ada',
+                      'out_of_service', 'status', 'guest_first_name',
+                      'guest_last_name', 'check_in', 'check_out',
+                      'hotel_confirmation_number', 'notes'])
+        bookings = hotel_physical.live_bookings_by_room(session, hotel_id)
+        for floor, rooms in hotel_physical.rooms_by_floor(session, hotel_id):
+            for room in rooms:
+                ras = bookings.get(room.id, [])
+                if not ras:
+                    out.writerow([floor, room.room_number,
+                                  room.inventory.display_name if room.inventory else '',
+                                  'yes' if room.ada else '',
+                                  'yes' if room.out_of_service else '',
+                                  'vacant', '', '', '', '', '', room.notes])
+                for ra in ras:
+                    att = ra.attendee
+                    out.writerow([
+                        floor, room.room_number,
+                        room.inventory.display_name if room.inventory else '',
+                        'yes' if room.ada else '',
+                        'yes' if room.out_of_service else '',
+                        ra.status_label,
+                        att.effective_hotel_first_name if att else '',
+                        att.effective_hotel_last_name if att else '',
+                        ra.assigned_check_in_date or '',
+                        ra.assigned_check_out_date or '',
+                        ra.hotel_confirmation_number or '',
+                        room.notes])
+
     def _import_hotel_numbers(self, session, kind, message='', **params):
         """Shared implementation behind import_hotel_confirmations and
         import_hotel_cancellations.
@@ -2892,6 +3256,22 @@ class Root:
             if new_status != ra.status:
                 changes.append('status'); ra.status = new_status
 
+        if 'physical_room_id' in params:
+            from uber.models.hotel import PhysicalRoom
+            new_room_id = params.get('physical_room_id', '').strip() or None
+            if new_room_id != (ra.physical_room_id or None):
+                if new_room_id:
+                    room = session.query(PhysicalRoom).get(new_room_id)
+                    if not room:
+                        fail('Physical room not found.')
+                    error = _validate_physical_room(session, ra, room)
+                    if error:
+                        fail(error)
+                # Unlinking keeps the room_number text for reference; the
+                # presave re-stamps it whenever a room is linked.
+                changes.append('physical room')
+                ra.physical_room_id = new_room_id
+
         for field, nullable in (('hotel_confirmation_number', True),
                                 ('cancellation_confirmation_number', True),
                                 ('room_number', True),
@@ -2995,11 +3375,13 @@ class Root:
             inventory_partitions_map.setdefault(
                 str(pb.inventory_id), []).append(str(pb.partition_id))
 
+        from uber import hotel_physical
         return {
             'assignment': ra,
             'partitions': picker['partitions'],
             'inventory_blocks': picker['inventory_blocks'],
             'inventory_partitions_map': inventory_partitions_map,
+            'assignable_rooms': hotel_physical.assignable_rooms(session, ra),
             'message': message,
         }
 

@@ -12,7 +12,7 @@ from uber.model_checks import invalid_phone_number
 
 __all__ = ['LotteryInfo', 'LotteryConfirm', 'LotteryRoomGroup', 'RoomLottery', 'SuiteLottery', 'LotteryAdminInfo',
            'LotteryHotelConfig', 'LotteryRoomTypeConfig', 'HotelInventoryConfig', 'InventoryPartitionConfig',
-           'WaitlistRevealConfig']
+           'WaitlistRevealConfig', 'PhysicalRoomConfig']
 
 
 def html_format_date(dt):
@@ -383,3 +383,40 @@ class WaitlistRevealConfig(MagForm):
         description='Shown to the attendee on the reveal page above the countdown. Optional.',
         render_kw={'rows': 2})
     active = BooleanField('Active')
+
+
+def _select_inventory_choices():
+    from uber.models import Session
+    from uber.models.hotel import HotelRoomInventory
+    with Session() as session:
+        rows = session.query(HotelRoomInventory).filter_by(
+            active=True).order_by(HotelRoomInventory.name).all()
+        return [('', '-- Uncategorized --')] + [
+            (str(inv.id),
+             f'{inv.hotel.name if inv.hotel else "?"} - {inv.display_name}')
+            for inv in rows]
+
+
+class PhysicalRoomConfig(MagForm):
+    admin_desc = True
+    dynamic_choices_fields = {
+        'hotel_id': _select_hotel_choices,
+        'inventory_id': _select_inventory_choices,
+    }
+
+    hotel_id = SelectField('Hotel', coerce=str, choices=[],
+                           render_kw={'required': True})
+    inventory_id = SelectField(
+        'Inventory Block', coerce=str, choices=[],
+        description='Which sellable block this room belongs to. '
+                    'Uncategorized rooms are excluded from assignment.')
+    room_number = StringField('Room Number', render_kw={'required': True})
+    floor = StringField(
+        'Floor', description='Free text - hotels have floors like "M" and "PH".')
+    ada = SelectBooleanField(
+        'ADA Accessible', widget=Select(),
+        choices=[('false', 'No'), ('true', 'Yes')])
+    out_of_service = SelectBooleanField(
+        'Out of Service', widget=Select(),
+        choices=[('false', 'No'), ('true', 'Yes (never assign)')])
+    notes = TextAreaField('Notes', render_kw={'rows': 2})

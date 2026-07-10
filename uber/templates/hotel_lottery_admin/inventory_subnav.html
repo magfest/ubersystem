@@ -34,6 +34,14 @@
        href="/hotel_lottery_admin/manage_partitions">Partitions</a>
   </li>
   <li class="nav-item">
+    <a class="nav-link{% if ('physical_rooms' in c.PAGE_PATH) or ('edit_physical_room' in c.PAGE_PATH) %} active{% endif %}"
+       href="/hotel_lottery_admin/physical_rooms">Physical Rooms</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link{% if 'room_board' in c.PAGE_PATH %} active{% endif %}"
+       href="/hotel_lottery_admin/room_board">Rooming Board</a>
+  </li>
+  <li class="nav-item">
     <a class="nav-link{% if c.PAGE_PATH.endswith('/hotel_lottery_admin/waitlist') %} active{% endif %}"
        href="/hotel_lottery_admin/waitlist">Waitlist</a>
   </li>

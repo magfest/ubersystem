@@ -172,3 +172,59 @@ def paginate(query, page, page_size=None,
     else:
         rows = query.offset(offset).limit(size).all()
     return rows, total, page, page_count
+
+
+def physical_room_conflicts(session, physical_room_id, check_in, check_out,
+                            exclude_assignment_id=None):
+    """Live RoomAssignments already occupying a physical room for any night
+    in [check_in, check_out).
+
+    One booking per room per night: two bookings conflict when their date
+    ranges overlap, with checkout day exclusive so back-to-back turnover
+    (A checks out the morning B checks in) is allowed. Assignments with no
+    dates never conflict - they can't be placed on specific nights.
+    """
+    from uber.models.hotel import RoomAssignment
+
+    if not (physical_room_id and check_in and check_out):
+        return []
+    q = session.query(RoomAssignment).filter(
+        RoomAssignment.physical_room_id == physical_room_id,
+        RoomAssignment.is_live,
+        RoomAssignment.assigned_check_in_date.isnot(None),
+        RoomAssignment.assigned_check_out_date.isnot(None),
+        RoomAssignment.assigned_check_in_date < check_out,
+        RoomAssignment.assigned_check_out_date > check_in,
+    )
+    if exclude_assignment_id:
+        q = q.filter(RoomAssignment.id != exclude_assignment_id)
+    return q.all()
+
+
+def vacant_physical_rooms(session, hotel_id, check_in, check_out,
+                          inventory_id=None, ada_only=False):
+    """In-service physical rooms at a hotel with no live booking on any
+    night of [check_in, check_out), optionally limited to one sellable
+    block. Returns rooms in floor/room-number order."""
+    from uber.models.hotel import PhysicalRoom, RoomAssignment
+
+    rooms = session.query(PhysicalRoom).filter(
+        PhysicalRoom.hotel_id == hotel_id,
+        PhysicalRoom.out_of_service.is_(False))
+    if inventory_id:
+        rooms = rooms.filter(PhysicalRoom.inventory_id == inventory_id)
+    if ada_only:
+        rooms = rooms.filter(PhysicalRoom.ada.is_(True))
+    rooms = rooms.all()
+
+    if check_in and check_out:
+        busy = {row[0] for row in session.query(
+            RoomAssignment.physical_room_id).filter(
+            RoomAssignment.physical_room_id.isnot(None),
+            RoomAssignment.is_live,
+            RoomAssignment.assigned_check_in_date.isnot(None),
+            RoomAssignment.assigned_check_out_date.isnot(None),
+            RoomAssignment.assigned_check_in_date < check_out,
+            RoomAssignment.assigned_check_out_date > check_in).all()}
+        rooms = [r for r in rooms if r.id not in busy]
+    return sorted(rooms, key=lambda r: r.sort_key)

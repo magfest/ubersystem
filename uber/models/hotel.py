@@ -27,6 +27,7 @@ __all__ = ['LotteryApplication',
            'HotelRoomInventory', 'InventoryNightQuantity', 'InventoryPartition', 'InventoryPartitionBlock',
            'LotteryRun', 'RoomAssignment', 'RoomAssignmentInvite',
            'PartitionOwner', 'PartitionAuditLog', 'NightShiftRequirement',
+           'PhysicalRoom', 'PhysicalRoomConnection',
            'WaitlistReveal', 'WaitlistRevealLink', 'HotelExportLog', 'HotelImportFile',
            'HotelRoomIssueNote',
            'LotteryHotel', 'LotteryRoomType']
@@ -891,10 +892,19 @@ class RoomAssignment(MagModel, table=True):
     booking_url: str = ''
     hotel_confirmation_number: str | None = Field(nullable=True)
     cancellation_confirmation_number: str | None = Field(nullable=True)
-    # Physical room number at the hotel (usually assigned at or shortly
-    # before check-in). Free text for now; a future physical-room
-    # inventory would source and validate it.
+    # Physical room number at the hotel. Free text when no catalog exists;
+    # stamped from the linked PhysicalRoom when one is assigned (see the
+    # sync_room_number_from_physical presave).
     room_number: str | None = Field(nullable=True)
+
+    # Optional link into the per-hotel physical-room catalog. Exported to
+    # the hotel with the booking; they may reassign at check-in and we
+    # don't receive that back.
+    physical_room_id: str | None = Field(
+        sa_type=Uuid(as_uuid=False), foreign_key='physical_room.id',
+        nullable=True)
+    physical_room: 'PhysicalRoom' = Relationship(
+        sa_relationship_kwargs={'foreign_keys': 'RoomAssignment.physical_room_id'})
     special_requests: str = ''
     hotel_rewards_number: str = ''
 
@@ -1004,6 +1014,14 @@ class RoomAssignment(MagModel, table=True):
             return False
         return (wl_ci < self.assigned_check_in_date
                 or wl_co > self.assigned_check_out_date)
+
+    @presave_adjustment
+    def sync_room_number_from_physical(self):
+        """A linked PhysicalRoom is the source of truth for room_number,
+        so exports and reports keep working off the plain text column
+        whether or not a hotel has a catalog."""
+        if self.physical_room_id and self.physical_room:
+            self.room_number = self.physical_room.room_number
 
     @presave_adjustment
     def clear_waitlist_when_satisfied(self):
@@ -1117,6 +1135,96 @@ class RoomAssignmentInvite(MagModel, table=True):
         sa_relationship_kwargs={'foreign_keys': 'RoomAssignmentInvite.room_assignment_id'})
     invite_token: str = ''
     email: str = ''
+
+
+class PhysicalRoom(MagModel, table=True):
+    """One real room in a hotel building - the physical counterpart to a
+    HotelRoomInventory *block* (which is just a sellable quantity).
+
+    The catalog is optional per hotel: hotels we never fully catalog keep
+    working off free-text RoomAssignment.room_number. Inventory quantities
+    are deliberately NOT derived from the physical count - an audit check
+    flags mismatches instead, since hotels often sell us a block without
+    handing over a complete room list.
+    """
+    __table_args__ = (
+        sa.UniqueConstraint('hotel_id', 'room_number',
+                            name='uq_physical_room_number'),
+    )
+
+    hotel_id: str = Field(
+        sa_type=Uuid(as_uuid=False), foreign_key='lottery_hotel.id',
+        ondelete='CASCADE', nullable=False)
+    hotel: 'LotteryHotel' = Relationship(
+        sa_relationship_kwargs={'foreign_keys': 'PhysicalRoom.hotel_id'})
+
+    # Which sellable block this room belongs to (gives type/price/vault
+    # scope). Nullable = catalogued but not yet categorized.
+    inventory_id: str | None = Field(
+        sa_type=Uuid(as_uuid=False), foreign_key='hotel_room_inventory.id',
+        nullable=True)
+    inventory: 'HotelRoomInventory' = Relationship(
+        sa_relationship_kwargs={'foreign_keys': 'PhysicalRoom.inventory_id'})
+
+    room_number: str = ''
+    floor: str = ''  # free text: hotels have floors like "M" and "PH"
+    ada: bool = False
+    out_of_service: bool = False
+    notes: str = ''
+
+    # Optional per-floor map placement (the visual floor-map editor).
+    map_x: int | None = Field(nullable=True)
+    map_y: int | None = Field(nullable=True)
+
+    @property
+    def connected_rooms(self):
+        """PhysicalRooms joined to this one by a connecting door."""
+        from sqlalchemy import inspect as sa_inspect
+        session = sa_inspect(self).session
+        if not session or not self.id:
+            return []
+        edges = session.query(PhysicalRoomConnection).filter(
+            sa.or_(PhysicalRoomConnection.room_a_id == self.id,
+                   PhysicalRoomConnection.room_b_id == self.id)).all()
+        other_ids = [e.room_b_id if e.room_a_id == self.id else e.room_a_id
+                     for e in edges]
+        if not other_ids:
+            return []
+        return session.query(PhysicalRoom).filter(
+            PhysicalRoom.id.in_(other_ids)).all()
+
+    @property
+    def sort_key(self):
+        """Natural-ish ordering: numeric room numbers sort numerically
+        within a floor, text ones alphabetically after."""
+        num = ''.join(ch for ch in self.room_number if ch.isdigit())
+        return (self.floor, 0 if num else 1,
+                int(num) if num else 0, self.room_number)
+
+
+class PhysicalRoomConnection(MagModel, table=True):
+    """An undirected connecting-door edge between two physical rooms.
+
+    Room ids are normalized so room_a_id < room_b_id, making the pair
+    unique regardless of insertion order.
+    """
+    __table_args__ = (
+        sa.UniqueConstraint('room_a_id', 'room_b_id',
+                            name='uq_physical_room_connection'),
+    )
+
+    room_a_id: str = Field(
+        sa_type=Uuid(as_uuid=False), foreign_key='physical_room.id',
+        ondelete='CASCADE', nullable=False)
+    room_b_id: str = Field(
+        sa_type=Uuid(as_uuid=False), foreign_key='physical_room.id',
+        ondelete='CASCADE', nullable=False)
+
+    @presave_adjustment
+    def normalize_pair(self):
+        if self.room_a_id and self.room_b_id \
+                and str(self.room_a_id) > str(self.room_b_id):
+            self.room_a_id, self.room_b_id = self.room_b_id, self.room_a_id
 
 
 class PartitionOwner(MagModel, table=True):

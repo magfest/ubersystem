@@ -1,0 +1,84 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Import Physical Rooms{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+{% include 'hotel_lottery_admin/inventory_subnav.html' %}
+
+<h2>Import Physical Rooms</h2>
+<p class="text-muted">
+  Upload a CSV or XLSX with the hotel's room list. Headers are
+  case-insensitive; expected columns: <code>room_number</code> (required),
+  <code>floor</code>, <code>type</code> (matched against the hotel's block
+  or room-type names), <code>ada</code>, <code>connects_to</code>
+  (comma-separated room numbers), <code>notes</code>. Rows are keyed by
+  room number, so re-importing updates the catalog in place.
+</p>
+
+<form method="post" action="import_physical_rooms" enctype="multipart/form-data"
+      class="card card-body mb-3" style="max-width: 720px;">
+  {{ csrf_token() }}
+  <div class="row g-2 align-items-end">
+    <div class="col-md-5">
+      <label class="form-label small">Hotel</label>
+      <select class="form-select form-select-sm" name="hotel_id" required>
+        <option value="">- Pick a hotel -</option>
+        {% for h in hotels %}
+        <option value="{{ h.id }}" {% if hotel and hotel.id == h.id %}selected{% endif %}>{{ h.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-5">
+      <label class="form-label small">File (CSV or XLSX)</label>
+      <input type="file" class="form-control form-control-sm" name="import_file"
+             accept=".csv,.xlsx,.xlsm" required />
+    </div>
+    <div class="col-md-2">
+      <button type="submit" class="btn btn-sm btn-primary">Preview</button>
+    </div>
+  </div>
+</form>
+
+{% if preview and not applied %}
+<div class="card card-body mb-3" style="max-width: 720px;">
+  <h4 class="h6">Preview</h4>
+  <ul class="mb-2">
+    <li>{{ preview.created|length }} new room(s): {{ preview.created[:20]|join(', ') }}{% if preview.created|length > 20 %} &hellip;{% endif %}</li>
+    <li>{{ preview.updated|length }} existing room(s) will be updated: {{ preview.updated[:20]|join(', ') }}{% if preview.updated|length > 20 %} &hellip;{% endif %}</li>
+    <li>{{ preview.connections }} connection edge(s) declared</li>
+    {% if preview.uncategorized %}
+    <li class="text-warning">{{ preview.uncategorized|length }} room(s) with an
+      unrecognized type import as <em>uncategorized</em>:
+      {{ preview.uncategorized[:20]|join(', ') }}</li>
+    {% endif %}
+  </ul>
+  {% if preview.errors %}
+  <div class="alert alert-danger mb-2">
+    <strong>Fix these before applying:</strong>
+    <ul class="mb-0">{% for e in preview.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+  </div>
+  {% else %}
+  <form method="post" action="import_physical_rooms" enctype="multipart/form-data">
+    {{ csrf_token() }}
+    <input type="hidden" name="hotel_id" value="{{ hotel.id }}" />
+    <input type="hidden" name="apply" value="true" />
+    <div class="row g-2 align-items-end" style="max-width: 560px;">
+      <div class="col-8">
+        <label class="form-label small">Re-select the same file to apply</label>
+        <input type="file" class="form-control form-control-sm" name="import_file"
+               accept=".csv,.xlsx,.xlsm" required />
+      </div>
+      <div class="col-4">
+        <button type="submit" class="btn btn-sm btn-success">Apply Import</button>
+      </div>
+    </div>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if hotel %}
+<a href="physical_rooms?hotel_id={{ hotel.id }}" class="btn btn-outline-secondary btn-sm">Back to Catalog</a>
+{% endif %}
+
+{% endblock content %}

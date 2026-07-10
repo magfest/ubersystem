@@ -190,11 +190,28 @@
           <div class="form-text small">Setting this flips status to Cancelled.</div>
         </div>
         <div class="col-md-4">
+          <label class="form-label">Physical Room</label>
+          <select class="form-select" name="physical_room_id">
+            <option value="">(none / free text below)</option>
+            {% for r in assignable_rooms %}
+            <option value="{{ r.id }}" {% if ra.physical_room_id == r.id %}selected{% endif %}>
+              {{ r.room_number }}{% if r.floor %} (floor {{ r.floor }}){% endif %}{% if r.ada %} [ADA]{% endif %}
+            </option>
+            {% endfor %}
+          </select>
+          <div class="form-text small">Catalogued rooms in this block,
+            vacant for these dates. Also managed on the
+            <a href="room_board{% if inv and inv.hotel_id %}?hotel_id={{ inv.hotel_id }}{% endif %}">Rooming Board</a>.</div>
+        </div>
+        <div class="col-md-4">
           <label class="form-label">Room Number</label>
           <input type="text" class="form-control" name="room_number"
-                 value="{{ ra.room_number or '' }}" />
-          <div class="form-text small">Physical room at the hotel, usually
-            known at or shortly before check-in.</div>
+                 value="{{ ra.room_number or '' }}"
+                 {% if ra.physical_room_id %}readonly{% endif %} />
+          <div class="form-text small">
+            {% if ra.physical_room_id %}Synced from the linked physical room.
+            {% else %}Free text when no physical room is linked.{% endif %}
+          </div>
         </div>
       </div>
     </div>
