@@ -2334,6 +2334,14 @@ class Root:
                 message = "You don't have permission to edit assignments in this partition."
             elif not picked_attendee or not picked_inventory:
                 message = "Attendee and inventory are required."
+            elif picked_partition and not session.query(
+                    InventoryPartitionBlock).filter_by(
+                    partition_id=picked_partition,
+                    inventory_id=picked_inventory).first():
+                # Server-side twin of the dropdown cascade: a partitioned
+                # assignment must use one of that partition's blocks.
+                message = ("That inventory block is not allocated to the "
+                           "selected partition.")
             else:
                 assignment.attendee_id = picked_attendee
                 assignment.inventory_id = picked_inventory
@@ -2386,11 +2394,47 @@ class Root:
             if prefill_attendee:
                 assignment.attendee_id = prefill_attendee.id
 
+        # Availability per inventory block, per scope: '' keys the main
+        # (unpartitioned) pool, partition ids key their blocks. Simple
+        # live-count accounting (same convention as the partition
+        # dashboard): capacity minus live assignments in that scope.
+        from sqlalchemy import func
+        live = {}
+        for inv_id, part_id, n in (
+                session.query(RoomAssignment.inventory_id,
+                              RoomAssignment.partition_id,
+                              func.count(RoomAssignment.id))
+                .filter(RoomAssignment.is_live,
+                        RoomAssignment.inventory_id.isnot(None))
+                .group_by(RoomAssignment.inventory_id,
+                          RoomAssignment.partition_id)):
+            live[(str(inv_id), str(part_id) if part_id else '')] = n
+
+        block_qty, partitioned_total, inventory_partitions_map = {}, {}, {}
+        for b in session.query(InventoryPartitionBlock).all():
+            iid, pid = str(b.inventory_id), str(b.partition_id)
+            block_qty[(iid, pid)] = b.quantity
+            partitioned_total[iid] = partitioned_total.get(iid, 0) + b.quantity
+            inventory_partitions_map.setdefault(iid, []).append(pid)
+
+        inventory_avail_map = {}
+        for inv in picker['inventory_blocks']:
+            iid = str(inv.id)
+            scopes = {'': max(0, (inv.quantity or 0)
+                              - partitioned_total.get(iid, 0)
+                              - live.get((iid, ''), 0))}
+            for pid in inventory_partitions_map.get(iid, []):
+                scopes[pid] = max(0, block_qty[(iid, pid)]
+                                  - live.get((iid, pid), 0))
+            inventory_avail_map[iid] = scopes
+
         return {
             'assignment': assignment,
             'prefill_attendee': prefill_attendee,
             'partitions': partitions,
             'inventory_rows': picker['inventory_blocks'],
+            'inventory_partitions_map': inventory_partitions_map,
+            'inventory_avail_map': inventory_avail_map,
             'message': message,
         }
 

@@ -233,35 +233,7 @@
 </form>
 
 <script>
-// Same partition->inventory cascade as the form-page modals.
-(function () {
-  function filterPicker(form) {
-    var partitionSel = form.querySelector('.room-picker-partition');
-    var inventorySel = form.querySelector('.room-picker-inventory');
-    if (!partitionSel || !inventorySel) return;
-
-    var chosen = partitionSel.value || '';
-    var selectedStillValid = false;
-    var selectedValue = inventorySel.value;
-
-    Array.prototype.forEach.call(inventorySel.options, function (opt) {
-      if (!opt.value) { opt.hidden = false; return; }
-      var raw = opt.getAttribute('data-partitions') || '';
-      var partitions = raw ? raw.split(',') : [];
-      var allowed = !chosen || partitions.indexOf(chosen) !== -1;
-      opt.hidden = !allowed;
-      opt.disabled = !allowed;
-      if (opt.value === selectedValue && allowed) selectedStillValid = true;
-    });
-    if (!selectedStillValid) inventorySel.value = '';
-  }
-  document.querySelectorAll('.room-picker-partition').forEach(function (sel) {
-    var form = sel.closest('form');
-    if (!form) return;
-    sel.addEventListener('change', function () { filterPicker(form); });
-    filterPicker(form);
-  });
-})();
+{% include 'hotel_lottery_admin/_room_picker_js.html' %}
 </script>
 
 {% endblock content %}

@@ -279,60 +279,7 @@
 </div>
 
 <script>
-// Partition->inventory cascade for every room picker modal on this page.
-// Convention: each picker sits inside a <form> that contains exactly
-// one .room-picker-partition <select> and one .room-picker-inventory
-// <select>. Each inventory <option> carries a data-partitions attribute
-// with the comma-separated list of partition IDs it belongs to. An
-// inventory with no partition memberships is always shown (the
-// "unrestricted" inventory blocks).
-(function () {
-  function filterPicker(form) {
-    var partitionSel = form.querySelector('.room-picker-partition');
-    var inventorySel = form.querySelector('.room-picker-inventory');
-    if (!partitionSel || !inventorySel) return;
-
-    var chosen = partitionSel.value || '';
-    var selectedStillValid = false;
-    var selectedValue = inventorySel.value;
-
-    Array.prototype.forEach.call(inventorySel.options, function (opt) {
-      if (!opt.value) {
-        opt.hidden = false;  // keep the placeholder
-        return;
-      }
-      var raw = opt.getAttribute('data-partitions') || '';
-      var partitions = raw ? raw.split(',') : [];
-      var allowed;
-      if (!chosen) {
-        // No partition picked -> show every inventory block.
-        allowed = true;
-      } else {
-        // Partition picked -> only blocks that include that partition.
-        allowed = partitions.indexOf(chosen) !== -1;
-      }
-      opt.hidden = !allowed;
-      opt.disabled = !allowed;
-      if (opt.value === selectedValue && allowed) selectedStillValid = true;
-    });
-
-    if (!selectedStillValid) {
-      inventorySel.value = '';
-    }
-  }
-
-  function wirePicker(form) {
-    var partitionSel = form.querySelector('.room-picker-partition');
-    if (!partitionSel) return;
-    partitionSel.addEventListener('change', function () { filterPicker(form); });
-    filterPicker(form);  // initial pass
-  }
-
-  document.querySelectorAll('.room-picker-partition').forEach(function (sel) {
-    var form = sel.closest('form');
-    if (form) wirePicker(form);
-  });
-})();
+{% include 'hotel_lottery_admin/_room_picker_js.html' %}
 </script>
 
 {{ form_macros.form_validation('application-form', 'validate_hotel_lottery') }}

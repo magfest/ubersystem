@@ -45,13 +45,22 @@
     </div>
     <div class="col-md-6">
       <label class="form-label">Inventory</label>
-      <select name="inventory_id" class="form-select" required>
+      <select name="inventory_id" class="form-select room-picker-inventory" required>
         <option value="">-- Select an inventory row --</option>
         {% for inv in inventory_rows %}
-        <option value="{{ inv.id }}"{% if assignment.inventory_id == inv.id %} selected{% endif %}>
+        {%- set _label -%}
           {{ inv.name or "Inventory" }}
-          {% if inv.hotel %} - {{ inv.hotel.name }}{% endif %}
-          {% if inv.is_suite %} (Suite){% endif %}
+          {%- if inv.hotel %} - {{ inv.hotel.name }}{% endif -%}
+          {%- if inv.is_suite %} (Suite){% endif -%}
+        {%- endset -%}
+        {# data-avail maps scope -> available count ('' = main pool);
+           the shared picker JS appends "(N available)" per the chosen
+           partition. tojson escapes quotes for the single-quoted attr. #}
+        <option value="{{ inv.id }}"{% if assignment.inventory_id == inv.id %} selected{% endif %}
+                data-partitions="{{ inventory_partitions_map.get(inv.id|string, [])|join(',') }}"
+                data-avail='{{ inventory_avail_map.get(inv.id|string, {})|tojson }}'
+                data-label="{{ _label }}">
+          {{ _label }}
         </option>
         {% endfor %}
       </select>
@@ -61,12 +70,14 @@
   <div class="row g-3 mb-3">
     <div class="col-md-4">
       <label class="form-label">Partition <span class="text-muted small">(optional)</span></label>
-      <select name="partition_id" class="form-select">
+      <select name="partition_id" class="form-select room-picker-partition">
         <option value="">-- No partition --</option>
         {% for p in partitions %}
         <option value="{{ p.id }}"{% if assignment.partition_id == p.id %} selected{% endif %}>{{ p.name }}</option>
         {% endfor %}
       </select>
+      <div class="form-text small">Picking a partition restricts the
+        inventory choices to that partition's blocks.</div>
     </div>
     <div class="col-md-4">
       <label class="form-label">Check-In Date</label>
@@ -201,6 +212,10 @@
     }
   });
 })();
+</script>
+
+<script>
+{% include 'hotel_lottery_admin/_room_picker_js.html' %}
 </script>
 
 {% endblock %}
