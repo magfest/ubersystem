@@ -823,6 +823,49 @@ class Root:
 
     @requires_account(Attendee)
     @room_action
+    def make_room_leader(self, session, ra, occupant_attendee_id=None,
+                         attendee_id='', **params):
+        """Transfer the room's booker (leader) role to another occupant.
+
+        The new leader becomes the name on the reservation and gains the
+        per-room controls (dates, occupants, securing); the old leader
+        stays in the room as a regular occupant. Connector children
+        follow the parent so the whole suite stays under one name. The
+        room's lottery application link and any card on file are left
+        untouched - the new leader can change the card from the secure
+        page.
+        """
+        from uber.lottery_perms import is_lottery_admin
+        viewer = _viewer_attendee(session)
+        if not is_lottery_admin() and (not viewer or viewer.id != ra.attendee_id):
+            raise HTTPRedirect(_room_url(
+                ra.id, attendee_id,
+                message='Only the current room leader may transfer the room.'))
+
+        target = session.attendee(occupant_attendee_id)
+        if not target or target not in (ra.occupants or []):
+            raise HTTPRedirect(_room_url(
+                ra.id, attendee_id,
+                message='That person is not an occupant of this room.'))
+        if target.id == ra.attendee_id:
+            raise HTTPRedirect(_room_url(
+                ra.id, attendee_id,
+                message=f'{target.first_name} {target.last_name} is already '
+                        'the room leader.'))
+
+        ra.attendee_id = target.id
+        session.add(ra)
+        for child in ra.child_assignments:
+            child.attendee_id = target.id
+            session.add(child)
+        session.commit()
+        raise HTTPRedirect(_room_url(
+            ra.id, attendee_id,
+            message=f'{target.first_name} {target.last_name} is now the '
+                    'room leader.'))
+
+    @requires_account(Attendee)
+    @room_action
     def remove_occupant(self, session, ra, occupant_attendee_id=None,
                         attendee_id='', **params):
         if occupant_attendee_id == ra.attendee_id:

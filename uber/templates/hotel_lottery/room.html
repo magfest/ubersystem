@@ -354,6 +354,14 @@
           <td class="text-end">
             {% if not locked and occ.id != ra.attendee_id %}
               {% if is_leader %}
+                <form method="post" action="make_room_leader" class="d-inline"
+                      onsubmit="return confirm('Make {{ occ.first_name }} {{ occ.last_name }} the room leader? They become the name on the reservation and take over managing dates, occupants, and payment for this room. You will remain an occupant, and any card on file stays attached to the room.');">
+                  {{ csrf_token() }}
+                  <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
+                  <input type="hidden" name="attendee_id" value="{{ viewer.id }}" />
+                  <input type="hidden" name="occupant_attendee_id" value="{{ occ.id }}" />
+                  <button type="submit" class="btn btn-sm btn-outline-primary">Make Room Leader</button>
+                </form>
                 <form method="post" action="remove_occupant" class="d-inline"
                       onsubmit="return confirm('Remove {{ occ.first_name }} {{ occ.last_name }} from this room?');">
                   {{ csrf_token() }}
