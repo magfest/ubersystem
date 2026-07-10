@@ -892,10 +892,13 @@ class UberSession(sqlalchemy.orm.Session):
 
         def current_attendee_account(self):
             if c.ATTENDEE_ACCOUNTS_ENABLED and getattr(cherrypy, 'session', {}).get('attendee_account_id', getattr(cherrypy.request, 'attendee_account', None)):
-                try:
-                    return self.attendee_account(cherrypy.session.get('attendee_account_id', getattr(cherrypy.request, 'attendee_account', None)))
-                except sqlalchemy.orm.exc.NoResultFound:
+                account_id = cherrypy.session.get('attendee_account_id', getattr(cherrypy.request, 'attendee_account', None))
+                account = self.query(AttendeeAccount).filter(AttendeeAccount.id == account_id).options(selectinload(AttendeeAccount.attendees)).first()
+
+                if not account:
                     cherrypy.session['attendee_account_id'] = ''
+                else:
+                    return account
 
         def get_attendee_account_by_attendee(self, attendee):
             logged_in_account = self.current_attendee_account()

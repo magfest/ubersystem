@@ -606,6 +606,8 @@ class Root:
                     session.add(buyer)
                     group.buyer = buyer
                     session.commit()
+                else:
+                    buyer = session.get(Attendee, buyer_id)
 
                 if badges:
                     session.add_codes_to_pc_group(group, badges, 0 if badges_are_free else int(cost_per_badge))
@@ -617,7 +619,7 @@ class Root:
                                                                  c.GROUP_BADGE,
                                                                  f'Adding {badges} Badge{"s" if badges > 1 else ""}',
                                                                  badges * int(cost_per_badge) * 100,
-                                                                 purchaser_id=buyer_id if buyer_id != None else buyer.id))
+                                                                 purchaser_id=buyer.purchaser_id))
                 raise HTTPRedirect('promo_code_group_form?id={}&message={}', group.id, "Group saved")
 
         return {
@@ -1211,8 +1213,8 @@ class Root:
         attendee = session.attendee(id)
         receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
-        charge = TransactionRequest(session, receipt, account=session.current_attendee_account(),
-                                    receipt_email=attendee.email, description=charge_desc)
+        charge = TransactionRequest(session, receipt, receipt_email=attendee.email, description=charge_desc,
+                                    account=next(iter(attendee.managers or []), None),)
         message = charge.prepare_payment()
 
         if message:
@@ -1347,8 +1349,8 @@ class Root:
         attendee = session.attendee(id)
         receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
-        charge = TransactionRequest(session, receipt, account=session.current_attendee_account(),
-                                    receipt_email=attendee.email, description=charge_desc)
+        charge = TransactionRequest(session, receipt, receipt_email=attendee.email, description=charge_desc,
+                                    account=next(iter(attendee.managers or []), None))
 
         message = charge.prepare_payment(payment_method=c.MANUAL)
         if message:

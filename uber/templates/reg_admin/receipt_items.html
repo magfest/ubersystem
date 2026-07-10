@@ -812,15 +812,6 @@
   {% if c.ATTENDEE_ACCOUNTS_ENABLED and attendee.managers %}
   <p>If you need to, you can <a href="../reg_admin/attendee_account_form?id={{ attendee.managers[0].id }}">refund and cancel multiple badges</a> on this attendee's account.</p>
   {% endif %}
-  {% if other_purchased_badges %}
-    <p>
-      <strong>Note</strong>: This {{ model_str }} is listed as the purchaser for the following badges:
-      {% for badge in other_purchased_badges %}
-      {% if not loop.first %}, {% endif %}
-      {{ badge|form_link }}
-      {% endfor %}
-    </p>
-  {% endif %}
 </div>
 
 {% macro receipt_item_form(type="purchase", receipt=receipt) %}

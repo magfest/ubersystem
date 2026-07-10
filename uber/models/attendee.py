@@ -1526,6 +1526,14 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
             (or_(cls.first_name == None, cls.first_name == ''), 'zzz'),  # noqa: E711
             else_=func.lower(cls.first_name + ' ' + cls.last_name))
 
+    @property
+    def purchaser_id(self):
+        if self.managers:
+            return self.managers[0].id
+        if c.ATTENDEE_ACCOUNTS_ENABLED:
+            log.error(f"Tried to find a purchaser ID for {self.id}, but there is no account ID available. Attendee ID used as fallback.")
+        return self.id
+
     @hybrid_property
     def primary_account_email(self):
         if self.managers:
@@ -2581,6 +2589,9 @@ attendee_attendee_account = Table(
 
 class AttendeeAccount(MagModel, table=True):
     public_id: str | None = Field(sa_type=Uuid(as_uuid=False), default_factory=lambda: str(uuid4()), nullable=True)
+    owner_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
+    owner: 'Attendee' = Relationship(sa_relationship=relationship('Attendee', foreign_keys='AttendeeAccount.owner_id',
+                                                                   lazy='select', post_update=True))
     email: str = ''
     sso_id: str = ''
     hashed: str = Field(default='', private=True)
@@ -2638,6 +2649,20 @@ class AttendeeAccount(MagModel, table=True):
         for attendee in self.valid_attendees:
             if attendee.admin_account:
                 return attendee.admin_account.id
+            
+    @property
+    def backup_owner(self):
+        # Used if the owner set on this account is an invalid badge
+        if not self.valid_attendees:
+            return
+        
+        valid_badges = self.valid_adults or self.valid_attendees
+
+        for attendee in valid_badges:
+            if attendee.email == self.email:
+                return attendee
+        
+        return valid_badges[0]
 
     @property
     def has_dealer(self):
@@ -2652,6 +2677,23 @@ class AttendeeAccount(MagModel, table=True):
         return [a for a in self.attendees if a.lottery_application and a.lottery_application.room_group_name and (
             True if staff else not a.lottery_application.is_staff_entry
         )]
+
+    def set_account_owner(self, attendee=None):
+        if not attendee and self.owner:
+            return
+        
+        attendee = attendee or self.backup_owner
+
+        if not attendee and self.pending_attendees:
+            adult_pending = [a for a in self.pending_attendees if a.birthdate and a.age_now_or_at_con >= 17]
+            for pending in adult_pending:
+                if pending.email == self.email:
+                    attendee = pending
+
+            if not attendee:
+                attendee = adult_pending[0] if adult_pending else self.pending_attendees[0]
+        
+        self.owner = attendee
 
     @property
     def hotel_eligible_attendees(self):
@@ -2767,31 +2809,6 @@ class BadgePickupGroup(MagModel, table=True):
             if attendee.check_in_notes:
                 check_in_notes[attendee.full_name] = attendee.check_in_notes
         return check_in_notes
-
-    @property
-    def fallback_purchaser_id(self):
-        """
-        We assign a purchaser_id to receipt items to track the buyer of a multi-badge cart.
-        However, sometimes the purchaser later becomes invalid or may even be deleted.
-        This helps us reassign invalid purchaser IDs to the most likely candidate.
-
-        This is not used if attendee accounts are turned on, because the badge pickup group does
-        not reflect the state of the actual prereg cart used during the transaction in question.
-        """
-        if not self.valid_attendees:
-            return
-
-        valid_adults = [a for a in self.valid_attendees if a.birthdate and a.age_now_or_at_con > 18]
-
-        if not valid_adults:
-            return
-        
-        group_leaders = [a for a in valid_adults if a.is_group_leader]
-
-        if group_leaders:
-            return sorted(group_leaders, key=lambda a: a.created)[0].id
-
-        return sorted(valid_adults, key=lambda a: a.created)[0].id
 
     @property
     def pending_paid_attendees(self):

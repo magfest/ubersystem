@@ -79,6 +79,17 @@
             </div>
             <div class="row g-3 mb-3">
                 <div class="col-sm">
+                    <label for="owner_id" class="form-text">Account Owner</label>
+                    <select name="owner_id" id="owner_id" class="form-select">
+                        <option value="">Please select an option</option>
+                        {% for attendee in account.valid_adults %}
+                        <option value="{{ attendee.id }}">{{ attendee.full_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="row g-3 mb-3">
+                <div class="col-sm">
                     <label for="new-password" class="form-text">New Password</label>
                     <input type="password" name="new_password" id="new-password" value="" class="form-control" placeholder="Leave blank to keep current password">
                     {{ account_fields.password_help }}
