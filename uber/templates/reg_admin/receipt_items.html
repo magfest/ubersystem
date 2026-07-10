@@ -1022,6 +1022,16 @@
         </td>
       </tr>
     {% endfor %}
+    {% for discount in receipt.receipt_discounts|rejectattr('discount_str', 'equalto', '') %}
+    <tr>
+      <td>{{ discount.added|datetime_local("%b %-d %-H:%M (%-I:%M%p)") }}</td>
+      <td>{{ discount.who }}</td>
+      <td colspan="2">Discount ({{ discount.department_label }}: {{ discount.category_label }})</td>
+      <td>{{ discount.desc }}: {{ discount.discount_str }}</td>
+      <td>{{ discount.applicable_discount|format_currency }}</td>
+      <td colspan="2">Updated {{ discount.last_updated|datetime_local("%b %-d %-H:%M (%-I:%M%p)") }}</td>
+    </tr>
+    {% endfor %}
     <tr>
       <td colspan="8">
         <span class="pull-right"><strong>Total</strong>: <span id="receipt_total">{{ receipt.total_str }}</span></span>

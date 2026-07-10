@@ -226,11 +226,11 @@ def init_db(request):
         ))
 
         session.add(PromoCode(code='ten percent off', discount=10,
-                              discount_type=PromoCode._PERCENT_DISCOUNT))
+                              discount_type=c.PERCENT_DISCOUNT))
         session.add(PromoCode(code='ten dollars off', discount=10,
-                              discount_type=PromoCode._FIXED_DISCOUNT))
+                              discount_type=c.FIXED_DISCOUNT))
         session.add(PromoCode(code='ten dollar badge', discount=10,
-                              discount_type=PromoCode._FIXED_PRICE))
+                              discount_type=c.FIXED_PRICE))
         session.add(PromoCode(code='free badge', discount=0, uses_allowed=100))
 
         session.commit()

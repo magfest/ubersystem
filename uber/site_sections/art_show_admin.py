@@ -46,8 +46,7 @@ class Root:
             app = session.get(ArtShowApplication, params['id'], options=[
                 selectinload(ArtShowApplication.art_show_pieces), joinedload(ArtShowApplication.active_receipt)])
             if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
-                receipt_items = ReceiptManager.auto_update_receipt(app, app.active_receipt, params.copy())
-                session.add_all(receipt_items)
+                ReceiptManager.auto_update_receipt(session, app, app.active_receipt, params.copy())
         attendee = None
         app_paid = 0 if new_app else app.amount_paid
 
@@ -1324,7 +1323,7 @@ class Root:
         receipt = session.art_show_receipt(receipt_id)
         attendee = session.attendee(id)
         attendee_receipt = session.get_receipt_by_model(attendee, create_if_none="BLANK")
-        charge = TransactionRequest(attendee_receipt,
+        charge = TransactionRequest(session, attendee_receipt,
                                     account=session.current_attendee_account(),
                                     receipt_email=attendee.email,
                                     description='{}ayment for Art Show Invoice #{}'.format(

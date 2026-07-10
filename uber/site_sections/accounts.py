@@ -1,5 +1,6 @@
 import base64
 import uuid
+import logging
 
 import bcrypt
 import cherrypy
@@ -16,6 +17,8 @@ from uber.models import AdminAccount, Attendee, BadgeInfo, PasswordReset, Workst
 from uber.payments import PreregCart
 from uber.utils import (check, check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, genpasswd,
                         create_new_hash)
+
+log = logging.getLogger(__name__)
 
 
 def valid_password(password, account):
@@ -225,7 +228,7 @@ class Root:
         return {
             'message': message,
             'email':   params.get('email', ''),
-            'original_location': original_location,
+            'original_location': internal_redirect_url,
         }
 
     @public

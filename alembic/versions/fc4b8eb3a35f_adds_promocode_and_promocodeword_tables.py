@@ -35,7 +35,7 @@ def upgrade():
     sa.Column('id', sa.Uuid(as_uuid=False), nullable=False),
     sa.Column('code', sa.Unicode(), server_default='', nullable=False),
     sa.Column('discount', sa.Integer(), nullable=True),
-    sa.Column('discount_type', sa.Integer(), server_default='0', nullable=False),
+    sa.Column('discount_type', sa.Integer(), server_default='268131930', nullable=False),
     sa.Column('expiration_date', sa.DateTime(timezone=True), nullable=False),
     sa.Column('uses_allowed', sa.Integer(), nullable=True),
     sa.CheckConstraint("trim(code) != ''", name='ck_promo_code_non_empty_code'),

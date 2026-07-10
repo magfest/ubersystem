@@ -262,6 +262,8 @@ def create_valid_user_supplied_redirect_url(url, default_url):
     if not url or 'login' in url or security_issue:
         return default_url
 
+    url = url.removeprefix(c.PATH)
+
     return url
 
 

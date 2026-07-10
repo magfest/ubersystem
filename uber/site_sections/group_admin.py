@@ -97,8 +97,7 @@ class Root:
                 raise HTTPRedirect('index?message={}', f"You are not allowed to view this group. If you think this is an error, \
                                    please email us at {c.DEVELOPER_EMAIL}")
             if cherrypy.request.method == 'POST':
-                receipt_items = ReceiptManager.auto_update_receipt(group, session.get_receipt_by_model(group), params.copy())
-                session.add_all(receipt_items)
+                ReceiptManager.auto_update_receipt(session, group, session.get_receipt_by_model(group), params.copy())
         else:
             group = Group(is_dealer=True, tables=1) if new_dealer else Group()
 

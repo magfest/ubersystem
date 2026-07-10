@@ -150,15 +150,15 @@ var onDiscountTypeChanged = function() {
         $addon = $('#discount-group .input-group-text'),
         $help = $('#discount-type-desc');
 
-    if (value == 2) {
+    if (value == '{{ c.PERCENT_DISCOUNT }}') {
         $addon.text('%');
-        $help.text('Reduces the badge price by a percentage.');
-    } else if (value == 1) {
+        $help.text('Reduces the price by a percentage.');
+    } else if (value == '{{ c.FIXED_PRICE }}') {
         $addon.text('$');
-        $help.text('Sets the badge price to a fixed dollar amount.');
+        $help.text('Sets the price to a fixed dollar amount.');
     } else {
         $addon.text('$');
-        $help.text('Reduces the badge price by a fixed dollar amount.');
+        $help.text('Reduces the price by a fixed dollar amount.');
     }
 };
 
@@ -314,29 +314,52 @@ $(document).ready(function() {
       </div>
     </div>
 
-    <div id="discount-group" class="row g-3">
+    <div class="row g-3 mb-3">
+      <div class="col-sm">
+        <fieldset id="discount_on">
+          <legend class="mb-0 form-text">
+            <label for="ribbon">Discount On</label>
+          </legend>
+          <div class="card card-body">
+            {{ macros.checkgroup_opts('discount_on', c.DISCOUNT_ON_OPTS, defaults=[c.BASE_BADGE|string]) }}
+          </div>
+        </fieldset>
+        <div class="form-text">This promo code's discount will apply separately to each of the categories selected above.</div>
+      </div>
+    </div>
+
+    <div id="discount-group" class="row g-3 mb-3">
       <div class="col-12 col-sm-6">
         <label for="discount_type" class="form-text">Discount Type</label>
           <select class="form-select" name="discount_type" onchange="onDiscountTypeChanged()">
-            {{ options(c.PROMO_CODE_DISCOUNT_TYPE_OPTS, discount_type) }}
+            {{ options(c.DISCOUNT_TYPE_OPTS, discount_type) }}
           </select>
           <div id="discount-type-desc" class="form-text">
-            Reduces the badge price by a fixed dollar amount.
+            Reduces the price by a fixed dollar amount.
           </div>
       </div>
       <div class="col-12 col-sm-6">
         <label for="discount" class="form-text">Discount</label>
         <div class="input-group">
           <span class="input-group-text">$</span>
-          <input type="text" class="form-control" name="discount" value="{{ discount }}" placeholder="Free badge."/>
+          <input type="text" class="form-control" name="discount" value="{{ discount }}" placeholder="Full Discount"/>
         </div>
         <div class="form-text">
-          Leave blank for a full discount, free badge.
+          Leave blank for a full discount.
         </div>
       </div>
     </div>
 
-    <div class="row g-3">
+    <div class="row g-3 mb-3">
+      <div class="col-12 col-sm-6">
+        <label for="department" class="form-text">Department</label>
+          <select class="form-select" name="department">
+            {{ options(c.RECEIPT_ITEM_DEPT_OPTS, department) }}
+          </select>
+          <div class="form-text">
+            Discounts created from this promo code are categorized under this department.
+          </div>
+      </div>
       <div class="col-12 col-sm-6">
         <label for="uses_allowed" class="form-text">Number of uses</label>
         <div class="mb-3">
@@ -346,7 +369,10 @@ $(document).ready(function() {
           </div>
         </div>
       </div>
-      <div class="col-12 col-sm-6">
+    </div>
+
+    <div class="row g-3">
+      <div class="col-sm">
         <label for="admin_notes" class="form-text">Admin Notes</label>
         <div class="mb-3">
           <textarea name="admin_notes" class="form-control" rows="4">{{ admin_notes }}</textarea>
@@ -375,6 +401,7 @@ $(document).ready(function() {
         <th>Promo Code</th>
         <th>Expiration Date</th>
         <th>Discount</th>
+        <th>Item(s)</th>
         <th>Allowed Uses</th>
         <th>Admin Notes</th>
       </tr>
@@ -384,6 +411,7 @@ $(document).ready(function() {
       <td>{{ code.code }}</td>
       <td>{{ code.expiration_date|datetime_local("%Y-%m-%d %-I:%M%p") }}</td>
       <td>{{ code.discount_str }}</td>
+      <td>{{ code.discount_on_labels|readable_join }}</td>
       <td>{{ code.uses_allowed_str }}</td>
       <td>{{ code.admin_notes }}</td>
     </tr>

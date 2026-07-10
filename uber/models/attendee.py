@@ -247,7 +247,9 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     # The practical result of this is that we must manually set promo_code_id
     # in order for the relationship to be persisted.
     promo_code_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='promo_code.id', nullable=True, index=True)
-    promo_code: 'PromoCode' = Relationship(back_populates="used_by", sa_relationship_kwargs={'lazy': 'select'})
+    promo_code: 'PromoCode' = Relationship(
+        back_populates="used_by", sa_relationship_kwargs={'lazy': 'select', 'cascade': 'merge,refresh-expire,expunge'}
+    )
     
     transfer_code: str = ''
 
@@ -1085,11 +1087,8 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     @property
     def base_badge_prices_cost(self):
         # This is a special type of cost that accounts for badge upgrades for comped attendees
-        # as well as age discounts, which get included in the upgrade price
         if self.paid == c.NEED_NOT_PAY:
             return self.new_badge_cost
-        if self.qualifies_for_discounts:
-            return self.calculate_badge_cost() - min(self.calculate_badge_cost(), abs(self.age_discount))
         return self.calculate_badge_cost()
 
     def undo_extras(self):
@@ -1102,8 +1101,12 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
             self.badge_type = c.ATTENDEE_BADGE
 
     @property
+    def promo_code_discounts_badge(self):
+        return self.promo_code and c.BASE_BADGE in self.promo_code.discount_on_ints
+
+    @property
     def qualifies_for_discounts(self):
-        return not self.promo_code and self.paid != c.NEED_NOT_PAY and self.overridden_price is None \
+        return not self.promo_code_discounts_badge and self.paid != c.NEED_NOT_PAY and self.overridden_price is None \
             and not self.is_dealer and self.badge_type not in c.BADGE_TYPE_PRICES
 
     @property
@@ -1141,14 +1144,12 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
 
     @property
     def age_discount(self):
-        # We dynamically calculate the age discount to be half the
-        # current badge price. If for some reason the default discount
-        # (if it exists) is greater than half off, we use that instead.
-        if self.age_now_or_at_con and self.age_now_or_at_con < 13:
-            half_off = math.ceil(self.new_badge_cost / 2)
-            if not self.age_group_conf['discount'] or self.age_group_conf['discount'] < half_off:
-                return -half_off
-        return -self.age_group_conf['discount']
+        if not self.qualifies_for_discounts:
+            return 0
+
+        if self.age_now_or_at_con and self.age_now_or_at_con < 13 and not self.age_group_conf['discount']:
+            return .5
+        return self.age_group_conf['discount']
 
     @property
     def age_group_conf(self):

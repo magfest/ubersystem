@@ -227,6 +227,12 @@ PromoCode.required = [
 
 
 @validation.PromoCode
+def everything_only(promo_code):
+    if c.EVERYTHING in promo_code.discount_on_ints and len(promo_code.discount_on_ints) > 1:
+        return "Promo codes that discount the overall price cannot also discount other categories."
+
+
+@validation.PromoCode
 def valid_discount(promo_code):
     if promo_code.discount:
         try:
@@ -794,22 +800,23 @@ def promo_code_is_useful(attendee):
             if group and group.total_cost == 0:
                 return
 
-    if attendee.is_new and attendee.promo_code:
-        if not attendee.is_unpaid:
-            return ('promo_code', "You can't apply a promo code after you've paid or if you're in a group.")
-        elif attendee.is_dealer:
-            return ('promo_code', "You can't apply a promo code to a {}.".format(c.DEALER_REG_TERM))
-        elif attendee.age_discount != 0:
-            return ('promo_code',
-                    "You are already receiving an age based discount, you can't use a promo code on top of that.")
-        elif attendee.badge_type == c.ONE_DAY_BADGE or attendee.is_presold_oneday:
-            return ('promo_code', "You can't apply a promo code to a one day badge.")
-        elif attendee.overridden_price:
-            return ('promo_code',
-                    "You already have a special badge price, you can't use a promo code on top of that.")
-        elif attendee.badge_cost_with_promo_code >= attendee.calculate_badge_cost():
-            return ('promo_code',
-                    "That promo code doesn't make your badge any cheaper. You may already have other discounts.")
+    if attendee.is_new and attendee.promo_code and not attendee.orig_value_of('promo_code'):
+        if attendee.paid in [c.HAS_PAID, c.PAID_BY_GROUP, c.REFUNDED]:
+            return ('promo_code', f"You can't apply a promo code after you've paid or if you're in a group.")
+        if attendee.promo_code_discounts_badge:
+            if attendee.is_dealer:
+                return ('promo_code', "You can't apply a promo code to a {}.".format(c.DEALER_REG_TERM))
+            elif attendee.age_discount != 0:
+                return ('promo_code',
+                        "You are already receiving an age based discount, you can't use a promo code on top of that.")
+            elif attendee.badge_type == c.ONE_DAY_BADGE or attendee.is_presold_oneday:
+                return ('promo_code', "You can't apply a promo code to a one day badge.")
+            elif attendee.overridden_price:
+                return ('promo_code',
+                        "You already have a special badge price, you can't use a promo code on top of that.")
+            elif attendee.badge_cost_with_promo_code >= attendee.calculate_badge_cost():
+                return ('promo_code',
+                        "That promo code doesn't make your badge any cheaper. You may already have other discounts.")
 
 
 @prereg_validation.Attendee

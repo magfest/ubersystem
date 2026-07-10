@@ -71,9 +71,9 @@ def load_attendee(session, params):
 def save_attendee(session, attendee, params):
     session.add(attendee)
     if cherrypy.request.method == 'POST':
-        receipt_items = ReceiptManager.auto_update_receipt(
-            attendee, session.get_receipt_by_model(attendee), params.copy(), who=AdminAccount.admin_name() or 'non-admin')
-        session.add_all(receipt_items)
+        ReceiptManager.auto_update_receipt(session, attendee,
+                                           session.get_receipt_by_model(attendee), params.copy(),
+                                           who=AdminAccount.admin_name() or 'non-admin')
 
     forms = load_forms(params, attendee, ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo',
                                           'AdminBadgeFlags', 'BadgeAdminNotes', 'OtherInfo'])
@@ -426,7 +426,7 @@ class Root:
         if error:
             return {'error': error}
 
-        req = SpinTerminalRequest(terminal_id, ref_id=intent_id)
+        req = SpinTerminalRequest(session, terminal_id, ref_id=intent_id)
         response = req.check_txn_status()
         if response:
             response_json = response.json()
@@ -472,7 +472,7 @@ class Root:
             txn = matching_txns.first()
             if not txn:
                 return {'success': True} # They'll end up with the error from poll_terminal_payment
-            req = SpinTerminalRequest(terminal_id, amount=txn.txn_total, tracker=tracker, ref_id=intent_id)
+            req = SpinTerminalRequest(session, terminal_id, amount=txn.txn_total, tracker=tracker, ref_id=intent_id)
             response = req.check_txn_status()
             if response:
                 response_json = response.json()
@@ -1211,7 +1211,7 @@ class Root:
         attendee = session.attendee(id)
         receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
-        charge = TransactionRequest(receipt, account=session.current_attendee_account(),
+        charge = TransactionRequest(session, receipt, account=session.current_attendee_account(),
                                     receipt_email=attendee.email, description=charge_desc)
         message = charge.prepare_payment()
 
@@ -1347,7 +1347,7 @@ class Root:
         attendee = session.attendee(id)
         receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
-        charge = TransactionRequest(receipt, account=session.current_attendee_account(),
+        charge = TransactionRequest(session, receipt, account=session.current_attendee_account(),
                                     receipt_email=attendee.email, description=charge_desc)
 
         message = charge.prepare_payment(payment_method=c.MANUAL)

@@ -25,6 +25,10 @@ def _build_txn_subquery(session):
                          ModelReceipt.refund_total_sql.label('refund_total')
                          ).join(ModelReceipt.receipt_txns).group_by(ModelReceipt.owner_id).subquery()
 
+def _build_discount_subquery(session):
+    return session.query(ModelReceipt.owner_id, ModelReceipt.discount_total_sql.label('discount_total')
+                         ).join(ModelReceipt.receipt_discounts).group_by(ModelReceipt.owner_id).subquery()
+
 def get_grouped_costs(session, filters=[], joins=[], selector=Attendee.badge_cost):
     # Returns a defaultdict with the {int(cost): count} of badges
     query = session.query(selector, func.count(selector))
@@ -62,6 +66,7 @@ class Root:
         attendees = session.query(Attendee)
         item_subquery = _build_item_subquery(session)
         txn_subquery = _build_txn_subquery(session)
+        discount_subquery = _build_discount_subquery(session)  # TODO: Make this work
 
         base_filter = [Attendee.has_or_will_have_badge]
 

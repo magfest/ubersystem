@@ -1,3 +1,4 @@
+import contextlib
 import json
 import six
 import uuid
@@ -212,16 +213,30 @@ class Root:
         else:
             cart = PreregCart(list(PreregCart.unpaid_preregs.values()))
             cart.set_total_cost()
+            promo_code_discounts = defaultdict(list)
+            age_discounts = {}
             for attendee in cart.attendees:
                 if attendee.promo_code:
                     real_code = session.query(PromoCode).filter_by(code=attendee.promo_code.code).first()
                     if real_code and real_code.group:
                         attendee.promo_group_name = real_code.group.name
+
+                age_discount = ReceiptManager.check_age_discount(attendee, None, '')
+                if age_discount:
+                    age_discounts[attendee.id] = age_discount.discount_str
+                
+                promo_code_discount_objs = ReceiptManager.check_promo_code_discounts(attendee, None, '')
+                for discount in promo_code_discount_objs:
+                    if discount.discount_str:
+                        promo_code_discounts[attendee.id].append(discount.discount_str)
+
             return {
                 'logged_in_account': session.current_attendee_account(),
                 'is_prereg_dealer': False,
                 'message': message,
                 'cart': cart,
+                'promo_code_discounts': promo_code_discounts,
+                'age_discounts': age_discounts,
                 'account_email': account_email or cart.attendees[0].email,
                 'account_password': account_password,
             }
@@ -948,7 +963,7 @@ class Root:
 
             receipt_email = session.current_attendee_account().email \
                 if c.ATTENDEE_ACCOUNTS_ENABLED else cart.receipt_email
-            charge = TransactionRequest(account=session.current_attendee_account(),
+            charge = TransactionRequest(session, account=session.current_attendee_account(),
                                         receipt_email=receipt_email,
                                         description=cart.description,
                                         amount=sum([receipt.current_amount_owed for receipt in receipts]),
@@ -969,7 +984,8 @@ class Root:
             pending_attendee = session.get(Attendee, attendee.id)
             if pending_attendee:
                 for key, val in PreregCart.to_sessionized(attendee).items():
-                    setattr(pending_attendee, key, val)
+                    with contextlib.suppress(AttributeError):
+                        setattr(pending_attendee, key, val)
                 if attendee.badges and pending_attendee.promo_code_groups:
                     pc_group = pending_attendee.promo_code_groups[0]
                     pc_group.name = attendee.name
@@ -1023,9 +1039,9 @@ class Root:
 
     @ajax
     def submit_authnet_charge(self, session, ref_id, amount, email, desc, customer_id, token_desc, token_val, **params):
-        charge = TransactionRequest(account=session.current_attendee_account(), receipt_email=email,
+        charge = TransactionRequest(session, account=session.current_attendee_account(), receipt_email=email,
                                     description=desc, amount=amount, customer_id=customer_id)
-        error = charge.send_authorizenet_txn(token_desc=token_desc, token_val=token_val, intent_id=ref_id,
+        error = charge.send_authorizenet_txn(session, token_desc=token_desc, token_val=token_val, intent_id=ref_id,
                                              first_name=params.get('first_name', ''),
                                              last_name=params.get('last_name', ''))
         if error:
@@ -1388,8 +1404,7 @@ class Root:
         if cherrypy.request.method == 'POST':
             # TODO: I don't think this works, but it probably should just be removed
             if attendee and receipt:
-                receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, params.copy())
-                session.add_all(receipt_items)
+                ReceiptManager.auto_update_receipt(session, attendee, receipt, params.copy())
 
             if c.ATTENDEE_ACCOUNTS_ENABLED and session.current_attendee_account():
                 session.add_attendee_to_account(attendee, session.current_attendee_account())
@@ -1429,7 +1444,7 @@ class Root:
         group = session.group(id)
         receipt = session.get_receipt_by_model(group, who='non-admin', create_if_none="DEFAULT")
         charge_desc = "{}: {}".format(group.name, receipt.charge_description_list)
-        charge = TransactionRequest(receipt, account=session.current_attendee_account(),
+        charge = TransactionRequest(session, receipt, account=session.current_attendee_account(),
                                     receipt_email=group.email, description=charge_desc, who='non-admin')
 
         message = charge.prepare_payment()
@@ -1499,10 +1514,8 @@ class Root:
             
         receipt = session.get_receipt_by_model(group)
         if receipt:
-            receipt_items = ReceiptManager.auto_update_receipt(group, receipt,
-                                                               {'badges': count + group.badges,
-                                                                'auto_recalc': group.auto_recalc})
-            session.add_all(receipt_items)
+            ReceiptManager.auto_update_receipt(session, group, receipt,
+                                               {'badges': count + group.badges, 'auto_recalc': group.auto_recalc})
         
         session.assign_badges(group, group.badges + count)
         session.commit()
@@ -1936,7 +1949,7 @@ class Root:
         refunded_attendees = set()
 
         for charge_id, (refund_amount, txns) in all_refunds.items():
-            refund = RefundRequest(txns, refund_amount, skip_errors=True)
+            refund = RefundRequest(session, txns, refund_amount, skip_errors=True)
 
             error = refund.process_refund()
             if error:
@@ -2155,8 +2168,7 @@ class Root:
             )
             receipt = session.get_receipt_by_model(attendee)
             if cherrypy.request.method == 'POST':
-                receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, params.copy())
-                session.add_all(receipt_items)
+                ReceiptManager.auto_update_receipt(session, attendee, receipt, params.copy())
         else:
             receipt = None
 
@@ -2269,7 +2281,6 @@ class Root:
                         id,
                         if_not_found=HTTPRedirect('form?message={}',
                                                   'That preregistration expired or has already been finalized.'))
-                    log.error(attendee)
                 else:
                     return {"error": {'': ["We could not find the badge you're trying to update."]}}
 
@@ -2336,11 +2347,10 @@ class Root:
             return {'error': "You already have an outstanding balance, please refresh the page to pay \
                     for your current items or contact {}".format(email_only(c.REGDESK_EMAIL))}
 
-        receipt_items = ReceiptManager.auto_update_receipt(attendee, session.get_receipt_by_model(attendee),
+        receipt_items = ReceiptManager.auto_update_receipt(session, attendee, session.get_receipt_by_model(attendee),
                                                            params.copy(), who='non-admin')
         if not receipt_items:
             return {'error': "There was an issue with adding your upgrade. Please contact the system administrator."}
-        session.add_all(receipt_items)
 
         forms = load_forms(params, attendee, ['BadgeExtras'])
 
@@ -2374,7 +2384,7 @@ class Root:
         if c.AUTHORIZENET_LOGIN_ID:
             # Authorize.net doesn't actually have a concept of pending transactions,
             # so there's no transaction to resume. Create a new one.
-            new_txn_request = TransactionRequest(txn.receipt, account=session.current_attendee_account(),
+            new_txn_request = TransactionRequest(session, txn.receipt, account=session.current_attendee_account(),
                                                  receipt_email=attendee.email, description=txn.desc, amount=txn.amount)
             stripe_intent = new_txn_request.generate_payment_intent()
             txn.intent_id = stripe_intent.id
@@ -2415,7 +2425,7 @@ class Root:
                 receipt_email = group.leader.email
             elif group.attendees:
                 receipt_email = group.attendees[0].email
-            new_txn_request = TransactionRequest(txn.receipt, account=session.current_attendee_account(),
+            new_txn_request = TransactionRequest(session, txn.receipt, account=session.current_attendee_account(),
                                                  receipt_email=receipt_email, description=txn.desc, amount=txn.amount)
             stripe_intent = new_txn_request.generate_payment_intent()
             txn.intent_id = stripe_intent.id
@@ -2442,7 +2452,7 @@ class Root:
         receipt = session.model_receipt(receipt_id)
         attendee = session.attendee(id)
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
-        charge = TransactionRequest(receipt, account=session.current_attendee_account(),
+        charge = TransactionRequest(session, receipt, account=session.current_attendee_account(),
                                     receipt_email=attendee.email, description=charge_desc, who='non-admin')
 
         message = charge.prepare_payment()
@@ -2522,7 +2532,7 @@ class Root:
         session.commit()
 
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
-        charge = TransactionRequest(receipt, account=session.current_attendee_account(),
+        charge = TransactionRequest(session, receipt, account=session.current_attendee_account(),
                                     receipt_email=attendee.email, description=charge_desc, who='non-admin')
 
         message = charge.prepare_payment()

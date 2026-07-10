@@ -277,8 +277,6 @@ def needs_badge_change_calc(attendee):
 def one_day_or_upgraded_badge_cost(attendee):
     if attendee.badge_type in c.BADGE_TYPE_PRICES:
         return c.BADGE_TYPE_PRICES[attendee.badge_type]
-    if attendee.qualifies_for_discounts:
-        return attendee.new_badge_cost - min(attendee.new_badge_cost, abs(attendee.age_discount))
     return attendee.new_badge_cost
 
 
@@ -406,77 +404,6 @@ def badge_comp_credit(attendee, new_attendee=None):
     return (label, diff, 'paid')
 
 
-@receipt_calculation.Attendee
-def age_discount_credit(attendee, new_attendee=None):
-    if not new_attendee and (not attendee.qualifies_for_discounts or not attendee.age_discount):
-        return
-    elif not new_attendee:
-        old_cost = cost_from_base_badge_item(attendee, new_attendee)
-        if not old_cost:
-            return
-        
-        if abs(attendee.age_discount * 100) > old_cost:
-            diff = old_cost * -1
-        else:
-            diff = attendee.age_discount * 100
-        return ("Age Discount", diff, c.BADGE_DISCOUNT)
-    
-    if attendee.badge_type != new_attendee.badge_type and (needs_badge_change_calc(attendee) or
-                                                           needs_badge_change_calc(new_attendee)):
-        # Age discount is included in the badge upgrade/downgrade function
-        return
-    
-    old_credit = attendee.age_discount if attendee.qualifies_for_discounts else 0
-    new_credit = new_attendee.age_discount if new_attendee.qualifies_for_discounts else 0
-
-    if old_credit == new_credit:
-        return
-    
-    if abs(old_credit) > attendee.calculate_badge_cost():
-        old_credit = attendee.calculate_badge_cost() * -1
-    if abs(new_credit) > new_attendee.calculate_badge_cost():
-        new_credit = new_attendee.calculate_badge_cost() * -1
-
-    if old_credit and new_credit:
-        return ("Update Age Discount", (new_credit - old_credit) * 100, c.BADGE_DISCOUNT)
-    elif old_credit:
-        return ("Remove Age Discount", old_credit * 100 * -1, c.BADGE_DISCOUNT)
-    elif new_credit:
-        return ("Add Age Discount", new_credit * 100, c.BADGE_DISCOUNT)
-
-
-@receipt_calculation.Attendee
-def promo_code_credit(attendee, new_attendee=None):
-    if not new_attendee and not attendee.promo_code:
-        return
-    elif not new_attendee:
-        default_cost = attendee.calculate_badge_cost()
-        if not default_cost:
-            return
-        discount = default_cost - attendee.badge_cost_with_promo_code
-        if attendee.badge_cost_with_promo_code == 0:
-            return ("Badge Comp (Promo Code)", discount * 100 * -1, c.ITEM_COMP)
-        else:
-            return ("Promo Code Discount", discount * 100 * -1, c.BADGE_DISCOUNT)
-
-    old_cost = attendee.badge_cost_with_promo_code * 100
-    new_cost = new_attendee.badge_cost_with_promo_code * 100
-
-    if old_cost == new_cost:
-        return
-
-    if attendee.promo_code and new_attendee.promo_code:
-        return ("Update Promo Code", new_cost - old_cost, c.BADGE_DISCOUNT)
-    elif attendee.promo_code:
-        if not old_cost:
-            return ("Remove Badge Comp (Promo Code)", new_cost, c.ITEM_COMP)
-        return ("Remove Promo Code", new_cost - old_cost, c.BADGE_DISCOUNT)
-    elif new_attendee.promo_code:
-        if not new_cost:
-            return ("Add Badge Comp (Promo Code)", old_cost * -1, c.ITEM_COMP)
-        return ("Add Promo Code", new_cost - old_cost, c.BADGE_DISCOUNT)
-
-
 Attendee.receipt_changes = {
     'overridden_price': (overridden_badge_cost, c.BADGE),
     'badge_type': (badge_upgrade_cost, c.BADGE_UPGRADE),
@@ -484,8 +411,6 @@ Attendee.receipt_changes = {
     'paid': (badge_comp_credit, c.ITEM_COMP),
     'extra_donation': (extra_donation_cost, c.DONATION),
     'amount_extra': (amount_extra_cost, c.MERCH),
-    'birthdate': (age_discount_credit, c.BADGE_DISCOUNT),
-    'promo_code_code': (promo_code_credit, c.BADGE_DISCOUNT), # category changes inside the function
 }
 
 
