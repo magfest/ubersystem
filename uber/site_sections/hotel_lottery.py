@@ -830,10 +830,12 @@ class Root:
         The new leader becomes the name on the reservation and gains the
         per-room controls (dates, occupants, securing); the old leader
         stays in the room as a regular occupant. Connector children
-        follow the parent so the whole suite stays under one name. The
-        room's lottery application link and any card on file are left
-        untouched - the new leader can change the card from the secure
-        page.
+        follow the parent so the whole suite stays under one name, and
+        the room's lottery application link is left untouched.
+
+        Any card on file belongs to the outgoing leader, so it is removed
+        (along with their billing address) and a SECURED room drops back
+        to ASSIGNED - the new leader must re-secure with their own card.
         """
         from uber.lottery_perms import is_lottery_admin
         viewer = _viewer_attendee(session)
@@ -853,16 +855,38 @@ class Root:
                 message=f'{target.first_name} {target.last_name} is already '
                         'the room leader.'))
 
+        def strip_card(room):
+            """Remove the outgoing leader's vaulted card and billing
+            address; a SECURED room goes back to awaiting-card."""
+            had_card = bool(room.cc_token)
+            for field in ('cc_token', 'cc_last_four', 'cc_card_type',
+                          'cc_card_holder', 'cc_card_expiry',
+                          'cc_issuer_brand', 'cc_issuer_bank',
+                          'cc_issuer_country', 'cc_issuer_card_type',
+                          'cc_issuer_card_level', 'cc_captured_at'):
+                setattr(room, field, None)
+            for field in ('address1', 'address2', 'city', 'region',
+                          'zip_code', 'country'):
+                setattr(room, field, '')
+            if room.status == c.SECURED:
+                room.status = c.ASSIGNED
+            return had_card
+
+        card_removed = strip_card(ra)
         ra.attendee_id = target.id
         session.add(ra)
         for child in ra.child_assignments:
+            card_removed = strip_card(child) or card_removed
             child.attendee_id = target.id
             session.add(child)
         session.commit()
-        raise HTTPRedirect(_room_url(
-            ra.id, attendee_id,
-            message=f'{target.first_name} {target.last_name} is now the '
-                    'room leader.'))
+
+        message = (f'{target.first_name} {target.last_name} is now the '
+                   'room leader.')
+        if card_removed:
+            message += (' The card on file was removed - they will need to '
+                        're-secure the room with their own card.')
+        raise HTTPRedirect(_room_url(ra.id, attendee_id, message=message))
 
     @requires_account(Attendee)
     @room_action

@@ -354,8 +354,12 @@
           <td class="text-end">
             {% if not locked and occ.id != ra.attendee_id %}
               {% if is_leader %}
+                {# Warn about the card only when one is actually on file
+                   (on this room or a connector child) - the transfer
+                   removes it and un-secures the room. #}
+                {% set _has_card = ra.cc_token or (ra.child_assignments|selectattr('cc_token')|list) %}
                 <form method="post" action="make_room_leader" class="d-inline"
-                      onsubmit="return confirm('Make {{ occ.first_name }} {{ occ.last_name }} the room leader? They become the name on the reservation and take over managing dates, occupants, and payment for this room. You will remain an occupant, and any card on file stays attached to the room.');">
+                      onsubmit="return confirm('Make {{ occ.first_name }} {{ occ.last_name }} the room leader? They become the name on the reservation and take over managing dates, occupants, and payment for this room. You will remain an occupant.{% if _has_card %} The card on file will be REMOVED and {{ occ.first_name }} will need to re-secure the room with their own card{% if ra.deposit_cutoff_date %} by {{ ra.deposit_cutoff_date.strftime('%B %-d') }}{% endif %}.{% endif %}');">
                   {{ csrf_token() }}
                   <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
                   <input type="hidden" name="attendee_id" value="{{ viewer.id }}" />
