@@ -891,6 +891,10 @@ class RoomAssignment(MagModel, table=True):
     booking_url: str = ''
     hotel_confirmation_number: str | None = Field(nullable=True)
     cancellation_confirmation_number: str | None = Field(nullable=True)
+    # Physical room number at the hotel (usually assigned at or shortly
+    # before check-in). Free text for now; a future physical-room
+    # inventory would source and validate it.
+    room_number: str | None = Field(nullable=True)
     special_requests: str = ''
     hotel_rewards_number: str = ''
 

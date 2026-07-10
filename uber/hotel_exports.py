@@ -44,6 +44,7 @@ BOOKING_BASE_COLS = [
     'hotel', 'room_type', 'suite_type',
     'check_in_date', 'check_out_date',
     'hotel_confirmation_number', 'cancellation_confirmation_number',
+    'room_number',
     'legal_first_name', 'legal_last_name', 'cellphone', 'email',
     'address1', 'address2', 'city', 'region', 'zip_code', 'country',
     'wants_ada', 'ada_requests', 'special_requests',
@@ -91,6 +92,7 @@ def booking_row(ra, app):
         iso(ra.assigned_check_out_date),
         ra.hotel_confirmation_number or '',
         ra.cancellation_confirmation_number or '',
+        ra.room_number or '',
         # Legal-name fields live on the attendee (hotel_first_name /
         # hotel_last_name with the legal/first/last fallback chain).
         (app.attendee.effective_hotel_first_name if app and app.attendee else '') or '',

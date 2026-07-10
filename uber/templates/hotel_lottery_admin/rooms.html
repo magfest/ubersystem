@@ -141,6 +141,9 @@
         {% else %}
           <span class="text-muted">-</span>
         {% endif %}
+        {% if ra.room_number %}
+          <br/><small class="text-muted">Room {{ ra.room_number }}</small>
+        {% endif %}
       </td>
       <td class="text-end" style="white-space: nowrap;">
         {# Every row gets Edit + Remove - the standalone edit page

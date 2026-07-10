@@ -2352,6 +2352,7 @@ class Root:
                 dcd = params.get('deposit_cutoff_date', '').strip()
                 assignment.deposit_cutoff_date = date.fromisoformat(dcd) if dcd else None
 
+                assignment.room_number = params.get('room_number', '').strip() or None
                 assignment.admin_notes = params.get('admin_notes', '').strip()
                 session.add(assignment)
                 try:
@@ -2847,15 +2848,18 @@ class Root:
             if new_status != ra.status:
                 changes.append('status'); ra.status = new_status
 
-        for field in ('hotel_confirmation_number',
-                      'cancellation_confirmation_number',
-                      'special_requests'):
+        for field, nullable in (('hotel_confirmation_number', True),
+                                ('cancellation_confirmation_number', True),
+                                ('room_number', True),
+                                ('special_requests', False),
+                                ('admin_notes', False)):
             if field not in params:
                 continue
             raw = (params.get(field, '') or '').strip()
             if raw != (getattr(ra, field) or ''):
                 changes.append(field.replace('_', ' '))
-                setattr(ra, field, raw or None)
+                # NOT NULL string columns clear to '' rather than None.
+                setattr(ra, field, raw or (None if nullable else ''))
 
         if changes:
             session.add(ra)

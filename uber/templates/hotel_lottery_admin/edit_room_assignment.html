@@ -189,6 +189,13 @@
                  value="{{ ra.cancellation_confirmation_number or '' }}" />
           <div class="form-text small">Setting this flips status to Cancelled.</div>
         </div>
+        <div class="col-md-4">
+          <label class="form-label">Room Number</label>
+          <input type="text" class="form-control" name="room_number"
+                 value="{{ ra.room_number or '' }}" />
+          <div class="form-text small">Physical room at the hotel, usually
+            known at or shortly before check-in.</div>
+        </div>
       </div>
     </div>
   </div>
@@ -197,6 +204,14 @@
     <div class="card-header py-2"><strong>Special Requests</strong></div>
     <div class="card-body py-2">
       <textarea class="form-control" name="special_requests" rows="3">{{ ra.special_requests or '' }}</textarea>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header py-2"><strong>Admin Notes</strong></div>
+    <div class="card-body py-2">
+      <textarea class="form-control" name="admin_notes" rows="3"
+                placeholder="Internal notes - never shown to the attendee">{{ ra.admin_notes or '' }}</textarea>
     </div>
   </div>
 

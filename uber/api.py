@@ -1599,8 +1599,8 @@ class HotelLookup:
         lottery_run_id, parent_assignment_id, partition_id, assignment_reason,
         status, require_cc, assigned_check_in_date, assigned_check_out_date,
         deposit_cutoff_date, booking_url, hotel_confirmation_number,
-        cancellation_confirmation_number, special_requests, hotel_rewards_number,
-        admin_notes.
+        cancellation_confirmation_number, room_number, special_requests,
+        hotel_rewards_number, admin_notes.
 
         The hotel back-import flow uses this to set hotel_confirmation_number
         and cancellation_confirmation_number on an existing assignment;
@@ -1620,7 +1620,8 @@ class HotelLookup:
                          'assigned_check_in_date', 'assigned_check_out_date',
                          'deposit_cutoff_date', 'booking_url',
                          'hotel_confirmation_number', 'cancellation_confirmation_number',
-                         'special_requests', 'hotel_rewards_number', 'admin_notes']:
+                         'room_number', 'special_requests', 'hotel_rewards_number',
+                         'admin_notes']:
                 if attr in kwargs:
                     setattr(assignment, attr, kwargs[attr])
             session.add(assignment)
@@ -1776,6 +1777,7 @@ class HotelLookup:
                     'cc_card_expiry': ra.cc_card_expiry,
                     'cc_card_holder': ra.cc_card_holder,
                     'hotel_confirmation_number': ra.hotel_confirmation_number,
+                    'room_number': ra.room_number,
                     'hotel_cancellation_number': ra.cancellation_confirmation_number,
                     'cancellation_confirmation_number': ra.cancellation_confirmation_number,
                     'legal_first_name': (app.attendee.effective_hotel_first_name

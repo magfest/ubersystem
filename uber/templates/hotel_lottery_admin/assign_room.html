@@ -100,6 +100,13 @@
     </div>
   </div>
 
+  <div class="mb-3" style="max-width: 240px;">
+    <label class="form-label">Room Number</label>
+    <input type="text" class="form-control" name="room_number"
+           value="{{ assignment.room_number or '' }}" />
+    <div class="form-text small">Physical room at the hotel, if known.</div>
+  </div>
+
   <div class="mb-3">
     <label class="form-label">Admin Notes</label>
     <textarea name="admin_notes" class="form-control" rows="2">{{ assignment.admin_notes }}</textarea>
