@@ -2374,8 +2374,20 @@ class Root:
                 if can_edit_assignments_in(session, p.id)
             ]
 
+        # Pre-select the attendee when arriving from an attendee-scoped
+        # page (e.g. the registration form's Hotel Rooms tab). FK only on
+        # the transient row - setting the relationship would cascade-add
+        # it to the session - so the display name rides along separately.
+        prefill_attendee = None
+        if assignment.is_new and params.get('attendee_id'):
+            prefill_attendee = session.query(Attendee).get(
+                params['attendee_id'])
+            if prefill_attendee:
+                assignment.attendee_id = prefill_attendee.id
+
         return {
             'assignment': assignment,
+            'prefill_attendee': prefill_attendee,
             'partitions': partitions,
             'inventory_rows': picker['inventory_blocks'],
             'message': message,
@@ -2875,18 +2887,25 @@ class Root:
         raise HTTPRedirect('form?id={}&message={}', application_id, msg)
 
     def delete_room_assignment(self, session, assignment_id,
-                               application_id='', csrf_token=None):
-        if cherrypy.request.method != 'POST':
+                               application_id='', attendee_id='',
+                               csrf_token=None):
+        # `application_id` sends the admin back to the lottery entry form;
+        # `attendee_id` back to that attendee's scoped rooms list; neither
+        # falls back to the full rooms list.
+        def _back(message=''):
             if application_id:
-                raise HTTPRedirect('form?id={}', application_id)
-            raise HTTPRedirect('rooms')
+                raise HTTPRedirect('form?id={}&message={}', application_id, message)
+            if attendee_id:
+                raise HTTPRedirect('rooms?attendee_id={}&message={}',
+                                   attendee_id, message)
+            raise HTTPRedirect('rooms?message={}', message)
+
+        if cherrypy.request.method != 'POST':
+            _back()
         check_csrf(csrf_token)
         ra = session.query(RoomAssignment).get(assignment_id)
         if not ra:
-            if application_id:
-                raise HTTPRedirect('form?id={}&message={}', application_id,
-                                   'Assignment not found.')
-            raise HTTPRedirect('rooms?message={}', 'Assignment not found.')
+            _back('Assignment not found.')
 
         # Cascade-delete connector children - they only exist as long as
         # their parent does.
@@ -2908,10 +2927,7 @@ class Root:
                 target_type='assignment', target_id=ra.id)
         session.delete(ra)
         session.commit()
-        if application_id:
-            raise HTTPRedirect('form?id={}&message={}', application_id,
-                               'Room removed.')
-        raise HTTPRedirect('rooms?message={}', 'Room removed.')
+        _back('Room removed.')
 
     # Works for both lottery-tied and non-lottery (manual / partition
     # grant) RoomAssignments. The per-application form has its own modal

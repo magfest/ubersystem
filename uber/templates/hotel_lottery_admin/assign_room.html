@@ -36,6 +36,8 @@
           <span class="badge bg-primary"><span id="assign-attendee-name"
             >{%- if assignment.attendee -%}
               {{ assignment.attendee.full_name }}{% if assignment.attendee.email %} ({{ assignment.attendee.email }}){% endif %}
+            {%- elif prefill_attendee -%}
+              {{ prefill_attendee.full_name }}{% if prefill_attendee.email %} ({{ prefill_attendee.email }}){% endif %}
             {%- endif -%}</span></span>
           <button type="button" class="btn btn-link btn-sm" id="assign-attendee-clear">change</button>
         </div>

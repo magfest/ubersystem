@@ -19,7 +19,12 @@
     {{ hotel_macros.attendee_cell(scoped_attendee, show_email=False) }}
     {%- if scoped_attendee.hotel_status %} &mdash; {{ scoped_attendee.hotel_status }}{% endif %}
   </span>
-  <a class="btn btn-sm btn-outline-secondary" href="rooms">Show all rooms</a>
+  <span>
+    <a class="btn btn-sm btn-primary" href="assign_room?attendee_id={{ scoped_attendee.id }}">
+      <i class="fa fa-plus"></i> Add Room
+    </a>
+    <a class="btn btn-sm btn-outline-secondary" href="rooms">Show all rooms</a>
+  </span>
 </div>
 {% endif %}
 
@@ -137,11 +142,19 @@
           <span class="text-muted">-</span>
         {% endif %}
       </td>
-      <td>
-        {# Every row gets an Edit button - the standalone edit page
+      <td class="text-end" style="white-space: nowrap;">
+        {# Every row gets Edit + Remove - the standalone edit page
            handles both lottery-tied and non-lottery (manual / partition
-           grant) rooms, so we don't have to gate on `app` here. #}
+           grant) rooms, so we don't have to gate on `app` here. Remove
+           cascades to connector children server-side. #}
         <a href="edit_room_assignment?id={{ ra.id }}" class="btn btn-sm btn-outline-primary">Edit</a>
+        <form method="post" action="delete_room_assignment" class="d-inline"
+              onsubmit="return confirm('Remove this room assignment{% if ra.attendee %} for {{ ra.attendee.full_name }}{% endif %}?{% if ra.child_assignments %} Its connector room(s) will be removed too.{% endif %} This cannot be undone.');">
+          {{ csrf_token() }}
+          <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
+          {% if attendee_id %}<input type="hidden" name="attendee_id" value="{{ attendee_id }}" />{% endif %}
+          <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+        </form>
       </td>
     </tr>
     {% endfor %}
