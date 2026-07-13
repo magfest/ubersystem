@@ -182,7 +182,7 @@ class PreregCart:
     @property
     def has_targets(self):
         return not not self._targets
-    
+
     @property
     def purchaser(self):
         """
@@ -202,7 +202,7 @@ class PreregCart:
         for model in self.models:
             if get_age_from_birthday(model.birthdate, c.NOW_OR_AT_CON) >= 18:
                 maybe_purchasers.append(model)
-        
+
         maybe_purchasers = maybe_purchasers or [m for m in self.models]
 
         if c.ATTENDEE_ACCOUNTS_ENABLED:
@@ -827,7 +827,7 @@ class TransactionRequest:
 
     def log_authorizenet_response(self, intent_id, txn_info, card_info):
         from uber.models import ReceiptInfo, ReceiptTransaction, Session
-        
+
         session = Session().session
         matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=intent_id).all()
 
@@ -837,7 +837,7 @@ class TransactionRequest:
 
         if not matching_txns:
             log.debug(f"Tried to save receipt info for intent ID {intent_id} but we couldn't find any matching payments!")
-        
+
         for txn in matching_txns:
             txn.receipt_info = ReceiptInfo(txn_info=txn_info, card_data=card_info, charged=datetime.now())
             session.add(txn.receipt_info)
@@ -1125,7 +1125,7 @@ class SpinTerminalRequest(TransactionRequest):
         if refund_amount != txn.txn_total and not cherrypy.session.get('reg_station'):
             return ("This is a partial refund, which requires a connected SPIn payment terminal. "
                     "Please set your workstation number and try again.")
-        
+
         with Session() as session:
             model = session.get_model_by_receipt(txn.receipt)
             model_id = model.id
