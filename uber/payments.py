@@ -200,7 +200,8 @@ class PreregCart:
         target_email = None
 
         for model in self.models:
-            if get_age_from_birthday(model.birthdate, c.NOW_OR_AT_CON) >= 18:
+            if c.COLLECT_EXACT_BIRTHDATE and get_age_from_birthday(model.birthdate, c.NOW_OR_AT_CON) >= 18 or \
+                    not c.COLLECT_EXACT_BIRTHDATE and model.age_group == getattr(c, '18_UP'):
                 maybe_purchasers.append(model)
 
         maybe_purchasers = maybe_purchasers or [m for m in self.models]
