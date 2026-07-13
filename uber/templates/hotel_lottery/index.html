@@ -1,6 +1,6 @@
 {% extends "./preregistration/preregbase.html" %}
 {% set title_text = "Hotel Lottery Applications for " ~ application.attendee.full_name %}
-{% set app_or_parent = application.parent_application if application.entry_type == c.GROUP_ENTRY else application %}
+{% set app_or_parent = application.app_or_parent %}
 
 {% block content %}
 {% include 'hotel_lottery/withdraw_confirm.html' with context %}
@@ -99,7 +99,38 @@
     
     <h1>{{ c.EVENT_NAME }}{% if c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery or application.is_staff_entry %} Staff{% endif %} Hotel Lottery <span class="text-muted h4">for {{ application.attendee.full_name }}</span></h1>
     <hr/>
-    {% if c.HOTEL_LOTTERY_ROOM_INVENTORY and application.award_status_str %}
+
+    {# Confirm-interest gate. Visible when the admin has asked
+       the attendee to reconfirm and they haven't yet (or haven't since the
+       request was made). Confirming stamps last_confirmed_at and clears the
+       banner; LotteryRun.confirmation_window_start gates the next run on
+       this timestamp. #}
+    {% set _needs_confirm = application.confirmation_requested_at and (
+        not application.last_confirmed_at
+        or application.last_confirmed_at < application.confirmation_requested_at
+    ) %}
+    {% if _needs_confirm %}
+    <div class="alert alert-info d-flex justify-content-between align-items-center">
+      <div>
+        <strong>Are you still interested in a hotel room?</strong>
+        We're checking in before the next lottery round. Please confirm or withdraw.
+      </div>
+      <div>
+        <form method="post" action="confirm_interest" class="d-inline">
+          {{ csrf_token() }}
+          <input type="hidden" name="id" value="{{ application.id }}" />
+          <button type="submit" class="btn btn-primary btn-sm">Yes, still interested</button>
+        </form>
+        <form method="post" action="withdraw_entry" class="d-inline ms-1">
+          {{ csrf_token() }}
+          <input type="hidden" name="id" value="{{ application.id }}" />
+          <button type="submit" class="btn btn-outline-danger btn-sm">No, withdraw</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if application.award_status_str %}
         {% if application.status in [c.REJECTED, c.REMOVED, c.CANCELLED] %}
             <p>
                 <strong><span class="text-danger">{{ application.award_status_str }}</span></strong>
@@ -125,29 +156,91 @@
             <p>
                 <strong><span class="text-success">{{ application.award_status_str }}</span></strong>
             </p>
+            {# `app_or_parent.status` (AWARDED) tells us at least one room
+               exists. Per-room status (SECURED, ASSIGNED, etc.) lives on
+               the RoomAssignment rows now - summarise across them. #}
+            {% set _rooms = (app_or_parent.attendee.room_assignments if app_or_parent.attendee else [])
+                            |selectattr('status', 'in', [c.ASSIGNED, c.SECURED])|list %}
+            {% set _all_secured = _rooms and (_rooms|rejectattr('status', 'equalto', c.SECURED)|list|length == 0) %}
+            {% set _any_secured = _rooms|selectattr('status', 'equalto', c.SECURED)|list|length > 0 %}
+            {% set _any_pending = _rooms|selectattr('status', 'equalto', c.ASSIGNED)|list|length > 0 %}
             <p>
                 Your booking is currently
-                {% if app_or_parent.status == c.SECURED %}
-                    <span class="text-success">confirmed</span>!{% if application.booking_url %} You can <a href="{{ application.booking_url }}" target="_blank">view or edit your booking</a> at any time.{% endif %}
-                {% elif app_or_parent.status == c.AWARDED and app_or_parent.booking_url_ready %}
+                {% if _all_secured %}
+                    <span class="text-success">confirmed</span>.
+                {% elif _any_secured and _any_pending %}
+                    <span class="text-warning">partially confirmed</span>.
+                {% elif _any_pending and c.VAULT_ENABLED %}
                     <span class="text-danger">awaiting confirmation</span>.
-                    Please {% if application.parent_application %}ask your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} leader to {% endif %}
-                    {% if not application.parent_application %}<a href="{{ application.booking_url }}" target="_blank">confirm your booking</a>{% else %}confirm your booking{% endif %} as soon as possible.
-                {% elif app_or_parent.status == c.AWARDED %}
+                    {% if application.parent_application %}
+                    Please ask your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} leader to secure the room with a credit card.
+                    {% endif %}
+                {% else %}
                     being processed. You{% if application.parent_application %}r {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} leader{% endif %} should expect an acknowledgment email with a link to confirm your booking in the coming weeks.
                 {% endif %}
             </p>
-            {% include 'hotel_lottery/award_info.html' with context %}
-            {% if application.entry_type == c.GROUP_ENTRY %}
+
+            {# Credit-card-required warning: any unsecured self-pay rooms
+               get a prominent red banner with the earliest card deadline,
+               linking to the rooms page to secure them. #}
+            {% set _unsecured = application.attendee.room_assignments|selectattr('needs_card')|list %}
+            {% if _unsecured %}
+            {% set _deadlines = _unsecured|map(attribute='card_deadline')|select|list %}
+            <div class="alert alert-danger d-flex align-items-start gap-2 mb-3">
+              <i class="fa fa-exclamation-triangle fa-lg mt-1"></i>
+              <div>
+                <strong>{{ _unsecured|length }} of your rooms
+                {{ 'is' if _unsecured|length == 1 else 'are' }} not secured.</strong>
+                A credit card is required to guarantee {{ 'it' if _unsecured|length == 1 else 'them' }}.
+                {% if _deadlines %}
+                  Put a card down by
+                  <strong>{{ _deadlines|min|date("%A, %B %-d") }}</strong>
+                  or the unsecured room{{ 's' if _unsecured|length != 1 }} will be released.
+                {% endif %}
+                <div class="mt-2">
+                  <a href="rooms?attendee_id={{ application.attendee.id }}"
+                     class="btn btn-danger btn-sm">
+                    Secure your room{{ 's' if _unsecured|length != 1 }} &rarr;
+                  </a>
+                </div>
+              </div>
+            </div>
+            {% endif %}
+
+            {# Big CTA to the per-room page rather than inlining the
+               room cards on the status page. This keeps "application
+               status" and "rooms" visually separate per the brief. #}
+            {% set _room_count = application.attendee.room_assignments|length %}
+            {% if _room_count %}
+            <div class="card border-primary mb-3">
+              <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                  <strong>You have {{ _room_count }} room assignment{{ 's' if _room_count != 1 }}.</strong>
+                  Manage occupants, dates, and your card on file there.
+                </div>
+                <a href="rooms?attendee_id={{ application.attendee.id }}"
+                   class="btn btn-primary">Manage your rooms &rarr;</a>
+              </div>
+            </div>
+            {% endif %}
+            {% if application.entry_type == c.GROUP_ENTRY and not application.parent_application %}
+                {# Solo group-entry (e.g. waiting to join someone's group) can still withdraw.
+                   Once in a group as a guest (parent_application set), guests can
+                   neither decline nor accept the room - only the booker can remove them. #}
                 <p>
                     If you can no longer attend {{ c.EVENT_NAME }}, you may withdraw from the hotel lottery using the button below.
-                    This is <strong>irreversible</strong>{% if application.parent_application %} and your group leader will receive an email{% if app_or_parent.booking_url %} instructing them to remove your name from the reservation{% endif %}{% endif %}.
+                    This is <strong>irreversible</strong>.
                 </p>
-                <form method="post" action="{% if application.parent_application %}leave_group{% else %}withdraw_entry{% endif %}" id="withdraw-lottery">
+                <form method="post" action="withdraw_entry" id="withdraw-lottery">
                     <input type="hidden" name="id" value="{{ application.id }}">
                     {{ csrf_token() }}
                     <button class="btn btn-danger">Withdraw From Hotel Lottery</button>
                 </form>
+            {% elif application.parent_application %}
+                <p class="text-muted small">
+                    To leave this {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}, please contact your group leader
+                    {% if app_or_parent.attendee %}({{ app_or_parent.attendee.full_name }}){% endif %}.
+                </p>
             {% endif %}
         {% endif %}
     {% else %}

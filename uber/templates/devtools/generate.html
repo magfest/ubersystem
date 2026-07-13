@@ -1,0 +1,41 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Generate Test Data{% endblock %}
+{% block content %}
+
+<h2>Hotel Lottery Test Data</h2>
+
+{% if message %}
+<div class="alert alert-info">{{ message }}</div>
+{% endif %}
+
+{% if not enabled %}
+<div class="alert alert-warning">
+    The test data generator is disabled. Set <code>test_data_generator_enabled = True</code>
+    in this environment's config to enable it.
+</div>
+{% else %}
+<p>
+    This seeds a coherent hotel lottery, staff rooming, and shift-compliance dataset:
+    awarded and secured rooms, a roommate group, a waitlisted entry, a staff lottery
+    entry, a suite, an inventory partition with a scoped owner, and both a compliant
+    and a non-compliant staffer. Shared foundation rows (hotels, room types, inventory,
+    department, jobs, night requirements) are reused across runs; attendees and their
+    lottery entries are created fresh each time.
+</p>
+<p><strong>This is for test environments only. Do not run it against production data.</strong></p>
+
+<form action="generate" method="post">
+    <input type="submit" class="btn btn-primary" value="Generate Test Data" />
+</form>
+
+{% if summary %}
+<div class="control-group"><h4>Created</h4></div>
+<ul>
+    {% for line in summary %}
+    <li>{{ line }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+{% endif %}
+
+{% endblock %}

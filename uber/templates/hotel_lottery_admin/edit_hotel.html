@@ -1,0 +1,56 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}{{ 'Edit' if hotel.id else 'Add' }} Hotel{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+
+<h2>{{ 'Edit' if hotel.id else 'Add' }} Hotel</h2>
+
+<div class="mb-3">
+  <a href="manage_hotels" class="btn btn-outline-secondary">Back to Hotels</a>
+</div>
+
+<form method="post" action="edit_hotel" class="card card-body" style="max-width: 700px;">
+  {{ csrf_token() }}
+  {% if hotel.id %}
+  <input type="hidden" name="id" value="{{ hotel.id }}" />
+  {% endif %}
+
+  <div class="mb-3">
+    <label for="name" class="form-label">Hotel Name</label>
+    <input type="text" class="form-control" name="name" id="name" value="{{ hotel.name or '' }}" required />
+  </div>
+
+  <div class="mb-3">
+    <label for="export_name" class="form-label">Export Name</label>
+    <input type="text" class="form-control" name="export_name" id="export_name" value="{{ hotel.export_name or '' }}" />
+    <div class="form-text">Name used when exporting data to hotels. Leave blank to use the hotel name.</div>
+  </div>
+
+  <div class="mb-3">
+    <label for="description" class="form-label">Description (Left)</label>
+    <textarea class="form-control" name="description" id="description" rows="3">{{ hotel.description or '' }}</textarea>
+  </div>
+
+  <div class="mb-3">
+    <label for="description_right" class="form-label">Description (Right)</label>
+    <textarea class="form-control" name="description_right" id="description_right" rows="3">{{ hotel.description_right or '' }}</textarea>
+  </div>
+
+  <div class="mb-3">
+    <label for="footnote" class="form-label">Footnote</label>
+    <input type="text" class="form-control" name="footnote" id="footnote" value="{{ hotel.footnote or '' }}" />
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Active</label>
+    <select class="form-select" name="active">
+      <option value="true" {% if hotel.active or not hotel.id %}selected{% endif %}>Yes</option>
+      <option value="false" {% if hotel.id and not hotel.active %}selected{% endif %}>No</option>
+    </select>
+  </div>
+
+  <button type="submit" class="btn btn-primary">Save</button>
+</form>
+
+{% endblock content %}

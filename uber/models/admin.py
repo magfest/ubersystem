@@ -64,6 +64,19 @@ class AdminAccount(MagModel, table=True):
 
     email_model_name: ClassVar = 'account'
 
+    # Per-partition lottery permissions. Granted by hotel-lottery admins to
+    # partition-owning departments (Marketplace, Belvedere, Panels, ADA, etc.).
+    # See uber/models/hotel.py:PartitionOwner.
+    partition_grants: list['PartitionOwner'] = Relationship(
+        back_populates="admin_account",
+        sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+
+    # When True, this account can see attendees' legal names within the
+    # partitions it owns (a PartitionOwner grant on that partition is still
+    # required); it has no effect outside those partitions. Global lottery
+    # admins see legal names everywhere regardless of this flag.
+    view_guest_legal_names: bool = False
+
     def __repr__(self):
         return f"<Admin full_name='{self.attendee.full_name}'>"
     

@@ -1,0 +1,57 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Manage Partitions{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+{% include 'hotel_lottery_admin/inventory_subnav.html' %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="mb-0">Partitions</h2>
+  <div class="d-flex gap-2">
+    <a href="partition_owners" class="btn btn-outline-primary">Partition Owners</a>
+    <a href="edit_partition" class="btn btn-primary">Add Partition</a>
+  </div>
+</div>
+
+{% if message %}<div class="alert alert-info">{{ message }}</div>{% endif %}
+
+<table class="table table-hover">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Description</th>
+      <th>Active</th>
+      <th>Blocks</th>
+      <th>Total Allocation</th>
+      <th>Assigned</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr class="table-light">
+      <td><em>Default (non-partitioned)</em></td>
+      <td class="text-muted">Inventory not allocated to any partition</td>
+      <td>-</td>
+      <td>-</td>
+      <td>{{ non_partitioned_capacity }}</td>
+      <td>{{ assigned_per_partition.get('_none', 0) }}</td>
+      <td>-</td>
+    </tr>
+    {% for partition in partitions %}
+    <tr{% if not partition.active %} class="bg-light"{% endif %}>
+      <td>{{ partition.name }}</td>
+      <td>{{ partition.description }}</td>
+      <td>{{ "Yes" if partition.active else "No" }}</td>
+      <td>{{ partition.blocks|length }}</td>
+      <td>{{ partition.blocks|sum(attribute='quantity') }}</td>
+      <td>{{ assigned_per_partition.get(partition.id|string, 0) }}</td>
+      <td>
+        <a href="edit_partition?id={{ partition.id }}" class="btn btn-sm btn-outline-primary">Edit</a>
+        <a href="partition_owners?partition_id={{ partition.id }}" class="btn btn-sm btn-outline-secondary">Owners</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% endblock content %}

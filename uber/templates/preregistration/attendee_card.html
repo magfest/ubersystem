@@ -25,7 +25,10 @@
     <div>{{ left }}</div>
     <div>{{ right }}</div>
 </div>
-{% if c.HOTEL_LOTTERY_OPEN or c.STAFF_HOTEL_LOTTERY_OPEN and (attendee.badge_type == c.STAFF_BADGE or c.STAFF_RIBBON in attendee.ribbon_ints) %}
+{% set _has_rooms = attendee.room_assignments|length > 0 %}
+{% set _lottery_active = c.HOTEL_LOTTERY_OPEN or c.STAFF_HOTEL_LOTTERY_OPEN and (attendee.badge_type == c.STAFF_BADGE or c.STAFF_RIBBON in attendee.ribbon_ints) %}
+{% set _has_entry = attendee.lottery_application and attendee.lottery_application.complete_or_processed %}
+{% if _lottery_active or _has_rooms or _has_entry %}
 <div class="d-flex gap-3 justify-content-between align-items-center">
     {% set which_page, button_text = attendee.lottery_application.homepage_link if attendee.lottery_application else ('start?attendee_id=' ~ attendee.id, 'Enter Hotel Lottery') %}
     {% if attendee.lottery_application %}
@@ -40,12 +43,20 @@
     {% endif %}
     </em>
     {% endif %}
-    <div>
-    {% if attendee.hotel_lottery_eligible %}
+    <div class="d-flex gap-1">
+    {# Rooms link is shown whenever the attendee holds a room, regardless of
+       whether the lottery is still open. #}
+    {% if _has_rooms %}
+    <a href="../hotel_lottery/rooms?attendee_id={{ attendee.id }}" class="btn btn-sm btn-primary">
+        <i class="fa fa-bed"></i>&nbsp; Hotel Rooms
+        <span class="badge bg-light text-dark ms-1">{{ attendee.room_assignments|length }}</span>
+    </a>
+    {% endif %}
+    {% if (_lottery_active and attendee.hotel_lottery_eligible) or _has_entry %}
     <a href="../hotel_lottery/{{ which_page }}" class="btn btn-sm {{ 'btn-danger' if 'Finish' in button_text else 'btn-secondary' }}">
         <i class="fa fa-hotel"></i>&nbsp; {{ button_text }}
     </a>
-    {% else %}
+    {% elif _lottery_active %}
     <span class="tooltip-wrapper" tabindex="0" data-bs-toggle="tooltip" data-placement="top" title="{{ attendee.hotel_lottery_ineligible_reason }}">
     <button class="btn btn-sm btn-secondary" disabled><i class="fa fa-hotel"></i>&nbsp; Enter Hotel Lottery</button>
     </span>

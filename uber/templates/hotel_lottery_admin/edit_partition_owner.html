@@ -1,0 +1,99 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}{% if grant.id %}Edit{% else %}Grant{% endif %} Partition Access{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+
+<h1>
+  {% if grant.id %}Edit Partition Access{% else %}Grant Partition Access{% endif %}
+</h1>
+
+{% if message %}
+<div class="alert alert-danger">{{ message }}</div>
+{% endif %}
+
+<form method="post" action="edit_partition_owner">
+  {{ csrf_token() }}
+  {% if grant.id %}<input type="hidden" name="id" value="{{ grant.id }}" />{% endif %}
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-6">
+      <label class="form-label">Admin Account</label>
+      <select name="admin_account_id" class="form-select" required>
+        <option value="">-- Select an admin --</option>
+        {% for a in admin_accounts %}
+        <option value="{{ a.id }}"{% if grant.admin_account_id == a.id %} selected{% endif %}>
+          {% if a.attendee %}{{ a.attendee.full_name }} ({{ a.attendee.email }}){% else %}(orphan){% endif %}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Partition</label>
+      <select name="partition_id" class="form-select" required>
+        <option value="">-- Select a partition --</option>
+        {% for p in partitions %}
+        <option value="{{ p.id }}"{% if grant.partition_id == p.id %} selected{% endif %}>{{ p.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <h4>Capabilities</h4>
+  <p class="text-muted">
+    Each scope picks one of <strong>None</strong> /
+    <strong>View only</strong> / <strong>Edit</strong>. Editing always
+    includes viewing - there's no edit-without-view state. Inventory
+    and assignment scopes apply to the partition's blocks and the
+    RoomAssignment rows tagged with this partition_id.
+  </p>
+
+  {# Resolve the current state of each scope into the dropdown value. #}
+  {% macro _level(view_flag, edit_flag) -%}
+    {%- if grant[edit_flag] -%}edit
+    {%- elif grant[view_flag] -%}view
+    {%- else -%}none
+    {%- endif -%}
+  {%- endmacro %}
+
+  {% set scopes = [
+    ('inventory_level',  'can_view_inventory',  'can_edit_inventory',
+     'Inventory',  'Per-block counts and metadata for this partition.'),
+    ('assignments_level','can_view_assignments','can_edit_assignments',
+     'Assignments','The assignment roster and per-room billing/dates.'),
+    ('guest_names_level','can_view_guest_names','can_edit_guest_names',
+     'Guest names','Attendee display names within this partition. Legal names are gated separately.'),
+  ] %}
+
+  <div class="row g-3 mb-3">
+    {% for field, view_f, edit_f, label, desc in scopes %}
+    <div class="col-md-4">
+      <label class="form-label" for="{{ field }}"><strong>{{ label }}</strong></label>
+      <select class="form-select" name="{{ field }}" id="{{ field }}">
+        {% set current = _level(view_f, edit_f) %}
+        <option value="none" {% if current == 'none' %}selected{% endif %}>None</option>
+        <option value="view" {% if current == 'view' %}selected{% endif %}>View only</option>
+        <option value="edit" {% if current == 'edit' %}selected{% endif %}>Edit</option>
+      </select>
+      <div class="form-text small">{{ desc }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="form-check mb-3">
+    <input class="form-check-input" type="checkbox"
+           id="can_send_emails" name="can_send_emails" value="true"
+           {% if grant.can_send_emails %}checked{% endif %} />
+    <label class="form-check-label" for="can_send_emails">
+      <strong>Send partition emails</strong>
+      <br/><small class="text-muted">Trigger automated emails scoped to this partition.</small>
+    </label>
+  </div>
+
+  <div class="mt-4">
+    <button type="submit" class="btn btn-primary">Save Grant</button>
+    <a class="btn btn-outline-secondary" href="partition_owners">Cancel</a>
+  </div>
+</form>
+
+{% endblock %}

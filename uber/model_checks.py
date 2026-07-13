@@ -302,6 +302,27 @@ def suite_meets_night_requirements(app):
         return ('', "Suites require a three-night minimum with both Friday night and Saturday night.")
 
 
+@validation.LotteryRoomType
+def connector_does_not_chain(room_type):
+    """A room type can be a parent OR a child but not both. Setting
+    connects_to_type_id when this type is itself pointed at by other types
+    would create a chain, which the solver doesn't support."""
+    if not room_type.connects_to_type_id:
+        return
+    with Session() as session:
+        from uber.models.hotel import LotteryRoomType as _LRT
+        children_count = session.query(_LRT).filter_by(
+            connects_to_type_id=room_type.id).count()
+        if children_count:
+            return ('connects_to_type_id',
+                    "This room type is already a parent (other types follow it). "
+                    "A type can be either a parent or a child, not both.")
+        # Also block self-reference.
+        if room_type.connects_to_type_id == room_type.id:
+            return ('connects_to_type_id',
+                    "A room type cannot follow itself.")
+
+
 # =============================
 # mivs
 # =============================

@@ -1,0 +1,39 @@
+{# Reusable per-application rooms block used by every confirmation,
+   award, secure, and cancel email. Takes one argument: `app` - a
+   LotteryApplication. Looks up `app.attendee.room_assignments`.
+
+   Each room is rendered as a bullet with hotel + type + status +
+   check-in/out. Connector rooms get the explanatory note so the
+   reader understands why they appear separately.
+
+   When the attendee has zero rooms (e.g. cancel email after the last
+   room cancelled) the block renders nothing - let the caller put the
+   relevant copy in. #}
+{% set _rooms = (app.attendee.room_assignments if app.attendee else [])
+                |selectattr('status', 'in', [c.ASSIGNED, c.SECURED, c.CANCELLED, c.EXPIRED])|list %}
+{% if _rooms %}
+<ul>
+  {% for ra in _rooms %}
+    {% set inv = ra.inventory %}
+    <li>
+      <strong>{{ inv.hotel.name if inv and inv.hotel else 'TBD' }}</strong>
+      -
+      {% if inv and inv.is_suite %}{{ inv.suite_type.name if inv.suite_type else '' }}
+      {% elif inv %}{{ inv.room_type.name if inv.room_type else '' }}{% endif %}
+      <br/>
+      {% if ra.assigned_check_in_date and ra.assigned_check_out_date %}
+        {{ ra.assigned_check_in_date.strftime("%B %-d") }} to {{ ra.assigned_check_out_date.strftime("%B %-d") }}
+      {% endif %}
+      - <em>{{ ra.status_label }}</em>
+      {% if ra.hotel_confirmation_number %}
+        <br/>Hotel confirmation: <code>{{ ra.hotel_confirmation_number }}</code>
+      {% endif %}
+      {% if ra.parent_assignment_id %}
+        <br/><small><em>This is a connector room. It is physically
+        attached to another room you have been assigned, and the two
+        are awarded as a block.</em></small>
+      {% endif %}
+    </li>
+  {% endfor %}
+</ul>
+{% endif %}

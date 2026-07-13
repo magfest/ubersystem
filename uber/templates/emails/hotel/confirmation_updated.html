@@ -1,0 +1,21 @@
+{{ attendee.first_name }},
+
+Your hotel reservation for {{ c.EVENT_NAME_AND_YEAR }} has a new confirmation number on file.
+
+<ul>
+  <li><strong>Hotel</strong>:
+    {% if assignment.inventory and assignment.inventory.hotel %}{{ assignment.inventory.hotel.name }}{% else %}-{% endif %}
+  </li>
+  {% if assignment.assigned_check_in_date %}
+  <li><strong>Check-in</strong>: {{ assignment.assigned_check_in_date|date("%A, %B %-d, %Y") }}</li>
+  {% endif %}
+  {% if assignment.assigned_check_out_date %}
+  <li><strong>Check-out</strong>: {{ assignment.assigned_check_out_date|date("%A, %B %-d, %Y") }}</li>
+  {% endif %}
+  <li><strong>Confirmation #</strong>: <code>{{ assignment.hotel_confirmation_number }}</code></li>
+</ul>
+
+If you weren't expecting this update, please reply to this email so we can sort it out.
+
+Thanks,<br/>
+{{ c.EVENT_NAME }} Hotel Team

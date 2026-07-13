@@ -1,0 +1,10 @@
+{{ attendee.first_name }},
+
+Inventory tied to your <strong>{{ partition.name }}</strong> partition has changed:
+
+<blockquote>{{ change_description }}</blockquote>
+
+You can review the partition roster and stats on the <a href="{{ c.URL_BASE }}/partition_admin/dashboard?partition_id={{ partition.id }}">partition dashboard</a>.
+
+Thanks,<br/>
+{{ c.EVENT_NAME }} Hotel Team

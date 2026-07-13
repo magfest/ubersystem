@@ -14,7 +14,8 @@ class MenuItem:
     submenu = None  # submenu to show
     name = None     # name of Menu item to show
 
-    def __init__(self, href=None, submenu=None, name=None, access_override=None):
+    def __init__(self, href=None, submenu=None, name=None,
+                 access_override=None, visibility_check=None):
         assert submenu or href, "menu items must contain ONE nonempty: href or submenu"
         assert not submenu or not href, "menu items must not contain both a href and submenu"
 
@@ -25,6 +26,11 @@ class MenuItem:
 
         self.name = name
         self.access_override = access_override
+        # Optional callable returning a bool. When set it replaces the
+        # default site-section access check, so menu items can be shown
+        # based on dynamic / cross-section permissions (e.g. partition
+        # owners who hold a row but no site-section flag).
+        self.visibility_check = visibility_check
 
     def append_menu_item(self, m, position=None):
         """
@@ -61,10 +67,24 @@ class MenuItem:
         """
         out = {}
 
-        page_path = self.access_override or self.href
+        # An href can be a callable so the URL can depend on which kind
+        # of access the user has (e.g. lottery admin vs partition owner
+        # land on different controllers). Resolve once here.
+        resolved_href = self.href() if callable(self.href) else self.href
 
-        if self.href and not c.has_section_or_page_access(page_path=page_path.strip('.'), include_read_only=True):
-            return None
+        # A custom visibility callable bypasses the default
+        # page-path-based access check. Used for cross-section items
+        # like the Hotel lottery link, which is visible to partition
+        # owners even though they don't have site-section access to
+        # `hotel_lottery_admin`.
+        if self.visibility_check is not None:
+            if resolved_href and not self.visibility_check():
+                return None
+        else:
+            page_path = self.access_override or resolved_href
+            if resolved_href and not c.has_section_or_page_access(
+                    page_path=page_path.strip('.'), include_read_only=True):
+                return None
 
         out['name'] = self.name
         if self.submenu:
@@ -74,7 +94,7 @@ class MenuItem:
                 if filtered_menu_items:
                     out['submenu'].append(filtered_menu_items)
         else:
-            out['href'] = self.href
+            out['href'] = resolved_href
 
         return out
 
@@ -164,6 +184,20 @@ if c.ADMIN_BADGES_NEED_APPROVAL:
 
 if c.ATTRACTIONS_ENABLED:
     c.MENU['Schedule'].append_menu_item(MenuItem(name='Attractions', href='../attractions_admin/'))
+
+
+# People -> Hotel. Visible to anyone with any kind of hotel-lottery
+# access (full lottery admin OR per-partition owner). The href picks
+# the right landing controller per request: full admins land on the
+# main `hotel_lottery_admin` interface; partition owners land on
+# `partition_admin` (their scoped dashboard).
+c.MENU['People'].append_menu_item(MenuItem(
+    name='Hotel',
+    href=lambda: ('../hotel_lottery_admin/index'
+                  if c.HAS_HOTEL_LOTTERY_ADMIN_ACCESS
+                  else '../partition_admin/index'),
+    visibility_check=lambda: c.HAS_HOTEL_LOTTERY_ACCESS,
+))
 
 
 if c.BADGE_PRINTING_ENABLED:

@@ -470,15 +470,21 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         back_populates="attendee")
 
     hotel_eligible: bool = False
-    hotel_requests: 'HotelRequests' = Relationship(back_populates="attendee",
-                                                   sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
-    room_assignments: list['RoomAssignment'] = Relationship(back_populates="attendee",
-                                                            sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    # Hotel-facing legal name overrides. When set, these are the names the
+    # attendee wants written on the hotel reservation; otherwise the system
+    # falls back to the parsed `legal_first_name` / `legal_last_name`
+    # properties (which themselves fall back to `first_name` / `last_name`).
+    # Stored once at the attendee level so the same legal-name change
+    # propagates across every room they book or occupy.
+    hotel_first_name: str = ''
+    hotel_last_name: str = ''
     lottery_application: 'LotteryApplication' = Relationship(
         back_populates="attendee")
-
-    # The PIN/password used by third party hotel reservation systems
-    hotel_pin: str | None = Field(nullable=True, unique=True)
+    room_assignments: list['RoomAssignment'] = Relationship(
+        back_populates="attendee",
+        sa_relationship_kwargs={'cascade': 'all,delete-orphan',
+                                'passive_deletes': True,
+                                'foreign_keys': 'RoomAssignment.attendee_id'})
 
     # =========================
     # mits
@@ -578,9 +584,6 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
 
     @presave_adjustment
     def _misc_adjustments(self):
-        if not self.hotel_pin or not self.hotel_pin.strip():
-            self.hotel_pin = None
-
         if self.birthdate == '':
             self.birthdate = None
 
@@ -2326,23 +2329,6 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
             self.hotel_eligible = True
 
     @property
-    def hotel_shifts_required(self):
-        return bool(c.VOLUNTEER_CHECKLIST_OPEN and self.hotel_nights and not self.is_dept_head and self.takes_shifts)
-
-    @property
-    def setup_hotel_approved(self):
-        requests = self.hotel_requests
-        return bool(requests and requests.approved and set(requests.nights_ints).intersection(c.SETUP_NIGHTS))
-
-    @property
-    def teardown_hotel_approved(self):
-        requests = self.hotel_requests
-        return bool(
-            requests
-            and requests.approved
-            and set(requests.nights_ints).intersection(c.TEARDOWN_NIGHTS))
-
-    @property
     def shift_prereqs_complete(self):
         if not c.PRE_CON:
             return not self.placeholder and (
@@ -2351,48 +2337,24 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
                 and c.AFTER_SHIFTS_CREATED
 
         return not self.placeholder and self.food_restrictions_filled_out and self.shirt_info_marked and (
-            not self.hotel_eligible
-            or self.hotel_requests
-            or not c.BEFORE_ROOM_DEADLINE
-            or not c.HOTELS_ENABLED
-            or c.HOTEL_REQUESTS_URL) and (
             not c.VOLUNTEER_AGREEMENT_ENABLED or self.agreed_to_volunteer_agreement) and (
             not c.EMERGENCY_PROCEDURES_ENABLED or self.reviewed_emergency_procedures) and (
             not c.CASH_HANDLING_URL or not self.handles_cash or self.reviewed_cash_handling) \
             and c.AFTER_SHIFTS_CREATED
 
     @property
-    def hotel_nights(self):
-        try:
-            return self.hotel_requests.nights
-        except Exception:
-            return []
+    def shift_compliance_violations(self):
+        """List of NightShiftRequirement rows this staffer is failing.
+
+        Driven by the per-date rules configured on the Staff Rooming admin
+        page. Empty list means compliant (or no room assignment / no rules).
+        """
+        from uber.shift_compliance import compliance_violations
+        return compliance_violations(self)
 
     @property
-    def hotel_nights_without_shifts_that_day(self):
-        if not self.hotel_requests:
-            return []
-
-        hotel_nights = set(self.hotel_requests.nights_ints)
-        shift_nights = set()
-        for shift in self.shifts:
-            start_time = shift.job.start_time.astimezone(c.EVENT_TIMEZONE)
-            shift_night = getattr(c, start_time.strftime('%A').upper())
-            shift_nights.add(shift_night)
-        discrepancies = hotel_nights.difference(shift_nights)
-        return list(sorted(discrepancies, key=c.NIGHT_DISPLAY_ORDER.index))
-
-    @cached_property
-    def hotel_status(self):
-        hr = self.hotel_requests
-        if not hr:
-            return 'Has not filled out volunteer checklist'
-        elif not hr.nights:
-            return 'Declined hotel space'
-        elif hr.setup_teardown:
-            return 'Hotel nights: {} ({})'.format(hr.nights_display, 'approved' if hr.approved else 'not yet approved')
-        else:
-            return 'Hotel nights: ' + hr.nights_display
+    def is_shift_compliant(self):
+        return not self.shift_compliance_violations
 
     @property
     def hotel_lottery_ineligible_reason(self):
@@ -2498,6 +2460,22 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
             elif ' ' in legal_name:
                 return legal_name.split(' ', 1)[1]
         return self.last_name
+
+    @property
+    def effective_hotel_first_name(self):
+        """The name to register on hotel reservations.
+
+        Prefers the attendee's explicit `hotel_first_name` (the hotel
+        legal-name override they entered through the lottery flow);
+        otherwise falls back to the parsed `legal_first_name` (which
+        itself falls back to `first_name`).
+        """
+        return self.hotel_first_name or self.legal_first_name
+
+    @property
+    def effective_hotel_last_name(self):
+        """Last-name companion to `effective_hotel_first_name`."""
+        return self.hotel_last_name or self.legal_last_name
 
     # =========================
     # attractions
@@ -2652,7 +2630,7 @@ class AttendeeAccount(MagModel, table=True):
     
     @property
     def hotel_eligible_staff(self):
-        return any([a.badge_type == c.STAFF_BADGE for a in self.hotel_eligible_attendees])
+        return [a for a in self.hotel_eligible_attendees if a.badge_type == c.STAFF_BADGE]
 
     @property
     def valid_attendees(self):

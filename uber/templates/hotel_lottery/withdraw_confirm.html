@@ -35,7 +35,17 @@ withdrawConfirm = function() {
     backdrop: true,
     title: 'Withdraw From Hotel Lottery?',
     message: '<p>Are you sure you want to withdraw from the {{ c.EVENT_NAME }} hotel lottery?</p>' +
-        '<p>This will <strong>delete your lottery entry{% if application.group_members %} and disband your group{% endif %}</strong>{% if application.parent_application %} and your group leader will be {% if app_or_parent.booking_url %}instructed to remove your name from the reservation{% else %}notified{% endif %}{% endif %}. ' +
+        {# Pre-check whether the group leader already has any awarded
+           room so the warning copy matches. `app_or_parent` is set on
+           `hotel_lottery/index.html` but this partial is also included
+           from `suite_lottery.html` and `room_lottery.html`, where the
+           caller doesn't define it - fall back to the local application
+           (or its parent for group entries) so the include works in
+           every context. #}
+        {% set _app_or_parent = app_or_parent|default(application.app_or_parent, true) %}
+        {% set _has_award = (_app_or_parent.attendee.room_assignments if _app_or_parent and _app_or_parent.attendee else [])
+                            |selectattr('status', 'in', [c.ASSIGNED, c.SECURED])|list|length > 0 %}
+        '<p>This will <strong>delete your lottery entry{% if application.group_members %} and disband your group{% endif %}</strong>{% if application.parent_application %} and your group leader will be {% if _has_award %}instructed to remove your name from the reservation{% else %}notified{% endif %}{% endif %}. ' +
         '{% if not application.current_lottery_closed and not application.finalized %}You will need to re-enter the hotel lottery from the beginning to be eligible for a room or suite.{% endif %}</p>',
     buttons: {
         confirm: { label: 'Yes, Withdraw', className: 'btn-danger' },

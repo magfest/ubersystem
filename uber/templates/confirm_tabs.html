@@ -65,13 +65,20 @@
     </a>
   </li>
 {% endif %}
-{% if 'hotel_lottery' in c.PAGE_PATH or attendee.lottery_application and attendee.lottery_application.complete_or_processed %}
-{% set which_page, button_text = attendee.lottery_application.homepage_link %}
+{# Hotel Lottery tab: the application status / entry flow. Active for
+   any /hotel_lottery/ URL EXCEPT the rooms list (`/rooms`) and the
+   per-room editor (`/room`), which share the Hotel Rooms tab below.
+   `endswith` keeps us safe from false positives like a future
+   `/lottery_group_rooms` page. #}
+{% set _on_rooms = (c.PAGE_PATH.endswith('/hotel_lottery/rooms')
+                    or c.PAGE_PATH.endswith('/hotel_lottery/room')) %}
+{% set _on_lottery = 'hotel_lottery' in c.PAGE_PATH and not _on_rooms %}
+{% if _on_lottery or _on_rooms or attendee.lottery_application and attendee.lottery_application.complete_or_processed %}
 <li class="nav-item" role="presentation">
-  <a href="../hotel_lottery/index?attendee_id={{ attendee.id }}" class="nav-link{% if 'hotel_lottery' in c.PAGE_PATH %} active{% endif %}">
+  <a href="../hotel_lottery/index?attendee_id={{ attendee.id }}" class="nav-link{% if _on_lottery %} active{% endif %}">
     <span class="fa fa-hotel"></span>
-    {% if attendee.lottery_application and attendee.lottery_application.finalized and not attendee.lottery_application.final_status_hidden %}
-      Hotel Lottery Results
+    {% if attendee.lottery_application and attendee.lottery_application.finalized %}
+      Hotel Lottery
     {% elif attendee.lottery_application and attendee.lottery_application.complete_or_processed %}
       {% set app_or_parent = attendee.lottery_application.parent_application if attendee.lottery_application.entry_type == c.GROUP_ENTRY else attendee.lottery_application %}
       {{ 'Suite Lottery Entry' if app_or_parent.entry_type == c.SUITE_ENTRY else 'Room Lottery Entry' }}
@@ -82,6 +89,19 @@
 </li>
 {% endif %}
 
+{# Hotel Rooms tab: the rooms the attendee has been assigned, decoupled
+   from the lottery. Always visible so even attendees with no rooms
+   yet can reach the page to redeem an invite code from a friend. #}
+<li class="nav-item" role="presentation">
+  <a href="../hotel_lottery/rooms?attendee_id={{ attendee.id }}" class="nav-link{% if _on_rooms %} active{% endif %}">
+    <span class="fa fa-bed"></span> Hotel Rooms
+    {% set _room_count = attendee.room_assignments|length %}
+    {% if _room_count %}
+      <span class="badge bg-primary ms-1">{{ _room_count }}</span>
+    {% endif %}
+  </a>
+</li>
+{% if not c.ATTENDEE_ACCOUNTS_ENABLED %}
 <li class="nav-item ms-auto">
   <div class="input-group me-2">
     {% if c.ART_SHOW_ENABLED and c.ART_SHOW_OPEN and not attendee.art_show_application %}

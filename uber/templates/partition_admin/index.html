@@ -1,0 +1,59 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Partition Admin{% endblock %}
+{% block content %}
+
+<h1>Partition Admin</h1>
+<p class="text-muted">
+  Partitions you can manage. Each row links to a dashboard with the
+  roster of assignments, billing settings, and stats.
+</p>
+
+{% if message %}
+<div class="alert alert-info">{{ message }}</div>
+{% endif %}
+
+{% if not rows %}
+<div class="alert alert-secondary">
+  You don't have any partition grants yet. Ask a hotel-lottery admin to add
+  a <a href="../hotel_lottery_admin/partition_owners">Partition Owner</a>
+  grant for your account.
+</div>
+{% else %}
+<table class="table table-hover align-middle">
+  <thead>
+    <tr>
+      <th>Partition</th>
+      <th class="text-end">Allocated</th>
+      <th class="text-end">Assigned</th>
+      <th class="text-end">Secured</th>
+      <th class="text-end">Cancelled</th>
+      <th class="text-end">Expired</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr{% if not r.partition.active %} class="text-muted"{% endif %}>
+      <td>
+        <strong>{{ r.partition.name }}</strong>
+        {% if r.partition.description %}
+        <br/><small class="text-muted">{{ r.partition.description }}</small>
+        {% endif %}
+      </td>
+      <td class="text-end">{{ r.total_quantity }}</td>
+      <td class="text-end">{{ r.assigned }}</td>
+      <td class="text-end">{{ r.secured }}</td>
+      <td class="text-end">{{ r.cancelled }}</td>
+      <td class="text-end">{{ r.expired }}</td>
+      <td>
+        <a href="dashboard?partition_id={{ r.partition.id }}" class="btn btn-sm btn-outline-primary">
+          Open
+        </a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{% endblock %}

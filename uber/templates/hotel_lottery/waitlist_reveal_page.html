@@ -1,0 +1,92 @@
+{% extends "./preregistration/preregbase.html" %}
+{% set title_text = "Hotel Waitlist" %}
+
+{% block content %}
+<div class="card card-body" id="waitlist-reveal-card">
+  {% if error == 'invalid-token' %}
+    <h1>Hotel Waitlist Link</h1>
+    <p>This link is invalid or has expired. If you believe this is a mistake,
+    please contact us.</p>
+  {% else %}
+    <h1>{{ reveal.name or 'Hotel Waitlist' }}</h1>
+    {% if reveal.audience_description %}
+    <p class="text-muted">{{ reveal.audience_description }}</p>
+    {% endif %}
+
+    {% if is_revealed %}
+      <div class="alert alert-success">
+        <h4>The link is open.</h4>
+        <p>
+          <a id="external-link" href="{{ reveal.external_url }}" target="_blank" class="btn btn-primary">
+            Go to the booking page ->
+          </a>
+        </p>
+        <p class="small text-muted mb-0">
+          Spots are limited and not held for you. Click through promptly.
+        </p>
+      </div>
+    {% else %}
+      <div class="alert alert-info">
+        <h4>Coming soon</h4>
+        <p>
+          We'll reveal the booking link here at
+          {% if reveal.reveal_at %}<strong>{{ reveal.reveal_at|datetime_local("%A, %B %-d %-I:%M %p %Z") }}</strong>{% else %}a time TBD{% endif %}.
+        </p>
+        <p id="countdown" class="h2 mb-0">...</p>
+        <p class="small text-muted mt-2 mb-0">
+          The page will refresh automatically. You don't need to keep
+          reloading it manually.
+        </p>
+      </div>
+    {% endif %}
+  {% endif %}
+</div>
+
+{% if reveal and reveal.reveal_at and not is_revealed %}
+<script>
+(function () {
+  var revealAt = new Date("{{ reveal.reveal_at.isoformat() }}").getTime();
+  var token = "{{ token }}";
+  var $cd = document.getElementById('countdown');
+
+  function fmt(ms) {
+    if (ms <= 0) return "any second now...";
+    var s = Math.floor(ms / 1000);
+    var d = Math.floor(s / 86400); s -= d * 86400;
+    var h = Math.floor(s / 3600);  s -= h * 3600;
+    var m = Math.floor(s / 60);    s -= m * 60;
+    var parts = [];
+    if (d) parts.push(d + "d");
+    if (d || h) parts.push(h + "h");
+    if (d || h || m) parts.push(m + "m");
+    parts.push(s + "s");
+    return parts.join(" ");
+  }
+
+  function tick() {
+    var now = Date.now();
+    var remaining = revealAt - now;
+    $cd.textContent = fmt(remaining);
+
+    if (remaining <= 0) {
+      // Poll the ajax endpoint for the actual external URL - once we get
+      // is_revealed=true, swap the page contents in.
+      fetch("waitlist_reveal?token=" + encodeURIComponent(token), {
+        headers: {"Accept": "application/json"}
+      })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data && data.is_revealed && data.external_url) {
+          window.location.reload();
+        }
+      })
+      .catch(function () { /* keep polling */ });
+    }
+  }
+
+  tick();
+  setInterval(tick, 1000);
+})();
+</script>
+{% endif %}
+{% endblock %}

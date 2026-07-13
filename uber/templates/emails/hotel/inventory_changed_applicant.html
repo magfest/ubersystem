@@ -1,0 +1,14 @@
+{{ attendee.first_name }},
+
+We're writing to let you know that one of the room options you ranked in your {{ c.EVENT_NAME_AND_YEAR }} hotel lottery entry is no longer available:
+
+<ul>
+  <li><strong>{{ inventory.name or 'Room option' }}</strong>
+    {% if inventory.hotel %} at {{ inventory.hotel.name }}{% endif %}
+  </li>
+</ul>
+
+Your lottery entry remains active and your other preferences will still be considered. If you'd like to update your preferences, you can do so on your <a href="{{ c.URL_BASE }}/hotel_lottery/index?attendee_id={{ attendee.id }}">lottery entry page</a>.
+
+Thanks,<br/>
+{{ c.EVENT_NAME }} Hotel Team
