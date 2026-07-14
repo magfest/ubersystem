@@ -1505,7 +1505,7 @@ class UberSession(sqlalchemy.orm.Session):
                 Either the matching object of the given model,
                  or None if not found.
             """
-            if isinstance(code, uuid.Uuid(as_uuid=False)):
+            if isinstance(code, uuid.UUID(as_uuid=False)):
                 code = code.hex
 
             normalized_code = RegistrationCode.normalize_code(code)
@@ -1518,7 +1518,7 @@ class UberSession(sqlalchemy.orm.Session):
             # Make sure that code is a valid Uuid(as_uuid=False) before adding
             # PromoCode.id to the filter clause
             try:
-                promo_code_id = uuid.Uuid(as_uuid=False)(normalized_code).hex
+                promo_code_id = uuid.UUID(as_uuid=False)(normalized_code).hex
             except Exception:
                 pass
             else:

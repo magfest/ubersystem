@@ -1776,10 +1776,10 @@ class ReceiptManager:
             return items if items else []
 
         if 'promo_code_code' in params:
-            if val != getattr(model, key, None):
+            if params['promo_code_code'] != getattr(model, key, None):
                 setattr(new_model, 'promo_code', None)
                 with Session() as session:
-                    session.add_promo_code_to_attendee(new_model, val)
+                    session.add_promo_code_to_attendee(new_model, params['promo_code_code'])
                     items = self.process_receipt_change(model, key, new_model, receipt, who=who)
                     if items:
                         for receipt_item in items:
