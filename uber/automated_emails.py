@@ -1536,15 +1536,16 @@ if c.PANELS_START:
         lambda app: app.status == c.WAITLISTED and int(app.department) in c.EMAILLESS_PANEL_DEPTS,
         ident='panel_waitlisted')
 
-    PanelAppEmailFixture(
-        'Last chance to confirm your panel',
-        'panels/panel_accept_reminder.txt',
-        lambda app: (
-            c.PANELS_CONFIRM_DEADLINE
-            and app.confirm_deadline
-            and int(app.department) in c.EMAILLESS_PANEL_DEPTS
-            and (localized_now() + timedelta(days=2)) > app.confirm_deadline),
-        ident='panel_accept_reminder')
+    if c.PANELS_CONFIRM_DEADLINE:
+        PanelAppEmailFixture(
+            'Last chance to confirm your panel',
+            'panels/panel_accept_reminder.txt',
+            lambda app: (
+                c.PANELS_CONFIRM_DEADLINE
+                and app.confirm_deadline
+                and int(app.department) in c.EMAILLESS_PANEL_DEPTS
+                and (localized_now() + timedelta(days=2)) > app.confirm_deadline),
+            ident='panel_accept_reminder')
 
     PanelAppEmailFixture(
         'Your {EVENT_NAME} Panel Has Been Scheduled: {{ app.name }}',
