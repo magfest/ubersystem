@@ -187,7 +187,7 @@ class JinjaEnv:
             'loader': AbsolutePathLoader(cls._template_dirs),
             'autoescape': True,
             # In production, disable automatic template mtime disk checks to save CPU cycles and file stat overhead.
-            'auto_reload': bool(getattr(c, 'DEVELOPMENT', False)),
+            'auto_reload': bool(getattr(c, 'DEV_BOX', False)),
             'lstrip_blocks': True,
             'trim_blocks': True,
             'keep_trailing_newline': True,
