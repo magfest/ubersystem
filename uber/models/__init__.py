@@ -79,6 +79,14 @@ engine = create_engine(
     pool_recycle=c.SQLALCHEMY_POOL_RECYCLE
 )
 
+try:
+    from uber.otel import init_otel
+    otel_instruments = init_otel()
+    if otel_instruments:
+        otel_instruments['instrument_engine'](engine)
+except ImportError:
+    pass
+
 RE_UNCAMEL = re.compile(
     r'('  # The whole expression is in a single group
     # Clause 1

@@ -211,7 +211,19 @@ def error_page_404(status, message, traceback, version):
 
 c.APPCONF['/']['error_page.404'] = error_page_404
 
-cherrypy.tree.mount(Root(), c.CHERRYPY_MOUNT_PATH, c.APPCONF)
+if c.OTEL.get('enabled'):
+    c.APPCONF['/']['tools.otel_metrics.on'] = True
+    c.APPCONF['/']['tools.otel_reset.on'] = True
+    c.APPCONF['/']['tools.otel_request_attrs.on'] = True
+
+app = cherrypy.tree.mount(Root(), c.CHERRYPY_MOUNT_PATH, c.APPCONF)
+
+if c.OTEL.get('enabled'):
+    from uber.otel import init_otel
+    otel_instruments = init_otel()
+    if otel_instruments:
+        app.wsgiapp = otel_instruments['OpenTelemetryMiddleware'](app.wsgiapp)
+
 static_overrides(os.path.join(c.MODULE_ROOT, 'static'))
 
 cherrypy_config = {}
