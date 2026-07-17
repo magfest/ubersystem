@@ -1,9 +1,5 @@
 import threading
-
-try:
-  import cPickle as pickle
-except ImportError:
-  import pickle
+import json
 
 from cherrypy.lib.sessions import Session
 import redis
@@ -54,25 +50,23 @@ class RedisSession(Session):
         return bool(self.cache.exists(self.prefix+self.id))
 
     def _load(self):
+        cached_data = self.cache.get(self.prefix+self.id)
+        if cached_data is None:
+            return None
         try:
-          return pickle.loads(self.cache.get(self.prefix+self.id))
-        except TypeError:
-          # if id not defined pickle can't load None and raise TypeError
-          return None
+            return json.loads(cached_data)
         except Exception as e:
             # Keep the entire thread from getting stuck
             self._delete()
             raise e
 
     def _save(self, expiration_time):
-        pickled_data = pickle.dumps(
-            (self._data, expiration_time),
-            pickle.HIGHEST_PROTOCOL)
+        json_data = json.dumps((self._data, expiration_time))
 
-        result = self.cache.setex(self.prefix+self.id, self.timeout * 60, pickled_data)
+        result = self.cache.setex(self.prefix+self.id, self.timeout * 60, json_data)
 
         if not result:
-            raise AssertionError("Session data for id %r not set." % self.prefix+self.id)
+            raise AssertionError("Session data for id %r not set." % (self.prefix+self.id))
 
     def _delete(self):
         self.cache.delete(self.prefix+self.id)
