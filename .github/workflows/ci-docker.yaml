@@ -1,38 +1,125 @@
 ---
-name: Build Docker Image
+name: CI & Docker Build
 
-on: [push, workflow_dispatch]
+on: [push, pull_request, workflow_dispatch]
 
 jobs:
+  lint:
+    name: Lint & Syntax Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install uv & Ruff
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          uv pip install --system ruff
+
+      - name: Syntax & Lint Check
+        run: ruff check .
+
+  test:
+    name: Unit Test & Migration Suite
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: uber_db
+          POSTGRES_PASSWORD: uber_db
+          POSTGRES_DB: uber_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install uv & Dependencies
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          uv pip install --system -r requirements.txt -r requirements_test.txt
+
+      - name: Run Database Migrations
+        env:
+          DB_CONNECTION_STRING: postgresql+psycopg://uber_db:uber_db@localhost:5432/uber_db
+        run: python sep.py alembic upgrade heads
+
+      - name: Execute Pytest Suite
+        env:
+          DB_CONNECTION_STRING: postgresql+psycopg://uber_db:uber_db@localhost:5432/uber_db
+        run: pytest
+
   downstream:
-    # This job reads $DOCKER_BUILDS to look for any downstream docker containers that
-    # depend on this branch and adds matrix jobs to build them in parallel.
+    name: Resolve Docker Matrix
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - id: set-matrix
+      - name: Set Matrix Output
+        id: set-matrix
+        env:
+          DOCKER_BUILDS: ${{ vars.DOCKER_BUILDS }}
+          REF_NAME: ${{ github.ref_name }}
+          UBER_REPO: ${{ vars.UBER_REPO }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          echo "matrix={\"include\":$(echo "${{ vars.DOCKER_BUILDS }}" | yq -o=json -I 0 e '.branches.${{ github.ref_name }} // [{"name":"${{ vars.UBER_REPO || 'magfest/ubersystem' }}:${{ github.ref_name }}", "plugins":[]}]' -)}" >> $GITHUB_OUTPUT
+          python3 -c '
+          import os, json
+          docker_builds = os.environ.get("DOCKER_BUILDS", "").strip()
+          ref_name = os.environ.get("REF_NAME", "main")
+          default_repo = os.environ.get("UBER_REPO") or os.environ.get("GH_REPO") or "magfest/ubersystem"
+          matrix_include = [{"name": f"{default_repo}:{ref_name}", "plugins": []}]
+          if docker_builds:
+              try:
+                  import json as j
+                  data = j.loads(docker_builds)
+                  if isinstance(data, dict) and "branches" in data and ref_name in data["branches"]:
+                      matrix_include = data["branches"][ref_name]
+              except Exception:
+                  pass
+          output = json.dumps({"include": matrix_include})
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"matrix={output}\n")
+          '
           cat $GITHUB_OUTPUT
 
   build_downstream:
+    name: Build Downstream Matrix
     permissions:
       contents: read
       packages: write
-    needs: downstream
+    needs: [test, lint, downstream]
     strategy:
       matrix: ${{ fromJson(needs.downstream.outputs.matrix) }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v1
+        uses: actions/checkout@v4
 
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
 
       - name: Login to GHCR
-        uses: docker/login-action@v2
+        if: ${{ github.event_name == 'push' && !github.event.repository.fork }}
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -55,42 +142,30 @@ jobs:
             PLUGIN_NAMES=${{ env.plugin_names }}
           platforms: linux/amd64,linux/arm64
           context: "."
-          push: true
+          push: ${{ github.event_name == 'push' && !github.event.repository.fork }}
           tags: ghcr.io/${{ matrix.name }}
-          # cache-from: type=gha
-          # cache-to: type=gha,mode=max
 
   build:
+    name: Build Core Container
     permissions:
       contents: read
       packages: write
+    needs: [test, lint]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v1
+        uses: actions/checkout@v4
 
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
 
       - name: Login to GHCR
-        uses: docker/login-action@v1
+        if: ${{ github.event_name == 'push' && !github.event.repository.fork }}
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-# TODO: Enable tests once we can run Postgres in CI
-#      - name: Build Test Docker Image
-#        uses: docker/build-push-action@v2
-#        with:
-#          build-args: BRANCH=${{ github.ref_name }}
-#          context: "."
-#          push: false
-#          tags: ghcr.io/${{ github.repository }}:${{ github.ref_name }}-test
-#          target: test
-
-#      - name: Execute Tests
-#        run: docker run ghcr.io/${{ github.repository }}:${{ github.ref_name }}-test
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -101,7 +176,5 @@ jobs:
           build-args: BRANCH=${{ github.ref_name }}
           platforms: linux/amd64,linux/arm64
           context: "."
-          push: true
-          tags: ghcr.io/${{ vars.UBER_REPO || github.repository }}:${{ github.ref_name }}
-          # cache-from: type=gha
-          # cache-to: type=gha,mode=max
+          push: ${{ github.event_name == 'push' && !github.event.repository.fork }}
+          tags: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
