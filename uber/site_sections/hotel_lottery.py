@@ -606,18 +606,7 @@ class Root:
             _fail("That room's card can't be reused here - it belongs to a "
                   "different hotel's payment system.")
 
-        copy_fields = [
-            'cc_token', 'cc_last_four', 'cc_card_type', 'cc_card_holder',
-            'cc_card_expiry', 'cc_issuer_brand', 'cc_issuer_bank',
-            'cc_issuer_country', 'cc_issuer_card_type', 'cc_issuer_card_level',
-            'cc_captured_at',
-            'address1', 'address2', 'city', 'region', 'zip_code', 'country',
-            'hotel_rewards_number',
-        ]
-        for f in copy_fields:
-            setattr(target, f, getattr(source, f))
-        if target.status == c.ASSIGNED and target.cc_token and target.require_cc:
-            target.status = c.SECURED
+        target.copy_card_from(source)
         session.add(target)
         session.commit()
 
@@ -896,28 +885,14 @@ class Root:
                 message=f'{target.first_name} {target.last_name} is already '
                         'the room leader.'))
 
-        def strip_card(room):
-            """Remove the outgoing leader's vaulted card and billing
-            address; a SECURED room goes back to awaiting-card."""
-            had_card = bool(room.cc_token)
-            for field in ('cc_token', 'cc_last_four', 'cc_card_type',
-                          'cc_card_holder', 'cc_card_expiry',
-                          'cc_issuer_brand', 'cc_issuer_bank',
-                          'cc_issuer_country', 'cc_issuer_card_type',
-                          'cc_issuer_card_level', 'cc_captured_at'):
-                setattr(room, field, None)
-            for field in ('address1', 'address2', 'city', 'region',
-                          'zip_code', 'country'):
-                setattr(room, field, '')
-            if room.status == c.SECURED:
-                room.status = c.ASSIGNED
-            return had_card
-
-        card_removed = strip_card(ra)
+        # Any card on file belongs to the outgoing leader, so it comes
+        # off (with their billing address) and a SECURED room drops back
+        # to ASSIGNED - the new leader re-secures with their own card.
+        card_removed = ra.clear_card()
         ra.attendee_id = target.id
         session.add(ra)
         for child in ra.child_assignments:
-            card_removed = strip_card(child) or card_removed
+            card_removed = child.clear_card() or card_removed
             child.attendee_id = target.id
             session.add(child)
         session.commit()
@@ -2323,7 +2298,6 @@ class Root:
             if new_check_in and new_check_out and inv:
                 new_ci = dateparser.parse(new_check_in).date()
                 new_co = dateparser.parse(new_check_out).date()
-                nq_map = inv.night_quantity_map
 
                 part_id = ra.partition_id
                 if part_id:
@@ -2370,7 +2344,7 @@ class Root:
                 unavailable_nights = []
                 day = new_ci
                 while day < new_co:
-                    block_qty = nq_map.get(day, inv.quantity) if nq_map else inv.quantity
+                    block_qty = inv.quantity_for_night(day)
                     if part_id:
                         capacity = min(partition_cap, block_qty)
                     else:

@@ -499,11 +499,10 @@ def check_inventory_blocks(ctx):
 
         # Night-level oversubscription: walk every night in the
         # event window covered by an assignment and tally occupancy
-        # vs. capacity. inv.night_quantity_map (when populated)
-        # overrides inv.quantity per-night.
+        # vs. inv.quantity_for_night (per-night rows override the flat
+        # quantity; an explicit 0 row closes the night).
         if not ras:
             continue
-        nq_map = getattr(inv, 'night_quantity_map', None) or {}
         night_occupancy = defaultdict(int)
         night_partition_occupancy = defaultdict(lambda: defaultdict(int))
         for ra in ras:
@@ -519,7 +518,7 @@ def check_inventory_blocks(ctx):
         # Inventory-wide oversubscription.
         bad_nights = []
         for night, used in sorted(night_occupancy.items()):
-            cap = nq_map.get(night, inv.quantity)
+            cap = inv.quantity_for_night(night)
             if used > cap:
                 bad_nights.append((night, used, cap))
         if bad_nights:

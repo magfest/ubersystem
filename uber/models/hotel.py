@@ -161,29 +161,30 @@ class LotteryApplication(MagModel, table=True):
             self.confirmation_num = self.generate_confirmation_num()
 
 
+    def _preference_labels(self, model, csv_field):
+        """Ranked display names for a CSV-of-UUIDs preference column:
+        split the stored ids, look up their names in one query, and
+        return the names in stored (ranked) order, dropping ids whose
+        rows were deleted."""
+        from sqlalchemy import inspect as sa_inspect
+        session = sa_inspect(self).session
+        value = getattr(self, csv_field)
+        if not session or not value:
+            return []
+        ids = [x.strip() for x in value.split(',') if x.strip()]
+        rows = session.query(model).filter(model.id.in_(ids)).all()
+        names = {str(row.id): row.name for row in rows}
+        return [names[i] for i in ids if i in names]
+
     @property
     def hotel_preference_labels(self):
         """Return list of hotel names from preference UUIDs."""
-        from sqlalchemy import inspect as sa_inspect
-        session = sa_inspect(self).session
-        if not session or not self.hotel_preference:
-            return []
-        ids = [x.strip() for x in self.hotel_preference.split(',') if x.strip()]
-        hotels = session.query(LotteryHotel).filter(LotteryHotel.id.in_(ids)).all()
-        hotel_map = {str(h.id): h.name for h in hotels}
-        return [hotel_map[i] for i in ids if i in hotel_map]
+        return self._preference_labels(LotteryHotel, 'hotel_preference')
 
     @property
     def room_type_preference_labels(self):
         """Return list of room type names from preference UUIDs."""
-        from sqlalchemy import inspect as sa_inspect
-        session = sa_inspect(self).session
-        if not session or not self.room_type_preference:
-            return []
-        ids = [x.strip() for x in self.room_type_preference.split(',') if x.strip()]
-        room_types = session.query(LotteryRoomType).filter(LotteryRoomType.id.in_(ids)).all()
-        rt_map = {str(rt.id): rt.name for rt in room_types}
-        return [rt_map[i] for i in ids if i in rt_map]
+        return self._preference_labels(LotteryRoomType, 'room_type_preference')
 
     @property
     def selection_priorities_labels(self):
@@ -197,14 +198,7 @@ class LotteryApplication(MagModel, table=True):
     @property
     def suite_type_preference_labels(self):
         """Return list of suite type names from preference UUIDs."""
-        from sqlalchemy import inspect as sa_inspect
-        session = sa_inspect(self).session
-        if not session or not self.suite_type_preference:
-            return []
-        ids = [x.strip() for x in self.suite_type_preference.split(',') if x.strip()]
-        suite_types = session.query(LotteryRoomType).filter(LotteryRoomType.id.in_(ids)).all()
-        st_map = {str(st.id): st.name for st in suite_types}
-        return [st_map[i] for i in ids if i in st_map]
+        return self._preference_labels(LotteryRoomType, 'suite_type_preference')
 
     @hybrid_property
     def normalized_code(self):
@@ -214,37 +208,17 @@ class LotteryApplication(MagModel, table=True):
     def normalized_code(cls):
         return RegistrationCode.sql_normalized_code(cls.invite_code)
 
-    def _generate_conf_num(self, generator):
-        from uber.models import Session
-        with Session() as session:
-            # Kind of inefficient, but doing one big query for all the existing
-            # codes will be faster than a separate query for each new code.
-            old_codes = set(s for (s,) in session.query(LotteryApplication.confirmation_num).all())
-
-        # Set an upper limit on the number of collisions we'll allow,
-        # otherwise this loop could potentially run forever.
-        max_collisions = 10000
-        collisions = 0
-        while 0 < 1:
-            code = generator()
-            if not code:
-                break
-            if code in old_codes:
-                collisions += 1
-                if collisions >= max_collisions:
-                    log.error("WARNING: We couldn't manage to generate a unique hotel lottery confirmation number in 10,000 tries!")
-                    return 0
-            else:
-                return code
-
     def generate_confirmation_num(self):
-        # The actual generator function, called repeatedly by `_generate_conf_num`
+        """A collision-checked 10-digit confirmation number (9 random
+        digits + a Verhoeff check digit), via the shared
+        RegistrationCode collision helper."""
         def _generate_random_conf():
-            base_num = ''.join(str(random.randint(0,9)) for _ in range(9))
+            base_num = ''.join(str(random.randint(0, 9)) for _ in range(9))
             checkdigit = verhoeff.calculate(base_num)
             return f"{base_num}{checkdigit}"
 
-        return self._generate_conf_num(_generate_random_conf)
+        return RegistrationCode._generate_code(
+            _generate_random_conf, LotteryApplication.confirmation_num)
 
     @property
     def group_leader_name(self):
@@ -452,16 +426,25 @@ class LotteryApplication(MagModel, table=True):
         """True iff there's a pending LotteryRun for this group with
         apply_cutoff=False - i.e. the admin has explicitly opened a late
         round that accepts new entries past the global form deadline.
-        Post-cutoff entries get the late-round confirmation email."""
-        from sqlalchemy import inspect as sa_inspect
-        session = sa_inspect(self).session
-        if not session:
-            return False
-        return session.query(LotteryRun).filter(
-            LotteryRun.lottery_group == lottery_group,
-            LotteryRun.apply_cutoff == False,  # noqa: E712
-            LotteryRun.status == c.LOTTERY_PENDING,
-        ).first() is not None
+        Post-cutoff entries get the late-round confirmation email.
+
+        Memoized per instance (effectively per request): templates
+        evaluate current_lottery_closed several times per render, and
+        each un-cached check costs a LotteryRun query."""
+        cache = getattr(self, '_late_run_open_cache', None)
+        if cache is None:
+            cache = self._late_run_open_cache = {}
+        if lottery_group not in cache:
+            from sqlalchemy import inspect as sa_inspect
+            session = sa_inspect(self).session
+            if not session:
+                return False
+            cache[lottery_group] = session.query(LotteryRun).filter(
+                LotteryRun.lottery_group == lottery_group,
+                LotteryRun.apply_cutoff == False,  # noqa: E712
+                LotteryRun.status == c.LOTTERY_PENDING,
+            ).first() is not None
+        return cache[lottery_group]
 
     @property
     def guarantee_deadline(self):
@@ -712,11 +695,13 @@ class HotelRoomInventory(MagModel, table=True):
         return {nq.night_date: nq.quantity for nq in self.night_quantities}
 
     def quantity_for_night(self, night_date):
-        """Return quantity for a specific night, falling back to default quantity."""
-        nq_map = self.night_quantity_map
-        if nq_map:
-            return nq_map.get(night_date, 0)
-        return self.quantity
+        """Per-night sellable quantity - the single source of truth for
+        "how many rooms of this block exist on night N".
+
+        A night missing from night_quantities falls back to the block's
+        flat quantity (the admin form's "leave blank to use the default
+        quantity above"); an explicit 0 row means the night is closed."""
+        return self.night_quantity_map.get(night_date, self.quantity)
 
     def to_inventory_dict(self):
         nq_map = self.night_quantity_map
@@ -1005,6 +990,48 @@ class RoomAssignment(MagModel, table=True):
                        cls.status == c.ASSIGNED,
                        sa.or_(cls.cc_token.is_(None), cls.cc_token == ''))
 
+    # The vaulted-card columns (nullable) and the billing-address columns
+    # (NOT NULL strings) that travel together whenever a card is copied
+    # between rooms or stripped from one. Single source for the field
+    # lists so adding a column can't miss a copy/strip site.
+    CC_FIELDS: ClassVar[tuple] = (
+        'cc_token', 'cc_last_four', 'cc_card_type', 'cc_card_holder',
+        'cc_card_expiry', 'cc_issuer_brand', 'cc_issuer_bank',
+        'cc_issuer_country', 'cc_issuer_card_type', 'cc_issuer_card_level',
+        'cc_captured_at')
+    ADDRESS_FIELDS: ClassVar[tuple] = (
+        'address1', 'address2', 'city', 'region', 'zip_code', 'country')
+
+    def clear_card(self):
+        """Remove the vaulted card and billing address; a SECURED room
+        drops back to ASSIGNED (awaiting a new card). Returns True if a
+        token was on file."""
+        had_card = bool(self.cc_token)
+        for field in self.CC_FIELDS:
+            setattr(self, field, None)
+        for field in self.ADDRESS_FIELDS:
+            setattr(self, field, '')
+        if self.status == c.SECURED:
+            self.status = c.ASSIGNED
+        return had_card
+
+    def copy_card_from(self, source):
+        """Copy the vaulted card, billing address, and rewards number
+        from another assignment, then flip to SECURED if this room was
+        awaiting exactly that. Callers are responsible for checking the
+        two rooms share a vault scope - a token is only valid within its
+        own vault reference."""
+        for field in self.CC_FIELDS + self.ADDRESS_FIELDS + ('hotel_rewards_number',):
+            setattr(self, field, getattr(source, field))
+        self.secure_if_carded()
+
+    def secure_if_carded(self):
+        """The ASSIGNED -> SECURED flip: a room that requires a card and
+        now has a token on file counts as secured. Master-bill rooms
+        (require_cc False) are never flipped here."""
+        if self.status == c.ASSIGNED and self.cc_token and self.require_cc:
+            self.status = c.SECURED
+
     @property
     def is_orphan_connector(self):
         """True for a connector room whose parent suite is no longer held
@@ -1032,15 +1059,40 @@ class RoomAssignment(MagModel, table=True):
         extends the assigned_* range on at least one end. The cron uses
         this to scope its work; templates use it to surface a
         "waitlisted for N more night(s)" chip."""
+        return bool(self.waitlisted_gap_nights)
+
+    @property
+    def effective_waitlist_window(self):
+        """(wl_ci, wl_co): the requested window, with each end coalesced
+        to the assigned date when only the other end is waitlisted.
+        (None, None) when neither waitlist column is set."""
         if not (self.waitlisted_check_in_date or self.waitlisted_check_out_date):
-            return False
-        wl_ci = self.waitlisted_check_in_date or self.assigned_check_in_date
-        wl_co = self.waitlisted_check_out_date or self.assigned_check_out_date
-        if not (wl_ci and wl_co and self.assigned_check_in_date
-                and self.assigned_check_out_date):
-            return False
-        return (wl_ci < self.assigned_check_in_date
-                or wl_co > self.assigned_check_out_date)
+            return None, None
+        return (self.waitlisted_check_in_date or self.assigned_check_in_date,
+                self.waitlisted_check_out_date or self.assigned_check_out_date)
+
+    @property
+    def waitlisted_gap_nights(self):
+        """Sorted list of the nights this assignment is waiting on: the
+        front gap [wl_ci, assigned_check_in) plus the back gap
+        [assigned_check_out, wl_co). Empty when not waitlisted or when
+        the assigned range is incomplete. The single definition of
+        "which nights does this row want" - the waitlist engine, demand
+        reports, and exports all iterate this."""
+        wl_ci, wl_co = self.effective_waitlist_window
+        ci, co = self.assigned_check_in_date, self.assigned_check_out_date
+        if not (wl_ci and wl_co and ci and co):
+            return []
+        nights = []
+        d = wl_ci
+        while d < ci:
+            nights.append(d)
+            d += timedelta(days=1)
+        d = co
+        while d < wl_co:
+            nights.append(d)
+            d += timedelta(days=1)
+        return nights
 
     @presave_adjustment
     def sync_room_number_from_physical(self):
@@ -1069,8 +1121,7 @@ class RoomAssignment(MagModel, table=True):
             return
         if not (self.assigned_check_in_date and self.assigned_check_out_date):
             return
-        wl_ci = self.waitlisted_check_in_date or self.assigned_check_in_date
-        wl_co = self.waitlisted_check_out_date or self.assigned_check_out_date
+        wl_ci, wl_co = self.effective_waitlist_window
         if (self.assigned_check_in_date <= wl_ci
                 and self.assigned_check_out_date >= wl_co):
             self.waitlisted_check_in_date = None

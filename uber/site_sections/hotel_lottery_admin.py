@@ -167,8 +167,7 @@ def _partition_capacity(session, inv, night, partition_id):
     """
     from uber.models.hotel import RoomAssignment
 
-    nq_map = inv.night_quantity_map
-    block_qty = nq_map.get(night, inv.quantity) if nq_map else inv.quantity
+    block_qty = inv.quantity_for_night(night)
 
     base_filters = [
         RoomAssignment.inventory_id == str(inv.id),
@@ -1788,12 +1787,10 @@ class Root:
             for inv in session.query(HotelRoomInventory).filter_by(is_suite=is_suite, active=True).all():
                 hotel_obj = hotel_lookup.get(str(inv.hotel_id))
                 block_id = str(inv.id)
-                nq_map = inv.night_quantity_map
 
                 night_data = []
                 for night in event_nights:
-                    raw_qty = nq_map.get(night, inv.quantity) if nq_map else inv.quantity
-                    available = effective_capacity(block_id, raw_qty)
+                    available = effective_capacity(block_id, inv.quantity_for_night(night))
                     assigned = assigned_per_block_night.get(block_id, {}).get(night, 0)
                     waitlisted = waitlist_per_block_night.get(block_id, {}).get(night, 0)
                     night_data.append({
@@ -1829,11 +1826,10 @@ class Root:
                     'assigned': [0] * len(event_nights),
                     'waitlisted': [0] * len(event_nights),
                 }
-            nq_map = inv.night_quantity_map
             block_id = str(inv.id)
             for i, night in enumerate(event_nights):
-                raw_qty = nq_map.get(night, inv.quantity) if nq_map else inv.quantity
-                chart_data[hotel_name]['available'][i] += effective_capacity(block_id, raw_qty)
+                chart_data[hotel_name]['available'][i] += effective_capacity(
+                    block_id, inv.quantity_for_night(night))
                 chart_data[hotel_name]['assigned'][i] += assigned_per_block_night.get(block_id, {}).get(night, 0)
                 chart_data[hotel_name]['waitlisted'][i] += waitlist_per_block_night.get(block_id, {}).get(night, 0)
 
