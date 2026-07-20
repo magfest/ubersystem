@@ -46,7 +46,9 @@ from uber.hotel.audit import (annotate_issues, collect_issues,
                                    group_inventory_issues, group_room_issues,
                                    load_issue_notes)
 from uber.hotel.queries import (block_availability, build_room_assignment_query,
-                                capacity_for, clamp_page_size, paginate)
+                                clamp_page_size, paginate)
+from uber.hotel.waitlist import (WaitlistError, accept_waitlist_entry,
+                                 cron_eligible, fulfill_waitlist)
 from uber.utils import (Order, check_csrf, get_page, localized_now,
                         validate_model, get_age_from_birthday,
                         normalize_email_legacy)
@@ -158,223 +160,14 @@ def _require_post_csrf(params, redirect='lottery_runs'):
     check_csrf(params.get('csrf_token'))
 
 
-def _wl_ci(ra):
-    """Effective waitlisted check-in for an assignment, coalesced to the
-    assigned date when only the other end of the range is waitlisted."""
-    return ra.waitlisted_check_in_date or ra.assigned_check_in_date
-
-
-def _wl_co(ra):
-    """Effective waitlisted check-out (see _wl_ci)."""
-    return ra.waitlisted_check_out_date or ra.assigned_check_out_date
-
-
-def _waitlist_pairs_to_process(base_q, inventory_id, night_date):
-    """Discover the (inventory_id, night) pairs with waitlist demand for
-    _fulfill_waitlist, sorted by night. An explicit inventory + night
-    short-circuits; otherwise every candidate's front/back gap nights
-    are collected."""
-    if inventory_id and night_date:
-        return [(str(inventory_id), night_date)]
-
-    candidates = base_q.all()
-    if inventory_id:
-        candidates = [ra for ra in candidates
-                      if str(ra.inventory_id) == str(inventory_id)]
-
-    pairs = set()
-    for ra in candidates:
-        block_id = str(ra.inventory_id)
-        wl_ci = _wl_ci(ra)
-        wl_co = _wl_co(ra)
-        if wl_ci and ra.assigned_check_in_date and wl_ci < ra.assigned_check_in_date:
-            d = wl_ci
-            while d < ra.assigned_check_in_date:
-                pairs.add((block_id, d))
-                d += timedelta(days=1)
-        if wl_co and ra.assigned_check_out_date and wl_co > ra.assigned_check_out_date:
-            d = ra.assigned_check_out_date
-            while d < wl_co:
-                pairs.add((block_id, d))
-                d += timedelta(days=1)
-    return sorted(pairs, key=lambda p: p[1])
-
-
-def _eligible_waitlist_extensions(candidates, night):
-    """Of `candidates`, the assignments extendable by this specific
-    night, as ('checkin'|'checkout', assignment) pairs. We walk the gap
-    one night at a time on either end - we only extend by one contiguous
-    night per pass."""
-    eligible = []
-    for ra in candidates:
-        wl_ci = _wl_ci(ra)
-        wl_co = _wl_co(ra)
-        if (wl_ci and ra.assigned_check_in_date
-                and night < ra.assigned_check_in_date
-                and night >= wl_ci
-                and night == ra.assigned_check_in_date - timedelta(days=1)):
-            eligible.append(('checkin', ra))
-        elif (wl_co and ra.assigned_check_out_date
-                and night >= ra.assigned_check_out_date
-                and night < wl_co
-                and night == ra.assigned_check_out_date):
-            eligible.append(('checkout', ra))
-    return eligible
-
-
-def _fulfill_waitlist(session, inventory_id=None, night_date=None):
-    """Process waitlist by extending the assigned dates on SECURED
-    RoomAssignment rows that have unfulfilled per-room waitlist demand.
-
-    Waitlist demand is the delta between the assignment's
-    `waitlisted_check_in_date` / `waitlisted_check_out_date` and the
-    confirmed `assigned_check_in_date` / `assigned_check_out_date`.
-    Both waitlist columns NULL -> no demand -> row is skipped.
-
-    The per-room columns are the source of truth: the application's
-    `earliest_checkin_date` / `latest_checkout_date` represent the
-    original lottery entry, which isn't meaningful once attendees can
-    edit per-room dates post-award.
-
-    Args:
-        inventory_id: If provided, only process this inventory block.
-        night_date: If provided, only process this specific night.
-    """
-    from uber.models.hotel import RoomAssignment
-
-    total_fulfilled = 0
-    total_skipped_locked = 0
-    fulfilled_assignments = set()
-
-    # Only SECURED, non-group, inventory-bound rows with at least one
-    # waitlist column populated are candidates. (Group-entry sub-apps
-    # don't get their own RoomAssignment; the leader's row covers the
-    # group's nights.)
-    base_q = (session.query(RoomAssignment)
-              .outerjoin(LotteryApplication,
-                         RoomAssignment.lottery_application_id == LotteryApplication.id)
-              .filter(RoomAssignment.status == c.SECURED,
-                      RoomAssignment.inventory_id.isnot(None),
-                      sa.or_(LotteryApplication.id.is_(None),
-                             LotteryApplication.entry_type != c.GROUP_ENTRY),
-                      sa.or_(RoomAssignment.waitlisted_check_in_date.isnot(None),
-                             RoomAssignment.waitlisted_check_out_date.isnot(None))))
-
-    pairs_to_process = _waitlist_pairs_to_process(base_q, inventory_id, night_date)
-
-    for block_id, night in pairs_to_process:
-        inv = session.query(HotelRoomInventory).get(block_id)
-        if not inv:
-            continue
-
-        # Discover the set of partition_ids covered by candidates for this block.
-        # Exclude export-locked applications (those rows can't be edited locally
-        # anymore - they live with the hotel).
-        block_candidates = base_q.filter(
-            RoomAssignment.inventory_id == block_id,
-            sa.or_(LotteryApplication.id.is_(None),
-                   LotteryApplication.export_locked == False),
-        ).all()
-
-        candidate_partitions = set()
-        for ra in block_candidates:
-            wl_ci = _wl_ci(ra)
-            wl_co = _wl_co(ra)
-            has_demand = (
-                (wl_ci and ra.assigned_check_in_date and wl_ci < ra.assigned_check_in_date)
-                or
-                (wl_co and ra.assigned_check_out_date and wl_co > ra.assigned_check_out_date))
-            if has_demand:
-                candidate_partitions.add(ra.partition_id)
-
-        skipped_locked = base_q.filter(
-            RoomAssignment.inventory_id == block_id,
-            LotteryApplication.export_locked == True,
-        ).count()
-        total_skipped_locked += skipped_locked
-
-        for part_id in candidate_partitions:
-            max_iterations = 500
-            for _iteration in range(max_iterations):
-                capacity, assigned_count, open_slots = capacity_for(
-                    session, inv, night, part_id)
-                if open_slots <= 0:
-                    break
-
-                part_filter = ((RoomAssignment.partition_id == part_id) if part_id
-                               else (RoomAssignment.partition_id == None))  # noqa: E711
-                candidates = base_q.filter(
-                    RoomAssignment.inventory_id == block_id,
-                    sa.or_(LotteryApplication.id.is_(None),
-                           LotteryApplication.export_locked == False),
-                    part_filter,
-                ).all()
-
-                eligible = _eligible_waitlist_extensions(candidates, night)
-
-                if not eligible:
-                    break
-
-                # FIFO: earliest waitlist_started_at first. Stable on
-                # `id` so concurrent same-millisecond entries (rare but
-                # possible during a solver re-run) get a deterministic
-                # order. NULL `waitlist_started_at` is treated as the
-                # epoch - should never happen post-migration, but if a
-                # row ever ends up with waitlisted_* set and no start
-                # timestamp, we still want it served (FIFO can't
-                # reasonably gauge "when did they join" if it's missing,
-                # so we default to "as early as possible" rather than
-                # silently dropping the row).
-                from datetime import datetime as _dt, timezone as _tz
-                _epoch = _dt(1970, 1, 1, tzinfo=_tz.utc)
-                eligible.sort(key=lambda dr: (
-                    dr[1].waitlist_started_at or _epoch,
-                    str(dr[1].id)))
-                selected = eligible[:open_slots]
-                if not selected:
-                    break
-
-                for direction, ra in selected:
-                    if direction == 'checkin':
-                        ra.assigned_check_in_date = night
-                    else:
-                        ra.assigned_check_out_date = night + timedelta(days=1)
-                    # The model's `clear_waitlist_when_satisfied` presave
-                    # zeros the waitlist columns when the assigned range
-                    # fully covers the request, so the row drops out of
-                    # subsequent scans without an extra branch here.
-                    session.add(ra)
-                    total_fulfilled += 1
-                    fulfilled_assignments.add(ra)
-
-                session.flush()
-
-    session.commit()
-
-    for ra in fulfilled_assignments:
-        if ra.attendee and ra.lottery_application:
-            EmailService.queue_email(
-                session, 'hotel_lottery_waitlist_fulfilled', ra.lottery_application,
-                subject=f'{c.EVENT_NAME} Hotel Lottery - Room Dates Updated',
-                data={'assignment': ra, 'app': ra.lottery_application})
-
-    return {
-        "success": True,
-        "fulfilled": total_fulfilled,
-        "skipped_locked": total_skipped_locked,
-        "message": f"Fulfilled {total_fulfilled} waitlist entries." + (
-            f" Skipped {total_skipped_locked} locked entries." if total_skipped_locked else "")
-    }
-
-
 def _count_inventory_usage(assigned_ras):
     """Tally the live assignments for the inventory overview.
 
     Builds per-block per-night assignment counts + per-block status
-    counts, plus per-block per-night waitlist demand from each
-    assignment's own waitlisted_* range. For the waitlist demand, either
-    column NULL means no demand on that end; we coalesce to the assigned
-    date so the gap calculation is symmetric.
+    counts, plus per-block per-night waitlist demand. Demand counts
+    exactly the rows the waitlist sweep would serve (`cron_eligible`),
+    iterating each row's `waitlisted_gap_nights`, so this tally and the
+    Waitlist dashboard's per-block rows agree.
 
     Returns (assigned_per_block_night, status_per_block,
     waitlist_per_block_night).
@@ -388,7 +181,7 @@ def _count_inventory_usage(assigned_ras):
 
     waitlist_per_block_night = defaultdict(lambda: defaultdict(int))
     for ra in assigned_ras:
-        if ra.status != c.SECURED:
+        if not cron_eligible(ra):
             continue
         block_id = str(ra.inventory_id)
         for night in ra.waitlisted_gap_nights:
@@ -400,26 +193,18 @@ def _count_inventory_usage(assigned_ras):
 def _waitlist_block_rows(session, filtered):
     """Per-block per-night waitlist demand rows for the admin Waitlist
     dashboard, derived from the (possibly search-filtered) set of
-    waitlisted assignments. One row per inventory block, with the
+    waitlisted assignments. Demand counts exactly the rows the sweep
+    would serve (`cron_eligible`), iterating each row's
+    `waitlisted_gap_nights`. One row per inventory block, with the
     per-night queue depth and total demand, sorted by hotel then block
     name."""
     demand_by_block = defaultdict(lambda: defaultdict(list))
     for ra in filtered:
-        block_id = str(ra.inventory_id) if ra.inventory_id else None
-        if not block_id:
+        if not cron_eligible(ra):
             continue
-        wl_ci = ra.waitlisted_check_in_date or ra.assigned_check_in_date
-        wl_co = ra.waitlisted_check_out_date or ra.assigned_check_out_date
-        if wl_ci and ra.assigned_check_in_date and wl_ci < ra.assigned_check_in_date:
-            d = wl_ci
-            while d < ra.assigned_check_in_date:
-                demand_by_block[block_id][d].append(ra)
-                d += timedelta(days=1)
-        if wl_co and ra.assigned_check_out_date and wl_co > ra.assigned_check_out_date:
-            d = ra.assigned_check_out_date
-            while d < wl_co:
-                demand_by_block[block_id][d].append(ra)
-                d += timedelta(days=1)
+        block_id = str(ra.inventory_id)
+        for night in ra.waitlisted_gap_nights:
+            demand_by_block[block_id][night].append(ra)
 
     block_ids = list(demand_by_block.keys())
     inventory_by_id = {}
@@ -1056,11 +841,20 @@ class Root:
             if became_inactive:
                 _notify_applicants_of_inventory_change(session, item)
 
-            # Auto-process waitlist for this inventory block
-            waitlist_result = _fulfill_waitlist(session, inventory_id=str(item.id))
+            # Auto-process waitlist for this inventory block. The engine
+            # only flushes; commit here, then queue the notification
+            # emails post-commit.
+            waitlist_result = fulfill_waitlist(session, inventory_id=str(item.id))
+            session.commit()
+            for ra in waitlist_result.fulfilled_assignments:
+                if ra.attendee and ra.lottery_application:
+                    EmailService.queue_email(
+                        session, 'hotel_lottery_waitlist_fulfilled', ra.lottery_application,
+                        subject=f'{c.EVENT_NAME} Hotel Lottery - Room Dates Updated',
+                        data={'assignment': ra, 'app': ra.lottery_application})
             save_msg = 'Inventory item saved.'
-            if waitlist_result['fulfilled'] > 0:
-                save_msg += f" Waitlist: {waitlist_result['fulfilled']} entries fulfilled."
+            if waitlist_result.fulfilled > 0:
+                save_msg += f" Waitlist: {waitlist_result.fulfilled} entries fulfilled."
 
             raise HTTPRedirect('manage_inventory?message={}', save_msg)
 
@@ -3188,8 +2982,22 @@ class Root:
     def process_waitlist(self, session, inventory_id='', night_date=''):
         inv_id = inventory_id if inventory_id else None
         nd = date.fromisoformat(night_date) if night_date else None
-        result = _fulfill_waitlist(session, inventory_id=inv_id, night_date=nd)
-        return result
+        result = fulfill_waitlist(session, inventory_id=inv_id, night_date=nd)
+        session.commit()
+        for ra in result.fulfilled_assignments:
+            if ra.attendee and ra.lottery_application:
+                EmailService.queue_email(
+                    session, 'hotel_lottery_waitlist_fulfilled', ra.lottery_application,
+                    subject=f'{c.EVENT_NAME} Hotel Lottery - Room Dates Updated',
+                    data={'assignment': ra, 'app': ra.lottery_application})
+        return {
+            'success': True,
+            'fulfilled': result.fulfilled,
+            'skipped_locked': result.skipped_locked,
+            'message': f"Fulfilled {result.fulfilled} waitlist entries." + (
+                f" Skipped {result.skipped_locked} locked entries."
+                if result.skipped_locked else "")
+        }
 
     def waitlist(self, session, message='', page='1', search_text=''):
         """Admin Waitlist dashboard.
@@ -3388,80 +3196,27 @@ class Root:
         columns and `waitlist_started_at` so the row drops out of the
         queue. If only some of the requested nights had capacity, the
         row keeps its tightened waitlist demand on whatever's left.
-        """
-        from uber.models.hotel import RoomAssignment
 
+        The walk itself lives in the engine
+        (uber.hotel.waitlist.accept_waitlist_entry), which also cascades
+        the new dates + waitlist state to connector children. Its
+        default gate is deliberately looser than the sweep's (no
+        SECURED / non-group requirement) - this is an admin override.
+        """
         if not assignment_id:
             return {'error': 'Missing assignment_id.'}
         ra = session.query(RoomAssignment).get(assignment_id)
         if not ra:
             return {'error': 'Assignment not found.'}
-        if not (ra.waitlisted_check_in_date or ra.waitlisted_check_out_date):
-            return {'error': 'That assignment is not currently on the waitlist.'}
-        if ra.export_locked:
-            return {'error': 'That assignment has been exported to the hotel '
-                             'and cannot be edited from here.'}
-        if not ra.inventory:
-            return {'error': 'Assignment has no inventory block; cannot run '
-                             'the capacity check.'}
 
-        wl_ci = ra.waitlisted_check_in_date or ra.assigned_check_in_date
-        wl_co = ra.waitlisted_check_out_date or ra.assigned_check_out_date
+        try:
+            result = accept_waitlist_entry(session, ra)
+        except WaitlistError as e:
+            return {'error': e.message}
 
-        # Walk the FRONT extension one night at a time, closest-to-now
-        # first. `capacity_for` counts every currently-confirmed
-        # assignment whose `assigned_check_in_date <= night <
-        # assigned_check_out_date` - that excludes the row we're
-        # extending (whose current `assigned_check_in_date` is strictly
-        # after `night`), so we don't double-count ourselves.
-        nights_extended_front = 0
-        while ra.assigned_check_in_date and wl_ci and wl_ci < ra.assigned_check_in_date:
-            candidate_night = ra.assigned_check_in_date - timedelta(days=1)
-            _, _, open_slots = capacity_for(
-                session, ra.inventory, candidate_night, ra.partition_id)
-            if open_slots <= 0:
-                break
-            ra.assigned_check_in_date = candidate_night
-            nights_extended_front += 1
-            # Flush so the next iteration's `capacity_for` sees
-            # the in-memory change (otherwise we'd over-extend by
-            # racing our own writes).
-            session.flush()
-
-        # Walk the BACK extension one night at a time, earliest first.
-        # Same self-exclusion logic: `assigned_check_out_date > night`
-        # filters us out for any night >= our current check-out.
-        nights_extended_back = 0
-        while ra.assigned_check_out_date and wl_co and wl_co > ra.assigned_check_out_date:
-            candidate_night = ra.assigned_check_out_date
-            _, _, open_slots = capacity_for(
-                session, ra.inventory, candidate_night, ra.partition_id)
-            if open_slots <= 0:
-                break
-            ra.assigned_check_out_date = candidate_night + timedelta(days=1)
-            nights_extended_back += 1
-            session.flush()
-
-        total_extended = nights_extended_front + nights_extended_back
-
-        # Cascade the new confirmed range to any connector children
-        # (their dates always mirror the parent), then sync the
-        # remaining waitlist demand too so the cron and the children
-        # stay consistent.
-        for child in session.query(RoomAssignment).filter_by(
-                parent_assignment_id=ra.id).all():
-            child.assigned_check_in_date = ra.assigned_check_in_date
-            child.assigned_check_out_date = ra.assigned_check_out_date
-            # The parent's `waitlisted_*` is either cleared (fully satisfied)
-            # or holds the original request (partial); copy it to the children.
-            child.waitlisted_check_in_date = ra.waitlisted_check_in_date
-            child.waitlisted_check_out_date = ra.waitlisted_check_out_date
-            child.waitlist_started_at = ra.waitlist_started_at
-            session.add(child)
-
-        session.add(ra)
         session.commit()
 
+        total_extended = result.nights_front + result.nights_back
         if total_extended == 0:
             return {
                 'error': 'No capacity available on any of the requested '
@@ -3480,18 +3235,16 @@ class Root:
             except Exception:
                 log.exception('accept_waitlist: notification failed')
 
-        still_waiting = bool(ra.waitlisted_check_in_date
-                             or ra.waitlisted_check_out_date)
         msg = (f'Accepted {total_extended} night(s) off waitlist. '
                f'New range: {ra.assigned_check_in_date} - '
                f'{ra.assigned_check_out_date}.')
-        if still_waiting:
+        if result.still_waiting:
             msg += ' Remaining nights still on waitlist (no capacity yet).'
 
         return {
             'success': True,
             'message': msg,
-            'still_waiting': still_waiting,
+            'still_waiting': result.still_waiting,
         }
 
     # A read-only "what's wrong with our room data" report. Issues are

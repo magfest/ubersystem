@@ -12,12 +12,10 @@ from uber.custom_tags import readable_join
 from uber.decorators import all_renderable, ajax, ajax_gettable, requires_account, render
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
-import sqlalchemy as sa
-from sqlalchemy import func
 from uber.models import Attendee, LotteryApplication, RoomAssignment
-from uber.models.hotel import (HotelRoomInventory, InventoryPartitionBlock,
-                               RoomAssignmentInvite, WaitlistRevealLink,
+from uber.models.hotel import (RoomAssignmentInvite, WaitlistRevealLink,
                                room_assignment_occupant)
+from uber.hotel.waitlist import WaitlistError, resize_assignment
 from uber.email import EmailService
 from uber.utils import RegistrationCode, validate_model, get_age_from_birthday, normalize_email_legacy
 
@@ -2287,146 +2285,37 @@ class Root:
                             'cannot be changed. Please contact us for assistance.'))
 
             from dateutil import parser as dateparser
-            from datetime import timedelta as td
 
             new_check_in = params.get('assigned_check_in_date')
             new_check_out = params.get('assigned_check_out_date')
 
             inv = ra.inventory
 
-            # Availability check with partial confirmation + waitlist
+            # Availability check with partial confirmation + waitlist.
+            # The engine (uber.hotel.waitlist.resize_assignment) confirms
+            # whatever contiguous extension nights have capacity and
+            # aren't already claimed by someone else's queue position,
+            # stashes the wider request on the row's waitlisted_* columns
+            # otherwise, and cascades everything to connector children.
             if new_check_in and new_check_out and inv:
                 new_ci = dateparser.parse(new_check_in).date()
                 new_co = dateparser.parse(new_check_out).date()
 
-                part_id = ra.partition_id
-                if part_id:
-                    pb = session.query(InventoryPartitionBlock).filter_by(
-                        partition_id=part_id, inventory_id=inv.id).first()
-                    partition_cap = pb.quantity if pb else 0
-                else:
-                    total_partitioned = session.query(
-                        func.coalesce(func.sum(InventoryPartitionBlock.quantity), 0)
-                    ).filter(InventoryPartitionBlock.inventory_id == str(inv.id)).scalar()
+                try:
+                    result = resize_assignment(session, ra, new_ci, new_co)
+                except WaitlistError as e:
+                    raise HTTPRedirect(_room_url(
+                        ra.id, attendee_id or application.attendee.id,
+                        message=e.message))
 
-                # Look up who else is already on the waitlist for this
-                # block - FIFO fairness. If anyone is waiting, the
-                # attendee's *new* extension nights queue behind them
-                # even when raw capacity is technically free for that
-                # night (the cron will sort it all out, but only after
-                # earlier waitlisters get served first).
-                #
-                # We only care about other rooms (not this one), and
-                # only about rooms that still have outstanding waitlist
-                # demand (`waitlisted_*` non-NULL).
-                others_on_waitlist = session.query(RoomAssignment).filter(
-                    RoomAssignment.inventory_id == ra.inventory_id,
-                    RoomAssignment.id != ra.id,
-                    sa.or_(
-                        RoomAssignment.waitlisted_check_in_date.isnot(None),
-                        RoomAssignment.waitlisted_check_out_date.isnot(None)),
-                ).count() > 0
-
-                # Which extension nights does the attendee want that are
-                # OUTSIDE the currently-assigned range? Only those need
-                # the FIFO check; nights already inside the assigned
-                # range are just being preserved (or, on a shrink, the
-                # extension set is empty).
-                cur_ci = ra.assigned_check_in_date
-                cur_co = ra.assigned_check_out_date
-
-                def _is_extension_night(d):
-                    if not (cur_ci and cur_co):
-                        return True
-                    return d < cur_ci or d >= cur_co
-
-                available_nights = []
-                unavailable_nights = []
-                day = new_ci
-                while day < new_co:
-                    block_qty = inv.quantity_for_night(day)
-                    if part_id:
-                        capacity = min(partition_cap, block_qty)
-                    else:
-                        capacity = max(0, block_qty - total_partitioned)
-
-                    part_filter = ((RoomAssignment.partition_id == part_id)
-                                   if part_id else
-                                   (RoomAssignment.partition_id.is_(None)))
-                    assigned_count = session.query(RoomAssignment).filter(
-                        RoomAssignment.inventory_id == ra.inventory_id,
-                        RoomAssignment.is_live,
-                        RoomAssignment.id != ra.id,
-                        RoomAssignment.assigned_check_in_date <= day,
-                        RoomAssignment.assigned_check_out_date > day,
-                        part_filter,
-                    ).count()
-                    # An extension night is waitlisted if EITHER the
-                    # block is over capacity for that night OR there's
-                    # already someone queued ahead on this block.
-                    blocked_by_queue = (others_on_waitlist
-                                        and _is_extension_night(day))
-                    if assigned_count >= capacity or blocked_by_queue:
-                        unavailable_nights.append(day)
-                    else:
-                        available_nights.append(day)
-                    day += td(days=1)
-
-                # Determine the confirmed contiguous range (must include current assigned range)
-                confirmed_ci = ra.assigned_check_in_date
-                confirmed_co = ra.assigned_check_out_date
-
-                if new_ci < confirmed_ci:
-                    d = confirmed_ci - td(days=1)
-                    while d >= new_ci and d in available_nights:
-                        confirmed_ci = d
-                        d -= td(days=1)
-
-                if new_co > confirmed_co:
-                    d = confirmed_co
-                    while d < new_co and d in available_nights:
-                        confirmed_co = d + td(days=1)
-                        d += td(days=1)
-
-                ra.assigned_check_in_date = confirmed_ci
-                ra.assigned_check_out_date = confirmed_co
-
-                # Per-room waitlist: stash the wider desired window on
-                # the assignment itself. NOT on `application.earliest_*` /
-                # `latest_*` - those represent the original lottery entry
-                # and shouldn't shift every time the attendee retunes
-                # the dates on one of their rooms.
-                #
-                # Clear the columns when the confirmed range already
-                # matches the request so the row drops out of the
-                # waitlist queue. (The model's `clear_waitlist_when_satisfied`
-                # presave handles the same cleanup when the cron extends
-                # assigned_*, but we mirror it here so the immediate
-                # post-edit state is consistent before the next request.)
-                if (confirmed_ci > new_ci) or (confirmed_co < new_co):
-                    ra.waitlisted_check_in_date = new_ci
-                    ra.waitlisted_check_out_date = new_co
-                else:
-                    ra.waitlisted_check_in_date = None
-                    ra.waitlisted_check_out_date = None
-
-                # Cascade dates to connector children - they always
-                # match parent, including waitlist state.
-                children = (session.query(RoomAssignment)
-                            .filter_by(parent_assignment_id=ra.id).all())
-                for child in children:
-                    child.assigned_check_in_date = confirmed_ci
-                    child.assigned_check_out_date = confirmed_co
-                    child.waitlisted_check_in_date = ra.waitlisted_check_in_date
-                    child.waitlisted_check_out_date = ra.waitlisted_check_out_date
-                    session.add(child)
-
-                if unavailable_nights:
-                    wl_strs = [d.strftime('%a %-m/%-d') for d in unavailable_nights]
-                    message = (f"Confirmed: {confirmed_ci.strftime('%a %-m/%-d')} - "
-                               f"{confirmed_co.strftime('%a %-m/%-d')}. "
-                               f"Waitlisted: {', '.join(wl_strs)}. "
-                               f"You'll be notified if availability opens up.")
+                if result.waitlisted_nights:
+                    wl_strs = [d.strftime('%a %-m/%-d')
+                               for d in result.waitlisted_nights]
+                    message = (
+                        f"Confirmed: {result.confirmed_ci.strftime('%a %-m/%-d')} - "
+                        f"{result.confirmed_co.strftime('%a %-m/%-d')}. "
+                        f"Waitlisted: {', '.join(wl_strs)}. "
+                        f"You'll be notified if availability opens up.")
                 else:
                     message = 'Room details updated.'
             else:
