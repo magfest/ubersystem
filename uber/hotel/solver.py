@@ -339,16 +339,12 @@ def count_assigned_per_block_night(already_assigned):
     inventory's capacity; primary rooms count against theirs - both are
     RoomAssignment rows.
 
-    Returns {inventory_id: {night_iso: count}}.
+    Thin wrapper over the canonical histogram in uber.hotel.queries,
+    keyed the way the solver's interchange format expects:
+    {inventory_id: {night_iso: count}}.
     """
-    assigned_per_block_night = defaultdict(lambda: defaultdict(int))
-    for ra in already_assigned:
-        if ra.assigned_check_in_date and ra.assigned_check_out_date:
-            day = ra.assigned_check_in_date
-            while day < ra.assigned_check_out_date:
-                assigned_per_block_night[str(ra.inventory_id)][day.isoformat()] += 1
-                day += timedelta(days=1)
-    return assigned_per_block_night
+    from uber.hotel.queries import occupancy_by_block_night
+    return occupancy_by_block_night(already_assigned, iso_keys=True)
 
 
 def adjust_available_rooms(inventory_table, partition_filter,

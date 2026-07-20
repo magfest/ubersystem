@@ -244,15 +244,12 @@ def auto_assign_physical_rooms(session, hotel_id):
         return not any(_overlaps(ci, co, b_ci, b_co)
                        for b_ci, b_co in busy[room.id])
 
-    hotel_inv_ids = [inv.id for inv in session.query(HotelRoomInventory)
-                     .filter_by(hotel_id=hotel_id).all()]
-    pending = (session.query(RoomAssignment).filter(
+    from uber.hotel.queries import live_assignments_for_hotel
+    pending = (live_assignments_for_hotel(session, hotel_id).filter(
         RoomAssignment.physical_room_id.is_(None),
-        RoomAssignment.is_live,
-        RoomAssignment.inventory_id.in_(hotel_inv_ids),
         RoomAssignment.assigned_check_in_date.isnot(None),
         RoomAssignment.assigned_check_out_date.isnot(None),
-    ).all()) if hotel_inv_ids else []
+    ).all())
     by_id = {ra.id: ra for ra in pending}
     children_of = defaultdict(list)
     for ra in pending:

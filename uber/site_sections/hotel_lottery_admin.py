@@ -41,7 +41,8 @@ from uber.hotel.audit import (annotate_issues, collect_issues,
                                    filter_issues, get_or_make_issue_note,
                                    group_inventory_issues, group_room_issues,
                                    load_issue_notes)
-from uber.hotel.queries import build_room_assignment_query, clamp_page_size, paginate
+from uber.hotel.queries import (block_availability, build_room_assignment_query,
+                                capacity_for, clamp_page_size, paginate)
 from uber.utils import (Order, check_csrf, get_page, localized_now,
                         validate_model, get_age_from_birthday,
                         normalize_email_legacy)
@@ -151,52 +152,6 @@ def _require_post_csrf(params, redirect='lottery_runs'):
     if cherrypy.request.method != 'POST':
         raise HTTPRedirect(redirect)
     check_csrf(params.get('csrf_token'))
-
-
-def _partition_capacity(session, inv, night, partition_id):
-    """Compute the effective capacity and assigned count for a block/night respecting partitions.
-
-    If partition_id is set, the capacity is the partition's allocation for
-    this block and only same-partition assignments count. If partition_id
-    is None, the capacity is the block's total minus all partition
-    allocations, and only non-partitioned assignments count.
-
-    Assignment count is sourced from RoomAssignment (per multi-room).
-
-    Returns (capacity, assigned_count, open_slots).
-    """
-    from uber.models.hotel import RoomAssignment
-
-    block_qty = inv.quantity_for_night(night)
-
-    base_filters = [
-        RoomAssignment.inventory_id == str(inv.id),
-        RoomAssignment.is_live,
-        RoomAssignment.assigned_check_in_date <= night,
-        RoomAssignment.assigned_check_out_date > night,
-    ]
-
-    if partition_id:
-        pb = session.query(InventoryPartitionBlock).filter_by(
-            partition_id=partition_id, inventory_id=inv.id).first()
-        capacity = min(pb.quantity, block_qty) if pb else 0
-        assigned_count = session.query(RoomAssignment).filter(
-            *base_filters,
-            RoomAssignment.partition_id == partition_id,
-        ).count()
-    else:
-        total_partitioned = session.query(
-            func.coalesce(func.sum(InventoryPartitionBlock.quantity), 0)
-        ).filter(
-            InventoryPartitionBlock.inventory_id == str(inv.id),
-        ).scalar()
-        capacity = max(0, block_qty - total_partitioned)
-        assigned_count = session.query(RoomAssignment).filter(
-            *base_filters,
-            RoomAssignment.partition_id == None,  # noqa: E711
-        ).count()
-
-    return capacity, assigned_count, max(0, capacity - assigned_count)
 
 
 def _wl_ci(ra):
@@ -337,7 +292,7 @@ def _fulfill_waitlist(session, inventory_id=None, night_date=None):
         for part_id in candidate_partitions:
             max_iterations = 500
             for _iteration in range(max_iterations):
-                capacity, assigned_count, open_slots = _partition_capacity(
+                capacity, assigned_count, open_slots = capacity_for(
                     session, inv, night, part_id)
                 if open_slots <= 0:
                     break
@@ -420,36 +375,20 @@ def _count_inventory_usage(assigned_ras):
     Returns (assigned_per_block_night, status_per_block,
     waitlist_per_block_night).
     """
-    assigned_per_block_night = defaultdict(lambda: defaultdict(int))
+    from uber.hotel.queries import occupancy_by_block_night
+
+    assigned_per_block_night = occupancy_by_block_night(assigned_ras)
     status_per_block = defaultdict(lambda: defaultdict(int))
     for ra in assigned_ras:
-        block_id = str(ra.inventory_id)
-        status_per_block[block_id][ra.status] += 1
-        if ra.assigned_check_in_date and ra.assigned_check_out_date:
-            d = ra.assigned_check_in_date
-            while d < ra.assigned_check_out_date:
-                assigned_per_block_night[block_id][d] += 1
-                d += timedelta(days=1)
+        status_per_block[str(ra.inventory_id)][ra.status] += 1
 
     waitlist_per_block_night = defaultdict(lambda: defaultdict(int))
     for ra in assigned_ras:
         if ra.status != c.SECURED:
             continue
-        if not (ra.waitlisted_check_in_date or ra.waitlisted_check_out_date):
-            continue
         block_id = str(ra.inventory_id)
-        wl_ci = ra.waitlisted_check_in_date or ra.assigned_check_in_date
-        wl_co = ra.waitlisted_check_out_date or ra.assigned_check_out_date
-        if wl_ci and ra.assigned_check_in_date and wl_ci < ra.assigned_check_in_date:
-            d = wl_ci
-            while d < ra.assigned_check_in_date:
-                waitlist_per_block_night[block_id][d] += 1
-                d += timedelta(days=1)
-        if wl_co and ra.assigned_check_out_date and wl_co > ra.assigned_check_out_date:
-            d = ra.assigned_check_out_date
-            while d < wl_co:
-                waitlist_per_block_night[block_id][d] += 1
-                d += timedelta(days=1)
+        for night in ra.waitlisted_gap_nights:
+            waitlist_per_block_night[block_id][night] += 1
 
     return assigned_per_block_night, status_per_block, waitlist_per_block_night
 
@@ -2765,38 +2704,9 @@ class Root:
                 assignment.attendee_id = prefill_attendee.id
 
         # Availability per inventory block, per scope: '' keys the main
-        # (unpartitioned) pool, partition ids key their blocks. Simple
-        # live-count accounting (same convention as the partition
-        # dashboard): capacity minus live assignments in that scope.
-        from sqlalchemy import func
-        live = {}
-        for inv_id, part_id, n in (
-                session.query(RoomAssignment.inventory_id,
-                              RoomAssignment.partition_id,
-                              func.count(RoomAssignment.id))
-                .filter(RoomAssignment.is_live,
-                        RoomAssignment.inventory_id.isnot(None))
-                .group_by(RoomAssignment.inventory_id,
-                          RoomAssignment.partition_id)):
-            live[(str(inv_id), str(part_id) if part_id else '')] = n
-
-        block_qty, partitioned_total, inventory_partitions_map = {}, {}, {}
-        for b in session.query(InventoryPartitionBlock).all():
-            iid, pid = str(b.inventory_id), str(b.partition_id)
-            block_qty[(iid, pid)] = b.quantity
-            partitioned_total[iid] = partitioned_total.get(iid, 0) + b.quantity
-            inventory_partitions_map.setdefault(iid, []).append(pid)
-
-        inventory_avail_map = {}
-        for inv in picker['inventory_blocks']:
-            iid = str(inv.id)
-            scopes = {'': max(0, (inv.quantity or 0)
-                              - partitioned_total.get(iid, 0)
-                              - live.get((iid, ''), 0))}
-            for pid in inventory_partitions_map.get(iid, []):
-                scopes[pid] = max(0, block_qty[(iid, pid)]
-                                  - live.get((iid, pid), 0))
-            inventory_avail_map[iid] = scopes
+        # (unpartitioned) pool, partition ids key their blocks.
+        inventory_avail_map, inventory_partitions_map = block_availability(
+            session, picker['inventory_blocks'])
 
         return {
             'assignment': assignment,
@@ -3681,7 +3591,7 @@ class Root:
         admins can promote a specific attendee past the queue without
         also handing them nights that don't actually exist.
 
-        Per-night capacity uses `_partition_capacity` (same helper the
+        Per-night capacity uses `capacity_for` (same helper the
         cron uses) so a partition-bound row only competes with other
         rows in the same partition, and the cron and this endpoint
         agree on what "full" means.
@@ -3712,7 +3622,7 @@ class Root:
         wl_co = ra.waitlisted_check_out_date or ra.assigned_check_out_date
 
         # Walk the FRONT extension one night at a time, closest-to-now
-        # first. `_partition_capacity` counts every currently-confirmed
+        # first. `capacity_for` counts every currently-confirmed
         # assignment whose `assigned_check_in_date <= night <
         # assigned_check_out_date` - that excludes the row we're
         # extending (whose current `assigned_check_in_date` is strictly
@@ -3720,13 +3630,13 @@ class Root:
         nights_extended_front = 0
         while ra.assigned_check_in_date and wl_ci and wl_ci < ra.assigned_check_in_date:
             candidate_night = ra.assigned_check_in_date - timedelta(days=1)
-            _, _, open_slots = _partition_capacity(
+            _, _, open_slots = capacity_for(
                 session, ra.inventory, candidate_night, ra.partition_id)
             if open_slots <= 0:
                 break
             ra.assigned_check_in_date = candidate_night
             nights_extended_front += 1
-            # Flush so the next iteration's `_partition_capacity` sees
+            # Flush so the next iteration's `capacity_for` sees
             # the in-memory change (otherwise we'd over-extend by
             # racing our own writes).
             session.flush()
@@ -3737,7 +3647,7 @@ class Root:
         nights_extended_back = 0
         while ra.assigned_check_out_date and wl_co and wl_co > ra.assigned_check_out_date:
             candidate_night = ra.assigned_check_out_date
-            _, _, open_slots = _partition_capacity(
+            _, _, open_slots = capacity_for(
                 session, ra.inventory, candidate_night, ra.partition_id)
             if open_slots <= 0:
                 break

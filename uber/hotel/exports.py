@@ -122,14 +122,8 @@ def booking_export_data(session, hotel_id):
     if not hotel:
         return None, []
 
-    inv_ids = [str(inv.id) for inv in
-               session.query(HotelRoomInventory).filter_by(hotel_id=hotel.id).all()]
-    if not inv_ids:
-        return hotel, []
-
-    assignments = (session.query(RoomAssignment)
-                   .filter(RoomAssignment.inventory_id.in_(inv_ids),
-                           RoomAssignment.is_live)
+    from uber.hotel.queries import live_assignments_for_hotel
+    assignments = (live_assignments_for_hotel(session, hotel.id)
                    .order_by(RoomAssignment.parent_assignment_id.asc().nullsfirst(),
                              RoomAssignment.created.asc())
                    .all())
@@ -201,12 +195,8 @@ def compute_export_tracking(session):
             HotelExportLog.hotel_id == hotel.id, HotelExportLog.export_type == 'confirmation_import'
         ).order_by(HotelExportLog.exported_at.desc()).first()
 
-        hotel_inventory_ids = [str(inv.id) for inv in
-                                session.query(HotelRoomInventory).filter_by(hotel_id=hotel.id).all()]
-        bookings = session.query(RoomAssignment).filter(
-            RoomAssignment.inventory_id.in_(hotel_inventory_ids),
-            RoomAssignment.is_live,
-        )
+        from uber.hotel.queries import live_assignments_for_hotel
+        bookings = live_assignments_for_hotel(session, hotel.id)
 
         total_bookings = bookings.count()
         missing_confirmation = bookings.filter(
@@ -390,65 +380,55 @@ def write_interchange_export(out, session, staff_lottery=False):
 
 def write_hotel_inventory_xlsx(out, session, hotel_id):
     """Write the per-hotel occupancy-by-night grid (one row per active
-    room/suite type, one column per night in the assignment date range)
-    to `out` (the writer provided by the @xlsx_file handler). Writes
-    nothing when the hotel has no live assignments."""
-    rows = []
+    room/suite type, one column per occupied night) to `out` (the writer
+    provided by the @xlsx_file handler). Writes nothing when the hotel
+    has no live assignments.
 
-    hotel_inventory_ids = [str(inv.id) for inv in
-                           session.query(HotelRoomInventory).filter_by(hotel_id=hotel_id).all()]
-    assignments_q = session.query(RoomAssignment).filter(
-        RoomAssignment.is_live,
-        RoomAssignment.inventory_id.in_(hotel_inventory_ids),
-    )
+    Occupancy is checkout-day EXCLUSIVE, matching every other occupancy
+    computation in the system (a room checking out on the 15th is not
+    occupied the night of the 15th), so these numbers reconcile with the
+    admin inventory page and the audit."""
+    from uber.hotel.queries import (live_assignments_for_hotel,
+                                    occupancy_by_block_night)
 
-    first_assignment = assignments_q.order_by(RoomAssignment.assigned_check_in_date).first()
-    if not first_assignment:
-        return  # No assignments for this hotel
-    earliest_check_in = first_assignment.assigned_check_in_date
-    latest_check_out = assignments_q.order_by(
-        RoomAssignment.assigned_check_out_date.desc()).first().assigned_check_out_date
+    assignments = live_assignments_for_hotel(session, hotel_id).all()
+    dated = [ra for ra in assignments
+             if ra.assigned_check_in_date and ra.assigned_check_out_date]
+    if not dated:
+        return  # No dated assignments for this hotel
+    earliest_check_in = min(ra.assigned_check_in_date for ra in dated)
+    latest_check_out = max(ra.assigned_check_out_date for ra in dated)
+    # Nights run [check_in, check_out): the checkout day itself is not an
+    # occupied night, so it gets no column.
     date_range = [earliest_check_in + timedelta(days=x)
-                  for x in range(0, (latest_check_out - earliest_check_in).days)] + [latest_check_out]
+                  for x in range((latest_check_out - earliest_check_in).days)]
+
+    hist = occupancy_by_block_night(dated)
 
     inv_by_room_type = defaultdict(list)
     inv_by_suite_type = defaultdict(list)
-    for inv in session.query(HotelRoomInventory).filter(
-            HotelRoomInventory.id.in_(hotel_inventory_ids)).all():
+    for inv in session.query(HotelRoomInventory).filter_by(hotel_id=hotel_id).all():
         if inv.is_suite:
             inv_by_suite_type[str(inv.suite_type_id)].append(str(inv.id))
         else:
             inv_by_room_type[str(inv.room_type_id)].append(str(inv.id))
 
+    def type_rows(type_query, inv_map):
+        for rt in type_query.order_by(LotteryRoomType.name).all():
+            inv_ids = inv_map.get(str(rt.id), [])
+            yield [rt.name] + [
+                sum(hist.get(iid, {}).get(d, 0) for iid in inv_ids)
+                for d in date_range]
+
+    rows = list(type_rows(
+        session.query(LotteryRoomType).filter_by(is_suite=False, active=True),
+        inv_by_room_type))
+    if any(inv_by_suite_type.values()):
+        rows.extend(type_rows(
+            session.query(LotteryRoomType).filter_by(is_suite=True, active=True),
+            inv_by_suite_type))
+
     header_row = [''] + [d.strftime("%A %-m/%-d") for d in date_range]
-    for rt in session.query(LotteryRoomType).filter_by(
-            is_suite=False, active=True).order_by(LotteryRoomType.name).all():
-        inv_ids = inv_by_room_type.get(str(rt.id), [])
-        row = [rt.name]
-        for d in date_range:
-            row.append(
-                assignments_q.filter(
-                    RoomAssignment.inventory_id.in_(inv_ids),
-                    RoomAssignment.assigned_check_in_date <= d,
-                    RoomAssignment.assigned_check_out_date >= d,
-                ).count() if inv_ids else 0)
-        rows.append(row)
-
-    has_suites = any(inv_by_suite_type.values())
-    if has_suites:
-        for st in session.query(LotteryRoomType).filter_by(
-                is_suite=True, active=True).order_by(LotteryRoomType.name).all():
-            inv_ids = inv_by_suite_type.get(str(st.id), [])
-            row = [st.name]
-            for d in date_range:
-                row.append(
-                    assignments_q.filter(
-                        RoomAssignment.inventory_id.in_(inv_ids),
-                        RoomAssignment.assigned_check_in_date <= d,
-                        RoomAssignment.assigned_check_out_date >= d,
-                    ).count() if inv_ids else 0)
-            rows.append(row)
-
     out.writerows(header_row, rows)
 
 

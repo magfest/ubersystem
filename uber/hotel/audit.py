@@ -18,6 +18,7 @@ from collections import defaultdict
 from datetime import timedelta
 
 from uber.config import c
+from uber.hotel.queries import occupancy_by_block_night, overlaps
 from uber.models import LotteryApplication
 from uber.models.hotel import (HotelRoomInventory, HotelRoomIssueNote,
                                InventoryPartition, InventoryPartitionBlock,
@@ -415,8 +416,8 @@ def check_double_booked(ctx):
         # Pairwise overlap check (n is small in practice).
         for i, a in enumerate(ras):
             for b in ras[i+1:]:
-                if (a.assigned_check_in_date < b.assigned_check_out_date
-                        and b.assigned_check_in_date < a.assigned_check_out_date):
+                if overlaps(a.assigned_check_in_date, a.assigned_check_out_date,
+                            b.assigned_check_in_date, b.assigned_check_out_date):
                     # Connector + its own parent overlapping doesn't count
                     # - the connector is part of the same block.
                     if (a.parent_assignment_id == b.id
@@ -503,17 +504,14 @@ def check_inventory_blocks(ctx):
         # quantity; an explicit 0 row closes the night).
         if not ras:
             continue
+        hist = occupancy_by_block_night(ras, by_partition=True)
         night_occupancy = defaultdict(int)
-        night_partition_occupancy = defaultdict(lambda: defaultdict(int))
-        for ra in ras:
-            if not ra.assigned_check_in_date or not ra.assigned_check_out_date:
-                continue
-            d = ra.assigned_check_in_date
-            while d < ra.assigned_check_out_date:
-                night_occupancy[d] += 1
-                if ra.partition_id:
-                    night_partition_occupancy[ra.partition_id][d] += 1
-                d = d + timedelta(days=1)
+        night_partition_occupancy = {}
+        for (_iid, pid), nights in hist.items():
+            for night, n in nights.items():
+                night_occupancy[night] += n
+            if pid:
+                night_partition_occupancy[pid] = nights
 
         # Inventory-wide oversubscription.
         bad_nights = []
@@ -673,8 +671,8 @@ def check_physical_double_booked(ctx):
                  if ra.assigned_check_in_date and ra.assigned_check_out_date]
         for i, a in enumerate(dated):
             for b in dated[i + 1:]:
-                if (a.assigned_check_in_date < b.assigned_check_out_date
-                        and b.assigned_check_in_date < a.assigned_check_out_date):
+                if overlaps(a.assigned_check_in_date, a.assigned_check_out_date,
+                            b.assigned_check_in_date, b.assigned_check_out_date):
                     issues.append(_room_issue(
                         'error', 'physical_double_booked',
                         f"Physical room {number} is double-booked "
