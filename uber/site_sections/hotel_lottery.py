@@ -701,7 +701,12 @@ class Root:
             if viewer:
                 attendee_id = viewer.id
         if not attendee_id:
-            raise HTTPRedirect('../preregistration/homepage')
+            # Same dead-end routing as _render_room_detail:
+            # `/preregistration/homepage` 500s for a requester with no
+            # AttendeeAccount, so send them to the landing page instead.
+            raise HTTPRedirect('/landing/index?message={}',
+                               'Please log in as an attendee to view '
+                               'your rooms.')
 
         # Cross-attendee viewing (an admin passing ?attendee_id=X for
         # someone other than themselves) requires Hotel Lottery Admin
