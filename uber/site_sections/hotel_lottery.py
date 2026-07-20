@@ -17,31 +17,22 @@ from uber.models.hotel import (RoomAssignmentInvite, WaitlistRevealLink,
                                room_assignment_occupant)
 from uber.hotel.waitlist import WaitlistError, resize_assignment
 from uber.email import EmailService
-from uber.utils import RegistrationCode, validate_model, get_age_from_birthday, normalize_email_legacy
+from uber.utils import (RegistrationCode, redirect_with_params, validate_model,
+                        get_age_from_birthday, normalize_email_legacy)
 
 log = logging.getLogger(__name__)
 
 
 
 def _room_url(assignment_id, attendee_id='', message=''):
-    """Build the per-room editor URL (`room?id=...&attendee_id=...`)
-    with all components individually URL-quoted.
-
-    Built directly here because `HTTPRedirect` quotes each `{}`
-    substitution as a whole; if we tried to pass a pre-built
-    `id=X&attendee_id=Y` as one substitution it would emit
-    `id%3DX%26attendee_id%3DY` and CherryPy would parse a single
-    garbled query param. So instead we return the fully-formatted
-    URL and call `raise HTTPRedirect(_room_url(...))` with no
-    further substitution.
-    """
+    """Per-room editor URL (`room?id=...&attendee_id=...&message=...`),
+    fully quoted for `raise HTTPRedirect(_room_url(...))` with no further
+    substitution (see redirect_with_params for the HTTPRedirect footgun).
+    `id` is always present, even when empty, so the room handler renders
+    its own "Room not found." bounce."""
     from urllib.parse import quote
-    qs = 'id={}'.format(quote(str(assignment_id)))
-    if attendee_id:
-        qs += '&attendee_id={}'.format(quote(str(attendee_id)))
-    if message:
-        qs += '&message={}'.format(quote(str(message)))
-    return 'room?' + qs
+    return redirect_with_params('room?id=' + quote(str(assignment_id)),
+                                attendee_id=attendee_id, message=message)
 
 
 def _require_unlocked(ra, attendee_id=''):
@@ -168,6 +159,80 @@ def _card_reuse_sources(session, ra):
                     RoomAssignment.id != ra.id,
                     RoomAssignment.cc_token.isnot(None)).all()
             if _effective_vault_reference(other) == target_ref]
+
+
+def _resolve_assignment(session, assignment_id, application=None, *,
+                        match_application=False, statuses='live',
+                        require_cc=None, without_card=False):
+    """Resolve a RoomAssignment by id, or fall back to the application's
+    earliest primary (non-connector) assignment.
+
+    Shared skeleton for confirm / decline / secure_room / edit_room:
+
+      * assignment_id, when given, is looked up directly. With
+        match_application=True a row belonging to a different
+        application is discarded (falling through to the default pick);
+        otherwise the caller does its own post-checks.
+      * The fallback queries the application's assignments with
+        parent_assignment_id IS NULL, ordered by assigned check-in
+        (nulls first), filtered by:
+          - statuses: 'live' for RoomAssignment.is_live, or an iterable
+            of exact status consts;
+          - require_cc=True adds require_cc IS TRUE;
+          - without_card=True adds cc_token IS NULL.
+
+    Returns the row or None; callers keep their own error redirects.
+    """
+    ra = None
+    if assignment_id:
+        ra = session.query(RoomAssignment).get(assignment_id)
+        if match_application and ra and (
+                application is None
+                or ra.lottery_application_id != application.id):
+            ra = None
+    if not ra and application is not None:
+        filters = [
+            RoomAssignment.lottery_application_id == application.id,
+            RoomAssignment.parent_assignment_id.is_(None),
+        ]
+        if statuses == 'live':
+            filters.append(RoomAssignment.is_live)
+        elif statuses:
+            filters.append(RoomAssignment.status.in_(list(statuses)))
+        if require_cc is not None:
+            filters.append(RoomAssignment.require_cc.is_(require_cc))
+        if without_card:
+            filters.append(RoomAssignment.cc_token.is_(None))
+        ra = (session.query(RoomAssignment)
+              .filter(*filters)
+              .order_by(RoomAssignment.assigned_check_in_date.asc().nullsfirst())
+              .first())
+    return ra
+
+
+def _secure_flow_assignment(session, assignment_id, *, token=None,
+                            require_token=False):
+    """Shared guard chain for the ajax card-capture endpoints
+    (create_vault_session / save_card_token / secure_room_callback):
+    resolve the assignment, refuse export-locked and non-live rooms,
+    and (optionally) require a card token.
+
+    Returns (assignment, error) where exactly one is None. The error is
+    the exact ``{'error': ...}`` dict the endpoints have always
+    returned, so callers just ``return error`` untouched.
+    """
+    ra = (session.query(RoomAssignment).get(assignment_id)
+          if assignment_id else None)
+    if not ra:
+        return None, {'error': 'Assignment not found.'}
+    if ra.export_locked:
+        return None, {'error': 'This booking has been transferred to the hotel '
+                               'and the card on file cannot be changed here.'}
+    if not ra.is_live:
+        return None, {'error': 'This room is not in a state that can be secured.'}
+    if require_token and not token:
+        return None, {'error': 'No card token received.'}
+    return ra, None
 
 
 def _render_room_detail(session, assignment_id, attendee_id, message):
@@ -971,14 +1036,11 @@ class Root:
         session.add(target)
         session.commit()
 
-        # Build the redirect URL manually - `return_to` already contains
-        # `?id=...&attendee_id=...`, and HTTPRedirect's `{}` substitution
-        # would percent-encode the `?` and `&` into one garbled blob.
-        from urllib.parse import quote
-        base = return_to or 'rooms'
-        sep = '&' if '?' in base else '?'
-        raise HTTPRedirect(
-            base + sep + 'message=' + quote('Hotel name updated.'))
+        # `return_to` already contains `?id=...&attendee_id=...`, so the
+        # URL is built via redirect_with_params (HTTPRedirect's `{}`
+        # substitution would percent-encode the `?` and `&`).
+        raise HTTPRedirect(redirect_with_params(
+            return_to or 'rooms', message='Hotel name updated.'))
 
     @requires_account(Attendee)
     @room_action
@@ -1185,6 +1247,30 @@ class Root:
         contact_form_dict = load_forms(params, application, ["LotteryInfo"],
                                        read_only=application.locked)
 
+        # Room-status rollups for the awarded-state banner (previously
+        # four selectattr passes in index.html). Live-room status comes
+        # from the group leader's (app_or_parent's) attendee; the
+        # needs-a-card warning and room-count CTA are about THIS
+        # attendee's own rooms.
+        app_or_parent = application.app_or_parent
+        live_rooms = [
+            ra for ra in (app_or_parent.attendee.room_assignments
+                          if app_or_parent and app_or_parent.attendee else [])
+            if ra.is_live]
+        own_rooms = (application.attendee.room_assignments
+                     if application.attendee else [])
+        unsecured = [ra for ra in own_rooms if ra.needs_card]
+        deadlines = [ra.card_deadline for ra in unsecured if ra.card_deadline]
+        rooms_summary = {
+            'all_secured': bool(live_rooms) and all(
+                ra.status == c.SECURED for ra in live_rooms),
+            'any_secured': any(ra.status == c.SECURED for ra in live_rooms),
+            'any_pending': any(ra.status == c.ASSIGNED for ra in live_rooms),
+            'unsecured_count': len(unsecured),
+            'earliest_card_deadline': min(deadlines) if deadlines else None,
+            'room_count': len(own_rooms),
+        }
+
         return {
             'id': application.id,
             'attendee_id': attendee_id,
@@ -1194,7 +1280,8 @@ class Root:
             'message': message,
             'confirm': params.get('confirm', ''),
             'action': params.get('action', ''),
-            'application': application
+            'application': application,
+            'rooms_summary': rooms_summary,
         }
     
     @requires_account(LotteryApplication)
@@ -1814,18 +1901,8 @@ class Root:
                 f"Only the leader of your {c.HOTEL_LOTTERY_GROUP_TERM.lower()} "
                 "may confirm or edit your room or suite award.")
 
-        ra = None
-        if assignment_id:
-            ra = session.query(RoomAssignment).get(assignment_id)
-            if not ra or ra.lottery_application_id != application.id:
-                ra = None
-        if not ra:
-            ra = (session.query(RoomAssignment)
-                  .filter(RoomAssignment.lottery_application_id == application.id,
-                          RoomAssignment.parent_assignment_id.is_(None),
-                          RoomAssignment.is_live)
-                  .order_by(RoomAssignment.assigned_check_in_date.asc().nullsfirst())
-                  .first())
+        ra = _resolve_assignment(session, assignment_id, application,
+                                 match_application=True, statuses='live')
 
         if not ra:
             raise HTTPRedirect('index?id={}&message={}', id,
@@ -1860,16 +1937,8 @@ class Root:
                 f"Only the leader of your {c.HOTEL_LOTTERY_GROUP_TERM.lower()} "
                 "may decline your room or suite award.")
 
-        ra = None
-        if assignment_id:
-            ra = session.query(RoomAssignment).get(assignment_id)
-        if not ra:
-            ra = (session.query(RoomAssignment)
-                  .filter(RoomAssignment.lottery_application_id == application.id,
-                          RoomAssignment.parent_assignment_id.is_(None),
-                          RoomAssignment.status == c.ASSIGNED)
-                  .order_by(RoomAssignment.assigned_check_in_date.asc().nullsfirst())
-                  .first())
+        ra = _resolve_assignment(session, assignment_id, application,
+                                 statuses=[c.ASSIGNED])
         if not ra or ra.lottery_application_id != application.id:
             raise HTTPRedirect('index?id={}&message={}', id,
                                f"{you_str} entry does not have a room or suite award.")
@@ -1957,21 +2026,13 @@ class Root:
                 'rooms?message={}',
                 "Credit card collection is not currently available.")
 
-        ra = None
-        if assignment_id:
-            ra = session.query(RoomAssignment).get(assignment_id)
+        ra = _resolve_assignment(session, assignment_id)
         if not ra and id:
             # Legacy callers that only know the application id -
             # pick the earliest unsecured self-pay room on that app.
-            application_for_lookup = session.lottery_application(id)
-            ra = (session.query(RoomAssignment)
-                  .filter(RoomAssignment.lottery_application_id == application_for_lookup.id,
-                          RoomAssignment.parent_assignment_id.is_(None),
-                          RoomAssignment.status == c.ASSIGNED,
-                          RoomAssignment.require_cc.is_(True),
-                          RoomAssignment.cc_token.is_(None))
-                  .order_by(RoomAssignment.assigned_check_in_date.asc().nullsfirst())
-                  .first())
+            ra = _resolve_assignment(
+                session, None, session.lottery_application(id),
+                statuses=[c.ASSIGNED], require_cc=True, without_card=True)
         if not ra:
             raise HTTPRedirect(
                 'rooms?message={}',
@@ -2022,17 +2083,9 @@ class Root:
         (via `vault_reference`), so cards captured for room A at hotel X
         can't be reused at hotel Y.
         """
-        if assignment_id:
-            ra = session.query(RoomAssignment).get(assignment_id)
-        else:
-            ra = None
-        if not ra:
-            return {'error': 'Assignment not found.'}
-        if ra.export_locked:
-            return {'error': 'This booking has been transferred to the hotel '
-                             'and the card on file cannot be changed here.'}
-        if not ra.is_live:
-            return {'error': 'This room is not in a state that can be secured.'}
+        ra, error = _secure_flow_assignment(session, assignment_id)
+        if error:
+            return error
 
         vault_reference = _effective_vault_reference(ra)
 
@@ -2053,18 +2106,10 @@ class Root:
                         last_four='', card_type='', **params):
         """Save just the card token without requiring address or changing status."""
         from pytz import UTC
-        if not assignment_id:
-            return {'error': 'Assignment not found.'}
-        ra = session.query(RoomAssignment).get(assignment_id)
-        if not ra:
-            return {'error': 'Assignment not found.'}
-        if ra.export_locked:
-            return {'error': 'This booking has been transferred to the hotel '
-                             'and the card on file cannot be changed here.'}
-        if not ra.is_live:
-            return {'error': 'This room is not in a state that can be secured.'}
-        if not token:
-            return {'error': 'No card token received.'}
+        ra, error = _secure_flow_assignment(session, assignment_id,
+                                            token=token, require_token=True)
+        if error:
+            return error
 
         ra.cc_token = token
         ra.cc_last_four = last_four
@@ -2079,18 +2124,10 @@ class Root:
     def secure_room_callback(self, session, token, assignment_id=None, id=None,
                              last_four='', card_type='', **params):
         from pytz import UTC
-        if not assignment_id:
-            return {'error': 'Assignment not found.'}
-        ra = session.query(RoomAssignment).get(assignment_id)
-        if not ra:
-            return {'error': 'Assignment not found.'}
-        if ra.export_locked:
-            return {'error': 'This booking has been transferred to the hotel '
-                             'and the card on file cannot be changed here.'}
-        if not ra.is_live:
-            return {'error': 'This room is not in a state that can be secured.'}
-        if not token:
-            return {'error': 'No card token received.'}
+        ra, error = _secure_flow_assignment(session, assignment_id,
+                                            token=token, require_token=True)
+        if error:
+            return error
 
         # Require billing address
         address1 = params.get('address1', '').strip()
@@ -2255,16 +2292,8 @@ class Root:
                 f"Only the leader of your {c.HOTEL_LOTTERY_GROUP_TERM.lower()} "
                 "may edit the room.")
 
-        ra = None
-        if assignment_id:
-            ra = session.query(RoomAssignment).get(assignment_id)
-        if not ra:
-            ra = (session.query(RoomAssignment)
-                  .filter(RoomAssignment.lottery_application_id == application.id,
-                          RoomAssignment.parent_assignment_id.is_(None),
-                          RoomAssignment.is_live)
-                  .order_by(RoomAssignment.assigned_check_in_date.asc().nullsfirst())
-                  .first())
+        ra = _resolve_assignment(session, assignment_id, application,
+                                 statuses='live')
         if not ra or ra.lottery_application_id != application.id:
             raise HTTPRedirect(
                 'index?attendee_id={}&message={}', application.attendee.id,

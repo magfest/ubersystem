@@ -138,6 +138,82 @@ def _get_or_create(session, model, defaults=None, **lookup):
     return instance
 
 
+# --- Lottery test-data personas: fixed word lists ---------------------
+_BILLING = [
+    ('123 Test St', 'Rockville', 'MD', '20850', 'United States'),
+    ('42 Sample Ave', 'Pittsburgh', 'PA', '15213', 'United States'),
+    ('9 Placeholder Blvd', 'Austin', 'TX', '78701', 'United States'),
+    ('77 Mock Lane', 'Toronto', 'ON', 'M5V 2T6', 'Canada'),
+]
+_REQUESTS = ['', '', '', 'High floor please', 'Near the elevator',
+             'Feather-free bedding', 'Two beds if at all possible',
+             'Late checkout if available', 'Quiet room away from parties']
+_ADA_REQUESTS = ['Roll-in shower', 'Visual fire alarm',
+                 'Close to elevator, limited mobility', 'Service animal']
+_GROUP_NAMES = ['Chiptune Crew', 'The Rat Pack', 'Con Crud Survivors',
+                'Pixel Pals', 'Night Owls', 'The Load Bearers',
+                'Save Point', 'Party Wipe', 'Lag Spike', 'The Merge Conflicts']
+_FIRSTS = ['Alex', 'Bailey', 'Casey', 'Devon', 'Emery', 'Frankie', 'Gray',
+           'Harper', 'Indigo', 'Jules', 'Kai', 'Lane', 'Marlow', 'Noel',
+           'Oakley', 'Parker', 'Quinn', 'Reese', 'Sage', 'Tatum', 'Umber',
+           'Vesper', 'Wren', 'Xen', 'Yael', 'Zephyr', 'Ash', 'Blair',
+           'Cameron', 'Dana', 'Ellis', 'Flynn']
+_LASTS = ['Anderson', 'Blackwood', 'Castellanos', 'Duarte', 'Ellison',
+          'Fitzgerald', 'Goldberg', 'Huang', 'Ivanova', 'Jimenez',
+          'Kowalski', 'Laurent', 'Mbeki', 'Nakamura', 'Okafor', 'Petrov',
+          'Quach', 'Rosenberg', 'Silva', 'Tanaka', 'Ueda', 'Vance',
+          'Whitfield', 'Xu', 'Yamamoto', 'Zielinski', 'Abara', 'Bishop',
+          'Chen', 'Delacroix', 'Eastman', 'Farouk']
+
+
+def _make_attendee(session, first, last, email, staff=False,
+                   hotel_eligible=False, cellphone=''):
+    """Get-or-create by email. Returns (attendee, created)."""
+    from uber.models import Attendee
+    existing = session.query(Attendee).filter_by(email=email).first()
+    if existing:
+        return existing, False
+    attendee = Attendee(
+        first_name=first, last_name=last, email=email,
+        badge_type=c.STAFF_BADGE if staff else c.ATTENDEE_BADGE,
+        badge_status=c.COMPLETED_STATUS,
+        paid=c.NEED_NOT_PAY if staff else c.HAS_PAID,
+        staffing=staff, hotel_eligible=hotel_eligible,
+        cellphone=cellphone)
+    session.add(attendee)
+    session.flush()
+    return attendee, True
+
+
+def _make_application(session, now, attendee, **kwargs):
+    from uber.models.hotel import LotteryApplication
+    params = dict(attendee_id=attendee.id, last_submitted=now,
+                  terms_accepted=True, data_policy_accepted=True)
+    params.update(kwargs)
+    application = LotteryApplication(**params)
+    session.add(application)
+    session.flush()
+    return application
+
+
+def _ranked_prefs(rng, items):
+    picks = rng.sample(items, k=rng.randint(1, len(items)))
+    return ','.join(str(x.id) for x in picks)
+
+
+def _make_token(rng):
+    return 'TEST-' + ''.join(rng.choice('ABCDEFGHJKMNPQRSTUVWXYZ23456789')
+                             for _ in range(8))
+
+
+def _persona_name(i):
+    first = _FIRSTS[i % len(_FIRSTS)]
+    last = _LASTS[(i // len(_FIRSTS)) % len(_LASTS)]
+    if i >= len(_FIRSTS) * len(_LASTS):
+        last = f'{last}{i}'
+    return first, last
+
+
 def generate_lottery_test_data(session, count=40, seed=1337):
     """Seed a hotel lottery / staff rooming / shift-compliance dataset.
 
@@ -156,23 +232,37 @@ def generate_lottery_test_data(session, count=40, seed=1337):
     are created on top of that. A handful of fixed curated scenarios
     (stable emails) always exist for quick manual testing.
 
-    Returns a list of human-readable summary lines.
+    Runs in three stages: the shared foundation, then the curated
+    scenarios (_seed_curated_scenarios), then the bulk personas
+    (_seed_bulk_personas). Returns a list of human-readable summary lines.
     """
-    import random
-    from datetime import datetime, time, timedelta
+    from datetime import datetime
     from pytz import UTC
 
-    from uber.utils import create_new_hash, RegistrationCode
-    from uber.models import (
-        Attendee, AdminAccount, Department, DeptMembership, Job, Shift)
+    now = datetime.now(UTC)
+    ctx, summary = _seed_foundation(session, count, now)
+    summary += _seed_curated_scenarios(session, ctx)
+    summary += _seed_bulk_personas(session, ctx, count, seed)
+    return summary
+
+
+def _seed_foundation(session, count, now):
+    """Stage 0: the idempotent look-up-by-natural-key foundation rows
+    (hotels, room types, inventory, partition + owner, shift
+    requirements, department + jobs, the lottery run) shared by both
+    seeding stages. Returns (ctx, summary_lines) where ctx carries every
+    foundation row the later stages reference."""
+    from types import SimpleNamespace
+    from datetime import datetime, time, timedelta
+
+    from uber.utils import create_new_hash
+    from uber.models import Attendee, AdminAccount, Department, Job
     from uber.models.hotel import (
         LotteryHotel, LotteryRoomType, HotelRoomInventory, InventoryNightQuantity,
         InventoryPartition, InventoryPartitionBlock, PartitionOwner, LotteryRun,
-        LotteryApplication, RoomAssignment, RoomAssignmentInvite,
         NightShiftRequirement)
 
     summary = []
-    now = datetime.now(UTC)
 
     event_start = c.EPOCH.date()
     event_end = c.ESCHATON.date()
@@ -317,80 +407,38 @@ def generate_lottery_test_data(session, count=40, seed=1337):
         session, LotteryRun, name='Test Lottery Run',
         defaults={'status': c.LOTTERY_AWARDED, 'awarded_at': now})
 
-    # ------------------------------------------------------------------
-    # Shared helpers
-    # ------------------------------------------------------------------
-    def make_attendee(first, last, email, staff=False, hotel_eligible=False,
-                      cellphone=''):
-        """Get-or-create by email. Returns (attendee, created)."""
-        existing = session.query(Attendee).filter_by(email=email).first()
-        if existing:
-            return existing, False
-        attendee = Attendee(
-            first_name=first, last_name=last, email=email,
-            badge_type=c.STAFF_BADGE if staff else c.ATTENDEE_BADGE,
-            badge_status=c.COMPLETED_STATUS,
-            paid=c.NEED_NOT_PAY if staff else c.HAS_PAID,
-            staffing=staff, hotel_eligible=hotel_eligible,
-            cellphone=cellphone)
-        session.add(attendee)
-        session.flush()
-        return attendee, True
+    ctx = SimpleNamespace(
+        now=now, nights=nights, event_start=event_start, event_end=event_end,
+        full_window=full_window, hotels=hotels, room_types=room_types,
+        std_type=std_type, suite_type=suite_type,
+        inv_blocks=inv_blocks, suite_blocks=suite_blocks,
+        connector_blocks=connector_blocks, partition=partition,
+        dept=dept, job_one=job_one, job_two=job_two, run=run)
+    return ctx, summary
 
-    def make_application(attendee, **kwargs):
-        params = dict(attendee_id=attendee.id, last_submitted=now,
-                      terms_accepted=True, data_policy_accepted=True)
-        params.update(kwargs)
-        application = LotteryApplication(**params)
-        session.add(application)
-        session.flush()
-        return application
 
-    def ranked_prefs(rng, items):
-        picks = rng.sample(items, k=rng.randint(1, len(items)))
-        return ','.join(str(x.id) for x in picks)
+def _seed_curated_scenarios(session, ctx):
+    """Stage 1: curated scenarios with stable emails - quick
+    manual-testing anchors. Each is skipped wholesale once its attendee
+    exists, so re-runs are no-ops. Returns summary lines."""
+    import functools
+    from datetime import timedelta
 
-    def make_token(rng):
-        return 'TEST-' + ''.join(rng.choice('ABCDEFGHJKMNPQRSTUVWXYZ23456789')
-                                 for _ in range(8))
+    from uber.utils import RegistrationCode
+    from uber.models import DeptMembership, Shift
+    from uber.models.hotel import LotteryApplication, RoomAssignment
 
-    BILLING = [
-        ('123 Test St', 'Rockville', 'MD', '20850', 'United States'),
-        ('42 Sample Ave', 'Pittsburgh', 'PA', '15213', 'United States'),
-        ('9 Placeholder Blvd', 'Austin', 'TX', '78701', 'United States'),
-        ('77 Mock Lane', 'Toronto', 'ON', 'M5V 2T6', 'Canada'),
-    ]
-    REQUESTS = ['', '', '', 'High floor please', 'Near the elevator',
-                'Feather-free bedding', 'Two beds if at all possible',
-                'Late checkout if available', 'Quiet room away from parties']
-    ADA_REQUESTS = ['Roll-in shower', 'Visual fire alarm',
-                    'Close to elevator, limited mobility', 'Service animal']
-    GROUP_NAMES = ['Chiptune Crew', 'The Rat Pack', 'Con Crud Survivors',
-                   'Pixel Pals', 'Night Owls', 'The Load Bearers',
-                   'Save Point', 'Party Wipe', 'Lag Spike', 'The Merge Conflicts']
-    FIRSTS = ['Alex', 'Bailey', 'Casey', 'Devon', 'Emery', 'Frankie', 'Gray',
-              'Harper', 'Indigo', 'Jules', 'Kai', 'Lane', 'Marlow', 'Noel',
-              'Oakley', 'Parker', 'Quinn', 'Reese', 'Sage', 'Tatum', 'Umber',
-              'Vesper', 'Wren', 'Xen', 'Yael', 'Zephyr', 'Ash', 'Blair',
-              'Cameron', 'Dana', 'Ellis', 'Flynn']
-    LASTS = ['Anderson', 'Blackwood', 'Castellanos', 'Duarte', 'Ellison',
-             'Fitzgerald', 'Goldberg', 'Huang', 'Ivanova', 'Jimenez',
-             'Kowalski', 'Laurent', 'Mbeki', 'Nakamura', 'Okafor', 'Petrov',
-             'Quach', 'Rosenberg', 'Silva', 'Tanaka', 'Ueda', 'Vance',
-             'Whitfield', 'Xu', 'Yamamoto', 'Zielinski', 'Abara', 'Bishop',
-             'Chen', 'Delacroix', 'Eastman', 'Farouk']
+    make_attendee = functools.partial(_make_attendee, session)
+    make_application = functools.partial(_make_application, session, ctx.now)
+    now = ctx.now
+    event_start, event_end = ctx.event_start, ctx.event_end
+    full_window = ctx.full_window
+    hotels, std_type, suite_type = ctx.hotels, ctx.std_type, ctx.suite_type
+    inv_blocks, suite_blocks = ctx.inv_blocks, ctx.suite_blocks
+    connector_blocks = ctx.connector_blocks
+    partition, dept = ctx.partition, ctx.dept
+    job_one, job_two, run = ctx.job_one, ctx.job_two, ctx.run
 
-    def persona_name(i):
-        first = FIRSTS[i % len(FIRSTS)]
-        last = LASTS[(i // len(FIRSTS)) % len(LASTS)]
-        if i >= len(FIRSTS) * len(LASTS):
-            last = f'{last}{i}'
-        return first, last
-
-    # ------------------------------------------------------------------
-    # Curated scenarios with stable emails: quick manual-testing anchors.
-    # Skipped wholesale once their attendee exists.
-    # ------------------------------------------------------------------
     curated_created = 0
 
     att, created = make_attendee('Awarded', 'Attendee', 'awarded.attendee@example.com',
@@ -514,14 +562,38 @@ def generate_lottery_test_data(session, count=40, seed=1337):
             assigned_check_in_date=event_start, assigned_check_out_date=event_end))
         curated_created += 1
 
-    summary.append(f'Curated scenarios: {curated_created} created, '
-                   f'{7 - curated_created} already existed')
+    return [f'Curated scenarios: {curated_created} created, '
+            f'{7 - curated_created} already existed']
 
-    # ------------------------------------------------------------------
-    # Bulk personas. Each index deterministically derives one persona; an
-    # existing email means the persona was made by a previous run and is
-    # skipped, so re-runs add nothing and a larger count adds only the tail.
-    # ------------------------------------------------------------------
+
+def _seed_bulk_personas(session, ctx, count, seed):
+    """Stage 2: bulk personas. Each index deterministically derives one
+    persona (per-index RNG seeded from (seed, index)); an existing email
+    means the persona was made by a previous run and is skipped, so
+    re-runs add nothing and a larger count adds only the tail. Returns
+    summary lines."""
+    import functools
+    import random
+    from datetime import timedelta
+
+    from uber.utils import RegistrationCode
+    from uber.models import Attendee, DeptMembership, Shift
+    from uber.models.hotel import (LotteryApplication, RoomAssignment,
+                                   RoomAssignmentInvite)
+
+    make_attendee = functools.partial(_make_attendee, session)
+    make_application = functools.partial(_make_application, session, ctx.now)
+    persona_name, ranked_prefs, make_token = (
+        _persona_name, _ranked_prefs, _make_token)
+    BILLING, REQUESTS, ADA_REQUESTS, GROUP_NAMES = (
+        _BILLING, _REQUESTS, _ADA_REQUESTS, _GROUP_NAMES)
+    now = ctx.now
+    event_start, event_end = ctx.event_start, ctx.event_end
+    hotels, room_types, suite_type = ctx.hotels, ctx.room_types, ctx.suite_type
+    inv_blocks, suite_blocks = ctx.inv_blocks, ctx.suite_blocks
+    connector_blocks = ctx.connector_blocks
+    dept, job_one, job_two, run = ctx.dept, ctx.job_one, ctx.job_two, ctx.run
+
     stats = {'created': 0, 'skipped': 0, 'no_entry': 0, 'partial': 0,
              'complete': 0, 'processed': 0, 'awarded': 0, 'withdrawn': 0,
              'groups': 0, 'members': 0, 'suites': 0, 'connectors': 0,
@@ -721,22 +793,19 @@ def generate_lottery_test_data(session, count=40, seed=1337):
                 session.add(Shift(attendee_id=att.id, job_id=job_one.id))
                 session.add(Shift(attendee_id=att.id, job_id=job_two.id))
 
-    summary.append(
+    return [
         f"Bulk personas: {stats['created']} created, {stats['skipped']} "
-        f"already existed (re-run safe); seed {seed}")
-    summary.append(
+        f"already existed (re-run safe); seed {seed}",
         f"Entries - no entry: {stats['no_entry']}, partial: {stats['partial']}, "
         f"complete: {stats['complete']}, processed: {stats['processed']}, "
-        f"awarded: {stats['awarded']}, withdrawn: {stats['withdrawn']}")
-    summary.append(
+        f"awarded: {stats['awarded']}, withdrawn: {stats['withdrawn']}",
         f"Rooms - suites: {stats['suites']} ({stats['connectors']} with "
         f"connectors), waitlisted: {stats['waitlisted']}, cancelled/expired: "
-        f"{stats['cancelled_expired']}")
-    summary.append(
+        f"{stats['cancelled_expired']}",
         f"People - staff: {stats['staff']}, roommate groups: {stats['groups']} "
         f"({stats['members']} members), pending group invites: "
-        f"{stats['group_invites']}, pending room invites: {stats['room_invites']}")
-    return summary
+        f"{stats['group_invites']}, pending room invites: {stats['room_invites']}",
+    ]
 
 
 @all_renderable()

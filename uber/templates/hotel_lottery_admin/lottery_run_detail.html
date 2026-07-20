@@ -59,17 +59,15 @@
         {% if lottery_run.cutoff %}<tr><th>Cutoff</th><td>{{ lottery_run.cutoff|datetime_local }}</td></tr>{% endif %}
         {% if lottery_run.hotel_filter %}
         <tr><th>Hotel Filter</th><td>
-          {% set filter_ids = lottery_run.hotel_filter.split(',') %}
-          {% for hotel in hotels if hotel.id in filter_ids %}
-            <span class="badge bg-info text-dark me-1">{{ hotel.name }}</span>
+          {% for name in hotel_filter_names %}
+            <span class="badge bg-info text-dark me-1">{{ name }}</span>
           {% endfor %}
         </td></tr>
         {% endif %}
         {% if lottery_run.room_type_filter %}
         <tr><th>Room Type Filter</th><td>
-          {% set filter_ids = lottery_run.room_type_filter.split(',') %}
-          {% for rt in room_types + suite_types if rt.id in filter_ids %}
-            <span class="badge bg-info text-dark me-1">{{ rt.name }}</span>
+          {% for name in room_type_filter_names %}
+            <span class="badge bg-info text-dark me-1">{{ name }}</span>
           {% endfor %}
         </td></tr>
         {% endif %}
@@ -134,10 +132,10 @@
   <tbody>
     {# One row per RoomAssignment from this run - connectors render as
        their own rows alongside the parent. Joined to LotteryApplication
-       for the contact info column. #}
+       for the contact info column. The handler precomputes the per-app
+       room lists (run_rooms_by_app) so this loop stays O(apps). #}
     {% for app in applications %}
-      {% set _rooms = (app.attendee.room_assignments if app.attendee else [])
-                      |selectattr('lottery_run_id', 'equalto', lottery_run.id)|list %}
+      {% set _rooms = run_rooms_by_app.get(app.id, []) %}
       {% if _rooms %}
         {% for ra in _rooms %}
           {% set inv = ra.inventory %}

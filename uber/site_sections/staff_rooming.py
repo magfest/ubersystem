@@ -12,8 +12,6 @@ from datetime import datetime, time, timedelta
 
 import cherrypy
 
-from urllib.parse import quote as _quote
-
 from sqlalchemy import or_
 
 from uber.config import c
@@ -25,29 +23,22 @@ from uber.models import (Attendee, Department, NightShiftRequirement,
                          RoomAssignment)
 from uber.models.hotel import LotteryHotel
 from uber.shift_compliance import non_compliant_staffers
-from uber.utils import check_csrf
+from uber.utils import check_csrf, redirect_with_params
 
 
 def _redirect_back(return_url, fallback_url, message):
     """Send the user back to `return_url` with `?message=...` appended.
 
-    HTTPRedirect URL-quotes every format argument, so passing a full
-    URL as `{}` mangles the embedded `?` and `&` into `%3F`/`%26` and
-    the path no longer routes. Instead, we build the final URL here
-    and pass it to HTTPRedirect as a literal - `{}` in the URL are
-    doubled so they survive str.format() unchanged.
+    redirect_with_params builds the final quoted URL (see its docstring
+    for the HTTPRedirect footgun); this wrapper adds the safety gate:
+    only same-section relative paths are allowed, because a
+    client-supplied absolute URL (or protocol-relative //host) would be
+    an open redirect.
     """
     target = return_url or fallback_url
-    # Only same-section relative paths are allowed: a client-supplied
-    # absolute URL (or protocol-relative //host) would be an open redirect.
     if target.startswith(('http://', 'https://', '//')) or target.startswith('/'):
         target = fallback_url
-    sep = '&' if '?' in target else '?'
-    final = target + sep + 'message=' + _quote(message)
-    # Defend against any stray `{` or `}` characters in return_url
-    # (e.g. from a malformed search term) - HTTPRedirect runs the
-    # whole thing through str.format and would otherwise blow up.
-    raise HTTPRedirect(final.replace('{', '{{').replace('}', '}}'))
+    raise HTTPRedirect(redirect_with_params(target, message=message))
 
 
 def _default_settings():

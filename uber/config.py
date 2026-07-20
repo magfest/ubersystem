@@ -1289,11 +1289,9 @@ class Config(_Overridable):
             account_id = cherrypy.session.get('account_id')
             if not account_id:
                 return False
+            from uber.hotel.perms import has_any_lottery_access
             with uber.models.Session() as sess:
-                from uber.models import PartitionOwner
-                return bool(sess.query(PartitionOwner)
-                            .filter_by(admin_account_id=account_id)
-                            .first())
+                return has_any_lottery_access(sess, account_id)
         except Exception:
             return False
 

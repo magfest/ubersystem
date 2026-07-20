@@ -8,7 +8,14 @@
 
    When the attendee has zero rooms (e.g. cancel email after the last
    room cancelled) the block renders nothing - let the caller put the
-   relevant copy in. #}
+   relevant copy in.
+
+   The filter is deliberately WIDER than Attendee.active_room_assignments
+   (live rows only): cancel/expiry emails must still list the
+   just-cancelled or just-expired room with its status, so CANCELLED and
+   EXPIRED rows are included and only never-materialized rows are
+   dropped. Kept in the template because emails render `app` from
+   fixtures with no controller to precompute it. #}
 {% set _rooms = (app.attendee.room_assignments if app.attendee else [])
                 |selectattr('status', 'in', [c.ASSIGNED, c.SECURED, c.CANCELLED, c.EXPIRED])|list %}
 {% if _rooms %}

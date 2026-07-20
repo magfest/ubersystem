@@ -64,12 +64,10 @@
     <strong>Room Assignments</strong>
     <div>
       {# Export-lock chip - visible at the section header so the admin
-         knows immediately whether changes will reach the hotel. #}
-      {% set _any_locked = namespace(found=False) %}
-      {% for ra in (application.attendee.room_assignments if application.attendee else []) %}
-        {% if ra.export_locked %}{% set _any_locked.found = True %}{% endif %}
-      {% endfor %}
-      {% if _any_locked.found %}
+         knows immediately whether changes will reach the hotel. The
+         handler precomputes `any_export_locked` across the attendee's
+         rooms. #}
+      {% if any_export_locked %}
         <span class="badge bg-warning" title="At least one room has been exported to the hotel and is locked.">
           <i class="fa fa-lock"></i> Export-locked
         </span>

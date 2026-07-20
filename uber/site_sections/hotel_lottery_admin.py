@@ -45,13 +45,14 @@ from uber.hotel.audit import (annotate_issues, collect_issues,
                                    filter_issues, get_or_make_issue_note,
                                    group_inventory_issues, group_room_issues,
                                    load_issue_notes)
-from uber.hotel.queries import (block_availability, build_room_assignment_query,
+from uber.hotel.queries import (attendee_search_results, block_availability,
+                                build_room_assignment_query,
                                 clamp_page_size, paginate)
 from uber.hotel.waitlist import (WaitlistError, accept_waitlist_entry,
                                  cron_eligible, fulfill_waitlist)
 from uber.utils import (Order, check_csrf, get_page, localized_now,
-                        validate_model, get_age_from_birthday,
-                        normalize_email_legacy)
+                        redirect_with_params, validate_model,
+                        get_age_from_birthday, normalize_email_legacy)
 
 log = logging.getLogger(__name__)
 
@@ -306,25 +307,108 @@ def _send_confirmation_updated_email(session, assignment):
 def _room_issues_url(message='', severity='all', kind='all', search='',
                      show_hidden=''):
     """Build a room_issues URL preserving the active filters, so the
-    hide/unhide/note POST handlers redirect back to the same view. Built
-    with urlencode and passed to HTTPRedirect as one pre-formatted
-    string (HTTPRedirect quotes each `{}` substitution, which would
-    double-encode a hand-built query string)."""
-    from urllib.parse import urlencode
-    params = {}
-    if severity and severity != 'all':
-        params['severity'] = severity
-    if kind and kind not in ('all', ''):
-        params['kind'] = kind
-    if search:
-        params['search'] = search
-    if show_hidden:
-        params['show_hidden'] = '1'
-    if message:
-        params['message'] = message
-    qs = urlencode(params)
-    return 'room_issues' + ('?' + qs if qs else '')
+    hide/unhide/note POST handlers redirect back to the same view (see
+    redirect_with_params for the HTTPRedirect footgun this avoids).
+    'all' filter values are the defaults and are omitted."""
+    return redirect_with_params(
+        'room_issues',
+        severity=severity if severity != 'all' else '',
+        kind=kind if kind != 'all' else '',
+        search=search,
+        show_hidden='1' if show_hidden else '',
+        message=message)
 
+
+
+def _parse_index_filters(params):
+    """The index page's advanced-filter params (filter_*), keyed by param
+    name with empty values dropped - the exact dict the template gets
+    back as `advanced_filters` to re-render the active filter chips."""
+    return {k: v for k, v in params.items() if k.startswith('filter_') and v}
+
+
+def _apply_index_filters(session, applications, filters):
+    """Chain the index page's advanced filters onto a LotteryApplication
+    query. Hotel/inventory filters resolve through RoomAssignment (an
+    application matches when any of its rooms sits at that hotel /
+    inventory block); an empty room-match set yields an always-false
+    filter rather than no filter."""
+    filter_status = filters.get('filter_status', '')
+    filter_entry_type = filters.get('filter_entry_type', '')
+    filter_hotel = filters.get('filter_hotel', '')
+    filter_inventory = filters.get('filter_inventory', '')
+    filter_partition = filters.get('filter_partition', '')
+    filter_export_locked = filters.get('filter_export_locked', '')
+    filter_staff = filters.get('filter_staff', '')
+
+    if filter_status:
+        applications = applications.filter(LotteryApplication.status == int(filter_status))
+    if filter_entry_type:
+        applications = applications.filter(LotteryApplication.entry_type == int(filter_entry_type))
+    if filter_hotel:
+        inv_ids = [str(inv.id) for inv in
+                   session.query(HotelRoomInventory).filter_by(hotel_id=filter_hotel).all()]
+        if inv_ids:
+            matched_app_ids = [
+                row[0] for row in session.query(
+                    RoomAssignment.lottery_application_id
+                ).filter(
+                    RoomAssignment.inventory_id.in_(inv_ids),
+                    RoomAssignment.lottery_application_id.isnot(None),
+                ).distinct().all()
+            ]
+            if matched_app_ids:
+                applications = applications.filter(
+                    LotteryApplication.id.in_(matched_app_ids))
+            else:
+                applications = applications.filter(sa.false())
+        else:
+            applications = applications.filter(sa.false())
+    if filter_inventory:
+        matched_app_ids = [
+            row[0] for row in session.query(
+                RoomAssignment.lottery_application_id
+            ).filter(
+                RoomAssignment.inventory_id == filter_inventory,
+                RoomAssignment.lottery_application_id.isnot(None),
+            ).distinct().all()
+        ]
+        if matched_app_ids:
+            applications = applications.filter(
+                LotteryApplication.id.in_(matched_app_ids))
+        else:
+            applications = applications.filter(sa.false())
+    if filter_partition:
+        applications = applications.filter(LotteryApplication.partition_id == filter_partition)
+    if filter_export_locked == 'true':
+        applications = applications.filter(LotteryApplication.export_locked == True)  # noqa: E712
+    elif filter_export_locked == 'false':
+        applications = applications.filter(LotteryApplication.export_locked == False)  # noqa: E712
+    if filter_staff == 'true':
+        applications = applications.filter(LotteryApplication.is_staff_entry == True)  # noqa: E712
+    elif filter_staff == 'false':
+        applications = applications.filter(LotteryApplication.is_staff_entry == False)  # noqa: E712
+    return applications
+
+
+def _index_stats(session):
+    """Headline entry counts for the index page: every application, the
+    complete + hotel-eligible pool, and that pool's suite/room splits."""
+    complete_valid_entries = session.query(LotteryApplication.id).filter(
+        LotteryApplication.status == c.COMPLETE).join(
+        LotteryApplication.attendee).filter(
+        Attendee.hotel_lottery_eligible == True)  # noqa: E712
+    room_count_base = complete_valid_entries.filter(
+        LotteryApplication.entry_type != c.GROUP_ENTRY)
+    return {
+        'total_count': session.query(LotteryApplication.id).count(),
+        'complete_count': complete_valid_entries.count(),
+        'suite_count': room_count_base.filter(
+            LotteryApplication.entry_type == c.SUITE_ENTRY).count(),
+        'room_count': room_count_base.filter(or_(
+            LotteryApplication.entry_type == c.ROOM_ENTRY,
+            LotteryApplication.room_opt_out == False)).count(),  # noqa: E712
+    }
 
 
 @all_renderable()
@@ -333,91 +417,45 @@ class Root:
         if c.DEV_BOX and not int(page):
             page = 1
 
-        total_count = session.query(LotteryApplication.id).count()
-        complete_valid_entries = session.query(LotteryApplication.id).filter(LotteryApplication.status == c.COMPLETE).join(
-            LotteryApplication.attendee).filter(Attendee.hotel_lottery_eligible == True)
-        room_count_base = complete_valid_entries.filter(LotteryApplication.entry_type != c.GROUP_ENTRY)
-        count = 0
+        stats = _index_stats(session)
         search_text = search_text.strip()
-        advanced_filters = {}
+        advanced_filters = _parse_index_filters(params)
+
+        # `applications` stays None until free-text search or the
+        # advanced filters pick a population; None at the end means the
+        # default everything view.
+        applications = None
+        count = 0
 
         if search_text:
             search_results, message = _search(session, search_text)
             if search_results and search_results.count():
                 applications = search_results
                 count = applications.count()
-                if count == total_count:
+                if count == stats['total_count']:
                     message = 'Every lottery application matched this search.'
             elif not message:
                 message = 'No matches found. Try searching the lottery tracking history instead.'
 
-        filter_status = params.get('filter_status', '')
-        filter_entry_type = params.get('filter_entry_type', '')
-        filter_hotel = params.get('filter_hotel', '')
-        filter_inventory = params.get('filter_inventory', '')
-        filter_partition = params.get('filter_partition', '')
-        filter_export_locked = params.get('filter_export_locked', '')
-        filter_staff = params.get('filter_staff', '')
-
-        has_advanced = any([filter_status, filter_entry_type, filter_hotel,
-                           filter_inventory, filter_partition, filter_export_locked, filter_staff])
-
-        if has_advanced:
-            if not count:
+        if advanced_filters:
+            if applications is None:
+                # No (matching) free-text search: filter the full population.
                 applications = session.query(LotteryApplication)
-            if filter_status:
-                applications = applications.filter(LotteryApplication.status == int(filter_status))
-            if filter_entry_type:
-                applications = applications.filter(LotteryApplication.entry_type == int(filter_entry_type))
-            if filter_hotel:
-                inv_ids = [str(inv.id) for inv in
-                           session.query(HotelRoomInventory).filter_by(hotel_id=filter_hotel).all()]
-                if inv_ids:
-                    matched_app_ids = [
-                        row[0] for row in session.query(
-                            RoomAssignment.lottery_application_id
-                        ).filter(
-                            RoomAssignment.inventory_id.in_(inv_ids),
-                            RoomAssignment.lottery_application_id.isnot(None),
-                        ).distinct().all()
-                    ]
-                    if matched_app_ids:
-                        applications = applications.filter(
-                            LotteryApplication.id.in_(matched_app_ids))
-                    else:
-                        applications = applications.filter(sa.false())
-                else:
-                    applications = applications.filter(sa.false())
-            if filter_inventory:
-                matched_app_ids = [
-                    row[0] for row in session.query(
-                        RoomAssignment.lottery_application_id
-                    ).filter(
-                        RoomAssignment.inventory_id == filter_inventory,
-                        RoomAssignment.lottery_application_id.isnot(None),
-                    ).distinct().all()
-                ]
-                if matched_app_ids:
-                    applications = applications.filter(
-                        LotteryApplication.id.in_(matched_app_ids))
-                else:
-                    applications = applications.filter(sa.false())
-            if filter_partition:
-                applications = applications.filter(LotteryApplication.partition_id == filter_partition)
-            if filter_export_locked == 'true':
-                applications = applications.filter(LotteryApplication.export_locked == True)
-            elif filter_export_locked == 'false':
-                applications = applications.filter(LotteryApplication.export_locked == False)
-            if filter_staff == 'true':
-                applications = applications.filter(LotteryApplication.is_staff_entry == True)
-            elif filter_staff == 'false':
-                applications = applications.filter(LotteryApplication.is_staff_entry == False)
+            applications = _apply_index_filters(
+                session, applications, advanced_filters)
             count = applications.count()
-            advanced_filters = {k: v for k, v in params.items() if k.startswith('filter_') and v}
+            if not count and not message:
+                message = 'No applications matched those filters.'
 
-        if not count:
-            applications = session.query(LotteryApplication)
-            count = applications.count()
+        if applications is None:
+            if search_text:
+                # The free-text search matched nothing: show an empty
+                # result list (with the "no matches" message above)
+                # instead of silently resetting to every application.
+                applications = session.query(LotteryApplication).filter(sa.false())
+            else:
+                applications = session.query(LotteryApplication)
+                count = applications.count()
 
         applications = applications.order(order).options(joinedload(LotteryApplication.attendee))
 
@@ -433,18 +471,14 @@ class Root:
             'page':           page,
             'pages':          pages,
             'search_text':    search_text,
-            'search_results': bool(search_text) or has_advanced,
+            'search_results': bool(search_text) or bool(advanced_filters),
             'applications':   applications,
             'order':          Order(order),
             'search_count':   count,
-            'total_count':    total_count,
-            'complete_count': complete_valid_entries.count(),
-            'suite_count': room_count_base.filter(LotteryApplication.entry_type == c.SUITE_ENTRY).count(),
-            'room_count': room_count_base.filter(or_(LotteryApplication.entry_type == c.ROOM_ENTRY,
-                                                     LotteryApplication.room_opt_out == False)).count(),
             'advanced_filters': advanced_filters,
+            **stats,
             **_picker_context(session),
-        }  # noqa: E711
+        }
 
     def feed(self, session, message='', page='1', who='', what='', action=''):
         feed = session.query(Tracking).filter(Tracking.model == 'LotteryApplication').order_by(Tracking.when.desc())
@@ -545,6 +579,12 @@ class Root:
             'partitions': picker['partitions'],
             'inventory_blocks': picker['inventory_blocks'],
             'inventory_partitions_map': inventory_partitions_map,
+            # Export-lock chip on the Rooms section header (previously a
+            # namespace() loop in the template).
+            'any_export_locked': any(
+                ra.export_locked for ra in
+                (application.attendee.room_assignments
+                 if application.attendee else [])),
         }
 
     def history(self, session, id):
@@ -576,10 +616,36 @@ class Root:
         ).order_by(LotteryApplication.confirmation_num).all()
         picker = _picker_context(session)
         partition_lookup = {str(p.id): p.name for p in picker['partitions']}
+
+        # Filter chips: resolve the run's CSV filter-id lists to names
+        # once here instead of re-splitting per badge in the template.
+        hotel_filter_names, room_type_filter_names = [], []
+        if lottery_run and lottery_run.hotel_filter:
+            filter_ids = lottery_run.hotel_filter.split(',')
+            hotel_filter_names = [h.name for h in picker['hotels']
+                                  if str(h.id) in filter_ids]
+        if lottery_run and lottery_run.room_type_filter:
+            filter_ids = lottery_run.room_type_filter.split(',')
+            room_type_filter_names = [
+                rt.name for rt in picker['room_types'] + picker['suite_types']
+                if str(rt.id) in filter_ids]
+
+        # {application_id: [that attendee's rooms from this run]} -
+        # previously a per-row selectattr over every room in the template
+        # (O(apps x rooms)).
+        run_rooms_by_app = {
+            app.id: [ra for ra in (app.attendee.room_assignments
+                                   if app.attendee else [])
+                     if ra.lottery_run_id == lottery_run.id]
+            for app in applications}
+
         return {
             'lottery_run': lottery_run,
             'applications': applications,
             'partition_lookup': partition_lookup,
+            'hotel_filter_names': hotel_filter_names,
+            'room_type_filter_names': room_type_filter_names,
+            'run_rooms_by_app': run_rooms_by_app,
             'message': message,
             **picker,
         }
@@ -1196,32 +1262,17 @@ class Root:
                        .order_by(HotelExportLog.exported_at.desc())
                        .first())
 
-        try:
-            page_num = max(1, int(page))
-        except (TypeError, ValueError):
-            page_num = 1
-        try:
-            ps = max(5, min(200, int(page_size)))
-        except (TypeError, ValueError):
-            ps = 25
-
         hotel_inventory_ids = [str(inv.id) for inv in
                                session.query(HotelRoomInventory).filter_by(hotel_id=hotel.id).all()]
 
         base_q = (session.query(RoomAssignment)
                   .filter(RoomAssignment.inventory_id.in_(hotel_inventory_ids),
-                          RoomAssignment.is_live))
-        total = base_q.count()
-        page_count = max(1, (total + ps - 1) // ps)
-        if page_num > page_count:
-            page_num = page_count
-
-        assignments = (base_q
-                       .order_by(RoomAssignment.parent_assignment_id.asc().nullsfirst(),
-                                 RoomAssignment.created.asc())
-                       .offset((page_num - 1) * ps)
-                       .limit(ps)
-                       .all())
+                          RoomAssignment.is_live)
+                  .order_by(RoomAssignment.parent_assignment_id.asc().nullsfirst(),
+                            RoomAssignment.created.asc()))
+        assignments, total, page_num, page_count = paginate(
+            base_q, page, page_size, default_size=25, min_size=5, max_size=200)
+        ps = clamp_page_size(page_size, default_size=25, min_size=5, max_size=200)
 
         bookings = [{
             'assignment': ra,
@@ -2411,36 +2462,12 @@ class Root:
     def search_attendees(self, session, q='', **params):
         """JSON helper for the assign-room attendee picker.
 
-        Mirrors partition_admin.search_attendees but without partition
-        scoping: access here is gated by this section's admin ACL, the
-        same gate as the assign_room page itself. Reuses Session.search()
-        so every field the normal admin search covers (names, legal name,
-        email, badge ID, badge number, UUID, promo group, etc.) works.
+        Result shaping lives in uber.hotel.queries.attendee_search_results
+        (shared with partition_admin.search_attendees, which adds a
+        partition gate); access here is gated by this section's admin
+        ACL, the same gate as the assign_room page itself.
         """
-        q = (q or '').strip()
-        if len(q) < 2:
-            return []
-
-        try:
-            results, _ = session.search(q)
-        except Exception:
-            return []
-
-        out = []
-        for a in results.limit(25).all():
-            badge = ''
-            try:
-                badge = str(a.badge_num) if a.badge_num else ''
-            except Exception:
-                pass
-            out.append({
-                'id': a.id,
-                'name': a.full_name,
-                'email': a.email or '',
-                'badge_num': badge,
-                'badge_type': a.badge_type_label or '',
-            })
-        return out
+        return attendee_search_results(session, q)
 
     def partition_owners(self, session, partition_id=None, message=''):
         """List PartitionOwner grants, optionally filtered to one partition."""
@@ -3124,18 +3151,10 @@ class Root:
         # Hampton blocks light up.
         block_rows = _waitlist_block_rows(session, filtered)
 
-        # Pagination. `get_page` is the same helper the rest of the
-        # admin uses (`uber.utils.get_page`), but its 100-per-page
-        # default is baked in, so we mirror it here for the page
-        # count math.
-        try:
-            page = max(1, int(page or 1))
-        except (TypeError, ValueError):
-            page = 1
-        total_pages = max(1, math.ceil(total_count / PER_PAGE)) if total_count else 1
-        if page > total_pages:
-            page = total_pages
-        page_slice = filtered[(page - 1) * PER_PAGE: page * PER_PAGE]
+        # Pagination via the shared helper (it slices plain lists too);
+        # PER_PAGE matches the rest of the admin section's 100-per-page
+        # convention.
+        page_slice, _, page, total_pages = paginate(filtered, page, PER_PAGE)
         pages = range(1, total_pages + 1)
 
         return {

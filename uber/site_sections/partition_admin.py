@@ -17,7 +17,8 @@ import cherrypy
 from uber.config import c
 from uber.decorators import all_renderable, ajax_gettable
 from uber.errors import HTTPRedirect
-from uber.hotel.queries import build_room_assignment_query, paginate
+from uber.hotel.queries import (attendee_search_results,
+                                build_room_assignment_query, paginate)
 from uber.hotel.service import (
     RoomAssignmentError, apply_room_assignment_edits, create_room_assignment,
 )
@@ -30,6 +31,7 @@ from uber.hotel.perms import (
     can_view_inventory_in,
     is_lottery_admin,
     record_partition_audit,
+    requires_partition_capability,
 )
 from uber.models.hotel import (
     HotelRoomInventory, InventoryPartition, InventoryPartitionBlock,
@@ -59,13 +61,6 @@ def _partitions_for_current_admin(session):
         return []
     return session.query(InventoryPartition).filter(
         InventoryPartition.id.in_(partition_ids)).order_by(InventoryPartition.name).all()
-
-
-def _gate_view(session, partition_id):
-    if not can_view_assignments_in(session, partition_id) and \
-            not can_view_inventory_in(session, partition_id):
-        raise HTTPRedirect('index?message={}',
-                           "You don't have access to that partition.")
 
 
 def _partition_block_inventory_ids(session, partition_id):
@@ -103,6 +98,7 @@ class Root:
             })
         return {'rows': rows, 'message': message}
 
+    @requires_partition_capability('view')
     def dashboard(self, session, partition_id, tab='inventory',
                   page='1', activity_page='1', message=''):
         """Per-partition view, tabbed: inventory / assignments / activity.
@@ -114,14 +110,13 @@ class Root:
         room assigned to that attendee, all editable.
         Activity tab - paginated audit log.
         """
-        _gate_view(session, partition_id)
         partition = session.query(InventoryPartition).get(partition_id)
         if not partition:
             raise HTTPRedirect('index?message={}', 'Partition not found.')
 
         # Per-tab gating: an inventory-only grant must not see the roster,
         # and vice versa. The activity log is available to anyone who
-        # passed _gate_view.
+        # passed the view gate (requires_partition_capability above).
         can_view_inventory = can_view_inventory_in(session, partition_id)
         can_view_assignments = can_view_assignments_in(session, partition_id)
         allowed_tabs = ['activity']
@@ -240,6 +235,7 @@ class Root:
             'message': message,
         }
 
+    @requires_partition_capability('can_edit_assignments')
     def toggle_billing(self, session, assignment_id, csrf_token=None):
         """Flip RoomAssignment.require_cc within a partition."""
         if cherrypy.request.method != 'POST':
@@ -248,12 +244,6 @@ class Root:
         assignment = session.query(RoomAssignment).get(assignment_id)
         if not assignment:
             raise HTTPRedirect('index?message={}', 'Assignment not found.')
-
-        if not can_edit_assignments_in(session, assignment.partition_id):
-            raise HTTPRedirect(
-                'dashboard?partition_id={}&tab=assignments&message={}',
-                assignment.partition_id,
-                "You don't have permission to edit assignments in this partition.")
 
         assignment.require_cc = not assignment.require_cc
         session.add(assignment)
@@ -270,6 +260,7 @@ class Root:
             f"Billing for this assignment is now "
             f"{'self-pay (CC required)' if assignment.require_cc else 'master bill'}.")
 
+    @requires_partition_capability('can_edit_assignments')
     def assign_room(self, session, partition_id, attendee_id='',
                     inventory_id='', csrf_token=None, **params):
         """Partition-scoped manual assignment (PARTITION_GRANT)."""
@@ -277,12 +268,6 @@ class Root:
             raise HTTPRedirect(
                 'dashboard?partition_id={}&tab=assignments', partition_id)
         check_csrf(csrf_token)
-
-        if not can_edit_assignments_in(session, partition_id):
-            raise HTTPRedirect(
-                'dashboard?partition_id={}&tab=assignments&message={}',
-                partition_id,
-                "You don't have permission to edit assignments in this partition.")
 
         if not attendee_id or not inventory_id:
             raise HTTPRedirect(
@@ -312,6 +297,9 @@ class Root:
             'dashboard?partition_id={}&tab=assignments&message={}',
             partition_id, 'Assignment created.')
 
+    @requires_partition_capability('can_edit_assignments',
+                                   message="You don't have permission to edit "
+                                           "this assignment.")
     def update_assignment(self, session, assignment_id, csrf_token=None, **params):
         """Edit fields on a single RoomAssignment (from the modal).
 
@@ -327,11 +315,6 @@ class Root:
             raise HTTPRedirect('index?message={}', 'Assignment not found.')
 
         target_partition = assignment.partition_id
-        if not can_edit_assignments_in(session, target_partition):
-            raise HTTPRedirect(
-                'dashboard?partition_id={}&tab=assignments&message={}',
-                target_partition,
-                "You don't have permission to edit this assignment.")
 
         def fail(msg):
             raise HTTPRedirect(
@@ -349,6 +332,9 @@ class Root:
             'dashboard?partition_id={}&tab=assignments&message={}',
             target_partition, msg)
 
+    @requires_partition_capability('can_edit_assignments',
+                                   message="You don't have permission to remove "
+                                           "assignments in this partition.")
     def unassign(self, session, assignment_id, csrf_token=None):
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect('index')
@@ -358,12 +344,6 @@ class Root:
             raise HTTPRedirect('index?message={}', 'Assignment not found.')
 
         partition_id = assignment.partition_id
-        if not can_edit_assignments_in(session, partition_id):
-            raise HTTPRedirect(
-                'dashboard?partition_id={}&tab=assignments&message={}',
-                partition_id,
-                "You don't have permission to remove assignments in this partition.")
-
         record_partition_audit(
             session, partition_id,
             action='assignment.removed',
@@ -379,33 +359,11 @@ class Root:
     def search_attendees(self, session, partition_id, q='', **params):
         """JSON helper for the assign-room attendee picker.
 
-        Reuses Session.search() so every field the normal admin search
-        covers (names, legal name, email, badge ID, badge number, UUID,
-        promo group, etc.) works here too.
+        Result shaping lives in uber.hotel.queries.attendee_search_results;
+        this route just adds the partition gate. (Kept inline rather than
+        via requires_partition_capability because ajax endpoints return
+        an empty JSON list on failure, not a redirect.)
         """
         if not can_edit_assignments_in(session, partition_id):
             return []
-        q = (q or '').strip()
-        if len(q) < 2:
-            return []
-
-        try:
-            results, _ = session.search(q)
-        except Exception:
-            return []
-
-        out = []
-        for a in results.limit(25).all():
-            badge = ''
-            try:
-                badge = str(a.badge_num) if a.badge_num else ''
-            except Exception:
-                pass
-            out.append({
-                'id': a.id,
-                'name': a.full_name,
-                'email': a.email or '',
-                'badge_num': badge,
-                'badge_type': a.badge_type_label or '',
-            })
-        return out
+        return attendee_search_results(session, q)

@@ -265,6 +265,39 @@ def create_valid_user_supplied_redirect_url(url, default_url):
     return url
 
 
+def redirect_with_params(base, **params):
+    """Build a redirect URL with each query value individually URL-quoted,
+    for passing to HTTPRedirect as a single pre-formatted string.
+
+    The HTTPRedirect footgun, documented once here: HTTPRedirect quotes
+    each ``{}`` substitution *as a whole*, so passing a pre-built
+    ``id=X&attendee_id=Y`` (or a full URL) as one substitution emits
+    ``id%3DX%26attendee_id%3DY`` - the ``?``/``&``/``=`` get
+    percent-encoded and CherryPy parses a single garbled query param.
+    The fix is to build the final URL ourselves, quoting only the
+    values, and raise ``HTTPRedirect(redirect_with_params(...))`` with
+    no further substitution.
+
+    Details:
+      * ``base`` may already contain a query string; params are appended
+        with ``&`` in that case.
+      * Params with empty/None values are skipped entirely.
+      * Params appear in keyword order - callers conventionally put
+        ``message`` last.
+      * Any stray ``{``/``}`` (e.g. from a malformed client-supplied
+        return URL) are doubled so HTTPRedirect's str.format pass
+        leaves them intact instead of blowing up.
+    """
+    from urllib.parse import quote
+    parts = ['{}={}'.format(name, quote(str(value)))
+             for name, value in params.items()
+             if value is not None and value != '']
+    url = base
+    if parts:
+        url += ('&' if '?' in base else '?') + '&'.join(parts)
+    return url.replace('{', '{{').replace('}', '}}')
+
+
 def normalize_phone(phone_number, country='US'):
     return phonenumbers.format_number(
         phonenumbers.parse(phone_number, country),

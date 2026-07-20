@@ -4,6 +4,8 @@ This module is the single definition of:
 
   * build_room_assignment_query - the room-list filter semantics shared
     by hotel_lottery_admin.rooms, staff_rooming, and partition_admin.
+  * attendee_search_results - the JSON rows behind the admin
+    attendee-picker widgets (hotel_lottery_admin + partition_admin).
   * clamp_page_size / paginate - the shared pagination behavior.
   * occupancy_by_block_night / capacity_for / capacity_night_map /
     block_availability - the capacity math. "How many rooms exist /
@@ -126,6 +128,43 @@ def build_room_assignment_query(session, *, status='live', hotel_id='',
         ))
 
     return q
+
+
+def attendee_search_results(session, q, limit=25):
+    """JSON-ready rows for the admin attendee-picker widgets
+    (`attendee_search_widget` + static/js/hotel-attendee-search.js).
+
+    Reuses Session.search() so every field the normal admin search
+    covers (names, legal name, email, badge ID, badge number, UUID,
+    promo group, etc.) works here too. Returns a list of dicts with
+    exactly the keys the picker JS expects: id, name, email, badge_num,
+    badge_type. Access control is the caller's job - both consuming
+    routes keep their own gates.
+    """
+    q = (q or '').strip()
+    if len(q) < 2:
+        return []
+
+    try:
+        results, _ = session.search(q)
+    except Exception:
+        return []
+
+    out = []
+    for a in results.limit(limit).all():
+        badge = ''
+        try:
+            badge = str(a.badge_num) if a.badge_num else ''
+        except Exception:
+            pass
+        out.append({
+            'id': a.id,
+            'name': a.full_name,
+            'email': a.email or '',
+            'badge_num': badge,
+            'badge_type': a.badge_type_label or '',
+        })
+    return out
 
 
 def clamp_page_size(page_size, default_size=50, min_size=10, max_size=500):
