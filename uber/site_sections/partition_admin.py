@@ -2,7 +2,7 @@
 
 Accessible to AdminAccounts with at least one PartitionOwner grant (the
 section gate in has_section_or_page_access). Each request is further
-gated by uber.lottery_perms helpers against the specific partition_id.
+gated by uber.hotel.perms helpers against the specific partition_id.
 
 The four owner departments (Marketplace, Belvedere, Panels, Accessibility)
 land here to manage their exhibitor / panelist / ADA rooms without
@@ -18,8 +18,8 @@ import cherrypy
 from uber.config import c
 from uber.decorators import all_renderable, ajax_gettable
 from uber.errors import HTTPRedirect
-from uber.hotel_room_queries import build_room_assignment_query, paginate
-from uber.lottery_perms import (
+from uber.hotel.queries import build_room_assignment_query, paginate
+from uber.hotel.perms import (
     can_edit_assignments_in,
     can_edit_inventory_in,
     can_view_assignments_in,

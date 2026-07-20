@@ -4,15 +4,16 @@ The catalog (PhysicalRoom / PhysicalRoomConnection) maps the real rooms
 in a hotel building; RoomAssignment.physical_room_id links a booking to
 one. Assignment is optional per hotel - anything without a catalog keeps
 working off the free-text room_number. Pure logic lives here; the
-hotel_lottery_admin section provides the routes, mirroring
-hotel_imports.py / hotel_room_queries.py.
+hotel_lottery_admin section provides the routes, mirroring the rest of
+the uber.hotel package (see the package docstring for the transaction
+convention).
 """
 
 from collections import defaultdict
 
 import sqlalchemy as sa
 
-from uber.hotel_room_queries import vacant_physical_rooms
+from uber.hotel.queries import vacant_physical_rooms
 from uber.models.hotel import (
     PhysicalRoom, PhysicalRoomConnection, RoomAssignment)
 

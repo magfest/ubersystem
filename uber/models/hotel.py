@@ -1260,7 +1260,7 @@ class PartitionOwner(MagModel, table=True):
     Granted by hotel-lottery admins (anyone with HAS_HOTEL_LOTTERY_ADMIN_ACCESS)
     to admin accounts that need scoped access to manage one partition's rooms
     and assignments. Each row is one (admin, partition) grant with a set of
-    independently-toggleable capabilities. See uber.lottery_perms for
+    independently-toggleable capabilities. See uber.hotel.perms for
     resolution logic: HAS_HOTEL_LOTTERY_ADMIN_ACCESS short-circuits to True,
     otherwise the relevant PartitionOwner row gates the action.
     """

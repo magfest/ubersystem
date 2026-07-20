@@ -19,29 +19,29 @@ from uber.decorators import all_renderable, log_pageview, ajax, ajax_gettable, x
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, Group, LotteryApplication, Email, Tracking, PageViewTracking
-from uber.lottery_perms import record_partition_audit
+from uber.hotel.perms import record_partition_audit
 from uber.models.hotel import (HotelRoomInventory, InventoryNightQuantity, InventoryPartition,
                                InventoryPartitionBlock, LotteryRun, HotelExportLog, LotteryHotel, LotteryRoomType,
                                PartitionAuditLog, PartitionOwner, RoomAssignment,
                                WaitlistReveal, WaitlistRevealLink, HotelRoomIssueNote,
                                HotelImportFile)
 from uber.email import EmailService
-from uber.hotel_exports import (booking_columns, booking_export_data,
+from uber.hotel.exports import (booking_columns, booking_export_data,
                                 build_waitlist_xlsx, compute_export_tracking,
                                 derive_sync_status, write_hotel_inventory_xlsx,
                                 write_interchange_export)
-from uber.hotel_imports import parse_confirmation_rows, parse_iso_date, parse_spreadsheet
-from uber.hotel_lottery_solver import (adjust_available_rooms,
+from uber.hotel.imports import parse_confirmation_rows, parse_iso_date, parse_spreadsheet
+from uber.hotel.solver import (adjust_available_rooms,
                                        build_eligible_applications,
                                        count_assigned_per_block_night,
                                        filter_inventory_table,
                                        materialize_room_assignments,
                                        solve_lottery)
-from uber.hotel_room_audit import (annotate_issues, collect_issues,
+from uber.hotel.audit import (annotate_issues, collect_issues,
                                    filter_issues, get_or_make_issue_note,
                                    group_inventory_issues, group_room_issues,
                                    load_issue_notes)
-from uber.hotel_room_queries import build_room_assignment_query, clamp_page_size, paginate
+from uber.hotel.queries import build_room_assignment_query, clamp_page_size, paginate
 from uber.utils import (Order, check_csrf, get_page, localized_now,
                         validate_model, get_age_from_birthday,
                         normalize_email_legacy)
@@ -602,7 +602,7 @@ def _room_issues_url(message='', severity='all', kind='all', search='',
 
 def _validate_physical_room(session, ra, room):
     """Why a physical room can't take this booking, or None if it can."""
-    from uber.hotel_room_queries import physical_room_conflicts
+    from uber.hotel.queries import physical_room_conflicts
 
     inv = ra.inventory
     if not inv or not inv.hotel_id:
@@ -1305,7 +1305,7 @@ class Root:
         }
 
     # The booking spreadsheet layout (and the guard rails around CC
-    # data) lives in uber.hotel_exports; these handlers are the routes
+    # data) lives in uber.hotel.exports; these handlers are the routes
     # that serve it per hotel.
 
     @csv_file
@@ -1357,7 +1357,7 @@ class Root:
         raw = upload.file.read()
         is_xlsx = filename.endswith(('.xlsx', '.xlsm')) or raw[:2] == b'PK'
 
-        # Shared CSV/XLSX parser (uber.hotel_imports): case-insensitive
+        # Shared CSV/XLSX parser (uber.hotel.imports): case-insensitive
         # headers, XLSX date cells rendered as ISO strings.
         reader_fieldnames, reader_iter, parse_error = parse_spreadsheet(raw, filename)
         if parse_error:
@@ -1576,7 +1576,7 @@ class Root:
         account = session.current_admin_account()
         uploaded_by = account.attendee.full_name if account and account.attendee else 'Admin'
 
-        from uber.hotel_imports import import_confirmation_file
+        from uber.hotel.imports import import_confirmation_file
         result = import_confirmation_file(
             session, raw, getattr(upload, 'filename', ''), hotel=hotel,
             source='admin', uploaded_by=uploaded_by,
@@ -2170,12 +2170,12 @@ class Root:
 
     # ------------------------------------------------------------------
     # Physical-room catalog: the per-hotel map of real rooms
-    # (PhysicalRoom / PhysicalRoomConnection). Logic in uber.hotel_physical.
+    # (PhysicalRoom / PhysicalRoomConnection). Logic in uber.hotel.physical.
     # ------------------------------------------------------------------
 
     def physical_rooms(self, session, hotel_id='', message=''):
         """Per-hotel catalog of physical rooms, grouped by floor."""
-        from uber import hotel_physical
+        from uber.hotel import physical as hotel_physical
 
         picker = _picker_context(session)
         hotels = picker['hotels']
@@ -2207,7 +2207,7 @@ class Root:
     def edit_physical_room(self, session, id=None, hotel_id='', message='',
                            **params):
         """Create or edit one PhysicalRoom, including its connections."""
-        from uber import hotel_physical
+        from uber.hotel import physical as hotel_physical
         from uber.models.hotel import PhysicalRoom
 
         if id in [None, '', 'None']:
@@ -2249,7 +2249,7 @@ class Root:
                                        room.hotel_id,
                                        f'Room {room.room_number} saved.')
 
-        from uber.hotel_physical import connection_map
+        from uber.hotel.physical import connection_map
         current_connections = ''
         if not room.is_new:
             current_connections = ', '.join(
@@ -2287,7 +2287,7 @@ class Root:
     def bulk_add_physical_rooms(self, session, hotel_id, floor='',
                                 prefix='', start='', end='', pad='0',
                                 inventory_id='', csrf_token=None):
-        from uber import hotel_physical
+        from uber.hotel import physical as hotel_physical
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect('physical_rooms?hotel_id={}', hotel_id)
         check_csrf(csrf_token)
@@ -2314,8 +2314,8 @@ class Root:
         preview/apply like the confirmation imports; CSV and XLSX via the
         shared parser. Re-imports update rooms in place (keyed by
         room_number within the hotel)."""
-        from uber import hotel_physical
-        from uber.hotel_imports import parse_spreadsheet
+        from uber.hotel import physical as hotel_physical
+        from uber.hotel.imports import parse_spreadsheet
 
         if cherrypy.request.method == 'POST':
             check_csrf(params.get('csrf_token'))
@@ -2362,8 +2362,8 @@ class Root:
     def room_board(self, session, hotel_id='', message=''):
         """Per-hotel assignment board: unroomed live bookings on top,
         the catalog by floor (with current occupants) below."""
-        from uber import hotel_physical
-        from uber.hotel_room_queries import vacant_physical_rooms
+        from uber.hotel import physical as hotel_physical
+        from uber.hotel.queries import vacant_physical_rooms
 
         picker = _picker_context(session)
         hotels = picker['hotels']
@@ -2406,7 +2406,7 @@ class Root:
 
     def board_assign(self, session, assignment_id, physical_room_id,
                      hotel_id='', csrf_token=None):
-        from uber.hotel_room_queries import physical_room_conflicts
+        from uber.hotel.queries import physical_room_conflicts
         from uber.models.hotel import PhysicalRoom
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect('room_board?hotel_id={}', hotel_id)
@@ -2444,7 +2444,7 @@ class Root:
                            'is kept for reference).')
 
     def auto_assign_physical(self, session, hotel_id, csrf_token=None):
-        from uber import hotel_physical
+        from uber.hotel import physical as hotel_physical
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect('room_board?hotel_id={}', hotel_id)
         check_csrf(csrf_token)
@@ -2478,7 +2478,7 @@ class Root:
         """Front-desk / housekeeping export: every catalogued room in
         floor order with its current booking, for handing to the hotel.
         They may reassign at check-in; we don't get that back."""
-        from uber import hotel_physical
+        from uber.hotel import physical as hotel_physical
         out.writerow(['floor', 'room_number', 'block', 'ada',
                       'out_of_service', 'status', 'guest_first_name',
                       'guest_last_name', 'check_in', 'check_out',
@@ -2512,7 +2512,7 @@ class Root:
         """Shared implementation behind import_hotel_confirmations and
         import_hotel_cancellations.
 
-        Parses the upload with uber.hotel_imports.parse_confirmation_rows -
+        Parses the upload with uber.hotel.imports.parse_confirmation_rows -
         the same parser as the hotel portal - so both pages accept CSV and
         XLSX with case-insensitive headers (spaces treated as underscores).
 
@@ -2688,7 +2688,7 @@ class Root:
         Belvedere, Panels, Accessibility to assign exhibitor/panelist rooms.
         """
         from uber.models import RoomAssignment
-        from uber.lottery_perms import is_lottery_admin, can_edit_assignments_in
+        from uber.hotel.perms import is_lottery_admin, can_edit_assignments_in
 
         assignment = None
         if id and id not in ('None', ''):
@@ -3385,7 +3385,7 @@ class Root:
             inventory_partitions_map.setdefault(
                 str(pb.inventory_id), []).append(str(pb.partition_id))
 
-        from uber import hotel_physical
+        from uber.hotel import physical as hotel_physical
         return {
             'assignment': ra,
             'partitions': picker['partitions'],
@@ -3652,7 +3652,7 @@ class Root:
     def export_waitlist_xlsx(self, session):
         """One-XLSX-per-call export of the current waitlist demand, with
         one worksheet per hotel that has any waitlisted rooms. The sheet
-        layout lives with the builder (uber.hotel_exports.build_waitlist_xlsx).
+        layout lives with the builder (uber.hotel.exports.build_waitlist_xlsx).
 
         Built manually (no `@xlsx_file` decorator) because that helper
         only hands out a single worksheet. We still match the decorator's
@@ -3805,7 +3805,7 @@ class Root:
     # surfaced as a flat list, each one carrying severity (error/warning),
     # a human label, and a deep-link to wherever the admin can fix it
     # (usually the application's edit form). The checks themselves live
-    # in uber.hotel_room_audit (all in Python - no SQL view - so it's
+    # in uber.hotel.audit (all in Python - no SQL view - so it's
     # easy to add new ones); this section keeps the routes.
 
     def room_issues(self, session, message='', severity='all', kind='all',
@@ -3839,7 +3839,7 @@ class Root:
             reservation as unguaranteed; master-bill rooms exempt.
 
         Plus the inventory/configuration checks registered in
-        uber.hotel_room_audit.INVENTORY_CHECKS (oversubscription,
+        uber.hotel.audit.INVENTORY_CHECKS (oversubscription,
         partition misconfiguration, connector capacity, etc.).
         """
         issues, inv_issues = collect_issues(session)

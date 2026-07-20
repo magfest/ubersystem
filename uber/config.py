@@ -377,7 +377,7 @@ class Config(_Overridable):
 
         # partition_admin: any admin with at least one PartitionOwner grant
         # (or a global lottery admin) may visit the partition-scoped pages;
-        # the per-page methods then gate further via uber.lottery_perms
+        # the per-page methods then gate further via uber.hotel.perms
         # helpers. HAS_HOTEL_LOTTERY_ACCESS is request-cached, so repeated
         # access checks during one render don't re-query.
         if section == 'partition_admin' and self.HAS_HOTEL_LOTTERY_ACCESS:

@@ -106,7 +106,7 @@ def _require_room_access(session, ra, attendee_id='', allow_occupant=False):
     it too, or any logged-in attendee holding an assignment UUID could
     edit someone else's room.
     """
-    from uber.lottery_perms import is_lottery_admin
+    from uber.hotel.perms import is_lottery_admin
     if is_lottery_admin():
         return
     if attendee_id:
@@ -325,7 +325,7 @@ def _can_view_as_attendee(session, attendee_id):
     by design that's the same population that already sees the
     "View as Attendee" button in /hotel_lottery_admin/.
     """
-    from uber.lottery_perms import is_lottery_admin
+    from uber.hotel.perms import is_lottery_admin
     if is_lottery_admin():
         return True
     return _attendee_account_owns(session, attendee_id)
@@ -878,7 +878,7 @@ class Root:
         (along with their billing address) and a SECURED room drops back
         to ASSIGNED - the new leader must re-secure with their own card.
         """
-        from uber.lottery_perms import is_lottery_admin
+        from uber.hotel.perms import is_lottery_admin
         viewer = _viewer_attendee(session)
         if not is_lottery_admin() and (not viewer or viewer.id != ra.attendee_id):
             raise HTTPRedirect(_room_url(
@@ -985,7 +985,7 @@ class Root:
         #   - Otherwise the attendee_id must belong to the logged-in
         #     attendee account - a room leader cannot edit a guest's
         #     legal name on the guest's behalf.
-        from uber.lottery_perms import is_lottery_admin
+        from uber.hotel.perms import is_lottery_admin
         if not is_lottery_admin() and not _attendee_account_owns(
                 session, attendee_id):
             raise HTTPRedirect('rooms?message={}', 'Permission denied.')

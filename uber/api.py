@@ -1852,7 +1852,7 @@ class HotelLookup:
         assumed card-free and nothing resembling a card number is echoed back.
         """
         import base64
-        from uber.hotel_imports import import_confirmation_file as apply_import_file
+        from uber.hotel.imports import import_confirmation_file as apply_import_file
 
         if not file:
             return {'error': 'No file provided.'}

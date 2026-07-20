@@ -19,7 +19,7 @@ from sqlalchemy import or_
 from uber.config import c
 from uber.decorators import all_renderable
 from uber.errors import HTTPRedirect
-from uber.hotel_room_queries import (build_room_assignment_query,
+from uber.hotel.queries import (build_room_assignment_query,
                                      clamp_page_size, paginate)
 from uber.models import (Attendee, Department, NightShiftRequirement,
                          RoomAssignment)

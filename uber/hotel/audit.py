@@ -963,7 +963,7 @@ def get_or_make_issue_note(session, issue_kind, target_type, target_id):
     """Fetch (or create, unsaved) the HotelRoomIssueNote for an
     issue's stable identity. Stamps the acting admin so we know who
     last touched it."""
-    from uber.lottery_perms import _current_admin_account
+    from uber.hotel.perms import _current_admin_account
     note = (session.query(HotelRoomIssueNote)
             .filter_by(issue_kind=issue_kind, target_type=target_type,
                        target_id=str(target_id))
