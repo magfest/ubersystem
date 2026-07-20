@@ -26,7 +26,7 @@ from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, Attr
                          BadgeInfo, Department, DeptMembership,
                          DeptRole, Event, IndieJudge, IndieStudio, Job, Session, Shift, Group,
                          GuestGroup, LotteryApplication)
-from uber.models.hotel import HotelExportLog, HotelRoomInventory, LotteryHotel, RoomAssignment
+from uber.models.hotel import HotelExportLog, HotelRoomInventory, RoomAssignment
 from uber.models.badge_printing import PrintJob
 from uber.serializer import serializer
 from uber.utils import check, check_csrf, normalize_email_legacy, normalize_newlines, is_listy
@@ -1650,63 +1650,54 @@ class HotelLookup:
         receiver can group them. Creates an export log entry for tracking.
 
         Identify the hotel by `hotel_name` (its export name or display name) or
-        by `hotel` (the LotteryHotel UUID, or a name when called positionally).
+        by `hotel` (the LotteryHotel UUID, a name, or the PCI Vault reference
+        stored on its inventory blocks).
+
+        Each booking is the canonical booking_dict shape shared with the
+        admin spreadsheet export (see uber.hotel.exports.booking_dict);
+        the legacy duplicate alias keys (`room_id`,
+        `hotel_cancellation_number`, `last_modified`, `assigned_*`) are gone.
 
         Requires api_update: each call records a HotelExportLog row - the
         per-hotel watermark that drives the export's incremental
         `last_export_time` envelope - and the payload includes vault card
         tokens, so read-only tokens must not reach it.
         """
+        from uber.hotel.exports import booking_dict, resolve_lottery_hotel
+        from uber.hotel.queries import live_assignments_for_hotel
 
         with Session() as session:
             ident = hotel_name or hotel
             if not ident:
                 return "You must provide a hotel or hotel_name argument"
 
-            # The hotel portal scopes itself to a PCI Vault reference, which is
-            # stored on each inventory block as `vault_reference`. Match those
-            # blocks directly first - that's how the portal's reference maps to
-            # rooms.
-            hotel_inv_ids = [str(inv.id) for inv in
-                             session.query(HotelRoomInventory).filter_by(vault_reference=ident).all()]
+            # The hotel portal scopes itself to a PCI Vault reference
+            # (stored per inventory block as `vault_reference`), which
+            # resolves to a subset of inventory blocks; any other
+            # identifier resolves to a whole LotteryHotel.
+            hotel_obj, inv_ids = resolve_lottery_hotel(session, ident)
 
-            # Otherwise resolve a LotteryHotel by id, export/display name, or a
-            # slugified name (tolerating casing/spacing), and take all of its
-            # inventory.
-            if not hotel_inv_ids:
-                hotel_obj = session.query(LotteryHotel).filter(
-                    or_(LotteryHotel.export_name == ident,
-                        LotteryHotel.name == ident)).first()
-                if not hotel_obj:
-                    def slug(value):
-                        return re.sub(r'[^a-z0-9]+', '-', (value or '').strip().lower()).strip('-')
-                    target = slug(ident)
-                    if target:
-                        for h in session.query(LotteryHotel).all():
-                            if target in (slug(h.export_name), slug(h.name)):
-                                hotel_obj = h
-                                break
-                if not hotel_obj:
-                    try:
-                        uuid.UUID(str(ident))
-                    except ValueError:
-                        hotel_obj = None
-                    else:
-                        hotel_obj = session.query(LotteryHotel).get(ident)
-                if hotel_obj:
-                    hotel_inv_ids = [str(inv.id) for inv in
-                                     session.query(HotelRoomInventory).filter_by(hotel_id=hotel_obj.id).all()]
-
-            if not hotel_inv_ids:
+            order = (RoomAssignment.parent_assignment_id.asc().nullsfirst(),
+                     RoomAssignment.created.asc())
+            if inv_ids:
+                assignments = (session.query(RoomAssignment)
+                               .filter(RoomAssignment.is_live,
+                                       RoomAssignment.inventory_id.in_(inv_ids))
+                               .order_by(*order).all())
+                export_hotel_ids = {
+                    row[0] for row in session.query(HotelRoomInventory.hotel_id)
+                    .filter(HotelRoomInventory.id.in_(inv_ids)).distinct().all()
+                    if row[0]}
+            elif hotel_obj:
+                assignments = (live_assignments_for_hotel(session, hotel_obj.id)
+                               .order_by(*order).all())
+                export_hotel_ids = {str(hotel_obj.id)}
+            else:
                 return {'last_export_time': '', 'bookings': []}
 
             # Per-hotel export watermark: capture the previous export time to
             # return, then the HotelExportLog rows added below advance it to now.
             # The viewer defaults its "changed since" filter to last_export_time.
-            export_hotel_ids = {
-                row[0] for row in session.query(HotelRoomInventory.hotel_id)
-                .filter(HotelRoomInventory.id.in_(hotel_inv_ids)).distinct().all()
-                if row[0]}
             last_export_time = ''
             if export_hotel_ids:
                 prev = (session.query(HotelExportLog.exported_at)
@@ -1716,110 +1707,18 @@ class HotelLookup:
                 if prev and prev[0]:
                     last_export_time = prev[0].isoformat()
 
-            assignments = (session.query(RoomAssignment)
-                           .filter(RoomAssignment.is_live,
-                                   RoomAssignment.inventory_id.in_(hotel_inv_ids))
-                           .order_by(RoomAssignment.parent_assignment_id.asc().nullsfirst(),
-                                     RoomAssignment.created.asc())
-                           .all())
-
             bookings = []
             hotels_exported = set()
             for ra in assignments:
-                inv = ra.inventory
-                app = ra.lottery_application
-
-                guests = []
-                for occupant in (getattr(ra, 'occupants', None) or []):
-                    if occupant.id == ra.attendee_id:
-                        continue
-                    # Keep legacy column names but read from the new
-                    # attendee-level hotel-name override.
-                    guests.append({
-                        'legal_first_name': occupant.effective_hotel_first_name,
-                        'legal_last_name': occupant.effective_hotel_last_name,
-                        'cellphone': occupant.cellphone,
-                        'email': occupant.email,
-                    })
-
-                suite_type_label = (inv.suite_type.name
-                                    if inv and inv.is_suite and inv.suite_type else None)
-                room_type_label = (inv.room_type.name
-                                   if inv and not inv.is_suite and inv.room_type else None)
-                hotel_obj = inv.hotel if inv else None
-
-                # Stable per-room id (distinct from the application's response_id)
-                # so the portal can reconcile rows across exports.
-                _last_modified = ra.last_modified_at or ra.last_updated
-                bookings.append({
-                    'room_id': str(ra.id),
-                    'last_modified': _last_modified.isoformat() if _last_modified else None,
-                    'assignment_id': ra.id,
-                    'parent_assignment_id': ra.parent_assignment_id,
-                    'assignment_reason': ra.assignment_reason_label,
-                    'lottery_application_id': ra.lottery_application_id,
-                    'confirmation_num': app.confirmation_num if app else None,
-                    'response_id': app.response_id if app else None,
-                    'assigned_hotel': hotel_obj.name if hotel_obj else '',
-                    'assigned_hotel_id': str(inv.hotel_id) if inv and inv.hotel_id else None,
-                    'assigned_room_type': room_type_label,
-                    'assigned_suite_type': suite_type_label,
-                    'assigned_check_in_date':
-                        str(ra.assigned_check_in_date) if ra.assigned_check_in_date else None,
-                    'assigned_check_out_date':
-                        str(ra.assigned_check_out_date) if ra.assigned_check_out_date else None,
-                    'cc_token': ra.cc_token,
-                    # Stored card metadata (NOT the full PAN, which stays in the
-                    # vault behind cc_token). Lets a rooming list fill CC Type /
-                    # Exp Date / cardholder without a vault round-trip.
-                    'cc_last_four': ra.cc_last_four,
-                    'cc_card_type': ra.cc_card_type,
-                    'cc_card_expiry': ra.cc_card_expiry,
-                    'cc_card_holder': ra.cc_card_holder,
-                    'hotel_confirmation_number': ra.hotel_confirmation_number,
-                    'room_number': ra.room_number,
-                    'hotel_cancellation_number': ra.cancellation_confirmation_number,
-                    'cancellation_confirmation_number': ra.cancellation_confirmation_number,
-                    'legal_first_name': (app.attendee.effective_hotel_first_name
-                                         if app and app.attendee else ''),
-                    'legal_last_name': (app.attendee.effective_hotel_last_name
-                                        if app and app.attendee else ''),
-                    'cellphone': (app.cellphone if app else ''),
-                    'email': (app.email if app else ''),
-                    'address1': ra.address1,
-                    'address2': ra.address2,
-                    'city': ra.city,
-                    'region': ra.region,
-                    'zip_code': ra.zip_code,
-                    'country': ra.country,
-                    'wants_ada': (app.wants_ada if app else False),
-                    'ada_requests': (app.ada_requests if app else ''),
-                    'special_requests': ra.special_requests,
-                    # Occupancy: booker plus the additional roommate occupants.
-                    'num_occupants': 1 + len(guests),
-                    'num_nights': (
-                        (ra.assigned_check_out_date - ra.assigned_check_in_date).days
-                        if ra.assigned_check_in_date and ra.assigned_check_out_date else None),
-                    # Loyalty / rewards program number (e.g. Hilton Honors).
-                    'hotel_rewards_number':
-                        ra.hotel_rewards_number or (app.hotel_rewards_number if app else ''),
-                    # Billing: True = self-pay (guest's card guarantees the room,
-                    # "individual pays own"); False = on the master bill ("room & tax").
-                    'require_cc': ra.require_cc,
-                    'guests': guests,
-                    'last_modified_at':
-                        str(ra.last_modified_at) if ra.last_modified_at else None,
-                    'cc_captured_at':
-                        str(ra.cc_captured_at) if ra.cc_captured_at else None,
-                })
-                if inv and inv.hotel_id:
-                    hotels_exported.add(str(inv.hotel_id))
+                bookings.append(booking_dict(ra, ra.lottery_application))
+                if ra.inventory and ra.inventory.hotel_id:
+                    hotels_exported.add(str(ra.inventory.hotel_id))
 
             for hotel_id in hotels_exported:
                 log_entry = HotelExportLog(
                     hotel_id=hotel_id,
                     export_type='room_export',
-                    record_count=len([b for b in bookings if b['assigned_hotel_id'] == hotel_id]),
+                    record_count=len([b for b in bookings if b['hotel_id'] == hotel_id]),
                 )
                 session.add(log_entry)
             session.commit()
@@ -1844,6 +1743,11 @@ class HotelLookup:
         ignored and rows that don't match a known booking are skipped. Returns
         {updated, unchanged, changes}.
 
+        `reference` identifies the uploading hotel the same way
+        export_room_bookings does (PCI Vault reference, export/display name,
+        slugified name, or UUID); it scopes the retained file and the per-hotel
+        import tracking on the exports page.
+
         `uploaded_by` is the authenticated portal username of the uploader; it's
         recorded for the exports page "Uploaded By" column (display/audit only).
 
@@ -1852,6 +1756,7 @@ class HotelLookup:
         assumed card-free and nothing resembling a card number is echoed back.
         """
         import base64
+        from uber.hotel.exports import resolve_lottery_hotel
         from uber.hotel.imports import import_confirmation_file as apply_import_file
 
         if not file:
@@ -1863,11 +1768,14 @@ class HotelLookup:
             return {'error': 'File is not valid base64.'}
 
         with Session() as session:
+            # `reference` resolves through the same chain as
+            # export_room_bookings (vault reference, export/display
+            # name, slug, UUID), so a portal that identifies itself by
+            # vault reference or slug still gets its upload tracked
+            # against the right hotel on the exports page.
             hotel = None
             if reference:
-                hotel = session.query(LotteryHotel).filter(
-                    or_(LotteryHotel.export_name == reference,
-                        LotteryHotel.name == reference)).first()
+                hotel, _inv_ids = resolve_lottery_hotel(session, reference)
             result = apply_import_file(
                 session, raw, filename, hotel=hotel,
                 source='portal', uploaded_by=uploaded_by or 'Hotel Portal')

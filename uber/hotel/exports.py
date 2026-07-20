@@ -4,8 +4,14 @@ The CSV/XLSX/ZIP handlers in uber.site_sections.hotel_lottery_admin stay
 as thin decorated routes; this module owns the row/workbook construction
 underneath them:
 
+  * booking_dict - the canonical per-RoomAssignment booking shape,
+    shared by the JSON `HotelLookup.export_room_bookings` API and the
+    spreadsheet export below.
   * booking_columns / booking_row / booking_export_data - the per-hotel
-    booking spreadsheet layout (also the layout the back-import accepts).
+    booking spreadsheet layout (also the layout the back-import accepts),
+    derived from booking_dict.
+  * resolve_lottery_hotel - the hotel-identifier resolution chain the
+    portal-facing API endpoints share (vault reference, name, slug, UUID).
   * derive_sync_status / compute_export_tracking - the per-booking and
     per-hotel export/import bookkeeping shown on the tracking page.
   * write_interchange_export - the legacy survey-interchange CSV.
@@ -13,6 +19,7 @@ underneath them:
   * build_waitlist_xlsx - the one-sheet-per-hotel waitlist demand
     workbook.
 """
+import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta
 from io import BytesIO
@@ -29,9 +36,10 @@ from uber.models.hotel import (HotelExportLog, HotelRoomInventory,
 
 
 # CSV/XLSX export + CSV import used by the export-tracking modal. The
-# column layout intentionally mirrors the JSON shape of the
-# `HotelLookup.export_room_bookings` API so that a hotel that prefers
-# spreadsheets to API calls can use the same field names.
+# column layout is the canonical booking_dict shape (minus the fields
+# noted below), so the JSON `HotelLookup.export_room_bookings` API and
+# a hotel that prefers spreadsheets to API calls see the same field
+# names for the same data.
 #
 # Credit-card vault tokens are deliberately omitted on export and
 # actively refused on import - the rest of the system treats them as
@@ -64,49 +72,169 @@ def booking_columns():
     return cols
 
 
-def booking_row(ra, app):
-    """Build the base (no-guest) column values for one RoomAssignment.
+def booking_dict(ra, app):
+    """Canonical serialization of one RoomAssignment (plus its source
+    LotteryApplication) - the single booking shape behind both the JSON
+    `HotelLookup.export_room_bookings` API and the per-hotel booking
+    spreadsheet (booking_row derives its cells from this dict).
 
-    Dates and datetimes are explicitly serialized to ISO 8601 strings
-    (`YYYY-MM-DD` / `YYYY-MM-DDTHH:MM:SS+00:00`) - without this, xlsxwriter
-    treats date objects as numeric serial values, which Excel displays as
-    bare integers that look like opaque IDs to anyone opening the file.
+    Key naming follows BOOKING_BASE_COLS. The alias keys the API used
+    to double-emit are gone: `room_id` (use `assignment_id`),
+    `hotel_cancellation_number` (use `cancellation_confirmation_number`),
+    `last_modified` (use `last_modified_at`), and `assigned_hotel` /
+    `assigned_hotel_id` / `assigned_room_type` / `assigned_suite_type` /
+    `assigned_check_in_date` / `assigned_check_out_date` are now
+    `hotel` / `hotel_id` / `room_type` / `suite_type` / `check_in_date`
+    / `check_out_date`.
+
+    `last_modified_at` is the hotel-facing modification timestamp with a
+    fallback to the row's generic `last_updated` audit column when it's
+    unset - of the two computations that previously coexisted (the API's
+    `last_modified` alias had the fallback; the spreadsheet's
+    `last_modified_at` didn't), the fallback version wins so
+    changed-since filtering still works on rows that predate the
+    hotel-facing column.
+
+    `guests` is everyone sleeping in the room except the booker (who has
+    their own top-level fields), built from `effective_occupants` - the
+    managed occupants list when set, else booker + group members. The
+    API previously read the raw `occupants` relationship and
+    under-reported untouched group bookings. `num_occupants` is the
+    booker plus those guests.
+
+    Dates and datetimes are serialized to ISO 8601 strings (or None) -
+    JSON needs strings anyway, and without this xlsxwriter treats date
+    objects as numeric serial values, which Excel displays as bare
+    integers that look like opaque IDs.
     """
     def iso(v):
-        return v.isoformat() if v else ''
+        return v.isoformat() if v else None
 
     inv = ra.inventory
-    hotel_name = inv.hotel.name if inv and inv.hotel else ''
-    room_type_name = (inv.room_type.name
-                      if inv and not inv.is_suite and inv.room_type else '')
-    suite_type_name = (inv.suite_type.name
-                       if inv and inv.is_suite and inv.suite_type else '')
+    hotel = inv.hotel if inv else None
+    # Room/suite type labels via the model's display_name (the linked
+    # type's name, falling back to the inventory block's own name).
+    type_label = inv.display_name if inv else None
+    room_type = None if not inv or inv.is_suite else type_label
+    suite_type = type_label if inv and inv.is_suite else None
 
-    return [
-        ra.id, ra.lottery_application_id or '', ra.parent_assignment_id or '',
-        (app.confirmation_num if app else ''),
-        ra.assignment_reason_label if hasattr(ra, 'assignment_reason_label') else ra.assignment_reason,
-        ra.status_label if hasattr(ra, 'status_label') else ra.status,
-        hotel_name, room_type_name, suite_type_name,
-        iso(ra.assigned_check_in_date),
-        iso(ra.assigned_check_out_date),
-        ra.hotel_confirmation_number or '',
-        ra.cancellation_confirmation_number or '',
-        ra.room_number or '',
+    attendee = app.attendee if app else None
+
+    guests = []
+    for a in ra.effective_occupants:
+        if a.id == ra.attendee_id:
+            continue
+        # Keep legacy field names but read from the attendee-level
+        # hotel-name override (legal/first/last fallback chain).
+        guests.append({
+            'legal_first_name': a.effective_hotel_first_name,
+            'legal_last_name': a.effective_hotel_last_name,
+            'cellphone': a.cellphone,
+            'email': a.email,
+        })
+
+    return {
+        # Stable per-room id (distinct from the application's
+        # response_id) so the receiver can reconcile rows across exports.
+        'assignment_id': ra.id,
+        'lottery_application_id': ra.lottery_application_id,
+        'parent_assignment_id': ra.parent_assignment_id,
+        'confirmation_num': app.confirmation_num if app else None,
+        'response_id': app.response_id if app else None,
+        'assignment_reason': (ra.assignment_reason_label
+                              if hasattr(ra, 'assignment_reason_label')
+                              else ra.assignment_reason),
+        'status': ra.status_label if hasattr(ra, 'status_label') else ra.status,
+        'hotel': hotel.name if hotel else '',
+        'hotel_id': str(inv.hotel_id) if inv and inv.hotel_id else None,
+        'room_type': room_type,
+        'suite_type': suite_type,
+        'check_in_date': iso(ra.assigned_check_in_date),
+        'check_out_date': iso(ra.assigned_check_out_date),
+        'num_nights': (
+            (ra.assigned_check_out_date - ra.assigned_check_in_date).days
+            if ra.assigned_check_in_date and ra.assigned_check_out_date else None),
+        'hotel_confirmation_number': ra.hotel_confirmation_number,
+        'cancellation_confirmation_number': ra.cancellation_confirmation_number,
+        'room_number': ra.room_number,
         # Legal-name fields live on the attendee (hotel_first_name /
         # hotel_last_name with the legal/first/last fallback chain).
-        (app.attendee.effective_hotel_first_name if app and app.attendee else '') or '',
-        (app.attendee.effective_hotel_last_name if app and app.attendee else '') or '',
-        (app.cellphone if app else '') or '',
-        (app.email if app else '') or '',
-        ra.address1 or '', ra.address2 or '', ra.city or '',
-        ra.region or '', ra.zip_code or '', ra.country or '',
-        ('yes' if (app and app.wants_ada) else ''),
-        (app.ada_requests if app else '') or '',
-        ra.special_requests or '',
-        iso(ra.last_modified_at),
-        iso(ra.cc_captured_at),
-        ra.cc_last_four or '',
+        'legal_first_name': (attendee.effective_hotel_first_name if attendee else ''),
+        'legal_last_name': (attendee.effective_hotel_last_name if attendee else ''),
+        'cellphone': app.cellphone if app else '',
+        'email': app.email if app else '',
+        'address1': ra.address1,
+        'address2': ra.address2,
+        'city': ra.city,
+        'region': ra.region,
+        'zip_code': ra.zip_code,
+        'country': ra.country,
+        'wants_ada': app.wants_ada if app else False,
+        'ada_requests': app.ada_requests if app else '',
+        'special_requests': ra.special_requests,
+        # Loyalty / rewards program number (e.g. Hilton Honors).
+        'hotel_rewards_number':
+            ra.hotel_rewards_number or (app.hotel_rewards_number if app else ''),
+        # Billing: True = self-pay (guest's card guarantees the room,
+        # "individual pays own"); False = on the master bill ("room & tax").
+        'require_cc': ra.require_cc,
+        # Occupancy: booker plus the additional guests below.
+        'num_occupants': 1 + len(guests),
+        'guests': guests,
+        # Vault card token plus stored card metadata (NOT the full PAN,
+        # which stays in the vault behind cc_token). Lets a rooming list
+        # fill CC Type / Exp Date / cardholder without a vault
+        # round-trip. JSON-only: booking_row drops everything here
+        # except cc_last_four / cc_captured_at.
+        'cc_token': ra.cc_token,
+        'cc_last_four': ra.cc_last_four,
+        'cc_card_type': ra.cc_card_type,
+        'cc_card_expiry': ra.cc_card_expiry,
+        'cc_card_holder': ra.cc_card_holder,
+        'last_modified_at': iso(ra.last_modified_at or ra.last_updated),
+        'cc_captured_at': iso(ra.cc_captured_at),
+    }
+
+
+def booking_row(ra, app, d=None):
+    """Base (no-guest) spreadsheet column values for one RoomAssignment,
+    in BOOKING_BASE_COLS order, derived from booking_dict (pass `d` to
+    reuse an already-built dict).
+
+    The card fields the JSON payload carries (cc_token, cc_card_type,
+    cc_card_expiry, cc_card_holder) are deliberately dropped here - the
+    rest of the system treats the vault token as PCI-sensitive, so it
+    never leaves the database in a spreadsheet - as are the JSON-only
+    identifiers the spreadsheet has no column for (response_id,
+    hotel_id, num_nights, num_occupants, hotel_rewards_number,
+    require_cc, guests - guest columns are appended separately by
+    booking_export_data).
+    """
+    d = d if d is not None else booking_dict(ra, app)
+    return [
+        d['assignment_id'], d['lottery_application_id'] or '',
+        d['parent_assignment_id'] or '',
+        d['confirmation_num'] or '',
+        d['assignment_reason'],
+        d['status'],
+        d['hotel'] or '', d['room_type'] or '', d['suite_type'] or '',
+        d['check_in_date'] or '',
+        d['check_out_date'] or '',
+        d['hotel_confirmation_number'] or '',
+        d['cancellation_confirmation_number'] or '',
+        d['room_number'] or '',
+        d['legal_first_name'] or '',
+        d['legal_last_name'] or '',
+        d['cellphone'] or '',
+        d['email'] or '',
+        d['address1'] or '', d['address2'] or '', d['city'] or '',
+        d['region'] or '', d['zip_code'] or '', d['country'] or '',
+        ('yes' if d['wants_ada'] else ''),
+        d['ada_requests'] or '',
+        d['special_requests'] or '',
+        d['last_modified_at'] or '',
+        d['cc_captured_at'] or '',
+        d['cc_last_four'] or '',
     ]
 
 
@@ -140,26 +268,79 @@ def booking_export_data(session, hotel_id):
     rows = []
     for ra in assignments:
         app = apps_by_id.get(ra.lottery_application_id)
-        row = booking_row(ra, app)
+        d = booking_dict(ra, app)
+        row = booking_row(ra, app, d)
 
         # Guest columns: everyone sleeping in the room except the
-        # booker, who already has their own columns. The model's
-        # effective_occupants handles the occupants-vs-group-members
-        # fallback and always returns Attendee records.
-        members = [a for a in ra.effective_occupants
-                   if a.id != ra.attendee_id]
+        # booker, who already has their own columns - booking_dict's
+        # `guests` list (built from effective_occupants, which handles
+        # the occupants-vs-group-members fallback).
+        guests = d['guests']
         for i in range(BOOKING_MAX_GUESTS):
-            if i < len(members):
-                a = members[i]
-                row += [a.effective_hotel_first_name or '',
-                        a.effective_hotel_last_name or '',
-                        a.cellphone or '',
-                        a.email or '']
+            if i < len(guests):
+                g = guests[i]
+                row += [g['legal_first_name'] or '',
+                        g['legal_last_name'] or '',
+                        g['cellphone'] or '',
+                        g['email'] or '']
             else:
                 row += ['', '', '', '']
         rows.append(row)
 
     return hotel, rows
+
+
+def resolve_lottery_hotel(session, ident):
+    """Resolve the hotel identifier a portal/API caller sent.
+
+    Returns a (hotel, inventory_ids) tuple expressing both cases:
+
+      * A PCI Vault reference (stored per inventory block as
+        `vault_reference`) maps to specific blocks: inventory_ids is
+        their id list, and hotel is the owning LotteryHotel when every
+        matched block belongs to the same one (else None). This is how
+        the hotel portal scopes itself.
+      * Otherwise a LotteryHotel resolved by export_name/display-name
+        exact match, then by slugified name (tolerating casing, spacing
+        and punctuation), then by UUID: (hotel, None) - the caller
+        decides which of the hotel's inventory to include.
+      * (None, None) when nothing matches.
+
+    Slug matching uses uber.utils.slugify, equivalent to the previous
+    inline `[^a-z0-9]+ -> '-'` regex for ASCII input; for non-ASCII it
+    transliterates accented characters instead of dashing them, which
+    only ever widens what matches.
+    """
+    if not ident:
+        return None, None
+
+    inv_rows = session.query(HotelRoomInventory).filter_by(vault_reference=ident).all()
+    if inv_rows:
+        hotel = None
+        hotel_ids = {str(inv.hotel_id) for inv in inv_rows if inv.hotel_id}
+        if len(hotel_ids) == 1:
+            hotel = session.query(LotteryHotel).get(hotel_ids.pop())
+        return hotel, [str(inv.id) for inv in inv_rows]
+
+    hotel = session.query(LotteryHotel).filter(
+        or_(LotteryHotel.export_name == ident,
+            LotteryHotel.name == ident)).first()
+    if not hotel:
+        from uber.utils import slugify
+        target = slugify(str(ident))
+        if target:
+            for h in session.query(LotteryHotel).all():
+                if target in (slugify(h.export_name), slugify(h.name)):
+                    hotel = h
+                    break
+    if not hotel:
+        try:
+            uuid.UUID(str(ident))
+        except ValueError:
+            pass
+        else:
+            hotel = session.query(LotteryHotel).get(ident)
+    return hotel, None
 
 
 def derive_sync_status(ra, last_export):
@@ -294,8 +475,9 @@ def write_interchange_export(out, session, staff_lottery=False):
         dealer_id = ''
         if app.attendee.is_dealer and app.attendee.group and app.attendee.group.status in c.DEALER_ACCEPTED_STATUSES:
             dealer_id = app.attendee.group.id
-        current_lottery_deadline = c.HOTEL_LOTTERY_STAFF_DEADLINE if app.is_staff_entry else c.HOTEL_LOTTERY_FORM_DEADLINE
-        row.extend([datetime_local_filter(current_lottery_deadline), datetime_local_filter(c.HOTEL_LOTTERY_SUITE_CUTOFF),
+        # The model property additionally gates on the relevant lottery
+        # window actually being open (None when closed).
+        row.extend([datetime_local_filter(app.current_lottery_deadline), datetime_local_filter(c.HOTEL_LOTTERY_SUITE_CUTOFF),
                     c.EVENT_YEAR, app.response_id, app.confirmation_num, app.id, "RAMS_1", app.id, dealer_id])
 
         # Contact data
@@ -470,6 +652,12 @@ def build_waitlist_xlsx(session):
     type_seen_by_hotel = defaultdict(set)
 
     for ra in waitlisted:
+        # Demand population: rows that are actually waitlisted (the
+        # requested window strictly extends the assigned one on at
+        # least one end) - a row with waitlist dates that don't widen
+        # anything contributes no demand and gets no type row.
+        if not ra.is_waitlisted:
+            continue
         inv = ra.inventory
         if not inv or not inv.hotel:
             continue
@@ -477,41 +665,26 @@ def build_waitlist_xlsx(session):
         hotel_id = str(hotel.id)
         hotel_name_by_id[hotel_id] = hotel.name or '(unnamed hotel)'
 
-        # Resolve a stable label for this room type. Suite types
-        # and standard types both live in `LotteryRoomType`; an
-        # inventory block points at one via `suite_type_id` or
-        # `room_type_id` depending on `is_suite`.
+        # Resolve a stable label for this room type: the model's
+        # display_name (the linked LotteryRoomType's name, falling
+        # back to the inventory block's own name), suffixed for
+        # suites.
+        label = inv.display_name
         if inv.is_suite:
-            rt = inv.suite_type
-            label = (rt.name if rt else inv.name) + ' (suite)'
-        else:
-            rt = inv.room_type
-            label = rt.name if rt else inv.name
+            label = (label or '') + ' (suite)'
         label = label or '(unnamed type)'
 
         if label not in type_seen_by_hotel[hotel_id]:
             type_seen_by_hotel[hotel_id].add(label)
             type_order_by_hotel[hotel_id].append(label)
 
-        # Walk this assignment's waitlist gap and tick each
-        # (type, night) cell. Front gap = nights before
-        # assigned_check_in_date; back gap = nights at or after
-        # assigned_check_out_date.
-        wl_ci = ra.waitlisted_check_in_date or ra.assigned_check_in_date
-        wl_co = ra.waitlisted_check_out_date or ra.assigned_check_out_date
-
-        if wl_ci and ra.assigned_check_in_date and wl_ci < ra.assigned_check_in_date:
-            d = wl_ci
-            while d < ra.assigned_check_in_date:
-                per_hotel[hotel_id][label][d] += 1
-                nights_by_hotel[hotel_id].add(d)
-                d += timedelta(days=1)
-        if wl_co and ra.assigned_check_out_date and wl_co > ra.assigned_check_out_date:
-            d = ra.assigned_check_out_date
-            while d < wl_co:
-                per_hotel[hotel_id][label][d] += 1
-                nights_by_hotel[hotel_id].add(d)
-                d += timedelta(days=1)
+        # Tick each (type, night) cell for the nights this assignment
+        # is waiting on - the model's waitlisted_gap_nights walks the
+        # front gap [wl_ci, assigned_check_in) plus the back gap
+        # [assigned_check_out, wl_co).
+        for night in ra.waitlisted_gap_nights:
+            per_hotel[hotel_id][label][night] += 1
+            nights_by_hotel[hotel_id].add(night)
 
     # Build the workbook. Sheet name has a 31-char cap and can't
     # contain :\/?*[]; truncate and substitute.
