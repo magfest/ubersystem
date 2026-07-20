@@ -1,4 +1,3 @@
-import base64
 import os
 import cherrypy
 import logging
@@ -111,7 +110,6 @@ def _search(session, text):
     # live on RoomAssignment, so the inventory match goes through the
     # RoomAssignment join (applications that have any awarded
     # RoomAssignment at a matching inventory row).
-    from uber.models.hotel import RoomAssignment
 
     matching_inventory_ids = set()
     hotel_matches = session.query(HotelRoomInventory.id).join(
@@ -237,16 +235,26 @@ def _notify_applicants_of_inventory_change(session, inventory):
     """
     if not inventory:
         return
-    inv_id = str(inventory.id)
     hotel_id = str(inventory.hotel_id) if inventory.hotel_id else None
     type_id = (str(inventory.suite_type_id) if inventory.is_suite
                else str(inventory.room_type_id))
 
-    candidates = session.query(LotteryApplication).filter(
+    # Pre-filter in SQL with LIKE over the CSV preference columns so we
+    # don't load every COMPLETE/PROCESSED application. The ids are UUIDs,
+    # so a substring collision is effectively impossible; the exact
+    # set-membership checks below still confirm on the loaded rows.
+    candidates_q = session.query(LotteryApplication).filter(
         LotteryApplication.status.in_([c.COMPLETE, c.PROCESSED]),
-    ).all()
+    )
+    if hotel_id:
+        candidates_q = candidates_q.filter(
+            LotteryApplication.hotel_preference.like(f'%{hotel_id}%'))
+    if type_id:
+        type_col = (LotteryApplication.suite_type_preference if inventory.is_suite
+                    else LotteryApplication.room_type_preference)
+        candidates_q = candidates_q.filter(type_col.like(f'%{type_id}%'))
 
-    for app in candidates:
+    for app in candidates_q:
         hotels = {x.strip() for x in (app.hotel_preference or '').split(',') if x.strip()}
         rooms = {x.strip() for x in (app.room_type_preference or '').split(',') if x.strip()}
         suites = {x.strip() for x in (app.suite_type_preference or '').split(',') if x.strip()}
@@ -663,7 +671,6 @@ class Root:
         the new deadline to RoomAssignments produced by this run that
         haven't been individually overridden.
         """
-        from uber.utils import check_csrf
         from dateutil import parser as dateparser
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect('lottery_run_detail?id={}', id)
@@ -688,7 +695,6 @@ class Root:
 
         propagated_count = 0
         if propagate == '1' and new_deadline:
-            from uber.models import RoomAssignment
             target_date = new_deadline.date()
             assignments = session.query(RoomAssignment).filter_by(
                 lottery_run_id=lottery_run.id).all()
@@ -716,8 +722,6 @@ class Root:
         Empty value clears the override, letting the run-level deadline
         govern again.
         """
-        from uber.utils import check_csrf
-        from uber.models import RoomAssignment
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect('index')
         check_csrf(csrf_token)
@@ -741,7 +745,6 @@ class Root:
                            'Deadline updated.')
 
     def award_run(self, session, id, **params):
-        from uber.models import RoomAssignment
 
         _require_post_csrf(params, redirect=f'lottery_run_detail?id={id}')
         lottery_run = session.query(LotteryRun).get(id)
@@ -780,7 +783,6 @@ class Root:
                            f"{len(applications)} entries awarded.")
 
     def revert_run(self, session, id, **params):
-        from uber.models import RoomAssignment
 
         _require_post_csrf(params, redirect=f'lottery_run_detail?id={id}')
         lottery_run = session.query(LotteryRun).get(id)
@@ -815,7 +817,6 @@ class Root:
                            f"{deleted_assignments} room assignment(s) cleared.")
 
     def delete_run(self, session, id, **params):
-        from uber.models import RoomAssignment
 
         _require_post_csrf(params, redirect=f'lottery_run_detail?id={id}')
         lottery_run = session.query(LotteryRun).get(id)
@@ -1119,11 +1120,10 @@ class Root:
         is named `bookings_file`; the older `bookings_csv` name is kept
         as a fallback so any in-flight bookmarks keep working.
         """
-        from uber.utils import check_csrf as _check_csrf
 
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect('export_tracking')
-        _check_csrf(csrf_token)
+        check_csrf(csrf_token)
 
         upload = bookings_file or bookings_csv
         if not upload or not getattr(upload, 'file', None):
@@ -1684,7 +1684,7 @@ class Root:
             else:
                 room_type_name = ''
             row = [
-                lottery_run := (ra.lottery_run.name if ra.lottery_run else ''),
+                ra.lottery_run.name if ra.lottery_run else '',
                 (app.is_staff_entry if app else False),
                 ra.assignment_reason_label,
                 check_in_date, check_out_date, num_guests, hotel_name, room_type_name,
@@ -1734,24 +1734,34 @@ class Root:
         write_interchange_export(out, session, staff_lottery)
 
     def manage_partitions(self, session, message=''):
-        partitions = session.query(InventoryPartition).order_by(InventoryPartition.name).all()
+        from sqlalchemy.orm import selectinload
 
-        # Count assigned per partition (RoomAssignment-sourced).
+        # Eager-load blocks: the template shows each partition's block
+        # count and allocation, so fetch them in one IN query instead of
+        # one lazy load per partition.
+        partitions = session.query(InventoryPartition).options(
+            selectinload(InventoryPartition.blocks)).order_by(
+            InventoryPartition.name).all()
+
+        # Count live assignments per partition in SQL instead of loading
+        # every live RoomAssignment row just to count it.
         assigned_per_partition = defaultdict(int)
-        for ra in session.query(RoomAssignment).filter(
-            RoomAssignment.is_live,
-            RoomAssignment.inventory_id.isnot(None),
-        ).all():
-            key = str(ra.partition_id) if ra.partition_id else '_none'
-            assigned_per_partition[key] += 1
+        for partition_id, n in (
+                session.query(RoomAssignment.partition_id,
+                              func.count(RoomAssignment.id))
+                .filter(RoomAssignment.is_live,
+                        RoomAssignment.inventory_id.isnot(None))
+                .group_by(RoomAssignment.partition_id)):
+            key = str(partition_id) if partition_id else '_none'
+            assigned_per_partition[key] += n
 
         # Compute total allocation and non-partitioned capacity
-        total_partition_alloc = 0
-        for p in partitions:
-            for b in p.blocks:
-                total_partition_alloc += b.quantity
+        total_partition_alloc = sum(
+            b.quantity for p in partitions for b in p.blocks)
 
-        total_inventory = sum(inv.quantity for inv in session.query(HotelRoomInventory).filter_by(active=True).all())
+        total_inventory = session.query(
+            func.coalesce(func.sum(HotelRoomInventory.quantity), 0)).filter(
+            HotelRoomInventory.active.is_(True)).scalar()
 
         return {
             'partitions': partitions,
@@ -1767,7 +1777,6 @@ class Root:
         prompt and the reconfirm email fires. Clearing removes the prompt
         without touching last_confirmed_at.
         """
-        from uber.utils import check_csrf
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect('form?id={}', id)
         check_csrf(csrf_token)
@@ -1791,7 +1800,6 @@ class Root:
         Accepts a comma-separated string of application IDs from a search-
         results checkbox UI.
         """
-        from uber.utils import check_csrf
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect('index')
         check_csrf(csrf_token)
@@ -2006,7 +2014,7 @@ class Root:
         """Per-hotel assignment board: unroomed live bookings on top,
         the catalog by floor (with current occupants) below."""
         from uber.hotel import physical as hotel_physical
-        from uber.hotel.queries import vacant_physical_rooms
+        from uber.hotel.queries import vacant_rooms_map
 
         picker = _picker_context(session)
         hotels = picker['hotels']
@@ -2030,12 +2038,12 @@ class Root:
                     .order_by(
                         RoomAssignment.assigned_check_in_date.asc().nullsfirst(),
                         RoomAssignment.created.asc()).all())
-                for ra in pending:
-                    options = vacant_physical_rooms(
-                        session, hotel.id, ra.assigned_check_in_date,
-                        ra.assigned_check_out_date,
-                        inventory_id=ra.inventory_id)
-                    unroomed.append({'ra': ra, 'options': options})
+                if pending:
+                    # Two queries for the whole board instead of two per
+                    # unroomed booking (see vacant_rooms_map).
+                    options_by_ra = vacant_rooms_map(session, hotel.id, pending)
+                    unroomed = [{'ra': ra, 'options': options_by_ra[ra.id]}
+                                for ra in pending]
 
         return {
             'message': message,
@@ -2270,8 +2278,6 @@ class Root:
         the reveal email. Idempotent for already-emailed (attendee, reveal)
         pairs - running this again only emails new candidates.
         """
-        from uber.utils import check_csrf
-        from uber.models import Attendee, RoomAssignment
         import secrets
 
         if cherrypy.request.method != 'POST':
@@ -2336,7 +2342,6 @@ class Root:
         partition_id is locked to their grant's scope. Used by Marketplace,
         Belvedere, Panels, Accessibility to assign exhibitor/panelist rooms.
         """
-        from uber.models import RoomAssignment
         from uber.hotel.perms import is_lottery_admin, can_edit_assignments_in
 
         assignment = None
@@ -2580,7 +2585,6 @@ class Root:
         }
 
     def delete_partition_owner(self, session, id, csrf_token=None, return_to=''):
-        from uber.utils import check_csrf
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect('partition_owners')
         check_csrf(csrf_token)
@@ -3062,7 +3066,6 @@ class Root:
         small (one row per inventory block, capped by inventory size)
         so it's never paginated.
         """
-        from uber.models.hotel import RoomAssignment
 
         PER_PAGE = 100
 

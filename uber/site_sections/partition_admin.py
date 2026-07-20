@@ -13,6 +13,7 @@ from collections import Counter, defaultdict
 import logging
 
 import cherrypy
+from sqlalchemy import func
 
 from uber.config import c
 from uber.decorators import all_renderable, ajax_gettable
@@ -82,19 +83,35 @@ class Root:
     def index(self, session, message=''):
         """List of partitions the current admin can act on."""
         partitions = _partitions_for_current_admin(session)
+        partition_ids = [str(p.id) for p in partitions]
+
+        # One grouped query for every partition's status counts and one
+        # IN query for the blocks, instead of two queries per partition.
+        status_counts = {}
+        quantity_by_partition = defaultdict(int)
+        if partition_ids:
+            for pid, status, n in (
+                    session.query(RoomAssignment.partition_id,
+                                  RoomAssignment.status,
+                                  func.count(RoomAssignment.id))
+                    .filter(RoomAssignment.partition_id.in_(partition_ids))
+                    .group_by(RoomAssignment.partition_id,
+                              RoomAssignment.status)):
+                status_counts[(str(pid), status)] = n
+            for b in session.query(InventoryPartitionBlock).filter(
+                    InventoryPartitionBlock.partition_id.in_(partition_ids)):
+                quantity_by_partition[str(b.partition_id)] += b.quantity
+
         rows = []
         for p in partitions:
-            total_quantity = sum(b.quantity for b in p.blocks)
-            assignment_counts = Counter(
-                row[0] for row in session.query(RoomAssignment.status).filter_by(
-                    partition_id=p.id).all())
+            pid = str(p.id)
             rows.append({
                 'partition': p,
-                'total_quantity': total_quantity,
-                'assigned': assignment_counts.get(c.ASSIGNED, 0),
-                'secured': assignment_counts.get(c.SECURED, 0),
-                'cancelled': assignment_counts.get(c.CANCELLED, 0),
-                'expired': assignment_counts.get(c.EXPIRED, 0),
+                'total_quantity': quantity_by_partition[pid],
+                'assigned': status_counts.get((pid, c.ASSIGNED), 0),
+                'secured': status_counts.get((pid, c.SECURED), 0),
+                'cancelled': status_counts.get((pid, c.CANCELLED), 0),
+                'expired': status_counts.get((pid, c.EXPIRED), 0),
             })
         return {'rows': rows, 'message': message}
 
@@ -129,16 +146,29 @@ class Root:
 
         blocks = []
         totals = {'allocated': 0, 'assigned': 0, 'secured': 0, 'unassigned': 0}
-        for b in (partition.blocks if can_view_inventory else []):
+        partition_blocks = partition.blocks if can_view_inventory else []
+
+        # One grouped query for the whole partition's per-block counts
+        # instead of one RoomAssignment query per block.
+        live_by_inv, secured_by_inv = defaultdict(int), defaultdict(int)
+        if partition_blocks:
+            for inv_id, status, n in (
+                    session.query(RoomAssignment.inventory_id,
+                                  RoomAssignment.status,
+                                  func.count(RoomAssignment.id))
+                    .filter(RoomAssignment.partition_id == partition.id)
+                    .group_by(RoomAssignment.inventory_id,
+                              RoomAssignment.status)):
+                key = str(inv_id) if inv_id else None
+                if status in c.HOTEL_LIVE_ASSIGNMENT_STATUSES:
+                    live_by_inv[key] += n
+                if status == c.SECURED:
+                    secured_by_inv[key] += n
+
+        for b in partition_blocks:
             inv = b.inventory
-            block_assignments = session.query(RoomAssignment).filter_by(
-                partition_id=partition.id,
-                inventory_id=inv.id if inv else None,
-            ).all() if inv else []
-            assigned = sum(1 for ra in block_assignments
-                           if ra.is_live)
-            secured = sum(1 for ra in block_assignments
-                          if ra.status == c.SECURED)
+            assigned = live_by_inv[str(inv.id)] if inv else 0
+            secured = secured_by_inv[str(inv.id)] if inv else 0
             unassigned = max(0, b.quantity - assigned)
             blocks.append({
                 'block': b,

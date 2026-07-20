@@ -471,20 +471,30 @@ class Config(_Overridable):
         We have to run our form validations based on which 'step' in the form someone is, but
         the number of steps depends on the entry type and event config. This builds
         a dict that allows you to look up each step number based on a key.
+
+        The lists are the EFFECTIVE steps: 'selection_pref' only renders
+        when the selection-priorities feature is on and more than one
+        priority option is configured (both config-driven -
+        HOTEL_LOTTERY_PRIORITIES_OPTS comes from [hotel_lottery]
+        [[priorities]]), so it is dropped here when it wouldn't render.
+        That keeps the step numbers - which the form templates' step JS,
+        LotteryApplication.last_step, and the hotel_lottery validations
+        all use - in sync with the accordion steps actually shown.
         """
+        priorities_shown = (
+            self.HOTEL_LOTTERY_PRIORITIES_ENABLED
+            and len(getattr(self, 'HOTEL_LOTTERY_PRIORITIES_OPTS', [])) > 1)
 
         steps = {}
-        step = 0
-        for step_name in c.HOTEL_LOTTERY_ROOM_STEPS:
-            step += 1
-            steps[f'room_{step_name}'] = step
-        steps['room_final_step'] = step
-
-        step = 0
-        for step_name in c.HOTEL_LOTTERY_SUITE_STEPS:
-            step += 1
-            steps[f'suite_{step_name}'] = step
-        steps['suite_final_step'] = step
+        for prefix, step_names in [('room', c.HOTEL_LOTTERY_ROOM_STEPS),
+                                   ('suite', c.HOTEL_LOTTERY_SUITE_STEPS)]:
+            step = 0
+            for step_name in step_names:
+                if step_name == 'selection_pref' and not priorities_shown:
+                    continue
+                step += 1
+                steps[f'{prefix}_{step_name}'] = step
+            steps[f'{prefix}_final_step'] = step
 
         return steps
 

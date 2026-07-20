@@ -1254,22 +1254,10 @@ class PhysicalRoom(MagModel, table=True):
     map_x: int | None = Field(nullable=True)
     map_y: int | None = Field(nullable=True)
 
-    @property
-    def connected_rooms(self):
-        """PhysicalRooms joined to this one by a connecting door."""
-        from sqlalchemy import inspect as sa_inspect
-        session = sa_inspect(self).session
-        if not session or not self.id:
-            return []
-        edges = session.query(PhysicalRoomConnection).filter(
-            sa.or_(PhysicalRoomConnection.room_a_id == self.id,
-                   PhysicalRoomConnection.room_b_id == self.id)).all()
-        other_ids = [e.room_b_id if e.room_a_id == self.id else e.room_a_id
-                     for e in edges]
-        if not other_ids:
-            return []
-        return session.query(PhysicalRoom).filter(
-            PhysicalRoom.id.in_(other_ids)).all()
+    # Connected-room lookups are bulk-only: controllers build the
+    # {room_id: [room_number, ...]} map via uber.hotel.physical
+    # .connection_map and pass it to templates, so there is no per-row
+    # accessor here (a per-room property cost two queries per room).
 
     @property
     def sort_key(self):

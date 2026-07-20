@@ -15,8 +15,8 @@ This module is the single definition of:
     can't drift. Nights are always checkout-day EXCLUSIVE
     ([check_in, check_out)), and per-night quantities come from
     HotelRoomInventory.quantity_for_night.
-  * overlaps / physical_room_conflicts / vacant_physical_rooms - the
-    physical-room occupancy predicates.
+  * overlaps / physical_room_conflicts / vacant_physical_rooms /
+    vacant_rooms_map - the physical-room occupancy predicates.
   * live_assignments_for_hotel - the standard "all live bookings at a
     hotel" query.
 
@@ -475,3 +475,49 @@ def vacant_physical_rooms(session, hotel_id, check_in, check_out,
                 RoomAssignment.assigned_check_out_date > check_in).all()}
         rooms = [r for r in rooms if r.id not in busy]
     return sorted(rooms, key=lambda r: r.sort_key)
+
+
+def vacant_rooms_map(session, hotel_id, bookings):
+    """Bulk vacant_physical_rooms: {assignment_id: [PhysicalRoom, ...]}
+    for many bookings at one hotel.
+
+    Each booking's list matches what vacant_physical_rooms(session,
+    hotel_id, ra.assigned_check_in_date, ra.assigned_check_out_date,
+    inventory_id=ra.inventory_id) would return, but the hotel's room
+    list and per-room busy intervals are fetched once (two queries
+    total) instead of twice per booking - the rooming board calls this
+    for every unroomed booking on the page.
+    """
+    from uber.models.hotel import PhysicalRoom, RoomAssignment
+
+    rooms = sorted(
+        session.query(PhysicalRoom).filter(
+            PhysicalRoom.hotel_id == hotel_id,
+            PhysicalRoom.out_of_service.is_(False)).all(),
+        key=lambda r: r.sort_key)
+
+    busy = defaultdict(list)
+    for room_id, b_ci, b_co in (
+            session.query(RoomAssignment.physical_room_id,
+                          RoomAssignment.assigned_check_in_date,
+                          RoomAssignment.assigned_check_out_date)
+            .join(PhysicalRoom,
+                  PhysicalRoom.id == RoomAssignment.physical_room_id)
+            .filter(PhysicalRoom.hotel_id == hotel_id,
+                    RoomAssignment.is_live,
+                    RoomAssignment.assigned_check_in_date.isnot(None),
+                    RoomAssignment.assigned_check_out_date.isnot(None))):
+        busy[room_id].append((b_ci, b_co))
+
+    out = {}
+    for ra in bookings:
+        check_in = ra.assigned_check_in_date
+        check_out = ra.assigned_check_out_date
+        options = [r for r in rooms
+                   if not ra.inventory_id or r.inventory_id == ra.inventory_id]
+        if check_in and check_out:
+            options = [r for r in options
+                       if not any(overlaps(check_in, check_out, b_ci, b_co)
+                                  for b_ci, b_co in busy.get(r.id, []))]
+        out[ra.id] = options
+    return out

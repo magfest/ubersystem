@@ -16,7 +16,6 @@ underneath it.
 """
 import logging
 import random
-from collections import defaultdict
 from copy import deepcopy
 from datetime import date, timedelta
 
@@ -440,7 +439,13 @@ def materialize_room_assignments(session, applications, allocations,
     for leader_id, inv_id, role in allocations:
         by_leader.setdefault(leader_id, {'primary': [], 'connector': []})[role].append(inv_id)
 
+    # Two-stage batch: create every primary first and flush ONCE (each
+    # flush fires the per-row after_insert listener UPDATE, but batching
+    # avoids a separate flush round-trip per created row), then create
+    # the connectors - which need the primaries' ids as parents - and
+    # flush once more. Occupant M2M writes happen after the rows exist.
     leaders_with_primary = 0
+    staged = []  # (occupant_ids, primaries, connector_inv_ids, leader)
     for leader_id, roles in by_leader.items():
         leader = app_by_id.get(leader_id)
         if not leader or not leader.attendee_id:
@@ -454,7 +459,7 @@ def materialize_room_assignments(session, applications, allocations,
                 occupant_ids.append(member.attendee_id)
 
         # Primary first so we can hang connectors off its id.
-        primaries_by_inv = {}
+        primaries = []
         for inv_id in roles['primary']:
             primary = RoomAssignment(
                 attendee_id=leader.attendee_id,
@@ -470,16 +475,19 @@ def materialize_room_assignments(session, applications, allocations,
                 deposit_cutoff_date=run_deadline,
             )
             session.add(primary)
-            session.flush()  # need primary.id
-            primaries_by_inv[inv_id] = primary
-            _set_occupants(session, primary, occupant_ids)
+            primaries.append(primary)
             leaders_with_primary += 1
+        staged.append((occupant_ids, primaries, roles['connector'], leader))
 
-        # Connectors - for each, find the parent primary in this leader's
-        # set (any primary will do as the structural parent; the solver's
-        # coupling already guaranteed there's one).
-        parent_primary = next(iter(primaries_by_inv.values()), None)
-        for inv_id in roles['connector']:
+    session.flush()  # one flush inserts every primary
+
+    connectors = []
+    for occupant_ids, primaries, connector_inv_ids, leader in staged:
+        # Connectors - hang each off one of this leader's primaries (any
+        # primary will do as the structural parent; the solver's coupling
+        # already guaranteed there's one).
+        parent_primary = primaries[0] if primaries else None
+        for inv_id in connector_inv_ids:
             child = RoomAssignment(
                 attendee_id=leader.attendee_id,
                 inventory_id=inv_id,
@@ -495,7 +503,14 @@ def materialize_room_assignments(session, applications, allocations,
                 deposit_cutoff_date=run_deadline,
             )
             session.add(child)
-            session.flush()
-            _set_occupants(session, child, occupant_ids)
+            connectors.append((child, occupant_ids))
+
+    session.flush()  # one flush inserts every connector
+
+    for occupant_ids, primaries, _, _ in staged:
+        for primary in primaries:
+            _set_occupants(session, primary, occupant_ids)
+    for child, occupant_ids in connectors:
+        _set_occupants(session, child, occupant_ids)
 
     return leaders_with_primary

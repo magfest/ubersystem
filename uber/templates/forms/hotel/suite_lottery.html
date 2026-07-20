@@ -32,12 +32,6 @@
 {% endif %}
 {% endblock %}
 
-{% block priorities %}
-{% if 'suite_selection_pref' in c.HOTEL_LOTTERY_FORM_STEPS %}
-{{ super() }}
-{% endif %}
-{% endblock %}
-
 {% block terms %}
 {% if not read_only and 'suite_agreement' in c.HOTEL_LOTTERY_FORM_STEPS %}
 <div class="accordion-item">

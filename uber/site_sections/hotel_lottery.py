@@ -1,4 +1,3 @@
-import base64
 import json
 import secrets
 import uuid
@@ -17,8 +16,9 @@ from uber.models.hotel import (RoomAssignmentInvite, WaitlistRevealLink,
                                room_assignment_occupant)
 from uber.hotel.waitlist import WaitlistError, resize_assignment
 from uber.email import EmailService
-from uber.utils import (RegistrationCode, redirect_with_params, validate_model,
-                        get_age_from_birthday, normalize_email_legacy)
+from uber.utils import (RegistrationCode, check_csrf, redirect_with_params,
+                        validate_model, get_age_from_birthday,
+                        normalize_email_legacy)
 
 log = logging.getLogger(__name__)
 
@@ -68,7 +68,6 @@ def room_action(func=None, *, allow='leader'):
         @wraps(fn)
         def wrapper(self, session, assignment_id=None, attendee_id='',
                     csrf_token=None, **params):
-            from uber.utils import check_csrf
             if cherrypy.request.method != 'POST':
                 raise HTTPRedirect(_room_url(assignment_id or '', attendee_id))
             check_csrf(csrf_token)
@@ -405,6 +404,19 @@ def _require_view_as_attendee(session, attendee_id, redirect='rooms'):
         'You do not have permission to view that attendee.')
 
 
+def _stamp_entry_started(application):
+    """Stamp entry_started and capture the request metadata the first
+    time an application is touched. Idempotent - an already-started
+    entry keeps its original timestamp and metadata."""
+    if application.entry_started:
+        return
+    application.entry_started = datetime.now()
+    application.entry_metadata = {
+        'ip_address': cherrypy.request.headers.get('X-Forwarded-For', cherrypy.request.remote.ip),
+        'user_agent': cherrypy.request.headers.get('User-Agent', ''),
+        'referer': cherrypy.request.headers.get('Referer', '')}
+
+
 def _join_room_group(session, application, group_id):
     message, got_new_conf_num = '', None
 
@@ -436,12 +448,7 @@ def _join_room_group(session, application, group_id):
         application.confirmation_num = ''
         got_new_conf_num = True
 
-    if not application.entry_started:
-        application.entry_started = datetime.now()
-        application.entry_metadata = {
-            'ip_address': cherrypy.request.headers.get('X-Forwarded-For', cherrypy.request.remote.ip),
-            'user_agent': cherrypy.request.headers.get('User-Agent', ''),
-            'referer': cherrypy.request.headers.get('Referer', '')}
+    _stamp_entry_started(application)
 
     application.status = c.COMPLETE
     application.entry_type = c.GROUP_ENTRY
@@ -616,7 +623,6 @@ class Root:
         LotteryRun.confirmation_window_start filters which apps are
         eligible for the next run based on this timestamp.
         """
-        from uber.utils import check_csrf
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect('index?id={}', id)
         check_csrf(csrf_token)
@@ -638,7 +644,6 @@ class Root:
         target room's editor (the per-room "Card on file" surface posts
         with it set); otherwise it falls back to the rooms list.
         """
-        from uber.utils import check_csrf
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect('rooms?attendee_id={}', attendee_id)
         check_csrf(csrf_token)
@@ -817,7 +822,6 @@ class Root:
         one and POSTs from the room editor would 500 with a TypeError on
         the wrong-shape arg list).
         """
-        from uber.utils import check_csrf
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect('rooms')
         check_csrf(csrf_token)
@@ -851,7 +855,6 @@ class Root:
                   .filter_by(invite_token=(token or '').strip()).first()) if token else None
 
         if cherrypy.request.method == 'POST' and invite and action:
-            from uber.utils import check_csrf
             check_csrf(csrf_token)
 
             # Resolve the accepting attendee. An explicit attendee_id
@@ -893,7 +896,6 @@ class Root:
 
     @requires_account(Attendee)
     def redeem_code(self, session, code='', attendee_id='', csrf_token=None):
-        from uber.utils import check_csrf
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect('rooms')
         check_csrf(csrf_token)
@@ -1012,7 +1014,6 @@ class Root:
     def save_hotel_name(self, session, attendee_id,
                         hotel_first_name='', hotel_last_name='',
                         return_to='rooms', csrf_token=None):
-        from uber.utils import check_csrf
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect(return_to or 'rooms')
         check_csrf(csrf_token)
@@ -1089,7 +1090,6 @@ class Root:
         """Bulk-add occupants the leader already invited to a sibling
         room of theirs. No new invite is sent because they're already
         on file with one of the leader's other rooms."""
-        from uber.utils import check_csrf
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect(
                 _room_url(target_assignment_id, attendee_id))
@@ -1535,12 +1535,7 @@ class Root:
             for form in forms.values():
                 form.populate_obj(application)
 
-            if not application.entry_started:
-                application.entry_started = datetime.now()
-                application.entry_metadata = {
-                    'ip_address': cherrypy.request.headers.get('X-Forwarded-For', cherrypy.request.remote.ip),
-                    'user_agent': cherrypy.request.headers.get('User-Agent', ''),
-                    'referer': cherrypy.request.headers.get('Referer', '')}
+            _stamp_entry_started(application)
 
             session.commit()
 
@@ -1630,9 +1625,6 @@ class Root:
         forms_list = ["LotteryRoomGroup"]
         forms = load_forms(params, application, forms_list, read_only=application.current_lottery_closed)
 
-        if cherrypy.request.method == 'POST':
-            pass
-
         # Query pending outbound invites sent by this leader
         pending_invites = []
         if application.room_group_name and not application.parent_application:
@@ -1658,7 +1650,7 @@ class Root:
         }
     
     @requires_account(LotteryApplication)
-    def save_group(self, session, id=None, message="", **params):
+    def save_group(self, session, id=None, **params):
         application = session.lottery_application(id)
 
         if application.locked:
@@ -1674,11 +1666,11 @@ class Root:
                 application.invite_code = RegistrationCode.generate_random_code(LotteryApplication.invite_code)
             else:
                 action = "updated"
-            
+
             for form in forms.values():
                 form.populate_obj(application)
-                application.last_submitted = datetime.now()
-                raise HTTPRedirect('room_group?id={}&action={}', application.id, action)
+            application.last_submitted = datetime.now()
+            raise HTTPRedirect('room_group?id={}&action={}', application.id, action)
 
     @requires_account(LotteryApplication)
     def remove_group_member(self, session, id=None, member_id=None, message="", **params):
@@ -2453,7 +2445,6 @@ class Root:
                         session.commit()
 
                         # Send invite email
-                        from uber.decorators import render
                         EmailService.queue_email(
                             session, 'room_guest_invite', guest_app,
                             subject=f'{c.EVENT_NAME} Hotel {c.HOTEL_LOTTERY_GROUP_TERM} Invite from {application.group_leader_name}',
@@ -2517,7 +2508,6 @@ class Root:
         used to leave it pending forever)."""
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect('accept_invite?token={}', token)
-        from uber.utils import check_csrf
         check_csrf(csrf_token)
 
         guest_app = session.query(LotteryApplication).filter_by(invite_token=token).first()
