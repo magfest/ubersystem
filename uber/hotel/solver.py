@@ -178,6 +178,20 @@ def solve_lottery(applications, hotel_rooms, lottery_type=c.ROOM_ENTRY,
         return primary + connector
 
     if all_nights:
+        # Per-night mode must constrain EVERY night an award could
+        # occupy, not just the nights some block happens to list in
+        # night_quantities - a night listed nowhere would otherwise get
+        # no capacity constraint from ANY block, and stays covering it
+        # could be over-awarded without bound.
+        for entry in entries.values():
+            ci, co = entry["check_in"], entry["check_out"]
+            if ci and co:
+                d = ci
+                while d < co:
+                    all_nights.add(d.isoformat())
+                    d += timedelta(days=1)
+
+    if all_nights:
         for hr in hotel_rooms:
             inv_vars = _vars_for_inventory(hr)
             if not inv_vars:

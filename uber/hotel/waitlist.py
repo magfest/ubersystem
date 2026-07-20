@@ -292,7 +292,13 @@ def fulfill_waitlist(session, inventory_id=None, night_date=None):
                          RoomAssignment.lottery_application_id == LotteryApplication.id)
               .filter(RoomAssignment.status == c.SECURED,
                       RoomAssignment.inventory_id.isnot(None),
+                      # entry_type can be NULL (the unset_entry_type
+                      # presave nulls a 0), and SQL three-valued logic
+                      # would silently drop those rows from `!=` alone -
+                      # cron_eligible's python side serves them, so the
+                      # SQL prefilter must too.
                       sa.or_(LotteryApplication.id.is_(None),
+                             LotteryApplication.entry_type.is_(None),
                              LotteryApplication.entry_type != c.GROUP_ENTRY),
                       sa.or_(RoomAssignment.waitlisted_check_in_date.isnot(None),
                              RoomAssignment.waitlisted_check_out_date.isnot(None))))
