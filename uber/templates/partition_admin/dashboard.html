@@ -131,21 +131,11 @@
     <form method="post" action="assign_room" class="card card-body mt-2">
       {{ csrf_token() }}
       <input type="hidden" name="partition_id" value="{{ partition.id }}" />
-      <input type="hidden" name="attendee_id" id="assign-attendee-id" />
 
       {# Attendee search - mirrors the full admin search via session.search() #}
-      <div class="mb-3 position-relative">
-        <label class="form-label">Attendee</label>
-        <input type="text" id="assign-attendee-query" class="form-control"
-               placeholder="Search by name, legal name, email, badge number, or UUID - same fields as the regular attendee search"
-               autocomplete="off" />
-        <div id="assign-attendee-results" class="list-group position-absolute w-100 shadow-sm" style="z-index: 1000; display: none; max-height: 300px; overflow-y: auto;"></div>
-        <div id="assign-attendee-selected" class="mt-2" style="display: none;">
-          Selected:
-          <span class="badge bg-primary"><span id="assign-attendee-name"></span></span>
-          <button type="button" class="btn btn-link btn-sm" id="assign-attendee-clear">change</button>
-        </div>
-      </div>
+      {{ hotel_macros.attendee_search_widget(
+            extra_params='partition_id=' ~ partition.id,
+            wrapper_class='mb-3 position-relative') }}
 
       <div class="row g-2">
         <div class="col-md-6">
@@ -432,93 +422,7 @@
 {% endif %}
 
 {% if can_edit_assignments %}
-<script>
-(function () {
-  var q       = document.getElementById('assign-attendee-query');
-  var results = document.getElementById('assign-attendee-results');
-  var hidden  = document.getElementById('assign-attendee-id');
-  var selBox  = document.getElementById('assign-attendee-selected');
-  var selName = document.getElementById('assign-attendee-name');
-  var clearBtn= document.getElementById('assign-attendee-clear');
-  if (!q) return;
-
-  var debounceTimer = null;
-  var lastQuery = '';
-
-  function clearSelection() {
-    hidden.value = '';
-    selBox.style.display = 'none';
-    q.value = '';
-    q.style.display = '';
-    q.focus();
-  }
-  clearBtn.addEventListener('click', clearSelection);
-
-  function chooseAttendee(item) {
-    hidden.value = item.id;
-    selName.textContent = item.name + (item.email ? ' (' + item.email + ')' : '');
-    selBox.style.display = '';
-    q.style.display = 'none';
-    results.innerHTML = '';
-    results.style.display = 'none';
-  }
-
-  function render(items) {
-    if (!items || items.length === 0) {
-      results.innerHTML = '<div class="list-group-item text-muted small">No matches</div>';
-      results.style.display = 'block';
-      return;
-    }
-    results.innerHTML = '';
-    items.forEach(function (it) {
-      var a = document.createElement('a');
-      a.href = '#';
-      a.className = 'list-group-item list-group-item-action';
-      a.innerHTML = '<strong>' + escapeHtml(it.name) + '</strong>'
-        + (it.email ? ' <span class="text-muted small">' + escapeHtml(it.email) + '</span>' : '')
-        + (it.badge_num ? ' <span class="badge bg-light text-dark ms-1">Badge ' + escapeHtml(it.badge_num) + '</span>' : '')
-        + (it.badge_type ? ' <span class="badge bg-light text-muted ms-1">' + escapeHtml(it.badge_type) + '</span>' : '');
-      a.addEventListener('click', function (e) {
-        e.preventDefault();
-        chooseAttendee(it);
-      });
-      results.appendChild(a);
-    });
-    results.style.display = 'block';
-  }
-
-  function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, function (c) {
-      return ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'})[c];
-    });
-  }
-
-  function runSearch() {
-    var term = q.value.trim();
-    if (term === lastQuery) return;
-    lastQuery = term;
-    if (term.length < 2) {
-      results.style.display = 'none';
-      return;
-    }
-    fetch('search_attendees?partition_id=' + encodeURIComponent('{{ partition.id }}')
-          + '&q=' + encodeURIComponent(term), {credentials: 'same-origin'})
-      .then(function (r) { return r.json(); })
-      .then(function (data) { render(data || []); })
-      .catch(function () { results.style.display = 'none'; });
-  }
-
-  q.addEventListener('input', function () {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(runSearch, 250);
-  });
-  document.addEventListener('click', function (e) {
-    if (e.target !== q && !results.contains(e.target)) {
-      results.style.display = 'none';
-    }
-  });
-})();
-</script>
+{{ "js/hotel-attendee-search.js"|serve_static_content }}
 {% endif %}
 
 {% endblock %}

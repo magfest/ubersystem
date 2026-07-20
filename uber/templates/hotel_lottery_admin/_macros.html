@@ -225,3 +225,49 @@
     {%- endif -%}
   {%- else -%}<em>(no attendee)</em>{%- endif -%}
 {% endmacro %}
+
+
+{# Attendee-search widget
+
+   Search-as-you-type attendee picker used by the manual assign_room
+   page and the partition_admin dashboard. Renders the query input, the
+   results dropdown, the hidden attendee_id form field, and the
+   "Selected: <badge>" line. The behavior lives in
+   uber/static/js/hotel-attendee-search.js - the consuming template must
+   also load that with:
+
+       {{ "js/hotel-attendee-search.js"|serve_static_content }}
+
+   Arguments:
+     search_url    - endpoint returning a JSON list of matches
+                     (default 'search_attendees')
+     extra_params  - OPTIONAL pre-encoded query-string fragment appended
+                     to every search, e.g. 'partition_id=' ~ partition.id
+     selected_id   - OPTIONAL attendee id to pre-select
+     selected_name - OPTIONAL display text for the pre-selected badge
+     label         - field label (default 'Attendee')
+     wrapper_class - classes for the container div
+#}
+{% macro attendee_search_widget(search_url='search_attendees', extra_params='',
+                                selected_id='', selected_name='',
+                                label='Attendee', wrapper_class='position-relative') %}
+  <div class="attendee-search-widget {{ wrapper_class }}"
+       data-search-url="{{ search_url }}"
+       {%- if extra_params %} data-extra-params="{{ extra_params }}"{% endif %}>
+    <label class="form-label">{{ label }}</label>
+    <input type="hidden" name="attendee_id" class="attendee-search-id"
+           value="{{ selected_id or '' }}" />
+    <input type="text" class="form-control attendee-search-query"
+           placeholder="Search by name, legal name, email, badge number, or UUID - same fields as the regular attendee search"
+           autocomplete="off"
+           {% if selected_id %}style="display: none;"{% endif %} />
+    <div class="list-group position-absolute w-100 shadow-sm attendee-search-results"
+         style="z-index: 1000; display: none; max-height: 300px; overflow-y: auto;"></div>
+    <div class="mt-2 attendee-search-selected"
+         {% if not selected_id %}style="display: none;"{% endif %}>
+      Selected:
+      <span class="badge bg-primary"><span class="attendee-search-name">{{ selected_name }}</span></span>
+      <button type="button" class="btn btn-link btn-sm attendee-search-clear">change</button>
+    </div>
+  </div>
+{% endmacro %}

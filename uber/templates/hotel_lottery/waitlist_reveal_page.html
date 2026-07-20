@@ -45,8 +45,8 @@
 {% if reveal and reveal.reveal_at and not is_revealed %}
 <script>
 (function () {
-  var revealAt = new Date("{{ reveal.reveal_at.isoformat() }}").getTime();
-  var token = "{{ token }}";
+  var revealAt = new Date({{ reveal.reveal_at.isoformat()|tojson }}).getTime();
+  var token = {{ token|tojson }};
   var $cd = document.getElementById('countdown');
 
   function fmt(ms) {

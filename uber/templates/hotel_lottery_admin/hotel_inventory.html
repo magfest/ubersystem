@@ -144,111 +144,26 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-<script>
-var currentPartition = {{ current_partition|tojson }};
+{{ "deps/chartjs/chart.umd.min.js"|serve_static_content }}
 
-// processWaitlist() moved to /hotel_lottery_admin/waitlist (the
-// dedicated Waitlist sub-tab). The button at the top of this page
-// now navigates there.
-
-{% include 'hotel_lottery_admin/_shared_js.html' %}
-
-function showAssignees(inventoryId, nightDate, title) {
-    document.getElementById('assignees-title').textContent = 'Assigned: ' + title;
-    document.getElementById('assignees-loading').style.display = '';
-    document.getElementById('assignees-content').style.display = 'none';
-    new bootstrap.Modal(document.getElementById('assigneesModal')).show();
-    $.ajax({
-        method: 'POST',
-        url: 'inventory_assignees',
-        dataType: 'json',
-        data: { inventory_id: inventoryId, night_date: nightDate, partition: currentPartition, csrf_token: csrf_token },
-        success: function(json) {
-            document.getElementById('assignees-loading').style.display = 'none';
-            var container = document.getElementById('assignees-content');
-            container.textContent = '';
-            if (json.assignees && json.assignees.length) {
-                var table = document.createElement('table');
-                table.className = 'table table-sm table-hover';
-                var thead = table.createTHead();
-                var hrow = thead.insertRow();
-                ['Name', 'Conf #', 'Status', 'Check-in', 'Check-out', 'Partition'].forEach(function(h) {
-                    var th = document.createElement('th');
-                    th.textContent = h;
-                    hrow.appendChild(th);
-                });
-                var tbody = table.createTBody();
-                json.assignees.forEach(function(a) {
-                    var row = tbody.insertRow();
-                    var nameCell = row.insertCell();
-                    var nameLink = document.createElement('a');
-                    nameLink.href = '../registration/form?id=' + encodeURIComponent(a.attendee_id);
-                    nameLink.target = '_blank';
-                    nameLink.textContent = a.name;
-                    nameCell.appendChild(nameLink);
-
-                    var confCell = row.insertCell();
-                    var confLink = document.createElement('a');
-                    confLink.href = 'form?id=' + encodeURIComponent(a.app_id);
-                    confLink.textContent = a.conf_num;
-                    confCell.appendChild(confLink);
-
-                    row.insertCell().textContent = a.status;
-                    row.insertCell().textContent = a.check_in;
-                    row.insertCell().textContent = a.check_out;
-                    row.insertCell().textContent = a.partition || '\u2014';
-                });
-                container.appendChild(table);
-            } else {
-                var p = document.createElement('p');
-                p.className = 'text-muted text-center';
-                p.textContent = 'No assignees found.';
-                container.appendChild(p);
-            }
-            container.style.display = '';
-        }
-    });
-}
-
-function renderChart(canvasId, data) {
-    new Chart(document.getElementById(canvasId), {
-        type: 'bar',
-        data: {
-            labels: nightLabels,
-            datasets: [
-                { label: 'Assigned', data: data.assigned, backgroundColor: 'rgba(54, 162, 235, 0.7)' },
-                { label: 'Available', data: data.available, backgroundColor: 'rgba(200, 200, 200, 0.5)' },
-                { label: 'Waitlisted', data: data.waitlisted, backgroundColor: 'rgba(255, 159, 64, 0.7)' }
-            ]
-        },
-        options: {
-            responsive: true,
-            scales: { y: { beginAtZero: true } }
-        }
-    });
-}
-
-$(document).on('click', '.assignee-link', function(e) {
-    e.preventDefault();
-    var el = $(this);
-    showAssignees(el.data('inventory-id'), el.data('night'), el.data('title'));
-});
-
-// Render charts
+{# Build the chart config in Jinja and hand the whole structure to the
+   static glue script via |tojson - no string-interpolated JS. #}
+{% set _night_labels = [] %}
+{% for night in event_nights %}{% set _ = _night_labels.append(night.strftime('%a %-m/%-d')) %}{% endfor %}
+{% set _charts = {} %}
 {% if chart_data %}
-var nightLabels = [{% for night in event_nights %}"{{ night.strftime('%a %-m/%-d') }}"{{ "," if not loop.last }}{% endfor %}];
-
-{% if chart_data._total is defined %}
-renderChart('chart_total', {{ chart_data._total|tojson }});
+  {% if chart_data._total is defined %}{% set _ = _charts.update({'chart_total': chart_data._total}) %}{% endif %}
+  {% for hotel_name, data in chart_data.items() %}
+    {% if hotel_name != '_total' %}{% set _ = _charts.update({'chart_' ~ loop.index: data}) %}{% endif %}
+  {% endfor %}
 {% endif %}
-
-{% for hotel_name, data in chart_data.items() %}
-{% if hotel_name != '_total' %}
-renderChart('chart_{{ loop.index }}', {{ data|tojson }});
-{% endif %}
-{% endfor %}
-{% endif %}
+<script type="text/javascript">
+window.hotelInventoryConfig = {
+  partition: {{ current_partition|tojson }},
+  nightLabels: {{ _night_labels|tojson }},
+  charts: {{ _charts|tojson }}
+};
 </script>
+{{ "js/hotel-inventory-chart.js"|serve_static_content }}
 
 {% endblock content %}
