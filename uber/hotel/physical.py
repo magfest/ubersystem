@@ -328,7 +328,7 @@ def auto_assign_physical_rooms(session, hotel_id):
         else:
             skipped.append((ra, 'no vacant room in block'))
 
-    session.commit()
+    session.flush()
     return {'assigned': assigned,
             'skipped': [(ra.id, reason) for ra, reason in skipped]}
 

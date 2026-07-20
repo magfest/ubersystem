@@ -1871,6 +1871,11 @@ class HotelLookup:
             result = apply_import_file(
                 session, raw, filename, hotel=hotel,
                 source='portal', uploaded_by=uploaded_by or 'Hotel Portal')
+            # Commit even when parsing failed: the retained-upload record
+            # (HotelImportFile) must persist either way, and the service
+            # layer only flushes (the Session context manager does not
+            # commit on exit).
+            session.commit()
 
         summary = {'updated': result['updated'], 'unchanged': result['unchanged'],
                    'changes': result['changes']}

@@ -30,7 +30,11 @@ from uber.hotel.exports import (booking_columns, booking_export_data,
                                 build_waitlist_xlsx, compute_export_tracking,
                                 derive_sync_status, write_hotel_inventory_xlsx,
                                 write_interchange_export)
-from uber.hotel.imports import parse_confirmation_rows, parse_iso_date, parse_spreadsheet
+from uber.hotel.imports import (apply_cancellation_rows, apply_confirmation_rows,
+                                match_assignments, parse_confirmation_rows,
+                                parse_iso_date, parse_spreadsheet)
+from uber.hotel.service import (RoomAssignmentError, apply_room_assignment_edits,
+                                create_room_assignment, validate_physical_room)
 from uber.hotel.solver import (adjust_available_rooms,
                                        build_eligible_applications,
                                        count_assigned_per_block_night,
@@ -536,29 +540,6 @@ def _room_issues_url(message='', severity='all', kind='all', search='',
     qs = urlencode(params)
     return 'room_issues' + ('?' + qs if qs else '')
 
-
-
-def _validate_physical_room(session, ra, room):
-    """Why a physical room can't take this booking, or None if it can."""
-    from uber.hotel.queries import physical_room_conflicts
-
-    inv = ra.inventory
-    if not inv or not inv.hotel_id:
-        return 'This booking has no inventory block, so no hotel to match.'
-    if room.hotel_id != inv.hotel_id:
-        return (f'Room {room.room_number} is at a different hotel than '
-                'this booking.')
-    if room.out_of_service:
-        return f'Room {room.room_number} is out of service.'
-    conflicts = physical_room_conflicts(
-        session, room.id, ra.assigned_check_in_date,
-        ra.assigned_check_out_date, exclude_assignment_id=ra.id)
-    if conflicts:
-        other = conflicts[0]
-        return (f'Room {room.room_number} is already booked '
-                f'{other.assigned_check_in_date} -> '
-                f'{other.assigned_check_out_date}.')
-    return None
 
 
 @all_renderable()
@@ -1278,7 +1259,6 @@ class Root:
         is named `bookings_file`; the older `bookings_csv` name is kept
         as a fallback so any in-flight bookmarks keep working.
         """
-        from uber.models import RoomAssignment
         from uber.utils import check_csrf as _check_csrf
 
         if cherrypy.request.method != 'POST':
@@ -1315,12 +1295,30 @@ class Root:
                 f"column(s) ({', '.join(sensitive)}). "
                 f"Strip them and re-upload.")
 
-        updated = 0
-        cancelled = 0
+        rows = list(reader_iter)
+
+        # Confirmation and cancellation numbers go through the shared
+        # row-appliers (uber.hotel.imports): every-assignment matching, one
+        # applied count per assignment touched. Email behavior stays here.
+        conf_preview = apply_confirmation_rows(
+            session, rows, apply_changes=True,
+            on_update=lambda ra: _send_confirmation_updated_email(session, ra))
+        updated = conf_preview['applied']
+
+        # Unlike the cancellations import page - where a row's presence
+        # means "cancelled" - this file lists every booking, so only rows
+        # actually carrying a cancellation number cancel anything.
+        cancel_rows = [
+            row for row in rows
+            if (row.get('cancellation_confirmation_number') or '').strip()]
+        cancel_preview = apply_cancellation_rows(
+            session, cancel_rows, apply_changes=True)
+        cancelled = cancel_preview['applied']
+
         date_updates = 0
         unmatched = []
 
-        for row in reader_iter:
+        for row in rows:
             app_id = (row.get('lottery_application_id') or '').strip()
             conf = (row.get('confirmation_num') or '').strip()
             new_conf = (row.get('hotel_confirmation_number') or '').strip()
@@ -1331,46 +1329,14 @@ class Root:
             if not (new_conf or cancel_num or new_ci or new_co):
                 continue  # Nothing to update for this row.
 
-            app = None
-            if app_id:
-                app = session.query(LotteryApplication).filter_by(id=app_id).first()
-            if not app and conf:
-                app = (session.query(LotteryApplication)
-                       .filter_by(confirmation_num=conf).first())
-            if not app:
+            ras = match_assignments(session, app_id, conf)
+            if not ras:
                 unmatched.append(conf or app_id or '(blank)')
                 continue
 
-            if new_conf:
-                # Hotel confirmation number lives on RoomAssignment only.
-                # Write to every assignment for this app whose value differs.
-                ras = (session.query(RoomAssignment)
-                       .filter_by(lottery_application_id=app.id).all())
-                touched_any = False
-                for ra in ras:
-                    if (ra.hotel_confirmation_number or '') != new_conf:
-                        ra.hotel_confirmation_number = new_conf
-                        session.add(ra)
-                        _send_confirmation_updated_email(session, ra)
-                        touched_any = True
-                if touched_any:
-                    updated += 1
-
-            if cancel_num:
-                ras = (session.query(RoomAssignment)
-                       .filter_by(lottery_application_id=app.id).all())
-                for ra in ras:
-                    if ra.cancellation_confirmation_number != cancel_num:
-                        ra.cancellation_confirmation_number = cancel_num
-                        # The model's presave flips status to CANCELLED.
-                        session.add(ra)
-                        cancelled += 1
-
             # Date columns: persist directly to every matching
             # RoomAssignment row whose dates differ.
-            ras_for_app = (session.query(RoomAssignment)
-                           .filter_by(lottery_application_id=app.id).all())
-            for ra in ras_for_app:
+            for ra in ras:
                 touched = False
                 if new_ci and ra.assigned_check_in_date != new_ci:
                     ra.assigned_check_in_date = new_ci
@@ -1519,6 +1485,10 @@ class Root:
             session, raw, getattr(upload, 'filename', ''), hotel=hotel,
             source='admin', uploaded_by=uploaded_by,
             content_type=getattr(upload, 'content_type', '') or '')
+        # Commit even when parsing failed: the retained-upload record
+        # (HotelImportFile) must persist either way, and the service layer
+        # only flushes.
+        session.commit()
 
         if result.get('error'):
             message = f"File saved, but could not be parsed: {result['error']}"
@@ -1996,113 +1966,6 @@ class Root:
             'index?message={}',
             f'Confirmation requested for {len(apps)} application(s).')
 
-    def _apply_cancellation_rows(self, session, rows, apply_changes):
-        """Row loop for import_hotel_cancellations. Returns the preview dict.
-
-        confirmation_num matches RoomAssignment.hotel_confirmation_number;
-        cancellation_confirmation_number is the hotel's cancel record id
-        (optional). Setting cancellation_confirmation_number triggers the
-        model presave that flips status to CANCELLED; the cancellation
-        email fires on the next email tick.
-        """
-        from uber.models import RoomAssignment
-
-        preview = {'matched': [], 'already': [], 'unmatched': [], 'applied': 0}
-
-        for row in rows:
-            conf = (row.get('confirmation_num') or '').strip()
-            cancel_num = (row.get('cancellation_confirmation_number') or '').strip()
-            if not conf:
-                continue
-
-            assignment = session.query(RoomAssignment).filter_by(
-                hotel_confirmation_number=conf).first()
-            if not assignment:
-                preview['unmatched'].append({
-                    'confirmation_num': conf,
-                    'cancellation_confirmation_number': cancel_num,
-                })
-                continue
-
-            if assignment.status == c.CANCELLED:
-                preview['already'].append({
-                    'assignment': assignment,
-                    'cancellation_confirmation_number': cancel_num,
-                })
-                if apply_changes and cancel_num and not assignment.cancellation_confirmation_number:
-                    assignment.cancellation_confirmation_number = cancel_num
-                    session.add(assignment)
-                    preview['applied'] += 1
-                continue
-
-            preview['matched'].append({
-                'assignment': assignment,
-                'cancellation_confirmation_number': cancel_num,
-            })
-
-            if apply_changes:
-                assignment.cancellation_confirmation_number = cancel_num or 'imported'
-                # cancellation_flips_status presave on the model takes
-                # care of status = CANCELLED.
-                session.add(assignment)
-                preview['applied'] += 1
-
-        return preview
-
-    def _apply_confirmation_rows(self, session, rows, apply_changes):
-        """Row loop for import_hotel_confirmations. Returns the preview dict.
-
-        lottery_application_id (preferred) or confirmation_num (matching
-        RoomAssignment.hotel_confirmation_number) identify the assignment;
-        new_confirmation_num is the value to write.
-        """
-        from uber.models import RoomAssignment
-
-        preview = {'new': [], 'changed': [], 'unchanged': [], 'unmatched': [], 'applied': 0}
-
-        for row in rows:
-            app_id = (row.get('lottery_application_id') or '').strip()
-            conf = (row.get('confirmation_num') or '').strip()
-            new_conf = (row.get('new_confirmation_num') or '').strip()
-            if not new_conf:
-                continue
-
-            assignment = None
-            if app_id:
-                assignment = session.query(RoomAssignment).filter_by(
-                    lottery_application_id=app_id).first()
-            if not assignment and conf:
-                assignment = session.query(RoomAssignment).filter_by(
-                    hotel_confirmation_number=conf).first()
-
-            if not assignment:
-                preview['unmatched'].append({
-                    'lottery_application_id': app_id,
-                    'confirmation_num': conf,
-                    'new_confirmation_num': new_conf,
-                })
-                continue
-
-            existing = assignment.hotel_confirmation_number or ''
-            if existing == new_conf:
-                preview['unchanged'].append({'assignment': assignment})
-                continue
-
-            bucket = 'changed' if existing else 'new'
-            preview[bucket].append({
-                'assignment': assignment,
-                'old': existing,
-                'new': new_conf,
-            })
-
-            if apply_changes:
-                assignment.hotel_confirmation_number = new_conf
-                session.add(assignment)
-                preview['applied'] += 1
-                _send_confirmation_updated_email(session, assignment)
-
-        return preview
-
     # ------------------------------------------------------------------
     # Physical-room catalog: the per-hotel map of real rooms
     # (PhysicalRoom / PhysicalRoomConnection). Logic in uber.hotel.physical.
@@ -2351,7 +2214,7 @@ class Root:
         if not ra or not room:
             raise HTTPRedirect('room_board?hotel_id={}&message={}',
                                hotel_id, 'Booking or room not found.')
-        error = _validate_physical_room(session, ra, room)
+        error = validate_physical_room(session, ra, room)
         if error:
             raise HTTPRedirect('room_board?hotel_id={}&message={}',
                                hotel_id or room.hotel_id, error)
@@ -2384,6 +2247,7 @@ class Root:
             raise HTTPRedirect('room_board?hotel_id={}', hotel_id)
         check_csrf(csrf_token)
         result = hotel_physical.auto_assign_physical_rooms(session, hotel_id)
+        session.commit()
         msg = f"Auto-assigned {result['assigned']} booking(s)."
         if result['skipped']:
             msg += f" {len(result['skipped'])} could not be placed."
@@ -2453,8 +2317,9 @@ class Root:
 
         Two-step UX: upload shows a preview of what would change. The admin
         then ticks "apply" and resubmits the file to write. Matching
-        semantics per kind live in _apply_confirmation_rows /
-        _apply_cancellation_rows.
+        semantics per kind live in uber.hotel.imports.apply_confirmation_rows
+        / apply_cancellation_rows (every-assignment matching: a matched
+        booking's value is written to every assignment on its application).
         """
         upload = (params.get('import_file')
                   or params.get('confirmations_csv')
@@ -2473,9 +2338,13 @@ class Root:
                 return {'kind': kind, 'preview': None, 'message': parse_error}
 
             if kind == 'cancellation':
-                preview = self._apply_cancellation_rows(session, rows, apply_changes)
+                preview = apply_cancellation_rows(session, rows, apply_changes)
             else:
-                preview = self._apply_confirmation_rows(session, rows, apply_changes)
+                # Email behavior stays with this controller: the admin
+                # confirmation import notifies the attendee per change.
+                preview = apply_confirmation_rows(
+                    session, rows, apply_changes,
+                    on_update=lambda ra: _send_confirmation_updated_email(session, ra))
 
             if apply_changes and preview['applied']:
                 session.commit()
@@ -2651,27 +2520,53 @@ class Root:
                 # assignment must use one of that partition's blocks.
                 message = ("That inventory block is not allocated to the "
                            "selected partition.")
+            elif assignment.is_new:
+                try:
+                    assignment = create_room_assignment(
+                        session,
+                        attendee_id=picked_attendee,
+                        inventory_id=picked_inventory,
+                        partition_id=picked_partition,
+                        assignment_reason=(
+                            c.PARTITION_GRANT if picked_partition and not is_lottery_admin()
+                            else c.MANUAL),
+                        require_cc=params.get('require_cc') == 'true',
+                        assigned_check_in_date=params.get('assigned_check_in_date', ''),
+                        assigned_check_out_date=params.get('assigned_check_out_date', ''),
+                        deposit_cutoff_date=params.get('deposit_cutoff_date', ''),
+                        room_number=params.get('room_number', ''),
+                        admin_notes=params.get('admin_notes', ''),
+                    )
+                    session.commit()
+                except RoomAssignmentError as e:
+                    message = e.message
+                except Exception as e:
+                    session.rollback()
+                    message = f"Could not save assignment: {e}"
+                else:
+                    raise HTTPRedirect(
+                        'assign_room?id={}&message={}',
+                        assignment.id,
+                        'Assignment saved.')
             else:
-                assignment.attendee_id = picked_attendee
-                assignment.inventory_id = picked_inventory
-                assignment.partition_id = picked_partition
+                def fail(msg):
+                    raise HTTPRedirect('assign_room?id={}&message={}',
+                                       assignment.id, msg)
+
+                if picked_attendee != assignment.attendee_id:
+                    assignment.attendee_id = picked_attendee
+                    session.add(assignment)
                 if not assignment.assignment_reason or assignment.assignment_reason == c.MANUAL:
                     assignment.assignment_reason = (
                         c.PARTITION_GRANT if picked_partition and not is_lottery_admin()
                         else c.MANUAL)
-                assignment.require_cc = params.get('require_cc') == 'true'
-
-                ci = params.get('assigned_check_in_date', '').strip()
-                co = params.get('assigned_check_out_date', '').strip()
-                assignment.assigned_check_in_date = date.fromisoformat(ci) if ci else None
-                assignment.assigned_check_out_date = date.fromisoformat(co) if co else None
-
-                dcd = params.get('deposit_cutoff_date', '').strip()
-                assignment.deposit_cutoff_date = date.fromisoformat(dcd) if dcd else None
-
-                assignment.room_number = params.get('room_number', '').strip() or None
-                assignment.admin_notes = params.get('admin_notes', '').strip()
-                session.add(assignment)
+                # The billing checkbox posts nothing when unchecked; pin an
+                # explicit value so the sparse-params contract sees it.
+                params['require_cc'] = (
+                    'true' if params.get('require_cc') == 'true' else 'false')
+                apply_room_assignment_edits(
+                    session, assignment, params,
+                    audit_prefix='Assign-room page updated', fail=fail)
                 try:
                     session.commit()
                 except Exception as e:
@@ -3084,134 +2979,24 @@ class Root:
             raise HTTPRedirect('form?id={}&message={}', application_id,
                                'Inventory is required to add a room.')
 
-        ra = RoomAssignment(
-            attendee_id=app.attendee_id,
-            lottery_application_id=app.id,
-            inventory_id=inventory_id,
-            partition_id=partition_id or None,
-            assignment_reason=c.MANUAL,
-            status=c.ASSIGNED,
-            require_cc=params.get('require_cc') == 'true',
-        )
-        ci = params.get('assigned_check_in_date', '').strip()
-        co = params.get('assigned_check_out_date', '').strip()
-        if ci:
-            try:
-                ra.assigned_check_in_date = date.fromisoformat(ci)
-            except ValueError:
-                pass
-        if co:
-            try:
-                ra.assigned_check_out_date = date.fromisoformat(co)
-            except ValueError:
-                pass
-        session.add(ra)
-        session.flush()
-        if partition_id:
-            record_partition_audit(
-                session, partition_id,
-                action='assignment.created',
-                description=f"Manually added room to attendee {app.attendee_id}",
-                target_type='assignment', target_id=ra.id)
+        try:
+            create_room_assignment(
+                session,
+                attendee_id=app.attendee_id,
+                inventory_id=inventory_id,
+                partition_id=partition_id or None,
+                lottery_application_id=app.id,
+                assignment_reason=c.MANUAL,
+                status=c.ASSIGNED,
+                require_cc=params.get('require_cc') == 'true',
+                assigned_check_in_date=params.get('assigned_check_in_date', ''),
+                assigned_check_out_date=params.get('assigned_check_out_date', ''),
+                audit_description=f"Manually added room to attendee {app.attendee_id}",
+            )
+        except RoomAssignmentError as e:
+            raise HTTPRedirect('form?id={}&message={}', application_id, e.message)
         session.commit()
         raise HTTPRedirect('form?id={}&message={}', application_id, 'Room added.')
-
-    def _apply_room_assignment_edits(self, session, ra, params,
-                                     audit_prefix, fail):
-        """Shared save path for the two RoomAssignment edit surfaces (the
-        application form's per-room modal and the standalone edit page).
-
-        Only touches fields actually present in `params`, so each surface
-        keeps its own field set: the modal posts inventory / partition /
-        billing / dates; the standalone page additionally posts status,
-        deposit cutoff, confirmation numbers, and special requests.
-
-        `fail(message)` is called on invalid input and must raise (both
-        callers redirect back to their own page with the message).
-        Returns the user-facing result message; commits when anything
-        changed and writes one partition audit row prefixed with
-        `audit_prefix`.
-        """
-        changes = []
-
-        if 'inventory_id' in params:
-            new_inv = params.get('inventory_id', '').strip()
-            if new_inv and new_inv != ra.inventory_id:
-                changes.append('inventory'); ra.inventory_id = new_inv
-        if 'partition_id' in params:
-            new_part = params.get('partition_id', '').strip() or None
-            if new_part != ra.partition_id:
-                changes.append('partition'); ra.partition_id = new_part
-        if 'require_cc' in params:
-            new_require_cc = params.get('require_cc') == 'true'
-            if new_require_cc != ra.require_cc:
-                changes.append('billing'); ra.require_cc = new_require_cc
-
-        for name, label in (('assigned_check_in_date', 'check-in'),
-                            ('assigned_check_out_date', 'check-out'),
-                            ('deposit_cutoff_date', 'deposit cutoff')):
-            if name not in params:
-                continue
-            raw = (params.get(name, '') or '').strip()
-            if raw:
-                try:
-                    new_val = date.fromisoformat(raw)
-                except ValueError:
-                    fail(f"Could not parse the {label} date.")
-            else:
-                new_val = None
-            if new_val != getattr(ra, name):
-                changes.append(label); setattr(ra, name, new_val)
-
-        raw_status = (params.get('status', '') or '').strip()
-        if raw_status:
-            try:
-                new_status = int(raw_status)
-            except ValueError:
-                fail("Invalid status.")
-            if new_status != ra.status:
-                changes.append('status'); ra.status = new_status
-
-        if 'physical_room_id' in params:
-            from uber.models.hotel import PhysicalRoom
-            new_room_id = params.get('physical_room_id', '').strip() or None
-            if new_room_id != (ra.physical_room_id or None):
-                if new_room_id:
-                    room = session.query(PhysicalRoom).get(new_room_id)
-                    if not room:
-                        fail('Physical room not found.')
-                    error = _validate_physical_room(session, ra, room)
-                    if error:
-                        fail(error)
-                # Unlinking keeps the room_number text for reference; the
-                # presave re-stamps it whenever a room is linked.
-                changes.append('physical room')
-                ra.physical_room_id = new_room_id
-
-        for field, nullable in (('hotel_confirmation_number', True),
-                                ('cancellation_confirmation_number', True),
-                                ('room_number', True),
-                                ('special_requests', False),
-                                ('admin_notes', False)):
-            if field not in params:
-                continue
-            raw = (params.get(field, '') or '').strip()
-            if raw != (getattr(ra, field) or ''):
-                changes.append(field.replace('_', ' '))
-                # NOT NULL string columns clear to '' rather than None.
-                setattr(ra, field, raw or (None if nullable else ''))
-
-        if changes:
-            session.add(ra)
-            if ra.partition_id:
-                record_partition_audit(
-                    session, ra.partition_id,
-                    action='assignment.updated',
-                    description=f"{audit_prefix} {', '.join(changes)}",
-                    target_type='assignment', target_id=ra.id)
-            session.commit()
-            return f"Updated {', '.join(changes)}."
-        return 'No changes.'
 
     def update_room_assignment(self, session, application_id, assignment_id,
                                csrf_token=None, **params):
@@ -3226,8 +3011,9 @@ class Root:
         def fail(msg):
             raise HTTPRedirect('form?id={}&message={}', application_id, msg)
 
-        msg = self._apply_room_assignment_edits(
-            session, ra, params, 'Lottery admin updated', fail)
+        msg = apply_room_assignment_edits(
+            session, ra, params, audit_prefix='Lottery admin updated', fail=fail)
+        session.commit()
         raise HTTPRedirect('form?id={}&message={}', application_id, msg)
 
     def delete_room_assignment(self, session, assignment_id,
@@ -3304,7 +3090,7 @@ class Root:
     def save_room_assignment(self, session, assignment_id,
                              csrf_token=None, **params):
         """Standalone-page version of update_room_assignment. Shares
-        _apply_room_assignment_edits; the standalone page additionally
+        uber.hotel.service.apply_room_assignment_edits; the standalone page additionally
         posts status, hotel confirmation, cancellation, deposit cutoff,
         and special requests, which the shared path picks up because
         they're present in params. Redirects back to the standalone edit
@@ -3320,8 +3106,9 @@ class Root:
             raise HTTPRedirect('edit_room_assignment?id={}&message={}',
                                assignment_id, msg)
 
-        msg = self._apply_room_assignment_edits(
-            session, ra, params, 'Edit page updated', fail)
+        msg = apply_room_assignment_edits(
+            session, ra, params, audit_prefix='Edit page updated', fail=fail)
+        session.commit()
         raise HTTPRedirect('edit_room_assignment?id={}&message={}',
                            assignment_id, msg)
 

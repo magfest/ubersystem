@@ -10,7 +10,6 @@ touching the broader hotel_lottery_admin pages.
 """
 
 from collections import Counter, defaultdict
-from datetime import date
 import logging
 
 import cherrypy
@@ -19,6 +18,9 @@ from uber.config import c
 from uber.decorators import all_renderable, ajax_gettable
 from uber.errors import HTTPRedirect
 from uber.hotel.queries import build_room_assignment_query, paginate
+from uber.hotel.service import (
+    RoomAssignmentError, apply_room_assignment_edits, create_room_assignment,
+)
 from uber.hotel.perms import (
     can_edit_assignments_in,
     can_edit_inventory_in,
@@ -287,39 +289,24 @@ class Root:
                 'dashboard?partition_id={}&tab=assignments&message={}',
                 partition_id, 'Attendee and inventory are required.')
 
-        if inventory_id not in _partition_block_inventory_ids(session, partition_id):
+        try:
+            create_room_assignment(
+                session,
+                attendee_id=attendee_id,
+                inventory_id=inventory_id,
+                partition_id=partition_id,
+                assignment_reason=c.PARTITION_GRANT,
+                status=c.ASSIGNED,
+                require_cc=params.get('require_cc') == 'true',
+                assigned_check_in_date=params.get('assigned_check_in_date', ''),
+                assigned_check_out_date=params.get('assigned_check_out_date', ''),
+                enforce_partition_block=True,
+                audit_description=f"Assigned room to attendee {attendee_id}",
+            )
+        except RoomAssignmentError as e:
             raise HTTPRedirect(
                 'dashboard?partition_id={}&tab=assignments&message={}',
-                partition_id,
-                'That room block is not allocated to this partition.')
-
-        ra = RoomAssignment(
-            attendee_id=attendee_id,
-            inventory_id=inventory_id,
-            partition_id=partition_id,
-            assignment_reason=c.PARTITION_GRANT,
-            status=c.ASSIGNED,
-            require_cc=params.get('require_cc') == 'true',
-        )
-        ci = params.get('assigned_check_in_date', '').strip()
-        co = params.get('assigned_check_out_date', '').strip()
-        if ci:
-            try:
-                ra.assigned_check_in_date = date.fromisoformat(ci)
-            except ValueError:
-                pass
-        if co:
-            try:
-                ra.assigned_check_out_date = date.fromisoformat(co)
-            except ValueError:
-                pass
-        session.add(ra)
-        session.flush()
-        record_partition_audit(
-            session, partition_id,
-            action='assignment.created',
-            description=f"Assigned room to attendee {attendee_id}",
-            target_type='assignment', target_id=ra.id)
+                partition_id, e.message)
         session.commit()
         raise HTTPRedirect(
             'dashboard?partition_id={}&tab=assignments&message={}',
@@ -346,51 +333,17 @@ class Root:
                 target_partition,
                 "You don't have permission to edit this assignment.")
 
-        # Track changes for the audit log.
-        changes = []
-        new_inventory = params.get('inventory_id', '').strip()
-        if new_inventory and new_inventory != assignment.inventory_id:
-            if new_inventory not in _partition_block_inventory_ids(
-                    session, target_partition):
-                raise HTTPRedirect(
-                    'dashboard?partition_id={}&tab=assignments&message={}',
-                    target_partition,
-                    'That room block is not allocated to this partition.')
-            changes.append('block')
-            assignment.inventory_id = new_inventory
-        new_require_cc = params.get('require_cc') == 'true'
-        if new_require_cc != assignment.require_cc:
-            changes.append('billing')
-            assignment.require_cc = new_require_cc
+        def fail(msg):
+            raise HTTPRedirect(
+                'dashboard?partition_id={}&tab=assignments&message={}',
+                target_partition, msg)
 
-        ci = params.get('assigned_check_in_date', '').strip()
-        co = params.get('assigned_check_out_date', '').strip()
-        try:
-            new_ci = date.fromisoformat(ci) if ci else None
-        except ValueError:
-            new_ci = assignment.assigned_check_in_date
-        try:
-            new_co = date.fromisoformat(co) if co else None
-        except ValueError:
-            new_co = assignment.assigned_check_out_date
-        if new_ci != assignment.assigned_check_in_date:
-            changes.append('check-in')
-            assignment.assigned_check_in_date = new_ci
-        if new_co != assignment.assigned_check_out_date:
-            changes.append('check-out')
-            assignment.assigned_check_out_date = new_co
-
-        if changes:
-            session.add(assignment)
-            record_partition_audit(
-                session, target_partition,
-                action='assignment.updated',
-                description=f"Updated {', '.join(changes)}",
-                target_type='assignment', target_id=assignment.id)
-            session.commit()
-            msg = f"Updated {', '.join(changes)}."
-        else:
-            msg = 'No changes.'
+        msg = apply_room_assignment_edits(
+            session, assignment, params,
+            audit_prefix='Updated', fail=fail,
+            allowed_inventory_ids=_partition_block_inventory_ids(
+                session, target_partition))
+        session.commit()
 
         raise HTTPRedirect(
             'dashboard?partition_id={}&tab=assignments&message={}',

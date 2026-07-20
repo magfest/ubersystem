@@ -149,7 +149,7 @@ def import_confirmation_file(session, raw, filename, hotel=None, source='',
     rows, error = parse_confirmation_rows(raw, filename)
     if error:
         record.note = error
-        session.commit()
+        session.flush()
         return {'updated': 0, 'unchanged': 0, 'changes': [], 'error': error}
 
     # (file column, RoomAssignment attribute)
@@ -204,6 +204,170 @@ def import_confirmation_file(session, raw, filename, hotel=None, source='',
     for hotel_id in hotels_imported:
         session.add(HotelExportLog(
             hotel_id=hotel_id, export_type='confirmation_import', record_count=updated))
-    session.commit()
+    session.flush()
 
     return {'updated': updated, 'unchanged': unchanged, 'changes': changes, 'error': None}
+
+
+def match_assignments(session, app_id='', conf=''):
+    """Every RoomAssignment identified by one import row.
+
+    Precedence: `app_id` (lottery_application_id), then `conf` as
+    LotteryApplication.confirmation_num, then `conf` as
+    RoomAssignment.hotel_confirmation_number (expanded to every assignment
+    on the same application, so multi-room bookings stay in sync).
+    Returns [] when nothing matches.
+    """
+    from uber.models import LotteryApplication
+    from uber.models.hotel import RoomAssignment
+
+    app_id = (app_id or '').strip()
+    conf = (conf or '').strip()
+
+    if app_id:
+        ras = session.query(RoomAssignment).filter_by(
+            lottery_application_id=app_id).all()
+        if ras:
+            return ras
+    if conf:
+        app = session.query(LotteryApplication).filter(
+            LotteryApplication.confirmation_num == conf).one_or_none()
+        if app:
+            ras = session.query(RoomAssignment).filter_by(
+                lottery_application_id=app.id).all()
+            if ras:
+                return ras
+        ra = session.query(RoomAssignment).filter_by(
+            hotel_confirmation_number=conf).first()
+        if ra:
+            if ra.lottery_application_id:
+                return session.query(RoomAssignment).filter_by(
+                    lottery_application_id=ra.lottery_application_id).all()
+            return [ra]
+    return []
+
+
+def apply_confirmation_rows(session, rows, apply_changes=True, on_update=None):
+    """Shared row applier for hotel confirmation numbers.
+
+    Row columns: `lottery_application_id` and/or `confirmation_num`
+    identify the booking (see match_assignments); `new_confirmation_num`
+    (preferred) or `hotel_confirmation_number` is the value to write.
+    Rows without a value are skipped. The value is written to EVERY
+    assignment on the matched booking, one preview entry per assignment.
+
+    `on_update(assignment)` is invoked for each assignment actually
+    changed while applying, so each controller keeps its own email
+    behavior (the admin import pages queue a confirmation-updated email;
+    the portal upload does not).
+
+    Flushes, never commits - the caller owns the transaction.
+    Returns {'new', 'changed', 'unchanged', 'unmatched', 'applied'}.
+    """
+    preview = {'new': [], 'changed': [], 'unchanged': [], 'unmatched': [],
+               'applied': 0}
+
+    for row in rows:
+        app_id = (row.get('lottery_application_id') or '').strip()
+        conf = (row.get('confirmation_num') or '').strip()
+        new_conf = ((row.get('new_confirmation_num')
+                     or row.get('hotel_confirmation_number') or '')).strip()
+        if not new_conf:
+            continue
+
+        assignments = match_assignments(session, app_id, conf)
+        if not assignments:
+            preview['unmatched'].append({
+                'lottery_application_id': app_id,
+                'confirmation_num': conf,
+                'new_confirmation_num': new_conf,
+            })
+            continue
+
+        for assignment in assignments:
+            existing = assignment.hotel_confirmation_number or ''
+            if existing == new_conf:
+                preview['unchanged'].append({'assignment': assignment})
+                continue
+
+            bucket = 'changed' if existing else 'new'
+            preview[bucket].append({
+                'assignment': assignment,
+                'old': existing,
+                'new': new_conf,
+            })
+
+            if apply_changes:
+                assignment.hotel_confirmation_number = new_conf
+                session.add(assignment)
+                preview['applied'] += 1
+                if on_update:
+                    on_update(assignment)
+
+    session.flush()
+    return preview
+
+
+def apply_cancellation_rows(session, rows, apply_changes=True):
+    """Shared row applier for hotel cancellation numbers.
+
+    A row's presence means "this booking was cancelled": callers whose
+    file layout lists every booking (like the bookings-export re-import)
+    must pre-filter to rows that actually carry a cancellation number.
+
+    Row columns: `lottery_application_id` and/or `confirmation_num`
+    identify the booking (see match_assignments);
+    `cancellation_confirmation_number` (or `hotel_cancellation_number`)
+    is the hotel's cancel record id, optional - it defaults to 'imported'
+    when applying. Setting it triggers the model presave that flips
+    status to CANCELLED. Applies to EVERY assignment on the matched
+    booking, one preview entry per assignment.
+
+    Flushes, never commits - the caller owns the transaction.
+    Returns {'matched', 'already', 'unmatched', 'applied'}.
+    """
+    preview = {'matched': [], 'already': [], 'unmatched': [], 'applied': 0}
+
+    for row in rows:
+        app_id = (row.get('lottery_application_id') or '').strip()
+        conf = (row.get('confirmation_num') or '').strip()
+        cancel_num = ((row.get('cancellation_confirmation_number')
+                       or row.get('hotel_cancellation_number') or '')).strip()
+        if not app_id and not conf:
+            continue
+
+        assignments = match_assignments(session, app_id, conf)
+        if not assignments:
+            preview['unmatched'].append({
+                'confirmation_num': conf,
+                'cancellation_confirmation_number': cancel_num,
+            })
+            continue
+
+        for assignment in assignments:
+            if assignment.status == c.CANCELLED:
+                preview['already'].append({
+                    'assignment': assignment,
+                    'cancellation_confirmation_number': cancel_num,
+                })
+                if apply_changes and cancel_num \
+                        and not assignment.cancellation_confirmation_number:
+                    assignment.cancellation_confirmation_number = cancel_num
+                    session.add(assignment)
+                    preview['applied'] += 1
+                continue
+
+            preview['matched'].append({
+                'assignment': assignment,
+                'cancellation_confirmation_number': cancel_num,
+            })
+
+            if apply_changes:
+                assignment.cancellation_confirmation_number = cancel_num or 'imported'
+                # The model's cancellation_flips_status presave takes care
+                # of status = CANCELLED.
+                session.add(assignment)
+                preview['applied'] += 1
+
+    session.flush()
+    return preview
