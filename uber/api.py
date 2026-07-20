@@ -1641,7 +1641,7 @@ class HotelLookup:
             "names": c.NIGHT_NAMES
         }
 
-    @api_auth('api_read')
+    @api_auth('api_update')
     def export_room_bookings(self, hotel=None, hotel_name=None):
         """
         Export room booking data including PCI Vault tokens (NOT raw card numbers).
@@ -1652,10 +1652,10 @@ class HotelLookup:
         Identify the hotel by `hotel_name` (its export name or display name) or
         by `hotel` (the LotteryHotel UUID, or a name when called positionally).
 
-        Note: although this endpoint only needs api_read, it records a
-        HotelExportLog row per call - the per-hotel watermark that drives
-        the export's incremental `last_export_time` envelope - so repeated
-        calls observe each other.
+        Requires api_update: each call records a HotelExportLog row - the
+        per-hotel watermark that drives the export's incremental
+        `last_export_time` envelope - and the payload includes vault card
+        tokens, so read-only tokens must not reach it.
         """
 
         with Session() as session:

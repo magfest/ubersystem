@@ -2,7 +2,7 @@ import logging
 import random
 
 import checkdigit.verhoeff as verhoeff
-from datetime import timedelta, datetime, date
+from datetime import timedelta, datetime, date, time
 from pytz import UTC
 from markupsafe import Markup
 import sqlalchemy as sa
@@ -470,13 +470,20 @@ class LotteryApplication(MagModel, table=True):
         # reminder/award emails reference. Fall back to the global staff
         # / attendee guarantee deadline when nothing per-room is set yet
         # (e.g. pre-award, or master-bill rooms exempted from the cron).
+        #
+        # Always returns a tz-aware datetime: the per-room cutoff is a bare
+        # date column, but consumers (`days_before` email filters,
+        # `|datetime_local`) require a datetime, so a date-based deadline
+        # means end of that day, event-local.
         if self.attendee:
             unsecured_cutoffs = [
                 ra.deposit_cutoff_date for ra in (self.attendee.room_assignments or [])
                 if ra.status == c.ASSIGNED and ra.require_cc and ra.deposit_cutoff_date
             ]
             if unsecured_cutoffs:
-                return min(unsecured_cutoffs)
+                cutoff = min(unsecured_cutoffs)
+                return c.EVENT_TIMEZONE.localize(
+                    datetime.combine(cutoff, time(23, 59)))
 
         if c.HOTEL_LOTTERY_STAFF_GUARANTEE_DUE and (
                 self.is_staff_entry or c.STAFF_HOTEL_LOTTERY_OPEN and self.qualifies_for_staff_lottery):
@@ -977,18 +984,38 @@ class RoomAssignment(MagModel, table=True):
                              if m.attendee)
         return occupants
 
-    @property
+    @hybrid_property
     def needs_card(self):
         """True iff this room still requires a credit-card guarantee
         and none has been captured yet - i.e. a self-pay room that's
         ASSIGNED (awaiting a card) with no token on file. Once secured
         (cc_token set, status SECURED) or on master bill, this is False.
 
-        Templates use this to flag unsecured rooms and to decide when to
-        surface the card deadline (`deposit_cutoff_date`)."""
+        The single definition of "unsecured" - templates use it to flag
+        rooms and surface the card deadline, and the expiry cron filters
+        on the SQL expression, so the room the cron would expire is
+        always the room the UI shows as needing a card."""
         return bool(self.require_cc
                     and self.status == c.ASSIGNED
                     and not self.cc_token)
+
+    @needs_card.expression
+    def needs_card(cls):
+        return sa.and_(cls.require_cc.is_(True),
+                       cls.status == c.ASSIGNED,
+                       sa.or_(cls.cc_token.is_(None), cls.cc_token == ''))
+
+    @property
+    def is_orphan_connector(self):
+        """True for a connector room whose parent suite is no longer held
+        live by the same attendee (deleted, cancelled, or transferred) -
+        the suite-plus-connector pairing this room was awarded with has
+        broken, and the attendee-facing pages flag it."""
+        if not self.parent_assignment_id:
+            return False
+        parent = self.parent_assignment
+        return not (parent and parent.is_live
+                    and parent.attendee_id == self.attendee_id)
 
     @property
     def card_deadline(self):
@@ -1455,9 +1482,19 @@ class HotelImportFile(MagModel, table=True):
 from sqlalchemy import event as _sa_event  # noqa: E402
 
 
+# Both listeners apply the same live-only predicate as the canonical
+# `LotteryApplication.sync_award_status`: only rows whose status is in
+# HOTEL_LIVE_ASSIGNMENT_STATUSES count toward "this app holds a room".
+# (The listeners run on raw connections, so they use the status tuple
+# directly rather than the `is_live` hybrid.)
+
 @_sa_event.listens_for(RoomAssignment, 'after_insert')
 def _ra_after_insert_promote_app(mapper, connection, target):
     if not target.lottery_application_id:
+        return
+    if target.status not in c.HOTEL_LIVE_ASSIGNMENT_STATUSES:
+        # Inserting an already-cancelled/expired row (imports, seeds)
+        # must not promote the application.
         return
     connection.execute(
         sa.update(LotteryApplication.__table__)
@@ -1471,16 +1508,21 @@ def _ra_after_insert_promote_app(mapper, connection, target):
 def _ra_after_delete_demote_app(mapper, connection, target):
     if not target.lottery_application_id:
         return
-    remaining = connection.execute(
+    remaining_live = connection.execute(
         sa.select(sa.func.count())
         .select_from(RoomAssignment.__table__)
         .where(RoomAssignment.__table__.c.lottery_application_id == target.lottery_application_id)
         .where(RoomAssignment.__table__.c.id != target.id)
+        .where(RoomAssignment.__table__.c.status.in_(c.HOTEL_LIVE_ASSIGNMENT_STATUSES))
     ).scalar() or 0
-    if remaining == 0:
+    if remaining_live == 0:
+        # Mirrors sync_award_status: deleting the last live row demotes
+        # AWARDED or PROCESSED back to COMPLETE and detaches the run, even
+        # when cancelled/expired siblings linger (the common case, since
+        # expired rows are retained).
         connection.execute(
             sa.update(LotteryApplication.__table__)
             .where(LotteryApplication.__table__.c.id == target.lottery_application_id)
-            .where(LotteryApplication.__table__.c.status == c.AWARDED)
-            .values(status=c.COMPLETE)
+            .where(LotteryApplication.__table__.c.status.in_((c.AWARDED, c.PROCESSED)))
+            .values(status=c.COMPLETE, lottery_run_id=None)
         )

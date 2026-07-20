@@ -58,13 +58,16 @@ def _require_unlocked(ra, attendee_id=''):
                     'and can no longer be edited from here.'))
 
 
-def room_action(func):
+def room_action(func=None, *, allow='leader'):
     """Boilerplate wrapper for POST-only per-room mutations.
 
     Handles what every such handler repeats by hand: bounce GETs back to
     the room page, check CSRF, resolve `assignment_id` to a RoomAssignment
-    (consistent "Room not found." redirect), and refuse export-locked
-    rooms. The wrapped handler receives the resolved row as `ra`:
+    (consistent "Room not found." redirect), refuse export-locked rooms,
+    and verify the acting viewer may touch the room at all. By default
+    only the room leader (booker) or a Hotel Lottery Admin passes;
+    `allow='occupant'` also admits current occupants (e.g. leaving a
+    room). The wrapped handler receives the resolved row as `ra`:
 
         @requires_account(Attendee)
         @room_action
@@ -72,20 +75,53 @@ def room_action(func):
     """
     from functools import wraps
 
-    @wraps(func)
-    def wrapper(self, session, assignment_id=None, attendee_id='',
-                csrf_token=None, **params):
-        from uber.utils import check_csrf
-        if cherrypy.request.method != 'POST':
-            raise HTTPRedirect(_room_url(assignment_id or '', attendee_id))
-        check_csrf(csrf_token)
-        ra = (session.query(RoomAssignment).get(assignment_id)
-              if assignment_id else None)
-        if not ra:
-            raise HTTPRedirect('rooms?message={}', 'Room not found.')
-        _require_unlocked(ra, attendee_id)
-        return func(self, session, ra=ra, attendee_id=attendee_id, **params)
-    return wrapper
+    def decorate(fn):
+        @wraps(fn)
+        def wrapper(self, session, assignment_id=None, attendee_id='',
+                    csrf_token=None, **params):
+            from uber.utils import check_csrf
+            if cherrypy.request.method != 'POST':
+                raise HTTPRedirect(_room_url(assignment_id or '', attendee_id))
+            check_csrf(csrf_token)
+            ra = (session.query(RoomAssignment).get(assignment_id)
+                  if assignment_id else None)
+            if not ra:
+                raise HTTPRedirect('rooms?message={}', 'Room not found.')
+            _require_unlocked(ra, attendee_id)
+            _require_room_access(session, ra, attendee_id,
+                                 allow_occupant=(allow == 'occupant'))
+            return fn(self, session, ra=ra, attendee_id=attendee_id, **params)
+        return wrapper
+
+    if func is not None:
+        return decorate(func)
+    return decorate
+
+
+def _require_room_access(session, ra, attendee_id='', allow_occupant=False):
+    """Ownership gate for per-room mutations: the acting viewer must be
+    the room's leader (booker), or with allow_occupant=True a current
+    occupant. Hotel Lottery Admins always pass. The read path enforces
+    the same rule in `_render_room_detail`; every write path must apply
+    it too, or any logged-in attendee holding an assignment UUID could
+    edit someone else's room.
+    """
+    from uber.lottery_perms import is_lottery_admin
+    if is_lottery_admin():
+        return
+    if attendee_id:
+        _require_view_as_attendee(session, attendee_id)
+        viewer = session.attendee(attendee_id)
+    else:
+        viewer = _viewer_attendee(session)
+    if viewer:
+        if viewer.id == ra.attendee_id:
+            return
+        if allow_occupant and any(
+                o.id == viewer.id for o in (ra.occupants or [])):
+            return
+    raise HTTPRedirect('rooms?message={}',
+                       'You do not have access to that room.')
 
 
 def _open_seats(session, ra):
@@ -549,6 +585,9 @@ class Root:
                 raise HTTPRedirect(_room_url(target_id, attendee_id, message=msg))
             raise HTTPRedirect('rooms?attendee_id={}&message={}', attendee_id, msg)
 
+        # attendee_id is caller-supplied: the viewer must be allowed to act
+        # as that attendee before we treat their rooms as the viewer's own.
+        _require_view_as_attendee(session, attendee_id)
         attendee = session.attendee(attendee_id)
         source = session.query(RoomAssignment).get(source_id)
         target = session.query(RoomAssignment).get(target_id)
@@ -733,6 +772,8 @@ class Root:
         invite = session.query(RoomAssignmentInvite).get(invite_id)
         if not invite:
             raise HTTPRedirect('rooms')
+        # Only the room's leader may cancel its invites.
+        _require_room_access(session, invite.room_assignment, attendee_id)
         assignment_id = invite.room_assignment_id
         session.delete(invite)
         session.commit()
@@ -907,7 +948,7 @@ class Root:
             message='Occupant removed.'))
 
     @requires_account(Attendee)
-    @room_action
+    @room_action(allow='occupant')
     def leave_room(self, session, ra, attendee_id='', **params):
         # Whoever's logged in removes themselves; refuse for the booker.
         viewer = _viewer_attendee(session)
@@ -989,21 +1030,12 @@ class Root:
             message='Special requests updated.'))
 
     @requires_account(Attendee)
-    def save_billing_address(self, session, assignment_id, attendee_id='',
-                             csrf_token=None, **params):
+    @room_action
+    def save_billing_address(self, session, ra, attendee_id='', **params):
         """Save the billing address for the card on this room. Same
         per-room write pattern as the other section saves; the address
         is captured during the secure flow but editable here too so
         attendees can correct it without re-entering their card."""
-        from uber.utils import check_csrf
-        if cherrypy.request.method != 'POST':
-            raise HTTPRedirect(_room_url(assignment_id, attendee_id))
-        check_csrf(csrf_token)
-        ra = session.query(RoomAssignment).get(assignment_id)
-        if not ra:
-            raise HTTPRedirect('rooms?message={}', 'Room not found.')
-        _require_unlocked(ra, attendee_id)
-
         ra.address1 = (params.get('address1', '') or '').strip()
         ra.address2 = (params.get('address2', '') or '').strip()
         ra.city = (params.get('city', '') or '').strip()
@@ -1013,7 +1045,7 @@ class Root:
         session.add(ra)
         session.commit()
         raise HTTPRedirect(_room_url(
-            assignment_id, attendee_id,
+            ra.id, attendee_id,
             message='Billing address updated.'))
 
     @requires_account(Attendee)
@@ -1031,6 +1063,7 @@ class Root:
         if not ra:
             raise HTTPRedirect('rooms?message={}', 'Room not found.')
         _require_unlocked(ra, attendee_id)
+        _require_room_access(session, ra, attendee_id)
 
         ids = [i.strip() for i in (source_attendee_ids or '').split(',') if i.strip()]
         if not ids:

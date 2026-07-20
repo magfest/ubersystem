@@ -2382,8 +2382,13 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
 
     @hotel_lottery_eligible.expression
     def hotel_lottery_eligible(cls):
+        # Must exclude the same statuses as the Python property above -
+        # the solver pool and exports query through this expression, and a
+        # mismatch lets an attendee win a room the property says they
+        # can't hold.
         return and_(cls.is_valid == True, cls.is_unassigned == False, cls.placeholder == False,
-                    not_(cls.badge_status.in_([c.REFUNDED_STATUS, c.NOT_ATTENDING, c.DEFERRED_STATUS])))
+                    not_(cls.badge_status.in_([c.REFUNDED_STATUS, c.NOT_ATTENDING,
+                                               c.DEFERRED_STATUS, c.WATCHED_STATUS])))
 
     @property
     def staff_hotel_lottery_eligible(self):

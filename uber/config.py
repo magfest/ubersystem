@@ -1072,7 +1072,16 @@ class Config(_Overridable):
             with Session() as session:
                 attrs = Attendee.to_dict_default_attrs + ['logged_in_name']
                 attendee = session.volunteer_from_id(cherrypy.session.get('staffer_id'))
-                return attendee.to_dict(attrs)
+                data = attendee.to_dict(attrs)
+                # to_dict only serializes column attrs cleanly; the shifts
+                # page's compliance banner needs these computed properties,
+                # so serialize them by hand (violations are model rows).
+                data['weighted_hours'] = attendee.weighted_hours
+                data['shift_compliance_violations'] = [
+                    {'night_date': req.night_date,
+                     'required_weighted_hours': req.required_weighted_hours}
+                    for req in attendee.shift_compliance_violations]
+                return data
         except Exception:
             return {}
 

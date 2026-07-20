@@ -1107,100 +1107,103 @@ if c.HOTEL_LOTTERY_STAFF_START or c.HOTEL_LOTTERY_FORM_START:
         'hotel_lottery_secured'
     )
 
-    HotelLotteryEmailFixture(
-        f'{c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM} Disbanded',
-        'hotel/removed_from_group.html', None,
-        'hotel_lottery_group_removed'
-    )
+# Transactional lottery/room emails, queued directly via
+# EmailService.queue_email (filter=None: the automated sweep never sends
+# them). Registered unconditionally - manually-granted and partition rooms
+# exist even when the lottery date settings are blank, and a fixture that
+# isn't registered makes queue_email silently drop the send.
+HotelLotteryEmailFixture(
+    f'{c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM} Disbanded',
+    'hotel/removed_from_group.html', None,
+    'hotel_lottery_group_removed'
+)
 
-    HotelLotteryEmailFixture(
-        f'{c.EVENT_NAME_AND_YEAR} ' + '{app.entry_type_label} Lottery Confirmation',
-        'hotel/hotel_lottery_entry.html', None,
-        'hotel_lottery_confirmation'
-    )
+HotelLotteryEmailFixture(
+    f'{c.EVENT_NAME_AND_YEAR} ' + '{app.entry_type_label} Lottery Confirmation',
+    'hotel/hotel_lottery_entry.html', None,
+    'hotel_lottery_confirmation'
+)
 
-    HotelLotteryEmailFixture(
-        f'{c.EVENT_NAME_AND_YEAR} Room Lottery Updated',
-        'hotel/group_entry_updated.html', None,
-        'group_lottery_updated'
-    )
+HotelLotteryEmailFixture(
+    f'{c.EVENT_NAME_AND_YEAR} Room Lottery Updated',
+    'hotel/group_entry_updated.html', None,
+    'group_lottery_updated'
+)
 
-    HotelLotteryEmailFixture(
-        '{app.attendee.first_name} ' + f'has left your {c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM}',
-        'hotel/group_member_left.html', None,
-        'hotel_lottery_group_member_left'
-    )
+HotelLotteryEmailFixture(
+    '{app.attendee.first_name} ' + f'has left your {c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM}',
+    'hotel/group_member_left.html', None,
+    'hotel_lottery_group_member_left'
+)
 
-    HotelLotteryEmailFixture(
-        f'{c.EVENT_NAME_AND_YEAR} Lottery Entry Cancelled',
-        'hotel/lottery_entry_cancelled.html', None,
-        'hotel_lottery_cancelled'
-    )
+HotelLotteryEmailFixture(
+    f'{c.EVENT_NAME_AND_YEAR} Lottery Entry Cancelled',
+    'hotel/lottery_entry_cancelled.html', None,
+    'hotel_lottery_cancelled'
+)
 
-    HotelLotteryEmailFixture(
-        f'{c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM} Leader Changed',
-        'hotel/group_new_leader.html', None,
-        'group_lottery_leader_changed'
-    )
+HotelLotteryEmailFixture(
+    f'{c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM} Leader Changed',
+    'hotel/group_new_leader.html', None,
+    'group_lottery_leader_changed'
+)
 
-    HotelLotteryEmailFixture(
-        f'Someone has joined your {c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM}',
-        'hotel/group_member_joined.html', None,
-        'group_lottery_member_joined'
-    )
+HotelLotteryEmailFixture(
+    f'Someone has joined your {c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM}',
+    'hotel/group_member_joined.html', None,
+    'group_lottery_member_joined'
+)
 
-    # Transactional lottery emails queued directly via EmailService.queue_email
-    # (filter=None: they are not sent by the automated sweep).
-    HotelLotteryEmailFixture(
-        f'You have a room at {c.EVENT_NAME}',
-        'hotel/room_occupant_invite.html', None,
-        'room_occupant_invite'
-    )
-    HotelLotteryEmailFixture(
-        f'Someone joined your {c.EVENT_NAME} room',
-        'hotel/room_occupant_joined.html', None,
-        'room_occupant_joined'
-    )
-    HotelLotteryEmailFixture(
-        f'You have been invited to a room at {c.EVENT_NAME}',
-        'hotel/room_guest_invite.html', None,
-        'room_guest_invite'
-    )
-    HotelLotteryEmailFixture(
-        f'Still interested in a {c.EVENT_NAME_AND_YEAR} hotel room?',
-        'hotel/confirm_interest_request.html', None,
-        'hotel_lottery_confirm_interest'
-    )
-    HotelLotteryEmailFixture(
-        f'{c.EVENT_NAME_AND_YEAR} Hotel Reservation Updated',
-        'hotel/confirmation_updated.html', None,
-        'hotel_lottery_confirmation_updated'
-    )
-    HotelLotteryEmailFixture(
-        f'A {c.EVENT_NAME_AND_YEAR} hotel preference is no longer available',
-        'hotel/inventory_changed_applicant.html', None,
-        'hotel_lottery_inventory_changed_applicant'
-    )
-    HotelLotteryEmailFixture(
-        f'{c.EVENT_NAME_AND_YEAR} hotel inventory changed',
-        'hotel/inventory_changed_owner.html', None,
-        'hotel_lottery_inventory_changed_owner'
-    )
-    HotelLotteryEmailFixture(
-        f'{c.EVENT_NAME} Hotel Lottery - Room Dates Updated',
-        'hotel/waitlist_fulfilled.html', None,
-        'hotel_lottery_waitlist_fulfilled'
-    )
-    HotelLotteryEmailFixture(
-        f'{c.EVENT_NAME_AND_YEAR} hotel waitlist',
-        'hotel/waitlist_reveal.html', None,
-        'hotel_lottery_waitlist_reveal'
-    )
-    HotelLotteryEmailFixture(
-        f'Your {c.EVENT_NAME_AND_YEAR} hotel room has been released',
-        'hotel/room_expired.html', None,
-        'hotel_lottery_room_expired'
-    )
+HotelLotteryEmailFixture(
+    f'You have a room at {c.EVENT_NAME}',
+    'hotel/room_occupant_invite.html', None,
+    'room_occupant_invite'
+)
+HotelLotteryEmailFixture(
+    f'Someone joined your {c.EVENT_NAME} room',
+    'hotel/room_occupant_joined.html', None,
+    'room_occupant_joined'
+)
+HotelLotteryEmailFixture(
+    f'You have been invited to a room at {c.EVENT_NAME}',
+    'hotel/room_guest_invite.html', None,
+    'room_guest_invite'
+)
+HotelLotteryEmailFixture(
+    f'Still interested in a {c.EVENT_NAME_AND_YEAR} hotel room?',
+    'hotel/confirm_interest_request.html', None,
+    'hotel_lottery_confirm_interest'
+)
+HotelLotteryEmailFixture(
+    f'{c.EVENT_NAME_AND_YEAR} Hotel Reservation Updated',
+    'hotel/confirmation_updated.html', None,
+    'hotel_lottery_confirmation_updated'
+)
+HotelLotteryEmailFixture(
+    f'A {c.EVENT_NAME_AND_YEAR} hotel preference is no longer available',
+    'hotel/inventory_changed_applicant.html', None,
+    'hotel_lottery_inventory_changed_applicant'
+)
+HotelLotteryEmailFixture(
+    f'{c.EVENT_NAME_AND_YEAR} hotel inventory changed',
+    'hotel/inventory_changed_owner.html', None,
+    'hotel_lottery_inventory_changed_owner'
+)
+HotelLotteryEmailFixture(
+    f'{c.EVENT_NAME} Hotel Lottery - Room Dates Updated',
+    'hotel/waitlist_fulfilled.html', None,
+    'hotel_lottery_waitlist_fulfilled'
+)
+HotelLotteryEmailFixture(
+    f'{c.EVENT_NAME_AND_YEAR} hotel waitlist',
+    'hotel/waitlist_reveal.html', None,
+    'hotel_lottery_waitlist_reveal'
+)
+HotelLotteryEmailFixture(
+    f'Your {c.EVENT_NAME_AND_YEAR} hotel room has been released',
+    'hotel/room_expired.html', None,
+    'hotel_lottery_room_expired'
+)
 
 
 # =============================

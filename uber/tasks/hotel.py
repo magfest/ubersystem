@@ -25,9 +25,8 @@ def expire_unsecured_assignments():
     """Move RoomAssignments past their card deadline to EXPIRED.
 
     Runs hourly. Targets only rows that:
-      - are still ASSIGNED (not yet secured, expired, or cancelled),
-      - require_cc (master-bill rooms are exempt),
-      - have no CC token captured,
+      - still need a card (`RoomAssignment.needs_card`: ASSIGNED,
+        require_cc, no token - the same predicate the UI shows), and
       - have a deposit_cutoff_date strictly in the past, measured in the
         event's timezone (deadlines are documented as end-of-day local).
 
@@ -39,9 +38,7 @@ def expire_unsecured_assignments():
     expired_count = 0
     with Session() as session:
         candidates = session.query(RoomAssignment).filter(
-            RoomAssignment.status == c.ASSIGNED,
-            RoomAssignment.require_cc.is_(True),
-            RoomAssignment.cc_captured_at.is_(None),
+            RoomAssignment.needs_card,
             RoomAssignment.deposit_cutoff_date.isnot(None),
             RoomAssignment.deposit_cutoff_date < today,
         ).all()
@@ -73,16 +70,30 @@ def expire_unsecured_assignments():
             # Notify each attendee, one email per released room (each room
             # is its own booking end to end). Rooms with no lottery
             # application (manual / partition grants) go to the attendee
-            # directly.
+            # directly. `data` must stay JSON-safe scalars: queue_email
+            # dict-serializes models (dropping relationships and
+            # stringifying dates), which breaks template rendering.
             for ra in candidates:
                 to_model = ra.lottery_application or ra.attendee
                 if not to_model:
                     continue
+                inv = ra.inventory
                 try:
                     EmailService.queue_email(
                         session, 'hotel_lottery_room_expired', to_model,
-                        data={'assignment': ra,
-                              'app': ra.lottery_application})
+                        data={
+                            'hotel_name': (inv.hotel.name
+                                           if inv and inv.hotel else ''),
+                            'deadline_display': (
+                                ra.deposit_cutoff_date.strftime('%A, %B %-d, %Y')
+                                if ra.deposit_cutoff_date else ''),
+                            'check_in_display': (
+                                ra.assigned_check_in_date.strftime('%m/%d/%Y')
+                                if ra.assigned_check_in_date else ''),
+                            'check_out_display': (
+                                ra.assigned_check_out_date.strftime('%m/%d/%Y')
+                                if ra.assigned_check_out_date else ''),
+                        })
                 except Exception:
                     log.exception(
                         'expire_unsecured_assignments: could not queue '

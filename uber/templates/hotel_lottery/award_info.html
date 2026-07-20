@@ -7,10 +7,6 @@
 
 {% if _rooms %}
 {% set _has_suite = _rooms|selectattr('inventory.is_suite')|list|length > 0 %}
-{# Build the id-set of rooms the attendee actually holds so we can
-   flag any connector whose parent isn't in here (i.e. orphan - the
-   parent suite was deleted, cancelled, or transferred). #}
-{% set _attendee_assignment_ids = _rooms|map(attribute='id')|list %}
 <h3>
   {{ 'Suite' if _has_suite else 'Room' }} Award Information
   <small class="text-muted">({{ _rooms|length }} room{{ 's' if _rooms|length != 1 else '' }} awarded)</small>
@@ -19,7 +15,7 @@
 <div class="row g-3 mb-3">
 {% for ra in _rooms %}
   {% set inv = ra.inventory %}
-  {% set _orphan = (ra.parent_assignment_id and ra.parent_assignment_id not in _attendee_assignment_ids) %}
+  {% set _orphan = ra.is_orphan_connector %}
   <div class="col-md-6">
     <div class="card h-100{% if _orphan %} border-warning{% endif %}">
       <div class="card-body">

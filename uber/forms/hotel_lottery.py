@@ -1,3 +1,5 @@
+import logging
+
 from markupsafe import Markup
 from wtforms import (BooleanField, DateField, HiddenField, SelectField, SelectMultipleField,
                      IntegerField, StringField, URLField, validators, TextAreaField, TelField)
@@ -8,6 +10,8 @@ from uber.config import c
 from uber.forms import (MagForm, CustomValidation, Ranking, SelectBooleanField)
 from uber.custom_tags import readable_join
 from uber.model_checks import invalid_phone_number
+
+log = logging.getLogger(__name__)
 
 
 __all__ = ['LotteryInfo', 'LotteryConfirm', 'LotteryRoomGroup', 'RoomLottery', 'SuiteLottery', 'LotteryAdminInfo',
@@ -66,18 +70,15 @@ def _priority_ranking_choices():
     return list(c.HOTEL_LOTTERY_PRIORITIES_OPTS)
 
 
-class LotteryInfo(MagForm):
-    # `hotel_first_name` / `hotel_last_name` live on the Attendee: one
-    # legal name per attendee, applied to every room they book or occupy.
-    # The form fields are named to match so WTForms can bind them;
-    # `populate_obj` / `process_obj` below read/write the linked attendee.
-    hotel_first_name = StringField('First Name on ID')
-    hotel_last_name = StringField('Last Name on ID')
-    cellphone = TelField('Phone Number', render_kw={'placeholder': 'A phone number for the hotel to contact you.'})
-    terms_accepted = BooleanField('I understand, agree to, and will abide by the lottery policies.', default=False)
-    data_policy_accepted = BooleanField(
-        'I understand and agree that my registration information will be used as part of the hotel lottery.',
-        default=False)
+class AttendeeHotelNameMixin:
+    """`hotel_first_name` / `hotel_last_name` live on the Attendee - one
+    legal name per attendee, applied to every room they book or occupy -
+    while the rest of the form binds to the LotteryApplication. This mixin
+    prefills the two fields from the attendee and, on save, routes them
+    back onto the attendee, leaving every other field to MagForm's
+    standard flow (locked-field enforcement, coercion, aliases, dry_run).
+    """
+    ATTENDEE_NAME_FIELDS = ('hotel_first_name', 'hotel_last_name')
 
     def process(self, formdata=None, obj=None, data=None, extra_filters=None, **kwargs):
         # Pre-fill from the attendee's hotel-name override (or the
@@ -90,22 +91,40 @@ class LotteryInfo(MagForm):
         super().process(formdata=formdata, obj=obj, data=data,
                         extra_filters=extra_filters, **kwargs)
 
-    def populate_obj(self, app, is_admin=False):
-        # Write `hotel_first_name` / `hotel_last_name` straight onto the
-        # attendee; everything else lands on the lottery application as
-        # usual.
-        first = self.hotel_first_name.data
-        last = self.hotel_last_name.data
-        # Strip our two fields off the WTForms iteration so MagForm's
-        # default populate_obj doesn't try to set them on the app.
-        skip = {'hotel_first_name', 'hotel_last_name'}
-        for name, field in self._fields.items():
-            if name in skip:
+    def populate_obj(self, app, is_admin=False, dry_run=False):
+        # Hide the attendee-backed fields from MagForm's iteration (the
+        # application has no such columns), run the standard flow for
+        # everything else, then write the names onto the attendee -
+        # honoring the same lock rules the base flow enforces.
+        fields = self._fields
+        try:
+            self._fields = {name: field for name, field in fields.items()
+                            if name not in self.ATTENDEE_NAME_FIELDS}
+            super().populate_obj(app, is_admin=is_admin, dry_run=dry_run)
+        finally:
+            self._fields = fields
+
+        if dry_run or getattr(app, 'attendee', None) is None:
+            return
+        locked = [] if is_admin else self.get_non_admin_locked_fields(app)
+        for name in self.ATTENDEE_NAME_FIELDS:
+            value = (self._fields[name].data or '').strip()
+            current = getattr(app.attendee, name, '')
+            if name in locked and current and value != current:
+                log.warning("Someone tried to edit their %s value, but it "
+                            "was locked.", name)
                 continue
-            field.populate_obj(app, name)
-        if app.attendee is not None:
-            app.attendee.hotel_first_name = (first or '').strip()
-            app.attendee.hotel_last_name = (last or '').strip()
+            setattr(app.attendee, name, value)
+
+
+class LotteryInfo(AttendeeHotelNameMixin, MagForm):
+    hotel_first_name = StringField('First Name on ID')
+    hotel_last_name = StringField('Last Name on ID')
+    cellphone = TelField('Phone Number', render_kw={'placeholder': 'A phone number for the hotel to contact you.'})
+    terms_accepted = BooleanField('I understand, agree to, and will abide by the lottery policies.', default=False)
+    data_policy_accepted = BooleanField(
+        'I understand and agree that my registration information will be used as part of the hotel lottery.',
+        default=False)
 
     def get_non_admin_locked_fields(self, app):
         locked_fields = super().get_non_admin_locked_fields(app)
@@ -205,7 +224,7 @@ def _partition_choices():
         return choices
 
 
-class LotteryAdminInfo(SuiteLottery):
+class LotteryAdminInfo(AttendeeHotelNameMixin, SuiteLottery):
     # Per-room admin fields (assigned_inventory_id, assigned_check_in_date,
     # assigned_check_out_date, booking_url, etc.) are not on this form; the
     # hotel-lottery admin form has a separate Rooms section backed directly

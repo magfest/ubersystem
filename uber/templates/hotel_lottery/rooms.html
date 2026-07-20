@@ -68,7 +68,7 @@
           {% if room.parent_assignment_id %}
             <span class="badge bg-info text-dark ms-1">Connector</span>
           {% endif %}
-          {% if room.parent_assignment_id %}
+          {% if room.is_orphan_connector %}
             <span class="badge bg-warning text-dark ms-1"
                   title="This connector room's parent suite isn't on your account anymore.">
               <i class="fa fa-exclamation-triangle"></i> Missing parent suite

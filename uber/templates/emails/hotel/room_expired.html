@@ -1,32 +1,35 @@
 {# Bare-fragment email body, matching every other template in
-   `emails/hotel/`. Queued directly by the expire_unsecured_assignments
-   cron with data={'assignment': ra, 'app': ra.lottery_application}.
-   `app` is None for department / partition / manual rooms. #}
+   `emails/hotel/`. Queued by the expire_unsecured_assignments cron.
 
-{% set _to = (app.attendee if app else assignment.attendee) %}
-{% set _inv = assignment.inventory %}
+   The to_model is the LotteryApplication (exposed here as `app`) or,
+   for department / partition / manual rooms with no application, the
+   Attendee (exposed as `attendee`). Everything room-specific arrives as
+   pre-formatted JSON-safe strings in the render data - live models
+   passed via `data` get dict-serialized by the queue and would break
+   rendering. #}
+
+{% set _app = app|default(none) %}
+{% set _to = _app.attendee if _app else attendee %}
 <p>Hello {{ _to.first_name }},</p>
 
 <p>
   Your {{ c.EVENT_NAME_AND_YEAR }} hotel room reservation
-  {% if _inv %}
-  at <strong>{{ _inv.hotel.name if _inv.hotel else 'the event hotel' }}</strong>
+  {% if hotel_name %}
+  at <strong>{{ hotel_name }}</strong>
   {% endif %}
   has been <strong>released</strong> because a payment card was not
   provided by the guarantee deadline
-  {%- if assignment.deposit_cutoff_date %} of
-  {{ assignment.deposit_cutoff_date.strftime('%A, %B %-d, %Y') }}{% endif %}.
+  {%- if deadline_display %} of {{ deadline_display }}{% endif %}.
 </p>
 
-{% if assignment.assigned_check_in_date and assignment.assigned_check_out_date %}
+{% if check_in_display and check_out_display %}
 <p>
   The released reservation was for
-  {{ assignment.assigned_check_in_date.strftime('%m/%d/%Y') }} to
-  {{ assignment.assigned_check_out_date.strftime('%m/%d/%Y') }}.
+  {{ check_in_display }} to {{ check_out_display }}.
 </p>
 {% endif %}
 
-{% if app and app.status == c.COMPLETE %}
+{% if _app and _app.status == c.COMPLETE %}
 <p>
   Your hotel lottery entry is still active: it will automatically be
   considered in any future lottery runs, and you will be notified if you

@@ -184,16 +184,27 @@ def solve_lottery(applications, hotel_rooms, lottery_type=c.ROOM_ENTRY,
                 continue
             nq = hr.get("night_quantities", {})
             for night_iso in sorted(all_nights):
-                night_qty = nq.get(night_iso, 0)
-                if night_qty <= 0:
-                    continue
+                # A night missing from night_quantities falls back to the
+                # block's flat quantity (admin form: "leave blank to use
+                # the default"); only an explicit 0 closes the night. A
+                # block with no per-night data at all must still be
+                # capacity-constrained here, or mixed configurations
+                # would let the solver award unlimited rooms from it.
+                night_qty = nq.get(night_iso, hr["quantity"])
                 night_date = date.fromisoformat(night_iso)
                 night_vars = [
                     cv for cv, entry in inv_vars
                     if entry["check_in"] and entry["check_out"]
                     and entry["check_in"] <= night_date < entry["check_out"]
                 ]
-                if night_vars:
+                if not night_vars:
+                    continue
+                if night_qty <= 0:
+                    # Sold-out/closed night: forbid awards outright. A
+                    # skipped constraint would leave the night
+                    # UNconstrained and let the solver oversubscribe it.
+                    solver.Add(sum(night_vars) == 0)
+                else:
                     solver.Add(sum(night_vars) <= night_qty)
     else:
         # Fallback when no per-night data is available.

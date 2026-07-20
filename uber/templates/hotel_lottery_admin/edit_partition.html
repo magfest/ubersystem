@@ -99,8 +99,8 @@
   {%- endif -%}
 {%- endmacro %}
 
-{% macro _level_select(name, current='none', allow_edit=True, cls='form-select form-select-sm') -%}
-  <select class="{{ cls }}" name="{{ name }}">
+{% macro _level_select(name, current='none', allow_edit=True, cls='form-select form-select-sm', form='') -%}
+  <select class="{{ cls }}" name="{{ name }}"{% if form %} form="{{ form }}"{% endif %}>
     <option value="none" {% if current == 'none' %}selected{% endif %}>None</option>
     <option value="view" {% if current == 'view' %}selected{% endif %}>View only</option>
     {% if allow_edit %}<option value="edit" {% if current == 'edit' %}selected{% endif %}>Edit</option>{% endif %}
@@ -129,41 +129,51 @@
     </tr>
   </thead>
   <tbody>
+    {# A <form> may not span table cells - browsers hoist it out of the
+       row and the controls lose their form association. Instead each
+       row's controls point at an out-of-table form element via the
+       HTML5 form= attribute (same pattern as partition_owners.html). #}
     {% for g in grants %}
+    {% set _form_id = 'grant-form-' ~ g.id %}
     <tr>
-      <form method="post" action="edit_partition_owner">
-        {{ csrf_token() }}
-        <input type="hidden" name="id" value="{{ g.id }}" />
-        <input type="hidden" name="partition_id" value="{{ partition.id }}" />
-        <input type="hidden" name="admin_account_id" value="{{ g.admin_account_id }}" />
-        <input type="hidden" name="return_to" value="edit_partition" />
-        <td>
-          {% if g.admin_account and g.admin_account.attendee %}
-            {{ hotel_macros.attendee_cell(g.admin_account.attendee) }}
-            <br/><small><a href="edit_partition_owner?id={{ g.id }}">Grant editor</a></small>
-          {% else %}
-            <em>(orphan)</em>
-          {% endif %}
-        </td>
-        {% for field, view_f, edit_f, _label in scope_cols %}
-        <td>{{ _level_select(field, current=_resolve_level(g, view_f, edit_f), allow_edit=(edit_f is not none)) }}</td>
-        {% endfor %}
-        <td class="text-end" style="white-space: nowrap;">
-          <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
-      </form>
-      <form method="post" action="delete_partition_owner" class="d-inline"
-            onsubmit="return confirm('Revoke this grant?');">
-        {{ csrf_token() }}
-        <input type="hidden" name="id" value="{{ g.id }}" />
-        <input type="hidden" name="return_to" value="edit_partition" />
-        <button type="submit" class="btn btn-sm btn-outline-danger">Revoke</button>
-      </form>
-        </td>
+      <td>
+        {% if g.admin_account and g.admin_account.attendee %}
+          {{ hotel_macros.attendee_cell(g.admin_account.attendee) }}
+          <br/><small><a href="edit_partition_owner?id={{ g.id }}">Grant editor</a></small>
+        {% else %}
+          <em>(orphan)</em>
+        {% endif %}
+      </td>
+      {% for field, view_f, edit_f, _label in scope_cols %}
+      <td>{{ _level_select(field, current=_resolve_level(g, view_f, edit_f), allow_edit=(edit_f is not none), form=_form_id) }}</td>
+      {% endfor %}
+      <td class="text-end" style="white-space: nowrap;">
+        <button type="submit" form="{{ _form_id }}" class="btn btn-sm btn-outline-primary">Save</button>
+        <form method="post" action="delete_partition_owner" class="d-inline"
+              onsubmit="return confirm('Revoke this grant?');">
+          {{ csrf_token() }}
+          <input type="hidden" name="id" value="{{ g.id }}" />
+          <input type="hidden" name="return_to" value="edit_partition" />
+          <button type="submit" class="btn btn-sm btn-outline-danger">Revoke</button>
+        </form>
+      </td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
 </div>
+{# The per-row edit forms referenced by the form= attributes above.
+   They hold only the hidden fields; the visible controls live in the
+   table cells. #}
+{% for g in grants %}
+<form id="grant-form-{{ g.id }}" method="post" action="edit_partition_owner">
+  {{ csrf_token() }}
+  <input type="hidden" name="id" value="{{ g.id }}" />
+  <input type="hidden" name="partition_id" value="{{ partition.id }}" />
+  <input type="hidden" name="admin_account_id" value="{{ g.admin_account_id }}" />
+  <input type="hidden" name="return_to" value="edit_partition" />
+</form>
+{% endfor %}
 {% else %}
 <p class="text-muted mb-3">No partition owners yet.</p>
 {% endif %}

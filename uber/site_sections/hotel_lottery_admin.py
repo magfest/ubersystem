@@ -144,6 +144,15 @@ def _search(session, text):
     return applications.filter(or_(*check_list)), ''
 
 
+def _require_post_csrf(params, redirect='lottery_runs'):
+    """Guard for destructive endpoints: mutations must never fire on a
+    bare GET (a crawler or prefetch would silently run them), and every
+    POST must carry a valid CSRF token."""
+    if cherrypy.request.method != 'POST':
+        raise HTTPRedirect(redirect)
+    check_csrf(params.get('csrf_token'))
+
+
 def _partition_capacity(session, inv, night, partition_id):
     """Compute the effective capacity and assigned count for a block/night respecting partitions.
 
@@ -872,6 +881,7 @@ class Root:
         }
 
     def update_lottery_run(self, session, id, name, **params):
+        _require_post_csrf(params, redirect=f'lottery_run_detail?id={id}')
         lottery_run = session.query(LotteryRun).get(id)
         lottery_run.name = name
         session.commit()
@@ -963,6 +973,7 @@ class Root:
     def award_run(self, session, id, **params):
         from uber.models import RoomAssignment
 
+        _require_post_csrf(params, redirect=f'lottery_run_detail?id={id}')
         lottery_run = session.query(LotteryRun).get(id)
         if lottery_run.status != c.LOTTERY_PENDING:
             raise HTTPRedirect('lottery_run_detail?id={}&message={}', id, 'This run cannot be awarded.')
@@ -1001,6 +1012,7 @@ class Root:
     def revert_run(self, session, id, **params):
         from uber.models import RoomAssignment
 
+        _require_post_csrf(params, redirect=f'lottery_run_detail?id={id}')
         lottery_run = session.query(LotteryRun).get(id)
         if lottery_run.status != c.LOTTERY_PENDING:
             raise HTTPRedirect('lottery_run_detail?id={}&message={}', id, 'This run cannot be reverted.')
@@ -1035,6 +1047,7 @@ class Root:
     def delete_run(self, session, id, **params):
         from uber.models import RoomAssignment
 
+        _require_post_csrf(params, redirect=f'lottery_run_detail?id={id}')
         lottery_run = session.query(LotteryRun).get(id)
         if lottery_run.status != c.LOTTERY_REVERTED:
             raise HTTPRedirect('lottery_run_detail?id={}&message={}', id, 'Only reverted runs can be deleted.')
@@ -1586,11 +1599,8 @@ class Root:
 
     def run_lottery(self, session, lottery_group="attendee", lottery_type="room", run_name="", **params):
         # Running a lottery mutates dozens of applications and creates
-        # RoomAssignment rows - it must never fire on a bare GET (a
-        # crawler or prefetch would silently run a lottery).
-        if cherrypy.request.method != 'POST':
-            raise HTTPRedirect('lottery_runs')
-        check_csrf(params.get('csrf_token'))
+        # RoomAssignment rows - it must never fire on a bare GET.
+        _require_post_csrf(params)
 
         if lottery_type == "room":
             lottery_type_val = c.ROOM_ENTRY
