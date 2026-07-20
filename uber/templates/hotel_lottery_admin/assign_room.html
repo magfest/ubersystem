@@ -31,71 +31,25 @@
             selected_id=assignment.attendee_id or '',
             selected_name=_selected_name) }}
     </div>
-    <div class="col-md-6">
-      <label class="form-label">Inventory</label>
-      <select name="inventory_id" class="form-select room-picker-inventory" required>
-        <option value="">-- Select an inventory row --</option>
-        {% for inv in inventory_rows %}
-        {%- set _label -%}
-          {{ inv.name or "Inventory" }}
-          {%- if inv.hotel %} - {{ inv.hotel.name }}{% endif -%}
-          {%- if inv.is_suite %} (Suite){% endif -%}
-        {%- endset -%}
-        {# data-avail maps scope -> available count ('' = main pool);
-           the shared picker JS appends "(N available)" per the chosen
-           partition. tojson escapes quotes for the single-quoted attr. #}
-        <option value="{{ inv.id }}"{% if assignment.inventory_id == inv.id %} selected{% endif %}
-                data-partitions="{{ inventory_partitions_map.get(inv.id|string, [])|join(',') }}"
-                data-avail='{{ inventory_avail_map.get(inv.id|string, {})|tojson }}'
-                data-label="{{ _label }}">
-          {{ _label }}
-        </option>
-        {% endfor %}
-      </select>
-    </div>
   </div>
 
-  <div class="row g-3 mb-3">
-    <div class="col-md-4">
-      <label class="form-label">Partition <span class="text-muted small">(optional)</span></label>
-      <select name="partition_id" class="form-select room-picker-partition">
-        <option value="">-- No partition --</option>
-        {% for p in partitions %}
-        <option value="{{ p.id }}"{% if assignment.partition_id == p.id %} selected{% endif %}>{{ p.name }}</option>
-        {% endfor %}
-      </select>
-      <div class="form-text small">Picking a partition restricts the
-        inventory choices to that partition's blocks.</div>
-    </div>
-    <div class="col-md-4">
-      <label class="form-label">Check-In Date</label>
-      <input type="date" name="assigned_check_in_date" class="form-control"
-             value="{% if assignment.assigned_check_in_date %}{{ assignment.assigned_check_in_date.isoformat() }}{% endif %}" />
-    </div>
-    <div class="col-md-4">
-      <label class="form-label">Check-Out Date</label>
-      <input type="date" name="assigned_check_out_date" class="form-control"
-             value="{% if assignment.assigned_check_out_date %}{{ assignment.assigned_check_out_date.isoformat() }}{% endif %}" />
-    </div>
-  </div>
+  {# data-avail (from inventory_avail_map) maps scope -> available count
+     ('' = main pool); the shared picker JS appends "(N available)" per
+     the chosen partition. #}
+  {{ hotel_macros.room_assignment_fields(
+        ra=assignment, partitions=partitions,
+        inventory_rows=inventory_rows,
+        inventory_partitions_map=inventory_partitions_map,
+        inventory_avail_map=inventory_avail_map,
+        label_mode='name',
+        require_cc=(assignment.require_cc or assignment.is_new),
+        layout='grid') }}
 
   <div class="row g-3 mb-3">
     <div class="col-md-4">
       <label class="form-label">Card Deadline <span class="text-muted small">(blank = inherit from run)</span></label>
       <input type="date" name="deposit_cutoff_date" class="form-control"
              value="{% if assignment.deposit_cutoff_date %}{{ assignment.deposit_cutoff_date.isoformat() }}{% endif %}" />
-    </div>
-    <div class="col-md-4">
-      <label class="form-label">Billing</label>
-      <div class="form-check mt-2">
-        <input class="form-check-input" type="checkbox"
-               id="require_cc" name="require_cc" value="true"
-               {% if assignment.require_cc or assignment.is_new %}checked{% endif %} />
-        <label class="form-check-label" for="require_cc">
-          Require credit card guarantee
-          <br/><small class="text-muted">Uncheck for master-bill rooms (MAGFest pays).</small>
-        </label>
-      </div>
     </div>
   </div>
 

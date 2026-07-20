@@ -146,52 +146,11 @@
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-              <div class="mb-3">
-                <label class="form-label">Partition</label>
-                <select class="form-select room-picker-partition" name="partition_id">
-                  <option value="" {% if not ra.partition_id %}selected{% endif %}>(No partition)</option>
-                  {% for p in partitions %}
-                    <option value="{{ p.id }}" {% if ra.partition_id == p.id %}selected{% endif %}>{{ p.name }}</option>
-                  {% endfor %}
-                </select>
-                <div class="form-text">
-                  Picking a partition restricts the inventory choices to
-                  blocks that are part of it.
-                </div>
-              </div>
-              <div class="mb-3">
-                <label class="form-label">Inventory Block</label>
-                <select class="form-select room-picker-inventory" name="inventory_id" required>
-                  <option value="">- Select an inventory block -</option>
-                  {% for inv in inventory_blocks %}
-                    <option value="{{ inv.id }}"
-                            data-partitions="{{ inventory_partitions_map.get(inv.id|string, [])|join(',') }}"
-                            {% if ra.inventory_id == inv.id %}selected{% endif %}>
-                      {{ inv.hotel.name if inv.hotel else '?' }} -
-                      {{ inv.display_name }}
-                    </option>
-                  {% endfor %}
-                </select>
-              </div>
-              <div class="row g-2 mb-3">
-                <div class="col">
-                  <label class="form-label">Check-in</label>
-                  <input type="date" class="form-control" name="assigned_check_in_date"
-                         value="{{ ra.assigned_check_in_date or '' }}" />
-                </div>
-                <div class="col">
-                  <label class="form-label">Check-out</label>
-                  <input type="date" class="form-control" name="assigned_check_out_date"
-                         value="{{ ra.assigned_check_out_date or '' }}" />
-                </div>
-              </div>
-              <div class="mb-3">
-                <label class="form-label">Billing</label>
-                <select class="form-select" name="require_cc">
-                  <option value="false" {% if not ra.require_cc %}selected{% endif %}>Master bill (no CC required)</option>
-                  <option value="true" {% if ra.require_cc %}selected{% endif %}>Self-pay (requires CC)</option>
-                </select>
-              </div>
+              {{ hotel_macros.room_assignment_fields(
+                    ra=ra, partitions=partitions,
+                    inventory_rows=inventory_blocks,
+                    inventory_partitions_map=inventory_partitions_map,
+                    require_cc=ra.require_cc) }}
             </div>
             <div class="modal-footer">
               <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -223,49 +182,10 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <div class="mb-3">
-            <label class="form-label">Partition</label>
-            <select class="form-select room-picker-partition" name="partition_id">
-              <option value="" selected>(No partition)</option>
-              {% for p in partitions %}
-                <option value="{{ p.id }}">{{ p.name }}</option>
-              {% endfor %}
-            </select>
-            <div class="form-text">
-              Picking a partition restricts the inventory choices to
-              blocks that are part of it.
-            </div>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Inventory Block</label>
-            <select class="form-select room-picker-inventory" name="inventory_id" required>
-              <option value="">- Select an inventory block -</option>
-              {% for inv in inventory_blocks %}
-                <option value="{{ inv.id }}"
-                        data-partitions="{{ inventory_partitions_map.get(inv.id|string, [])|join(',') }}">
-                  {{ inv.hotel.name if inv.hotel else '?' }} -
-                  {{ inv.display_name }}
-                </option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="row g-2 mb-3">
-            <div class="col">
-              <label class="form-label">Check-in</label>
-              <input type="date" class="form-control" name="assigned_check_in_date" />
-            </div>
-            <div class="col">
-              <label class="form-label">Check-out</label>
-              <input type="date" class="form-control" name="assigned_check_out_date" />
-            </div>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Billing</label>
-            <select class="form-select" name="require_cc">
-              <option value="false" selected>Master bill (no CC required)</option>
-              <option value="true">Self-pay (requires CC)</option>
-            </select>
-          </div>
+          {{ hotel_macros.room_assignment_fields(
+                partitions=partitions,
+                inventory_rows=inventory_blocks,
+                inventory_partitions_map=inventory_partitions_map) }}
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -295,10 +215,8 @@
         This lottery application is not associated with any attendee.
         {% endif %}
     </div>
-    <div>
-        <button type="submit" name="save_return_to_search" class="btn btn-primary" value="1">Save & Return{% if not return_to %} to Search{% endif %}</button>
-        <button type="submit" name="save" class="btn btn-primary" value="1">Save</button>
-    </div>
+    {{ hotel_macros.form_actions(
+          secondary_label='Save & Return' ~ ('' if return_to else ' to Search')) }}
 </div>
 
 <div class="card mb-3">
@@ -487,10 +405,8 @@
   </div>{# /card-body #}
 </div>{# /card - Lottery Preferences #}
 
-<div class="d-flex justify-content-end gap-2">
-    <button type="submit" name="save_return_to_search" class="btn btn-primary" value="1">Save & Return{% if not return_to %} to Search{% endif %}</button>
-    <button type="submit" name="save" class="btn btn-primary" value="1">Save</button>
-</div>
+{{ hotel_macros.form_actions(
+      secondary_label='Save & Return' ~ ('' if return_to else ' to Search')) }}
 
 </form>
 {% endblock %}

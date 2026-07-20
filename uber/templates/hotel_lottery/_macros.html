@@ -214,3 +214,70 @@
     {% endfor %}
   </select>
 {% endmacro %}
+
+{# Billing-address fieldset
+
+   `billing_address_fields` renders the address1 / address2 / city /
+   region / zip_code / country fields shared by the room editor's
+   save_billing_address form and step 2 of the secure wizard. POSTed
+   field NAMES (address1, address2, city, region, zip_code, country)
+   are part of the contract and never change.
+
+   Arguments:
+     ra        - RoomAssignment supplying current values
+     fallback  - OPTIONAL second model (e.g. the booker Attendee) whose
+                 address prefills any field the assignment lacks
+     required  - mark everything but address2 required (with * in the
+                 labels)
+     with_ids  - give each control an id matching its name (the secure
+                 wizard's JS reads the fields by id) and wire label
+                 `for=` attributes
+     gutter    - Bootstrap gutter class for the row (default 'g-2')
+
+   Helper `_addr_val` resolves ra-then-fallback-then-'' for one field.
+#}
+{%- macro _addr_val(ra, fallback, attr) -%}
+{{ ra[attr] or (fallback[attr] if fallback else '') or '' }}
+{%- endmacro -%}
+
+{% macro billing_address_fields(ra, fallback=None, required=False,
+                                with_ids=False, gutter='g-2') %}
+  {% set _star = ' <span class="text-danger">*</span>' if required else '' %}
+  <div class="row {{ gutter }}">
+    <div class="col-12">
+      <label class="form-label"{% if with_ids %} for="address1"{% endif %}>Address Line 1{{ _star|safe }}</label>
+      <input type="text" class="form-control" name="address1"{% if with_ids %} id="address1"{% endif %}
+             value="{{ _addr_val(ra, fallback, 'address1') }}"{% if required %} required{% endif %} />
+    </div>
+    <div class="col-12">
+      <label class="form-label"{% if with_ids %} for="address2"{% endif %}>Address Line 2</label>
+      <input type="text" class="form-control" name="address2"{% if with_ids %} id="address2"{% endif %}
+             value="{{ _addr_val(ra, fallback, 'address2') }}" />
+    </div>
+    <div class="col-md-5">
+      <label class="form-label"{% if with_ids %} for="city"{% endif %}>City{{ _star|safe }}</label>
+      <input type="text" class="form-control" name="city"{% if with_ids %} id="city"{% endif %}
+             value="{{ _addr_val(ra, fallback, 'city') }}"{% if required %} required{% endif %} />
+    </div>
+    <div class="col-md-4">
+      <label class="form-label"{% if with_ids %} for="region"{% endif %}>State / Province / Region{{ _star|safe }}</label>
+      <input type="text" class="form-control" name="region"{% if with_ids %} id="region"{% endif %}
+             value="{{ _addr_val(ra, fallback, 'region') }}"{% if required %} required{% endif %} />
+    </div>
+    <div class="col-md-3">
+      <label class="form-label"{% if with_ids %} for="zip_code"{% endif %}>ZIP / Postal Code{{ _star|safe }}</label>
+      <input type="text" class="form-control" name="zip_code"{% if with_ids %} id="zip_code"{% endif %}
+             value="{{ _addr_val(ra, fallback, 'zip_code') }}"{% if required %} required{% endif %} />
+    </div>
+    <div class="col-md-6">
+      <label class="form-label"{% if with_ids %} for="country"{% endif %}>Country{{ _star|safe }}</label>
+      {% set _country = ra.country or (fallback.country if fallback else '') or '' %}
+      <select class="form-select" name="country"{% if with_ids %} id="country"{% endif %}{% if required %} required{% endif %}>
+        <option value="">- Select country -</option>
+        {% for opt in c.COUNTRY_OPTS %}
+        <option value="{{ opt.value }}" {% if _country == opt.value %}selected{% endif %}>{{ opt.label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+{% endmacro %}

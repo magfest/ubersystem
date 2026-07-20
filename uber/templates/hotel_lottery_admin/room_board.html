@@ -15,20 +15,7 @@
   reassign at check-in.
 </p>
 
-<form method="get" action="room_board" class="row g-2 align-items-end mb-3" style="max-width: 480px;">
-  <div class="col-8">
-    <label class="form-label small mb-1">Hotel</label>
-    <select class="form-select form-select-sm" name="hotel_id" onchange="this.form.submit()">
-      <option value="">- Pick a hotel -</option>
-      {% for h in hotels %}
-      <option value="{{ h.id }}" {% if hotel and hotel.id == h.id %}selected{% endif %}>{{ h.name }}</option>
-      {% endfor %}
-    </select>
-  </div>
-  <div class="col-4">
-    <noscript><button type="submit" class="btn btn-sm btn-primary">Go</button></noscript>
-  </div>
-</form>
+{{ hotel_macros.hotel_picker('room_board', hotels, hotel) }}
 
 {% if hotel %}
 
@@ -95,7 +82,7 @@
               <select name="physical_room_id" class="form-select form-select-sm" required>
                 <option value="">- room -</option>
                 {% for r in row.options %}
-                <option value="{{ r.id }}">{{ r.room_number }}{% if r.floor %} (floor {{ r.floor }}){% endif %}{% if r.ada %} [ADA]{% endif %}</option>
+                <option value="{{ r.id }}">{{ hotel_macros.physical_room_option_label(r) }}</option>
                 {% endfor %}
               </select>
               <button type="submit" class="btn btn-sm btn-outline-primary">Assign</button>
@@ -113,53 +100,7 @@
 </div>
 
 {% for floor, rooms in floors %}
-<div class="card mb-3">
-  <div class="card-header py-2"><strong>Floor {{ floor or '(none)' }}</strong></div>
-  <div class="card-body py-2">
-    <table class="table table-sm align-middle mb-0">
-      <thead>
-        <tr>
-          <th style="width: 8em;">Room</th>
-          <th>Block</th>
-          <th>Connects</th>
-          <th>Booking</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for room in rooms %}
-        {% set ras = bookings.get(room.id, []) %}
-        <tr class="{% if room.out_of_service %}table-secondary{% elif ras %}table-info{% endif %}">
-          <td>
-            <strong>{{ room.room_number }}</strong>
-            {% if room.ada %}<span class="badge bg-info text-dark">ADA</span>{% endif %}
-            {% if room.out_of_service %}<span class="badge bg-secondary">OOS</span>{% endif %}
-          </td>
-          <td class="small">{% if room.inventory %}{{ room.inventory.display_name }}{% else %}<span class="text-warning">uncategorized</span>{% endif %}</td>
-          <td class="small text-muted">{{ connections.get(room.id, [])|join(', ') or '-' }}</td>
-          <td class="small">
-            {% for ra in ras %}
-              {{ hotel_macros.attendee_cell(ra.attendee, show_email=False) }}
-              <span class="text-muted">{{ ra.assigned_check_in_date or '?' }} &rarr; {{ ra.assigned_check_out_date or '?' }}</span>
-              {% if not loop.last %}<br/>{% endif %}
-            {% else %}<span class="text-muted">vacant</span>{% endfor %}
-          </td>
-          <td class="text-end" style="white-space: nowrap;">
-            {% for ra in ras %}
-            <form method="post" action="board_unassign" class="d-inline">
-              {{ csrf_token() }}
-              <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
-              <input type="hidden" name="hotel_id" value="{{ hotel.id }}" />
-              <button type="submit" class="btn btn-sm btn-outline-secondary">Unassign</button>
-            </form>
-            {% endfor %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
+{{ hotel_macros.floor_card(floor, rooms, connections, bookings, mode='board', hotel=hotel) }}
 {% endfor %}
 
 {% endif %}

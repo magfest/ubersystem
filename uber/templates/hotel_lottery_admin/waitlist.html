@@ -1,4 +1,5 @@
 {% extends "base.html" %}{% set admin_area=True %}
+{% import 'hotel_lottery_admin/_macros.html' as hotel_macros with context %}
 {% block title %}Hotel Lottery Waitlist{% endblock %}
 {% block content %}
 
@@ -72,13 +73,7 @@
               {{ row.inventory.hotel.name }}
             {% else %}<span class="text-muted">(no hotel)</span>{% endif %}
             <br/><small class="text-muted">
-              {% if row.inventory %}
-                {% if row.inventory.is_suite %}
-                  {{ row.inventory.suite_type.name if row.inventory.suite_type else row.inventory.name }}
-                {% else %}
-                  {{ row.inventory.room_type.name if row.inventory.room_type else row.inventory.name }}
-                {% endif %}
-              {% else %}(deleted block){% endif %}
+              {% if row.inventory %}{{ row.inventory.display_name }}{% else %}(deleted block){% endif %}
             </small>
           </td>
           <td><code class="small">{{ row.inventory.name if row.inventory else row.inventory_id }}</code></td>
@@ -183,13 +178,7 @@
           <td>
             {% if ra.inventory %}
               {{ ra.inventory.hotel.name if ra.inventory.hotel else '(no hotel)' }}
-              <br/><small class="text-muted">
-                {% if ra.inventory.is_suite %}
-                  {{ ra.inventory.suite_type.name if ra.inventory.suite_type else ra.inventory.name }}
-                {% else %}
-                  {{ ra.inventory.room_type.name if ra.inventory.room_type else ra.inventory.name }}
-                {% endif %}
-              </small>
+              <br/><small class="text-muted">{{ ra.inventory.display_name }}</small>
             {% else %}<span class="text-muted">(no inventory)</span>{% endif %}
           </td>
           <td>
@@ -224,46 +213,15 @@
       </tbody>
     </table>
 
-    {# Pagination. Only render the nav when there are multiple pages -
-       otherwise the table is "all of it" and a single "Page 1 of 1"
-       chrome would be visual noise. `search_text` is propagated so
-       the next/prev links don't drop the filter. #}
-    {% if pages|length > 1 %}
-    <nav class="d-flex justify-content-between align-items-center mt-3" aria-label="Waitlist pagination">
-      <div class="text-muted small">
-        Showing
-        {{ (page - 1) * per_page + 1 }}-{{ (page - 1) * per_page + queue|length }}
-        of {{ total_count }}{% if search_text %} matching{% endif %} entries
-      </div>
-      <ul class="pagination pagination-sm mb-0">
-        <li class="page-item{% if page <= 1 %} disabled{% endif %}">
-          <a class="page-link"
-             href="waitlist?page={{ page - 1 }}{% if search_text %}&search_text={{ search_text|urlencode }}{% endif %}"
-             aria-label="Previous">&laquo;</a>
-        </li>
-        {# Page link set: first, last, current +/- 2 (and ellipses where
-           there's a gap). This keeps the pagination nav from sprawling
-           on a 250-page waitlist. #}
-        {% set _window = 2 %}
-        {% for p in pages %}
-          {% if p == 1 or p == pages|last or (p >= page - _window and p <= page + _window) %}
-            {% if loop.previtem is defined and p > loop.previtem + 1 %}
-            <li class="page-item disabled"><span class="page-link">...</span></li>
-            {% endif %}
-            <li class="page-item{% if p == page %} active{% endif %}">
-              <a class="page-link"
-                 href="waitlist?page={{ p }}{% if search_text %}&search_text={{ search_text|urlencode }}{% endif %}">{{ p }}</a>
-            </li>
-          {% endif %}
-        {% endfor %}
-        <li class="page-item{% if page >= pages|length %} disabled{% endif %}">
-          <a class="page-link"
-             href="waitlist?page={{ page + 1 }}{% if search_text %}&search_text={{ search_text|urlencode }}{% endif %}"
-             aria-label="Next">&raquo;</a>
-        </li>
-      </ul>
-    </nav>
-    {% endif %}
+    {# Pagination - shared macro keeps it identical across the section.
+       `search_text` is propagated so the next/prev links don't drop
+       the filter. #}
+    <div class="mt-3">
+      {{ hotel_macros.pagination(page, pages|length,
+            'waitlist' ~ ('?search_text=' ~ search_text|urlencode if search_text else ''),
+            total=total_count, page_size=per_page,
+            current_count=queue|length, label='room') }}
+    </div>
     {% endif %}{# /if queue #}
   </div>
 </div>

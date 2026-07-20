@@ -42,15 +42,7 @@
         </div>
       </form>
       <table class="table table-sm mb-0">
-        <tr><th>Status</th><td>
-          {% if lottery_run.status == c.LOTTERY_PENDING %}
-            <span class="badge bg-warning text-dark">Pending</span>
-          {% elif lottery_run.status == c.LOTTERY_AWARDED %}
-            <span class="badge bg-success">Awarded</span>
-          {% elif lottery_run.status == c.LOTTERY_REVERTED %}
-            <span class="badge bg-secondary">Reverted</span>
-          {% endif %}
-        </td></tr>
+        <tr><th>Status</th><td>{{ hotel_macros.lottery_run_status_chip(lottery_run) }}</td></tr>
         <tr><th>Run At</th><td>{{ lottery_run.run_at|datetime_local }}</td></tr>
         {% if lottery_run.awarded_at %}<tr><th>Awarded At</th><td>{{ lottery_run.awarded_at|datetime_local }}</td></tr>{% endif %}
         {% if lottery_run.reverted_at %}<tr><th>Reverted At</th><td>{{ lottery_run.reverted_at|datetime_local }}</td></tr>{% endif %}
@@ -146,10 +138,7 @@
             </td>
             <td>{{ hotel_macros.room_status_chip(ra) }}</td>
             <td>{{ inv.hotel.name if inv and inv.hotel else '' }}</td>
-            <td>
-              {% if inv and inv.is_suite %}{{ inv.suite_type.name if inv.suite_type else '' }}
-              {% elif inv %}{{ inv.room_type.name if inv.room_type else '' }}{% endif %}
-            </td>
+            <td>{% if inv %}{{ inv.display_name }}{% endif %}</td>
             <td>{{ ra.assigned_check_in_date or '' }}</td>
             <td>{{ ra.assigned_check_out_date or '' }}</td>
             <td>{% if loop.first %}{{ app.valid_group_members|length }}{% endif %}</td>

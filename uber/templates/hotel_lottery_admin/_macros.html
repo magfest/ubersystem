@@ -121,15 +121,32 @@
   </span>
 {% endmacro %}
 
-{# LotteryApplication status chip. Distinct enum from RoomAssignment;
-   different state machine - AWARDED/PROCESSED are positive,
-   WITHDRAWN/DISQUALIFIED/REJECTED are negative. #}
-{% macro app_status_chip(app) %}
-  {% set _ok = [c.AWARDED, c.PROCESSED, c.COMPLETE, c.PARTIAL] %}
-  {% set _bad = [c.WITHDRAWN, c.DISQUALIFIED, c.REJECTED, c.CANCELLED, c.REMOVED] %}
-  <span class="badge bg-{% if app.status in _ok %}success{% elif app.status in _bad %}danger{% else %}secondary{% endif %}">
+{# LotteryApplication status cell. Distinct enum from RoomAssignment;
+   different state machine. Matches the admin index's rendering (the
+   canonical one): plain status text, red for the terminal-negative
+   statuses, and an "Invalid Attendee" override when the underlying
+   attendee is missing or lottery-ineligible. #}
+{% macro app_status_chip(app, invalid=False) %}
+  {% set _bad = [c.WITHDRAWN, c.DISQUALIFIED, c.REJECTED] %}
+  {% if invalid %}
+    <span class="text-danger">Invalid Attendee</span>
+  {% elif app.status in _bad %}
+    <span class="text-danger">{{ app.status_label }}</span>
+  {% else %}
     {{ app.status_label }}
-  </span>
+  {% endif %}
+{% endmacro %}
+
+{# LotteryRun status chip: Pending (solver ran, not yet awarded),
+   Awarded (assignments committed), Reverted (rolled back). #}
+{% macro lottery_run_status_chip(run) %}
+  {%- if run.status == c.LOTTERY_PENDING -%}
+    <span class="badge bg-warning text-dark">Pending</span>
+  {%- elif run.status == c.LOTTERY_AWARDED -%}
+    <span class="badge bg-success">Awarded</span>
+  {%- elif run.status == c.LOTTERY_REVERTED -%}
+    <span class="badge bg-secondary">Reverted</span>
+  {%- endif -%}
 {% endmacro %}
 
 {# Billing chip for a RoomAssignment. Self-pay shows the CC tail when
@@ -188,8 +205,9 @@
    tertiary buttons (e.g. Delete). The primary submit is always rightmost.
 #}
 {% macro form_actions(primary_label='Save', secondary_label='Save & Return',
-                     secondary_name='save_return_to_search') %}
-  <div class="d-flex justify-content-end gap-2 mt-3">
+                     secondary_name='save_return_to_search',
+                     wrapper_class='') %}
+  <div class="d-flex justify-content-end gap-2{% if wrapper_class %} {{ wrapper_class }}{% endif %}">
     {{ caller() if caller else '' }}
     {% if secondary_label %}
     <button type="submit" name="{{ secondary_name }}" class="btn btn-outline-primary" value="1">
@@ -270,4 +288,423 @@
       <button type="button" class="btn btn-link btn-sm attendee-search-clear">change</button>
     </div>
   </div>
+{% endmacro %}
+
+
+{# Privacy-masked attendee cell
+
+   The one way to render an attendee whose full name the viewer may not
+   be allowed to see: "Jane D." plus optional muted email. Callers guard
+   the no-attendee case themselves (the placeholder wording differs per
+   page).
+
+   Arguments:
+     attendee       - the Attendee (must be present)
+     can_view_names - True when the viewer may see the full name
+     legal_names    - True to prefer legal names in the full-name branch
+     show_email     - append the muted email line
+     link           - in the full-name branch, delegate to attendee_cell
+                      (hotel names + registration link) instead of plain
+                      text
+#}
+{% macro masked_attendee_cell(attendee, can_view_names=False, legal_names=False,
+                              show_email=True, link=False) %}
+  {%- if can_view_names and link -%}
+    {{ attendee_cell(attendee, show_email=False, hotel_names=True) }}
+  {%- elif can_view_names and legal_names -%}
+    {{ attendee.legal_first_name or attendee.first_name }} {{ attendee.legal_last_name or attendee.last_name }}
+  {%- elif can_view_names -%}
+    {{ attendee.first_name }} {{ attendee.last_name }}
+  {%- else -%}
+    {{ attendee.first_name }} {{ attendee.last_name|first|upper }}.
+  {%- endif -%}
+  {%- if show_email and attendee.email %}
+    <br/><small class="text-muted">{{ attendee.email }}</small>
+  {%- endif -%}
+{% endmacro %}
+
+
+{# RoomAssignment editor fields
+
+   The shared partition -> inventory -> dates -> billing field set used
+   by every surface that creates or edits a RoomAssignment: the
+   application form's edit/add modals, the standalone editor, the manual
+   assign_room page, and the partition dashboard's create form and
+   per-row update modals.
+
+   POSTed field NAMES are part of the contract and never change:
+   partition_id, inventory_id, assigned_check_in_date,
+   assigned_check_out_date, require_cc ('true'/'false' via the select).
+
+   The partition/inventory selects carry the room-picker-partition /
+   room-picker-inventory classes plus data-partitions (and optional
+   data-avail/data-label) attributes consumed by
+   uber/static/js/hotel-room-picker.js - pages that want the cascade
+   must load that file.
+
+   Arguments:
+     ra                       - RoomAssignment supplying current values,
+                                or None for a blank create form
+     partitions               - list of partitions for the partition
+                                select; None omits the select entirely
+     inventory_rows           - HotelRoomInventory rows for the
+                                inventory select
+     inventory_partitions_map - OPTIONAL {inv_id: [partition ids]} for
+                                data-partitions
+     inventory_avail_map      - OPTIONAL {inv_id: {scope: n}} for
+                                data-avail (adds data-label too)
+     option_suffix_map        - OPTIONAL {inv_id: text} appended to the
+                                option label (e.g. "(3 unassigned of 10)")
+     label_mode               - 'type' (default): "Hotel - Type name";
+                                'name': "Block name - Hotel (Suite)"
+     require_cc               - bool, current billing value
+     layout                   - 'stacked' (modal-friendly, default) or
+                                'grid' (two Bootstrap rows)
+     size                     - '' or 'sm' for compact controls
+     inventory_required       - add `required` to the inventory select
+     inventory_editable       - False renders the current block as
+                                plaintext and posts NO inventory_id
+     include_current_option   - keep a (current) option when ra's block
+                                is not in inventory_rows
+     show_dates               - render the check-in/check-out inputs
+     show_require_cc          - render the billing select
+#}
+{% macro room_assignment_fields(ra=None, partitions=None, inventory_rows=None,
+                                inventory_partitions_map=None,
+                                inventory_avail_map=None,
+                                option_suffix_map=None,
+                                label_mode='type',
+                                require_cc=False,
+                                layout='stacked', size='',
+                                inventory_required=True,
+                                inventory_editable=True,
+                                include_current_option=False,
+                                show_dates=True, show_require_cc=True) %}
+  {% set _sel = 'form-select form-select-sm' if size == 'sm' else 'form-select' %}
+  {% set _inp = 'form-control form-control-sm' if size == 'sm' else 'form-control' %}
+  {% set _lbl = 'form-label small' if size == 'sm' else 'form-label' %}
+  {% if layout == 'grid' %}
+  <div class="row g-2 mb-2">
+    {% if partitions is not none %}
+    <div class="col-md-6">
+      {{ _ra_partition_field(ra, partitions, _sel, _lbl) }}
+    </div>
+    {% endif %}
+    <div class="col-md-6">
+      {{ _ra_inventory_field(ra, inventory_rows, inventory_partitions_map,
+                             inventory_avail_map, option_suffix_map, label_mode,
+                             inventory_required, inventory_editable,
+                             include_current_option, _sel, _lbl, size) }}
+    </div>
+  </div>
+  <div class="row g-2 mb-2">
+    {% if show_dates %}
+    <div class="col-md-3">
+      <label class="{{ _lbl }}">Check-in</label>
+      <input type="date" class="{{ _inp }}" name="assigned_check_in_date"
+             value="{{ (ra.assigned_check_in_date or '') if ra else '' }}" />
+    </div>
+    <div class="col-md-3">
+      <label class="{{ _lbl }}">Check-out</label>
+      <input type="date" class="{{ _inp }}" name="assigned_check_out_date"
+             value="{{ (ra.assigned_check_out_date or '') if ra else '' }}" />
+    </div>
+    {% endif %}
+    {% if show_require_cc %}
+    <div class="col-md-4">
+      {{ _ra_billing_field(require_cc, _sel, _lbl) }}
+    </div>
+    {% endif %}
+  </div>
+  {% else %}
+  {% if partitions is not none %}
+  <div class="mb-3">
+    {{ _ra_partition_field(ra, partitions, _sel, _lbl) }}
+  </div>
+  {% endif %}
+  <div class="mb-3">
+    {{ _ra_inventory_field(ra, inventory_rows, inventory_partitions_map,
+                           inventory_avail_map, option_suffix_map, label_mode,
+                           inventory_required, inventory_editable,
+                           include_current_option, _sel, _lbl, size) }}
+  </div>
+  {% if show_dates %}
+  <div class="row g-2 mb-3">
+    <div class="col">
+      <label class="{{ _lbl }}">Check-in</label>
+      <input type="date" class="{{ _inp }}" name="assigned_check_in_date"
+             value="{{ (ra.assigned_check_in_date or '') if ra else '' }}" />
+    </div>
+    <div class="col">
+      <label class="{{ _lbl }}">Check-out</label>
+      <input type="date" class="{{ _inp }}" name="assigned_check_out_date"
+             value="{{ (ra.assigned_check_out_date or '') if ra else '' }}" />
+    </div>
+  </div>
+  {% endif %}
+  {% if show_require_cc %}
+  <div class="mb-3">
+    {{ _ra_billing_field(require_cc, _sel, _lbl) }}
+  </div>
+  {% endif %}
+  {% endif %}
+{% endmacro %}
+
+{% macro _ra_partition_field(ra, partitions, sel_cls, lbl_cls) %}
+  <label class="{{ lbl_cls }}">Partition</label>
+  <select class="{{ sel_cls }} room-picker-partition" name="partition_id">
+    <option value="" {% if not ra or not ra.partition_id %}selected{% endif %}>(No partition)</option>
+    {% for p in partitions %}
+      <option value="{{ p.id }}" {% if ra and ra.partition_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+    {% endfor %}
+  </select>
+  <div class="form-text">
+    Picking a partition restricts the inventory choices to blocks that
+    are part of it.
+  </div>
+{% endmacro %}
+
+{%- macro _ra_inventory_label(inv, label_mode) -%}
+  {%- if label_mode == 'name' -%}
+    {{- inv.name or 'Inventory' -}}{%- if inv.hotel %} - {{ inv.hotel.name }}{% endif -%}{%- if inv.is_suite %} (Suite){% endif -%}
+  {%- else -%}
+    {{- inv.hotel.name if inv.hotel else '?' }} - {{ inv.display_name -}}
+  {%- endif -%}
+{%- endmacro -%}
+
+{% macro _ra_inventory_field(ra, inventory_rows, inventory_partitions_map,
+                             inventory_avail_map, option_suffix_map, label_mode,
+                             required, editable, include_current_option,
+                             sel_cls, lbl_cls, size) %}
+  <label class="{{ lbl_cls }}">Inventory Block</label>
+  {% if editable %}
+  <select class="{{ sel_cls }} room-picker-inventory" name="inventory_id"{% if required %} required{% endif %}>
+    <option value="">- Select an inventory block -</option>
+    {% if include_current_option and ra and ra.inventory
+          and ra.inventory_id not in inventory_rows|map(attribute='id')|list %}
+    <option value="{{ ra.inventory_id }}" selected>
+      {{ _ra_inventory_label(ra.inventory, label_mode)|trim }} (current)
+    </option>
+    {% endif %}
+    {% for inv in inventory_rows %}
+    {% set _suffix = option_suffix_map.get(inv.id|string, '') if option_suffix_map else '' %}
+    {% set _label = _ra_inventory_label(inv, label_mode)|trim ~ (' ' ~ _suffix if _suffix else '') %}
+    <option value="{{ inv.id }}"
+            {%- if ra and ra.inventory_id == inv.id %} selected{% endif %}
+            {%- if inventory_partitions_map is not none %} data-partitions="{{ inventory_partitions_map.get(inv.id|string, [])|join(',') }}"{% endif %}
+            {%- if inventory_avail_map is not none %} data-avail='{{ inventory_avail_map.get(inv.id|string, {})|tojson }}' data-label="{{ _label }}"{% endif %}>
+      {{ _label }}
+    </option>
+    {% endfor %}
+  </select>
+  {% else %}
+  {# Rooms scoped elsewhere can't be repointed from this surface - the
+     server enforces the same bound. Posts NO inventory_id. #}
+  <div class="form-control-plaintext{% if size == 'sm' %} form-control-sm{% endif %}">
+    {% if ra and ra.inventory %}{{ _ra_inventory_label(ra.inventory, label_mode)|trim }}{% else %}(unknown block){% endif %}
+  </div>
+  {% endif %}
+{% endmacro %}
+
+{% macro _ra_billing_field(require_cc, sel_cls, lbl_cls) %}
+  <label class="{{ lbl_cls }}">Billing</label>
+  <select class="{{ sel_cls }}" name="require_cc">
+    <option value="false" {% if not require_cc %}selected{% endif %}>Master bill (no CC required)</option>
+    <option value="true" {% if require_cc %}selected{% endif %}>Self-pay (requires CC)</option>
+  </select>
+{% endmacro %}
+
+
+{# Hotel picker
+
+   The self-submitting per-hotel GET form shared by the physical-rooms
+   catalog and the rooming board. `action` is the page to reload;
+   `hotels`/`hotel` come from the page context. #}
+{% macro hotel_picker(action, hotels, hotel=None) %}
+  <form method="get" action="{{ action }}" class="row g-2 align-items-end mb-3" style="max-width: 480px;">
+    <div class="col-8">
+      <label class="form-label small mb-1">Hotel</label>
+      <select class="form-select form-select-sm" name="hotel_id" onchange="this.form.submit()">
+        <option value="">- Pick a hotel -</option>
+        {% for h in hotels %}
+        <option value="{{ h.id }}" {% if hotel and hotel.id == h.id %}selected{% endif %}>{{ h.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-4">
+      <noscript><button type="submit" class="btn btn-sm btn-primary">Go</button></noscript>
+    </div>
+  </form>
+{% endmacro %}
+
+
+{# Physical rooms
+
+   `physical_room_option_label` is the canonical <option> text for a
+   PhysicalRoom: "412 (floor 4) [ADA]". #}
+{%- macro physical_room_option_label(r) -%}
+{{ r.room_number }}{% if r.floor %} (floor {{ r.floor }}){% endif %}{% if r.ada %} [ADA]{% endif %}
+{%- endmacro -%}
+
+{# ADA / out-of-service badges for a PhysicalRoom. The board uses the
+   compact 'OOS' label; the catalog spells it out. #}
+{% macro physical_room_badges(room, oos_label='out of service') %}
+  {%- if room.ada %}<span class="badge bg-info text-dark">ADA</span>{% endif %}
+  {%- if room.out_of_service %} <span class="badge bg-secondary">{{ oos_label }}</span>{% endif -%}
+{% endmacro %}
+
+{# Booking cell for a physical room: each RoomAssignment on its own
+   line (attendee + date range), or "vacant". #}
+{% macro physical_room_booking_cell(ras) %}
+  {% for ra in ras %}
+    {{ attendee_cell(ra.attendee, show_email=False) }}
+    <span class="text-muted">{{ ra.assigned_check_in_date or '?' }} &rarr; {{ ra.assigned_check_out_date or '?' }}</span>
+    {% if not loop.last %}<br/>{% endif %}
+  {% else %}<span class="text-muted">vacant</span>{% endfor %}
+{% endmacro %}
+
+{# Per-floor card of physical rooms, shared by physical_rooms.html
+   (mode='catalog': flags/notes columns + Edit/Delete actions) and
+   room_board.html (mode='board': occupancy row highlight + per-booking
+   Unassign forms; `hotel` is required in board mode for the POSTs). #}
+{% macro floor_card(floor, rooms, connections, bookings, mode='catalog', hotel=None) %}
+  <div class="card mb-3">
+    <div class="card-header py-2">
+      <strong>Floor {{ floor or '(none)' }}</strong>
+      {% if mode == 'catalog' %}<span class="text-muted small ms-2">{{ rooms|length }} room(s)</span>{% endif %}
+    </div>
+    <div class="card-body py-2">
+      <table class="table table-sm{% if mode == 'catalog' %} table-hover{% endif %} align-middle mb-0">
+        <thead>
+          {% if mode == 'catalog' %}
+          <tr>
+            <th>Room</th>
+            <th>Block</th>
+            <th>Flags</th>
+            <th>Connects To</th>
+            <th>Current Booking</th>
+            <th>Notes</th>
+            <th></th>
+          </tr>
+          {% else %}
+          <tr>
+            <th style="width: 8em;">Room</th>
+            <th>Block</th>
+            <th>Connects</th>
+            <th>Booking</th>
+            <th></th>
+          </tr>
+          {% endif %}
+        </thead>
+        <tbody>
+          {% for room in rooms %}
+          {% set ras = bookings.get(room.id, []) %}
+          {% if mode == 'catalog' %}
+          <tr{% if room.out_of_service %} class="table-secondary"{% endif %}>
+            <td><strong>{{ room.room_number }}</strong></td>
+            <td>
+              {% if room.inventory %}{{ room.inventory.display_name }}
+              {% else %}<span class="badge bg-warning text-dark">uncategorized</span>{% endif %}
+            </td>
+            <td>{{ physical_room_badges(room) }}</td>
+            <td class="small">{{ connections.get(room.id, [])|join(', ') or '-' }}</td>
+            <td class="small">{{ physical_room_booking_cell(ras) }}</td>
+            <td class="small text-muted">{{ room.notes }}</td>
+            <td class="text-end" style="white-space: nowrap;">
+              <a class="btn btn-sm btn-outline-primary" href="edit_physical_room?id={{ room.id }}">Edit</a>
+              <form method="post" action="delete_physical_room" class="d-inline"
+                    onsubmit="return confirm('Delete room {{ room.room_number }}? Its connection edges go with it.');">
+                {{ csrf_token() }}
+                <input type="hidden" name="id" value="{{ room.id }}" />
+                <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr class="{% if room.out_of_service %}table-secondary{% elif ras %}table-info{% endif %}">
+            <td>
+              <strong>{{ room.room_number }}</strong>
+              {{ physical_room_badges(room, oos_label='OOS') }}
+            </td>
+            <td class="small">{% if room.inventory %}{{ room.inventory.display_name }}{% else %}<span class="text-warning">uncategorized</span>{% endif %}</td>
+            <td class="small text-muted">{{ connections.get(room.id, [])|join(', ') or '-' }}</td>
+            <td class="small">{{ physical_room_booking_cell(ras) }}</td>
+            <td class="text-end" style="white-space: nowrap;">
+              {% for ra in ras %}
+              <form method="post" action="board_unassign" class="d-inline">
+                {{ csrf_token() }}
+                <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
+                <input type="hidden" name="hotel_id" value="{{ hotel.id }}" />
+                <button type="submit" class="btn btn-sm btn-outline-secondary">Unassign</button>
+              </form>
+              {% endfor %}
+            </td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endmacro %}
+
+
+{# Partition grant levels
+
+   Each scope is a single dropdown (None / View only / Edit) - the
+   underlying view/edit flag pair lives on the model but the UI only
+   exposes states where edit implies view. Guest names have no edit
+   feature, so that scope only offers None / View only.
+
+   `partition_scope_cols` rows are
+   (field_name, view_flag, edit_flag, label, description). #}
+{% set partition_scope_cols = [
+  ('inventory_level',   'can_view_inventory',   'can_edit_inventory',   'Inventory',
+   'Per-block counts and metadata for this partition.'),
+  ('assignments_level', 'can_view_assignments', 'can_edit_assignments', 'Assignments',
+   'The assignment roster and per-room billing/dates.'),
+  ('guest_names_level', 'can_view_guest_names', none,                   'Guest names',
+   'Attendee display names within this partition. Legal names are gated separately.'),
+] %}
+
+{# Resolve a grant's current state for one scope into the dropdown value. #}
+{%- macro resolve_grant_level(grant, view_flag, edit_flag) -%}
+  {%- if edit_flag and grant[edit_flag] -%}edit
+  {%- elif grant[view_flag] -%}view
+  {%- else -%}none
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro grant_level_select(name, current='none', allow_edit=True,
+                            cls='form-select form-select-sm', form='', id='') -%}
+  <select class="{{ cls }}" name="{{ name }}"{% if id %} id="{{ id }}"{% endif %}{% if form %} form="{{ form }}"{% endif %}>
+    <option value="none" {% if current == 'none' %}selected{% endif %}>None</option>
+    <option value="view" {% if current == 'view' %}selected{% endif %}>View only</option>
+    {% if allow_edit %}<option value="edit" {% if current == 'edit' %}selected{% endif %}>Edit</option>{% endif %}
+  </select>
+{%- endmacro %}
+
+
+{# Filter-bar building blocks
+
+   The section's filter bars share these two pieces; the fields between
+   them differ per page, so there's deliberately no full filter_bar
+   macro. #}
+{% macro page_size_select(current, sizes=[25, 50, 100, 200],
+                          name='page_size', label='Per page') %}
+  <label class="form-label small mb-1">{{ label }}</label>
+  <select class="form-select form-select-sm" name="{{ name }}">
+    {% for ps in sizes %}
+      <option value="{{ ps }}" {% if current == ps %}selected{% endif %}>{{ ps }}</option>
+    {% endfor %}
+  </select>
+{% endmacro %}
+
+{# Apply submit + Reset link. Pass show_reset=False (or a falsy
+   filters-active expression) to hide Reset until a filter is active. #}
+{% macro filter_actions(reset_href, show_reset=True, reset_label='Reset') %}
+  <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+  {% if show_reset %}
+  <a href="{{ reset_href }}" class="btn btn-outline-secondary btn-sm">{{ reset_label }}</a>
+  {% endif %}
 {% endmacro %}

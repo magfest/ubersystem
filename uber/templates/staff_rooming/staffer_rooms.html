@@ -44,16 +44,10 @@
       </select>
     </div>
     <div class="col-md-1">
-      <label class="form-label small mb-1">Per page</label>
-      <select class="form-select form-select-sm" name="page_size">
-        {% for ps in [25, 50, 100, 200] %}
-          <option value="{{ ps }}" {% if page_size == ps %}selected{% endif %}>{{ ps }}</option>
-        {% endfor %}
-      </select>
+      {{ hotel_macros.page_size_select(page_size) }}
     </div>
     <div class="col-md-2 text-end">
-      <button type="submit" class="btn btn-primary btn-sm">Apply</button>
-      <a href="staffer_rooms" class="btn btn-outline-secondary btn-sm">Reset</a>
+      {{ hotel_macros.filter_actions('staffer_rooms') }}
     </div>
   </div>
 </form>

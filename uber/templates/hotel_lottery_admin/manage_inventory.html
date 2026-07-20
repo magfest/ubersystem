@@ -35,11 +35,10 @@
       <td>
         {% if item.is_suite %}
           <span class="badge bg-info">Suite</span>
-          {{ item.suite_type.name if item.suite_type else '' }}
         {% else %}
           <span class="badge bg-secondary">Room</span>
-          {{ item.room_type.name if item.room_type else '' }}
         {% endif %}
+        {{ item.display_name }}
       </td>
       <td>{{ item.name }}</td>
       <td>{{ item.quantity }}</td>

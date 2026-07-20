@@ -43,7 +43,7 @@
         {% set _alloc = existing_blocks.get(inv.id|string, 0) %}
         <tr>
           <td>{{ inv.hotel.name if inv.hotel else 'Unknown' }}</td>
-          <td>{{ inv.room_or_suite_type.name if inv.room_or_suite_type else '' }}{% if inv.is_suite %} <span class="badge bg-info">Suite</span>{% endif %}</td>
+          <td>{{ inv.display_name }}{% if inv.is_suite %} <span class="badge bg-info">Suite</span>{% endif %}</td>
           <td>{{ inv.name }}</td>
           <td>{{ inv.quantity }}</td>
           <td>
@@ -82,30 +82,9 @@
 
 {% if partition.id %}
 
-{# Each scope is a single dropdown (None / View only / Edit) - the
-   underlying view/edit flag pair lives on the model but the UI only
-   exposes states where edit implies view. Guest names have no edit
-   feature, so that scope only offers None / View only. #}
-{% set scope_cols = [
-  ('inventory_level',   'can_view_inventory',   'can_edit_inventory',   'Inventory'),
-  ('assignments_level', 'can_view_assignments', 'can_edit_assignments', 'Assignments'),
-  ('guest_names_level', 'can_view_guest_names', none,                   'Guest names'),
-] %}
-
-{% macro _resolve_level(grant, view_flag, edit_flag) -%}
-  {%- if edit_flag and grant[edit_flag] -%}edit
-  {%- elif grant[view_flag] -%}view
-  {%- else -%}none
-  {%- endif -%}
-{%- endmacro %}
-
-{% macro _level_select(name, current='none', allow_edit=True, cls='form-select form-select-sm', form='') -%}
-  <select class="{{ cls }}" name="{{ name }}"{% if form %} form="{{ form }}"{% endif %}>
-    <option value="none" {% if current == 'none' %}selected{% endif %}>None</option>
-    <option value="view" {% if current == 'view' %}selected{% endif %}>View only</option>
-    {% if allow_edit %}<option value="edit" {% if current == 'edit' %}selected{% endif %}>Edit</option>{% endif %}
-  </select>
-{%- endmacro %}
+{# Scope list + level resolver + level select all live in the shared
+   macros file - edit_partition_owner.html uses the same trio. #}
+{% set scope_cols = hotel_macros.partition_scope_cols %}
 
 <h3 class="h5 mt-4">Partition Owners</h3>
 <p class="text-muted small">
@@ -122,7 +101,7 @@
   <thead>
     <tr>
       <th>Admin</th>
-      {% for _f, _v, _e, label in scope_cols %}
+      {% for _f, _v, _e, label, _desc in scope_cols %}
       <th>{{ label }}</th>
       {% endfor %}
       <th></th>
@@ -144,8 +123,10 @@
           <em>(orphan)</em>
         {% endif %}
       </td>
-      {% for field, view_f, edit_f, _label in scope_cols %}
-      <td>{{ _level_select(field, current=_resolve_level(g, view_f, edit_f), allow_edit=(edit_f is not none), form=_form_id) }}</td>
+      {% for field, view_f, edit_f, _label, _desc in scope_cols %}
+      <td>{{ hotel_macros.grant_level_select(field,
+                current=hotel_macros.resolve_grant_level(g, view_f, edit_f)|trim,
+                allow_edit=(edit_f is not none), form=_form_id) }}</td>
       {% endfor %}
       <td class="text-end" style="white-space: nowrap;">
         <button type="submit" form="{{ _form_id }}" class="btn btn-sm btn-outline-primary">Save</button>
@@ -199,13 +180,13 @@
     </select>
   </div>
 
-  {% for field, _v, edit_f, label in scope_cols %}
+  {% for field, _v, edit_f, label, _desc in scope_cols %}
   <div class="col-md-2">
     <label class="form-label small">{{ label }}</label>
     {# Default a new grant to View only on inventory + assignments to
        match the previous checkbox defaults; everything else None. #}
     {% set _default = 'view' if field in ('inventory_level', 'assignments_level') else 'none' %}
-    {{ _level_select(field, current=_default, allow_edit=(edit_f is not none)) }}
+    {{ hotel_macros.grant_level_select(field, current=_default, allow_edit=(edit_f is not none)) }}
   </div>
   {% endfor %}
 

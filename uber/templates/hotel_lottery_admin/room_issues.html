@@ -79,14 +79,35 @@
     </div>
   </div>
   <div class="col-auto">
-    <button type="submit" class="btn btn-sm btn-primary">Apply</button>
-    {% if severity != 'all' or kind not in ('all', '', None) or search %}
-    <a href="room_issues" class="btn btn-sm btn-outline-secondary">Clear</a>
-    {% endif %}
+    {{ hotel_macros.filter_actions('room_issues',
+          show_reset=(severity != 'all' or kind not in ('all', '', None) or search)) }}
   </div>
 </form>
 
 {% set _filters_active = severity != 'all' or kind not in ('all', '', None) or search %}
+
+{# Error / Warning badge for a single issue. #}
+{% macro severity_badge(severity) %}
+  {%- if severity == 'error' -%}
+    <span class="badge bg-danger">Error</span>
+  {%- else -%}
+    <span class="badge bg-warning text-dark">Warning</span>
+  {%- endif -%}
+{% endmacro %}
+
+{# "No matches" (filters active) / "Nothing to fix" (genuinely clean)
+   empty-state card, shared by both tabs. #}
+{% macro no_issues_card(noun, filters_active) %}
+<div class="card card-body text-center{% if not filters_active %} text-success{% endif %}">
+  {% if filters_active %}
+  <h4 class="mb-0">No matches.</h4>
+  <p class="text-muted mb-0">No {{ noun }} issues match the current filters.</p>
+  {% else %}
+  <h4 class="mb-0"><i class="fa fa-check-circle"></i> Nothing to fix.</h4>
+  <p class="text-muted mb-0">No {{ noun }} issues found.</p>
+  {% endif %}
+</div>
+{% endmacro %}
 
 {# Per-issue hide / unhide / note controls. One form per issue, keyed to
    the issue's stable identity (kind, target_type, target_id) and carrying
@@ -136,15 +157,7 @@
 
 <div class="tab-pane fade show active" id="tab-rooms" role="tabpanel">
 {% if not groups %}
-<div class="card card-body text-center{% if not _filters_active %} text-success{% endif %}">
-  {% if _filters_active %}
-  <h4 class="mb-0">No matches.</h4>
-  <p class="text-muted mb-0">No room assignment issues match the current filters.</p>
-  {% else %}
-  <h4 class="mb-0"><i class="fa fa-check-circle"></i> Nothing to fix.</h4>
-  <p class="text-muted mb-0">No room assignment issues found.</p>
-  {% endif %}
-</div>
+{{ no_issues_card('room assignment', _filters_active) }}
 {% else %}
 <p class="text-muted small">
   Issues are grouped by the room assignment they apply to -
@@ -197,13 +210,7 @@
     {% for iss in group.issues %}
     <li class="list-group-item">
       <div class="d-flex gap-2 align-items-start">
-        <div>
-          {% if iss.severity == 'error' %}
-            <span class="badge bg-danger">Error</span>
-          {% else %}
-            <span class="badge bg-warning text-dark">Warning</span>
-          {% endif %}
-        </div>
+        <div>{{ severity_badge(iss.severity) }}</div>
         <div class="flex-grow-1">
           <strong>{{ kind_labels.get(iss.kind, iss.kind) }}</strong>
           <div class="small">{{ iss.label }}</div>
@@ -230,15 +237,7 @@
 
 <div class="tab-pane fade" id="tab-inventory" role="tabpanel">
 {% if not inv_groups %}
-<div class="card card-body text-center{% if not _filters_active %} text-success{% endif %}">
-  {% if _filters_active %}
-  <h4 class="mb-0">No matches.</h4>
-  <p class="text-muted mb-0">No inventory issues match the current filters.</p>
-  {% else %}
-  <h4 class="mb-0"><i class="fa fa-check-circle"></i> Nothing to fix.</h4>
-  <p class="text-muted mb-0">No inventory issues found.</p>
-  {% endif %}
-</div>
+{{ no_issues_card('inventory', _filters_active) }}
 {% else %}
 <p class="text-muted small">
   Issues are grouped by the inventory item (or connector room type) they
@@ -255,11 +254,7 @@
       {% if inv %}
         <strong>{{ inv.hotel.name if inv.hotel else '?' }}</strong>
         -
-        {% if inv.is_suite %}
-          {{ inv.suite_type.name if inv.suite_type else inv.name }}
-        {% else %}
-          {{ inv.room_type.name if inv.room_type else inv.name }}
-        {% endif %}
+        {{ inv.display_name }}
         <small class="ms-2 opacity-75">qty {{ inv.quantity }}</small>
       {% elif rt %}
         <strong>Room type:</strong>
@@ -284,13 +279,7 @@
     {% for iss in group.issues %}
     <li class="list-group-item">
       <div class="d-flex gap-2 align-items-start">
-        <div>
-          {% if iss.severity == 'error' %}
-            <span class="badge bg-danger">Error</span>
-          {% else %}
-            <span class="badge bg-warning text-dark">Warning</span>
-          {% endif %}
-        </div>
+        <div>{{ severity_badge(iss.severity) }}</div>
         <div class="flex-grow-1">
           <strong>{{ kind_labels.get(iss.kind, iss.kind) }}</strong>
           <div class="small">{{ iss.label }}</div>
@@ -355,7 +344,7 @@
     {% for iss in group.issues %}
     <li class="list-group-item py-2">
       <div class="small">
-        <span class="badge bg-{{ 'danger' if iss.severity == 'error' else 'warning text-dark' }}">{{ iss.severity|capitalize }}</span>
+        {{ severity_badge(iss.severity) }}
         <strong class="ms-1">{{ kind_labels.get(iss.kind, iss.kind) }}</strong>
         - {{ iss.label }}
       </div>

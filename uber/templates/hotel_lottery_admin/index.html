@@ -152,15 +152,8 @@
             <tr{% if app.status not in c.HOTEL_LOTTERY_AWARD_STATUSES and (app.status != c.COMPLETE or not app.attendee or not app.attendee.hotel_lottery_eligible) %} class="bg-light"{% endif %}>
                 {% block tablerows scoped %}
                 <td>
-                  {% if app.status in [c.WITHDRAWN, c.DISQUALIFIED, c.REJECTED] or not app.attendee or not app.attendee.hotel_lottery_eligible %}
-                  <span class="text-danger">
-                    {% if not app.attendee or not app.attendee.hotel_lottery_eligible %}
-                    Invalid Attendee
-                    {% else %}
-                    {{ app.status_label }}
-                    {% endif %}
-                  </span>
-                  {% else %}{{ app.status_label }}{% endif %}
+                  {{ hotel_macros.app_status_chip(app,
+                        invalid=(not app.attendee or not app.attendee.hotel_lottery_eligible)) }}
                 </td>
                 <td>{{ app.entry_type_label }}</td>
                 <td><a href="form?id={{ app.id }}">{{ app.confirmation_num }}</a></td>
@@ -185,8 +178,7 @@
                           <div class="small">
                             {% if ra.export_locked %}<i class="fa fa-lock text-warning" title="Export Locked"></i> {% endif %}
                             {{ inv.hotel.name if inv and inv.hotel else '' }} -
-                            {% if inv and inv.is_suite %}{{ inv.suite_type.name if inv.suite_type else '' }}
-                            {% elif inv %}{{ inv.room_type.name if inv.room_type else '' }}{% endif %}
+                            {% if inv %}{{ inv.display_name }}{% endif %}
                             {% if ra.parent_assignment_id %}{{ hotel_macros.connector_chip() }}{% endif %}
                           </div>
                         {% endfor %}

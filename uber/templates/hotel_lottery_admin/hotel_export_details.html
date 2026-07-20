@@ -35,12 +35,8 @@
       <td><code>{{ row.app.confirmation_num }}</code></td>
       <td>
         {% if row.app.attendee %}
-          {% if c.HAS_HOTEL_LOTTERY_ADMIN_ACCESS %}
-            {{ hotel_macros.attendee_cell(row.app.attendee, hotel_names=True) }}
-          {% else %}
-            {{ row.app.attendee.first_name }} {{ row.app.attendee.last_name|first|upper }}.
-            <br/><small class="text-muted">{{ row.app.attendee.email }}</small>
-          {% endif %}
+          {{ hotel_macros.masked_attendee_cell(row.app.attendee,
+                can_view_names=c.HAS_HOTEL_LOTTERY_ADMIN_ACCESS, link=True) }}
         {% else %}<em>(deleted)</em>{% endif %}
       </td>
       {# Each `row` is per-RoomAssignment; connector rooms render their

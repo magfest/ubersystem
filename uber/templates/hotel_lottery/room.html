@@ -286,40 +286,12 @@
       <p class="text-muted small mb-2">
         The billing address associated with the card on file.
       </p>
-      <form method="post" action="save_billing_address" class="row g-2">
+      <form method="post" action="save_billing_address">
         {{ csrf_token() }}
         <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
         <input type="hidden" name="attendee_id" value="{{ viewer.id }}" />
-        <div class="col-12">
-          <label class="form-label">Address line 1</label>
-          <input type="text" class="form-control" name="address1" value="{{ ra.address1 or '' }}" />
-        </div>
-        <div class="col-12">
-          <label class="form-label">Address line 2</label>
-          <input type="text" class="form-control" name="address2" value="{{ ra.address2 or '' }}" />
-        </div>
-        <div class="col-md-5">
-          <label class="form-label">City</label>
-          <input type="text" class="form-control" name="city" value="{{ ra.city or '' }}" />
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">State / Province / Region</label>
-          <input type="text" class="form-control" name="region" value="{{ ra.region or '' }}" />
-        </div>
-        <div class="col-md-3">
-          <label class="form-label">ZIP / Postal code</label>
-          <input type="text" class="form-control" name="zip_code" value="{{ ra.zip_code or '' }}" />
-        </div>
-        <div class="col-md-6">
-          <label class="form-label">Country</label>
-          <select class="form-select" name="country">
-            <option value="">- Select country -</option>
-            {% for opt in c.COUNTRY_OPTS %}
-            <option value="{{ opt.value }}" {% if ra.country == opt.value %}selected{% endif %}>{{ opt.label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-12">
+        {{ room_macros.billing_address_fields(ra) }}
+        <div class="mt-2">
           <button type="submit" class="btn btn-primary">Save billing address</button>
         </div>
       </form>

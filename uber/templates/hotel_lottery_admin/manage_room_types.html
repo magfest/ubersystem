@@ -33,8 +33,12 @@
 {% set standard_types = room_types|selectattr('is_suite', 'false')|list %}
 {% set suite_types = room_types|selectattr('is_suite')|list %}
 
-{% if standard_types %}
-<h4>Standard Room Types</h4>
+{# One table block for both sections - only the heading and row set
+   differ between standard and suite types. #}
+{% for title, types in [('Standard Room Types', standard_types),
+                        ('Suite Types', suite_types)] %}
+{% if types %}
+<h4>{{ title }}</h4>
 <table class="table table-hover mb-4 datatable">
   <thead>
     <tr>
@@ -48,7 +52,7 @@
     </tr>
   </thead>
   <tbody>
-    {% for rt in standard_types %}
+    {% for rt in types %}
     <tr{% if not rt.active %} class="text-muted"{% endif %}>
       <td>{{ rt.name }}</td>
       <td>{{ rt.export_name or '-' }}</td>
@@ -62,36 +66,7 @@
   </tbody>
 </table>
 {% endif %}
-
-{% if suite_types %}
-<h4>Suite Types</h4>
-<table class="table table-hover mb-4 datatable">
-  <thead>
-    <tr>
-      <th>Name</th>
-      <th>Export Name</th>
-      <th>Capacity</th>
-      <th>Min Capacity</th>
-      <th>Connector chain</th>
-      <th>Active</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for rt in suite_types %}
-    <tr{% if not rt.active %} class="text-muted"{% endif %}>
-      <td>{{ rt.name }}</td>
-      <td>{{ rt.export_name or '-' }}</td>
-      <td>{{ rt.capacity }}</td>
-      <td>{{ rt.min_capacity }}</td>
-      <td>{{ chain_cell(rt, by_id, children_by_parent) }}</td>
-      <td>{{ 'Yes' if rt.active else 'No' }}</td>
-      <td><a href="edit_room_type?id={{ rt.id }}" class="btn btn-sm btn-outline-primary">Edit</a></td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-{% endif %}
+{% endfor %}
 
 {% if not room_types %}
 <div class="card card-body text-center text-muted">

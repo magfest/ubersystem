@@ -162,48 +162,10 @@
         help_text='Reuses the card and billing address from the selected room and secures this room.',
         boxed=True) }}
 
-  <div class="mb-3">
-    <label for="address1" class="form-label">Address Line 1 <span class="text-danger">*</span></label>
-    <input type="text" class="form-control" name="address1" id="address1"
-           value="{{ assignment.address1 or (_booker.address1 if _booker else '') }}" required />
-  </div>
+  {{ room_macros.billing_address_fields(assignment, fallback=_booker,
+        required=True, with_ids=True, gutter='g-3') }}
 
-  <div class="mb-3">
-    <label for="address2" class="form-label">Address Line 2</label>
-    <input type="text" class="form-control" name="address2" id="address2"
-           value="{{ assignment.address2 or (_booker.address2 if _booker else '') }}" />
-  </div>
-
-  <div class="row g-3 mb-3">
-    <div class="col-md-5">
-      <label for="city" class="form-label">City <span class="text-danger">*</span></label>
-      <input type="text" class="form-control" name="city" id="city"
-             value="{{ assignment.city or (_booker.city if _booker else '') }}" required />
-    </div>
-    <div class="col-md-4">
-      <label for="region" class="form-label">State/Province/Region <span class="text-danger">*</span></label>
-      <input type="text" class="form-control" name="region" id="region"
-             value="{{ assignment.region or (_booker.region if _booker else '') }}" required />
-    </div>
-    <div class="col-md-3">
-      <label for="zip_code" class="form-label">ZIP/Postal Code <span class="text-danger">*</span></label>
-      <input type="text" class="form-control" name="zip_code" id="zip_code"
-             value="{{ assignment.zip_code or (_booker.zip_code if _booker else '') }}" required />
-    </div>
-  </div>
-
-  <div class="mb-3">
-    <label for="country" class="form-label">Country <span class="text-danger">*</span></label>
-    <select class="form-select" name="country" id="country" required>
-      <option value="">-- Select Country --</option>
-      {% set current_country = assignment.country or (_booker.country if _booker else '') %}
-      {% for opt in c.COUNTRY_OPTS %}
-      <option value="{{ opt.value }}" {% if current_country == opt.value %}selected{% endif %}>{{ opt.label }}</option>
-      {% endfor %}
-    </select>
-  </div>
-
-  <div class="mb-3">
+  <div class="my-3">
     <label for="hotel_rewards_number" class="form-label">Hotel Rewards Program Number</label>
     <input type="text" class="form-control" name="hotel_rewards_number" id="hotel_rewards_number"
            value="{{ assignment.hotel_rewards_number or '' }}"

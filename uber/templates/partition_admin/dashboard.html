@@ -137,37 +137,21 @@
             extra_params='partition_id=' ~ partition.id,
             wrapper_class='mb-3 position-relative') }}
 
-      <div class="row g-2">
-        <div class="col-md-6">
-          <label class="form-label">Inventory Block</label>
-          <select name="inventory_id" class="form-select form-select-sm" required>
-            <option value="">- Pick a block -</option>
-            {% for row in blocks if row.inventory %}
-            <option value="{{ row.inventory.id }}">
-              {{ row.inventory.name }}
-              ({{ row.unassigned }} unassigned of {{ row.block.quantity }})
-            </option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-md-3">
-          <label class="form-label">Check-in</label>
-          <input type="date" name="assigned_check_in_date" class="form-control form-control-sm" />
-        </div>
-        <div class="col-md-3">
-          <label class="form-label">Check-out</label>
-          <input type="date" name="assigned_check_out_date" class="form-control form-control-sm" />
-        </div>
-      </div>
-      <div class="mt-2 d-flex align-items-center gap-3">
-        <div class="form-check">
-          <input class="form-check-input" type="checkbox" id="require_cc_new" name="require_cc" value="true" checked />
-          <label class="form-check-label" for="require_cc_new">
-            Require credit card
-            <span class="text-muted small">(uncheck for master bill)</span>
-          </label>
-        </div>
-        <button type="submit" class="btn btn-primary btn-sm ms-auto">Create Assignment</button>
+      {# Per-block "(N unassigned of Q)" suffixes for the inventory
+         options, keyed the way the shared macro expects. #}
+      {% set _suffix_map = {} %}
+      {% for row in blocks if row.inventory %}
+        {% set _ = _suffix_map.update({row.inventory.id|string:
+              '(' ~ row.unassigned ~ ' unassigned of ' ~ row.block.quantity ~ ')'}) %}
+      {% endfor %}
+      {{ hotel_macros.room_assignment_fields(
+            inventory_rows=blocks|selectattr('inventory')|map(attribute='inventory')|list,
+            option_suffix_map=_suffix_map,
+            label_mode='name',
+            require_cc=True,
+            layout='grid', size='sm') }}
+      <div class="mt-2 text-end">
+        <button type="submit" class="btn btn-primary btn-sm">Create Assignment</button>
       </div>
     </form>
   </details>
@@ -192,20 +176,13 @@
       {% for ra in roster %}
       <tr>
         <td>
+          {# The email usually reveals the full name, so it follows the
+             same gate as name visibility. #}
           {% if ra.attendee %}
-            {% if can_view_guest_legal_names %}
-              {{ ra.attendee.legal_first_name or ra.attendee.first_name }}
-              {{ ra.attendee.legal_last_name or ra.attendee.last_name }}
-            {% elif can_view_guest_names %}
-              {{ ra.attendee.first_name }} {{ ra.attendee.last_name }}
-            {% else %}
-              {{ ra.attendee.first_name }} {{ ra.attendee.last_name|first|upper }}.
-            {% endif %}
-            {# The email usually reveals the full name, so it follows the
-               same gate as name visibility. #}
-            {% if can_view_guest_names or can_view_guest_legal_names %}
-            <br/><small class="text-muted">{{ ra.attendee.email }}</small>
-            {% endif %}
+            {{ hotel_macros.masked_attendee_cell(ra.attendee,
+                  can_view_names=(can_view_guest_names or can_view_guest_legal_names),
+                  legal_names=can_view_guest_legal_names,
+                  show_email=(can_view_guest_names or can_view_guest_legal_names)) }}
           {% else %}<em>(deleted)</em>{% endif %}
         </td>
         <td>{{ hotel_macros.hotel_room_cell(ra=ra) }}</td>
@@ -323,7 +300,8 @@
         <h5 class="modal-title" id="edit-modal-label-{{ attendee_id }}">
           Edit assignments for
           {% if lead_attendee %}
-            {% if can_view_guest_names %}{{ lead_attendee.full_name }}{% else %}{{ lead_attendee.first_name }} {{ lead_attendee.last_name|first|upper }}.{% endif %}
+            {{ hotel_macros.masked_attendee_cell(lead_attendee,
+                  can_view_names=can_view_guest_names, show_email=False) }}
           {% else %}<em>(deleted attendee)</em>{% endif %}
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -352,58 +330,26 @@
               </div>
             </div>
 
-            <form method="post" action="update_assignment" class="row g-2">
+            <form method="post" action="update_assignment">
               {{ csrf_token() }}
               <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
 
-              <div class="col-md-6">
-                <label class="form-label small">Inventory block</label>
-                {% if ra.partition_id == partition.id %}
-                <select name="inventory_id" class="form-select form-select-sm">
-                  {# all_inventory only holds this partition's blocks; keep
-                     the current (possibly deactivated) block selectable. #}
-                  {% if ra.inventory and ra.inventory_id not in all_inventory|map(attribute='id')|list %}
-                  <option value="{{ ra.inventory_id }}" selected>
-                    {{ ra.inventory.name }}{% if ra.inventory.hotel %} - {{ ra.inventory.hotel.name }}{% endif %} (current)
-                  </option>
-                  {% endif %}
-                  {% for inv in all_inventory %}
-                  <option value="{{ inv.id }}"{% if inv.id == ra.inventory_id %} selected{% endif %}>
-                    {{ inv.name }}{% if inv.hotel %} - {{ inv.hotel.name }}{% endif %}{% if inv.is_suite %} (Suite){% endif %}
-                  </option>
-                  {% endfor %}
-                </select>
-                {% else %}
-                {# Rooms scoped to another partition (or the main lottery)
-                   can't be repointed from here - the server enforces the
-                   same bound in update_assignment. #}
-                <div class="form-control-plaintext form-control-sm">
-                  {% if ra.inventory %}{{ ra.inventory.name }}{% if ra.inventory.hotel %} - {{ ra.inventory.hotel.name }}{% endif %}{% else %}(unknown block){% endif %}
-                </div>
-                {% endif %}
-              </div>
-              <div class="col-md-3">
-                <label class="form-label small">Check-in</label>
-                <input type="date" name="assigned_check_in_date" class="form-control form-control-sm"
-                       value="{% if ra.assigned_check_in_date %}{{ ra.assigned_check_in_date.isoformat() }}{% endif %}" />
-              </div>
-              <div class="col-md-3">
-                <label class="form-label small">Check-out</label>
-                <input type="date" name="assigned_check_out_date" class="form-control form-control-sm"
-                       value="{% if ra.assigned_check_out_date %}{{ ra.assigned_check_out_date.isoformat() }}{% endif %}" />
-              </div>
-
-              <div class="col-md-9 d-flex align-items-end gap-3">
-                <label class="d-inline-flex align-items-center mb-0">
-                  <input type="radio" class="form-check-input me-1" name="require_cc" value="true" {% if ra.require_cc %}checked{% endif %} />
-                  <span class="badge bg-secondary">Self-pay</span>
-                </label>
-                <label class="d-inline-flex align-items-center mb-0">
-                  <input type="radio" class="form-check-input me-1" name="require_cc" value="false" {% if not ra.require_cc %}checked{% endif %} />
-                  <span class="badge bg-info text-dark">Master bill</span>
-                </label>
-              </div>
-              <div class="col-md-3 text-end">
+              {# all_inventory only holds this partition's blocks;
+                 include_current_option keeps the current (possibly
+                 deactivated) block selectable. Rooms scoped to another
+                 partition (or the main lottery) render read-only and
+                 post no inventory_id - the server enforces the same
+                 bound in update_assignment. #}
+              {{ hotel_macros.room_assignment_fields(
+                    ra=ra,
+                    inventory_rows=all_inventory,
+                    label_mode='name',
+                    require_cc=ra.require_cc,
+                    layout='grid', size='sm',
+                    inventory_required=False,
+                    inventory_editable=(ra.partition_id == partition.id),
+                    include_current_option=True) }}
+              <div class="text-end">
                 <button type="submit" class="btn btn-primary btn-sm">Save changes</button>
               </div>
             </form>

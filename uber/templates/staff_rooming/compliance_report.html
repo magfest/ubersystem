@@ -39,10 +39,8 @@
              aria-label="Search non-compliant staffers" />
     </div>
     <div class="col-md-3 text-end">
-      <button type="submit" class="btn btn-primary btn-sm">Apply</button>
-      {% if department or search %}
-        <a href="compliance_report" class="btn btn-outline-secondary btn-sm">Clear</a>
-      {% endif %}
+      {{ hotel_macros.filter_actions('compliance_report',
+            show_reset=(department or search)) }}
     </div>
   </div>
 </form>

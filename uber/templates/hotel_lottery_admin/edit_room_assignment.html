@@ -95,7 +95,6 @@
 
     {% if ra.parent_assignment_id %}
     <hr class="my-2"/>
-    {% set parent = ra.parent_assignment_id and (None) %}
     <div class="text-muted">
       This is a connector room. Its parent is
       <a href="edit_room_assignment?id={{ ra.parent_assignment_id }}">
@@ -113,47 +112,13 @@
   <div class="card mb-3">
     <div class="card-header py-2"><strong>Room &amp; Dates</strong></div>
     <div class="card-body py-2">
-      <div class="row g-2 mb-2">
-        <div class="col-md-6">
-          <label class="form-label">Partition</label>
-          <select class="form-select room-picker-partition" name="partition_id">
-            <option value="" {% if not ra.partition_id %}selected{% endif %}>(No partition)</option>
-            {% for p in partitions %}
-              <option value="{{ p.id }}" {% if ra.partition_id == p.id %}selected{% endif %}>{{ p.name }}</option>
-            {% endfor %}
-          </select>
-          <div class="form-text">
-            Picking a partition restricts the inventory choices to blocks that are part of it.
-          </div>
-        </div>
-        <div class="col-md-6">
-          <label class="form-label">Inventory Block</label>
-          <select class="form-select room-picker-inventory" name="inventory_id" required>
-            <option value="">- Select an inventory block -</option>
-            {% for inv_opt in inventory_blocks %}
-              <option value="{{ inv_opt.id }}"
-                      data-partitions="{{ inventory_partitions_map.get(inv_opt.id|string, [])|join(',') }}"
-                      {% if ra.inventory_id == inv_opt.id %}selected{% endif %}>
-                {{ inv_opt.hotel.name if inv_opt.hotel else '?' }} -
-                {% if inv_opt.is_suite %}{{ inv_opt.suite_type.name if inv_opt.suite_type else inv_opt.name }}
-                {% else %}{{ inv_opt.room_type.name if inv_opt.room_type else inv_opt.name }}{% endif %}
-              </option>
-            {% endfor %}
-          </select>
-        </div>
-      </div>
+      {{ hotel_macros.room_assignment_fields(
+            ra=ra, partitions=partitions,
+            inventory_rows=inventory_blocks,
+            inventory_partitions_map=inventory_partitions_map,
+            require_cc=ra.require_cc, layout='grid') }}
 
       <div class="row g-2 mb-2">
-        <div class="col-md-3">
-          <label class="form-label">Check-in</label>
-          <input type="date" class="form-control" name="assigned_check_in_date"
-                 value="{{ ra.assigned_check_in_date or '' }}" />
-        </div>
-        <div class="col-md-3">
-          <label class="form-label">Check-out</label>
-          <input type="date" class="form-control" name="assigned_check_out_date"
-                 value="{{ ra.assigned_check_out_date or '' }}" />
-        </div>
         <div class="col-md-3">
           <label class="form-label">Deposit Cutoff</label>
           <input type="date" class="form-control" name="deposit_cutoff_date"
@@ -172,13 +137,6 @@
 
       <div class="row g-2 mb-0">
         <div class="col-md-4">
-          <label class="form-label">Billing</label>
-          <select class="form-select" name="require_cc">
-            <option value="false" {% if not ra.require_cc %}selected{% endif %}>Master bill (no CC required)</option>
-            <option value="true" {% if ra.require_cc %}selected{% endif %}>Self-pay (requires CC)</option>
-          </select>
-        </div>
-        <div class="col-md-4">
           <label class="form-label">Hotel Confirmation #</label>
           <input type="text" class="form-control" name="hotel_confirmation_number"
                  value="{{ ra.hotel_confirmation_number or '' }}" />
@@ -195,7 +153,7 @@
             <option value="">(none / free text below)</option>
             {% for r in assignable_rooms %}
             <option value="{{ r.id }}" {% if ra.physical_room_id == r.id %}selected{% endif %}>
-              {{ r.room_number }}{% if r.floor %} (floor {{ r.floor }}){% endif %}{% if r.ada %} [ADA]{% endif %}
+              {{ hotel_macros.physical_room_option_label(r) }}
             </option>
             {% endfor %}
           </select>

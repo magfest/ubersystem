@@ -66,16 +66,10 @@
       </select>
     </div>
     <div class="col-md-1">
-      <label class="form-label small mb-1">Per page</label>
-      <select class="form-select form-select-sm" name="page_size">
-        {% for ps in [25, 50, 100, 200] %}
-          <option value="{{ ps }}" {% if page_size == ps %}selected{% endif %}>{{ ps }}</option>
-        {% endfor %}
-      </select>
+      {{ hotel_macros.page_size_select(page_size) }}
     </div>
     <div class="col-md-2 text-end">
-      <button type="submit" class="btn btn-primary btn-sm">Apply</button>
-      <a href="rooms" class="btn btn-outline-secondary btn-sm">Reset</a>
+      {{ hotel_macros.filter_actions('rooms') }}
     </div>
   </div>
 </form>
@@ -105,12 +99,8 @@
       <td>{{ hotel_macros.hotel_room_cell(ra=ra) }}</td>
       <td>
         {% if ra.attendee %}
-          {% if c.HAS_HOTEL_LOTTERY_ADMIN_ACCESS %}
-            {{ hotel_macros.attendee_cell(ra.attendee, hotel_names=True) }}
-          {% else %}
-            {{ ra.attendee.first_name }} {{ ra.attendee.last_name|first|upper }}.
-            <br/><small class="text-muted">{{ ra.attendee.email }}</small>
-          {% endif %}
+          {{ hotel_macros.masked_attendee_cell(ra.attendee,
+                can_view_names=c.HAS_HOTEL_LOTTERY_ADMIN_ACCESS, link=True) }}
         {% else %}<em>(no attendee)</em>{% endif %}
         {% if app %}
           <br/><small class="text-muted">
