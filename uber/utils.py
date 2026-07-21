@@ -29,6 +29,7 @@ from pytz import UTC
 from sqlalchemy import func, or_, cast, literal, DateTime
 from sqlalchemy.orm import make_transient
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from psycopg.errors import UniqueViolation
 
 from uber.config import c, _config, signnow_sdk, threadlocal
 from uber.errors import CSRFException, HTTPRedirect
@@ -2253,7 +2254,6 @@ class TaskUtils:
                 account.unused_years = 0
                 attendee.managers.append(account)
 
-            from psycopg2.errors import UniqueViolation
 
             try:
                 session.commit()
