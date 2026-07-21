@@ -9,7 +9,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from uber.auth import OIDC
 from uber.email import EmailService
 from uber.config import c
-from uber.decorators import (ajax, all_renderable, csrf_protected, csv_file,
+from uber.decorators import (ajax, all_renderable, any_admin_access, csrf_protected, csv_file,
                              not_site_mappable, render, site_mappable, public)
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, Attendee, BadgeInfo, PasswordReset, WorkstationAssignment
@@ -306,8 +306,11 @@ class Root:
 
         raise HTTPRedirect('../landing/index?message={}', 'You have been logged out.')
 
-    @public
+    @any_admin_access
     def reset(self, session, message='', email=None):
+        if c.SAML_SETTINGS or c.OIDC_ENABLED:
+            raise HTTPRedirect('../landing/index')
+
         if email is not None:
             try:
                 account = session.get_admin_account_by_email(email)
