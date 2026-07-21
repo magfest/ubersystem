@@ -1,0 +1,7 @@
+Your group ({{ group.name }}) applied for a {{ c.EVENT_NAME }} {{ c.DEALER_APP_TERM }} for this coming {{ event_dates() }}. Unfortunately, we are unable to offer you a {{ c.DEALER_LOC_TERM }} spot this year.
+
+We received more applications than we had room for, so this decision is not a reflection of you or your work, and we hope you will consider applying again in the future.
+
+You are still welcome to attend {{ c.EVENT_NAME }} as a regular attendee. If you have any questions, please contact us at {{ c.MARKETPLACE_EMAIL }}.
+
+{{ email_signature }}

@@ -1,0 +1,7 @@
+Your group ({{ group.name }}) applied for a {{ c.EVENT_NAME }} {{ c.DEALER_APP_TERM }} for this coming {{ event_dates() }} and has been placed on our waitlist.
+
+Our {{ c.DEALER_LOC_TERM }} is currently full, but spots sometimes open up before the event. We will email you if a spot becomes available and your application is approved. No payment or action is needed from you at this time.
+
+If you have any questions, please contact us at {{ c.MARKETPLACE_EMAIL }}.
+
+{{ email_signature }}
