@@ -20,6 +20,7 @@ import sqlalchemy
 from dateutil import parser as dateparser
 from pytz import UTC
 from sqlalchemy import and_, func, or_, create_engine
+from sqlalchemy.dialects import registry
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.event import listen
 from sqlalchemy.exc import IntegrityError, NoResultFound
@@ -71,12 +72,16 @@ def _make_getter(model):
             return inst
     return getter
 
+registry.register("postgresql", "sqlalchemy.dialects.postgresql.psycopg", "PGDialect_psycopg")
+
 engine = create_engine(
     c.SQLALCHEMY_URL,
     pool_size=c.SQLALCHEMY_POOL_SIZE,
     max_overflow=c.SQLALCHEMY_MAX_OVERFLOW,
     pool_pre_ping=True,
-    pool_recycle=c.SQLALCHEMY_POOL_RECYCLE
+    pool_recycle=c.SQLALCHEMY_POOL_RECYCLE,
+    query_cache_size=1200,
+    connect_args={"prepare_threshold": 1, "connect_timeout": 10} if "postgresql" in c.SQLALCHEMY_URL else {},
 )
 
 RE_UNCAMEL = re.compile(
