@@ -59,8 +59,7 @@ def notify_admins_of_pending_emails():
             pending_emails_by_sender[email.sender].append({email: pending_count_by_id[email.id]})
 
         for sender, automated_emails in pending_emails_by_sender.items():
-            if sender == c.STAFF_EMAIL:
-                # STOPS receives a report on ALL the pending emails.
+            if sender == c.REPORTS_CC_EMAIL:
                 emails_by_sender = pending_emails_by_sender
             elif sender not in depts_by_sender:
                 continue
