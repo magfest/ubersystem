@@ -9,11 +9,10 @@ ENV PYTHONPATH=/app
 ENV PATH=/root/.local/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin
 ENV DEBIAN_FRONTEND=noninteractive
 
-ADD https://astral.sh/uv/install.sh /tmp/install-uv.sh
-RUN sh /tmp/install-uv.sh && rm /tmp/install-uv.sh
+# Install uv directly from the official image
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Install system dependencies required for ortools, xmlsec, and lxml.
-# We include libxml2-dev, libxslt1-dev, and pkg-config to allow lxml and xmlsec to build from source.
+# Install system dependencies required for ortools, xmlsec, lxml
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     libxml2 \
