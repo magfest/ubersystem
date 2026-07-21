@@ -1,9 +1,9 @@
 # syntax = docker/dockerfile:1.4.0
 
-FROM python:3.13-alpine AS build
+FROM python:3.14-slim AS build
 ARG PLUGINS="[]"
 ARG PLUGIN_NAMES="[]"
-ARG LXML="6.0.0"
+ARG LXML="6.1.1"
 WORKDIR /app
 ENV PYTHONPATH=/app
 ENV PATH=/root/.local/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -12,17 +12,25 @@ ENV DEBIAN_FRONTEND=noninteractive
 ADD https://astral.sh/uv/install.sh /tmp/install-uv.sh
 RUN sh /tmp/install-uv.sh && rm /tmp/install-uv.sh
 
-# We're upgrading to edge because lxml comes with its own libxml2 which must match the system version for xmlsec to work
-# We can remove this once python ships a docker container with a libxml2 that matches lxml
-# Check lxml version with:
-# import lxml.etree
-# lxml.etree.LIBXML_VERSION
-# Alternatively, build lxml from source to link against system libxml2: RUN uv pip install --system --no-binary lxml lxml
-RUN --mount=type=cache,target=/var/cache/apk \
-    apk --update-cache upgrade && \
-    apk add git libxml2 xmlsec-dev build-base jq curl openssh
+# Install system dependencies required for ortools, xmlsec, and lxml.
+# We include libxml2-dev, libxslt1-dev, and pkg-config to allow lxml and xmlsec to build from source.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    libxml2 \
+    libxml2-dev \
+    libxslt1-dev \
+    libxmlsec1-dev \
+    pkg-config \
+    build-essential \
+    jq \
+    curl \
+    openssh-client \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN uv pip install --system https://github.com/magfest/lxml/releases/download/v$LXML/lxml-$LXML-cp313-cp313-musllinux_1_2_$(uname -m).whl
+# Build lxml from source to ensure it links against the system libxml2 
+# so that it is compatible with xmlsec.
+RUN uv pip install --system --no-binary lxml lxml==$LXML
 
 ADD requirements.txt /app/
 RUN uv pip install --system -r requirements.txt
@@ -43,7 +51,6 @@ ADD requirements_test.txt /app/
 RUN uv pip install --system -r requirements_test.txt
 ADD . /app
 CMD ["python3", "-m", "pytest"]
-
 
 FROM build AS release
 ADD . /app
