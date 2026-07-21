@@ -2327,6 +2327,8 @@ class TaskUtils:
             except Exception:
                 pass
 
+            account_owner = None
+
             for attendee in account_attendees:
                 if attendee.get('badge_num', 0) in range(c.BADGE_RANGES[c.STAFF_BADGE][0],
                                                          c.BADGE_RANGES[c.STAFF_BADGE][1]):
@@ -2337,11 +2339,13 @@ class TaskUtils:
                         if existing_staff:
                             existing_staff.managers.append(account)
                             session.add(existing_staff)
+                            account_owner = existing_staff
                         else:
                             new_staff = TaskUtils.basic_attendee_import(attendee)
                             new_staff.badge_num = old_badge_num
                             new_staff.managers.append(account)
                             session.add(new_staff)
+                            account_owner = new_staff
                     # If SSO is used for attendee accounts, we don't import staff at all
                 else:
                     new_attendee = TaskUtils.basic_attendee_import(attendee)
@@ -2363,6 +2367,7 @@ class TaskUtils:
                 account.unused_years += 1
             else:
                 account.unused_years = 0
+            account.set_account_owner(account_owner)
             session.add(account)
             session.commit()
 

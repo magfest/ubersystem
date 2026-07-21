@@ -156,7 +156,7 @@ class Root:
         if print_id:
             if reprint_fee:
                 receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
-                session.add(ReceiptItem(purchaser_id=attendee.id,
+                session.add(ReceiptItem(purchaser_id=attendee.purchaser_id,
                                         receipt_id=receipt.id,
                                         department=c.REG_RECEIPT_ITEM,
                                         category=c.BADGE_REPRINT,

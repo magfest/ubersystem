@@ -110,6 +110,11 @@ class Root:
 
                 session.commit()
 
+                if account and not account.owner:
+                    account.set_account_owner(attendee_to_update)
+                    session.add(account)
+                    session.commit()
+
                 redirect_url = req['post_data'].get('RelayState', '')
 
                 if redirect_url:

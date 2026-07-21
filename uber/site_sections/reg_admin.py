@@ -297,11 +297,6 @@ class Root:
                     Tracking.fk_id == closed_receipt.id))).order_by(Tracking.when).all()
             closed_receipts.add(closed_receipt)
 
-        other_purchased_badges = []
-        for purchaser_receipt in session.query(ModelReceipt).join(ReceiptItem).filter(ReceiptItem.purchaser_id == model.id):
-            if purchaser_receipt.owner_id != model.id:
-                other_purchased_badges.append(session.get_model_by_receipt(purchaser_receipt))
-
         return {
             'attendee': model if isinstance(model, Attendee) else None,
             'group': model if isinstance(model, Group) else None,
@@ -318,7 +313,6 @@ class Root:
                 c.SQUARE: "SPIn" if c.SPIN_TERMINAL_AUTH_KEY else "Square",
                 c.MANUAL: "Stripe"},
             'refund_txn_candidates': refund_txn_candidates,
-            'other_purchased_badges': other_purchased_badges,
         }
     
     def receipt_items_guide(self, session, message=''):
@@ -1395,10 +1389,17 @@ class Root:
                         raise HTTPRedirect('attendee_account_form?id={}&message={}', account.id,
                                            "Account email updated!")
 
+        other_purchased_badges = []
+        attendee_ids = [a.id for a in account.valid_attendees]
+        for purchaser_receipt in session.query(ModelReceipt).join(ReceiptItem).filter(ReceiptItem.purchaser_id == account.id):
+            if purchaser_receipt.owner_id not in attendee_ids:
+                other_purchased_badges.append(session.get_model_by_receipt(purchaser_receipt))
+
         return {
             'message': message,
             'account': account,
             'new_email': new_email,
+            'other_purchased_badges': other_purchased_badges,
         }
 
     @site_mappable
