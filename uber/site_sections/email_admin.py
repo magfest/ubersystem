@@ -309,7 +309,7 @@ class Root:
         right_now = str(datetime.now())
 
         return {
-            'from_address': from_address or c.STAFF_EMAIL,
+            'from_address': from_address or c.REPORTS_EMAIL,
             'to_address': (
                 to_address or
                 ("goldenaxe75t6489@mailinator.com" if c.DEV_BOX else AdminAccount.admin_email())

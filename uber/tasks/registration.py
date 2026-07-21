@@ -119,10 +119,6 @@ def check_duplicate_registrations():
 def check_placeholder_registrations():
     if c.PRE_CON and (c.DEV_BOX or c.SEND_EMAILS) and c.REPORTS_EMAIL:
         emails = [[
-            'Staff',
-            c.STAFF_EMAIL,
-            (Attendee.staffing == True, Attendee.is_valid == True)  # noqa: E712
-        ], [
             'Panelist',
             c.PANELS_EMAIL,
             (or_(Attendee.badge_type == c.GUEST_BADGE, Attendee.ribbon.contains(c.PANELIST_RIBBON)),
@@ -136,6 +132,24 @@ def check_placeholder_registrations():
                 Attendee.ribbon.contains(c.PANELIST_RIBBON))),
             Attendee.is_valid == True)  # noqa: E712
         ]]
+
+        if c.STAFF_EMAIL == c.VOLUNTEER_EMAIL:
+            emails.append([
+                'Staff/Volunteers',
+                c.STAFF_EMAIL,
+                (Attendee.staffing == True, Attendee.is_valid == True)  # noqa: E712
+            ])
+        else:
+            emails.append([
+                'Staff',
+                c.STAFF_EMAIL,
+                (Attendee.badge_type.in_([c.STAFF_BADGE, c.CONTRACTOR_BADGE]), Attendee.is_valid == True)  # noqa: E712
+            ])
+            emails.append([
+                'Volunteers',
+                c.VOLUNTEER_EMAIL,
+                (Attendee.ribbon.contains(c.VOLUNTEER_RIBBON), Attendee.is_valid == True)  # noqa: E712
+            ])
 
         with Session() as session:
             for badge_type, to, per_email_filter in emails:
@@ -165,7 +179,7 @@ def check_pending_badges():
             pending = session.query(Attendee).filter(Attendee.badge_status == c.PENDING_STATUS,
                                                      Attendee.paid != c.PENDING).all()
             if pending and session.no_email(subject):
-                EmailService.queue_email(session, 'daily_pending_report', to=c.STAFF_EMAIL,
+                EmailService.queue_email(session, 'daily_pending_report', to=c.REPORTS_CC_EMAIL,
                                          subject=subject, data={'pending': pending})
 
 
@@ -181,7 +195,7 @@ def check_unassigned_volunteers():
                 not_(Attendee.dept_memberships.any())).order_by(Attendee.full_name).all()  # noqa: E712
             subject = c.EVENT_NAME + ' Unassigned Volunteer Report for ' + localized_now().strftime('%Y-%m-%d')
             if unassigned and session.no_email(subject):
-                EmailService.queue_email(session, 'daily_unassigned_report', to=c.STAFF_EMAIL)
+                EmailService.queue_email(session, 'daily_unassigned_report', to=c.VOLUNTEER_EMAIL)
 
 
 @celery.schedule(timedelta(minutes=5))

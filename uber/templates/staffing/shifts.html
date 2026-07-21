@@ -72,7 +72,7 @@
             Shifts that will overlap with your existing shifts will be hidden, and you will need to drop a shift to view them.
             <br/>
             {% if c.AFTER_DROP_SHIFTS_DEADLINE %}
-            After {{ c.DROP_SHIFTS_DEADLINE|datetime_local }}, you must contact {{ c.STAFF_EMAIL|email_only|email_to_link }} to drop shifts. You may continue to add shifts through the event.
+            After {{ c.DROP_SHIFTS_DEADLINE|datetime_local }}, you must contact {{ c.drop_shifts_email(attendee.badge_type)|email_only|email_to_link }} to drop shifts. You may continue to add shifts through the event.
             {% else %}
             You can drop shifts until <b>{{ c.DROP_SHIFTS_DEADLINE|datetime_local }}</b>.
             {% endif %}
@@ -537,7 +537,7 @@
     } else {
       let cant_drop_reason;
       if (dropDeadlinePassed) {
-        cant_drop_reason = "You cannot drop your shifts now that the deadline has passed. Please contact us at {{ c.STAFF_EMAIL|email_only }}."
+        cant_drop_reason = "You cannot drop your shifts now that the deadline has passed. Please contact us at {{ c.drop_shifts_email(attendee.badge_type)|email_only }}."
       } else { cant_drop_reason = "You cannot drop an assigned shift. Please contact your department head." }
       button = `<span class="tooltip-wrapper" tabindex="0" data-bs-toggle="tooltip" data-placement="top"
       title="${cant_drop_reason}">
@@ -578,7 +578,7 @@
                 '${moment(eventInfo.start).format("h:mma [on] dddd, MMM Do")}')">Sign Up</button>`
     } else if (dropDeadlinePassed) {
       button = `<span class="tooltip-wrapper" tabindex="0" data-bs-toggle="tooltip" data-placement="top"
-      title="You cannot drop your shifts now that the deadline has passed. Please contact us at {{ c.STAFF_EMAIL|email_only }}.">
+      title="You cannot drop your shifts now that the deadline has passed. Please contact us at {{ c.drop_shifts_email(attendee.badge_type)|email_only }}.">
       <button type="button" class="btn btn-warning" disabled>Drop</button></span>`
     } else {
       button = `<button type="button" class="btn btn-warning"
