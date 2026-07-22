@@ -24,8 +24,25 @@ The tabletop showcase is not open yet. Check back soon!
     {% endif %}
 {% else %}
     {% if team.is_new %}
+        {% if logged_in_account and logged_in_account.mits_teams %}
+        <div class="alert alert-info">
+          {% if logged_in_account.mits_teams|length == 1 %}
+          You have already registered the team "<a href="../showcase/index?id={{ logged_in_account.mits_teams[0].id }}">{{ logged_in_account.mits_teams[0].name }}</a>". You can use the form below if you wish to apply under a second team.
+          {% else %}
+          You have already registered the following teams:
+          <ul>
+            {% for studio in logged_in_account.mits_teams %}
+            <li><a href="../showcase/index?id={{ studio.id }}">{{ studio.name }}</a></li>
+            {% endfor %}
+          </ul>
+          You can use the form below if you wish to apply under a new team.
+          {% endif %}
+        </div>
+        {% endif %}
         <h2>MAGFest Indie Tabletop Showcase Application</h2>
+        {% if not logged_in_account %}
         Have you already filled this out? If so, click <a href="../mits/check_if_applied">here</a>. <br/><br/>
+        {% endif %}
     {% else %}
         <h2>Edit Your Team Information</h2>
     {% endif %}

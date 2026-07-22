@@ -28,6 +28,7 @@ from phonenumbers import PhoneNumberFormat
 from pytz import UTC
 from sqlalchemy import func, or_, cast, literal, DateTime
 from sqlalchemy.orm import make_transient
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from uber.config import c, _config, signnow_sdk, threadlocal
 from uber.errors import CSRFException, HTTPRedirect
@@ -1163,8 +1164,18 @@ def validate_model(session, forms, model, create_preview_model=True, is_admin=Fa
     if not preview_model.session:
         session.add(preview_model)
 
-    if create_preview_model and preview_model not in session.new:
-        rollback_session = session.begin_nested()
+    if create_preview_model:
+        if preview_model in session.new:
+            try:
+                rollback_session = session.begin_nested()
+                preview_model.is_actually_new = True
+                new_objs.append(preview_model)
+            except SQLAlchemyError:
+                # Many new objects being validated aren't ready to be committed to the DB
+                # So we'll just work with this as a transient object
+                session.rollback()
+        else:
+            rollback_session = session.begin_nested()
 
         for form in forms.values():
             form.populate_obj(preview_model, is_admin=is_admin, dry_run=True)
@@ -2217,7 +2228,6 @@ class TaskUtils:
                 account.unused_years = 0
                 attendee.managers.append(account)
 
-            from sqlalchemy.exc import IntegrityError
             from psycopg2.errors import UniqueViolation
 
             try:
