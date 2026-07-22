@@ -37,6 +37,7 @@ class Root:
                                "Studio created successfully! Submit one or more games to our showcases below.")
 
         return {
+            'logged_in_account': session.current_attendee_account(),
             'message': message,
             'forms': forms,
         }

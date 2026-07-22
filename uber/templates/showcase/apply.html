@@ -4,6 +4,21 @@
 {% block content %}
 
   <div class="card card-body">
+    {% if logged_in_account and logged_in_account.indie_studios %}
+      <div class="alert alert-info">
+        {% if logged_in_account.indie_studios|length == 1 %}
+        You have already registered the studio "<a href="../showcase/index?id={{ logged_in_account.indie_studios[0].id }}">{{ logged_in_account.indie_studios[0].name }}</a>". You can use the form below if you wish to apply under a second studio.
+        {% else %}
+        You have already registered the following studios:
+        <ul>
+          {% for studio in logged_in_account.indie_studios %}
+          <li><a href="../showcase/index?id={{ studio.id }}">{{ studio.name }}</a></li>
+          {% endfor %}
+        </ul>
+        {% if c.INDIE_SHOWCASE_OPEN %}You can use the form below if you wish to apply under a new studio.{% endif %}
+        {% endif %}
+      </div>
+    {% endif %}
     <h2>{{ c.EVENT_NAME }} Indies</h2>
     {% if not c.INDIE_SHOWCASE_OPEN and not c.HAS_SHOWCASE_ADMIN_ACCESS %}
         <p>Applications are currently closed for {{ c.ENABLED_INDIES_STR }}. Please refer to the schedule below.</p>
