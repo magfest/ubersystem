@@ -1866,6 +1866,9 @@ c.make_dates(_config['dates'])
 c.DATA_DIRS = {}
 c.make_data_dirs(_config['data_dirs'])
 
+if c.SQLALCHEMY_URL.startswith("postgresql://") or c.SQLALCHEMY_URL.startswith("postgresql+psycopg2://"):
+    c.SQLALCHEMY_URL = "postgresql+psycopg://" + c.SQLALCHEMY_URL.split("://", 1)[1]
+
 if "sqlite" in c.SQLALCHEMY_URL:
     # SQLite does not suport pool_size and max_overflow,
     # so disable them if sqlite is used.

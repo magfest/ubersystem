@@ -27,7 +27,9 @@ from uuid import uuid4
 from phonenumbers import PhoneNumberFormat
 from pytz import UTC
 from sqlalchemy import func, or_, cast, literal, DateTime
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import make_transient
+from psycopg.errors import UniqueViolation
 
 from uber.config import c, _config, signnow_sdk, threadlocal
 from uber.errors import CSRFException, HTTPRedirect
@@ -2216,9 +2218,6 @@ class TaskUtils:
                     session.add(account)
                 account.unused_years = 0
                 attendee.managers.append(account)
-
-            from sqlalchemy.exc import IntegrityError
-            from psycopg2.errors import UniqueViolation
 
             try:
                 session.commit()

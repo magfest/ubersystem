@@ -95,7 +95,7 @@
           <list size="7">
             <item index="0" class="java.lang.String" itemvalue="pytest" />
             <item index="1" class="java.lang.String" itemvalue="Django" />
-            <item index="2" class="java.lang.String" itemvalue="psycopg2" />
+            <item index="2" class="java.lang.String" itemvalue="psycopg" />
             <item index="3" class="java.lang.String" itemvalue="py3k-bcrypt" />
             <item index="4" class="java.lang.String" itemvalue="stripe" />
             <item index="5" class="java.lang.String" itemvalue="pep8" />
