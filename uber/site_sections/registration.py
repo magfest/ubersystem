@@ -332,7 +332,7 @@ class Root:
             'forms': forms,
             'return_to':  return_to,
             'no_badge_num': params.get('no_badge_num'),
-            'group_opts': [(g.id, g.name) for g in session.query(Group).order_by(Group.name).all()],
+            'group_opts': session.query(Group.id, Group.name).order_by(Group.name).all(),
             'unassigned': {
                 group_id: unassigned
                 for group_id, unassigned in session.query(Attendee.group_id, func.count('*')).filter(
@@ -1591,7 +1591,7 @@ class Root:
             'attendee': attendee,
             'forms': forms,
             'tab_view': tab_view,
-            'group_opts': [(g.id, g.name) for g in session.query(Group).order_by(Group.name).all()],
+            'group_opts': session.query(Group.id, Group.name).order_by(Group.name).all(),
         }
 
         if 'attendee_data' in cherrypy.url():

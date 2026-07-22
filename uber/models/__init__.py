@@ -1527,7 +1527,7 @@ class UberSession(sqlalchemy.orm.Session):
             # Make sure that code is a valid Uuid(as_uuid=False) before adding
             # PromoCode.id to the filter clause
             try:
-                promo_code_id = uuid.Uuid(as_uuid=False)(normalized_code).hex
+                promo_code_id = uuid.UUID(as_uuid=False)(normalized_code).hex
             except Exception:
                 pass
             else:

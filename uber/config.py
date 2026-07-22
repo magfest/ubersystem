@@ -1323,6 +1323,24 @@ class Config(_Overridable):
         if signature_key:
             return self.EMAIL_SIGNATURES.get(signature_key, '')
         return ""
+    
+    # A list of department emails and their other related configured email addresses
+    @property
+    def RELATED_EMAILS(self):
+        from uber.custom_tags import email_only
+        email_dict = {
+            c.MARKETPLACE_EMAIL: [c.MARKETPLACE_NOTIFICATIONS_EMAIL],
+            c.ART_SHOW_EMAIL: [c.ART_SHOW_NOTIFICATIONS_EMAIL, c.ART_SHOW_BCC_EMAIL],
+        }
+        email_dict.pop('', '')
+
+        indie_emails = [c.INDIE_SHOWCASE_EMAIL, c.INDIE_ARCADE_EMAIL, c.INDIE_RETRO_EMAIL, c.MIVS_EMAIL]
+
+        for email in indie_emails:
+            email_dict[email] = [e for e in indie_emails if e != email]
+
+        # Run email_only on all the keys and values of email_dict and then return it
+        return dict(map(lambda x: (email_only(x), list(map(email_only, email_dict[x]))), email_dict))
 
     # =========================
     # indie showcases (mivs, indie arcade, indie retro)
@@ -2159,16 +2177,6 @@ c.GUIDEBOOK_PROPERTIES = [
     ('guidebook_header', 'Image (Optional)'),
     ('guidebook_thumbnail', 'Thumbnail (Optional)'),
 ]
-
-
-# A list of department emails and their other related configured email addresses
-c.RELATED_EMAILS = {
-    c.MARKETPLACE_EMAIL: [c.MARKETPLACE_NOTIFICATIONS_EMAIL],
-    c.ART_SHOW_EMAIL: [c.ART_SHOW_NOTIFICATIONS_EMAIL, c.ART_SHOW_BCC_EMAIL],
-    c.MIVS_EMAIL: [c.INDIE_SHOWCASE_EMAIL],
-    c.INDIE_ARCADE_EMAIL: [c.INDIE_SHOWCASE_EMAIL],
-    c.INDIE_RETRO_EMAIL: [c.INDIE_SHOWCASE_EMAIL],
-}
 
 
 # =============================
