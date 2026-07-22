@@ -352,7 +352,8 @@ def requires_email_admin(inherent_role=None):
             if c.HAS_FULL_EMAIL_ADMIN_ACCESS:
                 return func(*args, **kwargs)
 
-            if not kwargs.get('department_id', kwargs.get('department')):
+            department_id = kwargs.get('department_id', kwargs.get('department'))
+            if not department_id or department_id in ['None', 'All']:
                 message = ''
                 with uber.models.Session() as session:
                     id = kwargs.get('id')
@@ -366,6 +367,7 @@ def requires_email_admin(inherent_role=None):
                     
                     depts_tuples = EmailService.depts_from_email(session, email.sender)
                     if not depts_tuples:
+                        message = "You must have full email admin permissions to manage this email."
                         ajax_or_redirect(func, '../accounts/homepage?message=', message, False)
 
                     for id, _ in depts_tuples:

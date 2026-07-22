@@ -16,8 +16,17 @@ You ({{ attendee.full_name }}) have preregistered for {{ c.EVENT_NAME_AND_YEAR }
 {% else %}
     and your payment of {{ (attendee.amount_paid / 100)|format_currency }} has been received.
 {% endif %}
-Your registration confirmation number is {{ attendee.id }}, and you can update your information, preorder merch, or donate
-extra money <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}">here</a>.
+Your registration confirmation number is {{ attendee.id }}, and you can update your 
+{% if c.ADDONS_ENABLED and c.COLLECT_EXTRA_DONATION %}
+    information, preorder merch, or donate extra money
+{% elif c.ADDONS_ENABLED %}
+    information, or preorder merch
+{% elif c.COLLECT_EXTRA_DONATION %}
+    information, or donate extra money
+{% else %}
+    information
+{% endif %}
+<a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}">here</a>.
 
 {% if attendee.is_group_leader %}
     If you don't remember claiming a badge, it may have been created for you by {{ c.EVENT_NAME }} staff. Please
