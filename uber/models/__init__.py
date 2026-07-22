@@ -1774,10 +1774,11 @@ class UberSession(sqlalchemy.orm.Session):
                 .order_by(Job.start_time, Job.name)
 
         def staffers_for_dropdown(self):
-            query = self.query(Attendee.id, Attendee.full_name)
+            query = self.query(Attendee.id, Attendee.full_name).filter(Attendee.is_valid == True,
+                                                                       Attendee.staffing == True)
             return [
                 {'id': id, 'full_name': full_name.title()}
-                for id, full_name in query.filter_by(staffing=True).order_by(Attendee.full_name)]
+                for id, full_name in query.order_by(Attendee.full_name)]
 
         def dept_heads(self, department_id=None):
             if department_id:

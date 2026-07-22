@@ -433,7 +433,7 @@ class Config(_Overridable):
     def VOLUNTEER_SIGNUPS_AVAILABLE(self):
         return not c.VOLUNTEER_CHECKLIST_OPEN and c.AFTER_SHIFTS_CREATED or c.VOLUNTEER_CHECKLIST_OPEN and c.AFTER_VOLUNTEER_CHECKLIST_OPEN
     
-    def drop_shifts_email(badge_type):
+    def drop_shifts_email(self, badge_type):
         return c.STAFF_EMAIL if badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE] else c.VOLUNTEER_EMAIL
 
     @property
