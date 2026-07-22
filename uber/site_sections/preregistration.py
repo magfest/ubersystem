@@ -300,7 +300,7 @@ class Root:
             cherrypy.session.setdefault('imported_attendee_ids', {})[new_attendee.id] = id
 
             PreregCart.unpaid_preregs[new_attendee.id] = PreregCart.to_sessionized(new_attendee)
-            Tracking.track(c.UNPAID_PREREG, new_attendee)
+            Tracking.track(session, c.UNPAID_PREREG, new_attendee)
             raise HTTPRedirect("form?edit_id={}&repurchase=1", new_attendee.id)
         return {
             'id': id
@@ -375,7 +375,7 @@ class Root:
                     group.attendees = [attendee]
                 PreregCart.pending_dealers[group.id] = PreregCart.to_sessionized(group,
                                                                                  badge_count=badges)
-                Tracking.track(track_type, group)
+                Tracking.track(session, track_type, group)
                 if 'go_to_cart' in params:
                     raise HTTPRedirect('additional_info?group_id={}{}'
                                        .format(group.id, "&editing={}".format(edit_id) if edit_id else ""))
@@ -619,7 +619,7 @@ class Root:
                     group.attendees = [attendee]
                     PreregCart.pending_dealers[group.id] = PreregCart.to_sessionized(group,
                                                                                      badge_count=group.badge_count)
-                    Tracking.track(track_type, group)
+                    Tracking.track(session, track_type, group)
                     url_string = "group_id={}".format(group.id)
                 else:
                     if attendee.id in PreregCart.unpaid_preregs:
@@ -631,7 +631,7 @@ class Root:
                     PreregCart.unpaid_preregs[attendee.id] = PreregCart.to_sessionized(attendee,
                                                                                        name=params.get('name'),
                                                                                        badges=params.get('badges'))
-                    Tracking.track(track_type, attendee)
+                    Tracking.track(session, track_type, attendee)
                     url_string = "attendee_id={}".format(attendee.id)
 
                 if not message:
@@ -698,7 +698,7 @@ class Root:
             PreregCart.unpaid_preregs[attendee.id] = PreregCart.to_sessionized(attendee,
                                                                                name=attendee.name,
                                                                                badges=attendee.badges)
-            Tracking.track(c.EDITED_PREREG, attendee)
+            Tracking.track(session, c.EDITED_PREREG, attendee)
 
             raise HTTPRedirect('index')
         return {
