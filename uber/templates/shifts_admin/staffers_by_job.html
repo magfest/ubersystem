@@ -11,11 +11,13 @@
     {{ csrf_token() }}
     <input type="hidden" name="job_id" value="{{ job.id }}" />
     {% if attendees %}
+    <div class="d-flex align-items-center gap-2">
         <b>Assign Staffer:</b>
-        <select name="staffer_id">
+        <div><select name="staffer_id" class="form-select">
             {{ options(attendees) }}
-        </select>
-        <input type="submit" value="Assign" />
+        </select></div>
+        <input class="btn btn-primary" type="submit" value="Assign" />
+    </div>
     {% else %}
         No staffers available for this shift.
     {% endif %}
