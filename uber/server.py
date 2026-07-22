@@ -271,3 +271,17 @@ for plugin_name in c.PLUGINS:
     plugin = importlib.import_module(plugin_name)
     if callable(getattr(plugin, 'on_load', None)):
         plugin.on_load()
+
+
+# Freeze all startup-allocated objects (core models, routes, templates, and plugin modules)
+# into Python's permanent GC generation (PEP 556) as the final step of engine startup.
+# Priority 100 ensures this runs last, after all built-in CherryPy plugins have finished
+# initializing (Checker: 50, Monitors: 70, Server socket: 75, DropPrivileges: 77).
+def _freeze_memory():
+    import gc
+    if hasattr(gc, 'freeze'):
+        gc.collect()
+        gc.freeze()
+
+
+cherrypy.engine.subscribe('start', _freeze_memory, priority=100)

@@ -42,7 +42,9 @@ class HTTPRedirect(cherrypy.HTTPRedirect):
             # useful if we want to redirect the user back to the same
             # page after they complete an action, such as logging in
             # example URI: '/uber/registration/form?id=786534'
-            original_location = cherrypy.request.wsgi_environ['REQUEST_URI']
+            original_location = (getattr(cherrypy.request, 'script_name', '') or '') + cherrypy.request.path_info
+            if cherrypy.request.query_string:
+                original_location += '?' + cherrypy.request.query_string
 
             # Note: python does have utility functions for this. if this
             # gets any more complex, use the urllib module
