@@ -215,6 +215,8 @@
       <div><span id="shift-slots"></span> slots filled</div><div class="ms-auto">x<span id="shift-weight"></span> weighting</div>
     </div>
     <div id="shift-desc"></div>
+    <div id="shift-start-time"></div>
+    <div id="shift-end-time"></div>
   </div>
   <div class="p-1 mt-2 pt-2 border-top text-end">
     <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="toast">Close</button>
@@ -522,6 +524,8 @@
       $(".slots-weighting").addClass('d-none');
     }
     $('#shift-desc').html(eventInfo.extendedProps.desc);
+    $('#shift-start-time').html("Start: " + moment(eventInfo.start).format("h:mma"));
+    $('#shift-end-time').html("End: " + moment(eventInfo.end).format("h:mma"));
 
     let button = '';
     let dropDeadlinePassed = {{ c.AFTER_DROP_SHIFTS_DEADLINE|yesno('true,false') }};
