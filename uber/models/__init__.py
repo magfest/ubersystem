@@ -2316,6 +2316,9 @@ class UberSession(sqlalchemy.orm.Session):
             else:
                 raise ValueError('No existing model with name {}'.format(model.__name__))
 
+        new_fields = {}
+        new_annotations = {}
+
         for name in dir(model):
             if not name.startswith('_'):
                 attr = getattr(model, name)
@@ -2328,8 +2331,15 @@ class UberSession(sqlalchemy.orm.Session):
                     try:
                         col = get_column_from_field(attr)
                         setattr(target, name, col)
+                        new_annotations[name] = model.__annotations__[name]
+                        new_fields[name] = attr
                     except AttributeError:
                         setattr(target, name, attr)
+
+        if new_fields:
+            target.model_fields.update(new_fields)
+            target.__annotations__.update(new_annotations)
+
         return target
 
 SessionFactory = sessionmaker(
@@ -2436,7 +2446,7 @@ def _track_changes(session, context, instances='deprecated'):
     for action, instances in states:
         for instance in instances:
             if instance.__class__ not in Tracking.UNTRACKED:
-                Tracking.track(action, instance)
+                Tracking.track(session, action, instance)
 
 
 def _check_emails(session, instances='deprecated'):

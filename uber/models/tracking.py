@@ -226,7 +226,7 @@ class Tracking(MagModel, table=True):
             ))
 
     @classmethod
-    def track(cls, action, instance):
+    def track(cls, session, action, instance):
         from uber.models import ApiJob
 
         if action in [c.CREATED, c.UNPAID_PREREG, c.EDITED_PREREG]:
@@ -265,25 +265,18 @@ class Tracking(MagModel, table=True):
         except TypeError as e:
             snapshot = "Could not save JSON dump due to error: {}".format(e)
 
-        def _insert(session):
-            session.add(Tracking(
-                model=instance.__class__.__name__,
-                fk_id=instance.id,
-                which=repr(instance),
-                who=who,
-                supervisor=AdminAccount.supervisor_name() or '',
-                page=c.PAGE_PATH,
-                links=links,
-                action=action,
-                data=data,
-                snapshot=snapshot,
-            ))
-        if instance.session:
-            _insert(instance.session)
-        else:
-            from uber.models import Session
-            with Session() as session:
-                _insert(session)
+        session.add(Tracking(
+            model=instance.__class__.__name__,
+            fk_id=instance.id,
+            which=repr(instance),
+            who=who,
+            supervisor=AdminAccount.supervisor_name() or '',
+            page=c.PAGE_PATH,
+            links=links,
+            action=action,
+            data=data,
+            snapshot=snapshot,
+        ))
 
 
 class TxnRequestTracking(MagModel, table=True):

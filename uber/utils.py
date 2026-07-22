@@ -1142,7 +1142,6 @@ class GuidebookUtils():
 
 def validate_model(session, forms, model, create_preview_model=True, is_admin=False):
     # Create_preview_model should only be false if we're re-checking a model with no changes
-    # OR we're checking a brand-new object and don't want to/can't commit to the DB
 
     from uber.models import File
     from uber.files import FileService
@@ -1164,11 +1163,7 @@ def validate_model(session, forms, model, create_preview_model=True, is_admin=Fa
     if not preview_model.session:
         session.add(preview_model)
 
-    if create_preview_model:
-        if preview_model in session.new:
-            preview_model.is_actually_new = True
-            new_objs.append(preview_model)
-
+    if create_preview_model and preview_model not in session.new:
         rollback_session = session.begin_nested()
 
         for form in forms.values():
