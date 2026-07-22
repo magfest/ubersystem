@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% block title %}{{ account.email }} Attendee Account{% endblock %}
 {% block content %}
-<h3>{{ account.email }} Attendee Account</h3>
+<h3>{{ account.email }} Attendee Account ({% if account.owner %}{{ account.owner|form_link }}{% else %}No Owner{% endif %})</h3>
 <div class="d-flex gap-1 mb-3">
     <a class="btn btn-sm btn-secondary" href="../preregistration/homepage?id={{ account.id }}" target="_blank">View Homepage&nbsp;<i class="fa fa-external-link"></i></a>
     <form method="post" action="../preregistration/reset_password">
@@ -36,6 +36,15 @@
     </div>
     <div class="card-body">
         <div class="d-flex gap-3 mb-3">
+            <div>
+                {% if other_purchased_badges %}
+                    <strong>Note</strong>: This account is also listed as the purchaser for the following badges:
+                    {% for badge in other_purchased_badges %}
+                    {% if not loop.first %}, {% endif %}
+                    {{ badge|form_link }}
+                    {% endfor %}
+                {% endif %}
+            </div>
             <form id="refund-cancel" class="ms-auto text-end" action="cancel_multiple">
                 {{ csrf_token() }}
                 <input type="hidden" name="account_id" value="{{ account.id }}" />
@@ -76,6 +85,7 @@
             <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
                 {{ attendee|form_link(true) }}
                 {% if attendee.group %}({{ attendee.group|form_link(true) }}){% endif %}
+                {% if attendee == account.owner %}(Owner){% endif %}
             </td>
             <td>
                 <a href="receipt_items?id={{ attendee.id }}" target="_blank">View Receipt</a>

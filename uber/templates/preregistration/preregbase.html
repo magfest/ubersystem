@@ -3,7 +3,7 @@
 
 {% block backlink %}
 {% set account = account or logged_in_account or c.CURRENT_ATTENDEE_ACCOUNT %}
-{% if c.ATTENDEE_ACCOUNTS_ENABLED or c.HAS_REGISTRATION_ACCESS or c.HAS_GROUP_ADMIN_ACCESS %}
+{% if (c.ATTENDEE_ACCOUNTS_ENABLED or c.HAS_REGISTRATION_ACCESS or c.HAS_GROUP_ADMIN_ACCESS) and c.CURRENT_ATTENDEE_ACCOUNT %}
 <nav class="navbar navbar-expand-lg">
     <div class="container-fluid">
         {% if account %}
@@ -75,6 +75,17 @@
                 <div class="col-sm">
                     <label for="email" class="form-text">Account Email</label>
                     <input type="email" name="account_email" id="account_email" value="{{ account.email }}" class="form-control" placeholder="Account email address" required>
+                </div>
+            </div>
+            <div class="row g-3 mb-3">
+                <div class="col-sm">
+                    <label for="owner_id" class="form-text">Account Owner</label>
+                    <select name="owner_id" id="owner_id" class="form-select">
+                        <option value="">Please select an option</option>
+                        {% for attendee in account.valid_adults %}
+                        <option value="{{ attendee.id }}">{{ attendee.full_name }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
             </div>
             <div class="row g-3 mb-3">

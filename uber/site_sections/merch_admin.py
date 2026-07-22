@@ -128,8 +128,7 @@ class Root:
     @ajax
     @credit_card
     def arbitrary_charge(self, session, id, amount, description, email, return_to='arbitrary_charge_form'):
-        charge = TransactionRequest(account=session.current_attendee_account(),
-                                    description=description, receipt_email=email, amount=100 * int(amount))
+        charge = TransactionRequest(session, description=description, receipt_email=email, amount=100 * int(amount))
         message = charge.create_payment_intent()
         if message:
             return {'error': message}

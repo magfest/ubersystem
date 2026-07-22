@@ -13,7 +13,7 @@
 <br/>
 {{ c.EVENT_NAME }} has already started, so it's too late to drop shifts.  However, you can sign up for new shifts below.
 <br/> <br/>
-If you cannot make it to one or more of your existing shifts, contact {{ c.STAFF_EMAIL }}
+If you cannot make it to one or more of your existing shifts, contact us at {{ c.drop_shifts_email(attendee.badge_type)|email_only }}
 <br/> <br/>
 
 <table class="datatable" style="width:100%" data-page-length="-1">

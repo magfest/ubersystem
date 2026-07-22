@@ -432,6 +432,9 @@ class Config(_Overridable):
     @property
     def VOLUNTEER_SIGNUPS_AVAILABLE(self):
         return not c.VOLUNTEER_CHECKLIST_OPEN and c.AFTER_SHIFTS_CREATED or c.VOLUNTEER_CHECKLIST_OPEN and c.AFTER_VOLUNTEER_CHECKLIST_OPEN
+    
+    def drop_shifts_email(badge_type):
+        return c.STAFF_EMAIL if badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE] else c.VOLUNTEER_EMAIL
 
     @property
     def ART_SHOW_OPEN(self):
@@ -1914,6 +1917,31 @@ for _badge_type, _price in _config['badge_type_prices'].items():
         c.BADGE_TYPE_PRICES[getattr(c, _badge_type.upper())] = _price
     except AttributeError:
         pass
+
+orig_discount_opts = c.DISCOUNT_ON_OPTS.copy()
+current_idx = 0
+for key, desc in orig_discount_opts:
+    if key == c.BADGE_UPGRADE:
+        if not c.BADGE_TYPE_PRICES:
+            del (c.DISCOUNT_ON_OPTS[current_idx])
+            current_idx -= 1
+        else:
+            for key in c.BADGE_TYPE_PRICES:
+                c.DISCOUNT_ON_OPTS.insert(current_idx, (key, c.BADGES[key] + " Upgrade"))
+                current_idx += 1
+            
+    if key == c.MERCH:
+        if len(c.DONATION_TIERS) <= 1:
+            del (c.DISCOUNT_ON_OPTS[current_idx])
+            current_idx -= 1
+        else:
+            for price, name in c.DONATION_TIERS.items():
+                if price > 0:
+                    c.DISCOUNT_ON_OPTS.insert(current_idx, (price, name + " Merch"))
+                    current_idx += 1
+    current_idx += 1
+
+c.DISCOUNT_ONS = dict(c.DISCOUNT_ON_OPTS)
 
 c.MAX_BADGE_TYPE_UPGRADE = sorted(c.BADGE_TYPE_PRICES, key=c.BADGE_TYPE_PRICES.get,
                                   reverse=True)[0] if c.BADGE_TYPE_PRICES else None

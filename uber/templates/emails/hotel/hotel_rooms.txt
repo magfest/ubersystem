@@ -10,7 +10,7 @@ All volunteers who receive hotel room space must sign up for at least {{ c.HOURS
 
 All staff are approved for Thursday, Friday, and Saturday automatically. If you are requesting Monday, Tuesday, or Wednesday, please ensure you have a corresponding shift on that day, and please make a note of it in the “Notes” section of your request. If you are requesting Sunday, you must have a Sunday evening shift.
 
-If you have travel plans or extenuating circumstances that cause you to need lodging on an edge night, please email STOPS at {{ c.STAFF_EMAIL|email_only }}. We will do our best to accommodate staff needs where possible. 
+If you have travel plans or extenuating circumstances that cause you to need lodging on an edge night, please email us at {{ c.STAFF_EMAIL|email_only }}. We will do our best to accommodate staff needs where possible. 
 
 Staff Room FAQs are available here: https://www.notion.so/magfest/Staff-Room-FAQ-656edde68e324dae97891c2002439465
 

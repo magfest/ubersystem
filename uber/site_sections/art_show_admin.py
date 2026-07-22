@@ -18,7 +18,7 @@ from io import BytesIO
 
 from uber.config import c
 from uber.custom_tags import format_currency, readable_join
-from uber.decorators import ajax, ajax_gettable, all_renderable, credit_card, public
+from uber.decorators import ajax, ajax_gettable, all_renderable, credit_card, public, any_admin_access
 from uber.email import EmailService
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
@@ -46,8 +46,7 @@ class Root:
             app = session.get(ArtShowApplication, params['id'], options=[
                 selectinload(ArtShowApplication.art_show_pieces), joinedload(ArtShowApplication.active_receipt)])
             if cherrypy.request.method == 'POST' and params.get('id') not in [None, '', 'None']:
-                receipt_items = ReceiptManager.auto_update_receipt(app, app.active_receipt, params.copy())
-                session.add_all(receipt_items)
+                ReceiptManager.auto_update_receipt(session, app, app.active_receipt, params.copy())
         attendee = None
         app_paid = 0 if new_app else app.amount_paid
 
@@ -1267,7 +1266,7 @@ class Root:
             session.refresh(attendee_receipt)
 
             sales_item = ReceiptItem(
-                purchaser_id=receipt.attendee.id,
+                purchaser_id=receipt.attendee.purchaser_id,
                 receipt_id=attendee_receipt.id,
                 fk_id=receipt.id,
                 fk_model="ArtShowReceipt",
@@ -1317,20 +1316,20 @@ class Root:
 
         return {'message': 'Payment cancelled.'}
 
-    @public
+    @any_admin_access
     @ajax
     @credit_card
     def purchases_charge(self, session, id, amount, receipt_id):
         receipt = session.art_show_receipt(receipt_id)
         attendee = session.attendee(id)
         attendee_receipt = session.get_receipt_by_model(attendee, create_if_none="BLANK")
-        charge = TransactionRequest(attendee_receipt,
-                                    account=session.current_attendee_account(),
+        charge = TransactionRequest(session, attendee_receipt,
                                     receipt_email=attendee.email,
                                     description='{}ayment for Art Show Invoice #{}'.format(
                                                     'P' if int(float(amount)) == receipt.total else 'Partial p',
                                                     receipt.invoice_num),
-                                    amount=int(float(amount)))
+                                    amount=int(float(amount)),
+                                    account=None)
         message = charge.prepare_payment(department=c.ART_SHOW_RECEIPT_ITEM)
         if message:
             return {'error': message}

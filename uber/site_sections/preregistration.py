@@ -1,3 +1,4 @@
+import contextlib
 import json
 import six
 import uuid
@@ -212,16 +213,30 @@ class Root:
         else:
             cart = PreregCart(list(PreregCart.unpaid_preregs.values()))
             cart.set_total_cost()
+            promo_code_discounts = defaultdict(list)
+            age_discounts = {}
             for attendee in cart.attendees:
                 if attendee.promo_code:
                     real_code = session.query(PromoCode).filter_by(code=attendee.promo_code.code).first()
                     if real_code and real_code.group:
                         attendee.promo_group_name = real_code.group.name
+
+                age_discount = ReceiptManager.check_age_discount(attendee, None, '')
+                if age_discount:
+                    age_discounts[attendee.id] = age_discount.discount_str
+                
+                promo_code_discount_objs = ReceiptManager.check_promo_code_discounts(attendee, None, '')
+                for discount in promo_code_discount_objs:
+                    if discount.discount_str:
+                        promo_code_discounts[attendee.id].append(discount.discount_str)
+
             return {
                 'logged_in_account': session.current_attendee_account(),
                 'is_prereg_dealer': False,
                 'message': message,
                 'cart': cart,
+                'promo_code_discounts': promo_code_discounts,
+                'age_discounts': age_discounts,
                 'account_email': account_email or cart.attendees[0].email,
                 'account_password': account_password,
             }
@@ -285,7 +300,7 @@ class Root:
             cherrypy.session.setdefault('imported_attendee_ids', {})[new_attendee.id] = id
 
             PreregCart.unpaid_preregs[new_attendee.id] = PreregCart.to_sessionized(new_attendee)
-            Tracking.track(c.UNPAID_PREREG, new_attendee)
+            Tracking.track(session, c.UNPAID_PREREG, new_attendee)
             raise HTTPRedirect("form?edit_id={}&repurchase=1", new_attendee.id)
         return {
             'id': id
@@ -360,7 +375,7 @@ class Root:
                     group.attendees = [attendee]
                 PreregCart.pending_dealers[group.id] = PreregCart.to_sessionized(group,
                                                                                  badge_count=badges)
-                Tracking.track(track_type, group)
+                Tracking.track(session, track_type, group)
                 if 'go_to_cart' in params:
                     raise HTTPRedirect('additional_info?group_id={}{}'
                                        .format(group.id, "&editing={}".format(edit_id) if edit_id else ""))
@@ -604,7 +619,7 @@ class Root:
                     group.attendees = [attendee]
                     PreregCart.pending_dealers[group.id] = PreregCart.to_sessionized(group,
                                                                                      badge_count=group.badge_count)
-                    Tracking.track(track_type, group)
+                    Tracking.track(session, track_type, group)
                     url_string = "group_id={}".format(group.id)
                 else:
                     if attendee.id in PreregCart.unpaid_preregs:
@@ -616,7 +631,7 @@ class Root:
                     PreregCart.unpaid_preregs[attendee.id] = PreregCart.to_sessionized(attendee,
                                                                                        name=params.get('name'),
                                                                                        badges=params.get('badges'))
-                    Tracking.track(track_type, attendee)
+                    Tracking.track(session, track_type, attendee)
                     url_string = "attendee_id={}".format(attendee.id)
 
                 if not message:
@@ -683,7 +698,7 @@ class Root:
             PreregCart.unpaid_preregs[attendee.id] = PreregCart.to_sessionized(attendee,
                                                                                name=attendee.name,
                                                                                badges=attendee.badges)
-            Tracking.track(c.EDITED_PREREG, attendee)
+            Tracking.track(session, c.EDITED_PREREG, attendee)
 
             raise HTTPRedirect('index')
         return {
@@ -788,8 +803,8 @@ class Root:
                 session.add_attendee_to_account(attendee, account)
             else:
                 session.add(attendee)
-            receipt, receipt_items = ReceiptManager.create_new_receipt(attendee, who='non-admin', create_model=True,
-                                                                       purchaser_id=cart.purchaser.id)
+            receipt, receipt_items = ReceiptManager.create_new_receipt(
+                attendee, who='non-admin', create_model=True, purchaser_id=account.id if account else cart.purchaser.id)
             session.add(receipt)
             session.add_all(receipt_items)
             total_cost = sum([(item.amount * item.count) for item in receipt_items])
@@ -812,14 +827,16 @@ class Root:
     def process_free_prereg(self, session, message='', **params):
         cart = PreregCart(list(PreregCart.unpaid_preregs.values()))
         cart.set_total_cost()
+        account = session.current_attendee_account() if c.ATTENDEE_ACCOUNTS_ENABLED else None
+
         if cart.total_cost <= 0:
             prereg_cart_error = cart.prereg_cart_checks(session)
             if prereg_cart_error:
                 raise HTTPRedirect('index?message={}', prereg_cart_error)
             
             for attendee in cart.attendees:
-                receipt, receipt_items = ReceiptManager.create_new_receipt(attendee, who='non-admin', create_model=True,
-                                                                           purchaser_id=cart.purchaser.id)
+                receipt, receipt_items = ReceiptManager.create_new_receipt(
+                    attendee, who='non-admin', create_model=True, purchaser_id=account.id if account else cart.purchaser.id)
                 session.add(receipt)
                 session.add_all(receipt_items)
 
@@ -834,7 +851,7 @@ class Root:
                     del cherrypy.session['imported_attendee_ids'][attendee.id]
 
                 if c.ATTENDEE_ACCOUNTS_ENABLED:
-                    session.add_attendee_to_account(attendee, session.current_attendee_account())
+                    session.add_attendee_to_account(attendee, account)
                 else:
                     session.add(attendee)
 
@@ -858,6 +875,7 @@ class Root:
         update_prereg_cart(session)
         cart = PreregCart(list(PreregCart.unpaid_preregs.values()))
         cart.set_total_cost()
+        account = session.current_attendee_account() if c.ATTENDEE_ACCOUNTS_ENABLED else None
 
         pickup_group_id = None
         for attendee in cart.attendees:
@@ -873,7 +891,7 @@ class Root:
             session.add(pickup_group)
 
         if c.ATTENDEE_ACCOUNTS_ENABLED:
-            pickup_group.account_id = session.current_attendee_account().id
+            pickup_group.account_id = account.id
 
         if not cart.total_cost:
             if not cart.models:
@@ -907,10 +925,8 @@ class Root:
 
             receipts = []
             for model in cart.models:
-                charge_receipt, charge_receipt_items = ReceiptManager.create_new_receipt(model,
-                                                                                         who='non-admin',
-                                                                                         create_model=True,
-                                                                                         purchaser_id=cart.purchaser.id)
+                charge_receipt, charge_receipt_items = ReceiptManager.create_new_receipt(
+                    model, who='non-admin', create_model=True, purchaser_id=account.id if account else cart.purchaser.id)
                 existing_receipt = session.refresh_receipt_and_model(model, is_prereg=True)
                 if existing_receipt:
                     # Multiple attendees can have the same transaction during pre-reg,
@@ -946,10 +962,8 @@ class Root:
                     session.commit()
                     receipts.append(charge_receipt)
 
-            receipt_email = session.current_attendee_account().email \
-                if c.ATTENDEE_ACCOUNTS_ENABLED else cart.receipt_email
-            charge = TransactionRequest(account=session.current_attendee_account(),
-                                        receipt_email=receipt_email,
+            receipt_email = account.email if c.ATTENDEE_ACCOUNTS_ENABLED else cart.receipt_email
+            charge = TransactionRequest(session, receipt_email=receipt_email,
                                         description=cart.description,
                                         amount=sum([receipt.current_amount_owed for receipt in receipts]),
                                         who='non-admin')
@@ -969,7 +983,8 @@ class Root:
             pending_attendee = session.get(Attendee, attendee.id)
             if pending_attendee:
                 for key, val in PreregCart.to_sessionized(attendee).items():
-                    setattr(pending_attendee, key, val)
+                    with contextlib.suppress(AttributeError):
+                        setattr(pending_attendee, key, val)
                 if attendee.badges and pending_attendee.promo_code_groups:
                     pc_group = pending_attendee.promo_code_groups[0]
                     pc_group.name = attendee.name
@@ -989,7 +1004,7 @@ class Root:
                     session.delete(pc_group)
 
                 if c.ATTENDEE_ACCOUNTS_ENABLED:
-                    session.add_attendee_to_account(pending_attendee, session.current_attendee_account())
+                    session.add_attendee_to_account(pending_attendee, account)
             else:
                 if attendee.id in cherrypy.session.setdefault('imported_attendee_ids', {}):
                     old_attendee = session.attendee(cherrypy.session['imported_attendee_ids'][attendee.id])
@@ -1003,7 +1018,7 @@ class Root:
                 session.add(attendee)
 
                 if c.ATTENDEE_ACCOUNTS_ENABLED:
-                    session.add_attendee_to_account(attendee, session.current_attendee_account())
+                    session.add_attendee_to_account(attendee, account)
 
                 if attendee.badges:
                     pc_group = session.create_promo_code_group(attendee, attendee.name, int(attendee.badges) - 1)
@@ -1016,6 +1031,10 @@ class Root:
         cherrypy.session['payment_intent_id'] = charge.intent.id
         session.commit()
 
+        if c.ATTENDEE_ACCOUNTS_ENABLED:
+            account.set_account_owner()
+            session.commit()
+
         return {'stripe_intent': charge.intent,
                 'success_url': 'paid_preregistrations?total_cost={}&message={}'.format(
                     cart.dollar_amount, 'Payment accepted!'),
@@ -1023,9 +1042,9 @@ class Root:
 
     @ajax
     def submit_authnet_charge(self, session, ref_id, amount, email, desc, customer_id, token_desc, token_val, **params):
-        charge = TransactionRequest(account=session.current_attendee_account(), receipt_email=email,
+        charge = TransactionRequest(session, receipt_email=email,
                                     description=desc, amount=amount, customer_id=customer_id)
-        error = charge.send_authorizenet_txn(token_desc=token_desc, token_val=token_val, intent_id=ref_id,
+        error = charge.send_authorizenet_txn(session, token_desc=token_desc, token_val=token_val, intent_id=ref_id,
                                              first_name=params.get('first_name', ''),
                                              last_name=params.get('last_name', ''))
         if error:
@@ -1388,8 +1407,7 @@ class Root:
         if cherrypy.request.method == 'POST':
             # TODO: I don't think this works, but it probably should just be removed
             if attendee and receipt:
-                receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, params.copy())
-                session.add_all(receipt_items)
+                ReceiptManager.auto_update_receipt(session, attendee, receipt, params.copy())
 
             if c.ATTENDEE_ACCOUNTS_ENABLED and session.current_attendee_account():
                 session.add_attendee_to_account(attendee, session.current_attendee_account())
@@ -1429,7 +1447,7 @@ class Root:
         group = session.group(id)
         receipt = session.get_receipt_by_model(group, who='non-admin', create_if_none="DEFAULT")
         charge_desc = "{}: {}".format(group.name, receipt.charge_description_list)
-        charge = TransactionRequest(receipt, account=session.current_attendee_account(),
+        charge = TransactionRequest(session, receipt,
                                     receipt_email=group.email, description=charge_desc, who='non-admin')
 
         message = charge.prepare_payment()
@@ -1499,10 +1517,8 @@ class Root:
             
         receipt = session.get_receipt_by_model(group)
         if receipt:
-            receipt_items = ReceiptManager.auto_update_receipt(group, receipt,
-                                                               {'badges': count + group.badges,
-                                                                'auto_recalc': group.auto_recalc})
-            session.add_all(receipt_items)
+            ReceiptManager.auto_update_receipt(session, group, receipt,
+                                               {'badges': count + group.badges, 'auto_recalc': group.auto_recalc})
         
         session.assign_badges(group, group.badges + count)
         session.commit()
@@ -1936,7 +1952,7 @@ class Root:
         refunded_attendees = set()
 
         for charge_id, (refund_amount, txns) in all_refunds.items():
-            refund = RefundRequest(txns, refund_amount, skip_errors=True)
+            refund = RefundRequest(session, txns, refund_amount, skip_errors=True)
 
             error = refund.process_refund()
             if error:
@@ -2063,6 +2079,7 @@ class Root:
                                               account.hashed.encode('utf-8')) == account.hashed.encode('utf-8'):
             return {'success': False, 'message': "Incorrect email/password combination."}
 
+        cherrypy.session['account_id'] = account.admin_account_id
         cherrypy.session['attendee_account_id'] = account.id
         return {'success': True}
 
@@ -2154,8 +2171,7 @@ class Root:
             )
             receipt = session.get_receipt_by_model(attendee)
             if cherrypy.request.method == 'POST':
-                receipt_items = ReceiptManager.auto_update_receipt(attendee, receipt, params.copy())
-                session.add_all(receipt_items)
+                ReceiptManager.auto_update_receipt(session, attendee, receipt, params.copy())
         else:
             receipt = None
 
@@ -2268,7 +2284,6 @@ class Root:
                         id,
                         if_not_found=HTTPRedirect('form?message={}',
                                                   'That preregistration expired or has already been finalized.'))
-                    log.error(attendee)
                 else:
                     return {"error": {'': ["We could not find the badge you're trying to update."]}}
 
@@ -2335,11 +2350,10 @@ class Root:
             return {'error': "You already have an outstanding balance, please refresh the page to pay \
                     for your current items or contact {}".format(email_only(c.REGDESK_EMAIL))}
 
-        receipt_items = ReceiptManager.auto_update_receipt(attendee, session.get_receipt_by_model(attendee),
+        receipt_items = ReceiptManager.auto_update_receipt(session, attendee, session.get_receipt_by_model(attendee),
                                                            params.copy(), who='non-admin')
         if not receipt_items:
             return {'error': "There was an issue with adding your upgrade. Please contact the system administrator."}
-        session.add_all(receipt_items)
 
         forms = load_forms(params, attendee, ['BadgeExtras'])
 
@@ -2373,7 +2387,7 @@ class Root:
         if c.AUTHORIZENET_LOGIN_ID:
             # Authorize.net doesn't actually have a concept of pending transactions,
             # so there's no transaction to resume. Create a new one.
-            new_txn_request = TransactionRequest(txn.receipt, account=session.current_attendee_account(),
+            new_txn_request = TransactionRequest(session, txn.receipt,
                                                  receipt_email=attendee.email, description=txn.desc, amount=txn.amount)
             stripe_intent = new_txn_request.generate_payment_intent()
             txn.intent_id = stripe_intent.id
@@ -2414,7 +2428,7 @@ class Root:
                 receipt_email = group.leader.email
             elif group.attendees:
                 receipt_email = group.attendees[0].email
-            new_txn_request = TransactionRequest(txn.receipt, account=session.current_attendee_account(),
+            new_txn_request = TransactionRequest(session, txn.receipt,
                                                  receipt_email=receipt_email, description=txn.desc, amount=txn.amount)
             stripe_intent = new_txn_request.generate_payment_intent()
             txn.intent_id = stripe_intent.id
@@ -2441,7 +2455,7 @@ class Root:
         receipt = session.model_receipt(receipt_id)
         attendee = session.attendee(id)
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
-        charge = TransactionRequest(receipt, account=session.current_attendee_account(),
+        charge = TransactionRequest(session, receipt,
                                     receipt_email=attendee.email, description=charge_desc, who='non-admin')
 
         message = charge.prepare_payment()
@@ -2521,7 +2535,7 @@ class Root:
         session.commit()
 
         charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
-        charge = TransactionRequest(receipt, account=session.current_attendee_account(),
+        charge = TransactionRequest(session, receipt,
                                     receipt_email=attendee.email, description=charge_desc, who='non-admin')
 
         message = charge.prepare_payment()
@@ -2541,6 +2555,7 @@ class Root:
             raise HTTPRedirect('homepage')
 
         message = ''
+        owner_attendee = None
         account = session.attendee_account(id)
         return_to = params.get('return_to', '../preregistration/homepage')
         page = (return_to + '?message=') if '?' not in return_to else (return_to + '&message=')
@@ -2552,8 +2567,17 @@ class Root:
             elif not admin:
                 raise HTTPRedirect(f'{page}This is not your account.')
 
+        owner_id = params.get('owner_id', '')
+        if not owner_id:
+            message = "Please select a registration to be the account owner."
+        else:
+            owner_attendee = session.get(Attendee, owner_id)
+        
+        if not owner_attendee or owner_attendee not in account.valid_adults:
+            message = "Please select a valid registration over 17 years old to be the account owner."
+
         if c.LOCAL_ACCOUNTS_DISABLED:
-            message = valid_email(params.get('account_email'))
+            message = message or valid_email(params.get('account_email'))
             if not message:
                 account.email = params.get('account_email')
                 message = 'Account email updated.'
@@ -2574,13 +2598,14 @@ class Root:
             else:
                 new_password = params.get('new_password')
                 confirm_password = params.get('confirm_password')
-            message = check_account(session, params.get('account_email'), new_password, confirm_password,
-                                    False, new_password, account.email)
+            message = message or check_account(session, params.get('account_email'), new_password, confirm_password,
+                                               False, new_password, account.email)
 
         if not message:
             if new_password:
                 account.hashed = create_new_hash(new_password)
             account.email = params.get('account_email')
+            account.set_account_owner(owner_attendee)
             message = 'Account information updated successfully.'
         raise HTTPRedirect(f'{page}{message}')
 

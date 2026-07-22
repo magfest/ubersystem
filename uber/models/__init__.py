@@ -167,7 +167,9 @@ class MagModel(SQLModel):
                 val = val.isoformat()
             elif isinstance(val, uuid.UUID):
                 val = str(val)
-
+            elif isinstance(val, SQLModel):
+                val = val.to_dict()
+            
             if isinstance(val, InstrumentedList):
                 data[field] = []
                 for model in val:
@@ -347,14 +349,14 @@ class MagModel(SQLModel):
         """
         return params
 
-    def calc_default_cost(self):
+    def calc_default_cost(self, include_discounts=True):
         """
         Returns the sum of all cost and credit receipt items for this model instance.
 
         Because things like discounts exist, we ensure default_cost will never
         return a negative value.
         """
-        receipt, receipt_items = ReceiptManager.create_new_receipt(self)
+        receipt, receipt_items = ReceiptManager.create_new_receipt(self, include_discounts=include_discounts)
 
         return max(0, sum([(cost * count) for desc, cost, count in receipt_items]) / 100)
 
@@ -890,10 +892,13 @@ class UberSession(sqlalchemy.orm.Session):
 
         def current_attendee_account(self):
             if c.ATTENDEE_ACCOUNTS_ENABLED and getattr(cherrypy, 'session', {}).get('attendee_account_id', getattr(cherrypy.request, 'attendee_account', None)):
-                try:
-                    return self.attendee_account(cherrypy.session.get('attendee_account_id', cherrypy.request.attendee_account))
-                except sqlalchemy.orm.exc.NoResultFound:
+                account_id = cherrypy.session.get('attendee_account_id', getattr(cherrypy.request, 'attendee_account', None))
+                account = self.query(AttendeeAccount).filter(AttendeeAccount.id == account_id).options(selectinload(AttendeeAccount.attendees)).first()
+
+                if not account:
                     cherrypy.session['attendee_account_id'] = ''
+                else:
+                    return account
 
         def get_attendee_account_by_attendee(self, attendee):
             logged_in_account = self.current_attendee_account()
@@ -1345,7 +1350,7 @@ class UberSession(sqlalchemy.orm.Session):
             receipt = self.get_receipt_by_model(model)
             if receipt:
                 for txn in receipt.pending_txns:
-                    txn.check_paid_from_stripe()
+                    txn.check_paid_from_stripe(self)
                 self.refresh(receipt)
 
             if isinstance(model, Group):
@@ -1355,7 +1360,11 @@ class UberSession(sqlalchemy.orm.Session):
 
             if isinstance(model, Attendee) and receipt and not is_prereg:
                 self.update_paid_from_receipt(model, receipt)
+                for discount in receipt.receipt_discounts:
+                    discount.set_discount(model)
+                    self.add(discount)
                 self.merge(model)
+                self.commit()
 
             try:
                 self.refresh(model)
@@ -1505,7 +1514,7 @@ class UberSession(sqlalchemy.orm.Session):
                 Either the matching object of the given model,
                  or None if not found.
             """
-            if isinstance(code, uuid.UUID(as_uuid=False)):
+            if isinstance(code, uuid.UUID):
                 code = code.hex
 
             normalized_code = RegistrationCode.normalize_code(code)
@@ -1538,7 +1547,7 @@ class UberSession(sqlalchemy.orm.Session):
             for _ in range(badges):
                 self.add(PromoCode(
                     discount=0,
-                    discount_type=PromoCode._FIXED_PRICE,
+                    discount_type=c.FIXED_PRICE,
                     uses_allowed=1,
                     group=pc_group,
                     cost=cost))
@@ -2307,6 +2316,9 @@ class UberSession(sqlalchemy.orm.Session):
             else:
                 raise ValueError('No existing model with name {}'.format(model.__name__))
 
+        new_fields = {}
+        new_annotations = {}
+
         for name in dir(model):
             if not name.startswith('_'):
                 attr = getattr(model, name)
@@ -2319,8 +2331,15 @@ class UberSession(sqlalchemy.orm.Session):
                     try:
                         col = get_column_from_field(attr)
                         setattr(target, name, col)
+                        new_annotations[name] = model.__annotations__[name]
+                        new_fields[name] = attr
                     except AttributeError:
                         setattr(target, name, attr)
+
+        if new_fields:
+            target.model_fields.update(new_fields)
+            target.__annotations__.update(new_annotations)
+
         return target
 
 SessionFactory = sessionmaker(
@@ -2427,7 +2446,7 @@ def _track_changes(session, context, instances='deprecated'):
     for action, instances in states:
         for instance in instances:
             if instance.__class__ not in Tracking.UNTRACKED:
-                Tracking.track(action, instance)
+                Tracking.track(session, action, instance)
 
 
 def _check_emails(session, instances='deprecated'):

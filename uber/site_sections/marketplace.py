@@ -158,7 +158,7 @@ class Root:
 
                     error = ''
                     try:
-                        refund = RefundRequest(item.receipt_txn, amount=refund_amount, who='non-admin')
+                        refund = RefundRequest(session, item.receipt_txn, amount=refund_amount, who='non-admin')
                     except ValueError as e:
                         error = e
 
@@ -198,14 +198,14 @@ class Root:
                                                                 c.MARKETPLACE,
                                                                 "Artist Marketplace Application",
                                                                 app.amount_unpaid * 100,
-                                                                purchaser_id=app.attendee.id)
+                                                                purchaser_id=app.attendee.purchaser_id)
             receipt_item.fk_id = app.id
             receipt_item.fk_model = "ArtistMarketplaceApplication"
             session.add(receipt_item)
             session.commit()
             session.refresh(receipt)
         
-        charge = TransactionRequest(receipt, account=session.current_attendee_account(), receipt_email=app.email_address,
+        charge = TransactionRequest(session, receipt, receipt_email=app.email_address,
                                     description="Artist Marketplace Application Payment", amount=app.amount_unpaid * 100)
         incomplete_txn = receipt.get_last_incomplete_txn()
 

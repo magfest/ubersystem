@@ -4,6 +4,6 @@ Thanks again for offering to help judge for the MAGFest Indie Videogame Showcase
 
 {% if judge.attendee.placeholder %}If you intend to accept your badge, please {{ c.URL_BASE }}/preregistration/confirm?id={{ judge.attendee.id }} to fill out the rest of your information and indicate whether or not you'd like to volunteer.
 
-{% endif %}If you have any questions, you can let us know and/or can email any questions about volunteering to {{ c.STAFF_EMAIL|safe }}.
+{% endif %}If you have any questions, you can let us know and/or can email any questions about volunteering to {{ c.VOLUNTEER_EMAIL|safe }}.
 
 {{ email_signature }}
