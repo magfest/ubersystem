@@ -524,8 +524,8 @@
       $(".slots-weighting").addClass('d-none');
     }
     $('#shift-desc').html(eventInfo.extendedProps.desc);
-    $('#shift-start-time').html("Start: " + eventInfo.start);
-    $('#shift-end-time').html("End: " + eventInfo.end);
+    $('#shift-start-time').html("Start: " + moment(eventInfo.start).format("h:mma"));
+    $('#shift-end-time').html("End: " + moment(eventInfo.end).format("h:mma"));
 
     let button = '';
     let dropDeadlinePassed = {{ c.AFTER_DROP_SHIFTS_DEADLINE|yesno('true,false') }};
