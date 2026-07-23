@@ -1592,6 +1592,7 @@ def static_overrides(dirname):
         for fname in files:
             appconf['/static' + relpath + '/' + fname] = {
                 'tools.staticfile.on': True,
+                'tools.sessions.on': False,
                 'tools.staticfile.filename': os.path.join(dpath, fname)
             }
 
