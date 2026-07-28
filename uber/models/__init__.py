@@ -2196,15 +2196,17 @@ class UberSession(sqlalchemy.orm.Session):
         # ========================
 
         def logged_in_judge(self):
-            if getattr(cherrypy, 'session', {}).get('account_id'):
-                try:
-                    return self.query(IndieJudge).join(IndieJudge.admin_account).filter(
-                        AdminAccount.id == cherrypy.session.get('account_id')).one()
-                except NoResultFound:
-                    raise HTTPRedirect(
-                        '../accounts/homepage?message={}',
-                        'You have been given judge access but not had a judge entry created for you - '
-                        'please contact a MIVS admin to correct this.')
+            account_id = getattr(cherrypy, 'session', {}).get('account_id', getattr(cherrypy.request, 'admin_account', None))
+            if not account_id:
+                raise HTTPRedirect('../landing/index?message=', 'You are not logged in or you do not have judge access.')
+            try:
+                return self.query(IndieJudge).join(IndieJudge.admin_account).filter(
+                    AdminAccount.id == account_id).one()
+            except NoResultFound:
+                raise HTTPRedirect(
+                    '../accounts/homepage?message={}',
+                    'You have been given judge access but not had a judge entry created for you - '
+                    'please contact an Indies Showcase admin to correct this.')
 
         def code_for(self, game):
             if game.unlimited_code:
