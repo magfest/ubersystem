@@ -94,7 +94,7 @@ def _attendees(session):
     attendees = [
         {
             'id': id,
-            'displayText': '{} - {}'.format(name.title(), ' #({})'.format(badge_num) if badge_num else '')
+            'displayText': '{} - {}'.format(name.title(), f' #({badge_num})' if badge_num else '')
         }
         for id, name, badge_num in attendee_attrs
     ]
@@ -104,7 +104,7 @@ def _attendees(session):
 def _attendee(a):
     return a and {
         'id': a.id,
-        'displayText': '{} - {}'.format(a.full_name.title(), ' #({})'.format(a.badge_num) if a.badge_num else '')
+        'displayText': '{} - {}'.format(a.full_name.title(), f' #({a.badge_num})' if a.badge_num else '')
     }
 
 

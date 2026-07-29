@@ -43,7 +43,7 @@ class Root:
             {
                 'id': id,
                 'displayText': '{} - {}{}'.format(name.title(), c.BADGES[badge_type],
-                                                  ' #{}'.format(badge_num) if badge_num else '')
+                                                  f' #{badge_num}' if badge_num else '')
             }
             for id, name, badge_type, badge_num in attendee_attrs
         ]

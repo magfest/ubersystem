@@ -72,7 +72,7 @@ class Root:
         cherrypy.response.headers['Content-Type'] = \
             'text/calendar; charset=utf-8'
         cherrypy.response.headers['Content-Disposition'] = \
-            'attachment; filename="{}.ics"'.format(calname)
+            f'attachment; filename="{calname}.ics"'
 
         return icalendar
 
@@ -90,7 +90,7 @@ class Root:
                 out.writerow([
                     event.name,
                     event.start_time_local.strftime('%I%p %a').lstrip('0'),
-                    '{} minutes'.format(event.duration),
+                    f'{event.duration} minutes',
                     event.location_name,
                     event.public_description or event.description,
                     panelist_names])
@@ -454,7 +454,7 @@ class Root:
                     p.event.name,
                     ' / '.join(p.tech_needs_labels),
                     p.other_tech_needs,
-                    'Panelists are bringing themselves: {}'.format(p.panelist_bringing) if p.panelist_bringing else ''
+                    f'Panelists are bringing themselves: {p.panelist_bringing}' if p.panelist_bringing else ''
                 ).strip())
             out.writerow(row)
             curr_time += timedelta(minutes=30)

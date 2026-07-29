@@ -43,7 +43,7 @@ def pre_print_check(session, attendee, printer_id, dry_run=False, **params):
             return print_id, '{}adge sent to printer.'.format("B" if not c.BADGE_REPRINT_FEE or attendee.times_printed == 0
                                                           else "Free reprint recorded and b")
     else:
-        return print_id, 'To print this badge, please complete payment for the reprint fee of ${}.'.format(fee_amount)
+        return print_id, f'To print this badge, please complete payment for the reprint fee of ${fee_amount}.'
     return print_id, 'Badge sent to printer.'
 
 
@@ -74,7 +74,7 @@ class Root:
     def print_next_badge(self, session, printer_id=''):
         badge = session.get_next_badge_to_print(printer_id=printer_id)
         if not badge:
-            raise HTTPRedirect('badge_waiting?printer_id={}'.format(printer_id))
+            raise HTTPRedirect(f'badge_waiting?printer_id={printer_id}')
 
         attendee = badge.attendee
 
@@ -160,7 +160,7 @@ class Root:
                                         receipt_id=receipt.id,
                                         department=c.REG_RECEIPT_ITEM,
                                         category=c.BADGE_REPRINT,
-                                        desc="Badge reprint fee (${})".format(reprint_fee),
+                                        desc=f"Badge reprint fee (${reprint_fee})",
                                         amount=reprint_fee * 100,
                                         fk_id=print_id,
                                         fk_model="PrintJob",
@@ -230,7 +230,7 @@ class Root:
                     session.add(ReceiptItem(receipt_id=receipt.id,
                                             department=c.REG_RECEIPT_ITEM,
                                             category=c.BADGE_REPRINT,
-                                            desc="Badge reprint cancelled (${})".format(job.print_fee),
+                                            desc=f"Badge reprint cancelled (${job.print_fee})",
                                             amount=job.print_fee * 100 * -1,
                                             count=1,
                                             who=AdminAccount.admin_name() or 'non-admin',

@@ -34,7 +34,7 @@ def entry_point(func):
                  of the command, and an exception is raised if a function with
                  the same name has already been registered as an entry point
     """
-    assert func.__name__ not in _entry_points, 'An entry point named {} has already been implemented'.format(func.__name__)
+    assert func.__name__ not in _entry_points, f'An entry point named {func.__name__} has already been implemented'
     _entry_points[func.__name__] = func
     return func
 
