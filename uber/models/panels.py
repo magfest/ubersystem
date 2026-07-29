@@ -171,7 +171,7 @@ class AssignedPanelist(MagModel, table=True):
             return '<{} panelisting {}>'.format(
                 self.attendee.full_name, self.event.name)
         else:
-            return super(AssignedPanelist, self).__repr__()
+            return super().__repr__()
 
 
 class PanelApplication(MagModel, table=True):

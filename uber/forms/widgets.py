@@ -1,4 +1,3 @@
-import six
 import logging
 from dateutil import parser as dateparser
 
@@ -179,7 +178,7 @@ class DateTimePicker(TextInput):
             start_dt = kwargs.get('start_dt', c.EPOCH)
         
         if start_dt:
-            if isinstance(start_dt, six.string_types):
+            if isinstance(start_dt, str):
                 start_dt = c.EVENT_TIMEZONE.localize(dateparser.parse(start_dt))
             date_info += f"\ndefaultDate: '{start_dt.isoformat()}',"
 
@@ -188,7 +187,7 @@ class DateTimePicker(TextInput):
         if 'max_date' not in kwargs or kwargs['max_date'] is not None:
             date_info += f"\nmaxDate: '{kwargs.get('max_date', c.SHIFTS_ESCHATON).isoformat()}',"
         
-        if isinstance(start_dt, six.string_types):
+        if isinstance(start_dt, str):
             start_dt = c.EVENT_TIMEZONE.localize(dateparser.parse(start_dt))
         html = f"""
         <div class="input-group">

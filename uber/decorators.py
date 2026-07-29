@@ -22,7 +22,6 @@ import tempfile
 import cherrypy
 from cherrypy.lib import profiler
 from cherrypy.lib.static import serve_file
-import six
 import xlsxwriter
 
 import uber
@@ -331,7 +330,7 @@ def requires_admin(func=None, inherent_role=None, override_access=None):
             return func(*args, **kwargs)
         return _protected
 
-    if func is None or isinstance(func, six.string_types):
+    if func is None or isinstance(func, str):
         return functools.partial(_decorator, inherent_role=func)
     else:
         return _decorator(func)
@@ -1066,7 +1065,7 @@ def create_redirect(url, public=False):
     return renderable_func
 
 
-class alias_to_site_section(object):
+class alias_to_site_section:
     """
     Inject a URL redirect from another page to the decorated function.
     This is useful for downstream plugins to add or change functions in upstream plugins to modify their behavior.
@@ -1155,7 +1154,7 @@ class cached_classproperty(property):
         @cached_classproperty, and the behavior of the underlying method
         will be lost.
 
-    >>> class MyClass(object):
+    >>> class MyClass:
     ...     @cached_classproperty
     ...     def myproperty(cls):
     ...         return '{0}.myproperty'.format(cls.__name__)
@@ -1164,7 +1163,7 @@ class cached_classproperty(property):
 
     """
     def __init__(self, fget, *arg, **kw):
-        super(cached_classproperty, self).__init__(fget, *arg, **kw)
+        super().__init__(fget, *arg, **kw)
         self.__doc__ = fget.__doc__
         self.__fget_name__ = fget.__name__
 
@@ -1200,7 +1199,7 @@ class classproperty(property):
         to write to the property will erase the @classproperty, and the
         behavior of the underlying method will be lost.
 
-    >>> class MyClass(object):
+    >>> class MyClass:
     ...     @classproperty
     ...     def myproperty(cls):
     ...         return '{0}.myproperty'.format(cls.__name__)
@@ -1209,7 +1208,7 @@ class classproperty(property):
 
     """
     def __init__(self, fget, *arg, **kw):
-        super(classproperty, self).__init__(fget, *arg, **kw)
+        super().__init__(fget, *arg, **kw)
         self.__doc__ = fget.__doc__
 
     def __get__(desc, self, cls):

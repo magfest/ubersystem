@@ -50,7 +50,7 @@ class MultiPathEnvironment(jinja2.Environment):
         Overridden to consider templates already loaded by the current request.
         """
         if not use_request_cache:
-            return super(MultiPathEnvironment, self)._load_template(name, globals)
+            return super()._load_template(name, globals)
 
         if self.loader is None:
             raise TypeError('no loader for this environment specified')
@@ -123,7 +123,7 @@ class AbsolutePathLoader(jinja2.FileSystemLoader):
         Overridden to also accept absolute paths.
         """
         if not os.path.isabs(template):
-            return super(AbsolutePathLoader, self).get_source(environment, template)
+            return super().get_source(environment, template)
 
         # Security check, ensure the abs path is part of a valid search path
         if not any(template.startswith(s) for s in self.searchpath):

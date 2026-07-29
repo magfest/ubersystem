@@ -12,14 +12,12 @@ email_validator==2.2.0
 fpdf2==2.8.3
 geopy==2.4.1
 ics==0.7.2
-TatSu==5.16
 Jinja2==3.1.6
 # ortools 9.14.6206 musllinux x86_64 wheel aborts on import (google/or-tools#4736); 9.12 has no aarch64 musl wheel
 ortools==9.14.6206; platform_machine != "x86_64"
 ortools==9.12.4544; platform_machine == "x86_64"
 phonenumbers==9.0.9
 Pillow==11.3.0
-psutil
 pypsutil==0.2.0
 psycopg2-binary==2.9.10
 pycountry==24.6.1

@@ -1,6 +1,5 @@
 import contextlib
 import json
-import six
 import uuid
 import logging
 from datetime import datetime, timedelta
@@ -2361,9 +2360,9 @@ class Root:
         if not col_names:
             return {'error': "Can't calculate cost change without the column names"}
 
-        if isinstance(col_names, six.string_types):
+        if isinstance(col_names, str):
             col_names = [col_names]
-        if isinstance(new_vals, six.string_types):
+        if isinstance(new_vals, str):
             new_vals = [new_vals]
         
         update_col = params.get('update_col', col_names[-1])
