@@ -1,8 +1,8 @@
-from datetime import datetime
+from datetime import timezone, datetime
 
 import cherrypy
 import pytest
-import pytz
+
 from cherrypy import HTTPError
 
 from tests.uber.conftest import csrf_token
@@ -65,7 +65,7 @@ class TestAuthByToken(object):
         assert auth_by_token(set()) == expected
 
     def test_revoked(self, monkeypatch, session, api_token):
-        api_token.revoked_time = datetime.now(pytz.UTC)
+        api_token.revoked_time = datetime.now(timezone.utc)
         session.commit()
         session.refresh(api_token)
         monkeypatch.setitem(cherrypy.request.headers, 'X-Auth-Token', api_token.token)

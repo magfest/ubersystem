@@ -1,9 +1,9 @@
-from datetime import datetime
+from datetime import timezone, datetime
 
 import pytest
-import pytz
+
 from mock import Mock
-from pytz import UTC
+
 
 from uber import config
 from uber.config import c
@@ -366,7 +366,7 @@ def test_must_contact():
             department=dept2,
             is_poc=True)]
 
-    start_time = datetime.now(tz=pytz.UTC)
+    start_time = datetime.now(tz=timezone.utc)
 
     job1 = Job(
         name='Job1',
@@ -566,7 +566,8 @@ class TestStaffingAdjustments:
                 attendee_id=a.id,
                 department=dept,
                 department_id=dept.id,
-                is_dept_head=True),
+                is_dept_head=True)
+        ]
         a.assigned_depts = [dept]
         a.dept_memberships_with_role = dept_memberships
         a._staffing_adjustments()

@@ -2,8 +2,7 @@ import os
 import stripe
 import logging
 import cherrypy
-import pytz
-from datetime import datetime
+from datetime import timezone, datetime
 from cherrypy.lib.static import serve_file
 from sqlalchemy.orm.exc import NoResultFound
 from urllib.parse import urlparse, parse_qsl
@@ -18,9 +17,7 @@ from uber.utils import check, filename_extension
 from uber.files import FileService
 from uber.payments import ReceiptManager
 
-
 log = logging.getLogger(__name__)
-
 
 @all_renderable(public=True)
 class Root:
@@ -50,7 +47,7 @@ class Root:
 
         admin_account_id = getattr(cherrypy.request, 'admin_account', None)
         attendee_account_id = getattr(cherrypy.request, 'attendee_account', None)
-        now = datetime.now(pytz.UTC)
+        now = datetime.now(timezone.utc)
         if admin_account_id:
             login_account = session.get(AdminAccount, admin_account_id)
             login_account.last_signed_in = now

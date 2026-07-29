@@ -5,8 +5,7 @@ import logging
 
 from collections import defaultdict
 from sqlalchemy import func, case
-from datetime import datetime
-from pytz import UTC
+from datetime import timezone, datetime
 
 from uber.config import c
 from uber.models import MagModel
@@ -22,10 +21,8 @@ from typing import ClassVar
 
 log = logging.getLogger(__name__)
 
-
 __all__ = ['ArtShowAgentCode', 'ArtShowApplication', 'ArtShowPiece', 'ArtShowPayment', 'ArtShowReceipt', 'ArtShowBidder',
            'ArtShowPanel', 'ArtPanelAssignment']
-
 
 class ArtShowAgentCode(MagModel, table=True):
     app_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='art_show_application.id', ondelete='CASCADE')
@@ -664,7 +661,7 @@ class ArtShowPayment(MagModel, table=True):
     
     amount: int = 0
     type: int = Field(sa_column=Column(Choice(c.ART_SHOW_PAYMENT_OPTS)), default=c.STRIPE)
-    when: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    when: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(timezone.utc))
 
 
 class ArtShowReceipt(MagModel, table=True):

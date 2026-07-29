@@ -29,16 +29,13 @@ from rpctools.jsonrpc import ServerProxy
 from urllib.parse import urlparse, urljoin
 from uuid import uuid4
 from phonenumbers import PhoneNumberFormat
-from pytz import UTC
 from sqlalchemy import func, or_, cast, literal, DateTime
 from sqlalchemy.exc import InvalidRequestError
 
 from uber.config import c
 from uber.models import File, uncamel
 
-
 log = logging.getLogger(__name__)
-
 
 class FileHandler(ABC):
     @abstractmethod
@@ -106,7 +103,7 @@ class ServerFileHandler(FileHandler):
                 self.delete()
             else:
                 if update_model:
-                    update_model.last_updated = datetime.now(UTC)
+                    update_model.last_updated = datetime.now(timezone.utc)
                     self.session.add(update_model)
                 if delete_existing:
                     FileService.delete_existing_files(self.session, self.file_obj, self.file_obj.true_flags)

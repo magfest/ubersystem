@@ -4,14 +4,13 @@ import os
 import secrets
 import re
 import shutil
-from datetime import datetime, timedelta
+from datetime import timezone, datetime, timedelta
 from functools import wraps
 from io import BytesIO
 
 import cherrypy
 from cherrypy.lib.static import serve_file
 from aztec_code_generator import AztecCode
-from pytz import UTC
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.exc import NoResultFound
@@ -33,7 +32,6 @@ from uber.site_sections.preregistration import check_if_can_reg
 from uber.utils import add_opt, check, check_pii_consent, get_page, hour_day_format, \
     localized_now, Order, validate_model, normalize_email_legacy
 from uber.payments import TransactionRequest, ReceiptManager, SpinTerminalRequest
-
 
 def check_atd(func):
     @wraps(func)
@@ -477,7 +475,7 @@ class Root:
             if response:
                 response_json = response.json()
                 if req.api_response_successful(response_json):
-                    tracker.resolved = datetime.now(UTC)
+                    tracker.resolved = datetime.now(timezone.utc)
                     tracker.response = response_json
                     tracker.internal_error = ''
                     session.add(tracker)
@@ -490,7 +488,7 @@ class Root:
                     error = req.error_message_from_response(response_json)
                     if error != "Not found":
                         return {'success': False, 'message': f"Error checking status of last transaction: {error}"}
-                    tracker.resolved = datetime.now(UTC)
+                    tracker.resolved = datetime.now(timezone.utc)
                     session.add(tracker)
                     session.commit()
                     prior_error = terminal_status.get('last_error')
@@ -1243,7 +1241,7 @@ class Root:
             restrict_to = [Attendee.paid == c.NOT_PAID, Attendee.placeholder == False]  # noqa: E712
         else:
             restrict_to = [
-                Attendee.paid != c.NEED_NOT_PAY, Attendee.registered > datetime.now(UTC) - timedelta(minutes=90)]
+                Attendee.paid != c.NEED_NOT_PAY, Attendee.registered > datetime.now(timezone.utc) - timedelta(minutes=90)]
 
         return {
             'message':    message,
@@ -1563,7 +1561,7 @@ class Root:
             'badges_sold': c.BADGES_SOLD,
             'remaining_badges': c.REMAINING_BADGES,
             'badges_price': c.BADGE_PRICE,
-            'server_current_timestamp': int(datetime.now(UTC).timestamp()),
+            'server_current_timestamp': int(datetime.now(timezone.utc).timestamp()),
             'warn_if_server_browser_time_mismatch': c.WARN_IF_SERVER_BROWSER_TIME_MISMATCH
         })
 

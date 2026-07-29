@@ -2,10 +2,9 @@ import random
 import re
 import string
 from collections import OrderedDict
-from datetime import datetime
+from datetime import timezone, datetime
 
 import six
-from pytz import UTC
 from dateutil import parser as dateparser
 from sqlalchemy import exists, func, select, CheckConstraint
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -19,9 +18,7 @@ from uber.models import MagModel
 from uber.models.types import MultiChoice, DefaultColumn as Column, Choice, DefaultField as Field, DefaultRelationship as Relationship
 from uber.utils import localized_now, RegistrationCode
 
-
 __all__ = ['PromoCodeWord', 'PromoCodeGroup', 'PromoCode']
-
 
 class PromoCodeWord(MagModel, table=True):
     """
@@ -134,7 +131,7 @@ class PromoCodeGroup(MagModel, table=True):
 
     name: str = ''
     code: str = ''
-    registered: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    registered: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(timezone.utc))
 
     promo_codes: list['PromoCode'] = Relationship(
         back_populates="group", sa_relationship_kwargs={'lazy': 'selectin'})
@@ -205,7 +202,7 @@ class PromoCodeGroup(MagModel, table=True):
     def hours_since_registered(self):
         if not self.registered:
             return 0
-        delta = datetime.now(UTC) - self.registered
+        delta = datetime.now(timezone.utc) - self.registered
         return max(0, delta.total_seconds()) / 60.0 / 60.0
 
     @property

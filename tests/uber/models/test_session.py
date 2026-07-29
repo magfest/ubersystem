@@ -1,14 +1,14 @@
-from datetime import date, datetime, timedelta
+from datetime import timezone, date, datetime, timedelta
 
 import pytest
-import pytz
+
 
 from uber.models import Attendee, Department, Group, Session
 from uber.config import c
 from uber.utils import localized_now
 
 
-next_week = datetime.now(pytz.UTC) + timedelta(days=7)
+next_week = datetime.now(timezone.utc) + timedelta(days=7)
 
 
 @pytest.fixture(autouse=True)

@@ -1,7 +1,7 @@
-from datetime import datetime, timedelta
+from datetime import timezone, datetime, timedelta
 
 import pytest
-import pytz
+
 from mock import Mock
 
 from uber.models import Attendee, Group, PromoCode, Session
@@ -10,8 +10,8 @@ from uber.payments import PreregCart
 from uber.utils import check
 
 
-next_week = datetime.now(pytz.UTC) + timedelta(days=7)
-last_week = datetime.now(pytz.UTC) - timedelta(days=7)
+next_week = datetime.now(timezone.utc) + timedelta(days=7)
+last_week = datetime.now(timezone.utc) - timedelta(days=7)
 
 
 class TestPromoCodeAdjustments:
@@ -217,7 +217,7 @@ class TestAttendeePromoCodeModelChecks:
             "You are already receiving an age based discount, you can't use a promo code on top of that."
 
     def test_promo_code_not_is_expired(self):
-        expire = datetime.now(pytz.UTC) - timedelta(days=9)
+        expire = datetime.now(timezone.utc) - timedelta(days=9)
         promo_code = PromoCode(discount=1, expiration_date=expire)
         attendee = Attendee(
             promo_code=promo_code,

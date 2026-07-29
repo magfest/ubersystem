@@ -1,7 +1,7 @@
-from datetime import date, datetime, timedelta
+from datetime import timezone, date, datetime, timedelta
 
 import pytest
-import pytz
+
 import six
 
 from tests.uber.conftest import admin_attendee, assert_unique, csrf_token, POST
@@ -17,7 +17,7 @@ assert csrf_token
 assert POST
 
 
-next_week = datetime.now(pytz.UTC) + timedelta(days=7)
+next_week = datetime.now(timezone.utc) + timedelta(days=7)
 
 
 @pytest.fixture(autouse=True)

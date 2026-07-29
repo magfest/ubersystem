@@ -1,7 +1,6 @@
-from datetime import datetime, timedelta
+from datetime import timezone, datetime, timedelta
 
 import cherrypy
-from pytz import UTC
 from sqlalchemy import Sequence, Uuid, String, DateTime
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.mutable import MutableDict
@@ -16,9 +15,7 @@ from uber.models.types import (default_relationship as relationship, utcnow,
 from uber.models import MagModel
 from uber.utils import listify
 
-
 __all__ = ['AccessGroup', 'AdminAccount', 'EscalationTicket', 'PasswordReset', 'WatchList', 'WorkstationAssignment']
-
 
 # Many to many association table to tie Access Groups with Admin Accounts
 admin_access_group = Table(
@@ -30,7 +27,6 @@ admin_access_group = Table(
     Index('ix_admin_access_group_admin_account_id', 'admin_account_id'),
     Index('ix_admin_access_group_access_group_id', 'access_group_id'),
 )
-
 
 class AdminAccount(MagModel, table=True):
     attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE', unique=True)
@@ -262,7 +258,7 @@ class AdminAccount(MagModel, table=True):
             self.remove_disabled_api_keys(invalid_api)
 
     def remove_disabled_api_keys(self, invalid_api):
-        revoked_time = datetime.now(UTC)
+        revoked_time = datetime.now(timezone.utc)
         for api_token in self.active_api_tokens:
             if invalid_api.intersection(api_token.access_ints):
                 api_token.revoked_time = revoked_time
@@ -288,13 +284,13 @@ class PasswordReset(MagModel, table=True):
     attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee_account.id', ondelete='CASCADE', unique=True, nullable=True)
     attendee_account: 'AttendeeAccount' = Relationship(back_populates="password_reset", sa_relationship_kwargs={'single_parent': True})
 
-    generated: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    generated: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(timezone.utc))
     hashed: str = Field(sa_type=String, private=True)
     token: str = Field(sa_type=String, private=True)
 
     @property
     def is_expired(self):
-        return self.generated < datetime.now(UTC) - timedelta(hours=c.PASSWORD_RESET_HOURS)
+        return self.generated < datetime.now(timezone.utc) - timedelta(hours=c.PASSWORD_RESET_HOURS)
 
 
 class AccessGroup(MagModel, table=True):
@@ -346,9 +342,9 @@ class AccessGroup(MagModel, table=True):
 
     @property
     def is_valid(self):
-        if self.start_time and self.start_time > datetime.now(UTC):
+        if self.start_time and self.start_time > datetime.now(timezone.utc):
             return False
-        if self.end_time and self.end_time < datetime.now(UTC):
+        if self.end_time and self.end_time < datetime.now(timezone.utc):
             return False
         return True
 
