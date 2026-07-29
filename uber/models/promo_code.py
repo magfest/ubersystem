@@ -4,7 +4,6 @@ import string
 from collections import OrderedDict
 from datetime import datetime
 
-import six
 from pytz import UTC
 from dateutil import parser as dateparser
 from sqlalchemy import exists, func, select, CheckConstraint
@@ -325,7 +324,7 @@ class PromoCode(MagModel, table=True):
         """
         Converts the given datetime to 11:59pm local in the event timezone.
         """
-        if isinstance(dt, six.string_types):
+        if isinstance(dt, str):
             if dt.strip():
                 dt = dateparser.parse(dt)
             else:
@@ -352,7 +351,7 @@ class PromoCode(MagModel, table=True):
     @hybrid_property
     def is_expired(self):
         expiration = self.expiration_date
-        if isinstance(expiration, six.string_types):        
+        if isinstance(expiration, str):        
             expiration = self.coerce_column_data(PromoCode.__table__.columns.get('expiration_date'), expiration)
         return expiration < localized_now()
 

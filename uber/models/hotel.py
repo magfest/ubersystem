@@ -44,7 +44,7 @@ def _night(name):
     return lookup.setter(setter)
 
 
-class NightsMixin(object):
+class NightsMixin:
     @property
     def nights_labels(self):
         ordered = sorted(self.nights_ints, key=c.NIGHT_DISPLAY_ORDER.index)

@@ -1,4 +1,3 @@
-import six
 import calendar
 from collections import defaultdict
 from sqlalchemy import or_, and_
@@ -212,7 +211,7 @@ class Root:
                                                     Tracking.data.contains("checked_in='None -> datetime")
                                                     ).group_by(Tracking.who).order_by(Tracking.who).distinct().all()
         for admin in admins:
-            if not isinstance(admin, six.string_types):
+            if not isinstance(admin, str):
                 admin = admin[0]  # SQLAlchemy quirk
 
             admin_list.append(admin)

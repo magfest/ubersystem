@@ -84,7 +84,7 @@ class GuestGroup(MagModel, table=True):
         if name.endswith('_status'):
             return self.status(name.rsplit('_', 1)[0])
         else:
-            return super(GuestGroup, self).__getattr__(name)
+            return super().__getattr__(name)
 
     @presave_adjustment
     def empty_strings_to_zero(self):

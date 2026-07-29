@@ -7,7 +7,6 @@ from functools import wraps
 import cherrypy
 import pytz
 import json
-import six
 import traceback
 import inspect
 import logging
@@ -297,7 +296,7 @@ def _query_to_names_emails_ids(query, split_names=True):
 
 
 def _parse_datetime(d):
-    if isinstance(d, six.string_types) and d.strip().lower() == 'now':
+    if isinstance(d, str) and d.strip().lower() == 'now':
         d = datetime.now(pytz.UTC)
     else:
         d = dateparser.parse(d)
@@ -318,7 +317,7 @@ def _parse_if_datetime(key, val):
 
 def _parse_if_boolean(key, val):
     if hasattr(getattr(Attendee, key), 'type') and isinstance(getattr(Attendee, key).type, Boolean):
-        if isinstance(val, six.string_types):
+        if isinstance(val, str):
             return val.strip().lower() not in ('f', 'false', 'n', 'no', '0')
         else:
             return bool(val)

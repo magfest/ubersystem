@@ -1,8 +1,8 @@
+import sys
 from collections import Counter, defaultdict, OrderedDict
 
 from geopy.distance import geodesic
 import logging
-import six
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.expression import literal
@@ -207,7 +207,7 @@ class Root:
 
                 donation_amounts = list(counts['donation_tiers'].keys())
                 for index, amount in enumerate(donation_amounts):
-                    next_amount = donation_amounts[index + 1] if index + 1 < len(donation_amounts) else six.MAXSIZE
+                    next_amount = donation_amounts[index + 1] if index + 1 < len(donation_amounts) else sys.maxsize
                     if a.amount_extra >= amount and a.amount_extra < next_amount:
                         counts['donation_tiers'][amount] = counts['donation_tiers'][amount] + 1
                 if not a.checked_in:
