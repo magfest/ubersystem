@@ -1,4 +1,4 @@
-from collections import OrderedDict
+from collections import defaultdict, OrderedDict
 from datetime import datetime, timedelta
 
 import pytz
@@ -433,20 +433,16 @@ class AttractionFeature(MagModel, AttractionMixin, table=True):
 
     @property
     def available_events_summary(self):
-        summary = OrderedDict()
+        summary = defaultdict(lambda: defaultdict(int))
         for event in self.available_events:
             start_time = event.start_time_local
             day = start_time.strftime('%A')
-            if day not in summary:
-                summary[day] = OrderedDict()
 
             time_of_day = 'Evening'
             if start_time < noon_datetime(start_time):
                 time_of_day = 'Morning'
             elif start_time < evening_datetime(start_time):
                 time_of_day = 'Afternoon'
-            if time_of_day not in summary[day]:
-                summary[day][time_of_day] = 0
 
             summary[day][time_of_day] += event.remaining_slots
 
