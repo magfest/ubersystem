@@ -120,6 +120,7 @@ class Root:
                 raise HTTPRedirect('index?id={}', team.id)
 
         return {
+            'logged_in_account': session.current_attendee_account(),
             'message': message,
             'team': team,
             'applicant': applicant

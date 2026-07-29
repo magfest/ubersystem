@@ -124,6 +124,7 @@ $(document).ready(function() {
         <th>Expiration Date</th>
         <th>Expired?</th>
         <th>Discount</th>
+        <th>Item(s)</th>
         <th>Allowed Uses</th>
         <th>Number of Uses</th>
         {% if show == 'admin' %}
@@ -149,6 +150,7 @@ $(document).ready(function() {
           {% endif %}
         </td>
         <td data-order="{{ promo_code.discount }}">{{ promo_code.discount_str }}</td>
+        <td>{{ promo_code.discount_on_labels|readable_join }}</td>
         <td data-order="{{ promo_code.uses_allowed }}">
           <input
             type="text"

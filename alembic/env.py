@@ -38,7 +38,7 @@ def render_item(type_, obj, autogen_context):
     if type_ == 'type':
         if isinstance(obj, Choice):
             return 'sa.Integer()'
-        if isinstance(obj, sqlmodel.sql.sqltypes.AutoString):
+        if isinstance(obj, (sqlmodel.sql.sqltypes.AutoString, MultiChoice)):
             return 'sa.Unicode()'
     # Default rendering for other objects
     return False

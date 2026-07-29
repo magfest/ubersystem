@@ -124,4 +124,11 @@
         </div>
     {% endif %}
 </div>
-<div class="d-flex mt-2"><span class="form-text ms-auto"><em>Confirmation # {{ attendee.id }}</em></span></div>
+<div class="d-flex mt-2 align-items-center">
+    {% if attendee == account.owner %}
+    <span class="badge bg-secondary">Account Owner
+    &nbsp;<a href="#" class="text-reset text-decoration-none text-white" data-bs-toggle="tooltip" title="{{ attendee.full_name }} is currently the account owner. You can change the account owner in your account settings."><i class="fa fa-question-circle" aria-hidden="true"></i></a>
+    </span>
+    {% endif %}
+    <span class="form-text ms-auto"><em>Confirmation # {{ attendee.id }}</em></span>
+</div>

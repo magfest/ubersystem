@@ -1,6 +1,7 @@
 {% import 'macros.html' as macros with context %}
 {% import 'forms/macros.html' as form_macros with context %}
 {% set contact_info = contact_info or forms['contact_info'] %}
+{% set default_group_email = logged_in_account.email if logged_in_account else '' %}
 
 {# BLOCK NAMES in this form:
     contact_info
@@ -12,7 +13,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 <div class="row g-3 mb-3">
 {% block contact_info %}
     <div class="col-sm">
-      {{ form_macros.input(contact_info.email_address) }}
+      {{ form_macros.input(contact_info.email_address, value=contact_info.email_address.data or default_group_email) }}
     </div>
   
     <div class="col-sm">

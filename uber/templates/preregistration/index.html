@@ -59,7 +59,7 @@
             <ul style="padding-left:15px">
               {% if attendee.badge_type in c.BADGE_TYPE_PRICES %}
                 {% set badge_cost = attendee.calculate_badge_cost() + attendee.default_badge_upgrade_cost %}
-              {% elif (attendee.calculate_badge_cost() and attendee.age_discount|abs < attendee.calculate_badge_cost()) or attendee.default_promo_code_group_cost %}
+              {% elif attendee.calculate_badge_cost() or attendee.default_promo_code_group_cost %}
                 {% set badge_cost = (attendee.calculate_badge_cost() or attendee.default_promo_code_group_cost) %}
               {% else %}
                 {% set badge_cost = 0 %}
@@ -67,10 +67,8 @@
               <li>{% if attendee.badge_type in c.BADGE_TYPE_PRICES %}{{ attendee.badge_type_label|replace(' ', '-') }}-level r{% else %}R{% endif %}egistration for {{ c.EVENT_NAME }}
                 {% if attendee.badges %} for {{ attendee.badges }} people{% endif %}
                 {% if badge_cost %} ({{ badge_cost|format_currency }}){% endif %}</li>
-              {% if attendee.qualifies_for_discounts and attendee.age_discount and attendee.age_discount|abs > attendee.calculate_badge_cost() and not attendee.promo_code_id %}
-                <li>Attendees who are {{ attendee.age_group_conf.desc|lower }} get in for free!</li>
-              {% elif attendee.qualifies_for_discounts and attendee.age_discount and attendee.age_group_conf.discount != 0 %}
-                <li>{{ attendee.age_discount|abs|format_currency }} discount for attendees who are {{ attendee.age_group_conf.desc|lower }}.</li>
+              {% if age_discounts[attendee.id] %}
+                <li>{{ age_discounts[attendee.id] }} for attendees who are {{ attendee.age_group_conf.desc|lower }}</li>
               {% endif %}
               {% for swag in attendee.donation_swag|list + attendee.addons|list %}
                 <li>{{ swag }}</li>
@@ -79,7 +77,9 @@
                 {% if attendee.promo_code.group_id %}
                   <li>Claiming a badge in group "{{ attendee.promo_group_name }}"</li>
                 {% else %}
-                <li>{{ attendee.promo_code.discount_str }} with promo code "{{ attendee.promo_code.code }}"</li>
+                  {% for discount_str in promo_code_discounts[attendee.id] %}
+                  <li>{{ discount_str }} with promo code "{{ attendee.promo_code.code }}"</li>
+                  {% endfor %}
                 {% endif %}
               {% endif %}
             </ul>

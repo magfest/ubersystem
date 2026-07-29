@@ -3,15 +3,19 @@ import re
 import logging
 
 from collections import defaultdict
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, lazyload
 from sqlalchemy import or_, func, not_, and_
 from typing import Iterable
 
 from uber.config import c
-from uber.decorators import all_renderable, log_pageview
-from uber.models import ArbitraryCharge, Attendee, Group, ModelReceipt, MPointsForCash, ReceiptItem, Sale, PromoCodeGroup
+from uber.decorators import all_renderable, log_pageview, csv_file
+from uber.errors import HTTPRedirect
+from uber.models import (ArbitraryCharge, Attendee, AttendeeAccount, Group, ModelReceipt, MPointsForCash, Sale, PromoCodeGroup,
+                         ReceiptTransaction, ReceiptItem)
 from uber.server import redirect_site_section
 from uber.utils import localized_now, Order
+
+from uber.models import ReceiptTransaction, ReceiptItem, AttendeeAccount
 
 log = logging.getLogger(__name__)
 
@@ -24,6 +28,10 @@ def _build_txn_subquery(session):
     return session.query(ModelReceipt.owner_id, ModelReceipt.payment_total_sql.label('payment_total'),
                          ModelReceipt.refund_total_sql.label('refund_total')
                          ).join(ModelReceipt.receipt_txns).group_by(ModelReceipt.owner_id).subquery()
+
+def _build_discount_subquery(session):
+    return session.query(ModelReceipt.owner_id, ModelReceipt.discount_total_sql.label('discount_total')
+                         ).join(ModelReceipt.receipt_discounts).group_by(ModelReceipt.owner_id).subquery()
 
 def get_grouped_costs(session, filters=[], joins=[], selector=Attendee.badge_cost):
     # Returns a defaultdict with the {int(cost): count} of badges
@@ -62,6 +70,7 @@ class Root:
         attendees = session.query(Attendee)
         item_subquery = _build_item_subquery(session)
         txn_subquery = _build_txn_subquery(session)
+        discount_subquery = _build_discount_subquery(session)  # TODO: Make this work
 
         base_filter = [Attendee.has_or_will_have_badge]
 
@@ -350,6 +359,118 @@ class Root:
         all = [(sum(mpu.amount for mpu in mpus), group, mpus)
                for group, mpus in groups.items()]
         return {'all': sorted(all, reverse=True)}
+
+    @csv_file
+    def purchaser_donation_report(self, out, session):
+        out.writerow(['Purchaser ID', 'First Name', 'Last Name', 'Legal Name', 'Email',
+                      'Country', 'Region', 'City', 'ZipCode', 'Address 1', 'Address 2',
+                      'Purchaser Badge Type', 'Purchaser Badge #', 'Total Purchases', 'Total Credit',
+                      '# Day Badges', '# Group Badges', '# Attendee Badges',
+                      '# Sponsor Upgrades', '# Shiny Upgrades', '# Day-to-Attendee Upgrades'])
+
+        badge_txn_purchasers = session.query(
+            ModelReceipt.owner_id, ModelReceipt.owner_model, ReceiptTransaction,
+            func.json_agg(func.json_build_object('id', ReceiptItem.id, 'amount', ReceiptItem.amount, 'count', ReceiptItem.count, 'category', ReceiptItem.category, 'desc', ReceiptItem.desc)),
+            func.array_agg(ReceiptItem.purchaser_id)).filter(
+                ReceiptTransaction.cancelled == None, ReceiptTransaction.on_hold == False, ReceiptTransaction.amount > 0, ReceiptTransaction.charge_id != '').join(ReceiptTransaction.receipt_items).filter(
+                    ReceiptItem.reverted == False, ReceiptItem.comped == False, ReceiptItem.amount != 0,
+                    ReceiptItem.category.in_([c.BADGE, c.GROUP_BADGE, c.BADGE_DISCOUNT, c.BADGE_UPGRADE])).join(
+                        ReceiptTransaction.receipt).filter(ModelReceipt.closed == None).group_by(
+                            ReceiptTransaction.id).group_by(ModelReceipt.owner_id).group_by(ModelReceipt.owner_model).options(lazyload("*"))
+        
+        transactions_by_purchaser = defaultdict(list)
+        weird_transactions_by_purchaser = defaultdict(list)
+        transactions_by_attendee = defaultdict(list)
+        even_weirder_purchaser_ids = []
+        for owner_id, owner_model, txn, items, purchasers in badge_txn_purchasers:
+            purchasers_set = set(purchasers)
+            purchasers_set.discard(None)
+            purchasers_list = list(purchasers_set)
+            if len(purchasers_list) == 1 and txn.amount_left:
+                value = sum([item['amount'] * item['count'] for item in items if item['amount'] > 0])
+                credit = sum([item['amount'] * item['count'] * -1 for item in items if item['amount'] < 0])
+                if (value + credit) != txn.amount_left and any(item.category in [c.ITEM_COMP, c.CANCEL_ITEM, c.OTHER] for item in txn.receipt_items):
+                    weird_transactions_by_purchaser[purchasers_list[0]].append((owner_id, owner_model, items))
+                else:
+                    transactions_by_purchaser[purchasers_list[0]].append((owner_id, owner_model, items))
+            elif len(purchasers_list) != 1:
+                log.error(f"Found multiple purchasers for one transaction while generating donation report. {purchasers}: {owner_id}, {owner_model}, {items}")
+        
+        purchaser_ids = set(transactions_by_purchaser.keys()) | set(weird_transactions_by_purchaser.keys())
+        purchasers = session.query(AttendeeAccount).filter(AttendeeAccount.id.in_(purchaser_ids))
+        attendee_purchasers = session.query(Attendee).filter(Attendee.id.in_(purchaser_ids))
+
+        purchasers_by_id = {a.id: a for a in purchasers.all()}
+        for attendee in attendee_purchasers:
+            if attendee.managers:
+                purchasers_by_id[attendee.id] = attendee.managers[0]
+            else:
+                purchasers_by_id[attendee.id] = attendee
+        weird_purchaser_ids = list(weird_transactions_by_purchaser.keys())
+
+        for purchaser_id, txns in transactions_by_purchaser.items():
+            if purchaser_id in weird_purchaser_ids or purchaser_id not in purchasers_by_id:
+                log.error(f"Could not generate donation report for {purchaser_id}. Transactions: {txns}")
+            elif purchaser_id not in even_weirder_purchaser_ids:
+                purchaser = purchasers_by_id[purchaser_id]
+                if isinstance(purchaser, AttendeeAccount):
+                    if purchaser.owner and purchaser.owner.is_valid:
+                        p_attendee = purchaser.owner
+                    else:
+                        p_attendee = purchaser.backup_owner
+                else:
+                    p_attendee = purchaser if purchaser.is_valid else None
+                
+                if p_attendee:
+                    transactions_by_attendee[p_attendee].extend(txns)
+                else:
+                    log.error(f"Purchaser donation report issue: {p_attendee} has valid payments but no valid badges.")
+        
+        for attendee, txns in transactions_by_attendee.items():
+            total_pos, total_neg = 0, 0
+            day_badges, group_badges, attendee_badges, sponsor_upgrades, shiny_upgrades, attendee_upgrades = 0, 0, 0, 0, 0, 0
+            for owner_id, owner_model, items in txns:
+                purchases = []
+                refunds = []
+                for item in items:
+                    if item['amount'] > 0:
+                        total_pos += (item['amount'] * item['count'])
+                        if item['category'] != c.BADGE_DISCOUNT:
+                            purchases.append(item)
+                    else:
+                        total_neg += (item['amount'] * item['count'])
+                        if item['category'] != c.BADGE_DISCOUNT:
+                            # Most of these are already filtered out, but e.g. groups can have their # of badges reduced
+                            refunds.append(item)
+                if owner_model == 'Group':
+                    group_badges = sum([p['count'] for p in purchases]) - sum([r['count'] for r in refunds])
+                else:
+                    pc_group_badges = [p for p in purchases if p['category'] == c.GROUP_BADGE]
+                    if pc_group_badges:
+                        group_badges = sum([b['count'] for b in pc_group_badges]) - sum([r['count'] for r in refunds if r['category'] == c.GROUP_BADGE])
+                    # day badge, attendee badge, sponsor upgrade, shiny upgrade
+                    for purchase in purchases:
+                        if purchase['category'] == c.BADGE:
+                            if 'Friday' in purchase['desc'] or 'Saturday' in purchase['desc'] or 'Sunday' in purchase['desc'] or 'One Day' in purchase['desc']:
+                                day_badges += 1
+                            else:
+                                attendee_badges += 1
+                        elif purchase['category'] == c.BADGE_UPGRADE:
+                            if 'Shiny' in purchase['desc']:
+                                shiny_upgrades += 1
+                            elif 'Sponsor' in purchase['desc']:
+                                sponsor_upgrades += 1
+                            elif 'Attendee' in purchase['desc']:
+                                attendee_upgrades += 1
+                            else:
+                                purchase['desc']
+                        else:
+                            c.REG_RECEIPT_ITEMS[purchase['category']]
+
+            out.writerow([attendee.id, attendee.first_name, attendee.last_name, attendee.legal_name, attendee.email,
+                          attendee.country, attendee.region, attendee.city, attendee.zip_code, attendee.address1,
+                          attendee.address2, attendee.badge_type_label, attendee.badge_num, total_pos, total_neg,
+                          day_badges, group_badges, attendee_badges, sponsor_upgrades, shiny_upgrades, attendee_upgrades])
 
     def view_promo_codes(self, session, message='', **params):
         redirect_site_section('budget', 'promo_codes', 'index')

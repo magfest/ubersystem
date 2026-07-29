@@ -66,7 +66,7 @@ class Root:
             raise HTTPRedirect(redirect_url or '../preregistration/homepage')
     
     @not_site_mappable
-    def stripe_webhook_handler(self):
+    def stripe_webhook_handler(self, session):
         if not cherrypy.request or not cherrypy.request.body:
             cherrypy.response.status = 400
             return "Request required"
@@ -91,7 +91,7 @@ class Root:
 
         if event and event['type'] == 'payment_intent.succeeded':
             payment_intent = event['data']['object']
-            matching_txns = ReceiptManager.mark_paid_from_stripe_intent(payment_intent)
+            matching_txns = ReceiptManager.mark_paid_from_stripe_intent(session, payment_intent)
             if not matching_txns:
                 cherrypy.response.status = 400
                 return "No matching Stripe transactions"

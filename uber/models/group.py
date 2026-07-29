@@ -109,6 +109,17 @@ class Group(MagModel, TakesPaymentMixin, table=True):
     @hybrid_property
     def cost_cents(self):
         return self.cost * 100
+    
+    @property
+    def purchaser_id(self):
+        if self.leader:
+            attendee = self.leader
+        else:
+            assigned_badges = [a for a in self.attendees if not a.is_unassigned]
+            attendee = assigned_badges[0] if assigned_badges else None
+        
+        if attendee:
+            return attendee.purchaser_id
 
     @property
     def signnow_texts_list(self):

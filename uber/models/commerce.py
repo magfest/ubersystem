@@ -16,7 +16,7 @@ from uber.custom_tags import format_currency
 from uber.decorators import presave_adjustment, classproperty
 from uber.models import MagModel
 from uber.models.attendee import Attendee
-from uber.models.types import (DefaultColumn as Column, default_relationship as relationship, Choice,
+from uber.models.types import (DefaultColumn as Column, default_relationship as relationship, Choice, MultiChoice,
                                DefaultField as Field, DefaultRelationship as Relationship)
 from uber.payments import ReceiptManager
 
@@ -24,7 +24,7 @@ log = logging.getLogger(__name__)
 
 
 __all__ = [
-    'ArbitraryCharge', 'MerchDiscount', 'MerchPickup', 'ModelReceipt', 'MPointsForCash',
+    'ArbitraryCharge', 'MerchDiscount', 'MerchPickup', 'ModelReceipt', 'MPointsForCash', 'ReceiptDiscount',
     'NoShirt', 'OldMPointExchange', 'ReceiptInfo', 'ReceiptItem', 'ReceiptTransaction', 'Sale', 'TerminalSettlement']
 
 
@@ -111,6 +111,8 @@ class ModelReceipt(MagModel, table=True):
     receipt_txns: list['ReceiptTransaction'] = Relationship(
         back_populates="receipt", sa_relationship_kwargs={'lazy': 'selectin', 'cascade': 'all,delete-orphan', 'passive_deletes': True})
     receipt_items: list['ReceiptItem'] = Relationship(
+        back_populates="receipt", sa_relationship_kwargs={'lazy': 'selectin', 'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    receipt_discounts: list ['ReceiptDiscount'] = Relationship(
         back_populates="receipt", sa_relationship_kwargs={'lazy': 'selectin', 'cascade': 'all,delete-orphan', 'passive_deletes': True})
 
     def close_all_items(self, session):
@@ -229,12 +231,20 @@ class ModelReceipt(MagModel, table=True):
         ), 0)
     
     @property
+    def discount_total(self):
+        return sum([(discount.applicable_discount * 100) for discount in self.receipt_discounts])
+    
+    @classproperty
+    def discount_total_sql(cls):
+        return coalesce(func.sum(ReceiptDiscount.applicable_discount * 100), 0)
+    
+    @property
     def txn_total(self):
         return self.payment_total - self.refund_total
 
     @property
     def current_receipt_amount(self):
-        return self.item_total - self.txn_total
+        return self.item_total - self.discount_total - self.txn_total
 
     @property
     def current_amount_owed(self):
@@ -250,10 +260,12 @@ class ModelReceipt(MagModel, table=True):
             return "{} in {}".format(format_currency(abs(self.txn_total / 100)),
                                      "Payments" if self.txn_total >= 0 else "Refunds")
 
-        return "{} in {} and {} in {} = {} owe {}".format(format_currency(abs(self.item_total / 100)),
+        return "{} in {} and {} in {}{} = {} owe {}".format(format_currency(abs(self.item_total / 100)),
                                                           "Purchases" if self.item_total >= 0 else "Credit",
                                                           format_currency(abs(self.txn_total / 100)),
                                                           "Payments" if self.txn_total >= 0 else "Refunds",
+                                                          f", plus {format_currency(self.discount_total / 100)} in discounts"
+                                                          if self.discount_total else '',
                                                           "They" if self.current_receipt_amount >= 0 else "We",
                                                           format_currency(abs(self.current_receipt_amount / 100)))
     
@@ -312,7 +324,7 @@ class ModelReceipt(MagModel, table=True):
             if not refunds:
                 session.add_all(receipt_manager.items_to_add)
             for _, (refund_amount, txns) in refunds.items():
-                refund = RefundRequest(txns, refund_amount, skip_errors=True)
+                refund = RefundRequest(session, txns, refund_amount, skip_errors=True)
 
                 error = refund.process_refund()
                 if error:
@@ -515,14 +527,14 @@ class ReceiptTransaction(MagModel, table=True):
         except Exception as e:
             log.error(e)
 
-    def check_paid_from_stripe(self, intent=None):
+    def check_paid_from_stripe(self, session, intent=None):
         if self.charge_id or c.AUTHORIZENET_LOGIN_ID or self.method not in [c.STRIPE, c.MANUAL]:
             return
 
         intent = intent or self.get_stripe_intent()
         if intent and intent.status == "succeeded":
             new_charge_id = intent.latest_charge
-            ReceiptManager.mark_paid_from_stripe_intent(intent)
+            ReceiptManager.mark_paid_from_stripe_intent(session, intent)
             return new_charge_id
 
     def update_amount_refunded(self):
@@ -549,6 +561,128 @@ class ReceiptTransaction(MagModel, table=True):
     def cannot_delete_reason(self):
         if self.stripe_id:
             return "You cannot delete Stripe transactions."
+
+
+class ReceiptDiscount(MagModel, table=True):
+    # A special type of receipt item for Attendee receipts that is calculated based on the current state of the attendee
+    # Prevents cases where a discount (especially a percentage discount) becomes incorrect due to changes on the attendee,
+    # e.g., getting a $50 age discount on a $100 badge, then downgrading to a $60 badge but still receiving the $50 discount
+
+    receipt_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='model_receipt.id', ondelete='CASCADE')
+    receipt: 'ModelReceipt' = Relationship(back_populates="receipt_discounts", sa_relationship_kwargs={'lazy': 'joined'})
+
+    promo_code_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='promo_code.id', nullable=True, index=True)
+    promo_code: 'PromoCode' = Relationship(back_populates="receipt_discounts", sa_relationship_kwargs={'lazy': 'select'})
+
+    department: int = Field(sa_column=Column(Choice(c.RECEIPT_ITEM_DEPT_OPTS)), default=c.REG_RECEIPT_ITEM)
+    category: int = Field(sa_column=Column(Choice(c.RECEIPT_CATEGORY_OPTS)), default=c.OTHER)
+    desc: str = ''
+    who: str = ''
+    added: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+
+    discount: int | None = Field(nullable=True, default=None)
+    applicable_discount: int = 0
+    discount_str: str = ''
+    discount_type: int = Field(sa_column=Column(Choice(c.DISCOUNT_TYPE_OPTS)), default=c.FIXED_DISCOUNT)
+    discount_on: int = Field(sa_column=Column(Choice(c.DISCOUNT_ON_OPTS)), default=c.BASE_BADGE)
+
+    def set_discount(self, attendee):
+        from uber.receipt_items import base_badge_cost
+
+        real_base_cost = None
+        base_cost = 0
+        category = c.OTHER
+        if self.discount_on == c.EVERYTHING:
+            base_cost = attendee.calc_default_cost(include_discounts=False)
+            discount_label = "everything"
+        elif self.discount_on == c.BASE_BADGE:
+            if attendee.overridden_price:
+                self.applicable_discount = 0
+                self.discount_str = ''
+                return
+            if self.department == c.REG_RECEIPT_ITEM:
+                category = c.BADGE_DISCOUNT
+            _, base_cost, _ = base_badge_cost(attendee)
+            base_cost = base_cost / 100
+            if attendee.badge_type in c.BADGE_TYPE_PRICES:
+                discount_label = f"{c.BADGES[c.ATTENDEE_BADGE]} badge"
+            else:
+                discount_label = f"{attendee.badge_type_label} badge"
+        elif self.discount_on == c.GROUP_MEMBERS:
+            if getattr(attendee, 'badges', None):
+                # During prereg we set the number of promo code badges on the attendee model
+                base_cost = c.get_group_price() * int(attendee.badges)
+                discount_label = f"group badge (x{attendee.badges})"
+            elif attendee.promo_code_groups:
+                num_codes = 0
+                for code in attendee.promo_code_groups[0].promo_codes:
+                    base_cost += code.cost
+                    num_codes += 1
+                discount_label = f"group badge (x{num_codes})"
+        elif self.discount_on in ([c.BADGE_UPGRADE] + list(c.BADGE_TYPE_PRICES)) and attendee.badge_type in c.BADGE_TYPE_PRICES:
+            base_cost = c.BADGE_TYPE_PRICES[attendee.badge_type] - attendee.new_badge_cost
+            discount_label = f"{attendee.badge_type_label} badge upgrade"
+            if self.discount_on in c.BADGE_TYPE_PRICES:
+                real_base_cost = c.BADGE_TYPE_PRICES[self.discount_on] - attendee.new_badge_cost
+        elif self.discount_on in [c.MERCH] + list(c.DONATION_TIERS):
+            base_cost = attendee.amount_extra
+            discount_label = f"{c.DONATION_TIERS[attendee.amount_extra]} merch"
+            if self.discount_on in c.DONATION_TIERS:
+                real_base_cost = c.DONATION_TIERS[self.discount_on]
+        else:
+            base_cost, discount_label = self.set_other_discount(attendee)
+
+        if not base_cost:
+            self.applicable_discount = 0
+            self.discount_str = ''
+            self.category = category
+            return
+        
+        if not self.discount:
+            if real_base_cost is None or real_base_cost >= base_cost:
+                self.applicable_discount = base_cost
+                self.discount_str = f"Free {discount_label}"
+                self.category = c.ITEM_COMP
+            else:
+                self.applicable_discount = real_base_cost
+                self.discount_str = f"${self.applicable_discount} off {discount_label}"
+                self.category = category
+            return
+        
+        base_cost = base_cost if real_base_cost is None or real_base_cost > base_cost else real_base_cost
+
+        if self.discount_type == c.FIXED_DISCOUNT:
+            if base_cost > self.discount:
+                self.applicable_discount = self.discount
+            else:
+                self.applicable_discount = base_cost
+                category = c.ITEM_COMP
+            self.discount_str = f"${self.applicable_discount} off {discount_label}"
+        elif self.discount_type == c.FIXED_PRICE:
+            if base_cost > self.discount:
+                self.applicable_discount = abs(self.discount - base_cost)
+                self.discount_str = f"{discount_label} for ${self.discount} (${self.applicable_discount} off)"
+            else:
+                self.applicable_discount = 0
+                self.discount_str = ''
+        elif self.discount_type == c.PERCENT_DISCOUNT:
+            self.applicable_discount = int(base_cost * (self.discount / 100.0))
+            self.discount_str = f"{int(self.discount)}% off {discount_label} price (${self.applicable_discount})"
+            if self.applicable_discount == 0:
+                self.discount_str = ''
+        self.category = category
+    
+    def set_other_discount(self, attendee):
+        # Override in event plugins to support custom discount categories
+        return 0, ''
+    
+    @property
+    def count(self):
+        return 1
+    
+    @property
+    def amount(self):
+        return self.applicable_discount * 100 * -1
 
 
 class ReceiptItem(MagModel, table=True):
@@ -669,7 +803,6 @@ class ReceiptInfo(MagModel, table=True):
     @property
     def avs_str(self):
         if not self.txn_info or not self.txn_info['fraud_info']:
-            log.error(self.txn_info['fraud_info'])
             return ''
         
         if self.receipt_txns[0].method == c.STRIPE and c.AUTHORIZENET_LOGIN_ID:
