@@ -5,7 +5,7 @@ import six
 import cherrypy
 import logging
 
-from collections import defaultdict, OrderedDict
+from collections import defaultdict, OrderedDict, namedtuple
 from wtforms import (Form, Field, StringField, SelectField, SelectMultipleField, IntegerField,
                      BooleanField, DateField, validators, Label)
 import wtforms.widgets.core as wtforms_widgets
@@ -156,7 +156,7 @@ class CustomValidation:
             self.validations[field_name][func.__name__] = func
             return func
         return wrapper
-    
+
     def build_flags_dict(self):
         for field_name, validators in self.get_validation_dict().items():
             for v in validators:
@@ -285,8 +285,9 @@ class MagForm(Form):
                         form.field_validation.set_email_validators(field_name)
                     elif ufield.field_class.__name__ == "TelField":
                         form.field_validation.set_phone_validators(field_name)
-                    elif 'length' not in form.field_validation.validations[field_name]:
-                        form.field_validation.set_server_max(field_name)
+                    elif ufield.field_class.__name__ != "FormField":
+                        if 'length' not in form.field_validation.validations[field_name]:
+                            form.field_validation.set_server_max(field_name)
 
     @classmethod
     def inherit_validations(cls, form, inherit_from):
@@ -376,7 +377,7 @@ class MagForm(Form):
 
     def process(self, formdata={}, obj=None, data=None, extra_filters=None,
                 checkboxes_present=True, force_form_defaults=True, **kwargs):
-        formdata = self.meta.wrap_formdata(self, formdata)
+        from uber.models import MagModel
 
         # Special form data preprocessing!
         #
@@ -391,13 +392,25 @@ class MagForm(Form):
         # This function needs a revisit; we're often using formdata even when a form hasn't been submitted.
         # We can probably refactor this to use `data` more and depend more on the defaults models have defined.
 
-        force_defaults = force_form_defaults and (not obj or obj.is_new) and cherrypy.request.method != 'POST'
+        formdata = self.meta.wrap_formdata(self, formdata)
+
+        if not isinstance(obj, MagModel):
+            obj_is_new = False
+            try:
+                # WTForms expects objects, but we store FormFields as JSON dicts
+                obj_dict = json.loads(obj)
+                FormObj = namedtuple('FormObj', obj_dict)
+                obj = FormObj(**obj_dict)
+            except json.decoder.JSONDecodeError:
+                return
+        else:
+            obj_is_new = obj.is_new if obj else True
+            
+        force_defaults = force_form_defaults and (not obj or obj_is_new) and cherrypy.request.method != 'POST'
+        field_prefix = kwargs.get('field_prefix', '')
 
         for name, field in self._fields.items():
-            if kwargs.get('field_prefix', ''):
-                prefixed_name = f"{kwargs['field_prefix']}-{name}"
-            else:
-                prefixed_name = name
+            prefixed_name = f"{field_prefix}-{name}" if field_prefix else name
 
             field_in_obj = hasattr(obj, name)
             field_in_formdata = prefixed_name in formdata
