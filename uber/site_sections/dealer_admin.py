@@ -1,7 +1,6 @@
 import cherrypy
 import logging
-from datetime import datetime
-from pytz import UTC
+from datetime import timezone, datetime
 from sqlalchemy.orm import subqueryload
 
 from uber.email import EmailService
@@ -14,7 +13,6 @@ from uber.payments import ReceiptManager
 from uber.utils import remove_opt, SignNowRequest
 
 log = logging.getLogger(__name__)
-
 
 def convert_dealer_badge(session, attendee, admin_note=''):
     """

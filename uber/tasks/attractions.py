@@ -1,6 +1,5 @@
-from datetime import datetime, timedelta
+from datetime import timezone, datetime, timedelta
 
-import pytz
 import logging
 from sqlalchemy.orm import subqueryload
 
@@ -18,9 +17,7 @@ from uber.utils import normalize_phone, groupify
 
 log = logging.getLogger(__name__)
 
-
 __all__ = ['attractions_check_notification_replies', 'send_waitlist_notification', 'attractions_send_notifications']
-
 
 def attractions_check_notification_replies():
     twilio_client = get_twilio_client(c.PANELS_TWILIO_SID, c.PANELS_TWILIO_TOKEN)
@@ -65,8 +62,8 @@ def attractions_check_notification_replies():
                 from_phonenumber=message.from_,
                 to_phonenumber=message.to,
                 sid=message.sid,
-                received_time=datetime.now(pytz.UTC),
-                sent_time=message.date_sent.replace(tzinfo=pytz.UTC),
+                received_time=datetime.now(timezone.utc),
+                sent_time=message.date_sent.replace(tzinfo=timezone.utc),
                 body=message.body))
             session.commit()
 
@@ -127,7 +124,7 @@ def send_waitlist_notification(signup_id):
                 notification_type=type_,
                 ident=ident,
                 sid=sid,
-                sent_time=datetime.now(pytz.UTC),
+                sent_time=datetime.now(timezone.utc),
                 subject=subject,
                 body=body))
             session.commit()
@@ -138,7 +135,7 @@ def attractions_send_notifications():
 
     with Session() as session:
         for attraction in session.query(Attraction):
-            now = datetime.now(pytz.UTC)
+            now = datetime.now(timezone.utc)
             from_time = now - timedelta(seconds=300)
             to_time = now + timedelta(seconds=300)
             signups = attraction.signups_requiring_notification(session, from_time, to_time, [
@@ -248,7 +245,7 @@ def attractions_send_notifications():
                         notification_type=type_,
                         ident=ident,
                         sid=sid,
-                        sent_time=datetime.now(pytz.UTC),
+                        sent_time=datetime.now(timezone.utc),
                         subject=subject,
                         body=body))
                     session.commit()

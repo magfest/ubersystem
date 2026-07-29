@@ -1,11 +1,10 @@
 from collections.abc import Mapping
 from collections import OrderedDict
-from datetime import datetime, time, timedelta
+from datetime import timezone, datetime, time, timedelta
 from PIL import Image
 import re
 import shutil
 
-import pytz
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.attributes import flag_modified
@@ -21,7 +20,6 @@ __all__ = [
     'default_relationship', 'relationship', 'utcmin', 'utcnow', 'Choice',
     'Column', 'DefaultColumn', 'DefaultField', 'DefaultRelationship', 'MultiChoice',
     'TakesPaymentMixin']
-
 
 def DefaultColumn(*args, admin_only=False, private=False, **kwargs):
     """
@@ -154,7 +152,7 @@ class utcmax(FunctionElement):
     See utcmin and utcnow for more details.
 
     """
-    datetime = datetime(9999, 12, 31, 23, 59, 59, tzinfo=pytz.UTC)
+    datetime = datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
     type = DateTime(timezone=True)
 
 
@@ -192,7 +190,7 @@ class utcmin(FunctionElement):
         Attendee.checkin_time > utcmin.datetime
 
     """
-    datetime = datetime(1, 1, 1, 0, 0, 0, tzinfo=pytz.UTC)
+    datetime = datetime(1, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
     type = DateTime(timezone=True)
 
 
@@ -212,7 +210,7 @@ class utcnow(FunctionElement):
     indicating when the row was first created.  Normally we could do something
     like this::
 
-        created = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+        created = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     Unfortunately, there are some cases where we instantiate a model and then
     don't save it until sometime later.  This happens when someone registers
@@ -221,7 +219,7 @@ class utcnow(FunctionElement):
     can set a timestamp based on when the row was inserted rather than when
     the model was instantiated::
 
-        created = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(UTC))
+        created = Column(DateTime(timezone=True), server_default=utcnow(), default=lambda: datetime.now(timezone.utc))
 
     The pg_utcnow and sqlite_utcnow functions below define the implementation
     for postgres and sqlite, and new functions will need to be written if/when

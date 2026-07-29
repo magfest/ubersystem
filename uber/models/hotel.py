@@ -2,9 +2,8 @@ import logging
 import random
 
 import checkdigit.verhoeff as verhoeff
-from datetime import timedelta, datetime, date, time
+from datetime import timezone, timedelta, datetime, date, time
 from decimal import Decimal
-from pytz import UTC
 from markupsafe import Markup
 import sqlalchemy as sa
 from sqlalchemy import Sequence, inspect as sa_inspect

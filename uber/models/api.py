@@ -1,7 +1,6 @@
 import uuid
-from datetime import datetime
+from datetime import timezone, datetime
 
-from pytz import UTC
 from sqlalchemy import String, Uuid, DateTime
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.mutable import MutableDict
@@ -11,9 +10,7 @@ from uber.config import c
 from uber.models import MagModel
 from uber.models.types import DefaultColumn as Column, MultiChoice, DefaultField as Field, DefaultRelationship as Relationship
 
-
 __all__ = ['ApiToken', 'ApiJob']
-
 
 class ApiToken(MagModel, table=True):
     admin_account_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='admin_account.id', ondelete='CASCADE')
@@ -23,7 +20,7 @@ class ApiToken(MagModel, table=True):
     access: str = Field(sa_type=MultiChoice(c.API_ACCESS_OPTS), default='')
     name: str = ''
     description: str = ''
-    issued_time: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    issued_time: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(timezone.utc))
     revoked_time: datetime = Field(sa_type=DateTime(timezone=True), default=None, nullable=True)
 
     @property

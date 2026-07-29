@@ -1,7 +1,6 @@
 import re
-from datetime import datetime, timedelta
+from datetime import timezone, datetime, timedelta
 
-from pytz import UTC
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
 from sqlalchemy.types import Boolean, Integer, Uuid, String, DateTime
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -13,9 +12,7 @@ from uber.models import MagModel
 from uber.models.types import (utcnow, Choice, DefaultColumn as Column, MultiChoice, UniqueList,
                                DefaultField as Field, DefaultRelationship as Relationship)
 
-
 __all__ = ['AssignedPanelist', 'Event', 'EventLocation', 'EventFeedback', 'PanelApplicant', 'PanelApplication']
-
 
 # Many to many association table to tie Panel Applicants with Panel Applications
 panel_applicant_application = Table(
@@ -27,7 +24,6 @@ panel_applicant_application = Table(
     Index('ix_admin_panel_application_panel_applicant_id', 'panel_applicant_id'),
     Index('ix_admin_panel_application_panel_application_id', 'panel_application_id'),
 )
-
 
 class EventLocation(MagModel, table=True):
     department_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='department.id', nullable=True)
@@ -76,7 +72,7 @@ class EventLocation(MagModel, table=True):
                 event_updated = True
 
             if event_updated:
-                event.last_updated = datetime.now(UTC)
+                event.last_updated = datetime.now(timezone.utc)
                 session.add(event)
 
 
@@ -215,7 +211,7 @@ class PanelApplication(MagModel, table=True):
     record: int = Field(sa_column=Column(Choice(c.LIVESTREAM_OPTS)), default=c.OPT_IN)
     panelist_bringing: str = ''
     extra_info: str = ''
-    applied: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    applied: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(timezone.utc))
     accepted: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     confirmed: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     status: int = Field(sa_column=Column(Choice(c.PANEL_APP_STATUS_OPTS)), default=c.PENDING, admin_only=True)
@@ -237,7 +233,7 @@ class PanelApplication(MagModel, table=True):
                     updated = True
                     setattr(self.event, key, getattr(self, key, ''))
         if updated:
-            self.event.last_updated = datetime.now(UTC)
+            self.event.last_updated = datetime.now(timezone.utc)
     
     @presave_adjustment
     def set_default_dept(self):
@@ -327,7 +323,7 @@ class PanelApplication(MagModel, table=True):
 
     @property
     def after_confirm_deadline(self):
-        return self.confirm_deadline and self.confirm_deadline < datetime.now(UTC)
+        return self.confirm_deadline and self.confirm_deadline < datetime.now(timezone.utc)
 
     @hybrid_property
     def has_been_accepted(self):
