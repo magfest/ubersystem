@@ -352,7 +352,7 @@ class MagForm(Form):
                     real_target = target
                     modules.append(module_name)
         if match_count == 0:
-            raise ValueError('Could not find a form with the name {}'.format(form_name))
+            raise ValueError(f'Could not find a form with the name {form_name}')
         elif match_count > 1:
             raise ValueError(f'There is more than one form with the name {form_name}. '
                              'Please specify which model this form is for.')

@@ -402,7 +402,7 @@ class Root:
         cherrypy.response.headers['Content-Type'] = \
             'text/calendar; charset=utf-8'
         cherrypy.response.headers['Content-Disposition'] = \
-            'attachment; filename="{}.ics"'.format(calname)
+            f'attachment; filename="{calname}.ics"'
 
         return icalendar
 

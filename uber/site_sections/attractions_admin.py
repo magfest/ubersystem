@@ -101,7 +101,7 @@ class Root:
             service, uri = None, ''
         else:
             service, message, target_url = get_api_service_from_server(target_server, api_token)
-            uri = '{}/jsonrpc/'.format(target_url)
+            uri = f'{target_url}/jsonrpc/'
 
         if not message and service:
             existing_attractions_by_slug = {attraction.slug: attraction for attraction in session.query(Attraction)}
@@ -236,7 +236,7 @@ class Root:
             raise HTTPRedirect(
                 'form?id={}&message={}',
                 attraction.id,
-                '{} updated successfully.'.format(attraction.name))
+                f'{attraction.name} updated successfully.')
 
         return {
             'admin_account': session.current_admin_account(),
@@ -333,7 +333,7 @@ class Root:
             session.delete(attraction)
             raise HTTPRedirect(
                 'index?message={}',
-                'The {} attraction was deleted'.format(attraction.name))
+                f'The {attraction.name} attraction was deleted')
 
         raise HTTPRedirect('form?id={}', id)
 
@@ -717,7 +717,7 @@ class Root:
                 .subqueryload(AttractionEvent.feature))
 
             if not attendee:
-                return {'error': 'Unrecognized badge number: {}'.format(badge_num)}
+                return {'error': f'Unrecognized badge number: {badge_num}'}
 
             signups = attendee.attraction_signups
             other_events = []

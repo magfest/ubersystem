@@ -42,7 +42,7 @@ def generate_barcode_from_badge_num(badge_num, event_id=None, salt=None, key=Non
 
     key_len = len(key)
     if key_len != 10:
-        raise ValueError('key length should be exactly 10 bytes, length={}'.format(key_len))
+        raise ValueError(f'key length should be exactly 10 bytes, length={key_len}')
 
     # 4 bytes of data are going to be packed into an ecnrypted barcode:
     # byte 1: 1 byte event ID
@@ -51,7 +51,7 @@ def generate_barcode_from_badge_num(badge_num, event_id=None, salt=None, key=Non
     salted_val = badge_num + (0 if not salt else salt)
 
     if salted_val > 0xFFFFFF:
-        raise ValueError('either badge_number or salt is too large to turn into a barcode: {}'.format(badge_num))
+        raise ValueError(f'either badge_number or salt is too large to turn into a barcode: {badge_num}')
 
     # create a 5-byte result with event_id and salted_val packed in there
     data_to_encrypt = struct.pack('>BI', event_id, salted_val)
@@ -132,7 +132,7 @@ def verify_barcode_is_valid_code128_charset(str):
 
 def assert_is_valid_rams_barcode(barcode):
     if not verify_is_valid_rams_barcode(barcode):
-        raise ValueError("barcode validation error: invalid format for barcode: {}".format(barcode))
+        raise ValueError(f"barcode validation error: invalid format for barcode: {barcode}")
 
 
 def _barcode_raw_encrypt(value, key):

@@ -104,7 +104,7 @@ def admin_has_required_api_access(api_token):
         for access_level in set(api_token.access_ints):
             access_name = 'api_' + c.API_ACCESS[access_level].lower()
             if not getattr(admin_account, access_name, None):
-                return 'You do not have permission to create a token with {} access'.format(c.API_ACCESS[access_level])
+                return f'You do not have permission to create a token with {c.API_ACCESS[access_level]} access'
 
 
 def invalid_phone_number(s):
@@ -529,7 +529,7 @@ def payment_nan(guest_group):
     try:
         int(float(guest_group.payment if guest_group.payment else 0))
     except Exception:
-        return "What you entered for Payment ({}) isn't even a number".format(guest_group.payment)
+        return f"What you entered for Payment ({guest_group.payment}) isn't even a number"
 
 
 @validation.GuestGroup
@@ -805,7 +805,7 @@ def promo_code_is_useful(attendee):
             return ('promo_code', f"You can't apply a promo code after you've paid or if you're in a group.")
         if attendee.promo_code_discounts_badge:
             if attendee.is_dealer:
-                return ('promo_code', "You can't apply a promo code to a {}.".format(c.DEALER_REG_TERM))
+                return ('promo_code', f"You can't apply a promo code to a {c.DEALER_REG_TERM}.")
             elif attendee.age_discount != 0:
                 return ('promo_code',
                         "You are already receiving an age based discount, you can't use a promo code on top of that.")
@@ -846,9 +846,9 @@ def allowed_to_volunteer(attendee):
 @validation.Attendee
 def banned_volunteer(attendee):
     if attendee.staffing_or_will_be and attendee.full_name in c.BANNED_STAFFERS:
-        return ('staffing', "We've declined to invite {} back as a volunteer, ".format(attendee.full_name) + (
+        return ('staffing', f"We've declined to invite {attendee.full_name} back as a volunteer, " + (
                     'talk to STOPS to override if necessary' if c.AT_THE_CON else
-                    'Please contact us via {} if you believe this is in error'.format(c.CONTACT_URL)))
+                    f'Please contact us via {c.CONTACT_URL} if you believe this is in error'))
 
 
 @validation.Attendee

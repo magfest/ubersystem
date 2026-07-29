@@ -945,12 +945,12 @@ class Config(_Overridable):
         """
         opts = []
         if self.ATTENDEE_BADGE_AVAILABLE:
-            opts.append((self.ATTENDEE_BADGE, 'Full Weekend Badge (${})'.format(self.BADGE_PRICE)))
+            opts.append((self.ATTENDEE_BADGE, f'Full Weekend Badge (${self.BADGE_PRICE})'))
         for badge_type in self.BADGE_TYPE_PRICES:
             if badge_type not in opts:
                 opts.append(
                     (badge_type, '{} (${})'.format(self.BADGES[badge_type], self.BADGE_TYPE_PRICES[badge_type])))
-            opts.append((self.ATTENDEE_BADGE, 'Standard (${})'.format(self.BADGE_PRICE)))
+            opts.append((self.ATTENDEE_BADGE, f'Standard (${self.BADGE_PRICE})'))
         if self.ONE_DAYS_ENABLED:
             if self.PRESELL_ONE_DAYS:
                 day = max(uber.utils.localized_now(), self.EPOCH)
@@ -959,10 +959,10 @@ class Config(_Overridable):
                     price = self.BADGE_PRICES['single_day'].get(day_name) or self.DEFAULT_SINGLE_DAY
                     badge = getattr(self, day_name.upper())
                     if getattr(self, day_name.upper() + '_AVAILABLE', None):
-                        opts.append((badge, day_name + ' Badge (${})'.format(price)))
+                        opts.append((badge, day_name + f' Badge (${price})'))
                     day += timedelta(days=1)
             elif self.ONE_DAY_BADGE_AVAILABLE:
-                opts.append((self.ONE_DAY_BADGE, 'Single Day Badge (${})'.format(self.ONEDAY_BADGE_PRICE)))
+                opts.append((self.ONE_DAY_BADGE, f'Single Day Badge (${self.ONEDAY_BADGE_PRICE})'))
         return opts
 
     @property
@@ -1590,7 +1590,7 @@ class Config(_Overridable):
         elif name.lower() in _config['secret']:
             return _config['secret'][name.lower()]
         else:
-            raise AttributeError('no such attribute {}'.format(name))
+            raise AttributeError(f'no such attribute {name}')
 
 
 class AWSSecretFetcher:
@@ -1729,7 +1729,7 @@ def parse_config(plugin_name, module_dir):
     spec = configobj.ConfigObj(str(specfile), interpolation=False, list_values=False, encoding='utf-8', _inspec=True)
 
     # to allow more/better interpolations
-    root_conf = ['root = "{}"\n'.format(module_dir.parents[0]), 'module_root = "{}"\n'.format(module_dir)]
+    root_conf = [f'root = "{module_dir.parents[0]}"\n', 'module_root = "{}"\n'.format(module_dir)]
     temp_config = configobj.ConfigObj(root_conf, interpolation=False, encoding='utf-8')
 
     for config_path in get_config_files(plugin_name, module_dir):
@@ -2005,7 +2005,7 @@ c.PANEL_STRICT_LENGTH_OPTS = [opt for opt in c.PANEL_LENGTH_OPTS if opt != c.OTH
 
 c.EVENT_YEAR = c.EPOCH.strftime('%Y')
 c.EVENT_DATE = c.EPOCH.strftime('%b %Y')
-c.EVENT_NAME_AND_YEAR = c.EVENT_NAME + (' {}'.format(c.EVENT_YEAR) if c.EVENT_YEAR else '')
+c.EVENT_NAME_AND_YEAR = c.EVENT_NAME + (f' {c.EVENT_YEAR}' if c.EVENT_YEAR else '')
 c.EVENT_MONTH = c.EPOCH.strftime('%B')
 c.EVENT_START_DAY = int(c.EPOCH.strftime('%d')) % 100
 c.EVENT_END_DAY = int(c.ESCHATON.strftime('%d')) % 100

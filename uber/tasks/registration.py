@@ -203,7 +203,7 @@ def check_near_cap():
     if c.REPORTS_EMAIL:
         actual_badges_left = c.ATTENDEE_BADGE_STOCK - c.ATTENDEE_BADGE_COUNT
         for badges_left in [int(num) for num in c.BADGES_LEFT_ALERTS]:
-            subject = "BADGES SOLD ALERT: {} BADGES LEFT!".format(badges_left)
+            subject = f"BADGES SOLD ALERT: {badges_left} BADGES LEFT!"
             with Session() as session:
                 if not session.query(Email).filter_by(subject=subject).first() and actual_badges_left <= badges_left:
                     EmailService.queue_email(session, 'badges_sold_alert', to=[c.REGDESK_EMAIL, c.ADMIN_EMAIL],

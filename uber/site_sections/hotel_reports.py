@@ -186,7 +186,7 @@ class Root:
         for dept in sorted(set(shoulder_nights_missing_shifts.keys()), key=lambda d: d.name):
             dept_heads = sorted(dept.dept_heads, key=lambda a: a.full_name)
             dept_head_emails = ', '.join([
-                a.full_name + (' <{}>'.format(a.email) if a.email else '') for a in dept_heads])
+                a.full_name + (f' <{a.email}>' if a.email else '') for a in dept_heads])
             dept.dept_head_emails = dept_head_emails
             dept.inconsistent_attendees = []
             departments.append(dept)
@@ -365,7 +365,7 @@ class Root:
                 ('Locked-in ' if room.locked_in else '')
                 + 'room created by STOPS for '
                 + room.nights_display
-                + (' ({})'.format(room.notes) if room.notes else '')])
+                + (f' ({room.notes})' if room.notes else '')])
 
             for ra in room.assignments:
                 writerow(ra.attendee, ra.attendee.hotel_requests)
@@ -573,7 +573,7 @@ class Root:
 
         headers = ['First Name', 'Last Name', 'Email Address', 'LoginID']
         for count in range(2, 21):
-            headers.append('LoginID{}'.format(count))
+            headers.append(f'LoginID{count}')
 
         out.writerow(headers)
         added = set()

@@ -62,7 +62,7 @@ class Root:
                                                      Attendee.badge_status != c.WATCHED_STATUS)
 
         attendees = [
-            (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
+            (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], f' #{badge_num}' if badge_num else ''))
             for id, name, badge_type, badge_num in attendee_attrs]
 
         if cherrypy.request.method == 'POST':
@@ -140,7 +140,7 @@ class Root:
         return {
             'app': app,
             'changes': session.query(Tracking).filter(
-                or_(Tracking.links.like('%art_show_application({})%'.format(id)),
+                or_(Tracking.links.like(f'%art_show_application({id})%'),
                     and_(Tracking.model == 'ArtShowApplication', Tracking.fk_id == id))
                     ).order_by(Tracking.when).all(),
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(app)
@@ -181,7 +181,7 @@ class Root:
                     ArtShowPiece.piece_id == piece_id
                 )
                 if not piece.count():
-                    message = 'ERROR: Could not find piece with code {}.'.format(piece_code)
+                    message = f'ERROR: Could not find piece with code {piece_code}.'
                 elif piece.count() > 1:
                     message = 'ERROR: Multiple pieces matched the code you entered for some reason.'
                 else:
@@ -244,7 +244,7 @@ class Root:
                                     message = f'ERROR: Attendee with badge number {badge_num} did not sign up for bidding.'
                 if not message and not found_bidder:
                     if not bidder.count():
-                        message = 'ERROR: Could not find bidder with number {}.'.format(bidder_num)
+                        message = f'ERROR: Could not find bidder with number {bidder_num}.'
                     elif bidder.count() > 1:
                         message = 'ERROR: Multiple bidders matched the number you entered for some reason.'
                     else:
@@ -343,7 +343,7 @@ class Root:
                                                      Attendee.badge_status != c.WATCHED_STATUS)
 
         attendees = [
-            (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
+            (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], f' #{badge_num}' if badge_num else ''))
             for id, name, badge_type, badge_num in attendee_attrs]
 
         return {
@@ -539,7 +539,7 @@ class Root:
 
         if cherrypy.request.method == 'POST':
             for app in valid_apps:
-                field_name = '{}_locations'.format(app.id)
+                field_name = f'{app.id}_locations'
                 if field_name in params:
                     app.locations = params.get(field_name)
                     session.add(app)
@@ -827,7 +827,7 @@ class Root:
         filename = filename + "_" + localized_now().strftime("%m%d%Y_%H%M")
 
         cherrypy.response.headers['Content-Type'] = 'application/pdf'
-        cherrypy.response.headers['Content-Disposition'] = 'inline; filename={}.pdf'.format(filename)
+        cherrypy.response.headers['Content-Disposition'] = f'inline; filename={filename}.pdf'
         return bytes(pdf.output())
 
     def bidder_signup(self, session, message='', page=1, search_text='', order=''):
@@ -860,7 +860,7 @@ class Root:
                     try:
                         badge_num = int(search_text)
                     except Exception:
-                        filters.append(Attendee.badge_printed_name.ilike('%{}%'.format(search_text)))
+                        filters.append(Attendee.badge_printed_name.ilike(f'%{search_text}%'))
                     else:
                         filters.append(or_(BadgeInfo.ident == badge_num,
                                            and_(Attendee.art_show_bidder != None,
@@ -1082,7 +1082,7 @@ class Root:
                         ArtShowApplication.artist_id_ad == artist_id.upper())
                 )
             else:
-                pieces = session.query(ArtShowPiece).filter(ArtShowPiece.name.ilike('%{}%'.format(search_text)))
+                pieces = session.query(ArtShowPiece).filter(ArtShowPiece.name.ilike(f'%{search_text}%'))
 
             unpaid_pieces_query = pieces.join(ArtShowReceipt).filter(ArtShowReceipt.closed != None,  # noqa: E711
                                                                      ArtShowPiece.status != c.PAID)
@@ -1094,12 +1094,12 @@ class Root:
             unclaimed_pieces = [piece for piece in unclaimed_pieces_query if piece.sale_price > 0]
 
             if pieces.count() == 0:
-                message = "No pieces found with ID or title {}.".format(search_text)
+                message = f"No pieces found with ID or title {search_text}."
             elif len(unclaimed_pieces) == 0 and len(unpaid_pieces) == 0:
                 if pieces.count() == 1:
                     msg_piece = pieces.one()
                     if msg_piece.receipt == receipt:
-                        message = "That piece ({}) is already on this receipt.".format(msg_piece.artist_and_piece_id)
+                        message = f"That piece ({msg_piece.artist_and_piece_id}) is already on this receipt."
                     elif not msg_piece.sale_price or msg_piece.sale_price <= 0:
                         message = "That piece ({}) doesn't have a valid sale price." \
                             .format(msg_piece.artist_and_piece_id)
@@ -1113,9 +1113,9 @@ class Root:
                         message = "That piece ({}) was already sold to another buyer."\
                             .format(msg_piece.artist_and_piece_id)
                 else:
-                    message = "None of the matching pieces for '{}' can be claimed.".format(search_text)
+                    message = f"None of the matching pieces for '{search_text}' can be claimed."
             elif len(unclaimed_pieces) > 1 or (len(unclaimed_pieces) == 0 and len(unpaid_pieces) > 1):
-                message = "There were multiple pieces found matching '{}.' Please choose one.".format(search_text)
+                message = f"There were multiple pieces found matching '{search_text}.' Please choose one."
                 must_choose = True
 
             if not message:
@@ -1129,7 +1129,7 @@ class Root:
                 if not message:
                     piece.receipt = receipt
                     session.add(piece)
-                    message = 'Piece {} successfully claimed'.format(piece.artist_and_piece_id)
+                    message = f'Piece {piece.artist_and_piece_id} successfully claimed'
 
             if not must_choose:
                 raise HTTPRedirect('pieces_bought?id={}&message={}', receipt.id, message)
@@ -1164,7 +1164,7 @@ class Root:
             session.add(piece)
             raise HTTPRedirect('pieces_bought?id={}&message={}',
                                receipt.id,
-                               'Piece {} successfully unclaimed'.format(piece.artist_and_piece_id))
+                               f'Piece {piece.artist_and_piece_id} successfully unclaimed')
 
     def record_payment(self, session, id, amount='', type=c.CASH):
         receipt = session.art_show_receipt(id)
@@ -1345,7 +1345,7 @@ class Root:
             return {
                 'stripe_intent': charge.intent,
                 'success_url': 'pieces_bought?id={}&message={}'.format(attendee.id, 'Charge successfully processed'),
-                'cancel_url': 'cancel_payment?id={}'.format(payment.id)
+                'cancel_url': f'cancel_payment?id={payment.id}'
             }
 
     @ajax

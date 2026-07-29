@@ -40,7 +40,7 @@ class serializer(json.JSONEncoder):
                              the value to serialize and returns a json-
                              serializable value
         """
-        assert type not in cls._registry, '{} already has a preprocessor defined'.format(type)
+        assert type not in cls._registry, f'{type} already has a preprocessor defined'
         cls._registry[type] = preprocessor
 
 serializer.register(datetime.date, lambda d: d.strftime('%Y-%m-%d'))

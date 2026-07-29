@@ -404,7 +404,7 @@ class Root:
     @csv_file
     def panels_by_poc(self, out, session, poc_id):
         attendee = session.attendee(poc_id)
-        out.writerow(['', 'Panels for which {} is the panel staff point-of-contact'.format(attendee.full_name)])
+        out.writerow(['', f'Panels for which {attendee.full_name} is the panel staff point-of-contact'])
         out.writerow(['App status', 'Panel Name', 'Panel Location', 'Panel Time', 'Panelists'])
         for app in attendee.panel_applications:
             out.writerow([

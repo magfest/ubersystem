@@ -529,7 +529,7 @@ class Root:
                 session.add(guest)
                 raise HTTPRedirect('index?id={}&message={}', guest.id, 'You have accepted the MIVS core hours.')
             else:
-                message = "Something is wrong with your group -- please contact us at {}.".format(c.INDIE_SHOWCASE_EMAIL)
+                message = f"Something is wrong with your group -- please contact us at {c.INDIE_SHOWCASE_EMAIL}."
         return {
             'guest': guest,
             'message': message,
@@ -545,7 +545,7 @@ class Root:
                 session.add(guest)
                 raise HTTPRedirect('index?id={}&message={}', guest.id, 'Discussion email addresses updated.')
             else:
-                message = "Something is wrong with your group -- please contact us at {}.".format(c.INDIE_SHOWCASE_EMAIL)
+                message = f"Something is wrong with your group -- please contact us at {c.INDIE_SHOWCASE_EMAIL}."
         return {
             'guest': guest,
             'message': message,
@@ -560,7 +560,7 @@ class Root:
                 session.add(guest)
                 raise HTTPRedirect('index?id={}&message={}', guest.id, 'You have confirmed that you read the handbook.')
             else:
-                message = "Something is wrong with your group -- please contact us at {}.".format(c.INDIE_SHOWCASE_EMAIL)
+                message = f"Something is wrong with your group -- please contact us at {c.INDIE_SHOWCASE_EMAIL}."
         return {
             'guest': guest,
             'message': message,
@@ -578,7 +578,7 @@ class Root:
                 else:
                     message = "Please enter the secret phrase!"
             else:
-                message = "Something is wrong with your group -- please contact us at {}.".format(c.MIVS_EMAIL)
+                message = f"Something is wrong with your group -- please contact us at {c.MIVS_EMAIL}."
         return {
             'guest': guest,
             'message': message,
@@ -596,7 +596,7 @@ class Root:
                     session.add(guest)
                     raise HTTPRedirect('index?id={}&message={}', guest.id, 'Thanks for filling out the logistics form!')
             else:
-                message = "Something is wrong with your group -- please contact us at {}.".format(c.INDIE_ARCADE_EMAIL)
+                message = f"Something is wrong with your group -- please contact us at {c.INDIE_ARCADE_EMAIL}."
         return {
             'guest': guest,
             'message': message,
@@ -632,7 +632,7 @@ class Root:
                                        guest.id,
                                        'Hotel needs updated.')
             else:
-                message = "Something is wrong with your group -- please contact us at {}.".format(c.INDIE_SHOWCASE_EMAIL)
+                message = f"Something is wrong with your group -- please contact us at {c.INDIE_SHOWCASE_EMAIL}."
         return {
             'guest': guest,
             'message': message,
@@ -657,7 +657,7 @@ class Root:
                                        guest.id,
                                        'Selling preferences updated.')
             else:
-                message = "Something is wrong with your group -- please contact us at {}.".format(c.INDIE_SHOWCASE_EMAIL)
+                message = f"Something is wrong with your group -- please contact us at {c.INDIE_SHOWCASE_EMAIL}."
         return {
             'guest': guest,
             'message': message,
@@ -691,7 +691,7 @@ class Root:
                                        guest.id,
                                        'Thanks for confirming your studio and game information is up-to-date!')
             else:
-                message = "Something is wrong with your group -- please contact us at {}.".format(c.INDIE_SHOWCASE_EMAIL)
+                message = f"Something is wrong with your group -- please contact us at {c.INDIE_SHOWCASE_EMAIL}."
         return {
             'guest': guest,
             'message': message,
@@ -703,9 +703,9 @@ class Root:
         if guest_merch:
             item = guest_merch.inventory.get(item_id)
             if item:
-                filename = item.get('{}_filename'.format(name))
-                download_filename = item.get('{}_download_filename'.format(name), filename)
-                content_type = item.get('{}_content_type'.format(name))
+                filename = item.get(f'{name}_filename')
+                download_filename = item.get(f'{name}_download_filename', filename)
+                content_type = item.get(f'{name}_content_type')
                 filepath = guest_merch.inventory_path(filename)
                 if filename and download_filename and content_type and os.path.exists(filepath):
                     filesize = os.path.getsize(filepath)
@@ -717,7 +717,7 @@ class Root:
                         download_filename = f"{guest_merch.guest.normalized_group_name}_{' '.join(normalized_name.split()).replace(' ', '_')}.{extension}"
                     cherrypy.response.headers['Accept-Ranges'] = 'bytes'
                     cherrypy.response.headers['Content-Length'] = filesize
-                    cherrypy.response.headers['Content-Range'] = 'bytes 0-{}'.format(filesize)
+                    cherrypy.response.headers['Content-Range'] = f'bytes 0-{filesize}'
                     cherrypy.response.headers['Cache-Control'] = 'no-store'
                     return serve_file(filepath, disposition=disposition, name=download_filename, content_type=content_type)
                 else:

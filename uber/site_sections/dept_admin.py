@@ -88,7 +88,7 @@ class Root:
             session.delete(department)
             raise HTTPRedirect(
                 'index?message={}',
-                'The {} department was deleted'.format(department.name))
+                f'The {department.name} department was deleted')
 
         raise HTTPRedirect('form?id={}', id)
 
@@ -148,7 +148,7 @@ class Root:
             self, session, department_id, attendee_id, role, value=None):
 
         assert role in ('dept_head', 'poc', 'checklist_admin'), \
-            'Unknown role: "{}"'.format(role)
+            f'Unknown role: "{role}"'
 
         admin_role = 'dept_head' if role == 'dept_head' else None
         message = check_dept_admin(session, department_id, admin_role)
@@ -214,7 +214,7 @@ class Root:
 
         headers = ['Name', 'Email', 'Badge', 'Placeholder']
         if requested_any:
-            headers.append('Explicitly Requested {}'.format(department.name))
+            headers.append(f'Explicitly Requested {department.name}')
 
         out.writerow(headers)
         for attendee in requesting_attendees:
@@ -332,7 +332,7 @@ class Root:
                 raise HTTPRedirect(
                     'form?id={}&message={}',
                     department_id,
-                    'The {} role was deleted'.format(dept_role.name))
+                    f'The {dept_role.name} role was deleted')
 
         if not message:
             raise HTTPRedirect('form?id={}', department_id)

@@ -144,7 +144,7 @@ class PreregCart:
                     d[key] = params.get(key)
             return d
         else:
-            raise AssertionError('{} is not an attendee or group'.format(m))
+            raise AssertionError(f'{m} is not an attendee or group')
 
     @classmethod
     def from_sessionized(cls, d):
@@ -305,7 +305,7 @@ class PreregCart:
                 return ""
             attendee.promo_code_id = None
             session.commit()
-            return "The promo code you're using for {} has been used already.".format(attendee.full_name)
+            return f"The promo code you're using for {attendee.full_name} has been used already."
 
     def prereg_receipt_preview(self):
         """
@@ -804,7 +804,7 @@ class TransactionRequest(AuthNetRequestMixin if c.AUTHORIZENET_LOGIN_ID else Str
         """
 
         if not self.amount or self.amount <= 0:
-            log.error('Was asked for a Stripe Intent but the currently owed amount is invalid: {}'.format(self.amount))
+            log.error(f'Was asked for a Stripe Intent but the currently owed amount is invalid: {self.amount}')
             return "There was an error calculating the amount. Please refresh the page or contact the system admin."
 
         if self.amount > 999999:
