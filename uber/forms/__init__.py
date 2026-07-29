@@ -394,7 +394,7 @@ class MagForm(Form):
 
         formdata = self.meta.wrap_formdata(self, formdata)
 
-        if not isinstance(obj, MagModel):
+        if obj and not isinstance(obj, MagModel):
             obj_is_new = False
             try:
                 # WTForms expects objects, but we store FormFields as JSON dicts
