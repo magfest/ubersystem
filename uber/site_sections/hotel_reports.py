@@ -320,9 +320,9 @@ class Root:
 
         unassigned = {hr.attendee for hr in reqs if hr.attendee not in assigned}
 
-        names = {}
+        names = defaultdict(set)
         for attendee in unassigned:
-            names.setdefault(attendee.last_name.lower(), set()).add(attendee)
+            names[attendee.last_name.lower()].add(attendee)
 
         lookup = defaultdict(set)
         for xs in names.values():
