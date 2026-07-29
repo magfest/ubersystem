@@ -1,7 +1,7 @@
-from datetime import datetime, timedelta
+from datetime import timezone, datetime, timedelta
 
 import pytest
-from pytz import UTC
+
 
 import uber
 from uber.config import c

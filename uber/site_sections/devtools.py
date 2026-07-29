@@ -12,10 +12,9 @@ import six
 import pypsutil
 import cherrypy
 import threading
-from datetime import datetime
+from datetime import timezone, datetime
 
 from sqlalchemy.dialects.postgresql.json import JSONB
-from pytz import UTC
 from sqlalchemy.types import DateTime
 from sqlalchemy import text
 
@@ -25,9 +24,7 @@ from uber.tasks.health import ping
 
 log = logging.getLogger(__name__)
 
-
 # admin utilities.  should not be used during normal ubersystem operations except by developers / sysadmins
-
 
 # quick n dirty. don't use for anything real.
 def run_shell_cmd(command_line, working_dir=None):
@@ -234,7 +231,7 @@ class Root:
         db_read_time += time.perf_counter()
 
         return json.dumps({
-            'server_current_timestamp': int(datetime.now(UTC).timestamp()),
+            'server_current_timestamp': int(datetime.now(timezone.utc).timestamp()),
             'session_read_count': read_count,
             'session_commit_time': session_commit_time,
             'db_read_time': db_read_time,

@@ -1,7 +1,6 @@
-import pytz
 import logging
 
-from datetime import datetime, timedelta
+from datetime import timezone, datetime, timedelta
 from celery.schedules import crontab
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -15,7 +14,6 @@ from uber.utils import SignNowRequest, localized_now
 log = logging.getLogger(__name__)
 
 __all__ = ['check_document_signed', 'convert_declined_groups']
-
 
 @celery.schedule(crontab(minute=0, hour='*/6'))
 def check_document_signed():
@@ -59,7 +57,7 @@ def rock_island_updates():
     with Session() as session:
         updated_ri_inventories = session.query(GuestGroup).join(
             GuestMerch, GuestGroup.merch).filter(
-                GuestMerch.inventory_updated > datetime.now(pytz.UTC) - timedelta(hours=24))
+                GuestMerch.inventory_updated > datetime.now(timezone.utc) - timedelta(hours=24))
         if updated_ri_inventories.count():
             EmailService.queue_email(session, 'rock_island_updates_admin', to=c.ROCK_ISLAND_EMAIL,
                                      subject=f'{c.EVENT_NAME} Rock Island Inventory Updates for {localized_now().strftime('%Y-%m-%d')}',

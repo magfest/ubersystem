@@ -1,9 +1,8 @@
 import os
 import cherrypy
 from functools import wraps
-from datetime import datetime
+from datetime import timezone, datetime
 
-from pytz import UTC
 from sqlalchemy import and_
 from sqlalchemy.types import Uuid, DateTime
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -15,9 +14,7 @@ from uber.models.types import (Choice, MultiChoice, DefaultColumn as Column,
                                DefaultField as Field, DefaultRelationship as Relationship)
 from uber.utils import slugify
 
-
 __all__ = ['MITSTeam', 'MITSApplicant', 'MITSPanelApplication', 'MITSGame', 'MITSTimes']
-
 
 class MITSTeam(MagModel, table=True):
     attendee_account_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee_account.id', nullable=True)
@@ -35,7 +32,7 @@ class MITSTeam(MagModel, table=True):
     waiver_signature: str = ''
     waiver_signed: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
 
-    applied: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    applied: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(timezone.utc))
     status: int = Field(sa_column=Column(Choice(c.MITS_APP_STATUS), admin_only=True), default=c.PENDING)
 
     applicants: list['MITSApplicant'] = Relationship(

@@ -5,16 +5,13 @@ from uber.decorators import presave_adjustment
 from uber.models.types import (Choice, default_relationship as relationship, DefaultColumn as Column,
                                DefaultField as Field, DefaultRelationship as Relationship)
 
-from datetime import datetime
+from datetime import timezone, datetime
 from markupsafe import Markup
-from pytz import UTC
 from sqlalchemy.orm import backref
 from sqlalchemy.types import Uuid, DateTime
 from typing import ClassVar
 
-
 __all__ = ['ArtistMarketplaceApplication']
-
 
 class ArtistMarketplaceApplication(MagModel, table=True):
     MATCHING_DEALER_FIELDS: ClassVar = ['email_address', 'website', 'name']
@@ -31,7 +28,7 @@ class ArtistMarketplaceApplication(MagModel, table=True):
     accessibility_requests: str = ''
 
     status: int = Field(sa_column=Column(Choice(c.MARKETPLACE_STATUS_OPTS)), default=c.PENDING)
-    registered: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    registered: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(timezone.utc))
     accepted: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     admin_notes: str = ''
     overridden_price: int | None = Field(default=0, nullable=True)

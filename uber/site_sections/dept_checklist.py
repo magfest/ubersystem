@@ -1,7 +1,6 @@
 import cherrypy
-from datetime import datetime
+from datetime import timezone, datetime
 
-from pytz import UTC
 from sqlalchemy.orm import joinedload, subqueryload
 
 from uber.config import c
@@ -11,7 +10,6 @@ from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, Department, DeptChecklistItem, BulkPrintingRequest, HotelRequests, RoomAssignment, Shift
 from uber.utils import check, check_csrf, days_before, DeptChecklistConf, redirect_to_allowed_dept, validate_model
-
 
 def _submit_checklist_item(session, department_id, submitted, csrf_token, slug, custom_message=''):
     if not department_id:
@@ -140,7 +138,7 @@ class Root:
                     status['completed_by'] = checklist_item.attendee.full_name
                 elif days_before(7, item.deadline)():
                     status['approaching'] = True
-                elif item.deadline < datetime.now(UTC):
+                elif item.deadline < datetime.now(timezone.utc):
                     status['missed'] = True
                 statuses.append(status)
             if not filtered or can_admin_checklist:
@@ -179,7 +177,7 @@ class Root:
                     out.writecell('', format={'bg_color': 'green'})
                 elif days_before(7, item.deadline)():
                     out.writecell('', format={'bg_color': 'orange'})
-                elif item.deadline < datetime.now(UTC):
+                elif item.deadline < datetime.now(timezone.utc):
                     out.writecell('', format={'bg_color': 'red'})
                 else:
                     out.writecell('')

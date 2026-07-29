@@ -1,11 +1,10 @@
 import re
 import uuid
 from collections import defaultdict
-from datetime import datetime
+from datetime import timezone, datetime
 from functools import wraps
 
 import cherrypy
-import pytz
 import json
 import six
 import traceback
@@ -298,11 +297,11 @@ def _query_to_names_emails_ids(query, split_names=True):
 
 def _parse_datetime(d):
     if isinstance(d, six.string_types) and d.strip().lower() == 'now':
-        d = datetime.now(pytz.UTC)
+        d = datetime.now(timezone.utc)
     else:
         d = dateparser.parse(d)
     try:
-        d = d.astimezone(pytz.UTC)  # aware object can be in any timezone
+        d = d.astimezone(timezone.utc)  # aware object can be in any timezone
     except ValueError:
         d = c.EVENT_TIMEZONE.localize(d)  # naive assumed to be event timezone
     return d
@@ -1718,7 +1717,7 @@ class PrintJobLookup:
                 if not restart or not errors:
                     results[job.id] = self._build_job_json_data(job)
                     if not dry_run:
-                        job.queued = datetime.now(UTC)
+                        job.queued = datetime.now(timezone.utc)
                         session.add(job)
                         session.commit()
 
@@ -1812,7 +1811,7 @@ class PrintJobLookup:
 
             for job in jobs:
                 results[job.id] = self._build_job_json_data(job)
-                job.printed = datetime.now(UTC)
+                job.printed = datetime.now(timezone.utc)
                 session.add(job)
                 session.commit()
 
@@ -1858,7 +1857,7 @@ class PrintJobLookup:
                     else:
                         job.errors = error
                 else:
-                    job.printed = datetime.now(UTC)
+                    job.printed = datetime.now(timezone.utc)
                 session.add(job)
                 session.commit()
 

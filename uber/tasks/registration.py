@@ -1,11 +1,10 @@
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import timezone, datetime, timedelta
 from itertools import chain
 
 import stripe
 import time
 import logging
-import pytz
 from celery.schedules import crontab
 from sqlalchemy import not_, or_, insert
 from sqlalchemy.orm import joinedload, raiseload, subqueryload
@@ -23,15 +22,12 @@ from uber.payments import ReceiptManager, TransactionRequest
 
 log = logging.getLogger(__name__)
 
-
 if c.AUTHORIZENET_LOGIN_ID:
     from authorizenet import apicontractsv1, apicontrollers
-
 
 __all__ = ['check_duplicate_registrations', 'check_placeholder_registrations', 'check_pending_badges',
            'check_unassigned_volunteers', 'check_near_cap', 'check_missed_stripe_payments', 'process_api_queue',
            'process_terminal_sale', 'send_receipt_email', 'create_badge_nums', 'create_badge_pickup_groups', 'update_receipt']
-
 
 @celery.schedule(timedelta(days=1))
 def create_badge_nums():
@@ -250,16 +246,16 @@ def email_pending_attendees():
     already_emailed_accounts = []
 
     with Session() as session:
-        four_days_old = datetime.now(pytz.UTC) - timedelta(hours=96)
+        four_days_old = datetime.now(timezone.utc) - timedelta(hours=96)
         pending_badges = session.query(Attendee).filter(
             Attendee.paid == c.PENDING,
             Attendee.badge_status == c.PENDING_STATUS,
             Attendee.transfer_code == '',
-            Attendee.registered < datetime.now(pytz.UTC) - timedelta(hours=24)).order_by(Attendee.registered)
+            Attendee.registered < datetime.now(timezone.utc) - timedelta(hours=24)).order_by(Attendee.registered)
         for badge in pending_badges:
             # Update `compare_date` to prevent early deletion of badges registered before a certain date
             # Implemented for MFF 2023 but let's be honest, we'll probably need it again
-            compare_date = max(badge.registered, datetime(2023, 9, 25, tzinfo=pytz.UTC))
+            compare_date = max(badge.registered, datetime(2023, 9, 25, tzinfo=timezone.utc))
             if compare_date < four_days_old:
                 badge.badge_status = c.INVALID_STATUS
                 session.commit()

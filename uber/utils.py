@@ -25,7 +25,7 @@ from rpctools.jsonrpc import ServerProxy
 from urllib.parse import urlparse, urljoin
 from uuid import uuid4
 from phonenumbers import PhoneNumberFormat
-from pytz import UTC
+from datetime import timezone
 from sqlalchemy import func, or_, cast, literal, DateTime
 from sqlalchemy.orm import make_transient
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError

@@ -2,8 +2,7 @@ import logging
 import random
 
 import checkdigit.verhoeff as verhoeff
-from datetime import timedelta, datetime, date
-from pytz import UTC
+from datetime import timezone, timedelta, datetime, date
 from markupsafe import Markup
 from sqlalchemy import Sequence, case
 from sqlalchemy.dialects.postgresql.json import JSONB
@@ -21,9 +20,7 @@ from uber.utils import RegistrationCode
 
 log = logging.getLogger(__name__)
 
-
 __all__ = ['NightsMixin', 'HotelRequests', 'Room', 'RoomAssignment', 'LotteryApplication']
-
 
 def _night(name):
     day = getattr(c, name.upper())
@@ -91,7 +88,7 @@ class Room(MagModel, NightsMixin, table=True):
     message: str = ''
     locked_in: bool = False
     nights: str = Field(sa_type=MultiChoice(c.NIGHT_OPTS), default='')
-    created: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    created: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(timezone.utc))
 
     assignments: list['RoomAssignment'] = Relationship(back_populates="room",
                                                        sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
