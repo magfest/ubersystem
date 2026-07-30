@@ -30,6 +30,7 @@
         </div>
     </form>
 </div>
+{% if c.LOCAL_ACCOUNTS_DISABLED or account.sso_id %}<div class="form-text">{% if account.sso_id %}SSO ID: {{ account.sso_id }}{% else %}No SSO Account{% endif %}</div>{% endif %}
 <div class="card">
     <div class="card-header">
         Registrations
