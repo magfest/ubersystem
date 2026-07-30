@@ -126,7 +126,8 @@ class MivsCode(MagForm):
 class MivsScreenshot(MagForm):
     image_description = TextAreaField("Screenshot Description")
     image = FileUploadField("Image File (max 5MB)", file_flags={'mivs_screenshot': True}, required=True, delete_existing=False,
-                            description_field_name='image_description', show_thumbnail=True, render_kw={'accept': "image/*"})
+                            show_delete_btn=False, description_field_name='image_description', show_thumbnail=True,
+                            render_kw={'accept': "image/*"})
 
 
 class MivsJudgeInfo(MagForm):
@@ -229,7 +230,7 @@ class ArcadeLogistics(MagForm):
 
 class ArcadePhoto(MagForm):
     image = FileUploadField("Image File (max 5MB)", file_flags={'arcade_photo': True}, required=True,
-                            delete_existing=False, show_thumbnail=True, render_kw={'accept': "image/*"})
+                            show_delete_btn=False, delete_existing=False, show_thumbnail=True, render_kw={'accept': "image/*"})
 
 
 class RetroGameInfo(MagForm):
@@ -289,7 +290,7 @@ class RetroLogistics(MagForm):
 
 class RetroScreenshot(MagForm):
     image = FileUploadField("Image File (max 5MB)", file_flags={'retro_screenshot': True}, required=True,
-                            delete_existing=False, show_thumbnail=True, render_kw={'accept': "image/*"})
+                            show_delete_btn=False, delete_existing=False, show_thumbnail=True, render_kw={'accept': "image/*"})
 
 
 def generate_score_list():

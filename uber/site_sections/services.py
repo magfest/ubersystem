@@ -31,6 +31,13 @@ class Root:
             return file_handler.preview(filename=filename)
         else:
             return file_handler.serve_file(filename=filename)
+        
+    @ajax
+    def delete_file(self, session, id):
+        file_handler = FileService.from_db_id(session, id)
+        file_handler.delete()
+        session.commit()
+        return {'message': "File deleted."}
 
     @not_site_mappable
     def oidc_handler(self, session, code=None, error=None, post_login_url='', **kwargs):

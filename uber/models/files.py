@@ -68,3 +68,11 @@ class File(MagModel, table=True):
             return ''
         return Markup(
             f"""<a href="{self.url}" target="_blank"><img class="img-fluid" src="{self.url}&preview=True" /><br/>{self.filename}</a>""")
+    
+    @property
+    def delete_button(self):
+        if not self.filename:
+            return ''
+        return Markup(
+            f"""<button type="button" class="ps-0 border-0 bg-transparent text-danger" onclick="deleteFile('{self.id}', '{self.filename}')"><i class="fa fa-remove"></i></button>"""
+        )

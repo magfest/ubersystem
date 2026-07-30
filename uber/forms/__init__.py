@@ -697,7 +697,8 @@ class FileUploadField(Field):
     """
 
     def __init__(self, label=None, validators=None, multiple=False, file_flags={}, required=False,
-                 delete_existing=True, update_model=None, description_field_name='', show_thumbnail=False, **kwargs):
+                 delete_existing=True, update_model=None, description_field_name='', show_thumbnail=False,
+                 show_delete_btn=True, **kwargs):
         super().__init__(label, validators, **kwargs)
         self.widget = wtforms_widgets.FileInput(multiple=multiple)
         self.multiple = multiple
@@ -707,6 +708,7 @@ class FileUploadField(Field):
         self.delete_existing = delete_existing
         self.update_model = update_model
         self.show_thumbnail = show_thumbnail
+        self.show_delete_btn = show_delete_btn
 
         # Fields can't access other fields, so we set description_field_val when we run `process` on MagForm
         self.description_field_name = description_field_name
@@ -721,20 +723,74 @@ class FileUploadField(Field):
 
     def process_data(self, value):
         if value and value.session:
-            data_attr = 'preview_image_with_filename' if self.show_thumbnail else 'html_link'
-
             if isinstance(value, File):
                 file_handler = FileService.file_handler(value.session, value)
-                self.data = getattr(file_handler.file_obj, data_attr)
+                self.data = file_handler.file_obj
             else:
                 file_flags = self.all_file_flags(value)
-                existing_files = FileService.get_existing_files(value.session, value,
-                                                                and_flags=[key for key in file_flags.keys() if file_flags[key]],
-                                                                uselist=self.multiple)
-                if self.multiple:
-                    self.data = '<br/>'.join([getattr(file, data_attr) for file in existing_files])
-                elif existing_files:
-                    self.data = getattr(existing_files, data_attr)
+                self.data = FileService.get_existing_files(value.session, value,
+                                                           and_flags=[key for key in file_flags.keys() if file_flags[key]],
+                                                           uselist=self.multiple)
+
+    def __call__(self, **kwargs):
+        from uber.utils import listify
+
+        data_attr = 'preview_image_with_filename' if self.show_thumbnail else 'html_link'
+
+        input = self.meta.render_field(self, kwargs)
+        script = """
+        <script type="text/javascript">
+        if(!deleteFile) {
+            function deleteFile(id, filename) {
+                bootbox.confirm({
+                    backdrop: true,
+                    title: 'Delete File?',
+                    message: 'Are you sure you want to delete file "' + filename + '"? This cannot be undone.',
+                    buttons: {
+                        confirm: { label: 'Delete File', className: 'btn-danger' },
+                        cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+                    },
+                    callback: function (result) {
+                        if (result) {
+                            $.ajax({
+                                method: 'POST',
+                                url: '../services/delete_file',
+                                dataType: 'json',
+                                data: {
+                                    id: id,
+                                    csrf_token: csrf_token
+                                },
+                                success: function (json) {
+                                    hideMessageBox();
+                                    var message = json.message;
+                                    $("#message-alert").addClass("alert-info").show().children('span').html(message);
+                                    $("#file_" + id).remove();
+                                    window.scrollTo(0,0);
+                                },
+                                error: function () {
+                                    showErrorMessage('Unable to connect to server, please try again.');
+                                }
+                            });
+                        }
+                    }
+                });
+            }
+        }
+        </script>
+        """
+
+        html = []
+
+        data_list = listify(getattr(self, 'data', []))
+
+        for file in data_list:
+            del_button = "" if not self.show_delete_btn else file.delete_button
+            html.append(f"<span id='file_{file.id}'>{getattr(file, data_attr)}&nbsp;{del_button}</span>")
+
+        if self.show_delete_btn:
+            return input + Markup('<br/>'.join(html) + (script if html else ''))
+        else:
+            return Markup('<br/>'.join(html)) + input
 
     def process_formdata(self, valuelist):
         if self.multiple:
@@ -777,7 +833,6 @@ class FileUploadField(Field):
             else:
                 new_file_handler = FileService.file_handler(obj.session, obj, description=self.description_field_val, flags=file_flags)
                 obj.session.add(new_file_handler.file_obj)
-                log.error(new_file_handler.file_obj)
 
             new_file_handler.process_file_upload(self.data, delete_existing=delete_existing,
                                                  update_model=self.update_model, run_validations=False)
