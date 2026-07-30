@@ -361,7 +361,7 @@ class MultiChoice(UniqueList):
         return value
 
 
-class TakesPaymentMixin(object):
+class TakesPaymentMixin:
     @property
     def payment_deadline(self):
         return min(

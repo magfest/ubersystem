@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta, time
 
-import six
 from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
@@ -368,7 +367,7 @@ class Department(MagModel, table=True):
         if not department:
             return None
 
-        if isinstance(department, six.string_types):
+        if isinstance(department, str):
             try:
                 department = int(department)
             except ValueError:

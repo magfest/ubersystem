@@ -1,9 +1,6 @@
 import threading
 
-try:
-  import cPickle as pickle
-except ImportError:
-  import pickle
+import pickle
 
 from cherrypy.lib.sessions import Session
 import redis

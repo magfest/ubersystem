@@ -768,7 +768,7 @@ class AttractionSignup(MagModel, table=True):
     __table_args__ = (UniqueConstraint('attraction_event_id', 'attendee_id'),)
 
     def __init__(self, attendee=None, event=None, **kwargs):
-        super(AttractionSignup, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         if attendee:
             self.attendee = attendee
         if event:

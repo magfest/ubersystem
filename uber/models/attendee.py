@@ -655,7 +655,6 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
 
     @presave_adjustment
     def _staffing_adjustments(self):
-        import six
 
         if self.is_dept_head:
             self.staffing = True
@@ -2842,7 +2841,7 @@ class FoodRestrictions(MagModel, table=True):
 
     def __getattr__(self, name):
         try:
-            return super(FoodRestrictions, self).__getattr__(name)
+            return super().__getattr__(name)
         except AttributeError:
             restriction = getattr(c, name.upper())
             if restriction not in c.FOOD_RESTRICTIONS:

@@ -1,7 +1,6 @@
 import inspect
 import json
 import re
-import six
 import cherrypy
 import logging
 
@@ -23,7 +22,7 @@ log = logging.getLogger(__name__)
 
 
 def bool_from_text(value):
-    if isinstance(value, six.string_types):
+    if isinstance(value, str):
         return value.strip().lower() not in ('f', 'false', 'n', 'no', '0')
     return bool(value)
                         
@@ -38,7 +37,7 @@ def maximum_values(form, field):
     if not field.data:
         return
 
-    if isinstance(field.data, six.string_types) and len(field.data) > 10000:
+    if isinstance(field.data, str) and len(field.data) > 10000:
         raise ValidationError('Please enter under 10,000 characters.')
     if isinstance(field.data, list) and len(field.data) > 1000:
         raise ValidationError('Please select fewer than 1,000 options.')
@@ -414,7 +413,7 @@ class MagForm(Form):
                     # We have to pre-process boolean fields because WTForms will print "False"
                     # for a BooleanField's hidden input value and then not process that as falsey
                     formdata[prefixed_name] = formdata[prefixed_name].strip().lower() not in ('f', 'false', 'n', 'no', '0') \
-                        if isinstance(formdata[prefixed_name], six.string_types) else formdata[prefixed_name]
+                        if isinstance(formdata[prefixed_name], str) else formdata[prefixed_name]
             elif (isinstance(field, SelectMultipleField)
                   or hasattr(obj, 'all_checkgroups') and name in obj.all_checkgroups
                   or isinstance(field.widget, SelectButtonGroup)
@@ -429,7 +428,7 @@ class MagForm(Form):
                         formdata[prefixed_name] = getattr(obj, name)
             elif isinstance(field.widget, DateMaskInput) and not field_in_formdata and getattr(obj, name, None):
                 obj_date = getattr(obj, name)
-                if isinstance(obj_date, six.string_types):
+                if isinstance(obj_date, str):
                     obj_date = dateparser.parse(obj_date)
                 formdata[prefixed_name] = obj_date.strftime('%m/%d/%Y')
             elif isinstance(field, DateField) and not field_in_formdata and getattr(obj, name, None):

@@ -14,7 +14,6 @@ import uber
 import urllib
 import logging
 import warnings
-import six
 
 from collections import defaultdict, OrderedDict
 from collections.abc import Iterable, Mapping, Sized
@@ -617,7 +616,7 @@ def is_listy(x):
         isinstance(x, Sized)
         and isinstance(x, Iterable)
         and not isinstance(x, (Mapping, type(b"")))
-        and not isinstance(x, six.string_types)
+        and not isinstance(x, str)
     )
 
 # ======================================================================
@@ -704,10 +703,10 @@ def get_age_from_birthday(birthdate, today=None):
 
     birthdate_col = Attendee.__table__.columns.get('birthdate')
 
-    if isinstance(birthdate, six.string_types):        
+    if isinstance(birthdate, str):        
         birthdate = Attendee().coerce_column_data(birthdate_col, birthdate)
 
-    if isinstance(today, six.string_types):
+    if isinstance(today, str):
         today = Attendee().coerce_column_data(birthdate_col, today)
 
     # int(True) == 1 and int(False) == 0

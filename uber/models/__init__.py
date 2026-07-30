@@ -2,6 +2,7 @@ import json
 import operator
 import os
 import re
+import sys
 import uuid
 import inspect
 import logging
@@ -15,7 +16,6 @@ from types import MethodType
 from typing import Any, ClassVar
 
 import cherrypy
-import six
 import sqlalchemy
 from dateutil import parser as dateparser
 from pytz import UTC
@@ -245,8 +245,7 @@ class MagModel(SQLModel):
         # specifically using the string interpolation operator and the repr of
         # getattr so as to avoid any "hilarious" encode errors for non-ascii
         # characters
-        u = '<%s%s>' % (self.__class__.__name__, kwargs_output)
-        return u if six.PY3 else u.encode('utf-8')
+        return u
 
     @cached_classproperty
     def NAMESPACE(cls):
@@ -560,7 +559,7 @@ class MagModel(SQLModel):
 
     @suffix_property
     def _local(self, name, val):
-        if isinstance(val, six.string_types):
+        if isinstance(val, str):
             val = dateparser.parse(val)
         return val.astimezone(c.EVENT_TIMEZONE)
 
@@ -620,7 +619,7 @@ class MagModel(SQLModel):
         return query.first() if last_only else query.all()
 
     def coerce_column_data(self, column, value):
-        if isinstance(value, six.string_types):
+        if isinstance(value, str):
             value = value.strip()
 
         try:
@@ -631,7 +630,7 @@ class MagModel(SQLModel):
                 return None
 
             elif isinstance(column.type, Boolean):
-                if isinstance(value, six.string_types):
+                if isinstance(value, str):
                     return value.strip().lower() not in ('f', 'false', 'n', 'no', '0')
                 return bool(value)
 
@@ -639,7 +638,7 @@ class MagModel(SQLModel):
                 return float(value)
 
             elif isinstance(column.type, Numeric):
-                if isinstance(value, six.string_types) and value.endswith('.0'):
+                if isinstance(value, str) and value.endswith('.0'):
                     return int(value[:-2])
                 else:
                     return int(float(value))
@@ -660,7 +659,7 @@ class MagModel(SQLModel):
                 value = int(float(value))
 
             elif isinstance(column.type, DateTime):
-                if isinstance(value, six.string_types):
+                if isinstance(value, str):
                     try:
                         value = datetime.strptime(value, c.TIMESTAMP_FORMAT)
                     except ValueError:
@@ -672,7 +671,7 @@ class MagModel(SQLModel):
                     return value
 
             elif isinstance(column.type, Date):
-                if isinstance(value, six.string_types):
+                if isinstance(value, str):
                     try:
                         value = datetime.strptime(value, c.DATE_FORMAT)
                     except ValueError:
@@ -1152,7 +1151,7 @@ class UberSession(sqlalchemy.orm.Session):
                     func.lower(WatchList.email) == attendee.email.lower())]
 
             if attendee.birthdate:
-                if isinstance(attendee.birthdate, six.string_types):
+                if isinstance(attendee.birthdate, str):
                     try:
                         birthdate = dateparser.parse(attendee.birthdate).date()
                     except Exception:
@@ -1210,7 +1209,7 @@ class UberSession(sqlalchemy.orm.Session):
             )
 
             if attendees:
-                statuses = defaultdict(lambda: six.MAXSIZE, {
+                statuses = defaultdict(lambda: sys.maxsize, {
                     c.COMPLETED_STATUS: 0,
                     c.NEW_STATUS: 1,
                     c.REFUNDED_STATUS: 2,
