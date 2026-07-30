@@ -87,7 +87,10 @@
     <tbody>
     {% for account in accounts %}
         <tr id="{{ account.email|idize }}">
-        <td>{{ account|form_link }}</td>
+        <td>
+          {{ account|form_link }}
+          {% if c.LOCAL_ACCOUNTS_DISABLED %}<div class="form-text">{% if account.sso_id %}SSO ID: {{ account.sso_id }}{% else %}No SSO Account{% endif %}</div>{% endif %}
+        </td>
         <td>{{ account.imported|yesno("Yes,No") }}</td>
         <td>{{ account.unused_years }}</td>
         <td> {% for attendee in account.attendees %} 
