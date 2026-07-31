@@ -1125,9 +1125,9 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         if self.is_dealer:
             return c.DEALER_BADGE_PRICE
         elif self.badge_type == c.ONE_DAY_BADGE:
-            return c.get_oneday_price(registered)
+            return c.get_oneday_price(dt=registered)
         elif self.is_presold_oneday:
-            return c.get_presold_oneday_price(self.badge_type)
+            return c.get_oneday_price(badge_type=self.badge_type)
         else:
             return c.get_attendee_price(registered)
 
