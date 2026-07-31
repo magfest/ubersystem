@@ -223,21 +223,32 @@ class DateTimePicker(TextInput):
 class HourMinuteDuration(HiddenInput):
     def __call__(self, field, **kwargs):
         id = kwargs.pop('id', field.id)
+
+        outer_model = (
+                kwargs.get('x-model.number')
+                or kwargs.get('x-model')
+                or kwargs.get('alpine_model')
+        )
+        model_binding = f'x-model.number="{outer_model}"' if outer_model else ''
+
         duration = int(field.data) if field.data else 0
         hours, minutes = int(duration / 60), int(duration % 60)
         html = f"""
         <div x-data="{{
             hours: {hours},
             minutes: {minutes},
-            getTotal() {{ return parseInt(this.hours) * 60 + parseInt(this.minutes) }},
-            }}">
+            total: { duration }
+            }}"
+            x-effect="total = parseInt(hours) * 60 + parseInt(minutes)"
+            x-modelable="total"
+            {model_binding}>
             <div class="input-group">
                 <input type="number" x-model="hours" class="form-control" onfocus="this.select();" name="{field.name}_hours" placeholder="# hours" value="{hours}" />
                 <span class="input-group-text">hours,</span>
                 <input type="number" x-model="minutes" class="form-control" onfocus="this.select();" name="{field.name}_minutes" placeholder="# minutes" value="{minutes}" />
                 <span class="input-group-text">minutes</span>
             </div>
-            <input type="hidden" name="{field.name}" id="{id}" value={duration} x-bind:value="getTotal">
+            <input type="hidden" name="{field.name}" id="{id}" value={duration} x-bind:value="total" />
         </div>"""
         return Markup(html)
 

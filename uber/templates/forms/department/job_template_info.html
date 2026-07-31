@@ -1,5 +1,13 @@
 {% extends 'forms/department/base_job_info.html' %}
 
+{# A special block that drops right into an alpine data initialization function, allowing JS extensibility with jinja layout #}
+{% block extend_job_alpine_state %}
+{{ super() }}
+template_type: '{{ job_or_template_info.type.data }}',
+getNotCustom() { return this.template_type != '{{ c.CUSTOM }}' },
+getInterval() { return this.template_type == '{{ c.INTERVAL }}' },
+{% endblock %}
+
 {% block type_interval %}
 <div class="col-sm">{{ form_macros.input(job_or_template_info.template_name) }}</div>
 <div class="col-sm">{{ form_macros.input(job_or_template_info.type, alpine_model='template_type') }}</div>
@@ -16,8 +24,8 @@
 
 {% block weight_visibility %}
     <div class="col-sm">
-        {% call form_macros.input(job_or_template_info.duration, required_if="getNotCustom") %}
-        {{ form_macros.input(job_or_template_info.extra15) }}
+        {% call form_macros.input(job_or_template_info.duration, alpine_model="duration", required_if="getNotCustom") %}
+        {{ form_macros.input(job_or_template_info.extra15, alpine_model="extra15") }}
         {% endcall %}
     </div>
     <div class="col-sm">
