@@ -1,15 +1,8 @@
 {% extends 'forms/department/base_job_info.html' %}
 
-{% block x_data %}
-{{ super() }}
-template_type: '{{ job_or_template_info.type.data }}',
-getNotCustom() { return this.template_type != '{{ c.CUSTOM }}' },
-getInterval() { return this.template_type == '{{ c.INTERVAL }}' },
-{% endblock %}
-
 {% block type_interval %}
 <div class="col-sm">{{ form_macros.input(job_or_template_info.template_name) }}</div>
-<div class="col-sm">{{ form_macros.input(job_or_template_info.type, alpine_model="template_type") }}</div>
+<div class="col-sm">{{ form_macros.input(job_or_template_info.type, alpine_model='template_type') }}</div>
 <div class="col-sm" x-show="getInterval">{{ form_macros.input(job_or_template_info.interval, required_if="getInterval") }}</div>
 {% endblock %}
 

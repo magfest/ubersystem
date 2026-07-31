@@ -1,13 +1,13 @@
 {% extends 'forms/department/base_job_info.html' %}
 
 {% block name_desc %}
-<div class="col-sm">{{ form_macros.input(job_or_template_info.job_template_id, choices=[('', 'No Template')] + department.job_templates_choices) }}</div>
+<div class="col-sm">{{ form_macros.input(job_or_template_info.job_template_id, alpine_model='job_template_id', choices=[('', 'No Template')] + department.job_templates_choices) }}</div>
 {{ super() }}
 {% endblock %}
 
 {% block weight_visibility %}
 <div class="col-sm">
-    {% call form_macros.input(job_or_template_info.slots, **{':disabled':'no_slots'}) %}
+    {% call form_macros.input(job_or_template_info.slots, **{'x-model.number':'slots', ':disabled':'no_slots'}) %}
     {{ form_macros.input(job_or_template_info.no_slots, alpine_model='no_slots') }}
     {% endcall %}
 </div>
