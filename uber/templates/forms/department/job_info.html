@@ -1,5 +1,12 @@
 {% extends 'forms/department/base_job_info.html' %}
 
+{# A special block that drops right into an alpine data initialization function, allowing JS extensibility with jinja layout #}
+{% block extend_job_alpine_state %}
+{{ super() }}
+job_template_id : {{ job_or_template.job_template_id|tojson }},
+slots: {{ job_or_template.slots if job_or_template.slots is defined else 0 |tojson }},
+{% endblock %}
+
 {% block name_desc %}
 <div class="col-sm">{{ form_macros.input(job_or_template_info.job_template_id, alpine_model='job_template_id', choices=[('', 'No Template')] + department.job_templates_choices) }}</div>
 {{ super() }}

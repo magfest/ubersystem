@@ -7,38 +7,32 @@
 {% set job_or_template = job or job_template %}
 
 {# BLOCK NAMES in this form:
-    x_data
+    extend_job_alpine_state
     
 
 Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
 
 <script type="text/javascript">
-    function initJobData() {
+    function initBaseJobData() {
         return {
             name: {{ job_or_template.name|tojson }},
             description: {{ job_or_template.description|tojson }},
-            start_time: {{ job_or_template.start_time|jsonize }},
             duration: {{ job_or_template.duration|tojson }},
             extra15: {{ job_or_template.extra15|tojson }},
             weight: {{ job_or_template.weight|tojson }},
             visibility: {{ job_or_template.visibility|tojson }},
             required_roles_id: {{ job_or_template.required_roles_ids|tojson }},
             all_roles_required: {{ job_or_template.all_roles_required|boolean|tojson }},
-            //These two are only for jobs. could nest closer to the items.
-            job_template_id : {{ job_or_template.job_template_id|tojson }},
-            slots: {{ job_or_template.slots if job_or_template.slots is defined else 0 |tojson }},
+            {% block extend_job_alpine_state %}
+            {% endblock %}
             //prior if statement was if job or job_or_template.is_new to even execute..
             no_slots: !{{ 'true' if job_or_template.is_new else job_or_template.slots|boolean|tojson }},
-            //Only used for job templates
-            template_type: {{ (job_or_template.type if job_or_template_info.type is defined else None) |tojson}},
-            getNotCustom() { return this.template_type != '{{ c.CUSTOM }}' },
-            getInterval() { return this.template_type == '{{ c.INTERVAL }}' },
         }
     }
 </script>
 
-<div x-data="initJobData()">
+<div x-data="initBaseJobData()">
 <div>HMD DEBUG <span x-text="JSON.stringify($data)"></span></div>
 <div class="row g-3 mb-3">{% block type_interval %}{% endblock %}</div>
 
@@ -51,7 +45,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 
 <div class="row g-3 mb-3">
 {% block start_duration %}
-<div class="col-sm">{{ form_macros.input(job_or_template_info.start_time, alpine_model="start_time") }}</div>
+<div class="col-sm">{{ form_macros.input(job_or_template_info.start_time) }}</div>
 <div class="col-sm">
     {% call form_macros.input(job_or_template_info.duration, alpine_model="duration") %}
     {{ form_macros.input(job_or_template_info.extra15, alpine_model="extra15") }}
