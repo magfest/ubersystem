@@ -302,11 +302,14 @@ class Config(_Overridable):
     For all of the datetime config options, we also define BEFORE_ and AFTER_ properties, e.g. you can
     check the booleans returned by c.BEFORE_PLACEHOLDER_DEADLINE or c.AFTER_PLACEHOLDER_DEADLINE
     """
-    def get_oneday_price(self, dt):
-        return self.BADGE_PRICES['single_day'].get(dt.strftime('%A'), self.DEFAULT_SINGLE_DAY)
-
-    def get_presold_oneday_price(self, badge_type):
-        return self.BADGE_PRICES['single_day'].get(self.BADGES[badge_type], self.DEFAULT_SINGLE_DAY)
+    def get_oneday_price(self, dt=None, badge_type=None, day_name=None):
+        if not dt and not badge_type and not day_name:
+            return self.DEFAULT_SINGLE_DAY
+        if dt:
+            day_name = dt.strftime('%A')
+        if badge_type:
+            day_name = self.BADGES[badge_type]
+        return self.BADGE_PRICES['single_day'].get(day_name, self.DEFAULT_SINGLE_DAY)
 
     def get_attendee_price(self, dt=None):
         price = self.INITIAL_ATTENDEE
@@ -543,7 +546,7 @@ class Config(_Overridable):
     @property
     @dynamic
     def ONEDAY_BADGE_PRICE(self):
-        return self.get_oneday_price(uber.utils.localized_now())
+        return self.get_oneday_price(dt=uber.utils.localized_now())
 
     @property
     @dynamic
@@ -613,7 +616,7 @@ class Config(_Overridable):
         return opts
 
     def single_day_opt(self, day_name):
-        price = self.BADGE_PRICES['single_day'].get(day_name) or self.DEFAULT_SINGLE_DAY
+        price = self.get_oneday_price(day_name=day_name)
         badge = getattr(self, day_name.upper())
         if getattr(self, day_name.upper() + '_AVAILABLE', None):
             return {
@@ -938,7 +941,7 @@ class Config(_Overridable):
                 day = max(uber.utils.localized_now(), self.EPOCH)
                 while day.date() <= self.ESCHATON.date():
                     day_name = day.strftime('%A')
-                    price = self.BADGE_PRICES['single_day'].get(day_name) or self.DEFAULT_SINGLE_DAY
+                    price = self.get_oneday_price(day_name=day_name)
                     badge = getattr(self, day_name.upper())
                     if getattr(self, day_name.upper() + '_AVAILABLE', None):
                         opts.append((badge, day_name + ' Badge (${})'.format(price)))
