@@ -389,6 +389,18 @@ class Department(MagModel):
     @property
     def job_templates_choices(self):
         return [(template.id, template.template_name) for template in self.job_templates]
+
+    @property
+    def job_templates_data(self):
+        data = {}
+
+        for template in self.job_templates:
+            d = template.to_dict()
+            #Avoid potentially exposing extra data to the UI or circular references.
+            d.pop('jobs', None)
+            data[template.id] = d
+
+        return data
     
     @property
     def job_templates_by_id(self):
