@@ -483,7 +483,7 @@ class MagForm(Form):
     def bool_list(self):
         return [(key, field) for key, field in self._fields.items() if field.type == 'BooleanField']
 
-    def populate_obj(self, obj, is_admin=False, dry_run=False):
+    def populate_obj(self, obj, is_admin=False, dry_run=False, session=None):
         """
         Adds alias processing, field locking, and data coercion to populate_obj.
         
@@ -509,7 +509,7 @@ class MagForm(Form):
                     pass  # Indicates collision between a property name and a field name, like 'badges' for GroupInfo
             else:
                 try:
-                    field.populate_obj(obj, name, is_admin=is_admin, dry_run=dry_run)
+                    field.populate_obj(obj, name, is_admin=is_admin, dry_run=dry_run, session=session)
                 except TypeError:
                     field.populate_obj(obj, name)
 
@@ -722,13 +722,17 @@ class FileUploadField(Field):
         return file_flags
 
     def process_data(self, value):
-        if value and value.session:
+        from uber.models import Session
+        if not value:
+            return
+        
+        with Session() as session:
             if isinstance(value, File):
-                file_handler = FileService.file_handler(value.session, value)
+                file_handler = FileService.file_handler(session, value)
                 self.data = file_handler.file_obj
             else:
                 file_flags = self.all_file_flags(value)
-                self.data = FileService.get_existing_files(value.session, value,
+                self.data = FileService.get_existing_files(session, value,
                                                            and_flags=[key for key in file_flags.keys() if file_flags[key]],
                                                            uselist=self.multiple)
 
@@ -798,18 +802,20 @@ class FileUploadField(Field):
         elif valuelist:
             self.data = valuelist[0]
 
-    def populate_obj(self, obj, name, dry_run=False, **kwargs):
+    def populate_obj(self, obj, name, dry_run=False, session=None, **kwargs):
         file_flags = self.all_file_flags(obj)
 
+        session = session or obj.session
+
         if not self.data or not self.data.filename:
-            if self.description_field_name and obj.session:
+            if self.description_field_name and session:
                 if isinstance(obj, File):
-                    file_handler = FileService.file_handler(obj.session, obj)
+                    file_handler = FileService.file_handler(session, obj)
                 else:
-                    existing_file = FileService.get_existing_files(obj.session, obj,
+                    existing_file = FileService.get_existing_files(session, obj,
                                                                    and_flags=[flag for flag in file_flags.keys() if file_flags[flag]])
                     if existing_file:
-                        file_handler = FileService.file_handler(obj.session, existing_file)
+                        file_handler = FileService.file_handler(session, existing_file)
                     else:
                         return
                 file_handler.update_file_obj(description=self.description_field_val)
@@ -817,22 +823,22 @@ class FileUploadField(Field):
 
         delete_existing = False if dry_run else self.delete_existing
 
-        if obj.session:
+        if session:
             if isinstance(obj, File):
                 if obj.is_new:
                     # This is a new file, set the proper attributes on it and queue it for upload
                     obj.flags = file_flags
                     obj.description = self.description_field_val
-                    new_file_handler = FileService.file_handler(obj.session, obj)
+                    new_file_handler = FileService.file_handler(session, obj)
                 else:
                     if not dry_run:
-                        file_handler = FileService.file_handler(obj.session, obj)
+                        file_handler = FileService.file_handler(session, obj)
                         file_handler.delete()
-                    new_file_handler = FileService.from_fk_model_id(obj.session, obj.fk_model, obj.fk_id,
+                    new_file_handler = FileService.from_fk_model_id(session, obj.fk_model, obj.fk_id,
                                                                     description=self.description_field_val, flags=file_flags)
             else:
-                new_file_handler = FileService.file_handler(obj.session, obj, description=self.description_field_val, flags=file_flags)
-                obj.session.add(new_file_handler.file_obj)
+                new_file_handler = FileService.file_handler(session, obj, description=self.description_field_val, flags=file_flags)
+                session.add(new_file_handler.file_obj)
 
             new_file_handler.process_file_upload(self.data, delete_existing=delete_existing,
                                                  update_model=self.update_model, run_validations=False)

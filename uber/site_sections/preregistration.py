@@ -365,7 +365,7 @@ class Root:
 
         if cherrypy.request.method == 'POST':
             for form in forms.values():
-                form.populate_obj(group)
+                form.populate_obj(group, session=session)
 
             message = check(group, prereg=True)
             if not message:
@@ -564,7 +564,7 @@ class Root:
             for form in forms.values():
                 if hasattr(form, 'same_legal_name') and params.get('same_legal_name'):
                     form['legal_name'].data = ''
-                form.populate_obj(attendee)
+                form.populate_obj(attendee, session=session)
 
         if (cherrypy.request.method == 'POST' or edit_id is not None) and c.PRE_CON:
             if not message and attendee.badge_type not in c.PREREG_BADGE_TYPES:
@@ -687,7 +687,7 @@ class Root:
 
         if cherrypy.request.method == "POST":
             for form in forms.values():
-                form.populate_obj(attendee)
+                form.populate_obj(attendee, session=session)
 
             _add_promo_code(session, attendee, params.get('promo_code_code'))
 
