@@ -1,7 +1,7 @@
 {% import 'macros.html' as macros with context %}
 {% import 'forms/macros.html' as form_macros with context %}
 {% set contact_info = contact_info or forms['contact_info'] %}
-{% set default_group_email = logged_in_account.email if logged_in_account else '' %}
+{% set default_group_email = logged_in_account.default_group_email if logged_in_account else '' %}
 
 {# BLOCK NAMES in this form:
     contact_info

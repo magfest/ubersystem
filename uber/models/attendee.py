@@ -2645,6 +2645,10 @@ class AttendeeAccount(MagModel, table=True):
         return self.panel_applications or self.indie_studios or self.mits_teams
     
     @property
+    def default_group_email(self):
+        return self.email
+    
+    @property
     def admin_account_id(self):
         for attendee in self.valid_attendees:
             if attendee.admin_account:
