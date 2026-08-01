@@ -16,6 +16,8 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 <script type="text/javascript">
     function initBaseJobData() {
         return {
+            no_slots: !{{ 'true' if job_or_template.is_new else job_or_template.slots|boolean|tojson }},
+
             name: {{ job_or_template.name|tojson }},
             description: {{ job_or_template.description|tojson }},
             duration: {{ job_or_template.duration|tojson }},
@@ -27,7 +29,6 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
             {% block extend_job_alpine_state %}
             {% endblock %}
             //prior if statement was if job or job_or_template.is_new to even execute..
-            no_slots: !{{ 'true' if job_or_template.is_new else job_or_template.slots|boolean|tojson }},
         }
     }
 </script>
