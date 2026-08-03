@@ -711,7 +711,7 @@ class MagModel(SQLModel):
             if (not restricted or column.name in self.unrestricted) \
                     and (column.type is JSON or isinstance(column.type, JSON)):
 
-                fields = getattr(self, '_{}_fields'.format(column.name), {})
+                fields = getattr(self, f'_{column.name}_fields', {})
                 for field in fields.keys():
                     if field in params:
                         setattr(self, field, params[field])
@@ -840,9 +840,9 @@ class UberSession(sqlalchemy.orm.Session):
             conditions = []
             if len(self.column_descriptions) == 1 and filters:
                 for colname, val in filters.items():
-                    conditions.append(getattr(self.model, colname).ilike('%{}%'.format(val)))
+                    conditions.append(getattr(self.model, colname).ilike(f'%{val}%'))
             if attr and val:
-                conditions.append(attr.ilike('%{}%'.format(val)))
+                conditions.append(attr.ilike(f'%{val}%'))
             return and_(*conditions)
 
         def icontains(self, attr=None, val=None, **filters):
@@ -1092,7 +1092,7 @@ class UberSession(sqlalchemy.orm.Session):
             conf = DeptChecklistConf.instances.get(slug)
             if not conf:
                 raise ValueError(
-                    "Can't access dept checklist INI settings for section '{}', check your INI file".format(slug))
+                    f"Can't access dept checklist INI settings for section '{slug}', check your INI file")
 
             if not department_id:
                 return {'conf': conf, 'relevant': False, 'completed': None}
@@ -1156,7 +1156,7 @@ class UberSession(sqlalchemy.orm.Session):
                     try:
                         birthdate = dateparser.parse(attendee.birthdate).date()
                     except Exception:
-                        log.debug('Error parsing attendee birthdate: {}'.format(attendee.birthdate))
+                        log.debug(f'Error parsing attendee birthdate: {attendee.birthdate}')
                     else:
                         or_clauses.append(WatchList.birthdate == birthdate)
                 elif isinstance(attendee.birthdate, datetime):
@@ -1592,7 +1592,7 @@ class UberSession(sqlalchemy.orm.Session):
 
             for field in fields:
                 if not attendee_fields.get(field) and field != 'ribbon_labels':
-                    errors.append("Field missing: {}.".format(field))
+                    errors.append(f"Field missing: {field}.")
 
             if self.query(PrintJob).filter_by(attendee_id=attendee.id, printed=None, errors="").first():
                 errors.append("Badge is already queued to print.")
@@ -1645,7 +1645,7 @@ class UberSession(sqlalchemy.orm.Session):
 
             for field in fields:
                 if not attendee_fields.get(field) and field != 'ribbon_labels':
-                    errors.append("Field missing: {}.".format(field))
+                    errors.append(f"Field missing: {field}.")
                 elif attendee_fields.get(field) != job.json_data.get(field):
                     job.json_data[field] = attendee_fields.get(field)
 
@@ -1982,13 +1982,13 @@ class UberSession(sqlalchemy.orm.Session):
                             try:
                                 getattr(Attendee, target)
                             except AttributeError:
-                                return None, 'ERROR: {} is not a valid attribute'.format(target)
+                                return None, f'ERROR: {target} is not a valid attribute'
                             # Are we a searchable property?
                             if isinstance(getattr(Attendee, target) == search_term,
                                           sqlalchemy.sql.elements.BinaryExpression):
                                 attr_search_filter = self.get_truth(getattr(Attendee, target), op, search_term)
                             else:
-                                return None, 'ERROR: {} is not a searchable attribute'.format(target)
+                                return None, f'ERROR: {target} is not a searchable attribute'
 
                         if term.endswith(' OR') or last_term and last_term.endswith(' OR'):
                             or_checks.append(attr_search_filter)
@@ -2309,7 +2309,7 @@ class UberSession(sqlalchemy.orm.Session):
         models_by_class = {ModelClass.__name__: ModelClass for ModelClass in cls.all_models()}
         if name in models_by_class:
             return models_by_class[name]
-        raise ValueError('Unrecognized model: {}'.format(name))
+        raise ValueError(f'Unrecognized model: {name}')
 
     @classmethod
     def model_mixin(cls, model):
@@ -2322,7 +2322,7 @@ class UberSession(sqlalchemy.orm.Session):
                 if target.__name__ == model.__name__:
                     break
             else:
-                raise ValueError('No existing model with name {}'.format(model.__name__))
+                raise ValueError(f'No existing model with name {model.__name__}')
 
         new_fields = {}
         new_annotations = {}

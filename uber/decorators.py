@@ -196,7 +196,7 @@ def check_can_edit_dept(session, department_id=None, inherent_role=None, overrid
             AdminAccount.id == account_id,
             AdminAccount.attendee_id == DeptMembership.attendee_id]
         if inherent_role in ('dept_head', 'poc', 'checklist_admin'):
-            role_attr = 'is_{}'.format(inherent_role)
+            role_attr = f'is_{inherent_role}'
             dh_filter.append(getattr(DeptMembership, role_attr) == True)  # noqa: E712
         else:
             dh_filter.append(DeptMembership.has_inherent_role)
@@ -208,10 +208,10 @@ def check_can_edit_dept(session, department_id=None, inherent_role=None, overrid
         if not is_dept_admin:
             if department_id:
                 department = session.get(Department, department_id)
-                dept_msg = ' of {}'.format(department.name)
+                dept_msg = f' of {department.name}'
             else:
                 dept_msg = ''
-            return 'You must be a department admin{} to complete that action.'.format(dept_msg)
+            return f'You must be a department admin{dept_msg} to complete that action.'
 
 
 def check_dept_admin(session, department_id=None, inherent_role=None):
@@ -410,7 +410,7 @@ def ajax(func):
     def returns_json(*args, **kwargs):
         cherrypy.response.headers['Content-Type'] = 'application/json'
         try:
-            assert cherrypy.request.method == 'POST', 'POST required, got {}'.format(cherrypy.request.method)
+            assert cherrypy.request.method == 'POST', f'POST required, got {cherrypy.request.method}'
             check_csrf(kwargs.pop('csrf_token', None))
         except Exception:
             traceback.print_exc()
@@ -663,12 +663,12 @@ def run_threaded(thread_name='', lock=None, blocking=True, timeout=-1):
                         finally:
                             lock.release()
                     else:
-                        log.warn("Can't acquire lock, skipping background thread: {}".format(name))
+                        log.warn(f"Can't acquire lock, skipping background thread: {name}")
                 thread = threading.Thread(target=locked_func, *args, **kwargs)
             else:
                 thread = threading.Thread(target=func, *args, **kwargs)
             thread.name = name
-            log.debug('Starting background thread: {}'.format(name))
+            log.debug(f'Starting background thread: {name}')
             thread.start()
         return with_run_threaded
 
@@ -797,7 +797,7 @@ def renderable(func):
                 ajax_or_redirect(func, '../landing/invalid?message=', message)
         except TypeError as e:
             # Very restrictive pattern so we don't accidentally match legit errors
-            pattern = r"^{}\(\) missing 1 required positional argument: '\S*?id'$".format(func.__name__)
+            pattern = rf"^{func.__name__}\(\) missing 1 required positional argument: '\S*?id'$"
             if re.fullmatch(pattern, str(e)):
                 # NOTE: We are NOT logging the exception if the user entered an invalid URL
                 message = 'Looks like you tried to access a page without all the query parameters. '\

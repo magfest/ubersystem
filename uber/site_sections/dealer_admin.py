@@ -88,7 +88,7 @@ def decline_and_convert_dealer_group(session, group, status=c.DECLINED, admin_no
         for attendee in group.attendees:
             attendee.append_admin_note(admin_note)
             attendee.ribbon = remove_opt(attendee.ribbon_ints, c.DEALER_RIBBON)
-        return 'Group {} status removed'.format(c.DEALER_TERM)
+        return f'Group {c.DEALER_TERM} status removed'
 
     if status == c.WAITLISTED:
         ident = 'dealer_waitlist_exhausted'

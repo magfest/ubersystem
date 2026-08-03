@@ -180,7 +180,7 @@ class Root:
     def verify_badge_num(self, session, badge_num, **params):
         attendee = _attendee_for_badge_num(session, badge_num)
         if not attendee:
-            return {'error': 'Unrecognized badge number: {}'.format(badge_num)}
+            return {'error': f'Unrecognized badge number: {badge_num}'}
 
         if attendee.attractions_opt_out:
             return {'error': 'That attendee has disabled attraction signups'}
@@ -195,13 +195,13 @@ class Root:
                          last_name='', email='', zip_code='', **params):
         event = _model_for_id(session, AttractionEvent, id)
         if not event:
-            return {'error': 'Unrecognized event id: {}'.format(id)}
+            return {'error': f'Unrecognized event id: {id}'}
 
         if badge_num or event.feature.badge_num_required:
             attendee = _attendee_for_badge_num(session, badge_num)
             if not attendee:
                 return {
-                    'error': 'Unrecognized badge number: {}'.format(badge_num)
+                    'error': f'Unrecognized badge number: {badge_num}'
                 }
         else:
             attendee = _attendee_for_info(session, first_name, last_name,
@@ -230,7 +230,7 @@ class Root:
                             attendee.first_name, event.feature.name)}
 
             if not event.signups_open:
-                return {'error': '{} is not yet available for signups'.format(event.label)}
+                return {'error': f'{event.label} is not yet available for signups'}
 
             if event.is_sold_out:
                 if event.waitlist_open:
@@ -242,7 +242,7 @@ class Root:
                     ))
                     on_waitlist = True
                 else:
-                    return {'error': '{} is already sold out'.format(event.label)}
+                    return {'error': f'{event.label} is already sold out'}
             else:
                 event.attendee_signups.append(attendee)
                 session.add(event)

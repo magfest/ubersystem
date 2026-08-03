@@ -172,7 +172,7 @@ class GuestGroup(MagModel, table=True):
     @property
     def panel_status(self):
         application_count = len(self.group.leader.submitted_panels)
-        return '{} Panel Application(s)'.format(application_count) \
+        return f'{application_count} Panel Application(s)' \
             if self.group.leader.submitted_panels else self.status('panel')
 
     @property
@@ -408,11 +408,11 @@ class GuestMerch(MagModel, table=True):
 
     @property
     def rock_island_url(self):
-        return '../guest_reports/rock_island?id={}'.format(self.guest_id)
+        return f'../guest_reports/rock_island?id={self.guest_id}'
 
     @property
     def rock_island_csv_url(self):
-        return '../guest_reports/rock_island_csv?id={}'.format(self.guest_id)
+        return f'../guest_reports/rock_island_csv?id={self.guest_id}'
     
     @property
     def rock_island_square_export_url(self):
@@ -485,7 +485,7 @@ class GuestMerch(MagModel, table=True):
                 match = cls._inventory_file_regex.match(name)
                 if match and getattr(file, 'filename', None):
                     file_type = match.group(1).upper()
-                    config_name = 'ALLOWED_INVENTORY_{}_EXTENSIONS'.format(file_type)
+                    config_name = f'ALLOWED_INVENTORY_{file_type}_EXTENSIONS'
                     extensions = getattr(c, config_name, [])
                     ext = filename_extension(file.filename)
                     if extensions and ext not in extensions:
@@ -513,9 +513,9 @@ class GuestMerch(MagModel, table=True):
             for name, file in [(n, f) for (n, f) in item.items() if f]:
                 match = self._inventory_file_regex.match(name)
                 if match:
-                    download_file_attr = '{}_download_filename'.format(name)
-                    file_attr = '{}_filename'.format(name)
-                    content_type_attr = '{}_content_type'.format(name)
+                    download_file_attr = f'{name}_download_filename'
+                    file_attr = f'{name}_filename'
+                    content_type_attr = f'{name}_content_type'
                     del item[name]
                     if getattr(file, 'filename', None):
                         item[download_file_attr] = file.filename
@@ -535,17 +535,17 @@ class GuestMerch(MagModel, table=True):
     def item_subcategories(cls, item_type):
         s = {getattr(c, s): s for s in c.MERCH_TYPES_VARS}[int(item_type)]
         return (
-            getattr(c, '{}_VARIETIES'.format(s), defaultdict(lambda: {})),
-            getattr(c, '{}_CUTS'.format(s), defaultdict(lambda: {})),
-            getattr(c, '{}_SIZES'.format(s), defaultdict(lambda: {})))
+            getattr(c, f'{s}_VARIETIES', defaultdict(lambda: {})),
+            getattr(c, f'{s}_CUTS', defaultdict(lambda: {})),
+            getattr(c, f'{s}_SIZES', defaultdict(lambda: {})))
 
     @classmethod
     def item_subcategories_opts(cls, item_type):
         s = {getattr(c, s): s for s in c.MERCH_TYPES_VARS}[int(item_type)]
         return (
-            getattr(c, '{}_VARIETIES_OPTS'.format(s), defaultdict(lambda: [])),
-            getattr(c, '{}_CUTS_OPTS'.format(s), defaultdict(lambda: [])),
-            getattr(c, '{}_SIZES_OPTS'.format(s), defaultdict(lambda: [])))
+            getattr(c, f'{s}_VARIETIES_OPTS', defaultdict(lambda: [])),
+            getattr(c, f'{s}_CUTS_OPTS', defaultdict(lambda: [])),
+            getattr(c, f'{s}_SIZES_OPTS', defaultdict(lambda: [])))
 
     @classmethod
     def line_items(cls, item):

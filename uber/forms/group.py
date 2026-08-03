@@ -88,7 +88,7 @@ class AdminTableInfo(TableInfo, AdminGroupInfo):
         if c.MAX_DEALERS:
             return "This {} can add up to {} badges.".format(c.DEALER_TERM, c.MAX_DEALERS)
         else:
-            return "This {} can add badges up to their personal maximum.".format(c.DEALER_TERM)
+            return f"This {c.DEALER_TERM} can add badges up to their personal maximum."
 
 
 class LeaderInfo(MagForm):

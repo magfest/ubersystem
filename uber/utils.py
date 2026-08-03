@@ -194,7 +194,7 @@ def convert_to_absolute_url(relative_uber_page_url):
     if relative_uber_page_url.startswith(c.URL_BASE):
         return relative_uber_page_url
 
-    raise ValueError("relative url MUST start with '../' or '{}'".format(c.PATH))
+    raise ValueError(f"relative url MUST start with '../' or '{c.PATH}'")
 
 
 def make_url(s):
@@ -835,7 +835,7 @@ class days_after(DateBase):
             days = 0
 
         if days < 0:
-            raise ValueError("'days' parameter must be >= 0. days={}".format(days))
+            raise ValueError(f"'days' parameter must be >= 0. days={days}")
 
         self.starting_date = None if not deadline else deadline + timedelta(days=days)
 
@@ -865,7 +865,7 @@ class days_before(DateBase):
     """
     def __init__(self, days, deadline, until=None):
         if days <= 0:
-            raise ValueError("'days' parameter must be > 0. days={}".format(days))
+            raise ValueError(f"'days' parameter must be > 0. days={days}")
 
         if until and days <= until:
             raise ValueError("'days' parameter must be less than 'until'. days={}, until={}".format(days, until))
@@ -1325,8 +1325,8 @@ def valid_password(password):
         return 'Please enter a password.'
 
     if len(password) < c.MINIMUM_PASSWORD_LENGTH:
-        return 'Password must be at least {} characters long.'.format(c.MINIMUM_PASSWORD_LENGTH)
-    if re.search("[^a-zA-Z0-9{}]".format(c.PASSWORD_SPECIAL_CHARS), password):
+        return f'Password must be at least {c.MINIMUM_PASSWORD_LENGTH} characters long.'
+    if re.search(f"[^a-zA-Z0-9{c.PASSWORD_SPECIAL_CHARS}]", password):
         return 'Password must contain only letters, numbers, and the following symbols: ' + c.PASSWORD_SPECIAL_CHARS
     if 'lowercase_char' in c.PASSWORD_CONDITIONS and not re.search("[a-z]", password):
         return 'Password must contain at least one lowercase letter.'
@@ -1336,8 +1336,8 @@ def valid_password(password):
         return 'Password must contain at least one letter.'
     if 'number' in c.PASSWORD_CONDITIONS and not re.search("[0-9]", password):
         return 'Password must contain at least one number.'
-    if 'special_char' in c.PASSWORD_CONDITIONS and not re.search("[{}]".format(c.PASSWORD_SPECIAL_CHARS), password):
-        return 'Password must contain at least one of the following symbols: {}'.format(c.PASSWORD_SPECIAL_CHARS)
+    if 'special_char' in c.PASSWORD_CONDITIONS and not re.search(f"[{c.PASSWORD_SPECIAL_CHARS}]", password):
+        return f'Password must contain at least one of the following symbols: {c.PASSWORD_SPECIAL_CHARS}'
 
 
 class Order:
@@ -1366,7 +1366,7 @@ class RegistrationCode():
 
     _UNAMBIGUOUS_CHARS = string.digits + string.ascii_uppercase
     for _, s in _AMBIGUOUS_CHARS.items():
-        _UNAMBIGUOUS_CHARS = re.sub('[{}]'.format(s), '', _UNAMBIGUOUS_CHARS)
+        _UNAMBIGUOUS_CHARS = re.sub(f'[{s}]', '', _UNAMBIGUOUS_CHARS)
     
     @classmethod
     def sql_normalized_code(cls, code):
@@ -1692,14 +1692,14 @@ def get_api_service_from_server(target_server, api_token):
     import ssl
 
     target_url, target_host, remote_api_token = _format_import_params(target_server, api_token)
-    uri = '{}/jsonrpc/'.format(target_url)
+    uri = f'{target_url}/jsonrpc/'
 
     message, service = '', None
     if target_server or api_token:
         if not remote_api_token:
-            message = 'No API token given and could not find a token for: {}'.format(target_host)
+            message = f'No API token given and could not find a token for: {target_host}'
         elif not target_url:
-            message = 'Unrecognized hostname: {}'.format(target_server)
+            message = f'Unrecognized hostname: {target_server}'
 
         if not message:
             service = ServerProxy(uri=uri, extra_headers={'X-Auth-Token': remote_api_token},
@@ -2155,7 +2155,7 @@ class TaskUtils:
                 paid = c.NOT_PAID
 
             import_from_url = '{}/registration/form?id={}\n\n'.format(import_job.target_server, attendee['id'])
-            new_admin_notes = '{}\n\n'.format(extra_admin_notes) if extra_admin_notes else ''
+            new_admin_notes = f'{extra_admin_notes}\n\n' if extra_admin_notes else ''
             old_admin_notes = ('Old Admin Notes:\n{}\n'.format(attendee['admin_notes'])
                                if attendee['admin_notes'] else '')
 
@@ -2413,7 +2413,7 @@ class TaskUtils:
                 group_attendees = group_results['attendees']
             except Exception as ex:
                 attendee_warning = "Could not import attendees: {}".format(str(ex))
-                import_job.errors += "; {}".format(attendee_warning) if import_job.errors else attendee_warning
+                import_job.errors += f"; {attendee_warning}" if import_job.errors else attendee_warning
 
             # Remove categories that don't exist this year
             current_categories = group_to_import.get('categories', '')

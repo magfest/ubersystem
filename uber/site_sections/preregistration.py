@@ -187,7 +187,7 @@ class Root:
             attendee = session.query(Attendee).filter(func.lower(Attendee.email) == func.lower(params['email']),
                                                       Attendee.is_valid == True).first()
             message = 'Thank you! You will receive a confirmation email if ' \
-                'you are registered for {}.'.format(c.EVENT_NAME_AND_YEAR)
+                f'you are registered for {c.EVENT_NAME_AND_YEAR}.'
 
             subject = c.EVENT_NAME_AND_YEAR + ' Registration Confirmation'
 
@@ -348,7 +348,7 @@ class Root:
                 raise HTTPRedirect("dealer_registration?message={}s must have an invite code to register."
                                    .format(c.DEALER_TERM.capitalize()))
             elif params.get('invite_code') != c.DEALER_INVITE_CODE:
-                raise HTTPRedirect("dealer_registration?message=Incorrect {} invite code.".format(c.DEALER_REG_TERM))
+                raise HTTPRedirect(f"dealer_registration?message=Incorrect {c.DEALER_REG_TERM} invite code.")
 
         params['id'] = 'None'   # security!
         group = Group(is_dealer=True)
@@ -378,7 +378,7 @@ class Root:
                 Tracking.track(session, track_type, group)
                 if 'go_to_cart' in params:
                     raise HTTPRedirect('additional_info?group_id={}{}'
-                                       .format(group.id, "&editing={}".format(edit_id) if edit_id else ""))
+                                       .format(group.id, f"&editing={edit_id}" if edit_id else ""))
                 raise HTTPRedirect("form?dealer_id={}{}".format(group.id,
                                    "&repurchase=1" if params.get('repurchase', '') else ""))
         else:
@@ -620,7 +620,7 @@ class Root:
                     PreregCart.pending_dealers[group.id] = PreregCart.to_sessionized(group,
                                                                                      badge_count=group.badge_count)
                     Tracking.track(session, track_type, group)
-                    url_string = "group_id={}".format(group.id)
+                    url_string = f"group_id={group.id}"
                 else:
                     if attendee.id in PreregCart.unpaid_preregs:
                         track_type = c.EDITED_PREREG
@@ -632,21 +632,21 @@ class Root:
                                                                                        name=params.get('name'),
                                                                                        badges=params.get('badges'))
                     Tracking.track(session, track_type, attendee)
-                    url_string = "attendee_id={}".format(attendee.id)
+                    url_string = f"attendee_id={attendee.id}"
 
                 if not message:
                     if session.attendees_with_badges().filter_by(
                             first_name=attendee.first_name, last_name=attendee.last_name, email=attendee.email).count():
 
-                        raise HTTPRedirect('duplicate?{}'.format(url_string))
+                        raise HTTPRedirect(f'duplicate?{url_string}')
 
                     if attendee.banned:
-                        raise HTTPRedirect('banned?{}'.format(url_string))
+                        raise HTTPRedirect(f'banned?{url_string}')
 
                     if edit_id and params.get('go_to_cart'):
                         raise HTTPRedirect('index')
                     raise HTTPRedirect('additional_info?{}{}{}'.format(
-                        url_string, "&editing={}".format(edit_id) if edit_id else "",
+                        url_string, f"&editing={edit_id}" if edit_id else "",
                         "&repurchase=1" if params.get('repurchase', '') else ""))
 
         promo_code_group = None
@@ -1252,7 +1252,7 @@ class Root:
             raise HTTPRedirect(
                 'group_promo_codes?id={}&message={}',
                 group.id,
-                'You must add at least {} codes.'.format(group.min_badges_addable))
+                f'You must add at least {group.min_badges_addable} codes.')
 
         receipt = session.get_receipt_by_model(group.buyer)
         if receipt:
@@ -1507,13 +1507,13 @@ class Root:
             raise HTTPRedirect(
                 'group_members?id={}&message={}',
                 group.id,
-                'You cannot add fewer than {} badges to this group.'.format(group.min_badges_addable))
+                f'You cannot add fewer than {group.min_badges_addable} badges to this group.')
         
         if group.is_dealer and count > group.dealer_badges_remaining:
             raise HTTPRedirect(
                 'group_members?id={}&message={}',
                 group.id,
-                'You cannot add more than {} badges'.format(group.dealer_badges_remaining))
+                f'You cannot add more than {group.dealer_badges_remaining} badges')
             
         receipt = session.get_receipt_by_model(group)
         if receipt:
@@ -2153,7 +2153,7 @@ class Root:
             set_up_new_account(session, attendee)
 
         raise HTTPRedirect('homepage?message={}', message or
-                           'An email has been sent to {} to set up their account.'.format(attendee.email))
+                           f'An email has been sent to {attendee.email} to set up their account.')
 
     @id_required(Attendee)
     @requires_account(Attendee)
@@ -2437,7 +2437,7 @@ class Root:
             stripe_intent = txn.get_stripe_intent()
 
         if not stripe_intent:
-            return {'error': "Something went wrong. Please contact us at {}.".format(c.REGDESK_EMAIL)}
+            return {'error': f"Something went wrong. Please contact us at {c.REGDESK_EMAIL}."}
 
         if not c.AUTHORIZENET_LOGIN_ID and stripe_intent.status == "succeeded":
             return {'error': "This payment has already been finalized!"}
@@ -2734,7 +2734,7 @@ class Root:
     # TODO: this may be all now-dead one-time code (attendee.owed_shirt doesn't exist anymore)
     def shirt_reorder(self, session, message='', **params):
         attendee = session.attendee(params, restricted=True)
-        assert attendee.owed_shirt, "There's no record of {} being owed a tshirt".format(attendee.full_name)
+        assert attendee.owed_shirt, f"There's no record of {attendee.full_name} being owed a tshirt"
         if 'address' in params:
             if attendee.shirt in [c.NO_SHIRT, c.SIZE_UNKNOWN]:
                 message = 'Please select a shirt size.'

@@ -164,7 +164,7 @@ class Root:
             'receipt': receipt,
             'incomplete_txn': receipt.get_last_incomplete_txn() if receipt else None,
             'homepage_account': session.get_attendee_account_by_attendee(app.attendee),
-            'return_to': 'edit?id={}'.format(app.id),
+            'return_to': f'edit?id={app.id}',
         }
     
     @ajax

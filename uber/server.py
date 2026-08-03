@@ -157,7 +157,7 @@ class StaticViews:
 
     @classmethod
     def raise_not_found(cls, path, e=None):
-        raise cherrypy.HTTPError(404, "The path '{}' was not found.".format(path)) from e
+        raise cherrypy.HTTPError(404, f"The path '{path}' was not found.") from e
 
     @cherrypy.expose
     def index(self):

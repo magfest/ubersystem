@@ -125,7 +125,7 @@ class Root:
             service, uri = None, ''
         else:
             service, message, target_url = get_api_service_from_server(target_server, api_token)
-            uri = '{}/jsonrpc/'.format(target_url)
+            uri = f'{target_url}/jsonrpc/'
 
         department = {}
         from_departments = []
@@ -176,7 +176,7 @@ class Root:
     @ajax_gettable
     def lookup_departments(self, session, target_server='', api_token='', **kwargs):
         service, message, target_url = get_api_service_from_server(target_server, api_token)
-        uri = '{}/jsonrpc/'.format(target_url)
+        uri = f'{target_url}/jsonrpc/'
 
         if not message:
             try:
@@ -204,7 +204,7 @@ class Root:
             **kwargs):
 
         service, message, target_url = get_api_service_from_server(target_server, api_token)
-        uri = '{}/jsonrpc/'.format(target_url)
+        uri = f'{target_url}/jsonrpc/'
 
         if not message and service and cherrypy.request.method == 'POST':
             from_departments = [(id, name) for id, name in sorted(service.dept.list().items(), key=lambda d: d[1])]
@@ -246,6 +246,6 @@ class Root:
                                 to_dept_attraction.signups_open_time = signups_open_time.replace(year=signups_open_time.year + 1)
                             to_department.attractions.append(to_dept_attraction)
 
-            message = 'Successfully imported all departments, roles, job templates, and department attractions from {}'.format(uri)
+            message = f'Successfully imported all departments, roles, job templates, and department attractions from {uri}'
             raise HTTPRedirect('import_shifts?target_server={}&api_token={}&message={}',
                                target_server, api_token, message)

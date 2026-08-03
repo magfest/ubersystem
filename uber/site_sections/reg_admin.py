@@ -507,7 +507,7 @@ class Root:
         session.commit()
         session.check_receipt_closed(item.receipt)
 
-        return {'message': "Item comped{}".format(message_add)}
+        return {'message': f"Item comped{message_add}"}
 
     @ajax
     def undo_refund_receipt_item(self, session, id='', **params):
@@ -564,7 +564,7 @@ class Root:
         session.commit()
         session.check_receipt_closed(item.receipt)
 
-        return {'message': "Item reverted{}".format(message_add)}
+        return {'message': f"Item reverted{message_add}"}
 
     @ajax
     def add_receipt_txn(self, session, id='', **params):
@@ -1138,13 +1138,13 @@ class Root:
 
         messages = []
         if no_attendee:
-            messages.append("{} attendee(s) could not be found.".format(no_attendee))
+            messages.append(f"{no_attendee} attendee(s) could not be found.")
         if invalid_email:
-            messages.append("{} email(s) entered were invalid.".format(invalid_email))
+            messages.append(f"{invalid_email} email(s) entered were invalid.")
         if new_account:
-            messages.append("{} new account(s) were created.".format(new_account))
+            messages.append(f"{new_account} new account(s) were created.")
         if assigned:
-            messages.append("{} attendee(s) were assigned to existing accounts.".format(assigned))
+            messages.append(f"{assigned} attendee(s) were assigned to existing accounts.")
 
         return " ".join(messages)
 
@@ -1168,9 +1168,9 @@ class Root:
 
         messages = []
         if new_account:
-            messages.append("{} new account(s) were created.".format(new_account))
+            messages.append(f"{new_account} new account(s) were created.")
         if assigned:
-            messages.append("{} attendee(s) were assigned to existing accounts.".format(assigned))
+            messages.append(f"{assigned} attendee(s) were assigned to existing accounts.")
 
         raise HTTPRedirect('orphaned_attendees?show_all={}&message={}', show_all, ' '.join(messages))
 
@@ -1556,7 +1556,7 @@ class Root:
                 s=pluralize(attendee_count),
                 a=pluralize(attendee_count, singular='an ' if badge_label.startswith('a') else 'a ', plural=''),
                 badge_label=badge_label,
-                queued='' if not already_queued else ' {} badges are already queued for import.'.format(already_queued),
+                queued='' if not already_queued else f' {already_queued} badges are already queued for import.',
             )
         )
 
@@ -1610,7 +1610,7 @@ class Root:
             '{count} group{s} queued for import.{queued}'.format(
                 count=attendee_count,
                 s=pluralize(attendee_count),
-                queued='' if not already_queued else ' {} groups are already queued for import.'.format(already_queued),
+                queued='' if not already_queued else f' {already_queued} groups are already queued for import.',
             ),
             'groups',
         )

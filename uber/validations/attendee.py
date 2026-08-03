@@ -257,7 +257,7 @@ def out_of_badge_type(form, field):
         try:
             session.get_next_badge_num(badge_type)
         except AssertionError:
-            raise ValidationError('We are sold out of {} badges.'.format(c.BADGES[badge_type]))
+            raise ValidationError(f'We are sold out of {c.BADGES[badge_type]} badges.')
 
 # =============================
 # OtherInfo

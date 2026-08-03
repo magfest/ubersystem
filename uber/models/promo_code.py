@@ -343,11 +343,11 @@ class PromoCode(MagModel, table=True):
             return 'Comped item(s)'
 
         if self.discount_type == c.FIXED_DISCOUNT:
-            return '${} discount'.format(self.discount)
+            return f'${self.discount} discount'
         elif self.discount_type == c.FIXED_PRICE:
-            return '${} price'.format(self.discount)
+            return f'${self.discount} price'
         else:
-            return '%{} discount'.format(self.discount)
+            return f'%{self.discount} discount'
 
     @hybrid_property
     def is_expired(self):

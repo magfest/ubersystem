@@ -307,9 +307,9 @@ class Attraction(MagModel, AttractionMixin, table=True):
                 event_filters += [
                     AttractionEvent.start_time >= from_time + notice_delta,
                     AttractionEvent.start_time < to_time + notice_delta]
-                notice_ident = func.concat(AttractionSignup.attraction_event_id, '_{}'.format(advance_notice))
+                notice_ident = func.concat(AttractionSignup.attraction_event_id, f'_{advance_notice}')
                 notice_param = bindparam(
-                    'advance_notice_{}'.format(advance_notice), advance_notice).label('advance_notice')
+                    f'advance_notice_{advance_notice}', advance_notice).label('advance_notice')
 
             subquery = session.query(AttractionSignup, notice_param).filter(
                 AttractionSignup.is_unchecked_in,

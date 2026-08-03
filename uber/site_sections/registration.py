@@ -281,7 +281,7 @@ class Root:
             message = save_attendee(session, attendee, params)
 
             if not message:
-                message = '{} has been saved'.format(attendee.full_name)
+                message = f'{attendee.full_name} has been saved'
                 if attendee.is_new and c.ADMIN_BADGES_NEED_APPROVAL and not session.current_admin_account().full_registration_admin:
                     attendee.badge_status = c.PENDING_STATUS
                     message += ' as a pending badge'
@@ -580,7 +580,7 @@ class Root:
             .outerjoin(Attendee.active_badge).filter(Attendee.first_name != '',
                                                      Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]))
         attendees = [
-            (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
+            (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], f' #{badge_num}' if badge_num else ''))
             for id, name, badge_type, badge_num in attendee_attrs]
 
         if cherrypy.request.method == 'POST':
@@ -678,7 +678,7 @@ class Root:
         return {
             'attendee':  attendee,
             'changes': session.query(Tracking).filter(
-                or_(and_(Tracking.links.like('%attendee({})%'.format(id))),
+                or_(and_(Tracking.links.like(f'%attendee({id})%')),
                     and_(Tracking.model == 'Attendee', Tracking.fk_id == id))).order_by(Tracking.when).all(),
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(attendee)
                                                                 ).order_by(PageViewTracking.when).all(),
@@ -921,7 +921,7 @@ class Root:
             groups = [(
                 group.id,
                 (group.name if len(group.name) < 30 else '{}...'.format(group.name[:27]))
-                + (' ({})'.format(group.leader.full_name) if group.leader else ''))
+                + (f' ({group.leader.full_name})' if group.leader else ''))
                 for group in valid_groups]
         else:
             groups = []
@@ -1160,7 +1160,7 @@ class Root:
                 elif payment_method == c.STRIPE:
                     raise HTTPRedirect('pay?id={}', attendee.id)
                 elif payment_method == c.CASH:
-                    message = c.AT_DOOR_CASH_MSG.format('${}'.format(attendee.total_cost))
+                    message = c.AT_DOOR_CASH_MSG.format(f'${attendee.total_cost}')
                 elif payment_method == c.MANUAL:
                     message = c.AT_DOOR_MANUAL_MSG
                 message = message or "Thanks! Please proceed to the registration desk to pick up your badge."
@@ -1223,7 +1223,7 @@ class Root:
         session.add_all(charge.get_receipt_items_to_add())
         session.commit()
         if cherrypy.session.get('kiosk_mode'):
-            success_url = 'register?message={}'.format(c.AT_DOOR_PREPAID_MSG)
+            success_url = f'register?message={c.AT_DOOR_PREPAID_MSG}'
         else:
             success_url = 'at_door_complete?id={}&message={}'.format(attendee.id, c.AT_DOOR_PREPAID_MSG)
         return {'stripe_intent': charge.intent,
@@ -1495,7 +1495,7 @@ class Root:
                 if model_id:
                     existing_model = session.get(model_class, model_id)
                     if existing_model:
-                        message = '{} has already been undeleted'.format(tracked_delete.which)
+                        message = f'{tracked_delete.which} has already been undeleted'
                     else:
                         model = model_class(id=model_id).apply(params, restricted=False)
                 else:
@@ -1503,9 +1503,9 @@ class Root:
 
                 if not message:
                     session.add(model)
-                    message = 'Successfully undeleted {}'.format(tracked_delete.which)
+                    message = f'Successfully undeleted {tracked_delete.which}'
             else:
-                message = 'Could not resolve {}'.format(tracked_delete.model)
+                message = f'Could not resolve {tracked_delete.model}'
 
         raise HTTPRedirect('feed?page={}&who={}&what={}&action={}&message={}', page, who, what, action, message)
 
@@ -1607,7 +1607,7 @@ class Root:
         return {
             'attendee': attendee,
             'changes': session.query(Tracking).filter(
-                or_(and_(Tracking.links.like('%attendee({})%'.format(id)),
+                or_(and_(Tracking.links.like(f'%attendee({id})%'),
                          Tracking.model == 'Attendee', Tracking.fk_id == id))).order_by(Tracking.when).all(),
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(attendee)
                                                                 ).order_by(PageViewTracking.when).all(),
@@ -1675,7 +1675,7 @@ class Root:
 
         if not message:
             success = True
-            message = '{} has been saved'.format(attendee.full_name)
+            message = f'{attendee.full_name} has been saved'
 
             if attendee.is_new and c.ADMIN_BADGES_NEED_APPROVAL and not session.current_admin_account().full_registration_admin:
                 attendee.badge_status = c.PENDING_STATUS

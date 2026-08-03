@@ -1318,7 +1318,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     @is_dealer.expression
     def is_dealer(cls):
         return or_(
-            cls.ribbon.like('%{}%'.format(c.DEALER_RIBBON)),
+            cls.ribbon.like(f'%{c.DEALER_RIBBON}%'),
             and_(
                 cls.paid == c.PAID_BY_GROUP,
                 exists().select_from(Group).where(
@@ -1348,8 +1348,8 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         so this property allows you to easily override the message shown to staffers
         without having to override the entire cannot_check_in_reason function.
         """
-        regdesk_info_append = " [{}]".format(self.regdesk_info) if self.regdesk_info else ""
-        return "MUST TALK TO MANAGER before picking up badge{}".format(regdesk_info_append)
+        regdesk_info_append = f" [{self.regdesk_info}]" if self.regdesk_info else ""
+        return f"MUST TALK TO MANAGER before picking up badge{regdesk_info_append}"
 
     @property
     def cannot_check_in_reason(self):
@@ -1361,10 +1361,10 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         if self.badge_status == c.WATCHED_STATUS:
             if self.banned or not self.regdesk_info:
                 return self.watchlist_warning
-            return self.regdesk_info or "Badge status is {}".format(self.badge_status_label)
+            return self.regdesk_info or f"Badge status is {self.badge_status_label}"
 
         if self.badge_status not in [c.COMPLETED_STATUS, c.NEW_STATUS]:
-            return "Badge status is {}".format(self.badge_status_label)
+            return f"Badge status is {self.badge_status_label}"
 
         if self.group and self.paid == c.PAID_BY_GROUP and self.group.is_dealer \
                 and self.group.status not in c.DEALER_ACCEPTED_STATUSES:
@@ -1694,7 +1694,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         if self.admin_account:
             reasons.append("they have an admin account")
         if self.badge_type not in c.TRANSFERABLE_BADGE_TYPES:
-            reasons.append("their badge type ({}) is not transferable".format(self.badge_type_label))
+            reasons.append(f"their badge type ({self.badge_type_label}) is not transferable")
         if self.dept_memberships_with_inherent_role:
             reasons.append("they are a department head, checklist admin, \
                            or point of contact for the following departments: {}".format(
@@ -1790,7 +1790,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     def donation_swag(self):
         donation_items = [
             desc for amount, desc in sorted(c.DONATION_TIERS.items()) if amount and (self.amount_extra or 0) >= amount]
-        extra_donations = ['Extra donation of ${}'.format(self.extra_donation)] if self.extra_donation else []
+        extra_donations = [f'Extra donation of ${self.extra_donation}'] if self.extra_donation else []
         return donation_items + extra_donations
 
     @property
@@ -1876,9 +1876,9 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
             if self.shirt_size_marked:
                 try:
                     if c.STAFF_SHIRT_OPTS != c.SHIRT_OPTS:
-                        staff_shirts += ' [{}]'.format(c.STAFF_SHIRTS[self.staff_shirt])
+                        staff_shirts += f' [{c.STAFF_SHIRTS[self.staff_shirt]}]'
                     else:
-                        staff_shirts += ' [{}]'.format(c.SHIRTS[self.shirt])
+                        staff_shirts += f' [{c.SHIRTS[self.shirt]}]'
                 except KeyError:
                     staff_shirts += ' [{}]'.format("Size unknown")
             merch.append(staff_shirts)
@@ -1900,7 +1900,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         stuff = [] if not self.ribbon else ['a ' + s + ' ribbon' for s in self.ribbon_labels]
 
         if c.WRISTBANDS_ENABLED:
-            stuff.append('a {} wristband'.format(c.WRISTBAND_COLORS[self.age_group]))
+            stuff.append(f'a {c.WRISTBAND_COLORS[self.age_group]} wristband')
         if self.regdesk_info:
             stuff.append(self.regdesk_info)
         return (' with ' if stuff else '') + readable_join(stuff)

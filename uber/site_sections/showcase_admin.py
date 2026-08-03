@@ -78,7 +78,7 @@ class Root:
         return {
             'studio': studio,
             'changes': session.query(Tracking).filter(or_(
-                Tracking.links.like('%indie_studio({})%'.format(id)),
+                Tracking.links.like(f'%indie_studio({id})%'),
                 and_(Tracking.model == 'IndieStudio', Tracking.fk_id == id))).order_by(Tracking.when).all(),
         }
     
@@ -212,7 +212,7 @@ class Root:
             'nonmatching': nonmatching,
             'matching_genre': matching_genre,
             'changes': session.query(Tracking).filter(or_(
-                Tracking.links.like('%indie_judge({})%'.format(id)),
+                Tracking.links.like(f'%indie_judge({id})%'),
                 and_(Tracking.model == 'IndieJudge', Tracking.fk_id == id))).order_by(Tracking.when).all(),
             'emails': session.query(Email).filter(Email.model == 'IndieJudge',
                                                   Email.fk_id == judge.id).order_by(Email.generated).all(),
@@ -313,7 +313,7 @@ class Root:
             'matching_genre': matching_genre,
             'nonmatching': nonmatching,
             'changes': session.query(Tracking).filter(or_(
-                Tracking.links.like('%indie_game({})%'.format(id)),
+                Tracking.links.like(f'%indie_game({id})%'),
                 and_(Tracking.model == 'IndieGame', Tracking.fk_id == id))).order_by(Tracking.when).all(),
             'emails': session.query(Email).filter(Email.model == 'IndieGame',
                                                   Email.fk_id == game.id).order_by(Email.generated).all(),

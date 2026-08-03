@@ -76,11 +76,11 @@ class Root:
         attendee = session.attendee(id)
         if attendee.group:
             if c.HAS_REGISTRATION_ACCESS:
-                link = '../registration/form?id={}&'.format(attendee.id)
+                link = f'../registration/form?id={attendee.id}&'
             else:
                 link = '../accounts/homepage?'
             raise HTTPRedirect('{}message={}', link, "That attendee is already in a group!")
-        group = Group(name="{}'s Group".format(attendee.full_name))
+        group = Group(name=f"{attendee.full_name}'s Group")
         attendee.group = group
         group.leader = attendee
         session.add(group)
@@ -296,7 +296,7 @@ class Root:
         return {
             'group': group,
             'changes': session.query(Tracking).filter(or_(
-                Tracking.links.like('%group({})%'.format(id)),
+                Tracking.links.like(f'%group({id})%'),
                 and_(Tracking.model == 'Group', Tracking.fk_id == id))).order_by(Tracking.when).all(),
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(group)
                                                                 ).order_by(PageViewTracking.when).all(),
@@ -365,9 +365,9 @@ class Root:
                     if field in params:
                         field_name = "load-in" if field == 'estimated_loadin_minutes' else 'performance'
                         if not params.get(field):
-                            message = "Please enter more than 0 estimated {} minutes".format(field_name)
+                            message = f"Please enter more than 0 estimated {field_name} minutes"
                         elif not str(params.get(field, '')).isdigit():
-                            message = "Please enter a whole number for estimated {} minutes".format(field_name)
+                            message = f"Please enter a whole number for estimated {field_name} minutes"
             if not message:
                 raise HTTPRedirect('index?message={}{}', guest.group.name, ' data uploaded')
 

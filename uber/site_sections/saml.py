@@ -85,7 +85,7 @@ class Root:
                         for attendee in all_matching_attendees:
                             session.add_attendee_to_account(attendee, account)
                     else:
-                        message = "We could not find any registrations matching the email {}.".format(account_email)
+                        message = f"We could not find any registrations matching the email {account_email}."
 
                 if account:
                     cherrypy.session['attendee_account_id'] = account.id
@@ -122,7 +122,7 @@ class Root:
                         our_netloc = urlparse(c.URL_ROOT).netloc
                         redirect_netloc = urlparse(redirect_url).netloc
                         if not redirect_netloc or redirect_netloc != our_netloc:
-                            log.error("SAML authentication used invalid redirect URL: {}".format(redirect_url))
+                            log.error(f"SAML authentication used invalid redirect URL: {redirect_url}")
                             redirect_url = None
                         if redirect_url and 'accounts' in redirect_url and not admin_account:
                             # Prevents a redirect loop if someone tries to log in as an admin with no admin account

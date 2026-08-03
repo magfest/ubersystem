@@ -51,7 +51,7 @@ class Root:
                                                      Attendee.badge_status != c.WATCHED_STATUS)
 
         attendees = [
-            (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
+            (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], f' #{badge_num}' if badge_num else ''))
             for id, name, badge_type, badge_num in attendee_attrs]
         
         forms_list = ["AdminArtistMarketplaceForm"]
@@ -126,7 +126,7 @@ class Root:
                 c.SQUARE: "SPIn" if c.SPIN_TERMINAL_AUTH_KEY else "Square",
                 c.MANUAL: "Stripe"},
             'changes': session.query(Tracking).filter(
-                or_(Tracking.links.like('%artist_marketplace_application({})%'.format(id)),
+                or_(Tracking.links.like(f'%artist_marketplace_application({id})%'),
                     and_(Tracking.model == 'ArtistMarketplaceApplication',
                          Tracking.fk_id == id))).order_by(Tracking.when).all(),
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(app)

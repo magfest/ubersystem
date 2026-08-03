@@ -36,7 +36,7 @@ def create_data_dirs():
 
     for directory in c.DATA_DIRS.values():
         if not os.path.exists(directory):
-            log.info('Creating directory {}'.format(directory))
+            log.info(f'Creating directory {directory}')
             os.makedirs(directory, mode=0o744)
 
 cherrypy.engine.subscribe('start', create_data_dirs, priority=98)

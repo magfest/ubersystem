@@ -88,7 +88,7 @@ def get_external_schedule_menu_name():
     if getattr(c, 'ALT_SCHEDULE_URL', ''):
         try:
             url = urlparse(c.ALT_SCHEDULE_URL)
-            return 'View External Public Schedule on {}'.format(url.netloc)
+            return f'View External Public Schedule on {url.netloc}'
         except Exception:
             log.warning('Menu: Unable to parse ALT_SCHEDULE_URL: "{}"', c.ALT_SCHEDULE_URL)
             return 'View External Public Schedule'

@@ -728,10 +728,10 @@ def pages(page, count):
     pages = []
     for pagenum in range(1, int(math.ceil(count / 100)) + 1):
         if pagenum == page:
-            pages.append('<li class="page-item active"><a class="page-link" href="#">{}</a></li>'.format(pagenum))
+            pages.append(f'<li class="page-item active"><a class="page-link" href="#">{pagenum}</a></li>')
         else:
             path = cherrypy.request.request_line.split()[1].split('/')[-1]
-            page_qs = 'page={}'.format(pagenum)
+            page_qs = f'page={pagenum}'
             if 'page=' in path:
                 path = re.sub(r'page=\d+', page_qs, path)
             else:
