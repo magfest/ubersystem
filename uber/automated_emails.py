@@ -1006,7 +1006,7 @@ class DeptChecklistEmailFixture(AutomatedEmailFixture):
             Attendee,
             f'{c.EVENT_NAME} Department Checklist: ' + conf.name,
             'shifts/dept_checklist.txt',
-            "lambda a: a.admin_account and any(not d.checklist_item_for_slug(conf.slug) for d in a.checklist_admin_depts)",
+            f"lambda a: a.admin_account and any(not d.checklist_item_for_slug({conf.slug}) for d in a.checklist_admin_depts)",
             'department_checklist_{}'.format(conf.name),
             when=when,
             sender=c.STAFF_EMAIL,

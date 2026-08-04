@@ -2459,9 +2459,14 @@ def _track_changes(session, context, instances='deprecated'):
 
 def _check_emails(session, instances='deprecated'):
     from uber.email import EmailService
+    import traceback
 
     for model in chain(session.dirty, session.new):
-        EmailService.check_emails_for_model(session, model)
+        try:
+            EmailService.check_emails_for_model(session, model)
+        except Exception as e:
+            log.error(f"Error generating emails for {model.__repr__()}: {e}")
+            traceback.print_exc()
 
 
 def register_session_listeners():
