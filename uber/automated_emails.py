@@ -118,6 +118,7 @@ class AutomatedEmailFixture:
         before = [d.active_before for d in when if d.active_before]
         self.active_before = max(before) if before else None
 
+        self.template_path = ""
         self.template_plugin_name = ""
         self.template_url = ""
 
@@ -1836,32 +1837,33 @@ if c.PANELS_START:
 
     PanelAppEmailFixture(
         f'Your {c.EVENT_NAME} Panel Application Has Been Accepted: ' + '{app.name}',
-        'panels/panel_app_accepted.txt',
+        'panels/panel_app_accepted.html',
         "lambda app: app.status == c.ACCEPTED and int(app.department) in c.EMAILLESS_PANEL_DEPTS",
         'panel_accepted')
 
     PanelAppEmailFixture(
         f'Your {c.EVENT_NAME} Panel Application Has Been Declined: ' + '{app.name}',
-        'panels/panel_app_declined.txt',
+        'panels/panel_app_declined.html',
         "lambda app: app.status == c.DECLINED and int(app.department) in c.EMAILLESS_PANEL_DEPTS",
         'panel_declined')
 
     PanelAppEmailFixture(
         f'Your {c.EVENT_NAME} Panel Application Has Been Waitlisted: ' + '{app.name}',
-        'panels/panel_app_waitlisted.txt',
+        'panels/panel_app_waitlisted.html',
         "lambda app: app.status == c.WAITLISTED and int(app.department) in c.EMAILLESS_PANEL_DEPTS",
         'panel_waitlisted')
 
-    PanelAppEmailFixture(
-        'Last chance to confirm your panel',
-        'panels/panel_accept_reminder.txt',
-        "lambda app: c.PANELS_CONFIRM_DEADLINE and app.confirm_deadline and int(app.department) in c.EMAILLESS_PANEL_DEPTS \
-            and (localized_now() + timedelta(days=2)) > app.confirm_deadline",
-        'panel_accept_reminder')
+    if c.PANELS_CONFIRM_DEADLINE:
+        PanelAppEmailFixture(
+            'Last chance to confirm your panel',
+            'panels/panel_accept_reminder.html',
+            "lambda app: c.PANELS_CONFIRM_DEADLINE and app.confirm_deadline and int(app.department) in c.EMAILLESS_PANEL_DEPTS \
+                and (localized_now() + timedelta(days=2)) > app.confirm_deadline",
+            'panel_accept_reminder')
 
     PanelAppEmailFixture(
         f'Your {c.EVENT_NAME} Panel Application Has Been Automatically Waitlisted: ' + '{app.name}',
-        'panels/panel_app_waitlisted.txt', None,
+        'panels/panel_app_waitlisted.html', None,
         'panel_waitlisted',
         send_filter="lambda app: app.status == c.WAITLISTED",
         shared_ident='panelapps_waitlisted'
@@ -1869,14 +1871,14 @@ if c.PANELS_START:
 
     PanelAppEmailFixture(
         f'Your {c.EVENT_NAME} Panel Has Been Scheduled: ' + '{app.name}',
-        'panels/panel_app_scheduled.txt',
+        'panels/panel_app_scheduled.html',
         "lambda app: app.event_id and int(app.department) in c.EMAILLESS_PANEL_DEPTS",
         'panel_scheduled')
 
     AutomatedEmailFixture(
         Attendee,
         f'Your {c.EVENT_NAME} Event Schedule',
-        'panels/panelist_schedule.txt',
+        'panels/panelist_schedule.html',
         "lambda a: a.badge_type != c.GUEST_BADGE and a.assigned_panelists",
         'event_schedule',
         sender=c.PANELS_EMAIL)

@@ -1,0 +1,15 @@
+<html>
+<head></head>
+<body>
+{{ app.submitter.first_name }},
+
+<br/><br/>Congratulations again for your panel submission ({{ app.name }}) being accepted for {{ c.EVENT_NAME_AND_YEAR }}!
+
+<br/><br/>You still haven't confirmed that you can host the panel your submitted. You may do so by clicking the following link: {{ c.URL_BASE }}/panels/confirm_panel?id={{ app.id }}
+
+<br/><br/>If you don't confirm you can run the panel by {{ app.confirm_deadline|datetime_local }}, your application will automatically be waitlisted.
+
+<br/><br/>If you cannot make it, please contact us at {{ c.PANELS_EMAIL|email_only }} to let us know. Thank you!
+
+<br/><br/>{{ email_signature }}
+</body></html>
