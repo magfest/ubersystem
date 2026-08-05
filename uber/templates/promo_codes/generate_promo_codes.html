@@ -324,7 +324,11 @@ $(document).ready(function() {
             {{ macros.checkgroup_opts('discount_on', c.DISCOUNT_ON_OPTS, defaults=[c.BASE_BADGE|string]) }}
           </div>
         </fieldset>
-        <div class="form-text">This promo code's discount will apply separately to each of the categories selected above.</div>
+        <div class="form-text">
+          This promo code's discount will apply separately to each of the categories selected above.
+          {% if c.BADGE_TYPE_PRICES %}Discounts on badge upgrades only cover the difference between the upgraded badge cost and the {{ c.BADGES[c.ATTENDEE_BADGE] }} badge cost.<br/>{% endif %}
+          "{{ c.DISCOUNT_ONS[c.EVERYTHING] }}" will apply to the total cost of a badge, including upgrades and add-ons.
+        </div>
       </div>
     </div>
 

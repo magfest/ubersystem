@@ -1161,13 +1161,13 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
             return 0
 
         if self.active_receipt:
-            return self.active_receipt.item_total / 100
+            return (self.active_receipt.item_total - self.active_receipt.discount_total) / 100
         return self.default_cost or self.calc_default_cost()
 
     @property
     def total_cost_if_valid(self):
         if self.active_receipt:
-            return self.active_receipt.item_total / 100
+            return (self.active_receipt.item_total - self.active_receipt.discount_total) / 100
         return self.default_cost or self.calc_default_cost()
 
     @property
@@ -2803,6 +2803,8 @@ class BadgePickupGroup(MagModel, table=True):
         
         for attendee in pending_free_badges:
             attendee.badge_status = c.COMPLETED_STATUS
+            if attendee.paid == c.PENDING:
+                attendee.paid = c.NEED_NOT_PAY
             attendee.badge_pickup_group_id = None
             session.add(attendee)
     

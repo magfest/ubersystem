@@ -71,13 +71,13 @@ def create_badge_nums():
 
 
 @celery.task
-def update_receipt(attendee_id, params):
-    with Session() as session:
-        attendee = session.attendee(attendee_id)
-        receipt = session.get_receipt_by_model(attendee)
-        if receipt:
-            ReceiptManager.auto_update_receipt(session, attendee, receipt, params)
-            session.commit()
+def update_receipt(attendee_id, params, session=None):
+    session = session or Session()
+    attendee = session.attendee(attendee_id)
+    receipt = session.get_receipt_by_model(attendee)
+    if receipt:
+        ReceiptManager.auto_update_receipt(session, attendee, receipt, params)
+        session.commit()
 
 
 @celery.schedule(crontab(minute=0, hour='*/6'))

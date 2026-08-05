@@ -602,8 +602,11 @@ class ReceiptDiscount(MagModel, table=True):
                 return
             if self.department == c.REG_RECEIPT_ITEM:
                 category = c.BADGE_DISCOUNT
-            _, base_cost, _ = base_badge_cost(attendee)
-            base_cost = base_cost / 100
+            if attendee.badge_cost:
+                base_cost = attendee.badge_cost
+            else:
+                _, base_cost, _ = base_badge_cost(attendee)
+                base_cost = base_cost / 100
             if attendee.badge_type in c.BADGE_TYPE_PRICES:
                 discount_label = f"{c.BADGES[c.ATTENDEE_BADGE]} badge"
             else:

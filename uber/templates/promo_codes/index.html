@@ -172,7 +172,7 @@ $(document).ready(function() {
           {% endfor %}
         </td>
         {% if show == 'admin' %}
-        <td data-search="{{ promo_code.admin_notes }}">
+        <td data-search="{{ promo_code.admin_notes }}" data-order="{{ promo_code.admin_notes }}">
           <input type="text" form="update_promo_code_{{ promo_code.id }}" name="admin_notes" class="form-control" size="30" placeholder="E.g., intended usage, department" value="{{ promo_code.admin_notes }}">
         </td>
         {% else %}
