@@ -20,11 +20,22 @@
 
 <div x-data="{ {% block x_data %}{% endblock %} }">
 
+{% set ro_fields = {} %}
+{% for field_name, _ in panelist_info.field_list + panelist_credentials.field_list %}
+  {% if pi_readonly or readonly_fields[field_name]|boolean and not panelist_info._prefix %}
+    {% set x = ro_fields.update({field_name: True}) %}
+  {% endif %}
+{% endfor %}
+
 <h3>Personal Information</h3>
+<p>
+  If submitting multiple panels, the information below (including credentials) will be applied to all panel submissions.
+  <strong>Please only submit a panel if you will be the point of contact for it.</strong>
+</p>
 <div class="row g-3 mb-3">
 {% block name %}
-<div class="col-sm">{{ form_macros.input(panelist_info.first_name, readonly=(pi_readonly or readonly_fields.first_name|boolean and not panelist_info._prefix)) }}</div>
-<div class="col-sm">{{ form_macros.input(panelist_info.last_name, readonly=(pi_readonly or readonly_fields.last_name|boolean and not panelist_info._prefix)) }}</div>
+<div class="col-sm">{{ form_macros.input(panelist_info.first_name, readonly=ro_fields['first_name'] == True) }}</div>
+<div class="col-sm">{{ form_macros.input(panelist_info.last_name, readonly=ro_fields['last_name'] == True) }}</div>
 {% endblock %}
 </div>
 
@@ -32,7 +43,7 @@
 <div class="row g-3 mb-3">
 {% block contact_info %}
   <div class="col-sm">
-    {{ form_macros.input(panelist_info.email, readonly=(pi_readonly or readonly_fields.email|boolean and not panelist_info._prefix)) }}
+    {{ form_macros.input(panelist_info.email, readonly=ro_fields['email'] == True) }}
   </div>
   <div class="col-sm">
     {% set cellphone_from_attendee = panelist and panelist.attendee|yesno and panelist_info.cellphone.data != '' and panelist_info.cellphone.data == panelist.attendee.cellphone %}
@@ -41,9 +52,9 @@
 </div>
 <div class="row g-3 mb-3">
   <div class="col-sm mt-0">
-      {% call form_macros.input(panelist_info.communication_pref) %}
+      {% call form_macros.input(panelist_info.communication_pref, disabled=ro_fields['communication_pref'] == True) %}
       <div class="d-flex gap-1 mt-2">
-        <div class="col-form-label">Or: </div><div class=flex-grow-1>{{ form_macros.input(panelist_info.other_communication_pref, show_label=False) }}</div>
+        <div class="col-form-label">Or: </div><div class=flex-grow-1>{{ form_macros.input(panelist_info.other_communication_pref, show_label=False, readonly=ro_fields['other_communication_pref'] == True) }}</div>
       </div>
       {% endcall %}
   </div>
@@ -53,18 +64,18 @@
 
 <div class="row g-3 mb-3">
 {% block pronouns %}
-  <div class="col-sm">{{ form_macros.input(panelist_info.display_name) }}</div>
+  <div class="col-sm">{{ form_macros.input(panelist_info.display_name, readonly=ro_fields['display_name'] == True) }}</div>
   <div class="col-sm">
-      {% call form_macros.input(panelist_info.pronouns) %}
+      {% call form_macros.input(panelist_info.pronouns, readonly=ro_fields['pronouns'] == True) %}
       <div class="row mt-2"><div class="col d-flex gap-1">
-      <div class="col-form-label">Other: </div><div>{{ form_macros.input(panelist_info.other_pronouns, show_label=False) }}</div>
+      <div class="col-form-label">Other: </div><div>{{ form_macros.input(panelist_info.other_pronouns, show_label=False, readonly=ro_fields['other_pronouns'] == True) }}</div>
       </div></div>
       {% endcall %}
   </div>
 </div>
 <div class="row g-sm-3 mb-3">
   <div class="col-sm">
-    {{ form_macros.input(panelist_info.requested_accessibility_services) }}
+    {{ form_macros.input(panelist_info.requested_accessibility_services, readonly=ro_fields['requested_accessibility_services'] == True) }}
   </div>
 {% endblock %}
 </div>
@@ -72,17 +83,18 @@
 
 {% if not is_guest %}
 <h3>Credentials</h3>
+<p>If submitting for multiple panels, please include credentials for all submissions.</p>
 <div class="row g-3 mb-3">
 {% block credentials %}
-<div class="col-sm">{{ form_macros.input(panelist_credentials.occupation) }}</div>
-<div class="col-sm">{{ form_macros.input(panelist_credentials.website) }}</div>
+<div class="col-sm">{{ form_macros.input(panelist_credentials.occupation, readonly=ro_fields['occupation'] == True) }}</div>
+<div class="col-sm">{{ form_macros.input(panelist_credentials.website, readonly=ro_fields['website'] == True) }}</div>
 </div>
 <div class="row g-3 mb-3">
     <div class="col-sm">
-        {{ form_macros.input(panelist_credentials.other_credentials) }}
+        {{ form_macros.input(panelist_credentials.other_credentials, readonly=ro_fields['other_credentials'] == True) }}
     </div>
     <div class="col-sm">
-        {{ form_macros.input(panelist_credentials.social_media_info) }}
+        {{ form_macros.input(panelist_credentials.social_media_info, readonly=ro_fields['social_media_info'] == True) }}
     </div>
 {% endblock %}
 </div>
@@ -91,7 +103,7 @@
 <div class="row g-3 mb-3">
 {% block schedule_info %}
   <div class="col-sm">
-    {{ form_macros.input(panelist_credentials.guidebook_bio) }}
+    {{ form_macros.input(panelist_credentials.guidebook_bio, readonly=ro_fields['guidebook_bio'] == True) }}
   </div>
 {% endblock %}
 </div>

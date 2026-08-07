@@ -40,16 +40,21 @@ class Root:
         app = PanelApplication()
         is_guest = False
         readonly_fields = {}
+        attrs = [key for key in PanelApplicant().to_dict().keys() if key not in [
+                'id', 'created', 'last_updated', 'external_id', 'last_synced', 'attendee_id', 'submitter', '_model']]
 
         if attendee_id:
             attendee = session.attendee(id=attendee_id)
             if attendee.badge_type != c.GUEST_BADGE:
                 add_opt(attendee.ribbon_ints, c.PANELIST_RIBBON)
-            is_guest = attendee.group if attendee.group.guest else None
+            is_guest = attendee.group if attendee.group and attendee.group.guest else None
             if attendee.panel_applicants:
                 panelist = sorted(attendee.panel_applicants, key=lambda p: p.submitter)[0]
-                for attr in ['first_name', 'last_name', 'email', 'cellphone']:
-                    setattr(panelist, attr, getattr(attendee, attr))
+                for attr in attrs:
+                    if params.get(attr, None):
+                        setattr(panelist, attr, params[attr])
+                    elif attr in ['first_name', 'last_name', 'email', 'cellphone'] and getattr(attendee, attr):
+                        setattr(panelist, attr, getattr(attendee, attr))
             else:
                 panelist = PanelApplicant(
                     attendee_id=attendee.id,
@@ -60,10 +65,13 @@ class Root:
                 )
         else:
             panelist = PanelApplicant()
-            for attr in ['first_name', 'last_name', 'email', 'cellphone']:
+            for attr in attrs:
                 if params.get(attr, None):
                     setattr(panelist, attr, params[attr])
-                    readonly_fields[attr] = True
+        
+        for attr in attrs:
+            if getattr(panelist, attr):
+                readonly_fields[attr] = True
 
         panelist_forms = get_other_panelists_forms(4, submitter=panelist, **params)
         form_list = ['PanelInfo', 'PanelOtherInfo']

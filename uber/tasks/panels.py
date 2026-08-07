@@ -129,7 +129,11 @@ def panels_waitlist_unaccepted_panels():
             if not app.confirmed and app.after_confirm_deadline:
                 app.status = c.WAITLISTED
                 session.commit()
-                EmailService.queue_email(session, 'panel_waitlisted', app)
+                if not app.department or app.department == c.get_panels_id:
+                    EmailService.queue_email(session, 'panel_waitlisted_auto', app)
+                else:
+                    dept = session.get(Department, app.department)
+                    EmailService.queue_email(session, f'panelapps_waitlisted_auto_{slugify(dept.name)}', app)
 
 
 @celery.schedule(timedelta(minutes=30))
@@ -207,6 +211,14 @@ def setup_panel_emails(reconcile_fixtures=True):
                 sender=sender,
                 shared_ident='panelapps_accept_reminder',
                 ident=f'panelapps_accept_reminder_{slugify(name)}')
+            
+            custom_panel_app_email(
+                f'Your {c.EVENT_NAME} Panel Application Has Been Automatically Waitlisted: ' + '{app.name}',
+                'panels/panel_app_waitlisted.html', None,
+                sender=sender,
+                send_filter="lambda app: app.status == c.WAITLISTED",
+                shared_ident='panelapps_waitlisted_auto',
+                ident=f'panelapps_waitlisted_auto_{slugify(name)}')
 
         custom_panel_app_email(
             f'Your {c.EVENT_NAME} Panel Has Been Scheduled: ' + '{app.name}',
