@@ -1288,7 +1288,8 @@ class UberSession(sqlalchemy.orm.Session):
             if attendee not in account.attendees:
                 account.unused_years = 0
                 account.attendees.append(attendee)
-                attendee.admin_account.sso_id = account.sso_id
+                if attendee.admin_account:
+                    attendee.admin_account.sso_id = account.sso_id
 
         def match_attendee_to_account(self, attendee):
             existing_account = self.query(AttendeeAccount
