@@ -8,6 +8,7 @@ from sqlalchemy import or_
 
 from uber.automated_emails import PanelAppEmailFixture
 from uber.config import c
+from uber.custom_tags import email_only
 from uber.decorators import render
 from uber.email import EmailService
 from uber.models import Email, Session, Tracking, Department, EventLocation, AutomatedEmail
@@ -128,7 +129,11 @@ def panels_waitlist_unaccepted_panels():
             if not app.confirmed and app.after_confirm_deadline:
                 app.status = c.WAITLISTED
                 session.commit()
-                EmailService.queue_email(session, 'panel_waitlisted', app)
+                if not app.department or app.department == c.get_panels_id:
+                    EmailService.queue_email(session, 'panel_waitlisted_auto', app)
+                else:
+                    dept = session.get(Department, app.department)
+                    EmailService.queue_email(session, f'panelapps_waitlisted_auto_{slugify(dept.name)}', app)
 
 
 @celery.schedule(timedelta(minutes=30))
@@ -151,17 +156,18 @@ def setup_panel_emails(reconcile_fixtures=True):
             elif fixture.ident in AutomatedEmail._fixtures:
                 emails_to_add.pop(fixture.sender, None)
 
-        emails_to_add.pop(c.PANELS_EMAIL, None)
+        emails_to_add.pop(email_only(c.PANELS_EMAIL), None)
 
     for email, (id, name) in emails_to_add.items():
         sender = f'{c.EVENT_NAME} {name} <{email}>'
 
-        def custom_panel_app_email(subject, template, filter, ident, dept_id=id, **kwargs):
+        def custom_panel_app_email(subject, template, filter, ident, dept_id=id, dept_name=name, dept_email=email, **kwargs):
             PanelAppEmailFixture(
                 subject,
                 template,
                 lambda app: filter(app) and app.department == dept_id,
                 ident,
+                extra_data={'dept_name': dept_name, 'dept_email': dept_email},
                 **kwargs)
 
         custom_panel_app_email(
@@ -174,7 +180,7 @@ def setup_panel_emails(reconcile_fixtures=True):
 
         custom_panel_app_email(
             f'Your {c.EVENT_NAME} Panel Application Has Been Accepted: ' + '{app.name}',
-            'panels/panel_app_accepted.txt',
+            'panels/panel_app_accepted.html',
             lambda app: app.status == c.ACCEPTED,
             sender=sender,
             shared_ident='panelapps_accepted',
@@ -182,7 +188,7 @@ def setup_panel_emails(reconcile_fixtures=True):
 
         custom_panel_app_email(
             f'Your {c.EVENT_NAME} Panel Application Has Been Declined: ' + '{app.name}',
-            'panels/panel_app_declined.txt',
+            'panels/panel_app_declined.html',
             lambda app: app.status == c.DECLINED,
             sender=sender,
             shared_ident='panelapps_declined',
@@ -190,24 +196,33 @@ def setup_panel_emails(reconcile_fixtures=True):
 
         custom_panel_app_email(
             f'Your {c.EVENT_NAME} Panel Application Has Been Waitlisted: ' + '{app.name}',
-            'panels/panel_app_waitlisted.txt',
+            'panels/panel_app_waitlisted.html',
             lambda app: app.status == c.WAITLISTED,
             sender=sender,
             shared_ident='panelapps_waitlisted',
             ident=f'panelapps_waitlisted_{slugify(name)}')
 
-        custom_panel_app_email(
-            'Last chance to confirm your panel',
-            'panels/panel_accept_reminder.txt',
-            lambda app: (c.PANELS_CONFIRM_DEADLINE and app.confirm_deadline
-                         and (localized_now() + timedelta(days=2)) > app.confirm_deadline),
-            sender=sender,
-            shared_ident='panelapps_accept_reminder',
-            ident=f'panelapps_accept_reminder_{slugify(name)}')
+        if c.PANELS_CONFIRM_DEADLINE:
+            custom_panel_app_email(
+                'Last chance to confirm your panel',
+                'panels/panel_accept_reminder.html',
+                lambda app: (c.PANELS_CONFIRM_DEADLINE and app.confirm_deadline
+                            and (localized_now() + timedelta(days=2)) > app.confirm_deadline),
+                sender=sender,
+                shared_ident='panelapps_accept_reminder',
+                ident=f'panelapps_accept_reminder_{slugify(name)}')
+            
+            custom_panel_app_email(
+                f'Your {c.EVENT_NAME} Panel Application Has Been Automatically Waitlisted: ' + '{app.name}',
+                'panels/panel_app_waitlisted.html', None,
+                sender=sender,
+                send_filter="lambda app: app.status == c.WAITLISTED",
+                shared_ident='panelapps_waitlisted_auto',
+                ident=f'panelapps_waitlisted_auto_{slugify(name)}')
 
         custom_panel_app_email(
             f'Your {c.EVENT_NAME} Panel Has Been Scheduled: ' + '{app.name}',
-            'panels/panel_app_scheduled.txt',
+            'panels/panel_app_scheduled.html',
             lambda app: app.event_id,
             sender=sender,
             shared_ident='panelapps_scheduled',

@@ -1279,11 +1279,17 @@ class UberSession(sqlalchemy.orm.Session):
         def add_attendee_to_account(self, attendee, account):
             unclaimed_account = account.hashed != '' and not account.is_sso_account
 
+            if attendee.admin_account and attendee.admin_account.sso_id and attendee.admin_account.sso_id != account.sso_id:
+                log.error(f"Tried to add attendee {attendee.full_name} to account {account.email}, but their admin account has already been claimed.")
+                return
+
             if c.ONE_MANAGER_PER_BADGE and attendee.managers and not unclaimed_account:
                 attendee.managers.clear()
             if attendee not in account.attendees:
                 account.unused_years = 0
                 account.attendees.append(attendee)
+                if attendee.admin_account:
+                    attendee.admin_account.sso_id = account.sso_id
 
         def match_attendee_to_account(self, attendee):
             existing_account = self.query(AttendeeAccount
@@ -2196,23 +2202,17 @@ class UberSession(sqlalchemy.orm.Session):
         # ========================
 
         def logged_in_judge(self):
-            if getattr(cherrypy, 'session', {}).get('account_id'):
-                try:
-                    return self.query(IndieJudge).join(IndieJudge.admin_account).filter(
-                        AdminAccount.id == cherrypy.session.get('account_id')).one()
-                except NoResultFound:
-                    raise HTTPRedirect(
-                        '../accounts/homepage?message={}',
-                        'You have been given judge access but not had a judge entry created for you - '
-                        'please contact a MIVS admin to correct this.')
-
-        def code_for(self, game):
-            if game.unlimited_code:
-                return game.unlimited_code
-            else:
-                for code in self.logged_in_judge().codes:
-                    if code.game == game:
-                        return code
+            account_id = getattr(cherrypy, 'session', {}).get('account_id', getattr(cherrypy.request, 'admin_account', None))
+            if not account_id:
+                raise HTTPRedirect('../landing/index?message=', 'You are not logged in or you do not have judge access.')
+            try:
+                return self.query(IndieJudge).join(IndieJudge.admin_account).filter(
+                    AdminAccount.id == account_id).one()
+            except NoResultFound:
+                raise HTTPRedirect(
+                    '../accounts/homepage?message={}',
+                    'You have been given judge access but not had a judge entry created for you - '
+                    'please contact an Indies Showcase admin to correct this.')
 
         def delete_screenshot(self, screenshot):
             self.delete(screenshot)
@@ -2452,9 +2452,14 @@ def _track_changes(session, context, instances='deprecated'):
 
 def _check_emails(session, instances='deprecated'):
     from uber.email import EmailService
+    import traceback
 
     for model in chain(session.dirty, session.new):
-        EmailService.check_emails_for_model(session, model)
+        try:
+            EmailService.check_emails_for_model(session, model)
+        except Exception as e:
+            log.error(f"Error generating emails for {model.__repr__()}: {e}")
+            traceback.print_exc()
 
 
 def register_session_listeners():

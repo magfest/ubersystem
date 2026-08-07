@@ -2,20 +2,28 @@ Ahoy {{ judge.attendee.first_name }}!
 
 <p>Congratulations, you have been selected to be a judge for the {{ c.ESCHATON.year }} MAGFest Indie Videogame Showcase! If this is your first time judging for MIVS, welcome aboard! If you're a returning judging veteran, welcome back to another year!</p>
 
-<p>You should have already received an email with login information for your judging account. If you haven't already done so, please log in at {{ c.URL_BASE }}/showcase_judging and fill out your judging profile.</p>
+<p>First off, we want to apologize for the errors many of you were experiencing when trying to update your account through previous emails. There are a lot of changes going on in the backend code and it unfortunately broke a few things. What a wonderful segue to talk about the login process!</p>
 
-<p>Judging will begin soon and go until {{ c.MIVS_JUDGING_DEADLINE|datetime_local }}.</p>
+<p>The login process looks a little different this year. MAGFest is converting to a single sign on system called MAG ID. Your MAG ID will be your login for everything in the MAGFest digital universe, so when creating your MAG ID, you will want to use the same personal email you use for your badge.
 
-<p>As a judge, you'll be responsible for judging around a dozen games. Expect to spend at least 15 minutes per game to get a good idea of how the game feels.</p>
+Access to MIVS judging is now done through MAGFest ID. Look for an email titled “MAGFest 2027 Account Setup” — this will have the link to claim your 2027 MIVS judge account and add it to your MAGFest ID account. Simply follow the link, log into or create a MAGFest ID account, then look for the “Showcase Judging” button after you log in.
+
+If you don’t see your information after logging in, try clicking the link in the email again. If you can’t find the email, let us know. If you get a message about the claim token being expired, just wait for a new email, which the system will send automatically.
+
+If you have difficulty getting back to the judging page after creating your MAG ID, go to (https://super2027.reg.magfest.org/showcase_judging).</p>
+
+<p>Judging will begin soon and go until {{ c.MIVS_JUDGING_DEADLINE|datetime_local }}. If you have not already done so, please log in and fill out your judging profile.</p>
+
+<p>As a judge, expect to spend at least 15 minutes per game to get a good idea of how the game feels.</p>
 
 You'll be giving the games a score from 1-10 based on three categories:
 <ul>
-<li><strong>Show Readiness</strong> - how ready the game appears to be shown to the public. The quality of visual and audio assets and the lack of significant game play bugs.</li>
-<li><strong>Overall Design</strong> - how well the game addresses its central concept. (i.e. If it is a puzzle game, are the puzzles good? If it is a narrative-driven game, is the story compelling?)</li>
-<li><strong>Overall Enjoyment</strong> - how enjoyable was the game? Did it keep you on your toes, make you laugh, push your reflexes to the limit?</li>
+<li><strong>Show Readiness</strong> - How ready the game appears to be shown to the public. The quality of visual and audio assets and the lack of significant game play bugs.</li>
+<li><strong>Overall Design</strong> - How well the game addresses its central concept. (i.e. If it is a puzzle game, are the puzzles good? If it is a narrative-driven game, is the story compelling?)</li>
+<li><strong>Overall Enjoyment</strong> - How enjoyable was the game? Did it keep you on your toes, make you laugh, push your reflexes to the limit?</li>
 </ul>
 
-<p>There will also be a space for you to leave constructive feedback that will be sent to the developers after judging completes.</p>
+<p>There will also be a space for you to leave constructive feedback that will be sent to the developers after judging completes. Note that these will be sent directly to the devs. Do not include any information about the scores you decide or the scoring categories. Also, please do not include any notes to the MIVS staff. If you have a note for MIVS staff, you can email us directly at mivs@magfest.org.</p>
 
 <p>You will have until {{ c.MIVS_JUDGING_DEADLINE|datetime_local }} to complete judging for your entries.</p>
 

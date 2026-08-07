@@ -138,6 +138,9 @@ table form {
               <br>
               <small><i>Assigned to {{ account.attendee.assigned_depts|map('form_link')|list|readable_join|safe }}</i></small>
             {% endif %}
+            {% if c.OIDC_ENABLED or account.sso_id %}
+            <div class="form-text">{% if account.sso_id %}SSO ID: {{ account.sso_id }}{% else %}No SSO Account{% endif %}</div>
+            {% endif %}
           </td>
           <td>
             <a href="update_password_of_other?id={{account.id}}">Change Password</a>

@@ -41,7 +41,7 @@ Choose an option below to give them access to their badge.{% if attendee.group a
         </div>
     </div>
     </form>
-    {% if c.HAS_ACCOUNTS_ACCESS %}
+    {% if c.HAS_ACCOUNTS_ACCESS and not attendee.admin_account %}
     <div class="d-flex gap-3 align-items-center">
         <div><a href="../accounts/" class="btn btn-warning">Create Admin Account <i class="fa fa-external-link"></i></a></div>
         <div>

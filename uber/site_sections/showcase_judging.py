@@ -101,7 +101,7 @@ class Root:
             'submission_images': FileService.get_existing_files(
                 session, review.game, or_flags=['mivs_screenshot', 'arcade_photo', 'retro_screenshot'], uselist=True),
             'message': message,
-            'game_code': session.code_for(review.game),
+            'game_code': review.judge.get_code_for(review.game.id),
             'forms': forms,
             'game_forms': game_forms,
         }

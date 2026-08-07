@@ -49,7 +49,7 @@ badge
 
     <p>
         <a href="{{ c.URL_BASE }}/preregistration/claim_account?&sso_claim_token={{ token }}" target="_blank">{{ c.URL_BASE }}/preregistration/claim_account?&sso_claim_token={{ token }}</a>
-        <br/>This claim link expires in {{ c.PASSWORD_RESET_HOURS }} hours.
+        <br/>If you don't see your information after logging into your {{ c.OIDC_ACCOUNT_NAME }} account, try clicking the link above a second time. For your security, this claim link expires in {{ c.PASSWORD_RESET_HOURS }} hours -- if you get a message about the token being expired, just wait for a new copy of this email with a new claim link, which the system will send automatically.
     </p>
 
 </body>

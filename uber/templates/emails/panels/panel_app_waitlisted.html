@@ -1,0 +1,11 @@
+<html>
+<head></head>
+<body>
+{{ app.submitter.first_name }},
+
+<br/><br/>Thanks for your interest in putting on a panel for {{ c.EVENT_NAME_AND_YEAR }}! {% if app.after_confirm_deadline %}Because you did not confirm your accepted panel, your panel has been automatically waitlisted.{% else %}Due to the volume of applications we were unable to find a place on our schedule for your panel ({{ app.name }}), but we liked it enough to add it to our waiting list.  Wait-listed candidates will be considered if any of our other panels are cancelled.{% endif %}
+
+<br/><br/>Please don't hesitate to let us know if you have any questions or concerns.  Otherwise, we look forward to seeing you at {{ c.EVENT_NAME }}!
+
+<br/><br/>{{ email_signature }}
+</body></html>
