@@ -67,6 +67,7 @@ class PersonalInfo(AddressForm):
 
 
 class BadgeExtras(MagForm):
+    field_aliases = {'badge_type': ['badge_type_single']}
     dynamic_choices_fields = {'shirt': lambda: c.SHIRT_OPTS, 'staff_shirt': lambda: c.STAFF_SHIRT_OPTS}
 
     attendance_type = HiddenIntField('Single Day or Weekend Badge?')
