@@ -2214,14 +2214,6 @@ class UberSession(sqlalchemy.orm.Session):
                     'You have been given judge access but not had a judge entry created for you - '
                     'please contact an Indies Showcase admin to correct this.')
 
-        def code_for(self, game):
-            if game.unlimited_code:
-                return game.unlimited_code
-            else:
-                for code in self.logged_in_judge().codes:
-                    if code.game == game:
-                        return code
-
         def delete_screenshot(self, screenshot):
             self.delete(screenshot)
             try:
