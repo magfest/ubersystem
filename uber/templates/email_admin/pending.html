@@ -3,7 +3,7 @@
 {% block content %}
 <script type="text/javascript">
     var deptIdChanged = function () {
-        window.location = "{{ c.PAGE }}?department_id=" + $("#department_id").val() + "&{{ c.query_str_for_search('department_id') }}";
+        window.location = "{{ c.PAGE }}?department_id=" + $("#department_id").val();
     };
     var emailPolicyChanged = function () {
         window.location = "{{ c.PAGE }}?policy=" + $("#policy").val() + "&{{ c.query_str_for_search('policy') }}";

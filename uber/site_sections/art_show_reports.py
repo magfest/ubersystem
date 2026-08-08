@@ -87,7 +87,7 @@ class Root:
             count_filters.append(~ArtShowPiece.status.in_(no_status))
 
         apps = session.query(ArtShowApplication).join(ArtShowApplication.art_show_pieces).filter(*filters).all()
-        num_pieces = session.query(ArtShowPiece).filter(*filters).count()
+        num_pieces = session.query(ArtShowPiece).filter(*count_filters).count()
 
         if not apps:
             message = 'No pieces found!'

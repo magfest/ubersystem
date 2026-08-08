@@ -1,5 +1,6 @@
 import base64
 import uuid
+import logging
 
 import bcrypt
 import cherrypy
@@ -9,13 +10,15 @@ from sqlalchemy.orm.exc import NoResultFound
 from uber.auth import OIDC
 from uber.email import EmailService
 from uber.config import c
-from uber.decorators import (ajax, all_renderable, csrf_protected, csv_file,
+from uber.decorators import (ajax, all_renderable, any_admin_access, csrf_protected, csv_file,
                              not_site_mappable, render, site_mappable, public)
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, Attendee, BadgeInfo, PasswordReset, WorkstationAssignment
 from uber.payments import PreregCart
 from uber.utils import (check, check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, genpasswd,
                         create_new_hash)
+
+log = logging.getLogger(__name__)
 
 
 def valid_password(password, account):
@@ -225,7 +228,7 @@ class Root:
         return {
             'message': message,
             'email':   params.get('email', ''),
-            'original_location': original_location,
+            'original_location': internal_redirect_url,
         }
 
     @public
@@ -306,8 +309,11 @@ class Root:
 
         raise HTTPRedirect('../landing/index?message={}', 'You have been logged out.')
 
-    @public
+    @any_admin_access
     def reset(self, session, message='', email=None):
+        if c.SAML_SETTINGS or c.OIDC_ENABLED:
+            raise HTTPRedirect('../landing/index')
+
         if email is not None:
             try:
                 account = session.get_admin_account_by_email(email)

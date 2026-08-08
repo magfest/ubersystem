@@ -167,7 +167,9 @@ class MagModel(SQLModel):
                 val = val.isoformat()
             elif isinstance(val, uuid.UUID):
                 val = str(val)
-
+            elif isinstance(val, SQLModel):
+                val = val.to_dict()
+            
             if isinstance(val, InstrumentedList):
                 data[field] = []
                 for model in val:
@@ -349,14 +351,14 @@ class MagModel(SQLModel):
         """
         return params
 
-    def calc_default_cost(self):
+    def calc_default_cost(self, include_discounts=True):
         """
         Returns the sum of all cost and credit receipt items for this model instance.
 
         Because things like discounts exist, we ensure default_cost will never
         return a negative value.
         """
-        receipt, receipt_items = ReceiptManager.create_new_receipt(self)
+        receipt, receipt_items = ReceiptManager.create_new_receipt(self, include_discounts=include_discounts)
 
         return max(0, sum([(cost * count) for desc, cost, count in receipt_items]) / 100)
 
@@ -931,10 +933,13 @@ class UberSession(sqlalchemy.orm.Session):
 
         def current_attendee_account(self):
             if c.ATTENDEE_ACCOUNTS_ENABLED and getattr(cherrypy, 'session', {}).get('attendee_account_id', getattr(cherrypy.request, 'attendee_account', None)):
-                try:
-                    return self.attendee_account(cherrypy.session.get('attendee_account_id', cherrypy.request.attendee_account))
-                except sqlalchemy.orm.exc.NoResultFound:
+                account_id = cherrypy.session.get('attendee_account_id', getattr(cherrypy.request, 'attendee_account', None))
+                account = self.query(AttendeeAccount).filter(AttendeeAccount.id == account_id).options(selectinload(AttendeeAccount.attendees)).first()
+
+                if not account:
                     cherrypy.session['attendee_account_id'] = ''
+                else:
+                    return account
 
         def get_attendee_account_by_attendee(self, attendee):
             logged_in_account = self.current_attendee_account()
@@ -1314,11 +1319,17 @@ class UberSession(sqlalchemy.orm.Session):
         def add_attendee_to_account(self, attendee, account):
             unclaimed_account = account.hashed != '' and not account.is_sso_account
 
+            if attendee.admin_account and attendee.admin_account.sso_id and attendee.admin_account.sso_id != account.sso_id:
+                log.error(f"Tried to add attendee {attendee.full_name} to account {account.email}, but their admin account has already been claimed.")
+                return
+
             if c.ONE_MANAGER_PER_BADGE and attendee.managers and not unclaimed_account:
                 attendee.managers.clear()
             if attendee not in account.attendees:
                 account.unused_years = 0
                 account.attendees.append(attendee)
+                if attendee.admin_account:
+                    attendee.admin_account.sso_id = account.sso_id
 
         def match_attendee_to_account(self, attendee):
             existing_account = self.query(AttendeeAccount
@@ -1385,7 +1396,7 @@ class UberSession(sqlalchemy.orm.Session):
             receipt = self.get_receipt_by_model(model)
             if receipt:
                 for txn in receipt.pending_txns:
-                    txn.check_paid_from_stripe()
+                    txn.check_paid_from_stripe(self)
                 self.refresh(receipt)
 
             if isinstance(model, Group):
@@ -1395,7 +1406,11 @@ class UberSession(sqlalchemy.orm.Session):
 
             if isinstance(model, Attendee) and receipt and not is_prereg:
                 self.update_paid_from_receipt(model, receipt)
+                for discount in receipt.receipt_discounts:
+                    discount.set_discount(model)
+                    self.add(discount)
                 self.merge(model)
+                self.commit()
 
             try:
                 self.refresh(model)
@@ -1577,7 +1592,7 @@ class UberSession(sqlalchemy.orm.Session):
             for _ in range(badges):
                 self.add(PromoCode(
                     discount=0,
-                    discount_type=PromoCode._FIXED_PRICE,
+                    discount_type=c.FIXED_PRICE,
                     uses_allowed=1,
                     group=pc_group,
                     cost=cost))
@@ -1803,10 +1818,11 @@ class UberSession(sqlalchemy.orm.Session):
                 .order_by(Job.start_time, Job.name)
 
         def staffers_for_dropdown(self):
-            query = self.query(Attendee.id, Attendee.full_name)
+            query = self.query(Attendee.id, Attendee.full_name).filter(Attendee.is_valid == True,
+                                                                       Attendee.staffing == True)
             return [
                 {'id': id, 'full_name': full_name.title()}
-                for id, full_name in query.filter_by(staffing=True).order_by(Attendee.full_name)]
+                for id, full_name in query.order_by(Attendee.full_name)]
 
         def dept_heads(self, department_id=None):
             if department_id:
@@ -2224,23 +2240,17 @@ class UberSession(sqlalchemy.orm.Session):
         # ========================
 
         def logged_in_judge(self):
-            if getattr(cherrypy, 'session', {}).get('account_id'):
-                try:
-                    return self.query(IndieJudge).join(IndieJudge.admin_account).filter(
-                        AdminAccount.id == cherrypy.session.get('account_id')).one()
-                except NoResultFound:
-                    raise HTTPRedirect(
-                        '../accounts/homepage?message={}',
-                        'You have been given judge access but not had a judge entry created for you - '
-                        'please contact a MIVS admin to correct this.')
-
-        def code_for(self, game):
-            if game.unlimited_code:
-                return game.unlimited_code
-            else:
-                for code in self.logged_in_judge().codes:
-                    if code.game == game:
-                        return code
+            account_id = getattr(cherrypy, 'session', {}).get('account_id', getattr(cherrypy.request, 'admin_account', None))
+            if not account_id:
+                raise HTTPRedirect('../landing/index?message=', 'You are not logged in or you do not have judge access.')
+            try:
+                return self.query(IndieJudge).join(IndieJudge.admin_account).filter(
+                    AdminAccount.id == account_id).one()
+            except NoResultFound:
+                raise HTTPRedirect(
+                    '../accounts/homepage?message={}',
+                    'You have been given judge access but not had a judge entry created for you - '
+                    'please contact an Indies Showcase admin to correct this.')
 
         def delete_screenshot(self, screenshot):
             self.delete(screenshot)
@@ -2345,6 +2355,9 @@ class UberSession(sqlalchemy.orm.Session):
             else:
                 raise ValueError('No existing model with name {}'.format(model.__name__))
 
+        new_fields = {}
+        new_annotations = {}
+
         for name in dir(model):
             if not name.startswith('_'):
                 attr = getattr(model, name)
@@ -2357,8 +2370,15 @@ class UberSession(sqlalchemy.orm.Session):
                     try:
                         col = get_column_from_field(attr)
                         setattr(target, name, col)
+                        new_annotations[name] = model.__annotations__[name]
+                        new_fields[name] = attr
                     except AttributeError:
                         setattr(target, name, attr)
+
+        if new_fields:
+            target.model_fields.update(new_fields)
+            target.__annotations__.update(new_annotations)
+
         return target
 
 SessionFactory = sessionmaker(
@@ -2467,14 +2487,19 @@ def _track_changes(session, context, instances='deprecated'):
     for action, instances in states:
         for instance in instances:
             if instance.__class__ not in Tracking.UNTRACKED:
-                Tracking.track(action, instance)
+                Tracking.track(session, action, instance)
 
 
 def _check_emails(session, instances='deprecated'):
     from uber.email import EmailService
+    import traceback
 
     for model in chain(session.dirty, session.new):
-        EmailService.check_emails_for_model(session, model)
+        try:
+            EmailService.check_emails_for_model(session, model)
+        except Exception as e:
+            log.error(f"Error generating emails for {model.__repr__()}: {e}")
+            traceback.print_exc()
 
 
 def register_session_listeners():

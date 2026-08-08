@@ -313,11 +313,14 @@ class Config(_Overridable):
     For all of the datetime config options, we also define BEFORE_ and AFTER_ properties, e.g. you can
     check the booleans returned by c.BEFORE_PLACEHOLDER_DEADLINE or c.AFTER_PLACEHOLDER_DEADLINE
     """
-    def get_oneday_price(self, dt):
-        return self.BADGE_PRICES['single_day'].get(dt.strftime('%A'), self.DEFAULT_SINGLE_DAY)
-
-    def get_presold_oneday_price(self, badge_type):
-        return self.BADGE_PRICES['single_day'].get(self.BADGES[badge_type], self.DEFAULT_SINGLE_DAY)
+    def get_oneday_price(self, dt=None, badge_type=None, day_name=None):
+        if not dt and not badge_type and not day_name:
+            return self.DEFAULT_SINGLE_DAY
+        if dt:
+            day_name = dt.strftime('%A')
+        if badge_type:
+            day_name = self.BADGES[badge_type]
+        return self.BADGE_PRICES['single_day'].get(day_name, self.DEFAULT_SINGLE_DAY)
 
     def get_attendee_price(self, dt=None):
         price = self.INITIAL_ATTENDEE
@@ -440,6 +443,9 @@ class Config(_Overridable):
     @property
     def VOLUNTEER_SIGNUPS_AVAILABLE(self):
         return not c.VOLUNTEER_CHECKLIST_OPEN and c.AFTER_SHIFTS_CREATED or c.VOLUNTEER_CHECKLIST_OPEN and c.AFTER_VOLUNTEER_CHECKLIST_OPEN
+    
+    def drop_shifts_email(self, badge_type):
+        return c.STAFF_EMAIL if badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE] else c.VOLUNTEER_EMAIL
 
     @property
     def ART_SHOW_OPEN(self):
@@ -576,7 +582,7 @@ class Config(_Overridable):
     @property
     @dynamic
     def ONEDAY_BADGE_PRICE(self):
-        return self.get_oneday_price(uber.utils.localized_now())
+        return self.get_oneday_price(dt=uber.utils.localized_now())
 
     @property
     @dynamic
@@ -646,7 +652,7 @@ class Config(_Overridable):
         return opts
 
     def single_day_opt(self, day_name):
-        price = self.BADGE_PRICES['single_day'].get(day_name) or self.DEFAULT_SINGLE_DAY
+        price = self.get_oneday_price(day_name=day_name)
         badge = getattr(self, day_name.upper())
         if getattr(self, day_name.upper() + '_AVAILABLE', None):
             return {
@@ -971,7 +977,7 @@ class Config(_Overridable):
                 day = max(uber.utils.localized_now(), self.EPOCH)
                 while day.date() <= self.ESCHATON.date():
                     day_name = day.strftime('%A')
-                    price = self.BADGE_PRICES['single_day'].get(day_name) or self.DEFAULT_SINGLE_DAY
+                    price = self.get_oneday_price(day_name=day_name)
                     badge = getattr(self, day_name.upper())
                     if getattr(self, day_name.upper() + '_AVAILABLE', None):
                         opts.append((badge, day_name + ' Badge (${})'.format(price)))
@@ -1382,6 +1388,24 @@ class Config(_Overridable):
         if signature_key:
             return self.EMAIL_SIGNATURES.get(signature_key, '')
         return ""
+    
+    # A list of department emails and their other related configured email addresses
+    @property
+    def RELATED_EMAILS(self):
+        from uber.custom_tags import email_only
+        email_dict = {
+            c.MARKETPLACE_EMAIL: [c.MARKETPLACE_NOTIFICATIONS_EMAIL],
+            c.ART_SHOW_EMAIL: [c.ART_SHOW_NOTIFICATIONS_EMAIL, c.ART_SHOW_BCC_EMAIL],
+        }
+        email_dict.pop('', '')
+
+        indie_emails = [c.INDIE_SHOWCASE_EMAIL, c.INDIE_ARCADE_EMAIL, c.INDIE_RETRO_EMAIL, c.MIVS_EMAIL]
+
+        for email in indie_emails:
+            email_dict[email] = [e for e in indie_emails if e != email]
+
+        # Run email_only on all the keys and values of email_dict and then return it
+        return dict(map(lambda x: (email_only(x), list(map(email_only, email_dict[x]))), email_dict))
 
     # =========================
     # indie showcases (mivs, indie arcade, indie retro)
@@ -1939,6 +1963,31 @@ for _badge_type, _price in _config['badge_type_prices'].items():
     except AttributeError:
         pass
 
+orig_discount_opts = c.DISCOUNT_ON_OPTS.copy()
+current_idx = 0
+for key, desc in orig_discount_opts:
+    if key == c.BADGE_UPGRADE:
+        if not c.BADGE_TYPE_PRICES:
+            del (c.DISCOUNT_ON_OPTS[current_idx])
+            current_idx -= 1
+        else:
+            for key in c.BADGE_TYPE_PRICES:
+                c.DISCOUNT_ON_OPTS.insert(current_idx, (key, c.BADGES[key] + " Upgrade"))
+                current_idx += 1
+            
+    if key == c.MERCH:
+        if len(c.DONATION_TIERS) <= 1:
+            del (c.DISCOUNT_ON_OPTS[current_idx])
+            current_idx -= 1
+        else:
+            for price, name in c.DONATION_TIERS.items():
+                if price > 0:
+                    c.DISCOUNT_ON_OPTS.insert(current_idx, (price, name + " Merch"))
+                    current_idx += 1
+    current_idx += 1
+
+c.DISCOUNT_ONS = dict(c.DISCOUNT_ON_OPTS)
+
 c.MAX_BADGE_TYPE_UPGRADE = sorted(c.BADGE_TYPE_PRICES, key=c.BADGE_TYPE_PRICES.get,
                                   reverse=True)[0] if c.BADGE_TYPE_PRICES else None
 
@@ -2177,16 +2226,6 @@ c.GUIDEBOOK_PROPERTIES = [
     ('guidebook_header', 'Image (Optional)'),
     ('guidebook_thumbnail', 'Thumbnail (Optional)'),
 ]
-
-
-# A list of department emails and their other related configured email addresses
-c.RELATED_EMAILS = {
-    c.MARKETPLACE_EMAIL: [c.MARKETPLACE_NOTIFICATIONS_EMAIL],
-    c.ART_SHOW_EMAIL: [c.ART_SHOW_NOTIFICATIONS_EMAIL, c.ART_SHOW_BCC_EMAIL],
-    c.MIVS_EMAIL: [c.INDIE_SHOWCASE_EMAIL],
-    c.INDIE_ARCADE_EMAIL: [c.INDIE_SHOWCASE_EMAIL],
-    c.INDIE_RETRO_EMAIL: [c.INDIE_SHOWCASE_EMAIL],
-}
 
 
 # =============================

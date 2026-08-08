@@ -73,7 +73,7 @@
         </a>
     {% else %}
         {% if not attendee.placeholder and attendee.badge_status != c.NOT_ATTENDING %}
-        <a href="confirm?id={{ attendee.id }}" class="btn btn-sm btn-info">
+        <a href="confirm?id={{ attendee.id }}" class="btn btn-sm btn-primary">
             <i class="fa fa-pencil"></i> View/Edit Registration
         </a>
         {% endif %}
@@ -84,6 +84,11 @@
             {% else %}
             <i class="fa fa-calendar-o"></i> Volunteer Checklist
             {% endif %}
+        </a>
+        {% endif %}
+        {% if attendee.admin_account and attendee.admin_account.judge %}
+        <a href="../showcase_judging/index?id={{ attendee.admin_account.judge.id }}" class="btn btn-sm btn-info">
+            <i class="fa fa-gamepad"></i> Showcase Judging
         </a>
         {% endif %}
         {% if attendee.art_show_application or c.ART_SHOW_OPEN %}
@@ -135,4 +140,11 @@
         </div>
     {% endif %}
 </div>
-<div class="d-flex mt-2"><span class="form-text ms-auto"><em>Confirmation # {{ attendee.id }}</em></span></div>
+<div class="d-flex mt-2 align-items-center">
+    {% if attendee == account.owner %}
+    <span class="badge bg-secondary">Account Owner
+    &nbsp;<a href="#" class="text-reset text-decoration-none text-white" data-bs-toggle="tooltip" title="{{ attendee.full_name }} is currently the account owner. You can change the account owner in your account settings."><i class="fa fa-question-circle" aria-hidden="true"></i></a>
+    </span>
+    {% endif %}
+    <span class="form-text ms-auto"><em>Confirmation # {{ attendee.id }}</em></span>
+</div>

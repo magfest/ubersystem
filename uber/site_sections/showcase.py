@@ -37,6 +37,7 @@ class Root:
                                "Studio created successfully! Submit one or more games to our showcases below.")
 
         return {
+            'logged_in_account': session.current_attendee_account(),
             'message': message,
             'forms': forms,
         }
@@ -46,12 +47,12 @@ class Root:
         all_errors = {}
 
         forms = load_forms(params, IndieStudio(), ['StudioInfo'])
-        studio_errors = validate_model(session, forms, IndieStudio(), create_preview_model=False)
+        studio_errors = validate_model(session, forms, IndieStudio())
         if studio_errors:
             all_errors.update(studio_errors)
 
         dev_forms = load_forms(params, IndieDeveloper(), ['DeveloperInfo'])
-        dev_errors = validate_model(session, dev_forms, IndieDeveloper(), create_preview_model=False)
+        dev_errors = validate_model(session, dev_forms, IndieDeveloper())
         if dev_errors:
             all_errors.update(dev_errors)
 

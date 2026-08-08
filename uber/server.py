@@ -227,6 +227,10 @@ if isinstance(storage_type, str):
     cherrypy_config['tools.sessions.storage_class'] = getattr(cherrypy.lib.sessions, storage_type)
 cherrypy.config.update(cherrypy_config)
 
+# In production, disable CherryPy's background file monitoring thread to save CPU stat cycles.
+if not c.DEV_BOX:
+    cherrypy.engine.autoreload.unsubscribe()
+
 libpthread_path = ctypes.util.find_library("pthread")
 pthread_setname_np = None
 if libpthread_path:

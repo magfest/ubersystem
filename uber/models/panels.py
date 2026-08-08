@@ -242,7 +242,7 @@ class PanelApplication(MagModel, table=True):
     @presave_adjustment
     def set_default_dept(self):
         if len(c.PANELS_DEPT_OPTS) <= 1 and not self.department:
-            self.department = c.get_panels_id()
+            self.department = c.get_panels_id
 
     @presave_adjustment
     def set_record(self):

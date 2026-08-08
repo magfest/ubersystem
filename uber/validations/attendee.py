@@ -262,20 +262,6 @@ def out_of_badge_type(form, field):
 # =============================
 # OtherInfo
 # =============================
-
-@PreregOtherInfo.new_or_changed('promo_code_code')
-def can_use_promo_code(form, field):
-    if not field.data or form.model.promo_code:
-        return
-    
-    if form.model.badge_type == c.PSEUDO_DEALER_BADGE or getattr(form.model, 'is_dealer', False):
-        raise ValidationError(f"You cannot use a promo code with a {c.DEALER_TERM} registration.")
-    if form.model.badge_type == c.PSEUDO_GROUP_BADGE or getattr(form.model, 'badges', False):
-        raise ValidationError("You cannot use a promo code when buying group badges.")
-    if not getattr(form.model, 'qualifies_for_discounts', True):
-        raise ValidationError("This registration cannot be discounted.")
-
-
 @PreregOtherInfo.new_or_changed('promo_code_code')
 def promo_code_valid(form, field):
     if field.data:

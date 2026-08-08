@@ -656,7 +656,7 @@ class Job(MagModel, table=True):
 
             1. Are assigned to this job's department.
             2. Are allowed to work this job (job has no required roles
-               or the attendee's department membership fulfills all the
+               or the attendee's department membership fulfills the
                required roles).
 
         Args:
@@ -669,8 +669,12 @@ class Job(MagModel, table=True):
             query = query.filter(Attendee.staffing == True)  # noqa: E712
 
         if self.required_roles:
-            query = query.join(Attendee.dept_roles).filter(
-                and_(*[DeptRole.id == r.id for r in self.required_roles]))
+            if self.all_roles_required:
+                query = query.join(Attendee.dept_roles).filter(
+                    and_(*[DeptRole.id == r.id for r in self.required_roles]))
+            else:
+                query = query.join(Attendee.dept_roles).filter(
+                    or_(*[DeptRole.id == r.id for r in self.required_roles]))
         else:
             query = query.join(Attendee.dept_memberships).filter(
                 DeptMembership.department_id == self.department_id)
