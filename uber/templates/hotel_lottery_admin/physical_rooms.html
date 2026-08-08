@@ -3,89 +3,344 @@
 {% block title %}Physical Rooms{% endblock %}
 {% block content %}
 
-{% include 'hotel_lottery_admin/nav.html' %}
 {% include 'hotel_lottery_admin/inventory_subnav.html' %}
 
 <h2>Physical Rooms</h2>
 <p class="text-muted">
-  The per-hotel catalog of real rooms: each room's number, floor,
-  sellable block, ADA flag, and connecting doors. Optional per hotel -
-  block quantities stay independent of the catalog (the room-issues page
-  flags mismatches). The <a href="room_board">Rooming Board</a> places
-  bookings onto these rooms.
+  The per-hotel catalog of real rooms and the board that places live
+  bookings onto them. Each physical room holds one booking per night
+  (back-to-back turnover is fine); the assignment goes to the hotel in
+  the booking export, and they may reassign at check-in.
 </p>
 
-{{ hotel_macros.hotel_picker('physical_rooms', hotels, hotel) }}
+<div class="d-flex flex-wrap gap-2 align-items-end mb-3">
+  {{ hotel_macros.hotel_picker('physical_rooms', hotels, hotel) }}
+  {% if hotel %}
+  {% if hotel.map_svg %}
+  <button type="button" class="btn btn-sm btn-outline-secondary room-map-inspect mb-3">
+    <i class="fa fa-map"></i> Full Map
+  </button>
+  {% endif %}
+  <button type="button" class="btn btn-sm btn-outline-secondary mb-3"
+          data-bs-toggle="collapse" data-bs-target="#catalog-tools">
+    <i class="fa fa-wrench"></i> Manage catalog
+  </button>
+  <span class="ms-auto text-muted small mb-3">
+    {% if filtering %}{{ shown_rooms }} of {% endif %}{{ total_rooms }} room(s) catalogued
+  </span>
+  {% endif %}
+</div>
 
 {% if hotel %}
 
-<div class="d-flex gap-2 mb-3">
-  <a class="btn btn-sm btn-primary" href="edit_physical_room?hotel_id={{ hotel.id }}">
-    <i class="fa fa-plus"></i> Add Room
-  </a>
-  <a class="btn btn-sm btn-outline-primary" href="import_physical_rooms?hotel_id={{ hotel.id }}">
-    Import Spreadsheet
-  </a>
-  <a class="btn btn-sm btn-outline-secondary" href="../hotel_lottery_admin/front_desk_csv?hotel_id={{ hotel.id }}">
-    Front Desk CSV
-  </a>
-  <span class="ms-auto text-muted small align-self-center">{{ total_rooms }} room(s) catalogued</span>
+{# Everything that edits the catalog itself lives behind "Manage
+   catalog" so the day-to-day view (filters, bookings, floors) stays
+   uncluttered. #}
+<div class="collapse mb-3" id="catalog-tools">
+  <div class="card card-body">
+    <div class="d-flex flex-wrap gap-2 mb-3">
+      <a class="btn btn-sm btn-primary" href="edit_physical_room?hotel_id={{ hotel.id }}">
+        <i class="fa fa-plus"></i> Add Room
+      </a>
+      <a class="btn btn-sm btn-outline-primary" href="import_physical_rooms?hotel_id={{ hotel.id }}">
+        Import Spreadsheet
+      </a>
+      <a class="btn btn-sm btn-outline-secondary" href="../hotel_lottery_admin/front_desk_csv?hotel_id={{ hotel.id }}">
+        Front Desk CSV
+      </a>
+    </div>
+
+    <h6>Floor map</h6>
+    <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+      {% if map_coverage %}
+        <span class="badge bg-success">{{ map_coverage.floors|length }} floor(s)</span>
+        <span class="text-muted small">
+          {{ map_coverage.matched|length }}/{{ total_rooms }} catalog room(s) mapped
+        </span>
+        {% if map_coverage.missing %}
+        <details class="small text-warning">
+          <summary>{{ map_coverage.missing|length }} unmapped</summary>
+          {{ map_coverage.missing|join(', ') }}
+        </details>
+        {% endif %}
+      {% else %}
+        <span class="badge bg-secondary">No map</span>
+      {% endif %}
+      <form method="post" action="upload_hotel_map" enctype="multipart/form-data"
+            class="d-flex gap-2 ms-auto">
+        {{ csrf_token() }}
+        <input type="hidden" name="hotel_id" value="{{ hotel.id }}" />
+        <input type="file" class="form-control form-control-sm" name="map_file"
+               accept=".yaml,.yml,text/yaml" required style="max-width: 22em;" />
+        <button type="submit" class="btn btn-sm btn-outline-primary">
+          {{ 'Replace' if map_coverage else 'Upload' }}
+        </button>
+      </form>
+      {% if map_coverage or total_rooms %}
+      <a href="hotel_map_yaml?hotel_id={{ hotel.id }}"
+         class="btn btn-sm btn-outline-secondary">Download</a>
+      {% endif %}
+      {% if map_coverage %}
+      <form method="post" action="delete_hotel_map" class="d-inline"
+            data-confirm-message="Remove the floor map for {{ hotel.name }}?">
+        {{ csrf_token() }}
+        <input type="hidden" name="hotel_id" value="{{ hotel.id }}" />
+        <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+      </form>
+      {% endif %}
+    </div>
+    <div class="form-text mb-3">
+      One YAML file describing every floor's rooms (see
+      <code>uber/hotel/floormap.py</code> for the schema). Uploading renders
+      the room-picker map and syncs this catalog; Download merges the
+      current catalog back into the file for offline editing.
+    </div>
+
+    <h6>Bulk add rooms</h6>
+    <form method="post" action="bulk_add_physical_rooms">
+      {{ csrf_token() }}
+      <input type="hidden" name="hotel_id" value="{{ hotel.id }}" />
+      <div class="row g-2 align-items-end">
+        <div class="col-md-2">
+          <label class="form-label small">Floor</label>
+          <input type="text" class="form-control form-control-sm" name="floor" placeholder="4" />
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small">Number prefix</label>
+          <input type="text" class="form-control form-control-sm" name="prefix" placeholder="4" />
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small">Start</label>
+          <input type="number" class="form-control form-control-sm" name="start" value="1" required />
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small">End</label>
+          <input type="number" class="form-control form-control-sm" name="end" value="40" required />
+        </div>
+        <div class="col-md-1">
+          <label class="form-label small">Zero-pad</label>
+          <input type="number" class="form-control form-control-sm" name="pad" value="2" min="0" max="6" />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small">Block</label>
+          <select class="form-select form-select-sm" name="inventory_id">
+            <option value="">(uncategorized)</option>
+            {% for inv in blocks %}
+            <option value="{{ inv.id }}">{{ inv.display_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-text small">
+        Example: floor 4, prefix 4, 1&ndash;40, pad 2 creates rooms 401&ndash;440.
+        Numbers that already exist are skipped.
+      </div>
+      <div><button type="submit" class="btn btn-sm btn-primary mt-2">Create Rooms</button></div>
+    </form>
+  </div>
 </div>
 
-<details class="mb-3">
-  <summary class="btn btn-sm btn-outline-primary">+ Bulk add rooms</summary>
-  <form method="post" action="bulk_add_physical_rooms" class="card card-body mt-2" style="max-width: 900px;">
-    {{ csrf_token() }}
-    <input type="hidden" name="hotel_id" value="{{ hotel.id }}" />
-    <div class="row g-2 align-items-end">
-      <div class="col-md-2">
-        <label class="form-label small">Floor</label>
-        <input type="text" class="form-control form-control-sm" name="floor" placeholder="4" />
-      </div>
-      <div class="col-md-2">
-        <label class="form-label small">Number prefix</label>
-        <input type="text" class="form-control form-control-sm" name="prefix" placeholder="4" />
-      </div>
-      <div class="col-md-2">
-        <label class="form-label small">Start</label>
-        <input type="number" class="form-control form-control-sm" name="start" value="1" required />
-      </div>
-      <div class="col-md-2">
-        <label class="form-label small">End</label>
-        <input type="number" class="form-control form-control-sm" name="end" value="40" required />
-      </div>
-      <div class="col-md-1">
-        <label class="form-label small">Zero-pad</label>
-        <input type="number" class="form-control form-control-sm" name="pad" value="2" min="0" max="6" />
-      </div>
-      <div class="col-md-3">
-        <label class="form-label small">Block</label>
-        <select class="form-select form-select-sm" name="inventory_id">
-          <option value="">(uncategorized)</option>
-          {% for inv in blocks %}
-          <option value="{{ inv.id }}">{{ inv.display_name }}</option>
-          {% endfor %}
-        </select>
-      </div>
+{# Filters the floor listing below (not the map modal, which always
+   shows the whole hotel). #}
+<form method="get" action="physical_rooms" class="card card-body mb-3">
+  <input type="hidden" name="hotel_id" value="{{ hotel.id }}" />
+  <div class="row g-2 align-items-end">
+    <div class="col-md-3">
+      <label class="form-label small mb-1">Search</label>
+      <input type="text" class="form-control form-control-sm" name="search"
+             value="{{ filters.search }}" placeholder="room number or guest name" />
     </div>
-    <div class="form-text small">
-      Example: floor 4, prefix 4, 1&ndash;40, pad 2 creates rooms 401&ndash;440.
-      Numbers that already exist are skipped.
+    <div class="col-md-3">
+      <label class="form-label small mb-1">Block</label>
+      <select class="form-select form-select-sm" name="inventory_id">
+        <option value="">(any)</option>
+        {% for inv in blocks %}
+        <option value="{{ inv.id }}"{% if filters.inventory_id == inv.id|string %} selected{% endif %}>{{ inv.display_name }}</option>
+        {% endfor %}
+      </select>
     </div>
-    <div><button type="submit" class="btn btn-sm btn-primary mt-2">Create Rooms</button></div>
-  </form>
-</details>
+    <div class="col-md-2">
+      <label class="form-label small mb-1">Type</label>
+      <select class="form-select form-select-sm" name="type_code">
+        <option value="">(any)</option>
+        {% for code in type_codes %}
+        <option value="{{ code }}"{% if filters.type_code == code %} selected{% endif %}>{{ code }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-1">
+      <label class="form-label small mb-1">ADA</label>
+      <select class="form-select form-select-sm" name="ada">
+        <option value="">(any)</option>
+        <option value="yes"{% if filters.ada == 'yes' %} selected{% endif %}>Yes</option>
+        <option value="no"{% if filters.ada == 'no' %} selected{% endif %}>No</option>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small mb-1">Placement</label>
+      <select class="form-select form-select-sm" name="placement">
+        <option value="">(any)</option>
+        <option value="occupied"{% if filters.placement == 'occupied' %} selected{% endif %}>Occupied</option>
+        <option value="vacant"{% if filters.placement == 'vacant' %} selected{% endif %}>Vacant</option>
+        <option value="auto"{% if filters.placement == 'auto' %} selected{% endif %}>Auto-placed</option>
+        <option value="manual"{% if filters.placement == 'manual' %} selected{% endif %}>Placed by hand</option>
+      </select>
+    </div>
+    <div class="col-md-1">
+      <label class="form-label small mb-1">Service</label>
+      <select class="form-select form-select-sm" name="service">
+        <option value="">(any)</option>
+        <option value="in_service"{% if filters.service == 'in_service' %} selected{% endif %}>In service</option>
+        <option value="oos"{% if filters.service == 'oos' %} selected{% endif %}>Out of service</option>
+      </select>
+    </div>
+  </div>
+  <div class="mt-2">
+    <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+    {% if filtering %}
+    <a href="physical_rooms?hotel_id={{ hotel.id }}" class="btn btn-sm btn-outline-secondary">Reset</a>
+    {% endif %}
+  </div>
+</form>
 
-{% if not floors %}
+{# Shared by the sort/pagination links and the per-floor row fetches. #}
+{% set _filter_qs = 'hotel_id=' ~ hotel.id ~ '&search=' ~ filters.search|urlencode ~
+                    '&inventory_id=' ~ filters.inventory_id ~ '&type_code=' ~ filters.type_code ~
+                    '&ada=' ~ filters.ada ~ '&placement=' ~ filters.placement ~
+                    '&service=' ~ filters.service %}
+
+{% if total_rooms %}
+<div class="card mb-3">
+  <div class="card-header py-2 d-flex justify-content-between align-items-center">
+    <button class="btn btn-link text-decoration-none text-reset fw-bold p-0"
+            type="button" data-bs-toggle="collapse" data-bs-target="#unroomed-body">
+      Unroomed bookings <span class="badge bg-secondary">{{ unroomed_total }}</span>
+    </button>
+    <span>
+      <form method="post" action="auto_assign_physical" class="d-inline"
+            data-confirm-message="Auto-assign all unroomed bookings? Suites with connectors are placed first, then ADA requests, then everything else. Existing placements are not touched."
+            data-confirm-class="btn-primary">
+        {{ csrf_token() }}
+        <input type="hidden" name="hotel_id" value="{{ hotel.id }}" />
+        <button type="submit" class="btn btn-sm btn-primary"
+                {% if not unroomed_total %}disabled{% endif %}>Auto-assign</button>
+      </form>
+      <form method="post" action="clear_physical_assignments" class="d-inline"
+            data-confirm-message="Clear the auto-assigned placements at {{ hotel.name }}? Rooms placed by hand are kept; bookings keep their room number text for reference.">
+        {{ csrf_token() }}
+        <input type="hidden" name="hotel_id" value="{{ hotel.id }}" />
+        <input type="hidden" name="scope" value="auto" />
+        <button type="submit" class="btn btn-sm btn-outline-warning">Clear auto-placed</button>
+      </form>
+      <form method="post" action="clear_physical_assignments" class="d-inline"
+            data-confirm-message="Clear EVERY physical-room placement at {{ hotel.name }}, including ones placed by hand? Bookings keep their room number text for reference.">
+        {{ csrf_token() }}
+        <input type="hidden" name="hotel_id" value="{{ hotel.id }}" />
+        <input type="hidden" name="scope" value="all" />
+        <button type="submit" class="btn btn-sm btn-outline-danger">Clear all</button>
+      </form>
+    </span>
+  </div>
+  <div class="card-body py-2 collapse show" id="unroomed-body">
+    {% if not unroomed %}
+    <p class="text-muted mb-0">Every live booking at this hotel has a physical room.</p>
+    {% else %}
+    {% set _unroomed_url = 'physical_rooms?' ~ _filter_qs ~ '&unroomed_size=' ~ unroomed_size %}
+    <table class="table table-sm align-middle mb-0">
+      <thead>
+        <tr>
+          {{ hotel_macros.sort_th('Attendee', 'attendee', unroomed_sort,
+                                  _unroomed_url, 'unroomed_sort') }}
+          {{ hotel_macros.sort_th('Block', 'block', unroomed_sort,
+                                  _unroomed_url, 'unroomed_sort') }}
+          {{ hotel_macros.sort_th('Check-in', 'dates', unroomed_sort,
+                                  _unroomed_url, 'unroomed_sort') }}
+          {{ hotel_macros.sort_th('Check-out', 'checkout', unroomed_sort,
+                                  _unroomed_url, 'unroomed_sort') }}
+          {{ hotel_macros.sort_th('Status', 'status', unroomed_sort,
+                                  _unroomed_url, 'unroomed_sort') }}
+          <th style="width: 22em;">Assign Room</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in unroomed %}
+        {% set ra = row.ra %}
+        {% set app = ra.lottery_application %}
+        <tr>
+          <td>
+            {{ hotel_macros.attendee_cell(ra.attendee, show_email=False) }}
+            {% if app and app.wants_ada %}<span class="badge bg-info text-dark">ADA</span>{% endif %}
+            {% if ra.child_assignments %}<span class="badge bg-light text-dark">+{{ ra.child_assignments|length }} connector(s)</span>{% endif %}
+          </td>
+          <td class="small">{{ ra.inventory.display_name if ra.inventory else '?' }}
+            {% if ra.is_connector %}{{ hotel_macros.connector_chip() }}{% endif %}
+          </td>
+          <td class="small">{{ ra.assigned_check_in_date or '?' }}</td>
+          <td class="small">{{ ra.assigned_check_out_date or '?' }}</td>
+          <td>{{ hotel_macros.room_status_chip(ra) }}</td>
+          <td>
+            {% if row.option_count %}
+            <form method="post" action="board_assign" class="d-flex gap-1">
+              {{ csrf_token() }}
+              <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
+              <input type="hidden" name="hotel_id" value="{{ hotel.id }}" />
+              {# Options load on first focus (hotel-physical-rooms.js). #}
+              <select name="physical_room_id" class="form-select form-select-sm"
+                      data-options-url="vacant_rooms_json?assignment_id={{ ra.id }}"
+                      required>
+                <option value="">- room ({{ row.option_count }} free) -</option>
+              </select>
+              {% if hotel.map_svg %}{{ hotel_macros.room_map_button(ra) }}{% endif %}
+              <button type="submit" class="btn btn-sm btn-outline-primary">Assign</button>
+            </form>
+            {% else %}
+            <span class="text-danger small">No vacant room in this block for these dates.</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {{ hotel_macros.pagination(unroomed_page, unroomed_pages,
+                               _unroomed_url ~ '&unroomed_sort=' ~ unroomed_sort,
+                               total=unroomed_total, page_size=unroomed_size,
+                               current_count=unroomed|length,
+                               label='unroomed booking',
+                               page_param='unroomed_page') }}
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% if not floor_summaries and filtering %}
 <div class="card card-body text-center text-muted">
-  No rooms catalogued for {{ hotel.name }} yet - add some above or import a spreadsheet.
+  No rooms match these filters.
+  <div><a href="physical_rooms?hotel_id={{ hotel.id }}">Clear filters</a></div>
+</div>
+{% elif not floor_summaries %}
+<div class="card card-body text-center text-muted">
+  No rooms catalogued for {{ hotel.name }} yet - use Manage catalog above to
+  add rooms, or import a spreadsheet or floor-map YAML.
+</div>
+{% else %}
+<div class="accordion mb-3">
+  {# Rows load per floor on first expand; filtered results open on
+     arrival, the unfiltered catalog stays collapsed. #}
+  {% for summary in floor_summaries %}
+  {{ hotel_macros.floor_card(summary, loop.index, _filter_qs,
+                             expanded=filtering) }}
+  {% endfor %}
 </div>
 {% endif %}
 
-{% for floor, rooms in floors %}
-{{ hotel_macros.floor_card(floor, rooms, connections, bookings, mode='catalog') }}
-{% endfor %}
+{% if hotel.map_svg %}
+{{ hotel_macros.room_map_modal(hotel, map_rooms) }}
+{% endif %}
 
 {% endif %}
+
+{{ "js/hotel-confirm-submit.js"|serve_static_content }}
+{{ "js/hotel-physical-rooms.js"|serve_static_content }}
 
 {% endblock content %}

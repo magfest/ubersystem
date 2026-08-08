@@ -1,24 +1,14 @@
-// Assignee-modal + inventory-chart glue for
-// hotel_lottery_admin/hotel_inventory.html.
+// Assignee modal for hotel_lottery_admin/hotel_inventory.html: any
+// .assignee-link opens the modal listing who's assigned to that
+// inventory block (optionally for one night).
 //
-// The template provides its data via a config stanza BEFORE this
+// The template provides the current partition filter BEFORE this
 // script loads:
 //
-//   window.hotelInventoryConfig = {
-//     partition: ...,     // current partition tab ('all', 'default', or id)
-//     nightLabels: [...], // x-axis labels, one per event night
-//     charts: {           // canvas id -> Chart.js dataset arrays
-//       chart_total: {assigned: [...], available: [...], waitlisted: [...]},
-//       ...
-//     }
-//   };
-//
-// Chart.js (deps/chartjs/chart.umd.min.js) must be loaded first when
-// any charts are passed.
+//   window.hotelInventoryConfig = { partition: 'all' | 'default' | id };
 (function () {
   var cfg = window.hotelInventoryConfig || {};
   var currentPartition = cfg.partition || '';
-  var nightLabels = cfg.nightLabels || [];
 
   function showAssignees(inventoryId, nightDate, title) {
     document.getElementById('assignees-title').textContent = 'Assigned: ' + title;
@@ -77,32 +67,9 @@
     });
   }
 
-  function renderChart(canvasId, data) {
-    new Chart(document.getElementById(canvasId), {
-        type: 'bar',
-        data: {
-            labels: nightLabels,
-            datasets: [
-                { label: 'Assigned', data: data.assigned, backgroundColor: 'rgba(54, 162, 235, 0.7)' },
-                { label: 'Available', data: data.available, backgroundColor: 'rgba(200, 200, 200, 0.5)' },
-                { label: 'Waitlisted', data: data.waitlisted, backgroundColor: 'rgba(255, 159, 64, 0.7)' }
-            ]
-        },
-        options: {
-            responsive: true,
-            scales: { y: { beginAtZero: true } }
-        }
-    });
-  }
-
   $(document).on('click', '.assignee-link', function(e) {
     e.preventDefault();
     var el = $(this);
     showAssignees(el.data('inventory-id'), el.data('night'), el.data('title'));
-  });
-
-  // Render charts
-  Object.keys(cfg.charts || {}).forEach(function (canvasId) {
-    renderChart(canvasId, cfg.charts[canvasId]);
   });
 })();

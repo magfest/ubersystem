@@ -70,6 +70,45 @@ def validate_physical_room(session, ra, room):
     return None
 
 
+def assign_physical_room(session, ra, room, auto=False):
+    """Place `ra` in `room`, taking its connector rooms along.
+
+    A suite parent may only sit in a room whose physically connected
+    neighbors can host every connector child for the same dates; the
+    children are placed in those rooms by the same call, so the group
+    is assigned all at once or not at all. Rooms that merely happen to
+    be connected are left alone.
+
+    Returns (placed_assignments, error). On error nothing is changed.
+    """
+    from uber.hotel import physical as hotel_physical
+
+    error = validate_physical_room(session, ra, room)
+    if error:
+        return [], error
+
+    children = hotel_physical.connector_children(session, ra)
+    picks = []
+    if children:
+        placements = hotel_physical.connector_placements(
+            session, ra, children=children)
+        picks = next((p for candidate, p in placements
+                      if candidate.id == room.id), None)
+        if picks is None:
+            return [], (
+                f'Room {room.room_number} does not have {len(children)} '
+                'connected room(s) free for these dates, so this suite '
+                'and its connector room(s) cannot go there.')
+
+    placed = []
+    for assignment, target in [(ra, room)] + picks:
+        assignment.physical_room_id = target.id
+        assignment.physical_room_auto = auto
+        session.add(assignment)
+        placed.append(assignment)
+    return placed, None
+
+
 def create_room_assignment(session, *, attendee_id, inventory_id,
                            partition_id=None, lottery_application_id=None,
                            assignment_reason=None, status=None,
@@ -138,9 +177,10 @@ def create_room_assignment(session, *, attendee_id, inventory_id,
         record_partition_audit(
             session, partition_id,
             action='assignment.created',
-            description=(audit_description
-                         or f"Assigned room to attendee {attendee_id}"),
-            target_type='assignment', target_id=ra.id)
+            description=f"{audit_description or 'Assigned room'}: "
+                        f"{ra.room_summary}",
+            target_type='assignment', target_id=ra.id,
+            attendee_id=ra.attendee_id)
     return ra
 
 
@@ -224,6 +264,7 @@ def apply_room_assignment_edits(session, ra, params, *, audit_prefix, fail,
             # presave re-stamps it whenever a room is linked.
             changes.append('physical room')
             ra.physical_room_id = new_room_id
+            ra.physical_room_auto = False
 
     for field, nullable in (('hotel_confirmation_number', True),
                             ('cancellation_confirmation_number', True),
@@ -244,8 +285,10 @@ def apply_room_assignment_edits(session, ra, params, *, audit_prefix, fail,
             record_partition_audit(
                 session, ra.partition_id,
                 action='assignment.updated',
-                description=f"{audit_prefix} {', '.join(changes)}",
-                target_type='assignment', target_id=ra.id)
+                description=f"{audit_prefix} {', '.join(changes)}: "
+                            f"{ra.room_summary}",
+                target_type='assignment', target_id=ra.id,
+                attendee_id=ra.attendee_id)
         session.flush()
         return f"Updated {', '.join(changes)}."
     return 'No changes.'

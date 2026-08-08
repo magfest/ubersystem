@@ -4,7 +4,6 @@
 {% block title %}{{ 'Add' if room.is_new else 'Edit' }} Physical Room{% endblock %}
 {% block content %}
 
-{% include 'hotel_lottery_admin/nav.html' %}
 {% include 'hotel_lottery_admin/inventory_subnav.html' %}
 
 <h2>{{ 'Add' if room.is_new else 'Edit' }} Physical Room</h2>
@@ -23,8 +22,10 @@
     <div class="col-md-6">{{ form_macros.input(room_config.inventory_id) }}</div>
     <div class="col-md-3">{{ form_macros.input(room_config.room_number) }}</div>
     <div class="col-md-3">{{ form_macros.input(room_config.floor) }}</div>
+    <div class="col-md-3">{{ form_macros.input(room_config.type_code) }}</div>
     <div class="col-md-3">{{ form_macros.input(room_config.ada) }}</div>
     <div class="col-md-3">{{ form_macros.input(room_config.out_of_service) }}</div>
+    <div class="col-md-9">{{ form_macros.input(room_config.accessibility) }}</div>
     <div class="col-12">
       <label class="form-label">Connects To</label>
       <input type="text" class="form-control" name="connects_to"

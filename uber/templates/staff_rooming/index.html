@@ -4,7 +4,6 @@
 
 {# Staff Room Nights lives under the Staffing top-level entry - it's
    about staff shift requirements, not room inventory. #}
-{% include 'hotel_lottery_admin/nav.html' %}
 {% include 'staff_rooming/staffing_subnav.html' %}
 
 <h1>Staff Rooming Requirements</h1>
@@ -63,6 +62,15 @@
   </table>
 
   <button type="submit" class="btn btn-primary">Save</button>
+</form>
+
+{# Separate form - nested forms are invalid HTML, and this POSTs to its
+   own endpoint. Deleting the rows makes `index` re-seed them from
+   `_default_settings()` on the next load. #}
+<form method="post" action="reset_to_defaults" class="mt-3"
+      onsubmit="return confirm('Discard every requirement and regenerate the defaults from the event dates?');">
+  {{ csrf_token() }}
+  <button type="submit" class="btn btn-outline-danger">Reset to defaults</button>
 </form>
 
 {% endblock %}

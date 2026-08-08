@@ -1,0 +1,59 @@
+{# One floor's room rows for the physical-rooms accordion. Served on
+   demand by hotel_lottery_admin.physical_rooms_floor and injected by
+   hotel-physical-rooms.js, so it renders the table alone with no page
+   chrome. #}
+{% import 'hotel_lottery_admin/_macros.html' as hotel_macros with context %}
+<table class="table table-sm align-middle mb-0">
+  <thead>
+    <tr>
+      <th style="width: 10em;">Room</th>
+      <th>Block</th>
+      <th>Connects To</th>
+      <th>Current Booking</th>
+      <th>Notes</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for room in rooms %}
+    {% set ras = bookings.get(room.id, []) %}
+    <tr class="{% if room.out_of_service %}table-secondary{% elif ras %}table-info{% endif %}">
+      <td>
+        <strong>{{ room.room_number }}</strong>
+        {{ hotel_macros.physical_room_badges(room, oos_label='OOS') }}
+      </td>
+      <td class="small">
+        {% if room.inventory %}{{ room.inventory.display_name }}
+        {% else %}
+          {# Uncategorized rooms show the hotel's own type code from the
+             map YAML, when there is one. #}
+          <span class="badge bg-warning text-dark"
+                title="No inventory block matches this room">
+            {{- room.type_code or 'uncategorized' -}}
+          </span>
+        {% endif %}
+      </td>
+      <td class="small text-muted">{{ connections.get(room.id, [])|join(', ') or '-' }}</td>
+      <td class="small">{{ hotel_macros.physical_room_booking_cell(ras) }}</td>
+      <td class="small text-muted">{{ room.notes }}</td>
+      <td class="text-end" style="white-space: nowrap;">
+        {% for ra in ras %}
+        <form method="post" action="board_unassign" class="d-inline">
+          {{ csrf_token() }}
+          <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
+          <input type="hidden" name="hotel_id" value="{{ hotel.id }}" />
+          <button type="submit" class="btn btn-sm btn-outline-secondary">Unassign</button>
+        </form>
+        {% endfor %}
+        <a class="btn btn-sm btn-outline-primary" href="edit_physical_room?id={{ room.id }}">Edit</a>
+        <form method="post" action="delete_physical_room" class="d-inline"
+              data-confirm-message="Delete room {{ room.room_number }}? Its connection edges go with it.">
+          {{ csrf_token() }}
+          <input type="hidden" name="id" value="{{ room.id }}" />
+          <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>

@@ -32,7 +32,7 @@ from sqlalchemy import func, or_
 
 from uber.models import Attendee
 from uber.models.hotel import (HotelRoomInventory, InventoryPartitionBlock,
-                               LotteryApplication, RoomAssignment)
+                               LotteryApplication, PhysicalRoom, RoomAssignment)
 
 
 def build_room_assignment_query(session, *, status='live', hotel_id='',
@@ -425,8 +425,6 @@ def physical_room_conflicts(session, physical_room_id, check_in, check_out,
     (A checks out the morning B checks in) is allowed. Assignments with no
     dates never conflict - they can't be placed on specific nights.
     """
-    from uber.models.hotel import RoomAssignment
-
     if not (physical_room_id and check_in and check_out):
         return []
     q = session.query(RoomAssignment).filter(
@@ -447,8 +445,6 @@ def vacant_physical_rooms(session, hotel_id, check_in, check_out,
     """In-service physical rooms at a hotel with no live booking on any
     night of [check_in, check_out), optionally limited to one sellable
     block. Returns rooms in floor/room-number order."""
-    from uber.models.hotel import PhysicalRoom, RoomAssignment
-
     rooms = session.query(PhysicalRoom).filter(
         PhysicalRoom.hotel_id == hotel_id,
         PhysicalRoom.out_of_service.is_(False))
@@ -462,12 +458,11 @@ def vacant_physical_rooms(session, hotel_id, check_in, check_out,
         # Scope the busy-set to this hotel's rooms - a physical_room_id
         # always belongs to one hotel, so scanning every dated live
         # assignment in the database was pure waste.
-        from uber.models.hotel import PhysicalRoom as PR
         busy = {row[0] for row in session.query(
             RoomAssignment.physical_room_id)
-            .join(PR, PR.id == RoomAssignment.physical_room_id)
+            .join(PhysicalRoom, PhysicalRoom.id == RoomAssignment.physical_room_id)
             .filter(
-                PR.hotel_id == hotel_id,
+                PhysicalRoom.hotel_id == hotel_id,
                 RoomAssignment.is_live,
                 RoomAssignment.assigned_check_in_date.isnot(None),
                 RoomAssignment.assigned_check_out_date.isnot(None),

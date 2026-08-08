@@ -30,6 +30,8 @@
 
 <form method="get" action="rooms" class="card card-body mb-3">
   {% if attendee_id %}<input type="hidden" name="attendee_id" value="{{ attendee_id }}" />{% endif %}
+  <input type="hidden" name="sort" value="{{ sort }}" />
+  <input type="hidden" name="dir" value="{{ dir }}" />
   <div class="row g-2 align-items-end">
     <div class="col-md-3">
       <label class="form-label small mb-1">Search</label>
@@ -37,13 +39,7 @@
              value="{{ search }}" placeholder="conf #, hotel conf #, name, email" />
     </div>
     <div class="col-md-2">
-      <label class="form-label small mb-1">Hotel</label>
-      <select class="form-select form-select-sm" name="hotel_id">
-        <option value="">(any)</option>
-        {% for h in hotels %}
-          <option value="{{ h.id }}" {% if hotel_id == h.id %}selected{% endif %}>{{ h.name }}</option>
-        {% endfor %}
-      </select>
+      {{ hotel_macros.hotel_filter_select(hotels, hotel_id) }}
     </div>
     <div class="col-md-2">
       <label class="form-label small mb-1">Partition</label>
@@ -78,29 +74,32 @@
 <div class="card card-body text-center text-muted">No room assignments match these filters.</div>
 {% else %}
 
+{% set _qs = 'search=' ~ search|urlencode ~ '&hotel_id=' ~ hotel_id ~ '&partition_id=' ~ partition_id ~ '&status=' ~ status ~ '&page_size=' ~ page_size ~ ('&attendee_id=' ~ attendee_id if attendee_id else '') %}
+
 <table class="table table-sm table-hover align-middle">
   <thead>
     <tr>
-      <th>Hotel / Room Type</th>
-      <th>Attendee</th>
-      <th>Dates</th>
-      <th>Status</th>
-      <th>Billing</th>
-      <th>Partition</th>
-      <th>Hotel Conf #</th>
+      {{ hotel_macros.sortable_th('Hotel / Room Type', 'hotel', sort, dir, 'rooms?' ~ _qs) }}
+      {{ hotel_macros.sortable_th('Attendee', 'attendee', sort, dir, 'rooms?' ~ _qs) }}
+      {{ hotel_macros.sortable_th('Dates', 'dates', sort, dir, 'rooms?' ~ _qs) }}
+      {{ hotel_macros.sortable_th('Status', 'status', sort, dir, 'rooms?' ~ _qs) }}
+      {{ hotel_macros.sortable_th('Billing', 'billing', sort, dir, 'rooms?' ~ _qs) }}
+      {{ hotel_macros.sortable_th('Partition', 'partition', sort, dir, 'rooms?' ~ _qs) }}
+      {{ hotel_macros.sortable_th('Hotel Conf #', 'conf', sort, dir, 'rooms?' ~ _qs) }}
       <th></th>
     </tr>
   </thead>
   <tbody>
     {% for ra in assignments %}
-    {% set inv = ra.inventory %}
     {% set app = ra.lottery_application %}
     <tr>
       <td>{{ hotel_macros.hotel_room_cell(ra=ra) }}</td>
       <td>
+        {# show_email=False keeps every row to two lines. #}
         {% if ra.attendee %}
           {{ hotel_macros.masked_attendee_cell(ra.attendee,
-                can_view_names=c.HAS_HOTEL_LOTTERY_ADMIN_ACCESS, link=True) }}
+                can_view_names=c.HAS_HOTEL_LOTTERY_ADMIN_ACCESS, link=True,
+                show_email=False) }}
         {% else %}<em>(no attendee)</em>{% endif %}
         {% if app %}
           <br/><small class="text-muted">
@@ -108,14 +107,7 @@
           </small>
         {% endif %}
       </td>
-      <td>
-        {% if ra.assigned_check_in_date and ra.assigned_check_out_date %}
-          {{ ra.assigned_check_in_date|date("%a %b %-d") }}<br/>
-          -> {{ ra.assigned_check_out_date|date("%a %b %-d") }}
-        {% else %}
-          <span class="text-warning">- dates missing -</span>
-        {% endif %}
-      </td>
+      <td>{{ hotel_macros.room_dates_cell(ra) }}</td>
       <td>{{ hotel_macros.room_status_chip(ra) }}</td>
       <td>{{ hotel_macros.billing_chip(ra) }}</td>
       <td>
@@ -125,16 +117,7 @@
           <span class="text-muted">-</span>
         {% endif %}
       </td>
-      <td>
-        {% if ra.hotel_confirmation_number %}
-          <code>{{ ra.hotel_confirmation_number }}</code>
-        {% else %}
-          <span class="text-muted">-</span>
-        {% endif %}
-        {% if ra.room_number %}
-          <br/><small class="text-muted">Room {{ ra.room_number }}</small>
-        {% endif %}
-      </td>
+      <td>{{ hotel_macros.hotel_conf_cell(ra, show_room_number=True) }}</td>
       <td class="text-end" style="white-space: nowrap;">
         {# Every row gets Edit + Remove - the standalone edit page
            handles both lottery-tied and non-lottery (manual / partition
@@ -142,7 +125,7 @@
            cascades to connector children server-side. #}
         <a href="edit_room_assignment?id={{ ra.id }}" class="btn btn-sm btn-outline-primary">Edit</a>
         <form method="post" action="delete_room_assignment" class="d-inline"
-              onsubmit="return confirm('Remove this room assignment{% if ra.attendee %} for {{ ra.attendee.full_name }}{% endif %}?{% if ra.child_assignments %} Its connector room(s) will be removed too.{% endif %} This cannot be undone.');">
+              data-confirm-message="Remove this room assignment{% if ra.attendee %} for {{ ra.attendee.full_name }}{% endif %}?{% if ra.child_assignments %} Its connector room(s) will be removed too.{% endif %} This cannot be undone.">
           {{ csrf_token() }}
           <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
           {% if attendee_id %}<input type="hidden" name="attendee_id" value="{{ attendee_id }}" />{% endif %}
@@ -155,12 +138,13 @@
 </table>
 
 {# Pagination - shared macro keeps it identical across the section. #}
-{% set _qs = 'search=' ~ search|urlencode ~ '&hotel_id=' ~ hotel_id ~ '&partition_id=' ~ partition_id ~ '&status=' ~ status ~ '&page_size=' ~ page_size ~ ('&attendee_id=' ~ attendee_id if attendee_id else '') %}
-{{ hotel_macros.pagination(page, page_count, 'rooms?' ~ _qs,
+{{ hotel_macros.pagination(page, page_count, 'rooms?' ~ _qs ~ '&sort=' ~ sort ~ '&dir=' ~ dir,
                            total=total, page_size=page_size,
                            current_count=assignments|length,
                            label='room assignment') }}
 
 {% endif %}
+
+{{ "js/hotel-confirm-submit.js"|serve_static_content }}
 
 {% endblock content %}

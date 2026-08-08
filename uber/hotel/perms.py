@@ -214,12 +214,14 @@ def requires_partition_capability(capability, message=None):
 
 
 def record_partition_audit(session, partition_id, action, description='',
-                           *, target_type='', target_id=None, admin_account=None):
+                           *, target_type='', target_id=None, attendee_id=None,
+                           admin_account=None):
     """Write one PartitionAuditLog row.
 
     Lightweight enough to call from every partition-touching admin route.
     Resolves the actor from the cherrypy session unless `admin_account` is
-    passed explicitly (for cron / system actions).
+    passed explicitly (for cron / system actions). `attendee_id` records
+    whose room the entry is about, for entries about one.
     """
     if not partition_id:
         return
@@ -233,5 +235,6 @@ def record_partition_audit(session, partition_id, action, description='',
         description=description or action,
         target_type=target_type,
         target_id=str(target_id) if target_id else None,
+        attendee_id=str(attendee_id) if attendee_id else None,
     )
     session.add(entry)

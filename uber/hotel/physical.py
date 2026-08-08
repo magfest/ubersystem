@@ -18,6 +18,17 @@ from uber.models.hotel import (
     PhysicalRoom, PhysicalRoomConnection, RoomAssignment)
 
 
+def floor_sort_key(floor):
+    """Numeric floors in numeric order, then text floors ("M", "PH")
+    alphabetically, then blank."""
+    floor = (floor or '').strip()
+    if not floor:
+        return (2, 0, '')
+    if floor.isdigit():
+        return (0, int(floor), '')
+    return (1, 0, floor.lower())
+
+
 def rooms_by_floor(session, hotel_id):
     """[(floor, [PhysicalRoom, ...]), ...] in natural order."""
     rooms = (session.query(PhysicalRoom)
@@ -26,25 +37,80 @@ def rooms_by_floor(session, hotel_id):
     for room in rooms:
         floors[room.floor or ''].append(room)
     out = []
-    for floor in sorted(floors, key=lambda f: (f == '', f)):
+    for floor in sorted(floors, key=floor_sort_key):
         out.append((floor, sorted(floors[floor], key=lambda r: r.sort_key)))
+    return out
+
+
+def filter_rooms(floors, bookings, *, search='', inventory_id='',
+                 type_code='', ada='', placement='', service=''):
+    """Narrow the rooms_by_floor structure for the catalog page.
+
+    search    - substring of a room number, or of a guest's name in one
+                of that room's live bookings
+    placement - occupied | vacant | auto | manual (how the room's live
+                bookings, if any, got there)
+    service   - in_service | oos
+    Floors left with no matching rooms are dropped.
+    """
+    needle = (search or '').strip().lower()
+
+    def matches(room):
+        ras = bookings.get(room.id, [])
+        if needle:
+            names = ' '.join(ra.attendee.full_name for ra in ras
+                             if ra.attendee).lower()
+            if needle not in room.room_number.lower() and needle not in names:
+                return False
+        if inventory_id and str(room.inventory_id or '') != inventory_id:
+            return False
+        if type_code and room.type_code.upper() != type_code.upper():
+            return False
+        if ada and bool(room.ada) != (ada == 'yes'):
+            return False
+        if service and room.out_of_service != (service == 'oos'):
+            return False
+        if placement == 'occupied' and not ras:
+            return False
+        if placement == 'vacant' and ras:
+            return False
+        if placement == 'auto' and not any(ra.physical_room_auto for ra in ras):
+            return False
+        if placement == 'manual' and not any(
+                not ra.physical_room_auto for ra in ras):
+            return False
+        return True
+
+    out = []
+    for floor, rooms in floors:
+        kept = [room for room in rooms if matches(room)]
+        if kept:
+            out.append((floor, kept))
+    return out
+
+
+def connection_id_map(session, hotel_id):
+    """{room_id: [connected room_id, ...]} for one hotel, in bulk."""
+    room_ids = {r.id for r in session.query(PhysicalRoom.id)
+                .filter_by(hotel_id=hotel_id)}
+    edges = (session.query(PhysicalRoomConnection)
+             .filter(PhysicalRoomConnection.room_a_id.in_(room_ids))
+             .all()) if room_ids else []
+    out = defaultdict(list)
+    for edge in edges:
+        if edge.room_a_id in room_ids and edge.room_b_id in room_ids:
+            out[edge.room_a_id].append(edge.room_b_id)
+            out[edge.room_b_id].append(edge.room_a_id)
     return out
 
 
 def connection_map(session, hotel_id):
     """{room_id: [connected room_number, ...]} for one hotel, in bulk."""
-    rooms = {r.id: r for r in session.query(PhysicalRoom)
-             .filter_by(hotel_id=hotel_id).all()}
-    edges = (session.query(PhysicalRoomConnection)
-             .filter(PhysicalRoomConnection.room_a_id.in_(rooms))
-             .all()) if rooms else []
-    out = defaultdict(list)
-    for edge in edges:
-        a, b = rooms.get(edge.room_a_id), rooms.get(edge.room_b_id)
-        if a and b:
-            out[a.id].append(b.room_number)
-            out[b.id].append(a.room_number)
-    return {k: sorted(v) for k, v in out.items()}
+    numbers = dict(session.query(PhysicalRoom.id, PhysicalRoom.room_number)
+                   .filter_by(hotel_id=hotel_id).all())
+    return {room_id: sorted(numbers[n] for n in neighbors if n in numbers)
+            for room_id, neighbors
+            in connection_id_map(session, hotel_id).items()}
 
 
 def live_bookings_by_room(session, hotel_id):
@@ -119,11 +185,13 @@ def import_rows(session, hotel, blocks, rows, apply_changes=False):
     """Preview/apply a spreadsheet of physical rooms for one hotel.
 
     Expected (normalized) columns: room_number required; floor, type,
-    ada, connects_to, notes optional. `type` matches a block by block
-    name or by room/suite type name, case-insensitively; unmatched
-    types import as uncategorized. Keyed by room_number, so re-imports
-    update in place. Connection edges are resolved after all rows exist
-    and REPLACE each mentioned room's edges.
+    ada, accessibility, connects_to, notes optional. `type` is stored
+    as the room's type_code and matches a block by block name, by
+    room/suite type name, or by the block's declared physical room
+    type codes, case-insensitively; unmatched types import as
+    uncategorized. Keyed by room_number, so re-imports update in
+    place. Connection edges are resolved after all rows exist and
+    REPLACE each mentioned room's edges.
     """
     by_type_name = {}
     for block in blocks:
@@ -131,6 +199,8 @@ def import_rows(session, hotel, blocks, rows, apply_changes=False):
         rst = block.room_or_suite_type
         if rst:
             by_type_name.setdefault((rst.name or '').strip().lower(), block)
+        for code in block.physical_type_codes:
+            by_type_name.setdefault(code.lower(), block)
 
     existing = {r.room_number: r for r in session.query(PhysicalRoom)
                 .filter_by(hotel_id=hotel.id).all()}
@@ -156,11 +226,15 @@ def import_rows(session, hotel, blocks, rows, apply_changes=False):
             preview['uncategorized'].append(number)
         connects = [n.strip() for n in (row.get('connects_to') or '').split(',')
                     if n.strip()]
+        accessibility = [tag.strip() for tag
+                         in (row.get('accessibility') or '').split(',')
+                         if tag.strip()]
         parsed.append(dict(
             number=number, floor=(row.get('floor') or '').strip(),
-            block=block,
+            type_code=type_raw, block=block,
             ada=(row.get('ada') or '').strip().lower() in
                 ('1', 'true', 'yes', 'y', 'x'),
+            accessibility=', '.join(accessibility),
             notes=(row.get('notes') or '').strip(),
             connects=connects))
         (preview['updated'] if number in existing
@@ -185,8 +259,10 @@ def import_rows(session, hotel, blocks, rows, apply_changes=False):
             session.add(room)
             existing[p['number']] = room
         room.floor = p['floor']
+        room.type_code = p['type_code']
         room.inventory_id = p['block'].id if p['block'] else None
         room.ada = p['ada']
+        room.accessibility = p['accessibility']
         room.notes = p['notes']
     session.flush()
     for p in parsed:
@@ -197,9 +273,143 @@ def import_rows(session, hotel, blocks, rows, apply_changes=False):
     return preview
 
 
+def floor_map_rooms(floors, bookings):
+    """JSON-ready catalog for the floor-map picker: one entry per room,
+    with its live bookings inlined. The picker matches entries to map
+    shapes by room number and computes date conflicts client-side, so
+    dates go out as ISO strings (they compare lexicographically).
+
+    `floors` and `bookings` are the rooms_by_floor / live_bookings_by_room
+    shapes the board pages already load.
+    """
+    out = []
+    for _, rooms in floors:
+        for room in rooms:
+            out.append({
+                'id': room.id,
+                'number': room.room_number,
+                'inventory_id': room.inventory_id,
+                'block': room.inventory.display_name if room.inventory else '',
+                'type_code': room.type_code,
+                'ada': room.ada,
+                'accessibility': room.accessibility_list,
+                'out_of_service': room.out_of_service,
+                'notes': room.notes,
+                'bookings': [{
+                    'id': ra.id,
+                    'guest': ra.attendee.full_name if ra.attendee else '',
+                    'attendee_id': ra.attendee_id,
+                    'application_id': ra.lottery_application_id,
+                    'status': ra.status_label,
+                    'auto': ra.physical_room_auto,
+                    'check_in': str(ra.assigned_check_in_date)
+                        if ra.assigned_check_in_date else None,
+                    'check_out': str(ra.assigned_check_out_date)
+                        if ra.assigned_check_out_date else None,
+                } for ra in bookings.get(room.id, [])],
+            })
+    return out
+
+
 def _overlaps(a_ci, a_co, b_ci, b_co):
     # Checkout day is exclusive, so back-to-back turnover is fine.
     return a_ci < b_co and b_ci < a_co
+
+
+def match_connector_children(children, neighbors):
+    """Pair every connector child with a distinct room from `neighbors`
+    that belongs to the child's own block.
+
+    Returns [(child_assignment, room), ...], or [] if any child can't be
+    matched - connector groups are all-or-nothing. Extra neighbors are
+    left alone: a room that happens to be physically connected is only
+    taken when the room type actually calls for it.
+    """
+    picks, pool = [], list(neighbors)
+    for child in children:
+        match = next((r for r in pool
+                      if r.inventory_id == child.inventory_id), None)
+        if not match:
+            return []
+        picks.append((child, match))
+        pool.remove(match)
+    return picks
+
+
+def connector_children(session, ra):
+    """Live connector rooms awarded with this booking, in a stable
+    order. Empty for a booking that isn't a suite parent."""
+    return (session.query(RoomAssignment)
+            .filter(RoomAssignment.parent_assignment_id == ra.id,
+                    RoomAssignment.is_live)
+            .order_by(RoomAssignment.created.asc()).all())
+
+
+def connector_placements(session, ra, children=None):
+    """Where this booking could go, honoring its connector rooms.
+
+    Returns [(room, [(child_assignment, child_room), ...]), ...]. For a
+    suite parent, only rooms whose physically connected neighbors can
+    host every child - all free for the parent's dates - are offered,
+    and the picks are the rooms those children would take. A booking
+    with no connector children gets every vacant room with no picks.
+    """
+    from uber.hotel.queries import vacant_rooms_map
+
+    inv = ra.inventory
+    if not inv or not inv.hotel_id:
+        return []
+    if children is None:
+        children = connector_children(session, ra)
+
+    vacant = vacant_rooms_map(session, inv.hotel_id, [ra]).get(ra.id, [])
+    if not children:
+        return [(room, []) for room in vacant]
+
+    # Children share the parent's dates, so one vacancy sweep over the
+    # union of their blocks answers every child.
+    by_block = {}
+    for child in children:
+        if child.inventory_id not in by_block:
+            by_block[child.inventory_id] = \
+                vacant_rooms_map(session, inv.hotel_id, [child]).get(
+                    child.id, [])
+    free_ids = {r.id for rooms in by_block.values() for r in rooms}
+    neighbors_by_room = connection_id_map(session, inv.hotel_id)
+    rooms_by_id = {r.id: r for rooms in by_block.values() for r in rooms}
+
+    out = []
+    for room in vacant:
+        neighbors = [rooms_by_id[nid]
+                     for nid in neighbors_by_room.get(room.id, [])
+                     if nid in free_ids and nid != room.id]
+        picks = match_connector_children(children, neighbors)
+        if picks:
+            out.append((room, picks))
+    return out
+
+
+def clear_physical_assignments(session, hotel_id, auto_only=False):
+    """Unlink live bookings from this hotel's physical rooms; bookings
+    keep their room_number text for reference. auto_only leaves
+    hand-placed rooms (physical_room_auto False) alone. Returns the
+    number cleared."""
+    room_ids = [r.id for r in session.query(PhysicalRoom.id)
+                .filter_by(hotel_id=hotel_id).all()]
+    if not room_ids:
+        return 0
+    q = session.query(RoomAssignment).filter(
+        RoomAssignment.physical_room_id.in_(room_ids),
+        RoomAssignment.is_live)
+    if auto_only:
+        q = q.filter(RoomAssignment.physical_room_auto)
+    cleared = 0
+    for ra in q.all():
+        ra.physical_room_id = None
+        ra.physical_room_auto = False
+        session.add(ra)
+        cleared += 1
+    return cleared
 
 
 def auto_assign_physical_rooms(session, hotel_id):
@@ -262,6 +472,7 @@ def auto_assign_physical_rooms(session, hotel_id):
 
     def take(ra, room):
         ra.physical_room_id = room.id
+        ra.physical_room_auto = True
         session.add(ra)
         busy[room.id].append((ra.assigned_check_in_date,
                               ra.assigned_check_out_date))
@@ -294,16 +505,8 @@ def auto_assign_physical_rooms(session, hotel_id):
                          if connected(suite_room, r)
                          and free(r, parent.assigned_check_in_date,
                                   parent.assigned_check_out_date)]
-            picks = []
-            pool = list(neighbors)
-            for kid in kids:
-                match = next((r for r in pool
-                              if r.inventory_id == kid.inventory_id), None)
-                if not match:
-                    break
-                picks.append((kid, match))
-                pool.remove(match)
-            if len(picks) == len(kids):
+            picks = match_connector_children(kids, neighbors)
+            if picks:
                 placed = (suite_room, picks)
                 break
         if placed:

@@ -1,9 +1,10 @@
 {% extends "./preregistration/preregbase.html" %}
+{% import 'hotel_lottery/_macros.html' as room_macros with context %}
 {% set title_text = "Hotel Lottery Applications for " ~ application.attendee.full_name %}
 {% set app_or_parent = application.app_or_parent %}
 
 {% block content %}
-{% include 'hotel_lottery/withdraw_confirm.html' with context %}
+{{ "js/hotel-confirm-submit.js"|serve_static_content }}
 
 <script type="text/javascript">
     var setStep = function (selector) {
@@ -17,77 +18,12 @@
         }
     }
 
-    leaveConfirm = function(event){
-        var formToSubmit = this;
-        event.preventDefault();
-        bootbox.confirm({
-            title: "Leave {{ c.HOTEL_LOTTERY_GROUP_TERM }}?",
-            message: "<p>This will remove you from the group's lottery entry.</p>" + 
-                     "<p>The group leader will be notified via email. " +
-                    "You will {% if application.guarantee_policy_accepted %}be reverted to the lottery entry you had before joining the group{% else %}be withdrawn from the hotel lottery{% endif %}.</p>" +
-                    "<p>Are you sure?</p>",
-                        
-            buttons: {
-                confirm: {
-                    label: 'Yes, Leave Group',
-                    className: 'btn-danger'
-                },
-                cancel: {
-                    label: 'Nevermind',
-                    className: 'btn-outline-secondary'
-                }
-            },
-            callback: function (result) {
-                if(result) {
-                    formToSubmit.submit();
-                }
-            }
-        });
-    }
-
-    swapConfirm = function(event) {
-        var formToSubmit = this;
-        event.preventDefault();
-        bootbox.confirm({
-            title: "Change Entry Type?",
-            {% if application.entry_type == c.SUITE_ENTRY %}
-            message: "<p>This will convert your suite lottery entry to a standard room entry.</p>" + 
-                     "<p><strong>Your entry will be considered incomplete until you confirm your entry details on the next page.</strong></p>" +
-                     "<p>Are you sure?</p>",
-            {% else %}
-            message: "<p>This will convert your room lottery entry to a suite entry. You'll still be able to enter the lottery for a standard room.</p>" + 
-                     "<p><strong>Your entry will be considered incomplete until you confirm your entry details on the next page.</strong></p>" +
-                     {% if application.wants_ada and 'suite_ada_info' not in c.HOTEL_LOTTERY_FORM_STEPS %}
-                     "<p>Additionally, <span class='text-danger'>we cannot accommodate ADA requests for suite entries</span>, so your ADA request and details will be removed from your entry.</p>" +
-                     {% endif %}
-                    "</p><p>Are you sure?</p>",
-            {% endif %}
-            buttons: {
-                confirm: {
-                    label: 'Yes, Change to {{ "Suite" if application.entry_type == c.ROOM_ENTRY else "Room" }} Entry',
-                    className: 'btn-primary'
-                },
-                cancel: {
-                    label: 'Nevermind',
-                    className: 'btn-outline-secondary'
-                }
-            },
-            callback: function (result) {
-                if(result) {
-                    formToSubmit.submit();
-                }
-            }
-        });
-    }
-
     $().ready(function () {
         {% if confirm != '' %}
         $('#confirm').show();
         {% else %}
         $('#select-action').show();
         {% endif %}
-        if($('#leave-group').length) { $("#leave-group").submit(leaveConfirm); }
-        if($('#switch-type').length) { $("#switch-type").submit(swapConfirm); }
     })
 </script>
 
@@ -123,7 +59,8 @@
         </form>
         {# Withdrawing is irreversible, so this goes through the same
            bootbox confirmation as the main withdraw button below. #}
-        <form method="post" action="withdraw_entry" class="d-inline ms-1 withdraw-lottery-form">
+        <form method="post" action="withdraw_entry" class="d-inline ms-1"
+              {{ room_macros.withdraw_confirm_attrs(application) }}>
           {{ csrf_token() }}
           <input type="hidden" name="id" value="{{ application.id }}" />
           <button type="submit" class="btn btn-outline-danger btn-sm">No, withdraw</button>
@@ -227,7 +164,8 @@
                     If you can no longer attend {{ c.EVENT_NAME }}, you may withdraw from the hotel lottery using the button below.
                     This is <strong>irreversible</strong>.
                 </p>
-                <form method="post" action="withdraw_entry" id="withdraw-lottery">
+                <form method="post" action="withdraw_entry"
+                      {{ room_macros.withdraw_confirm_attrs(application) }}>
                     <input type="hidden" name="id" value="{{ application.id }}">
                     {{ csrf_token() }}
                     <button class="btn btn-danger">Withdraw From Hotel Lottery</button>

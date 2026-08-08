@@ -2,6 +2,7 @@
 {% set title_text = "Hotel Lottery Application for " ~ application.attendee.full_name %}
 {% import 'macros.html' as macros with context %}
 {% import 'forms/macros.html' as form_macros with context %}
+{% import 'hotel_lottery/_macros.html' as room_macros with context %}
 {% set lottery_room_group = lottery_room_group or forms['lottery_room_group'] %}
 
 {% block content %}
@@ -44,59 +45,6 @@
           });
     }
 
-    disbandConfirm = function(event){
-        var formToSubmit = this;
-        event.preventDefault();
-        bootbox.confirm({
-            title: "Disband {{ c.HOTEL_LOTTERY_GROUP_TERM }}?",
-            message: "<p>This remove all group members from your group. They will be notified via email.</p>" + 
-                     "<p>This will not withdraw you from the lottery, but it WILL generate a new confirmation number for your lottery entry.</p>" +
-                     "<p>Are you sure?</p>",
-            buttons: {
-                confirm: {
-                    label: 'Yes, Disband My Group',
-                    className: 'btn-danger'
-                },
-                cancel: {
-                    label: 'Nevermind',
-                    className: 'btn-outline-secondary'
-                }
-            },
-            callback: function (result) {
-                if(result) {
-                    formToSubmit.submit();
-                }
-            }
-        });
-    }
-
-    joinConfirm = function(event) {
-        var formToSubmit = this;
-        event.preventDefault();
-        bootbox.confirm({
-            title: "Join {{ c.HOTEL_LOTTERY_GROUP_TERM }}?",
-            message: "<p>This will withdraw your current lottery entry and generate a new confirmation number.</p>" + 
-                     "<p>You will ONLY be entered for the suite and/or room lottery if your group has an entry for it. " +
-                     "You will be able to view your group's lottery entries after joining.</p>" +
-                     "<p>Are you sure you want to join this group?</p>",
-            buttons: {
-                confirm: {
-                    label: 'Yes, Join Group',
-                    className: 'btn-success'
-                },
-                cancel: {
-                    label: 'Nevermind',
-                    className: 'btn-outline-secondary'
-                }
-            },
-            callback: function (result) {
-                if(result) {
-                    formToSubmit.submit();
-                }
-            }
-        });
-    }
-
     $().ready(function () {
         {% if action %}
         $('#confirm').show();
@@ -107,13 +55,9 @@
         {% endif %}
 
         $('#group-lookup-form').submit(lookupRoomGroup);
-        if($('#disband-group').length) { $("#disband-group").submit(disbandConfirm); }
-
-        {% if application.status == c.COMPLETE %}
-        $("#join-group-form").submit(joinConfirm);
-        {% endif %}
     })
 </script>
+{{ "js/hotel-confirm-submit.js"|serve_static_content }}
 
 <div class="card card-body">
     <h1>{{ c.EVENT_NAME }}{% if c.BEFORE_HOTEL_LOTTERY_FORM_START %} Staff{% endif %} Hotel Lottery <span class="text-muted h4">for {{ application.attendee.full_name }}</span></h1>
@@ -178,7 +122,21 @@
                         {% for inv_app in pending_invites %}
                             <li>
                                 {{ inv_app.attendee.email if inv_app.attendee else 'Unknown' }}
-                                <a href="cancel_invite?id={{ application.id }}&invite_app_id={{ inv_app.id }}" class="btn btn-sm btn-outline-danger ms-2">Cancel</a>
+                                {# POST, not a link: cancelling an invite is a
+                                   mutation, and a GET href fires on prefetch. #}
+                                <form method="post" action="cancel_invite" class="d-inline"
+                                      {{ room_macros.confirm_attrs(
+                                            'Cancel Invite?',
+                                            '<p>This will cancel the pending invite for '
+                                            ~ (inv_app.attendee.email if inv_app.attendee else 'this attendee')
+                                            ~ '. Their invite link will stop working.</p>'
+                                            '<p>Are you sure?</p>',
+                                            'Yes, Cancel Invite') }}>
+                                    {{ csrf_token() }}
+                                    <input type="hidden" name="id" value="{{ application.id }}" />
+                                    <input type="hidden" name="invite_app_id" value="{{ inv_app.id }}" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger ms-2">Cancel</button>
+                                </form>
                             </li>
                         {% endfor %}
                         </ul>
@@ -199,14 +157,22 @@
                 </div>
             {% endif %}
             {% if application.room_group_name %}
-            <form method="post" action="delete_group" id="disband-group">
+            <form method="post" action="delete_group"
+                  {{ room_macros.confirm_attrs(
+                        'Disband ' ~ c.HOTEL_LOTTERY_GROUP_TERM ~ '?',
+                        '<p>This will remove all group members from your group.'
+                        ' They will be notified via email.</p>'
+                        '<p>This will not withdraw you from the lottery, but it WILL'
+                        ' generate a new confirmation number for your lottery entry.</p>'
+                        '<p>Are you sure?</p>',
+                        'Yes, Disband My Group') }}>
             {% endif %}
                 <p class="mb-0 pull-right">
                     <a class="btn btn-outline-secondary" href="index?attendee_id={{ application.attendee.id }}">Back to Lottery Options</a>
                     <input type="hidden" name="id" value="{{ application.id }}">
                         {{ csrf_token() }}
                         {% if application.room_group_name %}
-                        <button class="btn btn-danger" onClick="disbandConfirm()">Disband Group</button>
+                        <button type="submit" class="btn btn-danger">Disband Group</button>
                         {% endif %}
                 </p>
             {% if application.room_group_name %}
@@ -260,8 +226,22 @@
                 We found the group "<span class='group-name'></span>" (confirmation number <strong><span class='conf-num'></span></strong>).
                 This group's group leader is <span class='leader-name'></span> They will be able to see your first and last name ({{ application.attendee.full_name }}).
             </p>
-            <form method="post" action="join_group" id="join-group-form">
+            {# Only a COMPLETE entry has anything to lose by joining, so the
+               "this withdraws your current entry" warning is gated on it. #}
+            <form method="post" action="join_group" id="join-group-form"
+                  {% if application.status == c.COMPLETE %}
+                  {{ room_macros.confirm_attrs(
+                        'Join ' ~ c.HOTEL_LOTTERY_GROUP_TERM ~ '?',
+                        '<p>This will withdraw your current lottery entry and generate'
+                        ' a new confirmation number.</p>'
+                        "<p>You will ONLY be entered for the suite and/or room lottery"
+                        " if your group has an entry for it. You will be able to view"
+                        " your group's lottery entries after joining.</p>"
+                        '<p>Are you sure you want to join this group?</p>',
+                        'Yes, Join Group', 'btn-success') }}
+                  {% endif %}>
                 <input type="hidden" name="id" value="{{ application.id }}">
+                {{ csrf_token() }}
                 <input type="hidden" id="room_group_id" name="room_group_id" value="">
                 <div class="row g-3 mb-3">
                     <div class="col-12 col-sm-6">

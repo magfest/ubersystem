@@ -27,6 +27,33 @@
      current_count - int, items on this page (only used for summary)
      label         - string, what we're counting (default "result")
 #}
+{# Sortable column header. `base_url` is the page URL with every filter
+   EXCEPT sort/dir already in the query string; clicking toggles the
+   direction when the column is already active. #}
+{% macro sortable_th(label, key, sort, dir, base_url) %}
+  {% set _sep = '&' if '?' in base_url else '?' %}
+  {% set _dir = 'desc' if sort == key and dir == 'asc' else 'asc' %}
+  <th><a class="text-decoration-none text-reset text-nowrap"
+         href="{{ base_url }}{{ _sep }}sort={{ key }}&dir={{ _dir }}">
+    {{- label -}}
+    {%- if sort == key %} <i class="fa fa-caret-{{ 'up' if dir == 'asc' else 'down' }}"></i>{% endif -%}
+  </a></th>
+{% endmacro %}
+
+
+{# Single-key sort header: one ordering per column, no direction toggle
+   (the sortable_th above is the two-way variant). `base_url` carries
+   every other query param. #}
+{% macro sort_th(label, key, current, base_url, param='sort') %}
+  {% set _sep = '&' if '?' in base_url else '?' %}
+  <th><a class="text-decoration-none text-reset text-nowrap"
+         href="{{ base_url }}{{ _sep }}{{ param }}={{ key }}">
+    {{- label -}}
+    {%- if current == key %} <i class="fa fa-caret-up"></i>{% endif -%}
+  </a></th>
+{% endmacro %}
+
+
 {% macro pagination(page, page_count, base_url,
                     show_summary=True, total=None, page_size=None,
                     current_count=None, label='result',
@@ -189,12 +216,41 @@
    or just an inventory directly. #}
 {% macro hotel_room_cell(ra=None, inv=None) %}
   {% set _inv = inv if inv else (ra.inventory if ra else None) %}
-  {% set _is_connector = ra and ra.parent_assignment_id %}
+  {% set _is_connector = ra and ra.is_connector %}
   {{ _inv.hotel.name if _inv and _inv.hotel else '?' }}
   <small class="d-block text-muted">
     {% if _inv %}{{ _inv.display_name }}{% endif %}
     {% if _is_connector %}{{ connector_chip() }}{% endif %}
   </small>
+{% endmacro %}
+
+
+{# Stay dates
+
+   The two-line "Thu Jan 15 / -> Sun Jan 18" cell used by every room
+   table in the section. Rooms with only one of the two dates can't be
+   placed on a night, so they render the `missing` warning as well.
+   Pass missing='' where a blank cell is preferred to a warning. #}
+{% macro room_dates_cell(ra, missing='- dates missing -') %}
+  {%- if ra.assigned_check_in_date and ra.assigned_check_out_date -%}
+    {{ ra.assigned_check_in_date|date("%a %b %-d") }}<br/>
+    &rarr; {{ ra.assigned_check_out_date|date("%a %b %-d") }}
+  {%- elif missing -%}
+    <span class="text-warning">{{ missing }}</span>
+  {%- endif -%}
+{% endmacro %}
+
+{# Hotel confirmation number, with the room number underneath when the
+   page wants it (the Rooms list does; the read-only rosters don't). #}
+{% macro hotel_conf_cell(ra, show_room_number=False) %}
+  {%- if ra.hotel_confirmation_number -%}
+    <code>{{ ra.hotel_confirmation_number }}</code>
+  {%- else -%}
+    <span class="text-muted">-</span>
+  {%- endif -%}
+  {%- if show_room_number and ra.room_number %}
+    <br/><small class="text-muted">Room {{ ra.room_number }}</small>
+  {%- endif -%}
 {% endmacro %}
 
 
@@ -563,89 +619,86 @@
   {% else %}<span class="text-muted">vacant</span>{% endfor %}
 {% endmacro %}
 
-{# Per-floor card of physical rooms, shared by physical_rooms.html
-   (mode='catalog': flags/notes columns + Edit/Delete actions) and
-   room_board.html (mode='board': occupancy row highlight + per-booking
-   Unassign forms; `hotel` is required in board mode for the POSTs). #}
-{% macro floor_card(floor, rooms, connections, bookings, mode='catalog', hotel=None) %}
-  <div class="card mb-3">
-    <div class="card-header py-2">
-      <strong>Floor {{ floor or '(none)' }}</strong>
-      {% if mode == 'catalog' %}<span class="text-muted small ms-2">{{ rooms|length }} room(s)</span>{% endif %}
-    </div>
-    <div class="card-body py-2">
-      <table class="table table-sm{% if mode == 'catalog' %} table-hover{% endif %} align-middle mb-0">
-        <thead>
-          {% if mode == 'catalog' %}
-          <tr>
-            <th>Room</th>
-            <th>Block</th>
-            <th>Flags</th>
-            <th>Connects To</th>
-            <th>Current Booking</th>
-            <th>Notes</th>
-            <th></th>
-          </tr>
-          {% else %}
-          <tr>
-            <th style="width: 8em;">Room</th>
-            <th>Block</th>
-            <th>Connects</th>
-            <th>Booking</th>
-            <th></th>
-          </tr>
-          {% endif %}
-        </thead>
-        <tbody>
-          {% for room in rooms %}
-          {% set ras = bookings.get(room.id, []) %}
-          {% if mode == 'catalog' %}
-          <tr{% if room.out_of_service %} class="table-secondary"{% endif %}>
-            <td><strong>{{ room.room_number }}</strong></td>
-            <td>
-              {% if room.inventory %}{{ room.inventory.display_name }}
-              {% else %}<span class="badge bg-warning text-dark">uncategorized</span>{% endif %}
-            </td>
-            <td>{{ physical_room_badges(room) }}</td>
-            <td class="small">{{ connections.get(room.id, [])|join(', ') or '-' }}</td>
-            <td class="small">{{ physical_room_booking_cell(ras) }}</td>
-            <td class="small text-muted">{{ room.notes }}</td>
-            <td class="text-end" style="white-space: nowrap;">
-              <a class="btn btn-sm btn-outline-primary" href="edit_physical_room?id={{ room.id }}">Edit</a>
-              <form method="post" action="delete_physical_room" class="d-inline"
-                    onsubmit="return confirm('Delete room {{ room.room_number }}? Its connection edges go with it.');">
-                {{ csrf_token() }}
-                <input type="hidden" name="id" value="{{ room.id }}" />
-                <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
-              </form>
-            </td>
-          </tr>
-          {% else %}
-          <tr class="{% if room.out_of_service %}table-secondary{% elif ras %}table-info{% endif %}">
-            <td>
-              <strong>{{ room.room_number }}</strong>
-              {{ physical_room_badges(room, oos_label='OOS') }}
-            </td>
-            <td class="small">{% if room.inventory %}{{ room.inventory.display_name }}{% else %}<span class="text-warning">uncategorized</span>{% endif %}</td>
-            <td class="small text-muted">{{ connections.get(room.id, [])|join(', ') or '-' }}</td>
-            <td class="small">{{ physical_room_booking_cell(ras) }}</td>
-            <td class="text-end" style="white-space: nowrap;">
-              {% for ra in ras %}
-              <form method="post" action="board_unassign" class="d-inline">
-                {{ csrf_token() }}
-                <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
-                <input type="hidden" name="hotel_id" value="{{ hotel.id }}" />
-                <button type="submit" class="btn btn-sm btn-outline-secondary">Unassign</button>
-              </form>
-              {% endfor %}
-            </td>
-          </tr>
-          {% endif %}
-          {% endfor %}
-        </tbody>
-      </table>
+{# Per-floor accordion item of physical rooms for physical_rooms.html:
+   catalog columns (block, connections, notes, Edit/Delete) plus board
+   occupancy (current bookings, per-booking Unassign). Collapsed by
+   default; `index` uniquifies the collapse target (floor names are
+   free text). Wrap the loop in <div class="accordion">. #}
+{% macro floor_card(summary, index, query, expanded=False) %}
+  <div class="accordion-item">
+    <h2 class="accordion-header">
+      <button class="accordion-button py-2{% if not expanded %} collapsed{% endif %}" type="button"
+              data-bs-toggle="collapse" data-bs-target="#floor-{{ index }}">
+        <strong>Floor {{ summary.floor or '(none)' }}</strong>
+        <span class="text-muted small ms-2">
+          {{ summary.rooms }} room(s), {{ summary.occupied }} occupied
+        </span>
+      </button>
+    </h2>
+    <div id="floor-{{ index }}" class="accordion-collapse collapse{% if expanded %} show{% endif %}">
+      {# hotel-physical-rooms.js fills this on first expand from
+         data-rows-url; the rows themselves are _floor_rows.html. #}
+      <div class="accordion-body py-2 floor-rows"
+           data-rows-url="physical_rooms_floor?floor={{ summary.floor|urlencode }}&amp;{{ query }}">
+        <div class="text-muted small">Loading rooms&hellip;</div>
+      </div>
     </div>
   </div>
+{% endmacro %}
+
+
+{# Floor-map room picker
+
+   `room_map_modal` emits the shared modal shell, the room-data JSON,
+   and the picker script; include it once per page, guarded on
+   hotel.map_svg. `map_rooms` comes from
+   uber.hotel.physical.floor_map_rooms.
+
+   `room_map_button` goes inside a <form> that contains a
+   <select name="physical_room_id"> - the picker fills that select. #}
+{% macro room_map_modal(hotel, map_rooms) %}
+  <div class="modal fade" id="room-map-modal" tabindex="-1"
+       data-map-url="hotel_map?hotel_id={{ hotel.id }}">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header py-2">
+          <h5 class="modal-title me-2">{{ hotel.name }}
+            <span class="room-map-subtitle text-muted fs-6"></span>
+          </h5>
+          <div class="btn-group btn-group-sm room-map-floors ms-auto me-3" role="group"></div>
+          <button type="button" class="btn-close ms-0" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body d-flex gap-3 position-relative">
+          <div class="room-map-body flex-grow-1 overflow-hidden">
+            <div class="text-muted">Loading map&hellip;</div>
+          </div>
+          {# Follows the pointer over any room; details rendered by
+             hotel-room-map.js. #}
+          <div class="room-map-hover card card-body py-2 px-3 shadow-sm d-none"
+               style="position: absolute; z-index: 5; pointer-events: none;
+                      max-width: 20em; font-size: 0.875rem;"></div>
+          {# Inspect mode fills this with the clicked room's details. #}
+          <div class="room-map-info d-none border-start ps-3"
+               style="width: 18em; overflow-y: auto;"></div>
+        </div>
+        <div class="modal-footer py-1 small justify-content-start room-map-legend"></div>
+      </div>
+    </div>
+  </div>
+  <script type="application/json" id="room-map-data">{{ map_rooms|tojson }}</script>
+  {{ "js/hotel-room-map.js"|serve_static_content }}
+{% endmacro %}
+
+{% macro room_map_button(ra) %}
+  <button type="button" class="btn btn-sm btn-outline-secondary room-map-open"
+          title="Pick from the floor map"
+          data-inventory-id="{{ ra.inventory_id or '' }}"
+          data-physical-types="{{ ra.inventory.physical_room_types if ra.inventory else '' }}"
+          data-check-in="{{ ra.assigned_check_in_date or '' }}"
+          data-check-out="{{ ra.assigned_check_out_date or '' }}"
+          data-context-label="{{ ra.attendee.full_name if ra.attendee else '' }} &middot; {{ ra.assigned_check_in_date or '?' }} &rarr; {{ ra.assigned_check_out_date or '?' }}">
+    <i class="fa fa-map"></i> Map
+  </button>
 {% endmacro %}
 
 
@@ -690,6 +743,17 @@
    The section's filter bars share these two pieces; the fields between
    them differ per page, so there's deliberately no full filter_bar
    macro. #}
+{# The "(any) / one hotel" filter select shared by the room lists. #}
+{% macro hotel_filter_select(hotels, current, label='Hotel', name='hotel_id') %}
+  <label class="form-label small mb-1">{{ label }}</label>
+  <select class="form-select form-select-sm" name="{{ name }}">
+    <option value="">(any)</option>
+    {% for h in hotels %}
+      <option value="{{ h.id }}" {% if current == h.id %}selected{% endif %}>{{ h.name }}</option>
+    {% endfor %}
+  </select>
+{% endmacro %}
+
 {% macro page_size_select(current, sizes=[25, 50, 100, 200],
                           name='page_size', label='Per page') %}
   <label class="form-label small mb-1">{{ label }}</label>

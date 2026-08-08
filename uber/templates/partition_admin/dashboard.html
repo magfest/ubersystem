@@ -186,11 +186,7 @@
           {% else %}<em>(deleted)</em>{% endif %}
         </td>
         <td>{{ hotel_macros.hotel_room_cell(ra=ra) }}</td>
-        <td>
-          {% if ra.assigned_check_in_date %}
-            {{ ra.assigned_check_in_date|date("%a %b %-d") }}<br/>-> {{ ra.assigned_check_out_date|date("%a %b %-d") }}
-          {% endif %}
-        </td>
+        <td>{{ hotel_macros.room_dates_cell(ra, missing='') }}</td>
         <td>{{ hotel_macros.room_status_chip(ra) }}</td>
         <td>
           {{ hotel_macros.billing_chip(ra) }}
@@ -204,13 +200,7 @@
           </form>
           {% endif %}
         </td>
-        <td>
-          {% if ra.hotel_confirmation_number %}
-            <code>{{ ra.hotel_confirmation_number }}</code>
-          {% else %}
-            <span class="text-muted">-</span>
-          {% endif %}
-        </td>
+        <td>{{ hotel_macros.hotel_conf_cell(ra) }}</td>
         <td class="text-end">
           {% if can_edit_assignments and ra.attendee_id %}
           <button type="button" class="btn btn-sm btn-outline-primary"
@@ -253,6 +243,7 @@
       <tr>
         <th style="width: 13em;">When</th>
         <th style="width: 14em;">Who</th>
+        <th style="width: 14em;">Attendee</th>
         <th>Action</th>
       </tr>
     </thead>
@@ -266,6 +257,12 @@
           {% else %}
             <em>system</em>
           {% endif %}
+        </td>
+        {# The attendee whose room changed, by public name - hotel
+           reservation names are a separate, restricted field. #}
+        <td>
+          {% if entry.attendee %}{{ entry.attendee.full_name }}
+          {% else %}<span class="text-muted">-</span>{% endif %}
         </td>
         <td>
           {{ entry.description }}

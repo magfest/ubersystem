@@ -1,39 +1,45 @@
 import os
+import re
 import cherrypy
 import logging
 from cherrypy.lib.static import serve_file
-import random
 import math
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from pytz import UTC
 from dateutil import parser as dateparser
 import sqlalchemy as sa
-from sqlalchemy import and_, func, or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.types import String
 
 from uber.config import c
-from uber.decorators import all_renderable, log_pageview, ajax, ajax_gettable, xlsx_file, csv_file, multifile_zipfile, render
+from uber.decorators import (all_renderable, log_pageview, ajax, ajax_gettable, xlsx_file, csv_file,
+                             multifile_zipfile)
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
-from uber.models import Attendee, Group, LotteryApplication, Email, Tracking, PageViewTracking
+from uber.models import (AdminAccount, Attendee, Group, LotteryApplication,
+                         Email, Tracking, PageViewTracking)
 from uber.hotel.perms import record_partition_audit
 from uber.models.hotel import (HotelRoomInventory, InventoryNightQuantity, InventoryPartition,
                                InventoryPartitionBlock, LotteryRun, HotelExportLog, LotteryHotel, LotteryRoomType,
-                               PartitionAuditLog, PartitionOwner, RoomAssignment,
+                               PartitionOwner, RoomAssignment,
                                WaitlistReveal, WaitlistRevealLink, HotelRoomIssueNote,
                                HotelImportFile)
 from uber.email import EmailService
 from uber.hotel.exports import (booking_columns, booking_export_data,
-                                build_waitlist_xlsx, compute_export_tracking,
-                                derive_sync_status, write_hotel_inventory_xlsx,
+                                build_waitlist_xlsx, changed_rooms_between,
+                                compute_export_tracking, derive_sync_status,
+                                hotel_activity_timeline, import_changes,
+                                read_stored_file, render_booking_export,
+                                store_export_file, write_hotel_inventory_xlsx,
                                 write_interchange_export)
 from uber.hotel.imports import (apply_cancellation_rows, apply_confirmation_rows,
                                 match_assignments, parse_confirmation_rows,
                                 parse_iso_date, parse_spreadsheet)
 from uber.hotel.service import (RoomAssignmentError, apply_room_assignment_edits,
-                                create_room_assignment, validate_physical_room)
+                                assign_physical_room, create_room_assignment,
+                                validate_physical_room)
 from uber.hotel.solver import (adjust_available_rooms,
                                        build_eligible_applications,
                                        count_assigned_per_block_night,
@@ -50,8 +56,7 @@ from uber.hotel.queries import (attendee_search_results, block_availability,
 from uber.hotel.waitlist import (WaitlistError, accept_waitlist_entry,
                                  cron_eligible, fulfill_waitlist)
 from uber.utils import (Order, check_csrf, get_page, localized_now,
-                        redirect_with_params, validate_model,
-                        get_age_from_birthday, normalize_email_legacy)
+                        redirect_with_params, validate_model)
 
 log = logging.getLogger(__name__)
 
@@ -74,6 +79,35 @@ def _picker_context(session):
         'partitions': session.query(InventoryPartition).filter_by(
             active=True).order_by(InventoryPartition.name).all(),
     }
+
+
+def _change_rows_json(rows):
+    """JSON shape shared by the exports page's two change modals."""
+    return [{
+        'assignment_id': row['assignment_id'],
+        'number': row['number'],
+        'guest': row['guest'],
+        'when': row['when'].isoformat() if row['when'] else '',
+        'who': row['who'],
+        'action': row['action'],
+        'fields': [{'field': f, 'old': o, 'new': n}
+                   for f, o, n in row['changes']],
+    } for row in rows]
+
+
+def _unroomed_order(sort):
+    """ORDER BY clauses for the physical-rooms page's unroomed-bookings
+    table. Missing check-in dates sort first so they get noticed.
+    'attendee' expects the caller to have joined Attendee."""
+    if sort == 'attendee':
+        return (Attendee.last_name.asc(), Attendee.first_name.asc())
+    if sort == 'block':
+        return (RoomAssignment.inventory_id.asc(),)
+    if sort == 'status':
+        return (RoomAssignment.status.asc(),)
+    if sort == 'checkout':
+        return (RoomAssignment.assigned_check_out_date.asc().nullsfirst(),)
+    return (RoomAssignment.assigned_check_in_date.asc().nullsfirst(),)
 
 
 def _event_nights():
@@ -335,12 +369,33 @@ def _parse_index_filters(params):
     return {k: v for k, v in params.items() if k.startswith('filter_') and v}
 
 
+def _apps_with_rooms_in(session, applications, inventory_filter):
+    """Narrow a LotteryApplication query to applications holding at least
+    one RoomAssignment in the given inventory scope.
+
+    `inventory_filter` is the RoomAssignment.inventory_id criterion (an
+    `== id` or an `.in_(ids)`). No matching rooms yields an always-false
+    filter rather than no filter, so an empty result stays empty instead
+    of silently widening to every application.
+    """
+    matched_app_ids = [
+        row[0] for row in session.query(
+            RoomAssignment.lottery_application_id
+        ).filter(
+            inventory_filter,
+            RoomAssignment.lottery_application_id.isnot(None),
+        ).distinct().all()
+    ]
+    if not matched_app_ids:
+        return applications.filter(sa.false())
+    return applications.filter(LotteryApplication.id.in_(matched_app_ids))
+
+
 def _apply_index_filters(session, applications, filters):
     """Chain the index page's advanced filters onto a LotteryApplication
     query. Hotel/inventory filters resolve through RoomAssignment (an
     application matches when any of its rooms sits at that hotel /
-    inventory block); an empty room-match set yields an always-false
-    filter rather than no filter."""
+    inventory block)."""
     filter_status = filters.get('filter_status', '')
     filter_entry_type = filters.get('filter_entry_type', '')
     filter_hotel = filters.get('filter_hotel', '')
@@ -356,36 +411,14 @@ def _apply_index_filters(session, applications, filters):
     if filter_hotel:
         inv_ids = [str(inv.id) for inv in
                    session.query(HotelRoomInventory).filter_by(hotel_id=filter_hotel).all()]
-        if inv_ids:
-            matched_app_ids = [
-                row[0] for row in session.query(
-                    RoomAssignment.lottery_application_id
-                ).filter(
-                    RoomAssignment.inventory_id.in_(inv_ids),
-                    RoomAssignment.lottery_application_id.isnot(None),
-                ).distinct().all()
-            ]
-            if matched_app_ids:
-                applications = applications.filter(
-                    LotteryApplication.id.in_(matched_app_ids))
-            else:
-                applications = applications.filter(sa.false())
-        else:
-            applications = applications.filter(sa.false())
+        applications = (
+            _apps_with_rooms_in(session, applications,
+                                RoomAssignment.inventory_id.in_(inv_ids))
+            if inv_ids else applications.filter(sa.false()))
     if filter_inventory:
-        matched_app_ids = [
-            row[0] for row in session.query(
-                RoomAssignment.lottery_application_id
-            ).filter(
-                RoomAssignment.inventory_id == filter_inventory,
-                RoomAssignment.lottery_application_id.isnot(None),
-            ).distinct().all()
-        ]
-        if matched_app_ids:
-            applications = applications.filter(
-                LotteryApplication.id.in_(matched_app_ids))
-        else:
-            applications = applications.filter(sa.false())
+        applications = _apps_with_rooms_in(
+            session, applications,
+            RoomAssignment.inventory_id == filter_inventory)
     if filter_partition:
         applications = applications.filter(LotteryApplication.partition_id == filter_partition)
     if filter_export_locked == 'true':
@@ -599,15 +632,23 @@ class Root:
         application = session.lottery_application(id)
         return {
             'application':  application,
-            'emails': session.query(Email).filter(Email.model == 'LotteryApplication',
-                                                  Email.fk_id == id
-                                                  ).order_by(Email.when).all(),
             'changes': session.query(Tracking).filter(Tracking.model == 'LotteryApplication', Tracking.fk_id == id
                                                       ).order_by(Tracking.when).all(),
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(application)
                                                                 ).order_by(PageViewTracking.when).all(),
         }
-    
+
+    def emails(self, session, id):
+        """The Emails tab of the per-application nav (see the nav_menu in
+        form.html / history.html / emails.html)."""
+        application = session.lottery_application(id)
+        return {
+            'application':  application,
+            'emails': session.query(Email).filter(Email.fk_id == id
+                                                  ).order_by(Email.generated).all(),
+            'depts_by_sender': EmailService.emails_from_depts(session),
+        }
+
     def lottery_runs(self, session, message=''):
         runs = session.query(LotteryRun).order_by(LotteryRun.run_at.desc()).all()
         return {
@@ -714,35 +755,6 @@ class Root:
         if propagated_count:
             msg += f" Pushed to {propagated_count} assignment(s)."
         raise HTTPRedirect('lottery_run_detail?id={}&message={}', id, msg)
-
-    def update_assignment_deadline(self, session, id, deposit_cutoff_date='',
-                                   csrf_token=None):
-        """Override deposit_cutoff_date on a single RoomAssignment.
-
-        Empty value clears the override, letting the run-level deadline
-        govern again.
-        """
-        if cherrypy.request.method != 'POST':
-            raise HTTPRedirect('index')
-        check_csrf(csrf_token)
-
-        assignment = session.query(RoomAssignment).get(id)
-        if not assignment:
-            raise HTTPRedirect('index?message={}', 'Assignment not found.')
-
-        if deposit_cutoff_date.strip():
-            try:
-                assignment.deposit_cutoff_date = date.fromisoformat(
-                    deposit_cutoff_date.strip())
-            except ValueError:
-                raise HTTPRedirect('assign_room?id={}&message={}', id,
-                                   'Could not parse the deadline.')
-        else:
-            assignment.deposit_cutoff_date = None
-        session.add(assignment)
-        session.commit()
-        raise HTTPRedirect('assign_room?id={}&message={}', id,
-                           'Deadline updated.')
 
     def award_run(self, session, id, **params):
 
@@ -918,17 +930,29 @@ class Root:
                     EmailService.queue_email(
                         session, 'hotel_lottery_waitlist_fulfilled', ra.lottery_application,
                         subject=f'{c.EVENT_NAME} Hotel Lottery - Room Dates Updated',
-                        data={'assignment': ra, 'app': ra.lottery_application})
+                        data={'assignment': ra, })
             save_msg = 'Inventory item saved.'
             if waitlist_result.fulfilled > 0:
                 save_msg += f" Waitlist: {waitlist_result.fulfilled} entries fulfilled."
 
             raise HTTPRedirect('manage_inventory?message={}', save_msg)
 
+        # Distinct catalog type codes per hotel, for the physical-room-
+        # types checkbox dropdown (tracks the hotel select client-side).
+        from uber.models.hotel import PhysicalRoom
+        type_codes_by_hotel = defaultdict(list)
+        for hotel_id, code in (session.query(PhysicalRoom.hotel_id,
+                                             PhysicalRoom.type_code)
+                               .filter(PhysicalRoom.type_code != '')
+                               .distinct()
+                               .order_by(PhysicalRoom.type_code)):
+            type_codes_by_hotel[str(hotel_id)].append(code)
+
         return {
             'item': item,
             'forms': forms,
             'event_nights': event_nights,
+            'type_codes_by_hotel': type_codes_by_hotel,
             'message': message,
         }
 
@@ -978,6 +1002,111 @@ class Root:
             'forms': forms,
             'message': message,
         }
+
+    def upload_hotel_map(self, session, hotel_id, map_file=None,
+                         csrf_token=None):
+        """Store a hotel's floor map from a YAML upload. The SVG the
+        picker consumes is rendered here, and the physical-room catalog
+        is synced from the same file (see uber.hotel.floormap for the
+        schema)."""
+        from uber.hotel import floormap
+        from uber.hotel import physical as hotel_physical
+        if cherrypy.request.method != 'POST':
+            raise HTTPRedirect('physical_rooms?hotel_id={}', hotel_id)
+        check_csrf(csrf_token)
+        hotel = session.query(LotteryHotel).get(hotel_id)
+        if not hotel:
+            raise HTTPRedirect('physical_rooms?message={}',
+                               'Hotel not found.')
+        if map_file is None or not getattr(map_file, 'file', None):
+            raise HTTPRedirect('physical_rooms?hotel_id={}&message={}',
+                               hotel.id, 'Choose a YAML file to upload.')
+        raw = map_file.file.read()
+        if len(raw) > 5 * 1024 * 1024:
+            raise HTTPRedirect('physical_rooms?hotel_id={}&message={}',
+                               hotel.id, 'The map is over the 5MB limit.')
+        try:
+            data = floormap.parse(raw.decode('utf-8-sig'))
+            svg = floormap.render(data)
+        except (UnicodeDecodeError, floormap.FloorMapError) as e:
+            raise HTTPRedirect('physical_rooms?hotel_id={}&message={}',
+                               hotel.id, f'Map rejected: {e}')
+
+        blocks = session.query(HotelRoomInventory).filter_by(
+            hotel_id=hotel.id, active=True).all()
+        result = hotel_physical.import_rows(
+            session, hotel, blocks, floormap.catalog_rows(data),
+            apply_changes=True)
+        if result['errors']:
+            session.rollback()
+            raise HTTPRedirect(
+                'physical_rooms?hotel_id={}&message={}', hotel.id,
+                f"Map rejected: {'; '.join(result['errors'][:3])}")
+        hotel.map_yaml = raw.decode('utf-8-sig')
+        hotel.map_svg = svg
+        session.commit()
+        floors = floormap.extract(svg)
+        rooms = sum(len(f['rooms']) for f in floors)
+        raise HTTPRedirect(
+            'physical_rooms?hotel_id={}&message={}', hotel.id,
+            f'Map saved: {len(floors)} floor(s), {rooms} '
+            f"room shape(s); catalog {len(result['created'])} created, "
+            f"{len(result['updated'])} updated"
+            + (f", {len(result['uncategorized'])} with no matching block."
+               if result['uncategorized'] else '.'))
+
+    def delete_hotel_map(self, session, hotel_id, csrf_token=None):
+        if cherrypy.request.method != 'POST':
+            raise HTTPRedirect('physical_rooms?hotel_id={}', hotel_id)
+        check_csrf(csrf_token)
+        hotel = session.query(LotteryHotel).get(hotel_id)
+        if not hotel:
+            raise HTTPRedirect('physical_rooms?message={}',
+                               'Hotel not found.')
+        hotel.map_yaml = ''
+        hotel.map_svg = ''
+        session.commit()
+        raise HTTPRedirect('physical_rooms?hotel_id={}&message={}',
+                           hotel.id, 'Map removed.')
+
+    def hotel_map(self, session, hotel_id):
+        """The rendered floor-map SVG; the room-picker JS fetches this
+        and inlines it."""
+        hotel = session.query(LotteryHotel).get(hotel_id)
+        if not hotel or not hotel.map_svg:
+            raise cherrypy.HTTPError(404)
+        cherrypy.response.headers['Content-Type'] = 'image/svg+xml'
+        cherrypy.response.headers['Cache-Control'] = 'no-store'
+        return hotel.map_svg.encode('utf-8')
+
+    def hotel_map_yaml(self, session, hotel_id):
+        """The floor map re-exported with the current physical-room
+        catalog merged in, for offline editing and re-upload."""
+        from uber.hotel import floormap
+        from uber.hotel.physical import connection_map
+        from uber.models.hotel import PhysicalRoom
+        hotel = session.query(LotteryHotel).get(hotel_id)
+        if not hotel:
+            raise cherrypy.HTTPError(404)
+        rooms = session.query(PhysicalRoom).filter_by(
+            hotel_id=hotel.id).all()
+        if not hotel.map_yaml and not rooms:
+            raise cherrypy.HTTPError(404)
+        connections = connection_map(session, hotel.id)
+        catalog = [{
+            'number': room.room_number,
+            'floor': room.floor,
+            'type': room.type_code,
+            'ada': room.ada,
+            'accessibility': room.accessibility_list,
+            'connects_to': connections.get(room.id, []),
+            'notes': room.notes,
+        } for room in rooms]
+        text = floormap.export_yaml(hotel.map_yaml, catalog)
+        cherrypy.response.headers['Content-Type'] = 'text/yaml'
+        cherrypy.response.headers['Content-Disposition'] = \
+            f'attachment; filename="{hotel.export_name or "hotel"}-map.yaml"'
+        return text.encode('utf-8')
 
     def manage_room_types(self, session, message=''):
         room_types = session.query(LotteryRoomType).order_by(
@@ -1088,25 +1217,101 @@ class Root:
     # data) lives in uber.hotel.exports; these handlers are the routes
     # that serve it per hotel.
 
-    @csv_file
-    def export_hotel_bookings_csv(self, out, session, hotel_id):
-        """Per-hotel booking CSV. CC tokens omitted by design."""
-        hotel, rows = booking_export_data(session, hotel_id)
-        if hotel is None:
-            return
-        out.writerow(booking_columns())
-        for row in rows:
-            out.writerow(row)
+    def _serve_booking_export(self, session, hotel_id, fmt):
+        """Build, retain, and serve one per-hotel booking file.
 
-    @xlsx_file
-    def export_hotel_bookings_xlsx(self, out, session, hotel_id):
-        """Per-hotel booking XLSX. CC tokens omitted by design."""
-        hotel, rows = booking_export_data(session, hotel_id)
+        The bytes are stored (store_export_file) before they go out, so
+        the exports page can hand back exactly what the hotel received.
+        CC tokens are omitted from the layout by design.
+        """
+        hotel, filename, content_type, data = render_booking_export(
+            session, hotel_id, fmt)
         if hotel is None:
-            return
-        out.writerow(booking_columns())
-        for row in rows:
-            out.writerow(row)
+            raise cherrypy.HTTPError(404, 'Hotel not found.')
+        _, rows = booking_export_data(session, hotel_id)
+        store_export_file(
+            session, hotel, data, filename, content_type,
+            source='admin', record_count=len(rows),
+            exported_by=AdminAccount.admin_name() or '')
+        session.commit()
+        cherrypy.response.headers['Content-Type'] = content_type
+        cherrypy.response.headers['Content-Disposition'] = \
+            f'attachment; filename="{filename}"'
+        return data
+
+    def export_hotel_bookings_csv(self, session, hotel_id):
+        return self._serve_booking_export(session, hotel_id, 'csv')
+
+    def export_hotel_bookings_xlsx(self, session, hotel_id):
+        return self._serve_booking_export(session, hotel_id, 'xlsx')
+
+    def hotel_export_file(self, session, id):
+        """Download a retained export exactly as the hotel received it."""
+        entry = session.query(HotelExportLog).get(id)
+        if not entry or not entry.filepath \
+                or not os.path.exists(entry.filepath):
+            raise cherrypy.HTTPError(404, 'That export file is not retained.')
+        return serve_file(entry.filepath,
+                          name=entry.filename or 'export',
+                          content_type=entry.content_type or
+                          'application/octet-stream')
+
+    @ajax_gettable
+    def hotel_change_details(self, session, hotel_id, start='', end=''):
+        """Room changes for the exports page's change-row modal."""
+        def parse(value):
+            if not value:
+                return None
+            # A '+00:00' offset arrives as ' 00:00' when a caller forgets
+            # to encode the '+'; restore it so the window still matches.
+            value = re.sub(r' (\d{2}:\d{2})$', r'+\1', value.strip())
+            parsed = dateparser.parse(value)
+            return parsed.replace(tzinfo=UTC) if parsed and not parsed.tzinfo \
+                else parsed
+
+        # Gap rows are "what WE changed"; an import's own writes are
+        # reported on that import's row instead.
+        return {'changes': _change_rows_json(changed_rooms_between(
+            session, hotel_id, parse(start), parse(end),
+            exclude_imports=True))}
+
+    @ajax_gettable
+    def hotel_import_changes(self, session, id):
+        """Room changes one uploaded import file caused."""
+        entry = session.query(HotelImportFile).get(id)
+        if not entry:
+            return {'changes': []}
+        return {'changes': _change_rows_json(import_changes(session, entry))}
+
+    @ajax_gettable
+    def hotel_file_rows(self, session, kind, id, page='1', page_size='50'):
+        """One retained export/import file as table rows. Paginated - a
+        real booking export runs to thousands of rows."""
+        model = HotelExportLog if kind == 'export' else HotelImportFile
+        entry = session.query(model).get(id)
+        if not entry:
+            return {'error': 'That file is gone.', 'columns': [], 'rows': []}
+
+        columns, rows, error = read_stored_file(entry)
+        if error:
+            return {'error': error, 'columns': [], 'rows': []}
+
+        size = clamp_page_size(page_size, default_size=50, max_size=200)
+        try:
+            page_num = max(1, int(page))
+        except (TypeError, ValueError):
+            page_num = 1
+        start_row = (page_num - 1) * size
+        return {
+            'error': None,
+            'filename': entry.filename,
+            'columns': columns,
+            'rows': [[row.get(col, '') for col in columns]
+                     for row in rows[start_row:start_row + size]],
+            'total': len(rows),
+            'page': page_num,
+            'pages': max(1, -(-len(rows) // size)),
+        }
 
     def import_hotel_bookings_csv(self, session, hotel_id, csrf_token=None,
                                   bookings_csv=None, bookings_file=None, **params):
@@ -1290,17 +1495,26 @@ class Root:
             'page_count': page_count,
         }
 
-    def export_tracking(self, session, message=''):
+    def export_tracking(self, session, message='', hotel_id=''):
         hotels = compute_export_tracking(session)
+        all_hotels = session.query(LotteryHotel).order_by(
+            LotteryHotel.name).all()
 
-        import_files = session.query(HotelImportFile).order_by(
-            HotelImportFile.uploaded_at.desc()).all()
+        # The chronological view is per hotel: everything sent to and
+        # received from one hotel, with the room churn between.
+        timeline_hotel = None
+        if hotel_id:
+            timeline_hotel = session.query(LotteryHotel).get(hotel_id)
+        elif all_hotels:
+            timeline_hotel = all_hotels[0]
 
         return {
             'hotels': hotels,
             'message': message,
-            'import_files': import_files,
-            'all_hotels': session.query(LotteryHotel).order_by(LotteryHotel.name).all(),
+            'timeline_hotel': timeline_hotel,
+            'timeline': (hotel_activity_timeline(session, timeline_hotel.id)
+                         if timeline_hotel else []),
+            'all_hotels': all_hotels,
         }
 
     def upload_confirmation_file(self, session, hotel_id=None, message='', **params):
@@ -1555,6 +1769,9 @@ class Root:
                         'waitlisted': waitlisted,
                     })
 
+                # status_per_block is keyed by RoomAssignment.status
+                # (assignment statuses), so those are the only counts
+                # that can be non-zero here.
                 total_assigned = sum(status_per_block.get(block_id, {}).values())
                 info = {
                     'inventory': inv,
@@ -1562,48 +1779,52 @@ class Root:
                     'quantity': effective_capacity(block_id, inv.quantity),
                     'nights': night_data,
                     'total_assigned': total_assigned,
-                    c.PROCESSED: status_per_block.get(block_id, {}).get(c.PROCESSED, 0),
-                    c.AWARDED: status_per_block.get(block_id, {}).get(c.AWARDED, 0),
-                    c.SECURED: status_per_block.get(block_id, {}).get(c.SECURED, 0),
+                    'awaiting_card': status_per_block.get(
+                        block_id, {}).get(c.ASSIGNED, 0),
+                    'secured': status_per_block.get(
+                        block_id, {}).get(c.SECURED, 0),
                 }
                 inventory[hotel_obj].append(info)
             return inventory
 
-        # Build chart data: per-night totals by hotel
-        chart_data = {}
-        for inv in session.query(HotelRoomInventory).filter_by(active=True).all():
-            hotel_name = hotel_lookup.get(str(inv.hotel_id), None)
-            hotel_name = hotel_name.name if hotel_name else 'Unknown'
-            if hotel_name not in chart_data:
-                chart_data[hotel_name] = {
-                    'available': [0] * len(event_nights),
-                    'assigned': [0] * len(event_nights),
-                    'waitlisted': [0] * len(event_nights),
-                }
-            block_id = str(inv.id)
-            for i, night in enumerate(event_nights):
-                chart_data[hotel_name]['available'][i] += effective_capacity(
-                    block_id, inv.quantity_for_night(night))
-                chart_data[hotel_name]['assigned'][i] += assigned_per_block_night.get(block_id, {}).get(night, 0)
-                chart_data[hotel_name]['waitlisted'][i] += waitlist_per_block_night.get(block_id, {}).get(night, 0)
+        room_inventory = build_inventory_data(is_suite=False)
+        suite_inventory = build_inventory_data(is_suite=True)
 
-        # Build combined total across all hotels
-        total = {'available': [0] * len(event_nights), 'assigned': [0] * len(event_nights), 'waitlisted': [0] * len(event_nights)}
-        for data in chart_data.values():
-            for i in range(len(event_nights)):
-                total['available'][i] += data['available'][i]
-                total['assigned'][i] += data['assigned'][i]
-                total['waitlisted'][i] += data['waitlisted'][i]
-        chart_data['_total'] = total
+        # Headline numbers for the summary cards. Everything except the
+        # block count is room-nights (one room for one night), summed
+        # over every block and event night.
+        infos = [info for inventory in (room_inventory, suite_inventory)
+                 for block_list in inventory.values()
+                 for info in block_list]
+        nights = [nd for i in infos for nd in i['nights']]
+        summary = {
+            'blocks': len(infos),
+            'offered': sum(nd['available'] for nd in nights),
+            'assigned': sum(nd['assigned'] for nd in nights),
+            'remaining': sum(nd['remaining'] for nd in nights),
+            'waitlisted': sum(nd['waitlisted'] for nd in nights),
+        }
+
+        # Per-hotel room-night totals, shown next to each hotel name.
+        hotel_totals = defaultdict(lambda: {'assigned': 0, 'remaining': 0})
+        for inventory in (room_inventory, suite_inventory):
+            for hotel_obj, block_list in inventory.items():
+                key = str(hotel_obj.id) if hotel_obj else ''
+                for info in block_list:
+                    for nd in info['nights']:
+                        hotel_totals[key]['assigned'] += nd['assigned']
+                        hotel_totals[key]['remaining'] += nd['remaining']
 
         return {
-            'room_inventory': build_inventory_data(is_suite=False),
-            'suite_inventory': build_inventory_data(is_suite=True),
+            'room_inventory': room_inventory,
+            'suite_inventory': suite_inventory,
+            'summary': summary,
+            'hotel_totals': hotel_totals,
             'event_nights': event_nights,
             'partitions': partitions,
-            'chart_data': chart_data,
             'now': localized_now(),
             'current_partition': partition,
+            'message': message,
         }
 
     @ajax
@@ -1794,66 +2015,149 @@ class Root:
         session.commit()
         raise HTTPRedirect('form?id={}&message={}', id, msg)
 
-    def bulk_request_confirmation(self, session, app_ids='', csrf_token=None):
-        """Stamp confirmation_requested_at on many applications at once.
-
-        Accepts a comma-separated string of application IDs from a search-
-        results checkbox UI.
-        """
-        if cherrypy.request.method != 'POST':
-            raise HTTPRedirect('index')
-        check_csrf(csrf_token)
-
-        ids = [x.strip() for x in app_ids.split(',') if x.strip()]
-        if not ids:
-            raise HTTPRedirect('index?message={}', 'No applications selected.')
-
-        apps = session.query(LotteryApplication).filter(
-            LotteryApplication.id.in_(ids)).all()
-        now = datetime.now(UTC)
-        for app in apps:
-            app.confirmation_requested_at = now
-            session.add(app)
-        session.commit()
-        raise HTTPRedirect(
-            'index?message={}',
-            f'Confirmation requested for {len(apps)} application(s).')
-
     # ------------------------------------------------------------------
     # Physical-room catalog: the per-hotel map of real rooms
     # (PhysicalRoom / PhysicalRoomConnection). Logic in uber.hotel.physical.
     # ------------------------------------------------------------------
 
-    def physical_rooms(self, session, hotel_id='', message=''):
-        """Per-hotel catalog of physical rooms, grouped by floor."""
+    def physical_rooms(self, session, hotel_id='', message='', search='',
+                       inventory_id='', type_code='', ada='', placement='',
+                       service='', unroomed_page='1', unroomed_size='25',
+                       unroomed_sort='dates'):
+        """Per-hotel catalog AND assignment board: floor-map upload,
+        unroomed live bookings, then the catalog by floor with current
+        occupants. Absorbed the old room_board page."""
+        from uber.hotel import floormap
         from uber.hotel import physical as hotel_physical
+        from uber.hotel.queries import vacant_rooms_map
 
         picker = _picker_context(session)
         hotels = picker['hotels']
         hotel = None
         if hotel_id:
             hotel = session.query(LotteryHotel).get(hotel_id)
-        elif len(hotels) == 1:
+        elif hotels:
+            # Default to the first hotel; hotel-physical-rooms.js swaps
+            # in the admin's last-viewed hotel from localStorage.
             hotel = hotels[0]
 
         floors, connections, bookings, blocks = [], {}, {}, []
+        unroomed, map_coverage = [], None
+        type_codes, total_rooms = [], 0
+        # The template does arithmetic with the page size, so clamp it to
+        # an int here rather than passing the raw query param through.
+        unroomed_size = clamp_page_size(unroomed_size, default_size=25)
+        unroomed_total, unroomed_pages = 0, 1
+        filters = {'search': search, 'inventory_id': inventory_id,
+                   'type_code': type_code, 'ada': ada,
+                   'placement': placement, 'service': service}
         if hotel:
             floors = hotel_physical.rooms_by_floor(session, hotel.id)
             connections = hotel_physical.connection_map(session, hotel.id)
             bookings = hotel_physical.live_bookings_by_room(session, hotel.id)
             blocks = [inv for inv in picker['inventory_blocks']
                       if inv.hotel_id == hotel.id]
+            total_rooms = sum(len(rooms) for _, rooms in floors)
+            type_codes = sorted({room.type_code for _, rooms in floors
+                                 for room in rooms if room.type_code})
+
+            hotel_inv_ids = [inv.id for inv in blocks]
+            if hotel_inv_ids:
+                pending_q = session.query(RoomAssignment).filter(
+                    RoomAssignment.physical_room_id.is_(None),
+                    RoomAssignment.is_live,
+                    RoomAssignment.inventory_id.in_(hotel_inv_ids))
+                if unroomed_sort == 'attendee':
+                    pending_q = pending_q.outerjoin(
+                        Attendee, Attendee.id == RoomAssignment.attendee_id)
+                pending_q = pending_q.order_by(
+                    *_unroomed_order(unroomed_sort),
+                    RoomAssignment.created.asc())
+                pending, unroomed_total, unroomed_page, unroomed_pages = \
+                    paginate(pending_q, unroomed_page, unroomed_size)
+                if pending:
+                    # Two queries for the page instead of two per
+                    # unroomed booking (see vacant_rooms_map). Only the
+                    # COUNT is rendered; the options themselves load per
+                    # dropdown from vacant_rooms_json.
+                    options_by_ra = vacant_rooms_map(session, hotel.id, pending)
+                    unroomed = [
+                        {'ra': ra, 'option_count': len(options_by_ra[ra.id])}
+                        for ra in pending]
+
+            if hotel.map_svg:
+                map_coverage = floormap.coverage(
+                    hotel.map_svg,
+                    [r.room_number for _, rooms in floors for r in rooms])
+
+        # The map modal keeps the whole hotel; only the floor listing
+        # below it responds to the filters.
+        map_rooms = (hotel_physical.floor_map_rooms(floors, bookings)
+                     if hotel and hotel.map_svg else [])
+        filtering = any(filters.values())
+        if hotel and filtering:
+            floors = hotel_physical.filter_rooms(floors, bookings, **filters)
+
+        # Rows are fetched per floor by hotel-physical-rooms.js on first
+        # expand (physical_rooms_floor), so this page ships only the
+        # headers - a full catalog is thousands of rows.
+        floor_summaries = [{
+            'floor': floor,
+            'rooms': len(rooms),
+            'occupied': sum(1 for room in rooms if bookings.get(room.id)),
+        } for floor, rooms in floors]
 
         return {
             'message': message,
             'hotels': hotels,
             'hotel': hotel,
-            'floors': floors,
-            'connections': connections,
-            'bookings': bookings,
+            'floor_summaries': floor_summaries,
             'blocks': blocks,
-            'total_rooms': sum(len(rooms) for _, rooms in floors),
+            'unroomed': unroomed,
+            'unroomed_total': unroomed_total,
+            'unroomed_page': unroomed_page,
+            'unroomed_pages': unroomed_pages,
+            'unroomed_size': unroomed_size,
+            'unroomed_sort': unroomed_sort,
+            'map_coverage': map_coverage,
+            'map_rooms': map_rooms,
+            'type_codes': type_codes,
+            'filters': filters,
+            'filtering': filtering,
+            'shown_rooms': sum(len(rooms) for _, rooms in floors),
+            'total_rooms': total_rooms,
         }
+
+    def physical_rooms_floor(self, session, hotel_id, floor='', **filters):
+        """One floor's room rows, fetched on demand by the accordion.
+        Returns an HTML fragment rendered from the same macro the page
+        would have used."""
+        from uber.decorators import render
+        from uber.hotel import physical as hotel_physical
+
+        hotel = session.query(LotteryHotel).get(hotel_id)
+        if not hotel:
+            raise cherrypy.HTTPError(404)
+        floors = hotel_physical.rooms_by_floor(session, hotel.id)
+        bookings = hotel_physical.live_bookings_by_room(session, hotel.id)
+        scoped = {k: v for k, v in filters.items()
+                  if k in ('search', 'inventory_id', 'type_code', 'ada',
+                           'placement', 'service') and v}
+        if scoped:
+            floors = hotel_physical.filter_rooms(floors, bookings, **scoped)
+        rooms = next((r for f, r in floors if f == floor), [])
+        cherrypy.response.headers['Content-Type'] = 'text/html'
+        return render('hotel_lottery_admin/_floor_rows.html', {
+            'rooms': rooms,
+            'hotel': hotel,
+            'bookings': bookings,
+            'connections': hotel_physical.connection_map(session, hotel.id),
+        })
+
+    def room_board(self, session, hotel_id='', message=''):
+        """Merged into physical_rooms; kept for bookmarks."""
+        raise HTTPRedirect('physical_rooms?hotel_id={}&message={}',
+                           hotel_id, message)
 
     def edit_physical_room(self, session, id=None, hotel_id='', message='',
                            **params):
@@ -1979,24 +2283,28 @@ class Root:
         upload = params.get('import_file')
         if hotel and upload is not None and getattr(upload, 'file', None):
             raw = upload.file.read()
-            fieldnames, rows, parse_error = parse_spreadsheet(
-                raw, getattr(upload, 'filename', ''))
-            if parse_error:
-                message = parse_error
-            elif 'room_number' not in (fieldnames or []):
-                message = 'The file needs a room_number column.'
+            if len(raw) > 5 * 1024 * 1024:
+                message = 'The file is over the 5MB limit.'
             else:
-                blocks = [inv for inv in picker['inventory_blocks']
-                          if inv.hotel_id == hotel.id]
-                apply_changes = params.get('apply') == 'true'
-                preview = hotel_physical.import_rows(
-                    session, hotel, blocks, rows,
-                    apply_changes=apply_changes)
-                if apply_changes and not preview['errors']:
-                    session.commit()
-                    applied = True
-                    message = (f"Imported {len(preview['created'])} new and "
-                               f"{len(preview['updated'])} updated room(s).")
+                fieldnames, rows, parse_error = parse_spreadsheet(
+                    raw, getattr(upload, 'filename', ''))
+                if parse_error:
+                    message = parse_error
+                elif 'room_number' not in (fieldnames or []):
+                    message = 'The file needs a room_number column.'
+                else:
+                    blocks = [inv for inv in picker['inventory_blocks']
+                              if inv.hotel_id == hotel.id]
+                    apply_changes = params.get('apply') == 'true'
+                    preview = hotel_physical.import_rows(
+                        session, hotel, blocks, rows,
+                        apply_changes=apply_changes)
+                    if apply_changes and not preview['errors']:
+                        session.commit()
+                        applied = True
+                        message = (
+                            f"Imported {len(preview['created'])} new and "
+                            f"{len(preview['updated'])} updated room(s).")
 
         return {
             'message': message,
@@ -2010,120 +2318,127 @@ class Root:
     # Rooming board: place bookings onto physical rooms.
     # ------------------------------------------------------------------
 
-    def room_board(self, session, hotel_id='', message=''):
-        """Per-hotel assignment board: unroomed live bookings on top,
-        the catalog by floor (with current occupants) below."""
-        from uber.hotel import physical as hotel_physical
-        from uber.hotel.queries import vacant_rooms_map
-
-        picker = _picker_context(session)
-        hotels = picker['hotels']
-        hotel = session.query(LotteryHotel).get(hotel_id) if hotel_id else (
-            hotels[0] if len(hotels) == 1 else None)
-
-        floors, connections, bookings_by_room = [], {}, {}
-        unroomed = []
-        if hotel:
-            floors = hotel_physical.rooms_by_floor(session, hotel.id)
-            connections = hotel_physical.connection_map(session, hotel.id)
-            bookings_by_room = hotel_physical.live_bookings_by_room(
-                session, hotel.id)
-            hotel_inv_ids = [inv.id for inv in picker['inventory_blocks']
-                             if inv.hotel_id == hotel.id]
-            if hotel_inv_ids:
-                pending = (session.query(RoomAssignment).filter(
-                    RoomAssignment.physical_room_id.is_(None),
-                    RoomAssignment.is_live,
-                    RoomAssignment.inventory_id.in_(hotel_inv_ids))
-                    .order_by(
-                        RoomAssignment.assigned_check_in_date.asc().nullsfirst(),
-                        RoomAssignment.created.asc()).all())
-                if pending:
-                    # Two queries for the whole board instead of two per
-                    # unroomed booking (see vacant_rooms_map).
-                    options_by_ra = vacant_rooms_map(session, hotel.id, pending)
-                    unroomed = [{'ra': ra, 'options': options_by_ra[ra.id]}
-                                for ra in pending]
-
-        return {
-            'message': message,
-            'hotels': hotels,
-            'hotel': hotel,
-            'floors': floors,
-            'connections': connections,
-            'bookings': bookings_by_room,
-            'unroomed': unroomed,
-        }
-
     def board_assign(self, session, assignment_id, physical_room_id,
                      hotel_id='', csrf_token=None):
-        from uber.hotel.queries import physical_room_conflicts
         from uber.models.hotel import PhysicalRoom
         if cherrypy.request.method != 'POST':
-            raise HTTPRedirect('room_board?hotel_id={}', hotel_id)
+            raise HTTPRedirect('physical_rooms?hotel_id={}', hotel_id)
         check_csrf(csrf_token)
         ra = session.query(RoomAssignment).get(assignment_id)
         room = session.query(PhysicalRoom).get(physical_room_id)
         if not ra or not room:
-            raise HTTPRedirect('room_board?hotel_id={}&message={}',
+            raise HTTPRedirect('physical_rooms?hotel_id={}&message={}',
                                hotel_id, 'Booking or room not found.')
-        error = validate_physical_room(session, ra, room)
+        placed, error = assign_physical_room(session, ra, room)
         if error:
-            raise HTTPRedirect('room_board?hotel_id={}&message={}',
+            raise HTTPRedirect('physical_rooms?hotel_id={}&message={}',
                                hotel_id or room.hotel_id, error)
-        ra.physical_room_id = room.id
-        session.add(ra)
         session.commit()
+        numbers = ', '.join(a.physical_room.room_number for a in placed)
         raise HTTPRedirect(
-            'room_board?hotel_id={}&message={}', hotel_id or room.hotel_id,
-            f'Room {room.room_number} assigned.')
+            'physical_rooms?hotel_id={}&message={}',
+            hotel_id or room.hotel_id,
+            f'Room {numbers} assigned.' if len(placed) == 1
+            else f'Rooms {numbers} assigned (suite + connectors).')
+
+    @ajax_gettable
+    def vacant_rooms_json(self, session, assignment_id):
+        """Rooms this booking could take, for the physical-rooms page's
+        assign dropdowns. Fetched on first focus (hotel-physical-rooms
+        .js) - a catalog of thousands would otherwise render tens of
+        thousands of <option>s into the page."""
+        from uber.hotel import physical as hotel_physical
+        ra = session.query(RoomAssignment).get(assignment_id)
+        if not ra or not ra.inventory:
+            return {'options': []}
+        options = []
+        for room, picks in hotel_physical.connector_placements(session, ra):
+            group = [room] + [target for _, target in picks]
+            options.append({
+                'id': room.id,
+                'label': '{}{}{}{}'.format(
+                    room.room_number,
+                    f' + {len(picks)} connected' if picks else '',
+                    f' (floor {room.floor})' if room.floor else '',
+                    ' [ADA]' if room.ada else ''),
+                # Every room the pick would take, for the map's
+                # group highlight and for pruning other dropdowns.
+                'group': [r.id for r in group],
+                'group_numbers': [r.room_number for r in group],
+            })
+        return {'options': options}
+
+    @ajax
+    def board_assign_json(self, session, assignment_id='',
+                          physical_room_id='', **params):
+        """Instant-save variant of board_assign for the physical-rooms
+        page dropdowns (hotel-physical-rooms.js). CSRF is checked by
+        @ajax. The caller posts the whole assign form, so extra fields
+        (hotel_id) arrive here and are ignored; missing ones answer with
+        JSON rather than a 500 the caller can't parse."""
+        from uber.models.hotel import PhysicalRoom
+        if not (assignment_id and physical_room_id):
+            return {'success': False, 'message': 'Pick a room first.'}
+        ra = session.query(RoomAssignment).get(assignment_id)
+        room = session.query(PhysicalRoom).get(physical_room_id)
+        if not ra or not room:
+            return {'success': False, 'message': 'Booking or room not found.'}
+        placed, error = assign_physical_room(session, ra, room)
+        if error:
+            return {'success': False, 'message': error}
+        session.commit()
+        return {
+            'success': True,
+            'room_id': room.id,
+            'room_number': room.room_number,
+            # Connector rooms went with it; the caller drops all of them
+            # from the other dropdowns.
+            'room_ids': [a.physical_room_id for a in placed],
+            'room_numbers': [a.physical_room.room_number for a in placed],
+        }
 
     def board_unassign(self, session, assignment_id, hotel_id='',
                        csrf_token=None):
         if cherrypy.request.method != 'POST':
-            raise HTTPRedirect('room_board?hotel_id={}', hotel_id)
+            raise HTTPRedirect('physical_rooms?hotel_id={}', hotel_id)
         check_csrf(csrf_token)
         ra = session.query(RoomAssignment).get(assignment_id)
         if not ra:
-            raise HTTPRedirect('room_board?hotel_id={}&message={}',
+            raise HTTPRedirect('physical_rooms?hotel_id={}&message={}',
                                hotel_id, 'Booking not found.')
         ra.physical_room_id = None
+        ra.physical_room_auto = False
         session.add(ra)
         session.commit()
-        raise HTTPRedirect('room_board?hotel_id={}&message={}', hotel_id,
+        raise HTTPRedirect('physical_rooms?hotel_id={}&message={}', hotel_id,
                            'Physical room unassigned (the room number text '
                            'is kept for reference).')
 
     def auto_assign_physical(self, session, hotel_id, csrf_token=None):
         from uber.hotel import physical as hotel_physical
         if cherrypy.request.method != 'POST':
-            raise HTTPRedirect('room_board?hotel_id={}', hotel_id)
+            raise HTTPRedirect('physical_rooms?hotel_id={}', hotel_id)
         check_csrf(csrf_token)
         result = hotel_physical.auto_assign_physical_rooms(session, hotel_id)
         session.commit()
         msg = f"Auto-assigned {result['assigned']} booking(s)."
         if result['skipped']:
             msg += f" {len(result['skipped'])} could not be placed."
-        raise HTTPRedirect('room_board?hotel_id={}&message={}', hotel_id, msg)
+        raise HTTPRedirect('physical_rooms?hotel_id={}&message={}',
+                           hotel_id, msg)
 
-    def clear_physical_assignments(self, session, hotel_id, csrf_token=None):
-        from uber.models.hotel import PhysicalRoom
+    def clear_physical_assignments(self, session, hotel_id, scope='all',
+                                   csrf_token=None):
+        from uber.hotel import physical as hotel_physical
         if cherrypy.request.method != 'POST':
-            raise HTTPRedirect('room_board?hotel_id={}', hotel_id)
+            raise HTTPRedirect('physical_rooms?hotel_id={}', hotel_id)
         check_csrf(csrf_token)
-        room_ids = [r.id for r in session.query(PhysicalRoom.id)
-                    .filter_by(hotel_id=hotel_id).all()]
-        cleared = 0
-        if room_ids:
-            for ra in session.query(RoomAssignment).filter(
-                    RoomAssignment.physical_room_id.in_(room_ids),
-                    RoomAssignment.is_live).all():
-                ra.physical_room_id = None
-                session.add(ra)
-                cleared += 1
-            session.commit()
-        raise HTTPRedirect('room_board?hotel_id={}&message={}', hotel_id,
-                           f'Cleared {cleared} physical assignment(s).')
+        cleared = hotel_physical.clear_physical_assignments(
+            session, hotel_id, auto_only=scope == 'auto')
+        session.commit()
+        what = 'auto-placed' if scope == 'auto' else 'physical'
+        raise HTTPRedirect('physical_rooms?hotel_id={}&message={}', hotel_id,
+                           f'Cleared {cleared} {what} assignment(s).')
 
     @csv_file
     def front_desk_csv(self, out, session, hotel_id):
@@ -2325,7 +2640,7 @@ class Root:
             EmailService.queue_email(
                 session, 'hotel_lottery_waitlist_reveal', attendee,
                 subject=f"{c.EVENT_NAME_AND_YEAR}: Hotel waitlist link",
-                data={'attendee': attendee, 'reveal': reveal, 'link': link})
+                data={'reveal': reveal, 'link': link})
             link.emailed_at = datetime.now(UTC)
             session.add(link)
 
@@ -2370,55 +2685,52 @@ class Root:
                 # assignment must use one of that partition's blocks.
                 message = ("That inventory block is not allocated to the "
                            "selected partition.")
-            elif assignment.is_new:
+            else:
+                is_new = assignment.is_new
+                reason = (c.PARTITION_GRANT
+                          if picked_partition and not is_lottery_admin()
+                          else c.MANUAL)
+
+                # Staged outside the try below: apply_room_assignment_edits
+                # signals validation failures by raising HTTPRedirect through
+                # `fail`, which a bare `except Exception` would swallow.
+                if not is_new:
+                    def fail(msg):
+                        raise HTTPRedirect('assign_room?id={}&message={}',
+                                           assignment.id, msg)
+
+                    if picked_attendee != assignment.attendee_id:
+                        assignment.attendee_id = picked_attendee
+                        session.add(assignment)
+                    if (not assignment.assignment_reason
+                            or assignment.assignment_reason == c.MANUAL):
+                        assignment.assignment_reason = reason
+                    # The billing checkbox posts nothing when unchecked; pin
+                    # an explicit value so the sparse-params contract sees it.
+                    params['require_cc'] = (
+                        'true' if params.get('require_cc') == 'true' else 'false')
+                    apply_room_assignment_edits(
+                        session, assignment, params,
+                        audit_prefix='Assign-room page updated', fail=fail)
+
                 try:
-                    assignment = create_room_assignment(
-                        session,
-                        attendee_id=picked_attendee,
-                        inventory_id=picked_inventory,
-                        partition_id=picked_partition,
-                        assignment_reason=(
-                            c.PARTITION_GRANT if picked_partition and not is_lottery_admin()
-                            else c.MANUAL),
-                        require_cc=params.get('require_cc') == 'true',
-                        assigned_check_in_date=params.get('assigned_check_in_date', ''),
-                        assigned_check_out_date=params.get('assigned_check_out_date', ''),
-                        deposit_cutoff_date=params.get('deposit_cutoff_date', ''),
-                        room_number=params.get('room_number', ''),
-                        admin_notes=params.get('admin_notes', ''),
-                    )
+                    if is_new:
+                        assignment = create_room_assignment(
+                            session,
+                            attendee_id=picked_attendee,
+                            inventory_id=picked_inventory,
+                            partition_id=picked_partition,
+                            assignment_reason=reason,
+                            require_cc=params.get('require_cc') == 'true',
+                            assigned_check_in_date=params.get('assigned_check_in_date', ''),
+                            assigned_check_out_date=params.get('assigned_check_out_date', ''),
+                            deposit_cutoff_date=params.get('deposit_cutoff_date', ''),
+                            room_number=params.get('room_number', ''),
+                            admin_notes=params.get('admin_notes', ''),
+                        )
                     session.commit()
                 except RoomAssignmentError as e:
                     message = e.message
-                except Exception as e:
-                    session.rollback()
-                    message = f"Could not save assignment: {e}"
-                else:
-                    raise HTTPRedirect(
-                        'assign_room?id={}&message={}',
-                        assignment.id,
-                        'Assignment saved.')
-            else:
-                def fail(msg):
-                    raise HTTPRedirect('assign_room?id={}&message={}',
-                                       assignment.id, msg)
-
-                if picked_attendee != assignment.attendee_id:
-                    assignment.attendee_id = picked_attendee
-                    session.add(assignment)
-                if not assignment.assignment_reason or assignment.assignment_reason == c.MANUAL:
-                    assignment.assignment_reason = (
-                        c.PARTITION_GRANT if picked_partition and not is_lottery_admin()
-                        else c.MANUAL)
-                # The billing checkbox posts nothing when unchecked; pin an
-                # explicit value so the sparse-params contract sees it.
-                params['require_cc'] = (
-                    'true' if params.get('require_cc') == 'true' else 'false')
-                apply_room_assignment_edits(
-                    session, assignment, params,
-                    audit_prefix='Assign-room page updated', fail=fail)
-                try:
-                    session.commit()
                 except Exception as e:
                     session.rollback()
                     message = f"Could not save assignment: {e}"
@@ -2721,63 +3033,6 @@ class Root:
         }
 
     @ajax
-    def reduce_awards(self, session, inventory_id, night_date, target_count):
-        try:
-            target_count = int(target_count)
-            night = date.fromisoformat(night_date)
-        except (ValueError, TypeError):
-            return {"error": "Invalid target count or date."}
-
-        # Reduce by ejecting RoomAssignment rows for the given block + night
-        # at random. The owning LotteryApplication is rolled back to
-        # COMPLETE once all its assignments are gone (RoomAssignment's
-        # after_delete listener handles the status flip).
-        candidate_ras = session.query(RoomAssignment).filter(
-            RoomAssignment.inventory_id == inventory_id,
-            RoomAssignment.is_live,
-            RoomAssignment.assigned_check_in_date <= night,
-            RoomAssignment.assigned_check_out_date > night,
-        ).all()
-
-        current_count = len(candidate_ras)
-        if target_count >= current_count:
-            return {"success": True, "message": f"No reduction needed ({current_count} currently assigned)."}
-
-        # Prefer ejecting assignments whose source app has no group members.
-        def _has_group(ra):
-            app = ra.lottery_application
-            return bool(app and app.group_members)
-
-        ejectable = [ra for ra in candidate_ras if not _has_group(ra)]
-        if len(ejectable) < current_count - target_count:
-            ejectable = candidate_ras
-
-        to_eject = random.sample(ejectable, min(len(ejectable), current_count - target_count))
-
-        impacted_apps = {ra.lottery_application_id for ra in to_eject
-                         if ra.lottery_application_id}
-        for ra in to_eject:
-            session.delete(ra)
-        session.commit()
-
-        # Clear partition + lottery_run linkage on apps whose last assignment
-        # was just removed (the after_delete listener flips status back to
-        # COMPLETE; we just clean the run linkage here).
-        for app_id in impacted_apps:
-            app = session.query(LotteryApplication).get(app_id)
-            if not app:
-                continue
-            remaining = session.query(RoomAssignment).filter_by(
-                lottery_application_id=app.id).count()
-            if remaining == 0:
-                app.partition_id = None
-                app.lottery_run_id = None
-                session.add(app)
-        session.commit()
-
-        return {"success": True, "message": f"Ejected {len(to_eject)} entries. {target_count} remain for {night_date}."}
-
-    @ajax
     def unlock_application(self, session, id):
         app = session.lottery_application(id)
         app.export_locked = False
@@ -2871,15 +3126,18 @@ class Root:
                 record_partition_audit(
                     session, ra.partition_id,
                     action='assignment.deleted',
-                    description="Connector cascade",
-                    target_type='assignment', target_id=child.id)
+                    description=f"Connector cascade: {child.room_summary}",
+                    target_type='assignment', target_id=child.id,
+                    attendee_id=child.attendee_id)
             session.delete(child)
         if ra.partition_id:
             record_partition_audit(
                 session, ra.partition_id,
                 action='assignment.deleted',
-                description="Lottery admin removed assignment",
-                target_type='assignment', target_id=ra.id)
+                description="Lottery admin removed assignment: "
+                            f"{ra.room_summary}",
+                target_type='assignment', target_id=ra.id,
+                attendee_id=ra.attendee_id)
         session.delete(ra)
         session.commit()
         _back('Room removed.')
@@ -2903,12 +3161,20 @@ class Root:
                 str(pb.inventory_id), []).append(str(pb.partition_id))
 
         from uber.hotel import physical as hotel_physical
+        map_hotel = ra.inventory.hotel if ra.inventory else None
+        if map_hotel and not map_hotel.map_svg:
+            map_hotel = None
         return {
             'assignment': ra,
             'partitions': picker['partitions'],
             'inventory_blocks': picker['inventory_blocks'],
             'inventory_partitions_map': inventory_partitions_map,
             'assignable_rooms': hotel_physical.assignable_rooms(session, ra),
+            'map_hotel': map_hotel,
+            'map_rooms': hotel_physical.floor_map_rooms(
+                hotel_physical.rooms_by_floor(session, map_hotel.id),
+                hotel_physical.live_bookings_by_room(session, map_hotel.id))
+                if map_hotel else [],
             'message': message,
         }
 
@@ -2937,19 +3203,6 @@ class Root:
         raise HTTPRedirect('edit_room_assignment?id={}&message={}',
                            assignment_id, msg)
 
-    @ajax
-    def bulk_unlock(self, session, ids):
-        id_list = [x.strip() for x in ids.split(',') if x.strip()]
-        count = 0
-        for app_id in id_list:
-            app = session.query(LotteryApplication).get(app_id)
-            if app and app.export_locked:
-                app.export_locked = False
-                session.add(app)
-                count += 1
-        session.commit()
-        return {"success": True, "count": count}
-
     # Cross-application view: every RoomAssignment in the system,
     # paginated. Useful when an admin knows the room (hotel + date) but
     # not the attendee/application, or wants to scan the whole population
@@ -2959,7 +3212,8 @@ class Root:
 
     def rooms(self, session, message='', page='1', page_size='50',
               status='live', hotel_id='', partition_id='', search='',
-              attendee_id=''):
+              attendee_id='', sort='dates', dir='asc'):
+        from sqlalchemy.orm import aliased
         ps = clamp_page_size(page_size)
         search_term = (search or '').strip()
 
@@ -2975,10 +3229,45 @@ class Root:
             partition_id=partition_id, search=search_term,
             attendee_id=attendee_id)
 
-        # Sort: check-in date (nulls first so missing dates pop to the
-        # top and get noticed), then created order.
-        q = q.order_by(RoomAssignment.assigned_check_in_date.asc().nullsfirst(),
-                       RoomAssignment.created.asc())
+        # Column sort. Joins use aliases so they can't collide with the
+        # joins the shared query layer adds for searching. The default
+        # keeps missing check-in dates first so they get noticed.
+        direction = 'desc' if dir == 'desc' else 'asc'
+
+        def ordered(*cols):
+            return [col.desc() if direction == 'desc' else col.asc()
+                    for col in cols]
+
+        if sort == 'hotel':
+            inv = aliased(HotelRoomInventory)
+            hotel = aliased(LotteryHotel)
+            q = (q.outerjoin(inv, inv.id == RoomAssignment.inventory_id)
+                  .outerjoin(hotel, hotel.id == inv.hotel_id))
+            order = ordered(hotel.name, inv.name)
+        elif sort == 'attendee':
+            att = aliased(Attendee)
+            q = q.outerjoin(att, att.id == RoomAssignment.attendee_id)
+            order = ordered(att.last_name, att.first_name)
+        elif sort == 'status':
+            order = ordered(RoomAssignment.status)
+        elif sort == 'billing':
+            order = ordered(RoomAssignment.require_cc,
+                            RoomAssignment.cc_last_four)
+        elif sort == 'partition':
+            part = aliased(InventoryPartition)
+            q = q.outerjoin(part,
+                            part.id == RoomAssignment.partition_id)
+            order = ordered(part.name)
+        elif sort == 'conf':
+            order = ordered(RoomAssignment.hotel_confirmation_number,
+                            RoomAssignment.room_number)
+        else:
+            sort = 'dates'
+            col = RoomAssignment.assigned_check_in_date
+            order = [col.desc().nullslast() if direction == 'desc'
+                     else col.asc().nullsfirst()]
+
+        q = q.order_by(*order, RoomAssignment.created.asc())
         assignments, total, page_num, page_count = paginate(q, page, ps)
 
         hotels = (session.query(LotteryHotel)
@@ -3003,6 +3292,8 @@ class Root:
             'partition_id': partition_id,
             'search': search_term,
             'attendee_id': attendee_id,
+            'sort': sort,
+            'dir': direction,
             'scoped_attendee': scoped_attendee,
             'hotels': hotels,
             'partitions': partitions,
@@ -3020,7 +3311,7 @@ class Root:
                 EmailService.queue_email(
                     session, 'hotel_lottery_waitlist_fulfilled', ra.lottery_application,
                     subject=f'{c.EVENT_NAME} Hotel Lottery - Room Dates Updated',
-                    data={'assignment': ra, 'app': ra.lottery_application})
+                    data={'assignment': ra, })
         return {
             'success': True,
             'fulfilled': result.fulfilled,
@@ -3253,7 +3544,7 @@ class Root:
                 EmailService.queue_email(
                     session, 'hotel_lottery_waitlist_fulfilled', ra.lottery_application,
                     subject=f'{c.EVENT_NAME} Hotel Lottery - Room Dates Updated',
-                    data={'assignment': ra, 'app': ra.lottery_application})
+                    data={'assignment': ra, })
             except Exception:
                 log.exception('accept_waitlist: notification failed')
 

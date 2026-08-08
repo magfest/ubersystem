@@ -19,14 +19,18 @@ underneath them:
   * build_waitlist_xlsx - the one-sheet-per-hotel waitlist demand
     workbook.
 """
+import csv
+import os
+import re
 import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta
-from io import BytesIO
+from io import BytesIO, StringIO
 
 import pycountry
 import xlsxwriter
-from sqlalchemy import or_
+from pytz import UTC
+from sqlalchemy import and_, func, or_
 
 from uber.config import c
 from uber.custom_tags import datetime_local_filter
@@ -362,6 +366,315 @@ def derive_sync_status(ra, last_export):
     return 'in_sync'
 
 
+def render_booking_export(session, hotel_id, fmt='csv'):
+    """The per-hotel booking file as bytes.
+
+    Returns (hotel, filename, content_type, data). The routes serve
+    these bytes AND retain them (store_export_file), so the file a
+    hotel received can be reproduced later.
+    """
+    hotel, rows = booking_export_data(session, hotel_id)
+    if hotel is None:
+        return None, '', '', b''
+
+    stamp = datetime.now(UTC).strftime('%Y%m%d_%H%M')
+    base = f"{(hotel.export_name or hotel.name or 'hotel')}_bookings_{stamp}"
+    columns = booking_columns()
+
+    if fmt == 'xlsx':
+        buffer = BytesIO()
+        with xlsxwriter.Workbook(buffer, {'in_memory': True}) as workbook:
+            sheet = workbook.add_worksheet()
+            for col, header in enumerate(columns):
+                sheet.write(0, col, header)
+            for r, row in enumerate(rows, start=1):
+                for col, value in enumerate(row):
+                    sheet.write(r, col, value)
+        return (hotel, f'{base}.xlsx',
+                'application/vnd.openxmlformats-officedocument.'
+                'spreadsheetml.sheet', buffer.getvalue())
+
+    buffer = StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(columns)
+    for row in rows:
+        writer.writerow(row)
+    return hotel, f'{base}.csv', 'text/csv', buffer.getvalue().encode('utf-8')
+
+
+def store_export_file(session, hotel, raw, filename, content_type, *,
+                      source, exported_by='', record_count=0, notes=''):
+    """Persist an export's bytes and log it. Returns the HotelExportLog."""
+    stored_name = f"hotel_export_{uuid.uuid4().hex}_{filename}"[:200]
+    os.makedirs(c.UPLOADED_FILES_DIR, exist_ok=True)
+    filepath = os.path.join(c.UPLOADED_FILES_DIR, stored_name)
+    with open(filepath, 'wb') as f:
+        f.write(raw)
+
+    entry = HotelExportLog(
+        hotel_id=hotel.id if hotel else None,
+        export_type='room_export',
+        record_count=record_count,
+        exported_by=exported_by or '',
+        notes=notes,
+        source=source,
+        filename=filename,
+        content_type=content_type,
+        filepath=filepath,
+        size=len(raw),
+    )
+    session.add(entry)
+    session.flush()
+    return entry
+
+
+def _hotel_assignment_ids(session, hotel_id):
+    """Every RoomAssignment id ever tied to this hotel's blocks - the
+    keys the Tracking feed records changes against."""
+    from uber.models.hotel import HotelRoomInventory
+
+    inv_ids = [str(i) for i, in session.query(HotelRoomInventory.id)
+               .filter_by(hotel_id=hotel_id)]
+    if not inv_ids:
+        return []
+    return [str(i) for i, in session.query(RoomAssignment.id)
+            .filter(RoomAssignment.inventory_id.in_(inv_ids))]
+
+
+# Tracking.data is "attr='old -> new', attr2='old -> new'"; pull the
+# field names and their before/after out of it.
+_CHANGE_RE = re.compile(r"(\w+)='(.*?) -> (.*?)'(?:, |$)")
+# Bookkeeping columns every edit touches - noise in a change report.
+_CHANGE_NOISE = {'last_modified_at', 'last_updated', 'last_synced'}
+_DATETIME_REPR_RE = re.compile(
+    r"datetime\.datetime\((\d+), (\d+), (\d+), (\d+), (\d+)[^)]*\)")
+_DATE_REPR_RE = re.compile(r"datetime\.date\((\d+), (\d+), (\d+)\)")
+
+
+def _clean_change_value(value):
+    """Tracking stores Python reprs; show the value itself."""
+    value = (value or '').strip()
+    value = _DATETIME_REPR_RE.sub(
+        lambda m: '{}-{:0>2}-{:0>2} {:0>2}:{:0>2}'.format(*m.groups()), value)
+    value = _DATE_REPR_RE.sub(
+        lambda m: '{}-{:0>2}-{:0>2}'.format(*m.groups()), value)
+    if len(value) > 1 and value[0] == value[-1] and value[0] in "'\"":
+        value = value[1:-1]
+    return '(empty)' if value in ('None', '') else value
+
+
+def import_windows(session, hotel_id):
+    """(from, to) for every import's applied writes at this hotel.
+
+    Timeline gap rows subtract these so a hotel's own confirmation
+    numbers aren't also counted as changes we made - those belong to
+    the import row that caused them.
+    """
+    from uber.models.hotel import HotelImportFile
+
+    windows = []
+    for entry in session.query(HotelImportFile).filter_by(hotel_id=hotel_id):
+        start, end = entry.applied_from, entry.applied_to
+        if not start and entry.uploaded_at:
+            # Imported before the window was recorded: bound a guess.
+            start = entry.uploaded_at
+            end = entry.uploaded_at + timedelta(minutes=1)
+        if start and end:
+            windows.append((start, end))
+    return windows
+
+
+def _outside_import_windows(query, column, windows):
+    for start, end in windows:
+        query = query.filter(~and_(column > start, column <= end))
+    return query
+
+
+def changed_rooms_between(session, hotel_id, start, end,
+                          exclude_imports=False):
+    """Room-level changes recorded for this hotel between two moments.
+
+    Reads the admin change feed (Tracking) rather than the assignments
+    themselves, so it reports what changed while a hotel was holding a
+    given export - including for rooms that have since changed again.
+    `exclude_imports` drops the changes an import file applied, which is
+    what the timeline's gap rows want: those are reported on the import
+    row itself.
+
+    Returns [{'assignment', 'number', 'guest', 'when', 'who', 'action',
+    'changes': [(field, old, new)]}], newest first.
+    """
+    from uber.models.tracking import Tracking
+
+    ids = _hotel_assignment_ids(session, hotel_id)
+    if not ids:
+        return []
+
+    q = session.query(Tracking).filter(
+        Tracking.model == 'RoomAssignment', Tracking.fk_id.in_(ids))
+    if start:
+        q = q.filter(Tracking.when > start)
+    if end:
+        q = q.filter(Tracking.when <= end)
+    if exclude_imports:
+        q = _outside_import_windows(q, Tracking.when,
+                                    import_windows(session, hotel_id))
+
+    entries = q.order_by(Tracking.when.desc()).all()
+    if not entries:
+        return []
+
+    rooms = {str(ra.id): ra for ra in session.query(RoomAssignment)
+             .filter(RoomAssignment.id.in_({e.fk_id for e in entries}))}
+
+    out = []
+    for entry in entries:
+        ra = rooms.get(str(entry.fk_id))
+        out.append({
+            'assignment': ra,
+            'assignment_id': str(entry.fk_id),
+            'number': (ra.room_number if ra else '') or '',
+            'guest': (ra.attendee.full_name if ra and ra.attendee else ''),
+            'when': entry.when,
+            'who': entry.who,
+            'action': entry.action_label,
+            'changes': [
+                (field, _clean_change_value(old), _clean_change_value(new))
+                for field, old, new in _CHANGE_RE.findall(entry.data or '')
+                if field not in _CHANGE_NOISE],
+        })
+    return out
+
+
+def import_changes(session, import_file):
+    """The room changes one uploaded file caused.
+
+    Scoped by the window the import recorded around its own writes
+    (HotelImportFile.applied_from/applied_to) - the change feed has no
+    link back to the file. Files imported before that window was
+    recorded fall back to the upload timestamp onward, which can also
+    catch an unrelated edit made in the same moment.
+    """
+    start = import_file.applied_from or import_file.uploaded_at
+    end = import_file.applied_to
+    if not end and import_file.applied_from is None:
+        # Legacy row: bound the guess to a minute after the upload.
+        end = (import_file.uploaded_at + timedelta(minutes=1)
+               if import_file.uploaded_at else None)
+    return changed_rooms_between(session, import_file.hotel_id, start, end,
+                                 exclude_imports=False)
+
+
+def read_stored_file(entry, max_rows=None):
+    """A retained export/import file as (columns, rows, error).
+
+    Handles the spreadsheet formats through the shared parser and the
+    JSON payload the API export retains. Rows come back as dicts keyed
+    by column name so one viewer renders any of them.
+    """
+    from uber.hotel.imports import parse_spreadsheet
+
+    path = getattr(entry, 'filepath', '')
+    if not path or not os.path.exists(path):
+        return [], [], 'That file is no longer retained.'
+    with open(path, 'rb') as f:
+        raw = f.read()
+
+    name = (entry.filename or '').lower()
+    if name.endswith('.json') or 'json' in (entry.content_type or ''):
+        import json
+        try:
+            payload = json.loads(raw.decode('utf-8'))
+        except Exception as e:
+            return [], [], f'Could not parse file: {e}'
+        rows = payload.get('bookings', payload) if isinstance(payload, dict) \
+            else payload
+        if not isinstance(rows, list):
+            return [], [], 'That file has no tabular rows.'
+        columns = list(rows[0].keys()) if rows else []
+        rows = [{k: ('' if v is None else str(v)) for k, v in row.items()}
+                for row in rows]
+        return columns, rows[:max_rows] if max_rows else rows, None
+
+    columns, rows, error = parse_spreadsheet(raw, entry.filename)
+    return columns, (rows[:max_rows] if max_rows else rows), error
+
+
+def hotel_activity_timeline(session, hotel_id, limit=100):
+    """Everything that touched this hotel, newest first.
+
+    Merges exports we sent (dashboard downloads and API pulls, each
+    with the retained file) and imports we received, then injects a
+    'changes' row for each gap between consecutive events - how many
+    distinct rooms changed while the hotel was working from the file it
+    had at the time. The newest gap runs from the last event to now.
+    """
+    from uber.models.hotel import HotelImportFile
+    from uber.models.tracking import Tracking
+
+    events = []
+    for log in (session.query(HotelExportLog)
+                .filter(HotelExportLog.hotel_id == hotel_id,
+                        HotelExportLog.export_type == 'room_export')
+                .order_by(HotelExportLog.exported_at.desc()).limit(limit)):
+        events.append({
+            'kind': 'export', 'at': log.exported_at, 'entry': log,
+            'source': log.source or 'admin',
+            'count': log.record_count,
+            'file_id': log.id if log.filepath else None,
+            'filename': log.filename,
+            'who': log.exported_by,
+            'notes': log.notes,
+        })
+
+    for imp in (session.query(HotelImportFile)
+                .filter(HotelImportFile.hotel_id == hotel_id)
+                .order_by(HotelImportFile.uploaded_at.desc()).limit(limit)):
+        events.append({
+            'kind': 'import', 'at': imp.uploaded_at, 'entry': imp,
+            'source': imp.source or 'admin',
+            'count': imp.updated_count,
+            'file_id': imp.id if imp.filepath else None,
+            'filename': imp.filename,
+            'who': imp.uploaded_by,
+            'notes': imp.note,
+        })
+
+    events = sorted([e for e in events if e['at']],
+                    key=lambda e: e['at'], reverse=True)
+
+    ids = _hotel_assignment_ids(session, hotel_id)
+
+    windows = import_windows(session, hotel_id)
+
+    def rooms_changed(start, end):
+        """Rooms WE changed in this gap - an import's own writes are
+        reported on that import's row instead."""
+        if not ids:
+            return 0
+        q = session.query(func.count(func.distinct(Tracking.fk_id))).filter(
+            Tracking.model == 'RoomAssignment', Tracking.fk_id.in_(ids))
+        if start:
+            q = q.filter(Tracking.when > start)
+        if end:
+            q = q.filter(Tracking.when <= end)
+        return _outside_import_windows(q, Tracking.when, windows).scalar() or 0
+
+    # Walk newest-first, inserting the gap above each event.
+    timeline = []
+    newer_edge = None  # None = "now"
+    for event in events:
+        count = rooms_changed(event['at'], newer_edge)
+        if count:
+            timeline.append({
+                'kind': 'changes', 'at': newer_edge, 'count': count,
+                'start': event['at'], 'end': newer_edge,
+            })
+        timeline.append(event)
+        newer_edge = event['at']
+    return timeline
+
+
 def compute_export_tracking(session):
     """Per-hotel export/import summary for the export-tracking page:
     last export/import log entries plus booking counts (total, missing a
@@ -482,7 +795,14 @@ def write_interchange_export(out, session, staff_lottery=False):
 
         # Contact data
         base_cellphone = app.cellphone or app.attendee.cellphone
-        row.extend([print_bool(attendee.badge_type == c.STAFF_BADGE or c.STAFF_RIBBON in attendee.ribbon_ints),
+        # `staff_ribbon` is optional config - not every event defines one,
+        # and c.<NAME> raises AttributeError rather than returning None for
+        # an unconfigured ribbon, which used to 500 the whole export.
+        staff_ribbon = getattr(c, 'STAFF_RIBBON', None)
+        is_staff = (attendee.badge_type == c.STAFF_BADGE
+                    or (staff_ribbon is not None
+                        and staff_ribbon in attendee.ribbon_ints))
+        row.extend([print_bool(is_staff),
                     attendee.email,
                     attendee.effective_hotel_first_name,
                     attendee.effective_hotel_last_name,

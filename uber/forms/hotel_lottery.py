@@ -361,6 +361,14 @@ class HotelInventoryConfig(MagForm):
         render_kw={'min': 0, 'required': True})
     capacity = IntegerField('Capacity', render_kw={'min': 1, 'required': True})
     min_capacity = IntegerField('Min Capacity', render_kw={'min': 1, 'required': True})
+    physical_room_types = StringField(
+        'Physical Room Types',
+        description='Comma-separated physical room type codes this block '
+                    'sells (e.g. "T2, T2A, T2H"). Catalog imports match '
+                    'rooms to this block by code, and the floor-map '
+                    'picker outlines rooms with other codes. Leave blank '
+                    'for no type-based filtering.',
+        render_kw={'placeholder': 'e.g., T2, T2A, T2H'})
     info_url = URLField(
         'Info Page URL',
         description='Link to an informational page about this room type (photos, amenities, etc). '
@@ -432,9 +440,18 @@ class PhysicalRoomConfig(MagForm):
     room_number = StringField('Room Number', render_kw={'required': True})
     floor = StringField(
         'Floor', description='Free text - hotels have floors like "M" and "PH".')
+    type_code = StringField(
+        'Type Code',
+        description='The hotel\'s own code for this room (e.g. T2A); '
+                    'matched against each block\'s physical room types.')
     ada = SelectBooleanField(
         'ADA Accessible', widget=Select(),
         choices=[('false', 'No'), ('true', 'Yes')])
+    accessibility = StringField(
+        'Accessibility Features',
+        description='Comma-separated feature tags, e.g. "roll-in shower, '
+                    'visual alarm". Shown in the room picker tooltip.',
+        render_kw={'placeholder': 'e.g., roll-in shower, visual alarm'})
     out_of_service = SelectBooleanField(
         'Out of Service', widget=Select(),
         choices=[('false', 'No'), ('true', 'Yes (never assign)')])

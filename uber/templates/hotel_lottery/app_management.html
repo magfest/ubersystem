@@ -1,3 +1,4 @@
+{% import 'hotel_lottery/_macros.html' as room_macros with context %}
 {% set app_editable = not application.locked %}
 <div id="select-action" class="collapse">
     <p>
@@ -91,7 +92,8 @@
             </div>
             {% if application.entry_type in [c.ROOM_ENTRY, c.SUITE_ENTRY] %}
             <div class="col col-auto">
-                <form method="post" action="switch_entry_type" id="switch-type">
+                <form method="post" action="switch_entry_type"
+                      {{ room_macros.switch_entry_confirm_attrs(application) }}>
                     <input type="hidden" name="id" value="{{ application.id }}">
                     {{ csrf_token() }}
                     <button class="btn btn-info">Change to {{ 'Room' if application.entry_type == c.SUITE_ENTRY else 'Suite' }} Entry</button>
@@ -149,7 +151,8 @@
             {% if app_editable %}
             <div><a href="{{ 'suite' if application.entry_type == c.SUITE_ENTRY else 'room' }}_lottery?id={{ application.id }}" class="btn btn-primary"><i class="fa fa-pencil"></i> Edit</a></div>
             <div>
-                <form method="post" action="switch_entry_type" id="switch-type">
+                <form method="post" action="switch_entry_type"
+                      {{ room_macros.switch_entry_confirm_attrs(application) }}>
                     <input type="hidden" name="id" value="{{ application.id }}">
                     {{ csrf_token() }}
                     <button class="btn btn-info"><i class="fa fa-refresh"></i> Change to {{ 'Room' if application.entry_type == c.SUITE_ENTRY else 'Suite' }} Entry</button>
@@ -173,7 +176,16 @@
     <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#lottery-terms">View Lottery Terms</button>
     <div>
         {% if application.entry_type == c.GROUP_ENTRY and app_editable %}
-        <form method="post" action="{% if application.parent_application %}leave_group{% else %}withdraw_entry{% endif %}" id="leave-group">
+        <form method="post" action="{% if application.parent_application %}leave_group{% else %}withdraw_entry{% endif %}"
+              {{ room_macros.confirm_attrs(
+                    'Leave ' ~ c.HOTEL_LOTTERY_GROUP_TERM ~ '?',
+                    "<p>This will remove you from the group's lottery entry.</p>"
+                    ~ '<p>The group leader will be notified via email. You will '
+                    ~ ('be reverted to the lottery entry you had before joining the group'
+                       if application.guarantee_policy_accepted
+                       else 'be withdrawn from the hotel lottery')
+                    ~ '.</p><p>Are you sure?</p>',
+                    'Yes, Leave Group') }}>
             <input type="hidden" name="id" value="{{ application.id }}">
             {{ csrf_token() }}
             {% if application.guarantee_policy_accepted and application.parent_application %}
@@ -183,8 +195,10 @@
             {% endif %}
         </form>
         {% elif app_editable or (application.finalized and application.entry_type == c.GROUP_ENTRY and not application.current_lottery_closed) %}
-        <form id="withdraw-lottery" method="post" action="withdraw_entry">
+        <form method="post" action="withdraw_entry"
+              {{ room_macros.withdraw_confirm_attrs(application) }}>
             <input type="hidden" name="id" value="{{ application.id }}">
+            {{ csrf_token() }}
             <button type="submit" class="btn btn-danger">Withdraw From Hotel Lottery</button>
         </form>
         {% endif %}

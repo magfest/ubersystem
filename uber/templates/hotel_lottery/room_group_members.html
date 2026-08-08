@@ -1,3 +1,4 @@
+{% import 'hotel_lottery/_macros.html' as room_macros with context %}
 {% if application.valid_group_members %}
     Here are the members of your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}:
     <table class="table table-sm table-borderless">
@@ -7,7 +8,15 @@
             <td class="text-nowrap w-25">{{ member.attendee.full_name }}</td>
             <td>
                 <div class="d-flex gap-2">
-                <form method="post" action="remove_group_member" class="remove-member">
+                <form method="post" action="remove_group_member"
+                      {{ room_macros.confirm_attrs(
+                            'Remove Group Member?',
+                            '<p>This will remove {name} from your '
+                            ~ c.HOTEL_LOTTERY_GROUP_TERM|lower ~ '.</p>'
+                            '<p>They will be notified via email. They may be able to'
+                            ' join again unless you disband the group.</p>'
+                            '<p>Are you sure?</p>',
+                            'Yes, Remove {name}') }}>
                     <input type="hidden" name="id" value="{{ application.id }}">
                     {{ csrf_token() }}
                     <input type="hidden" name="member_id" value="{{ member.id }}">
@@ -19,7 +28,8 @@
                     {% endif %}
                 </form>
                 {% if app_editable or application.finalized %}
-                <form method="post" action="transfer_leadership" class="make-leader">
+                <form method="post" action="transfer_leadership"
+                      {{ room_macros.transfer_leadership_confirm_attrs(application) }}>
                     <input type="hidden" name="id" value="{{ application.id }}">
                     {{ csrf_token() }}
                     <input type="hidden" name="member_id" value="{{ member.id }}">
@@ -35,38 +45,4 @@
         {% endfor %}
         </tbody>
     </table>
-{% include 'hotel_lottery/room_leader_transfer.html' with context %}
 {% endif %}
-
-<script type="text/javascript">
-    removeConfirm = function(event){
-        var formToSubmit = this;
-        event.preventDefault();
-        name = $(this).find('[name=member_name]').first().val();
-        bootbox.confirm({
-            title: "Remove Group Member?",
-            message: "<p>This will remove " + name + " from your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}.</p>" + 
-                     "<p>They will be notified via email. They may be able to join again unless you disband the group.</p>" +
-                     "<p>Are you sure?</p>",
-            buttons: {
-                confirm: {
-                    label: 'Yes, Remove ' + name,
-                    className: 'btn-danger'
-                },
-                cancel: {
-                    label: 'Nevermind',
-                    className: 'btn-outline-secondary'
-                }
-            },
-            callback: function (result) {
-                if(result) {
-                    formToSubmit.submit();
-                }
-            }
-        });
-    }
-
-    $().ready(function () {
-        $(".remove-member").submit(removeConfirm);
-    })
-</script>

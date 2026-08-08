@@ -72,7 +72,7 @@
       <td>
         <a class="btn btn-outline-secondary btn-sm" href="edit_partition_owner?id={{ g.id }}">Edit</a>
         <form method="post" action="delete_partition_owner" class="d-inline"
-              onsubmit="return confirm('Revoke this grant?');">
+              data-confirm-message="Revoke this grant?">
           {{ csrf_token() }}
           <input type="hidden" name="id" value="{{ g.id }}" />
           <button type="submit" class="btn btn-outline-danger btn-sm">Revoke</button>
@@ -83,5 +83,7 @@
   </tbody>
 </table>
 {% endif %}
+
+{{ "js/hotel-confirm-submit.js"|serve_static_content }}
 
 {% endblock %}

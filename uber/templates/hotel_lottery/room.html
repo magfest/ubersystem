@@ -17,7 +17,7 @@
 
 {% set ra = assignment %}
 {% set locked = ra.export_locked %}
-{% set is_connector = ra.parent_assignment_id is not none and ra.parent_assignment_id != '' %}
+{% set is_connector = ra.is_connector %}
 
 <div class="d-flex justify-content-between align-items-start mb-3">
   <div>
@@ -87,9 +87,7 @@
         <div class="col-md-4 d-flex align-items-end">
           <div class="form-text mb-2">
             This connector room's dates follow its parent suite.
-            {% if ra.parent_assignment_id %}
-              <a href="room?id={{ ra.parent_assignment_id }}&attendee_id={{ viewer.id }}">Edit there &rarr;</a>
-            {% endif %}
+            <a href="room?id={{ ra.parent_assignment_id }}&attendee_id={{ viewer.id }}">Edit there &rarr;</a>
           </div>
         </div>
       </div>
@@ -475,10 +473,8 @@
     <span class="text-muted small me-2 align-self-center">
       This connector room is included with your suite.
     </span>
-    {% if ra.parent_assignment_id %}
     <a href="room?id={{ ra.parent_assignment_id }}&attendee_id={{ viewer.id }}"
        class="btn btn-outline-secondary">Go to suite</a>
-    {% endif %}
   </div>
   {% else %}
   <div class="d-flex justify-content-end">

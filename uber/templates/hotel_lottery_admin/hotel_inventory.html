@@ -2,22 +2,22 @@
 {% block title %}Hotel Lottery Inventory{% endblock %}
 {% block content %}
 
-{% include 'hotel_lottery_admin/nav.html' %}
 {% include 'hotel_lottery_admin/inventory_subnav.html' %}
 
-<ul class="nav nav-tabs mb-3">
-  <li class="nav-item">
-    <a class="nav-link{% if current_partition == 'all' %} active{% endif %}" href="hotel_inventory?partition=all">All</a>
-  </li>
-  <li class="nav-item">
-    <a class="nav-link{% if current_partition == 'default' %} active{% endif %}" href="hotel_inventory?partition=default">Default</a>
-  </li>
-  {% for p in partitions %}
-  <li class="nav-item">
-    <a class="nav-link{% if current_partition == p.id|string %} active{% endif %}" href="hotel_inventory?partition={{ p.id }}">{{ p.name }}</a>
-  </li>
-  {% endfor %}
-</ul>
+{# Partition is a filter on this page, not a navigation destination, so
+   it renders as a compact select instead of a third row of tabs. #}
+<form method="get" class="d-flex align-items-center gap-2 mb-3">
+  <label for="partition-filter" class="col-form-label">Partition</label>
+  <select id="partition-filter" name="partition"
+          class="form-select form-select-sm w-auto"
+          onchange="this.form.submit()">
+    <option value="all"{% if current_partition == 'all' %} selected{% endif %}>All</option>
+    <option value="default"{% if current_partition == 'default' %} selected{% endif %}>Default (non-partitioned)</option>
+    {% for p in partitions %}
+    <option value="{{ p.id }}"{% if current_partition == p.id|string %} selected{% endif %}>{{ p.name }}</option>
+    {% endfor %}
+  </select>
+</form>
 
 <div class="mb-3">
   <h2 class="mb-0">
@@ -28,25 +28,79 @@
      button here - the subnav is the single source of navigation. #}
 </div>
 
+{# Every card but the block count is room-nights: one room, one night,
+   summed across blocks and event nights. #}
+<div class="row g-2 mb-3" style="max-width: 900px;">
+  <div class="col-6 col-md-3">
+    <div class="card card-body py-2 text-center">
+      <div class="fs-4 fw-bold">{{ summary.offered }}</div>
+      <div class="small text-muted">room-nights offered across {{ summary.blocks }} block(s)</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card card-body py-2 text-center">
+      <div class="fs-4 fw-bold">{{ summary.assigned }}</div>
+      <div class="small text-muted">room-nights assigned</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card card-body py-2 text-center">
+      <div class="fs-4 fw-bold{% if not summary.remaining %} text-danger{% endif %}">{{ summary.remaining }}</div>
+      <div class="small text-muted">room-nights remaining</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card card-body py-2 text-center">
+      <div class="fs-4 fw-bold{% if summary.waitlisted %} text-warning{% endif %}">{{ summary.waitlisted }}</div>
+      <div class="small text-muted">room-nights waitlisted</div>
+    </div>
+  </div>
+</div>
+
+<p class="text-muted small mb-2">
+  Each row is one sellable block. Night cells read
+  <strong>assigned&nbsp;/&nbsp;available</strong>:
+  <span class="badge table-danger text-dark border">red</span> = overbooked,
+  <span class="badge table-secondary text-dark border">gray</span> = not offered that night,
+  <em>"N wl"</em> = N bookings waitlisted for that night.
+  Click any assigned count to see who's in it.
+</p>
+
 {% macro inventory_table(inventory, is_suite=False) %}
 {% for hotel, room_list in inventory.items() %}
   {% for room in room_list %}
   <tr>
     {% if loop.first %}
-    <td rowspan="{{ room_list|length }}" class="align-middle fw-bold">{{ hotel.name if hotel else 'Unknown' }}</td>
+    {% set totals = hotel_totals.get(hotel.id|string if hotel else '') %}
+    <td rowspan="{{ room_list|length }}" class="align-middle fw-bold">
+      {% if hotel %}<a href="edit_hotel?id={{ hotel.id }}">{{ hotel.name }}</a>
+      {% else %}Unknown{% endif %}
+      {% if totals %}
+      <div class="small fw-normal text-muted">
+        {{ totals.assigned }} booked, {{ totals.remaining }} open
+        <span class="text-nowrap">(room-nights)</span>
+      </div>
+      {% endif %}
+    </td>
     {% endif %}
-    <td>{{ room.room_type.name if room.room_type else '' }}{% if room.inventory.name %} <small class="text-muted">({{ room.inventory.name }})</small>{% endif %}</td>
+    <td>
+      <a href="edit_inventory_item?id={{ room.inventory.id }}">
+        {{- room.room_type.name if room.room_type else room.inventory.display_name -}}
+      </a>
+      {% if room.inventory.name %} <small class="text-muted">({{ room.inventory.name }})</small>{% endif %}
+    </td>
     <td class="text-center">{{ room.quantity }}</td>
     <td class="text-center">
       {% if room.total_assigned > 0 %}
       <a href="#" class="assignee-link" data-inventory-id="{{ room.inventory.id }}" data-night="" data-title="{{ (room.room_type.name if room.room_type else 'Block')|e }}">{{ room.total_assigned }}</a>
       {% else %}0{% endif %}
     </td>
-    <td class="text-center">{{ room[c.PROCESSED]|default(0) }}</td>
-    <td class="text-center">{{ room[c.AWARDED]|default(0) }}</td>
-    <td class="text-center">{{ room[c.SECURED]|default(0) }}</td>
+    <td class="text-center">{{ room.awaiting_card }}</td>
+    <td class="text-center">{{ room.secured }}</td>
     {% for nd in room.nights %}
-    <td class="text-center{% if nd.remaining <= 0 and nd.available > 0 %} table-danger{% elif nd.remaining <= 0 %} table-secondary{% endif %}">
+    {# Red only when a night is genuinely overbooked; a night that is
+       exactly full is fine, and one with no rooms offered is gray. #}
+    <td class="text-center{% if nd.assigned > nd.available %} table-danger{% elif not nd.available %} table-secondary{% endif %}">
       {% if nd.assigned > 0 %}
       <a href="#" class="assignee-link" data-inventory-id="{{ room.inventory.id }}" data-night="{{ nd.night.isoformat() }}" data-title="{{ (room.room_type.name if room.room_type else 'Block')|e }} - {{ nd.night.strftime('%a %-m/%-d') }}">{{ nd.assigned }}</a>
       {% else %}0{% endif %}/{{ nd.available }}
@@ -58,75 +112,46 @@
 {% endfor %}
 {% endmacro %}
 
-<h3>Standard Rooms</h3>
+{% macro inventory_head() %}
+<thead>
+  <tr>
+    <th rowspan="2" class="align-bottom">Hotel</th>
+    <th rowspan="2" class="align-bottom">Room / Suite Type</th>
+    <th rowspan="2" class="align-bottom text-center"
+        title="Rooms offered per night (default; per-night overrides apply in the night columns)">
+      Rooms<br/><small class="fw-normal text-muted">per night</small>
+    </th>
+    <th colspan="3" class="text-center border-bottom-0">Bookings by status</th>
+    <th colspan="{{ event_nights|length }}" class="text-center border-bottom-0">
+      Assigned / available by night
+    </th>
+  </tr>
+  <tr>
+    <th class="text-center" title="Every booking in this block, any status">Total</th>
+    <th class="text-center" title="Awarded a room, no card on file yet">Awaiting card</th>
+    <th class="text-center" title="Card on file - booking locked in">Secured</th>
+    {% for night in event_nights %}
+    <th class="text-center">{{ night.strftime('%a %-m/%-d') }}</th>
+    {% endfor %}
+  </tr>
+</thead>
+{% endmacro %}
+
+{# One table for rooms AND suites (section divider rows between), so
+   the columns align all the way down the page. #}
 <div class="table-responsive">
 <table class="table table-bordered table-sm bg-body">
-    <thead>
-        <tr>
-            <th>Hotel</th>
-            <th>Room Type</th>
-            <th>Default Qty</th>
-            <th>Total Assigned</th>
-            <th>Processed</th>
-            <th>Awarded</th>
-            <th>Secured</th>
-            {% for night in event_nights %}
-            <th class="text-center">{{ night.strftime('%a %-m/%-d') }}</th>
-            {% endfor %}
-        </tr>
-    </thead>
+    {{ inventory_head() }}
     <tbody>
+    <tr class="table-light"><th colspan="{{ 6 + event_nights|length }}" class="fs-6">Standard Rooms</th></tr>
     {{ inventory_table(room_inventory) }}
-    </tbody>
-</table>
-</div>
-
-{% if suite_inventory %}
-<h3>Suites</h3>
-<div class="table-responsive">
-<table class="table table-bordered table-sm bg-body">
-    <thead>
-        <tr>
-            <th>Hotel</th>
-            <th>Suite Type</th>
-            <th>Default Qty</th>
-            <th>Total Assigned</th>
-            <th>Processed</th>
-            <th>Awarded</th>
-            <th>Secured</th>
-            {% for night in event_nights %}
-            <th class="text-center">{{ night.strftime('%a %-m/%-d') }}</th>
-            {% endfor %}
-        </tr>
-    </thead>
-    <tbody>
+    {% if suite_inventory %}
+    <tr class="table-light"><th colspan="{{ 6 + event_nights|length }}" class="fs-6">Suites</th></tr>
     {{ inventory_table(suite_inventory, is_suite=True) }}
+    {% endif %}
     </tbody>
 </table>
 </div>
-{% endif %}
-
-{% if chart_data %}
-<h3 class="mt-4">Inventory Charts</h3>
-<div class="row">
-<div class="col-12 mb-3">
-  <div class="card card-body">
-    <h5>All Hotels - Combined</h5>
-    <canvas id="chart_total"></canvas>
-  </div>
-</div>
-{% for hotel_name, data in chart_data.items() %}
-{% if hotel_name != '_total' %}
-<div class="col-md-6 mb-3">
-  <div class="card card-body">
-    <h5>{{ hotel_name }}</h5>
-    <canvas id="chart_{{ loop.index }}"></canvas>
-  </div>
-</div>
-{% endif %}
-{% endfor %}
-</div>
-{% endif %}
 
 <!-- Assignees Modal -->
 <div class="modal fade" id="assigneesModal" tabindex="-1">
@@ -144,26 +169,9 @@
   </div>
 </div>
 
-{{ "deps/chartjs/chart.umd.min.js"|serve_static_content }}
-
-{# Build the chart config in Jinja and hand the whole structure to the
-   static glue script via |tojson - no string-interpolated JS. #}
-{% set _night_labels = [] %}
-{% for night in event_nights %}{% set _ = _night_labels.append(night.strftime('%a %-m/%-d')) %}{% endfor %}
-{% set _charts = {} %}
-{% if chart_data %}
-  {% if chart_data._total is defined %}{% set _ = _charts.update({'chart_total': chart_data._total}) %}{% endif %}
-  {% for hotel_name, data in chart_data.items() %}
-    {% if hotel_name != '_total' %}{% set _ = _charts.update({'chart_' ~ loop.index: data}) %}{% endif %}
-  {% endfor %}
-{% endif %}
 <script type="text/javascript">
-window.hotelInventoryConfig = {
-  partition: {{ current_partition|tojson }},
-  nightLabels: {{ _night_labels|tojson }},
-  charts: {{ _charts|tojson }}
-};
+window.hotelInventoryConfig = { partition: {{ current_partition|tojson }} };
 </script>
-{{ "js/hotel-inventory-chart.js"|serve_static_content }}
+{{ "js/hotel-inventory-assignees.js"|serve_static_content }}
 
 {% endblock content %}

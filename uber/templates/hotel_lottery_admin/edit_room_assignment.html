@@ -13,7 +13,7 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h2 class="mb-0">
     Edit Room Assignment
-    {% if ra.parent_assignment_id %}{{ hotel_macros.connector_chip() }}{% endif %}
+    {% if ra.is_connector %}{{ hotel_macros.connector_chip() }}{% endif %}
   </h2>
   <div>
     <a href="rooms" class="btn btn-outline-secondary">Back to Rooms</a>
@@ -26,12 +26,7 @@
     <div class="row g-2 align-items-start">
       <div class="col-md-3">
         <div class="form-text mb-0">Attendee</div>
-        {% if attendee %}
-          <a href="../registration/form?id={{ attendee.id }}">
-            {{ attendee.first_name }} {{ attendee.last_name }}
-          </a>
-          <br/><small class="text-muted">{{ attendee.email }}</small>
-        {% else %}<em>(no attendee)</em>{% endif %}
+        {{ hotel_macros.attendee_cell(attendee) }}
       </div>
       <div class="col-md-3">
         <div class="form-text mb-0">Lottery Application</div>
@@ -93,7 +88,7 @@
       {% endif %}
     </div>
 
-    {% if ra.parent_assignment_id %}
+    {% if ra.is_connector %}
     <hr class="my-2"/>
     <div class="text-muted">
       This is a connector room. Its parent is
@@ -149,17 +144,20 @@
         </div>
         <div class="col-md-4">
           <label class="form-label">Physical Room</label>
-          <select class="form-select" name="physical_room_id">
-            <option value="">(none / free text below)</option>
-            {% for r in assignable_rooms %}
-            <option value="{{ r.id }}" {% if ra.physical_room_id == r.id %}selected{% endif %}>
-              {{ hotel_macros.physical_room_option_label(r) }}
-            </option>
-            {% endfor %}
-          </select>
+          <div class="d-flex gap-1">
+            <select class="form-select" name="physical_room_id">
+              <option value="">(none / free text below)</option>
+              {% for r in assignable_rooms %}
+              <option value="{{ r.id }}" {% if ra.physical_room_id == r.id %}selected{% endif %}>
+                {{ hotel_macros.physical_room_option_label(r) }}
+              </option>
+              {% endfor %}
+            </select>
+            {% if map_hotel %}{{ hotel_macros.room_map_button(ra) }}{% endif %}
+          </div>
           <div class="form-text small">Catalogued rooms in this block,
             vacant for these dates. Also managed on the
-            <a href="room_board{% if inv and inv.hotel_id %}?hotel_id={{ inv.hotel_id }}{% endif %}">Rooming Board</a>.</div>
+            <a href="physical_rooms{% if inv and inv.hotel_id %}?hotel_id={{ inv.hotel_id }}{% endif %}">Physical Rooms board</a>.</div>
         </div>
         <div class="col-md-4">
           <label class="form-label">Room Number</label>
@@ -199,7 +197,7 @@
 {# Delete form lives OUTSIDE the edit form - HTML doesn't allow nested
    forms, and we want a separate POST endpoint anyway. #}
 <form method="post" action="delete_room_assignment" class="mt-3"
-      onsubmit="return confirm('Remove this room? Any connector rooms will also be removed.');">
+      data-confirm-message="Remove this room? Any connector rooms will also be removed.">
   {{ csrf_token() }}
   <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
   <button type="submit" class="btn btn-outline-danger">
@@ -207,6 +205,11 @@
   </button>
 </form>
 
+{% if map_hotel %}
+{{ hotel_macros.room_map_modal(map_hotel, map_rooms) }}
+{% endif %}
+
 {{ "js/hotel-room-picker.js"|serve_static_content }}
+{{ "js/hotel-confirm-submit.js"|serve_static_content }}
 
 {% endblock content %}

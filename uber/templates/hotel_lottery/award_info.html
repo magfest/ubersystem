@@ -2,6 +2,7 @@
    Reads from `app_or_parent.attendee.room_assignments` - every awarded
    room is its own RoomAssignment row. Connector rooms render with the
    "follows another room" explanation. #}
+{% import 'hotel_lottery/_macros.html' as room_macros with context %}
 {% set _rooms = (app_or_parent.attendee.room_assignments if app_or_parent.attendee else [])
                 |selectattr('is_live')|list %}
 
@@ -27,7 +28,7 @@
             <a href="{{ c.CONTACT_URL }}">contact us</a> so we can fix it
             before check-in.
           </div>
-        {% elif ra.parent_assignment_id %}
+        {% elif ra.is_connector %}
           <div class="alert alert-info small mb-3">
             <em>This is a connector room. It is physically attached to another
             room you have been assigned, and they are awarded as a block.</em>
@@ -80,7 +81,8 @@
             <td>{{ member.email }}</td>
             <td>
                 {% if app_editable or application.finalized %}
-                <form method="post" action="transfer_leadership" class="make-leader">
+                <form method="post" action="transfer_leadership"
+                      {{ room_macros.transfer_leadership_confirm_attrs(application) }}>
                     <input type="hidden" name="id" value="{{ application.id }}">
                     {{ csrf_token() }}
                     <input type="hidden" name="member_id" value="{{ member.id }}">
@@ -95,5 +97,5 @@
         {% endfor %}
     </tbody>
 </table>
-{% include 'hotel_lottery/room_leader_transfer.html' with context %}
+{{ "js/hotel-confirm-submit.js"|serve_static_content }}
 {% endif %}

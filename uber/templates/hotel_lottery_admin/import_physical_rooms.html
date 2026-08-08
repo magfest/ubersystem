@@ -2,17 +2,19 @@
 {% block title %}Import Physical Rooms{% endblock %}
 {% block content %}
 
-{% include 'hotel_lottery_admin/nav.html' %}
 {% include 'hotel_lottery_admin/inventory_subnav.html' %}
 
 <h2>Import Physical Rooms</h2>
 <p class="text-muted">
   Upload a CSV or XLSX with the hotel's room list. Headers are
   case-insensitive; expected columns: <code>room_number</code> (required),
-  <code>floor</code>, <code>type</code> (matched against the hotel's block
-  or room-type names), <code>ada</code>, <code>connects_to</code>
-  (comma-separated room numbers), <code>notes</code>. Rows are keyed by
-  room number, so re-importing updates the catalog in place.
+  <code>floor</code>, <code>type</code> (stored as the room's type code
+  and matched against the hotel's block names, room-type names, or each
+  block's declared physical room types), <code>ada</code>,
+  <code>accessibility</code> (comma-separated feature tags),
+  <code>connects_to</code> (comma-separated room numbers),
+  <code>notes</code>. Rows are keyed by room number, so re-importing
+  updates the catalog in place.
 </p>
 
 <form method="post" action="import_physical_rooms" enctype="multipart/form-data"

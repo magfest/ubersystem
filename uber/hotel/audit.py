@@ -15,7 +15,6 @@ helpers here are shared by the report handler and the hide/unhide/note
 POST handlers in uber.site_sections.hotel_lottery_admin.
 """
 from collections import defaultdict
-from datetime import timedelta
 
 from uber.config import c
 from uber.hotel.queries import occupancy_by_block_night, overlaps

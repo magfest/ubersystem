@@ -176,7 +176,7 @@
         <strong>{{ inv.hotel.name if inv and inv.hotel else '?' }}</strong>
         -
         {{ inv.display_name if inv else '(no inventory)' }}
-        {% if ra.parent_assignment_id %}
+        {% if ra.is_connector %}
           {{ hotel_macros.connector_chip() }}
         {% endif %}
         {% if ra.assigned_check_in_date and ra.assigned_check_out_date %}

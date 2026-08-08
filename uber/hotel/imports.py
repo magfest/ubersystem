@@ -12,6 +12,8 @@ import os
 import uuid
 from datetime import date, datetime
 
+from pytz import UTC
+
 from uber.config import c
 
 
@@ -115,7 +117,9 @@ def _store_file(session, raw, filename, content_type, hotel, source, uploaded_by
     record = HotelImportFile(
         hotel_id=hotel.id if hotel else None,
         filename=filename or stored_name,
-        content_type=content_type or '',
+        # CherryPy hands back a HeaderElement for an upload's type, which
+        # psycopg can't adapt; the column just wants the text.
+        content_type=str(content_type or ''),
         filepath=filepath,
         size=len(raw),
         source=source,
@@ -155,6 +159,11 @@ def import_confirmation_file(session, raw, filename, hotel=None, source='',
     # (file column, RoomAssignment attribute)
     fields = [('hotel_confirmation_number', 'hotel_confirmation_number'),
               ('hotel_cancellation_number', 'cancellation_confirmation_number')]
+
+    # The change feed records no link back to this file, so bracket the
+    # writes: everything tracked inside this window is this import's
+    # doing (see uber.hotel.exports.import_changes).
+    record.applied_from = datetime.now(UTC)
 
     updated = 0
     unchanged = 0
@@ -197,6 +206,8 @@ def import_confirmation_file(session, raw, filename, hotel=None, source='',
             updated += 1 if row_changed else 0
             unchanged += 0 if row_changed else 1
 
+    session.flush()  # emit the row updates before closing the window
+    record.applied_to = datetime.now(UTC)
     record.updated_count = updated
     record.unchanged_count = unchanged
     record.note = f"{updated} updated, {unchanged} unchanged"

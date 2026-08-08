@@ -53,6 +53,19 @@
   </div>
   {% endif %}
 
+  {# Text input plus a checkbox dropdown of the hotel's catalog type
+     codes (hotel-inventory-type-codes.js); free text still allowed. #}
+  <div class="mb-3">
+    <div class="form-text">{{ inventory_config.physical_room_types.label }}</div>
+    <div class="input-group">
+      {{ inventory_config.physical_room_types(class="form-control") }}
+      <button class="btn btn-outline-secondary dropdown-toggle" type="button"
+              data-bs-toggle="dropdown" data-bs-auto-close="outside"
+              aria-expanded="false">Choose</button>
+      <ul class="dropdown-menu dropdown-menu-end" id="type-code-menu"></ul>
+    </div>
+    <div class="form-text">{{ inventory_config.physical_room_types.description }}</div>
+  </div>
   <div class="mb-3">{{ form_macros.input(inventory_config.info_url) }}</div>
 
   <div class="row g-3 mb-3">
@@ -65,6 +78,9 @@
 
   <button type="submit" class="btn btn-primary">Save</button>
 </form>
+
+<script type="application/json" id="type-codes-data">{{ type_codes_by_hotel|tojson }}</script>
+{{ "js/hotel-inventory-type-codes.js"|serve_static_content }}
 
 <script>
 function toggleTypeFields() {

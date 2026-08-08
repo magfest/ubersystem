@@ -14,6 +14,7 @@ import logging
 
 import cherrypy
 from sqlalchemy import func
+from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.decorators import all_renderable, ajax_gettable
@@ -34,6 +35,7 @@ from uber.hotel.perms import (
     record_partition_audit,
     requires_partition_capability,
 )
+from uber.models import AdminAccount
 from uber.models.hotel import (
     HotelRoomInventory, InventoryPartition, InventoryPartitionBlock,
     PartitionAuditLog, PartitionOwner, RoomAssignment,
@@ -211,8 +213,13 @@ class Root:
         for ra in modal_assignments:
             modal_groups[ra.attendee_id].append(ra)
 
-        activity_q = session.query(PartitionAuditLog).filter_by(
-            partition_id=partition.id).order_by(
+        # Eager-load the actor and subject so the activity table doesn't
+        # issue a query per row.
+        activity_q = session.query(PartitionAuditLog).options(
+            joinedload(PartitionAuditLog.attendee),
+            joinedload(PartitionAuditLog.admin_account)
+            .joinedload(AdminAccount.attendee),
+        ).filter_by(partition_id=partition.id).order_by(
             PartitionAuditLog.when.desc())
         activity, activity_total, activity_page, activity_last_page = \
             paginate(activity_q, activity_page, PAGE_SIZE)
@@ -281,8 +288,10 @@ class Root:
             session, assignment.partition_id,
             action='assignment.billing_flipped',
             description=("Switched to self-pay (CC required)" if assignment.require_cc
-                         else "Switched to master bill"),
-            target_type='assignment', target_id=assignment.id)
+                         else "Switched to master bill")
+                        + f": {assignment.room_summary}",
+            target_type='assignment', target_id=assignment.id,
+            attendee_id=assignment.attendee_id)
         session.commit()
         raise HTTPRedirect(
             'dashboard?partition_id={}&tab=assignments&message={}',
@@ -377,8 +386,9 @@ class Root:
         record_partition_audit(
             session, partition_id,
             action='assignment.removed',
-            description=f"Removed assignment {assignment.id}",
-            target_type='assignment', target_id=assignment.id)
+            description=f"Removed assignment: {assignment.room_summary}",
+            target_type='assignment', target_id=assignment.id,
+            attendee_id=assignment.attendee_id)
         session.delete(assignment)
         session.commit()
         raise HTTPRedirect(

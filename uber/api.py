@@ -26,7 +26,8 @@ from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, Attr
                          BadgeInfo, Department, DeptMembership,
                          DeptRole, Event, IndieJudge, IndieStudio, Job, Session, Shift, Group,
                          GuestGroup, LotteryApplication)
-from uber.models.hotel import HotelExportLog, HotelRoomInventory, RoomAssignment
+from uber.models.hotel import (HotelExportLog, HotelRoomInventory, LotteryHotel,
+                               RoomAssignment)
 from uber.models.badge_printing import PrintJob
 from uber.serializer import serializer
 from uber.utils import check, check_csrf, normalize_email_legacy, normalize_newlines, is_listy
@@ -1714,13 +1715,23 @@ class HotelLookup:
                 if ra.inventory and ra.inventory.hotel_id:
                     hotels_exported.add(str(ra.inventory.hotel_id))
 
+            # Retain what each hotel actually pulled, the same way the
+            # dashboard download does, so the exports page can reproduce
+            # any file a hotel worked from.
+            from uber.hotel.exports import store_export_file
             for hotel_id in hotels_exported:
-                log_entry = HotelExportLog(
-                    hotel_id=hotel_id,
-                    export_type='room_export',
-                    record_count=len([b for b in bookings if b['hotel_id'] == hotel_id]),
-                )
-                session.add(log_entry)
+                rows = [b for b in bookings if b['hotel_id'] == hotel_id]
+                hotel_obj = session.query(LotteryHotel).get(hotel_id)
+                stamp = datetime.now(pytz.UTC).strftime('%Y%m%d_%H%M')
+                name = (hotel_obj.export_name or hotel_obj.name
+                        if hotel_obj else 'hotel')
+                store_export_file(
+                    session, hotel_obj,
+                    json.dumps({'bookings': rows}, indent=1,
+                               default=str).encode('utf-8'),
+                    f'{name}_bookings_{stamp}.json', 'application/json',
+                    source='api', record_count=len(rows),
+                    exported_by='api')
             session.commit()
 
             return {'last_export_time': last_export_time, 'bookings': bookings}

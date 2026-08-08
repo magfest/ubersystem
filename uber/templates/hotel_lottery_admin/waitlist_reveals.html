@@ -48,7 +48,8 @@
         <a href="edit_waitlist_reveal?id={{ r.id }}" class="btn btn-sm btn-outline-primary">Edit</a>
         {% if r.active and r.external_url %}
         <form method="post" action="send_waitlist_reveal_emails" class="d-inline"
-              onsubmit="return confirm('Email all eligible attendees who have not received a link for this reveal yet?');">
+              data-confirm-message="Email all eligible attendees who have not received a link for this reveal yet?"
+              data-confirm-class="btn-primary">
           {{ csrf_token() }}
           <input type="hidden" name="id" value="{{ r.id }}" />
           <button type="submit" class="btn btn-sm btn-outline-success">Send Emails</button>
@@ -60,5 +61,7 @@
   </tbody>
 </table>
 {% endif %}
+
+{{ "js/hotel-confirm-submit.js"|serve_static_content }}
 
 {% endblock %}

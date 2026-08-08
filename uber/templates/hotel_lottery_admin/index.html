@@ -179,7 +179,7 @@
                             {% if ra.export_locked %}<i class="fa fa-lock text-warning" title="Export Locked"></i> {% endif %}
                             {{ inv.hotel.name if inv and inv.hotel else '' }} -
                             {% if inv %}{{ inv.display_name }}{% endif %}
-                            {% if ra.parent_assignment_id %}{{ hotel_macros.connector_chip() }}{% endif %}
+                            {% if ra.is_connector %}{{ hotel_macros.connector_chip() }}{% endif %}
                           </div>
                         {% endfor %}
                       </div>

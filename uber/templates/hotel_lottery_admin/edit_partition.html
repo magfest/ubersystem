@@ -131,7 +131,7 @@
       <td class="text-end" style="white-space: nowrap;">
         <button type="submit" form="{{ _form_id }}" class="btn btn-sm btn-outline-primary">Save</button>
         <form method="post" action="delete_partition_owner" class="d-inline"
-              onsubmit="return confirm('Revoke this grant?');">
+              data-confirm-message="Revoke this grant?">
           {{ csrf_token() }}
           <input type="hidden" name="id" value="{{ g.id }}" />
           <input type="hidden" name="return_to" value="edit_partition" />
@@ -198,5 +198,7 @@
 
 </div>{# /card #}
 {% endif %}
+
+{{ "js/hotel-confirm-submit.js"|serve_static_content }}
 
 {% endblock content %}

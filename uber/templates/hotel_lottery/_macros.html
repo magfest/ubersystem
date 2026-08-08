@@ -11,6 +11,95 @@
    `csrf_token()`.)
 #}
 
+{# Confirm-before-submit
+
+   `confirm_attrs` emits the `data-confirm-*` attributes read by
+   uber/static/js/hotel-confirm-submit.js. Drop it inside the opening
+   <form> tag of any form that needs an "are you sure?" gate, and load
+   the script once on the page:
+
+       {{ "js/hotel-confirm-submit.js"|serve_static_content }}
+
+   This replaces hand-rolled `bootbox.confirm({...})` handlers - the
+   dialog chrome (Nevermind button, backdrop, submit-on-confirm) lives
+   in the one script instead of being retyped per page.
+
+   `message` may contain HTML; autoescaping in the attribute plus the
+   browser's own attribute decoding round-trips it intact. A `{name}`
+   placeholder in any of the strings is substituted client-side with the
+   form's `member_name` input, for per-row forms rendered in a loop.
+#}
+{%- macro confirm_attrs(title, message, label='Yes', cls='btn-danger') -%}
+ data-confirm-title="{{ title }}" data-confirm-message="{{ message }}" data-confirm-label="{{ label }}" data-confirm-class="{{ cls }}"
+{%- endmacro %}
+
+{# The withdraw-from-the-lottery warning. Four forms across three pages
+   (the status page, the guarantee page, and the options page) have to
+   agree on this copy, so it lives here rather than in each of them. #}
+{%- macro withdraw_confirm_attrs(application) -%}
+  {%- set _has_award = (application.app_or_parent.attendee.room_assignments
+                        if application.app_or_parent and application.app_or_parent.attendee
+                        else [])|selectattr('is_live')|list|length > 0 -%}
+  {{- confirm_attrs(
+        'Withdraw From Hotel Lottery?',
+        '<p>Are you sure you want to withdraw from the ' ~ c.EVENT_NAME ~ ' hotel lottery?</p>'
+        ~ '<p>This will <strong>delete your lottery entry'
+        ~ (' and disband your group' if application.group_members else '')
+        ~ '</strong>'
+        ~ ((' and your group leader will be '
+            ~ ('instructed to remove your name from the reservation' if _has_award else 'notified'))
+           if application.parent_application else '')
+        ~ '. '
+        ~ ('You will need to re-enter the hotel lottery from the beginning to be eligible for a room or suite.'
+           if not application.current_lottery_closed and not application.finalized else '')
+        ~ '</p>',
+        'Yes, Withdraw') -}}
+{%- endmacro %}
+
+{# The room-entry <-> suite-entry swap warning, shared by the two
+   "Change to X Entry" buttons on the options page. #}
+{%- macro switch_entry_confirm_attrs(application) -%}
+  {%- set _to_room = application.entry_type == c.SUITE_ENTRY -%}
+  {%- set _ada_warning = (application.wants_ada
+                          and 'suite_ada_info' not in c.HOTEL_LOTTERY_FORM_STEPS) -%}
+  {{- confirm_attrs(
+        'Change Entry Type?',
+        ('<p>This will convert your suite lottery entry to a standard room entry.</p>'
+         if _to_room else
+         '<p>This will convert your room lottery entry to a suite entry.'
+         ' You will still be able to enter the lottery for a standard room.</p>')
+        ~ '<p><strong>Your entry will be considered incomplete until you confirm'
+          ' your entry details on the next page.</strong></p>'
+        ~ ('<p>Additionally, <span class="text-danger">we cannot accommodate ADA'
+           ' requests for suite entries</span>, so your ADA request and details'
+           ' will be removed from your entry.</p>'
+           if not _to_room and _ada_warning else '')
+        ~ '<p>Are you sure?</p>',
+        'Yes, Change to ' ~ ('Room' if _to_room else 'Suite') ~ ' Entry',
+        'btn-primary') -}}
+{%- endmacro %}
+
+{# The transfer-group-leadership warning, shared by the group-members
+   table and the award-info roster. `{name}` is filled in client-side
+   from each row's `member_name` input. #}
+{%- macro transfer_leadership_confirm_attrs(application) -%}
+  {%- set _entered = application.status in [c.COMPLETE, c.PROCESSED, c.AWARDED, c.SECURED] -%}
+  {{- confirm_attrs(
+        'Transfer Group Leadership?',
+        '<p>This will make {name} the new leader for your '
+        ~ c.HOTEL_LOTTERY_GROUP_TERM|lower ~ '.</p>'
+        ~ '<p>All group members will be notified via email.'
+        ~ ((' You will no longer be able to view your group\'s reservation, but'
+            " you'll be able to withdraw from the lottery without affecting your"
+            " group's room or suite award."
+            if application.finalized else
+            ' You will then be able to withdraw from the lottery without'
+            ' disbanding the group.') if _entered else '')
+        ~ '</p><p>Are you sure?</p>',
+        'Yes, Transfer Leadership to {name}',
+        'btn-warning') -}}
+{%- endmacro %}
+
 {# Room name
 
    `room_name` renders the "Hotel - Room/Suite Type" title for a

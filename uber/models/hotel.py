@@ -6,7 +6,7 @@ from datetime import timedelta, datetime, date, time
 from pytz import UTC
 from markupsafe import Markup
 import sqlalchemy as sa
-from sqlalchemy import Sequence, case
+from sqlalchemy import Sequence
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
@@ -14,7 +14,7 @@ from sqlalchemy.types import Date, Integer, DateTime, Uuid
 from typing import Any, ClassVar
 
 from uber.config import c
-from uber.custom_tags import readable_join, datetime_local_filter
+from uber.custom_tags import datetime_local_filter
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.types import Choice, RankedList, UniqueList, DefaultColumn as Column, DefaultField as Field, DefaultRelationship as Relationship
@@ -120,7 +120,11 @@ class LotteryApplication(MagModel, table=True):
     invited_by: 'LotteryApplication' = Relationship(
         sa_relationship_kwargs={'foreign_keys': 'LotteryApplication.invited_by_id',
                                 'remote_side': 'LotteryApplication.id'})
-    invite_status: int = Field(sa_column=Column(Choice(c.HOTEL_INVITE_STATUS_OPTS), default=c.NO_INVITE))
+    # `default` belongs on the Field, not inside Column: a Column default is
+    # only applied by an INSERT, so an unflushed LotteryApplication() (and
+    # therefore `to_dict()`, which _clear_application resets from) read back
+    # None here and wrote NULL into this NOT NULL column.
+    invite_status: int = Field(sa_column=Column(Choice(c.HOTEL_INVITE_STATUS_OPTS)), default=c.NO_INVITE)
     invite_expires_at: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
 
     # The application owns lottery preferences and lifecycle only. Per-room
@@ -556,6 +560,12 @@ class LotteryHotel(MagModel, table=True):
     footnote: str = ''
     active: bool = True
 
+    # Floor map for the room picker: map_yaml is the uploaded source
+    # (schema in uber.hotel.floormap), map_svg the SVG rendered from it
+    # at upload time. Empty = no map.
+    map_yaml: str = ''
+    map_svg: str = ''
+
 
 class LotteryRoomType(MagModel, table=True):
     name: str = ''
@@ -664,6 +674,11 @@ class HotelRoomInventory(MagModel, table=True):
     price: str = ''
     staff_price: str = ''
 
+    # Physical-room type codes this block sells (comma-separated, e.g.
+    # "T2, T2A, T2H"). Used to resolve catalog imports to a block and to
+    # filter the floor-map picker; empty = no type-based filtering.
+    physical_room_types: str = ''
+
     # Per-type connector pairing lives on LotteryRoomType
     # (connects_to_type_id + connector_quantity).
 
@@ -681,6 +696,13 @@ class HotelRoomInventory(MagModel, table=True):
     @property
     def room_or_suite_type_id(self):
         return self.suite_type_id if self.is_suite else self.room_type_id
+
+    @property
+    def physical_type_codes(self):
+        """The declared physical-room type codes as an uppercase list."""
+        return [code.strip().upper()
+                for code in self.physical_room_types.split(',')
+                if code.strip()]
 
     @property
     def display_name(self):
@@ -897,6 +919,10 @@ class RoomAssignment(MagModel, table=True):
         nullable=True)
     physical_room: 'PhysicalRoom' = Relationship(
         sa_relationship_kwargs={'foreign_keys': 'RoomAssignment.physical_room_id'})
+    # True while physical_room_id was set by the auto-assign pass (and
+    # not touched by hand since), so "clear auto placements" can leave
+    # manual placements alone.
+    physical_room_auto: bool = False
     special_requests: str = ''
     hotel_rewards_number: str = ''
 
@@ -1031,6 +1057,32 @@ class RoomAssignment(MagModel, table=True):
         (require_cc False) are never flipped here."""
         if self.status == c.ASSIGNED and self.cc_token and self.require_cc:
             self.status = c.SECURED
+
+    @property
+    def is_connector(self):
+        """True for a connector room - one awarded as part of a suite
+        block, whose dates and lifecycle follow its parent. The single
+        definition of "is this a connector?" so surfaces don't each
+        re-derive it from the raw FK (and disagree on how to treat an
+        empty string)."""
+        return bool(self.parent_assignment_id)
+
+    @property
+    def room_summary(self):
+        """"Hotel - Room Type, check-in to check-out" for log lines and
+        audit descriptions, so every surface words a room the same way.
+        """
+        inv = self.inventory
+        parts = []
+        if inv:
+            hotel = inv.hotel
+            parts.append(' - '.join(
+                filter(None, [hotel.name if hotel else '',
+                              inv.display_name])))
+        if self.assigned_check_in_date and self.assigned_check_out_date:
+            parts.append(f'{self.assigned_check_in_date} to '
+                         f'{self.assigned_check_out_date}')
+        return ', '.join(parts) or 'room'
 
     @property
     def is_orphan_connector(self):
@@ -1246,13 +1298,18 @@ class PhysicalRoom(MagModel, table=True):
 
     room_number: str = ''
     floor: str = ''  # free text: hotels have floors like "M" and "PH"
+    # Hotel's own type code for the room (T1, T2A, ...); matched against
+    # HotelRoomInventory.physical_room_types by imports and the picker.
+    type_code: str = ''
     ada: bool = False
+    # Comma-separated accessibility feature tags ("roll-in shower,
+    # visual alarm"); free-form, shown in the picker tooltip.
+    accessibility: str = ''
     out_of_service: bool = False
     notes: str = ''
 
-    # Optional per-floor map placement (the visual floor-map editor).
-    map_x: int | None = Field(nullable=True)
-    map_y: int | None = Field(nullable=True)
+    # Floor-map shapes are matched to rooms by name (LotteryHotel.map_svg),
+    # so a room needs no placement columns here.
 
     # Connected-room lookups are bulk-only: controllers build the
     # {room_id: [room_number, ...]} map via uber.hotel.physical
@@ -1260,11 +1317,17 @@ class PhysicalRoom(MagModel, table=True):
     # accessor here (a per-room property cost two queries per room).
 
     @property
+    def accessibility_list(self):
+        return [tag.strip() for tag in self.accessibility.split(',')
+                if tag.strip()]
+
+    @property
     def sort_key(self):
-        """Natural-ish ordering: numeric room numbers sort numerically
-        within a floor, text ones alphabetically after."""
+        """Natural-ish ordering: numeric floors and room numbers sort
+        numerically, text ones alphabetically after."""
+        from uber.hotel.physical import floor_sort_key
         num = ''.join(ch for ch in self.room_number if ch.isdigit())
-        return (self.floor, 0 if num else 1,
+        return (floor_sort_key(self.floor), 0 if num else 1,
                 int(num) if num else 0, self.room_number)
 
 
@@ -1389,6 +1452,15 @@ class PartitionAuditLog(MagModel, table=True):
     admin_account: 'AdminAccount' = Relationship(
         sa_relationship_kwargs={'foreign_keys': 'PartitionAuditLog.admin_account_id'})
 
+    # Whose room the entry is about, when the entry is about one. Kept
+    # separate from target_id so the log still names the attendee after
+    # the assignment row itself is deleted.
+    attendee_id: str | None = Field(
+        sa_type=Uuid(as_uuid=False), foreign_key='attendee.id',
+        ondelete='SET NULL', nullable=True)
+    attendee: 'Attendee' = Relationship(
+        sa_relationship_kwargs={'foreign_keys': 'PartitionAuditLog.attendee_id'})
+
     when: datetime = Field(
         sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
     action: str = ''
@@ -1479,6 +1551,13 @@ class WaitlistRevealLink(MagModel, table=True):
 
 
 class HotelExportLog(MagModel, table=True):
+    """One export handed to a hotel (or one import summary).
+
+    Exports retain the exact bytes we sent (on disk under
+    UPLOADED_FILES_DIR) so the file a hotel saw can be reproduced later;
+    `source` says where the export came from ('admin' for a dashboard
+    download, 'api' for the hotel portal pull).
+    """
     hotel_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='lottery_hotel.id', nullable=True)
     hotel: 'LotteryHotel' = Relationship(
         sa_relationship_kwargs={'foreign_keys': 'HotelExportLog.hotel_id', 'lazy': 'joined'})
@@ -1487,6 +1566,12 @@ class HotelExportLog(MagModel, table=True):
     exported_by: str = ''
     record_count: int = 0
     notes: str = ''
+
+    source: str = ''  # 'admin' | 'api' | '' for older rows
+    filename: str = ''
+    content_type: str = ''
+    filepath: str = ''
+    size: int = 0
 
 
 class HotelImportFile(MagModel, table=True):
@@ -1510,6 +1595,15 @@ class HotelImportFile(MagModel, table=True):
     updated_count: int = 0
     unchanged_count: int = 0
     note: str = ''
+
+    # The window during which this file's rows were applied. The change
+    # feed has no link back to the file, so this is what scopes "which
+    # room changes did this import cause" (see uber.hotel.exports
+    # .import_changes).
+    applied_from: datetime | None = Field(
+        sa_type=DateTime(timezone=True), nullable=True)
+    applied_to: datetime | None = Field(
+        sa_type=DateTime(timezone=True), nullable=True)
 
 
 #

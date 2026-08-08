@@ -35,11 +35,9 @@
 {% block terms %}
 {% if not read_only and 'suite_agreement' in c.HOTEL_LOTTERY_FORM_STEPS %}
 <div class="accordion-item">
-    <h3 class="accordion-header" id="step-{{ steps.counter }}-header">
-        <button class="accordion-button{% if steps.counter != 1 %} collapsed{% endif %}" disabled type="button" id="step-{{ steps.counter }}-button" data-bs-toggle="collapse" data-bs-target="#step-{{ steps.counter }}" aria-expanded="true" aria-controls="step-{{ steps.counter }}">
-            Step {{ steps.counter }}: {{ room_text.title() }} Policies
-        </button>
-    </h3>
+    {% call step_macros.step_header(steps.counter) %}
+      {{ room_text.title() }} Policies
+    {% endcall %}
     <div id="step-{{ steps.counter }}" class="accordion-collapse collapse{% if steps.counter == 1 %} show{% endif %}" aria-labelledby="step-{{ steps.counter }}-header">
         <div class="accordion-body">
             {% block terms_desc %}
@@ -63,18 +61,7 @@
                 </div>
             </div>
 
-            {% if not read_only and application.current_step <= steps.counter %}
-            <div class="row justify-content-end">
-                <div class="col col-auto">
-                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="current_step" value="{{ steps.counter }}">Save and Continue</button>
-                </div>
-            </div>
-            {% endif %}
-            {% if not read_only and application.status != c.COMPLETE %}
-            <div class="collapse text-end" id="step-{{ steps.counter }}-save-reminder">
-                <em>Scroll down to your current step and click "Save and Continue" to save changes.</em>
-            </div>
-            {% endif %}
+            {{ step_macros.step_footer(steps.counter) }}
             {% endblock %}
         </div>
     </div>
@@ -85,11 +72,7 @@
 
 {% block suite_type_ranking %}
 <div class="accordion-item">
-    <h3 class="accordion-header" id="step-{{ steps.counter }}-header">
-        <button class="accordion-button{% if steps.counter != 1 %} collapsed{% endif %}" disabled type="button" id="step-{{ steps.counter }}-button" data-bs-toggle="collapse" data-bs-target="#step-{{ steps.counter }}" aria-expanded="true" aria-controls="step-{{ steps.counter }}">
-            Step {{ steps.counter }}: Suite Type Preference
-        </button>
-    </h3>
+    {{ step_macros.step_header(steps.counter, 'Suite Type Preference') }}
     <div id="step-{{ steps.counter }}" class="accordion-collapse collapse{% if steps.counter == 1 %} show{% endif %}" aria-labelledby="step-{{ steps.counter }}-header">
         <div class="accordion-body">
             {% block suite_ranking_desc %}
@@ -102,18 +85,7 @@
             {% block suite_ranking_form %}
             {{ form_macros.input(suite_lottery.suite_type_preference, show_staff_rates=c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery) }}
             
-            {% if not read_only and application.current_step <= steps.counter %}
-            <div class="row justify-content-end">
-                <div class="col col-auto">
-                    <button type="submit" id="step-{{ steps.counter }}-submit" class="btn btn-primary" name="current_step" value="{{ steps.counter }}">Save and Continue</button>
-                </div>
-            </div>
-            {% endif %}
-            {% if not read_only and application.status != c.COMPLETE %}
-            <div class="collapse text-end" id="step-{{ steps.counter }}-save-reminder">
-                <em>Scroll down to your current step and click "Save and Continue" to save changes.</em>
-            </div>
-            {% endif %}
+            {{ step_macros.step_footer(steps.counter) }}
             {% endblock %}
         </div>
     </div>

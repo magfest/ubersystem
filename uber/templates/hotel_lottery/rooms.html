@@ -56,7 +56,7 @@
 <h2 class="h4 mt-4">Rooms you booked</h2>
 
 {% for room in _rooms %}
-<div class="card mb-3{% if room.parent_assignment_id %} border-warning{% endif %}{% if room.needs_card %} border-danger border-2{% endif %}">
+<div class="card mb-3{% if room.is_connector %} border-warning{% endif %}{% if room.needs_card %} border-danger border-2{% endif %}">
   <div class="card-body">
     {# Big red warning for any room that still needs a credit-card
        guarantee, so it's unmissable which rooms aren't secured. #}
@@ -65,7 +65,7 @@
       <div>
         <h3 class="card-title h5 mb-1">
           {{ room_macros.room_name(room) }}
-          {% if room.parent_assignment_id %}
+          {% if room.is_connector %}
             <span class="badge bg-info text-dark ms-1">Connector</span>
           {% endif %}
           {% if room.is_orphan_connector %}

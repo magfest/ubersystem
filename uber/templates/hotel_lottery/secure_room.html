@@ -86,7 +86,7 @@
   </div>
   {% endif %}
 
-  {% if assignment.parent_assignment_id %}
+  {% if assignment.is_connector %}
   {# Connector rooms inherit their dates from the parent suite, so the
      waitlist date-change option doesn't apply here - request extra
      nights from the suite instead. Post a fixed `date_choice=accept`

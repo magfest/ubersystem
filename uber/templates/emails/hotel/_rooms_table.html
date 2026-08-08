@@ -34,7 +34,7 @@
       {% if ra.hotel_confirmation_number %}
         <br/>Hotel confirmation: <code>{{ ra.hotel_confirmation_number }}</code>
       {% endif %}
-      {% if ra.parent_assignment_id %}
+      {% if ra.is_connector %}
         <br/><small><em>This is a connector room. It is physically
         attached to another room you have been assigned, and the two
         are awarded as a block.</em></small>
