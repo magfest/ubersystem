@@ -1,0 +1,204 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% import "forms/macros.html" as form_macros with context %}
+{% import 'hotel_lottery_admin/_macros.html' as hotel_macros with context %}
+{% set partition_config = forms['inventory_partition_config'] %}
+{% block title %}{{ 'Add' if partition.is_new else 'Edit' }} Partition{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+
+<h2>{{ 'Add' if partition.is_new else 'Edit' }} Inventory Partition</h2>
+
+<div class="mb-3">
+  <a href="manage_partitions" class="btn btn-outline-secondary">Back to Partitions</a>
+</div>
+
+<form method="post" action="edit_partition" class="card card-body" style="max-width: 800px;">
+  {{ csrf_token() }}
+  {% if not partition.is_new %}
+  <input type="hidden" name="id" value="{{ partition.id }}" />
+  {% endif %}
+
+  <div class="mb-3">{{ form_macros.input(partition_config.name) }}</div>
+  <div class="mb-3">{{ form_macros.input(partition_config.description) }}</div>
+  <div class="mb-3">{{ form_macros.input(partition_config.active) }}</div>
+
+  <div class="mb-3">
+    <label class="form-label">Block Allocations</label>
+    <div class="form-text mb-2">Set how many rooms from each inventory block this partition can use. Leave blank or 0 to exclude a block.</div>
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th>Hotel</th>
+          <th>Type</th>
+          <th>Block Name</th>
+          <th>Block Total</th>
+          <th title="Peak per-night rooms currently assigned within this partition for this block.">In Use (peak/night)</th>
+          <th>Partition Qty</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for inv in inventory_blocks %}
+        {% set _use = usage_by_block.get(inv.id|string, 0) %}
+        {% set _alloc = existing_blocks.get(inv.id|string, 0) %}
+        <tr>
+          <td>{{ inv.hotel.name if inv.hotel else 'Unknown' }}</td>
+          <td>{{ inv.display_name }}{% if inv.is_suite %} <span class="badge bg-info">Suite</span>{% endif %}</td>
+          <td>{{ inv.name }}</td>
+          <td>{{ inv.quantity }}</td>
+          <td>
+            {% if _use %}
+              {# Red when usage already meets/exceeds the current
+                 allocation - reducing the quantity below this would
+                 over-commit the peak night. #}
+              <span class="badge bg-{% if _alloc and _use >= _alloc %}danger{% else %}secondary{% endif %}">
+                {{ _use }}{% if _alloc %} / {{ _alloc }}{% endif %}
+              </span>
+              {% set _total = rooms_by_block.get(inv.id|string, 0) %}
+              {% if _total and _total != _use %}
+                <span class="text-muted small ms-1" title="Total distinct rooms assigned in this partition for this block (across all nights).">({{ _total }} total)</span>
+              {% endif %}
+            {% else %}
+              <span class="text-muted">-</span>
+            {% endif %}
+          </td>
+          <td>
+            <input type="number" class="form-control form-control-sm" style="width: 80px;"
+                   name="block_qty_{{ inv.id }}"
+                   value="{{ existing_blocks.get(inv.id|string, '') }}"
+                   min="0" placeholder="0" />
+            {% if _use %}
+            <div class="form-text small mb-0">>= {{ _use }} in use</div>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <button type="submit" class="btn btn-primary">Save</button>
+</form>
+
+{% if partition.id %}
+
+{# Scope list + level resolver + level select all live in the shared
+   macros file - edit_partition_owner.html uses the same trio. #}
+{% set scope_cols = hotel_macros.partition_scope_cols %}
+
+<h3 class="h5 mt-4">Partition Owners</h3>
+<p class="text-muted small">
+  Admin accounts granted scoped access to this partition. For each
+  scope, pick None / View only / Edit. Edit always includes view -
+  there's no edit-without-view state.
+</p>
+
+<div class="card card-body mb-3" style="max-width: 1100px;">
+
+{% if grants %}
+<div class="table-responsive">
+<table class="table table-sm align-middle">
+  <thead>
+    <tr>
+      <th>Admin</th>
+      {% for _f, _v, _e, label, _desc in scope_cols %}
+      <th>{{ label }}</th>
+      {% endfor %}
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {# A <form> may not span table cells - browsers hoist it out of the
+       row and the controls lose their form association. Instead each
+       row's controls point at an out-of-table form element via the
+       HTML5 form= attribute (same pattern as partition_owners.html). #}
+    {% for g in grants %}
+    {% set _form_id = 'grant-form-' ~ g.id %}
+    <tr>
+      <td>
+        {% if g.admin_account and g.admin_account.attendee %}
+          {{ hotel_macros.attendee_cell(g.admin_account.attendee) }}
+          <br/><small><a href="edit_partition_owner?id={{ g.id }}">Grant editor</a></small>
+        {% else %}
+          <em>(orphan)</em>
+        {% endif %}
+      </td>
+      {% for field, view_f, edit_f, _label, _desc in scope_cols %}
+      <td>{{ hotel_macros.grant_level_select(field,
+                current=hotel_macros.resolve_grant_level(g, view_f, edit_f)|trim,
+                allow_edit=(edit_f is not none), form=_form_id) }}</td>
+      {% endfor %}
+      <td class="text-end" style="white-space: nowrap;">
+        <button type="submit" form="{{ _form_id }}" class="btn btn-sm btn-outline-primary">Save</button>
+        <form method="post" action="delete_partition_owner" class="d-inline"
+              data-confirm-message="Revoke this grant?">
+          {{ csrf_token() }}
+          <input type="hidden" name="id" value="{{ g.id }}" />
+          <input type="hidden" name="return_to" value="edit_partition" />
+          <button type="submit" class="btn btn-sm btn-outline-danger">Revoke</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{# The per-row edit forms referenced by the form= attributes above.
+   They hold only the hidden fields; the visible controls live in the
+   table cells. #}
+{% for g in grants %}
+<form id="grant-form-{{ g.id }}" method="post" action="edit_partition_owner">
+  {{ csrf_token() }}
+  <input type="hidden" name="id" value="{{ g.id }}" />
+  <input type="hidden" name="partition_id" value="{{ partition.id }}" />
+  <input type="hidden" name="admin_account_id" value="{{ g.admin_account_id }}" />
+  <input type="hidden" name="return_to" value="edit_partition" />
+</form>
+{% endfor %}
+{% else %}
+<p class="text-muted mb-3">No partition owners yet.</p>
+{% endif %}
+
+<hr/>
+
+<h4 class="h6">Grant access to a new admin</h4>
+{% if not ungranted_admins %}
+<p class="text-muted small mb-0">All admin accounts already have a grant on this partition.</p>
+{% else %}
+<form method="post" action="edit_partition_owner" class="row g-2 align-items-end">
+  {{ csrf_token() }}
+  <input type="hidden" name="partition_id" value="{{ partition.id }}" />
+  <input type="hidden" name="return_to" value="edit_partition" />
+
+  <div class="col-md-4">
+    <label class="form-label small">Admin Account</label>
+    <select name="admin_account_id" class="form-select form-select-sm" required>
+      <option value="">- Select an admin -</option>
+      {% for a in ungranted_admins %}
+      <option value="{{ a.id }}">{{ a.attendee.full_name }} ({{ a.attendee.email }})</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  {% for field, _v, edit_f, label, _desc in scope_cols %}
+  <div class="col-md-2">
+    <label class="form-label small">{{ label }}</label>
+    {# Default a new grant to View only on inventory + assignments to
+       match the previous checkbox defaults; everything else None. #}
+    {% set _default = 'view' if field in ('inventory_level', 'assignments_level') else 'none' %}
+    {{ hotel_macros.grant_level_select(field, current=_default, allow_edit=(edit_f is not none)) }}
+  </div>
+  {% endfor %}
+
+  <div class="col-12 text-end">
+    <button type="submit" class="btn btn-primary btn-sm">Grant Access</button>
+  </div>
+</form>
+{% endif %}
+
+</div>{# /card #}
+{% endif %}
+
+{{ "js/hotel-confirm-submit.js"|serve_static_content }}
+
+{% endblock content %}

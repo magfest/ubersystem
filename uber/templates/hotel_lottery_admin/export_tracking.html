@@ -1,0 +1,351 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Exports{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+
+<div class="d-flex justify-content-between align-items-end mb-3 flex-wrap gap-2">
+  <div>
+    <h2 class="mb-0">Exports</h2>
+    <p class="text-muted small mb-0">
+      Per-hotel export status, plus the two cross-system exports we
+      hand to MAGFest staff before the con.
+    </p>
+  </div>
+  {# The cross-system file downloads, hoisted out of the old "Exports"
+     dropdown into prominent buttons on the page itself. The two
+     Interchange CSVs are the legacy per-entry format used by hotels
+     that don't take our per-hotel booking export. #}
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="hotel_inventory_zip" class="btn btn-outline-primary">
+      <i class="fa fa-download"></i> Assigned Rooms by Date (xlsx zip)
+    </a>
+    <a href="assigned_entries" class="btn btn-outline-primary">
+      <i class="fa fa-download"></i> Passkey Export (csv)
+    </a>
+    <a href="interchange_export" class="btn btn-outline-secondary">
+      <i class="fa fa-download"></i> Interchange (csv)
+    </a>
+    <a href="interchange_export?staff_lottery=True" class="btn btn-outline-secondary">
+      <i class="fa fa-download"></i> Staff Interchange (csv)
+    </a>
+    {# Companion lookup for the Interchange CSVs: those carry a bare
+       `dealer_id` per entry, and this resolves those ids to group names
+       plus the full roster of each accepted dealer group. #}
+    <a href="accepted_dealers" class="btn btn-outline-secondary">
+      <i class="fa fa-download"></i> Accepted Dealers (csv)
+    </a>
+  </div>
+</div>
+
+<h4 class="mb-2">Per-hotel export tracking</h4>
+
+<table class="table table-hover">
+  <thead>
+    <tr>
+      <th>Hotel</th>
+      <th>Total Bookings</th>
+      <th>Last Export</th>
+      <th>Last Confirmation Import</th>
+      <th>Changed Since Export</th>
+      <th>Missing Confirmation #</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for hotel in hotels %}
+    <tr>
+      <td>
+        <button type="button"
+                class="btn btn-link p-0 text-start"
+                data-bs-toggle="modal"
+                data-bs-target="#hotel-export-details-modal"
+                data-hotel-id="{{ hotel.hotel.id }}"
+                data-hotel-name="{{ hotel.hotel.name }}">
+          {{ hotel.hotel.name }}
+        </button>
+      </td>
+      <td>{{ hotel.total_bookings }}</td>
+      <td>{{ hotel.last_export.exported_at|datetime_local if hotel.last_export else 'Never' }}</td>
+      <td>{{ hotel.last_import.exported_at|datetime_local if hotel.last_import else 'Never' }}</td>
+      <td>
+        {% if hotel.dirty_count > 0 %}
+          <span class="text-warning fw-bold">{{ hotel.dirty_count }}</span>
+        {% else %}
+          0
+        {% endif %}
+      </td>
+      <td>
+        {% if hotel.missing_confirmation > 0 %}
+          <span class="text-danger fw-bold">{{ hotel.missing_confirmation }}</span>
+        {% else %}
+          0
+        {% endif %}
+      </td>
+      <td>
+        {% if hotel.total_bookings == 0 %}
+          <span class="badge bg-light text-dark">No bookings</span>
+        {% elif not hotel.last_export %}
+          <span class="badge bg-danger">Not exported</span>
+        {% elif hotel.dirty_count > 0 %}
+          <span class="badge bg-warning text-dark">Pending changes</span>
+        {% elif hotel.missing_confirmation > 0 %}
+          <span class="badge bg-info">Awaiting confirmations</span>
+        {% else %}
+          <span class="badge bg-success">Complete</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h4 class="mt-4 mb-2">Uploaded confirmation files</h4>
+<p class="text-muted small">
+  Raw files uploaded by hotels (through the hotel portal) or by admins are kept
+  here so formatting issues can be reviewed and re-applied after the fact.
+</p>
+
+<form method="post" action="upload_confirmation_file" enctype="multipart/form-data"
+      class="row g-2 align-items-end mb-3">
+  {{ csrf_token() }}
+  <div class="col-auto">
+    <label class="form-label small mb-0" for="import-hotel">Hotel</label>
+    <select class="form-select form-select-sm" name="hotel_id" id="import-hotel">
+      <option value="">(none)</option>
+      {% for h in all_hotels %}
+      <option value="{{ h.id }}">{{ h.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <label class="form-label small mb-0" for="import-file">Confirmation file (CSV or XLSX)</label>
+    <input class="form-control form-control-sm" type="file" name="import_file" id="import-file"
+           accept=".csv,.xlsx,.xlsm" required />
+  </div>
+  <div class="col-auto">
+    <button type="submit" class="btn btn-success btn-sm">
+      <i class="fa fa-upload"></i> Upload
+    </button>
+  </div>
+</form>
+
+{# One chronological list per hotel: what we sent, what came back, and
+   how many rooms changed in between. #}
+<h4 class="mb-2 mt-4">Activity timeline</h4>
+<form method="get" action="export_tracking" class="d-flex align-items-center gap-2 mb-3">
+  <label for="timeline-hotel" class="col-form-label">Hotel</label>
+  <select id="timeline-hotel" name="hotel_id" class="form-select form-select-sm w-auto"
+          onchange="this.form.submit()">
+    {% for h in all_hotels %}
+    <option value="{{ h.id }}"{% if timeline_hotel and timeline_hotel.id == h.id %} selected{% endif %}>{{ h.name }}</option>
+    {% endfor %}
+  </select>
+</form>
+
+{% if not timeline %}
+<div class="card card-body text-muted">
+  Nothing sent to or received from
+  {{ timeline_hotel.name if timeline_hotel else 'this hotel' }} yet.
+</div>
+{% else %}
+<table class="table table-sm align-middle">
+  <thead>
+    <tr>
+      <th style="width: 13em;">When</th>
+      <th style="width: 9em;">Event</th>
+      <th>Detail</th>
+      <th>Who</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in timeline %}
+    {% if row.kind == 'changes' %}
+    <tr class="table-warning">
+      <td class="text-muted small">
+        {{ row.start|datetime_local("%m/%d %H:%M") }} &rarr;
+        {{ row.end|datetime_local("%m/%d %H:%M") if row.end else 'now' }}
+      </td>
+      <td><span class="badge bg-warning text-dark">Changes</span></td>
+      <td>
+        <strong>{{ row.count }}</strong> room(s) changed on our side
+        {% if not row.end %}since the last file{% else %}while the hotel held that file{% endif %}
+        <div class="small text-muted">
+          Updates a hotel sent back are listed on their import row.
+        </div>
+      </td>
+      <td class="text-muted">-</td>
+      <td class="text-end">
+        <button type="button" class="btn btn-sm btn-outline-secondary hotel-changes-open"
+                data-hotel-id="{{ timeline_hotel.id }}"
+                data-start="{{ row.start.isoformat() if row.start else '' }}"
+                data-end="{{ row.end.isoformat() if row.end else '' }}">
+          View changes
+        </button>
+      </td>
+    </tr>
+    {% else %}
+    <tr>
+      <td>{{ row.at|datetime_local }}</td>
+      <td>
+        {% if row.kind == 'export' %}
+        <span class="badge bg-primary">Export</span>
+        {% else %}
+        <span class="badge bg-success">Import</span>
+        {% endif %}
+        <span class="badge bg-light text-dark">{{ 'API' if row.source in ('api', 'portal') else 'Dashboard' }}</span>
+      </td>
+      <td>
+        {{ row.filename or ('%s record(s)' % row.count) }}
+        {% if row.notes %}<div class="small text-muted">{{ row.notes }}</div>{% endif %}
+        {% if row.kind == 'export' and row.count %}
+        <div class="small text-muted">{{ row.count }} booking(s)</div>
+        {% endif %}
+      </td>
+      <td class="small">{{ row.who or '-' }}</td>
+      <td class="text-end text-nowrap">
+        {% if row.kind == 'import' %}
+        <button type="button" class="btn btn-sm btn-outline-secondary hotel-changes-open"
+                data-import-id="{{ row.file_id or row.entry.id }}">
+          Changes
+        </button>
+        {% endif %}
+        {% if row.file_id %}
+        <button type="button" class="btn btn-sm btn-outline-secondary hotel-file-open"
+                data-kind="{{ row.kind }}" data-file-id="{{ row.file_id }}"
+                data-filename="{{ row.filename }}">
+          View
+        </button>
+        <a href="{{ 'hotel_export_file' if row.kind == 'export' else 'download_import_file' }}?id={{ row.file_id }}"
+           class="btn btn-sm btn-outline-primary">
+          <i class="fa fa-download"></i>
+        </a>
+        {% else %}
+        <span class="text-muted small">not retained</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endif %}
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<div class="modal fade" id="hotel-changes-modal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Room changes
+          <span class="hotel-changes-window text-muted fs-6"></span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body hotel-changes-body">
+        <div class="text-muted">Loading&hellip;</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# The file itself, as a table - the same viewer for exports we sent
+   and files hotels sent back. #}
+<div class="modal fade" id="hotel-file-modal" tabindex="-1">
+  <div class="modal-dialog modal-fullscreen-lg-down modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <span class="hotel-file-name"></span>
+          <span class="hotel-file-count text-muted fs-6"></span>
+        </h5>
+        <div class="btn-group btn-group-sm ms-auto me-3 hotel-file-pager"></div>
+        <button type="button" class="btn-close ms-0" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body hotel-file-body" style="overflow-x: auto;">
+        <div class="text-muted">Loading&hellip;</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="hotel-export-details-modal" tabindex="-1" aria-labelledby="hotel-export-details-modal-label" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="hotel-export-details-modal-label">Hotel Export Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex flex-wrap gap-2 align-items-center mb-3 border-bottom pb-3">
+          <div class="form-check mb-0 me-auto">
+            <input class="form-check-input" type="checkbox" id="hotel-export-pending-only" />
+            <label class="form-check-label" for="hotel-export-pending-only">
+              Show only pending changes
+              <span class="text-muted small">(hide rows that are in sync)</span>
+            </label>
+          </div>
+
+          {# Export buttons. Both omit cc_token by design. #}
+          <a id="hotel-export-csv-btn" href="#" class="btn btn-outline-primary btn-sm">
+            <i class="fa fa-download"></i> Download CSV
+          </a>
+          <a id="hotel-export-xlsx-btn" href="#" class="btn btn-outline-primary btn-sm">
+            <i class="fa fa-download"></i> Download XLSX
+          </a>
+
+          {# Import - same column layout as the export. Refuses files with cc_token columns. #}
+          <button type="button" class="btn btn-outline-success btn-sm"
+                  id="hotel-import-toggle-btn">
+            <i class="fa fa-upload"></i> Upload back-import...
+          </button>
+        </div>
+
+        <div id="hotel-import-form" class="card card-body mb-3" style="display: none;">
+          <form method="post" action="import_hotel_bookings_csv"
+                enctype="multipart/form-data" id="hotel-import-form-element">
+            {{ csrf_token() }}
+            <input type="hidden" name="hotel_id" id="hotel-import-hotel-id" />
+            <p class="small text-muted mb-2">
+              Upload a CSV or XLSX in the same format you just downloaded.
+              We update <code>hotel_confirmation_number</code> on every
+              matched row and, if a
+              <code>cancellation_confirmation_number</code> column is
+              present, mark those rooms cancelled.
+            </p>
+            <p class="small text-warning mb-3">
+              <i class="fa fa-shield"></i>
+              We refuse uploads that contain any <code>cc_token</code> column.
+              Strip those out before sending.
+            </p>
+            <div class="d-flex gap-2 align-items-end">
+              <div class="flex-grow-1">
+                <label class="form-label small mb-1">CSV or XLSX file</label>
+                <input type="file" name="bookings_file"
+                       accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                       class="form-control form-control-sm" required />
+              </div>
+              <button type="submit" class="btn btn-success btn-sm">Apply Import</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm"
+                      id="hotel-import-cancel-btn">Cancel</button>
+            </div>
+          </form>
+        </div>
+
+        <div id="hotel-export-details-body">
+          <div class="text-center text-muted py-5">
+            <div class="spinner-border" role="status" aria-hidden="true"></div>
+            <p class="mt-2 mb-0">Loading...</p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{{ "js/hotel-export-tracking.js"|serve_static_content }}
+{{ "js/hotel-change-log.js"|serve_static_content }}
+
+{% endblock content %}

@@ -1,0 +1,53 @@
+{# Accordion-step scaffolding for the multi-step lottery entry form.
+
+   `forms/hotel/room_lottery.html` renders one accordion item per step and
+   `suite_lottery.html` overrides/adds a few via block inheritance. Both the
+   header markup and the save-button footer are identical for every step and
+   are wired to `#step-N-*` ids by the form JS, so they live here instead of
+   being retyped per block.
+
+   Imported once, at the top level of `room_lottery.html` - a child template's
+   blocks can see the parent's top-level imports, so `suite_lottery.html`
+   picks these up without importing them again.
+
+   Both macros need `application`, `read_only`, and `c` from the page, so
+   import with context:
+
+       {% import 'forms/hotel/_steps.html' as step_macros with context %}
+#}
+
+{# Collapsed-accordion header for step `counter`. Pass the step title as a
+   string, or use `{% call %}` for markup:
+
+       {% call step_macros.step_header(steps.counter) %}
+         Hotel Preference{% if 'suite_lottery' in forms %} for Rooms{% endif %}
+       {% endcall %}
+#}
+{% macro step_header(counter, title='') %}
+  <h3 class="accordion-header" id="step-{{ counter }}-header">
+    <button class="accordion-button{% if counter != 1 %} collapsed{% endif %}" disabled type="button"
+            id="step-{{ counter }}-button" data-bs-toggle="collapse"
+            data-bs-target="#step-{{ counter }}" aria-expanded="true"
+            aria-controls="step-{{ counter }}">
+      Step {{ counter }}: {{ caller() if caller else title }}
+    </button>
+  </h3>
+{% endmacro %}
+
+{# "Save and Continue" plus the collapsed save-reminder that the form JS
+   reveals once a step has been completed. Closes every step body. #}
+{% macro step_footer(counter) %}
+  {% if not read_only and application.current_step <= counter %}
+  <div class="row justify-content-end">
+    <div class="col col-auto">
+      <button type="submit" id="step-{{ counter }}-submit" class="btn btn-primary"
+              name="current_step" value="{{ counter }}">Save and Continue</button>
+    </div>
+  </div>
+  {% endif %}
+  {% if not read_only and application.status != c.COMPLETE %}
+  <div class="collapse text-end" id="step-{{ counter }}-save-reminder">
+    <em>Scroll down to your current step and click "Save and Continue" to save changes.</em>
+  </div>
+  {% endif %}
+{% endmacro %}

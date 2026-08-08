@@ -4,4 +4,8 @@
 
 <a href="gitinfo">Git Info</a><br/> - get info on the currently deployed version of ubersystem
 
+{% if c.TEST_DATA_GENERATOR_ENABLED %}
+<br/><a href="generate">Generate Test Data</a><br/> - seed hotel lottery, staff rooming, and shift-compliance test data
+{% endif %}
+
 {% endblock %}

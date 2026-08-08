@@ -43,6 +43,21 @@
 <div class="d-none csrf_token"> {{ csrf_token() }} </div>
 <div class="row justify-content-center">
 <div class="col-12 col-md-10">
+  {% set _violations = c.CURRENT_VOLUNTEER.shift_compliance_violations %}
+  {% if _violations %}
+  <div class="alert alert-warning">
+    <strong>Shift requirements not yet met for your hotel room:</strong>
+    <ul class="mb-0">
+      {% for req in _violations %}
+        {% if req.kind == c.CORE %}
+          <li>Need {{ req.required_weighted_hours }} weighted hours by {{ req.night_date|date("%a %b %-d") }} (currently {{ c.CURRENT_VOLUNTEER.weighted_hours }}).</li>
+        {% else %}
+          <li>Need a shift overlapping {{ req.shift_window_start|datetime_local("%a %b %-d %-I:%M%p") }}&nbsp;-&nbsp;{{ req.shift_window_end|datetime_local("%-I:%M%p") }} ({{ req.kind_label }}).</li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
   <div class="d-flex justify-content-between align-items-end">
     <h2>
       {{ attendee.first_name }} {{ attendee.last_name }}'s Available Shifts
@@ -81,22 +96,6 @@
             You are assigned to the following department{{ assigned_depts_labels|length|pluralize }}: {{ assigned_depts_labels|join(' / ') }}.
           </p>
 
-          {% if requested_setup_nights or requested_teardown_nights %}
-          <div class="alert alert-warning pb-0" id="requested-night-warning">
-            <p>
-              You have requested hotel space on 
-              {% if requested_setup_nights %}<strong>setup nights</strong> ({{ requested_setup_nights|readable_join }}) {% if requested_teardown_nights %}and {% endif %}{% endif %}
-              {% if requested_teardown_nights %}<strong>teardown nights</strong> ({{ requested_teardown_nights|readable_join }}){% endif %}
-              but you are not signed up for shifts on all requested nights.
-            </p>
-            <p>
-              Please make sure to sign up for
-              {% if requested_setup_nights and requested_teardown_nights %}BOTH {% endif %}{% if requested_setup_nights %}setup{% if requested_teardown_nights %} and {% endif %}{% endif %}
-              {% if requested_teardown_nights %}teardown{% endif %} shifts.
-              Failure to sign up for shifts in accordance with your hotel night requests may affect your ability to request staff crash space in the future.
-            </p>
-          </div>
-          {% endif %}
         </div>
       </div>
     </div>
@@ -400,38 +399,11 @@
           let allNewEvents = eventLists.flat();
           fetchedEventList.push(...allNewEvents);
 
-          {% if requested_setup_nights or requested_teardown_nights %}
-          checkEdgeNights();
-          {% endif %}
-
           return fetchedEventList;
       } catch (e) {
           showErrorMessage('Unable to connect to server, please try again.')
       }
   }
-
-  {% if requested_setup_nights or requested_teardown_nights %}
-  let checkEdgeNights = function() {
-    if (signedUpHidden == true) {
-      return;
-    }
-
-    let allShifts = []
-    fetchedEventList.forEach(function(el) { allShifts.push(el.extendedProps) })
-    let setupShifts = allShifts.filter(function(el) { return el.is_setup == true; });
-    let teardownShifts = allShifts.filter(function(el) { return el.is_teardown == true; });
-
-    if ({% if requested_setup_nights %}setupShifts.length > 0
-    {% if requested_teardown_nights %}&&
-    {% endif %}{% endif %}
-    {% if requested_teardown_nights %}teardownShifts.length > 0
-    {% endif %}) {
-      $('#requested-night-warning').hide();
-    } else {
-      $('#requested-night-warning').show();
-    }
-  }
-  {% endif %}
 
   let addEvents = function(id) {
     if (id == 'assigned') {

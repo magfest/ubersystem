@@ -1,0 +1,63 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Generate Test Data{% endblock %}
+{% block content %}
+
+<h2>Hotel Lottery Test Data</h2>
+
+{% if not enabled %}
+<div class="alert alert-warning">
+    The test data generator is disabled. Set <code>test_data_generator_enabled = True</code>
+    in this environment's config to enable it.
+</div>
+{% else %}
+<p>
+    Seeds a hotel lottery, staff rooming, and shift-compliance dataset:
+    three hotels with varied room types (including suites and connector
+    rooms), lottery entries across the whole lifecycle (never entered,
+    partial, complete, processed, awarded, withdrawn), secured and
+    awaiting-card rooms, waitlisted / cancelled / expired rooms, roommate
+    groups with pending invites, ADA requests, an inventory partition with
+    a scoped owner, and compliant plus non-compliant staffers.
+</p>
+<p>
+    Generation is <strong>deterministic and re-run safe</strong>: every
+    attendee gets a stable <code>lottery-test-NNNN@example.com</code>
+    address, existing ones are skipped, and raising the count on a later
+    run only adds the new tail. Changing the seed changes the personas
+    generated for indexes that don't exist yet.
+</p>
+<p><strong>This is for test environments only. Do not run it against production data.</strong></p>
+
+<form action="generate" method="post" class="card card-body mb-3" style="max-width: 620px;">
+    {{ csrf_token() }}
+    <div class="row g-2 align-items-end">
+        <div class="col-md-4">
+            <label class="form-label" for="count">Attendees to generate</label>
+            <input type="number" class="form-control" id="count" name="count"
+                   value="{{ count }}" min="0" max="1000" required />
+            <div class="form-text">0&ndash;1000. Roommate-group members are
+                created on top of this.</div>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label" for="seed">Random seed</label>
+            <input type="number" class="form-control" id="seed" name="seed"
+                   value="{{ seed }}" />
+            <div class="form-text">Same seed &rarr; same personas.</div>
+        </div>
+        <div class="col-md-4">
+            <input type="submit" class="btn btn-primary mb-4" value="Generate Test Data" />
+        </div>
+    </div>
+</form>
+
+{% if summary %}
+<h4>Result</h4>
+<ul>
+    {% for line in summary %}
+    <li>{{ line }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+{% endif %}
+
+{% endblock %}

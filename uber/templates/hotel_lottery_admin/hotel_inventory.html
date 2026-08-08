@@ -2,75 +2,176 @@
 {% block title %}Hotel Lottery Inventory{% endblock %}
 {% block content %}
 
-{% macro inventory_table(inventory, room_type_lookup, display_hotel=True) %}
-    {% for hotel_id in inventory.keys() %}
-    {% set room_list = inventory[hotel_id] %}
-    <tr>
-        <td{% if not display_hotel %} class="d-none"{% endif %}>{{ hotel_lookup[hotel_id|int]['name'] }}</td>
+{% include 'hotel_lottery_admin/inventory_subnav.html' %}
 
-        {% if room_list %}
-        {% set first_row = room_list[0] %}
-        <td>{{ room_type_lookup[first_row['room_type']]['name'] }}</td>
-        <td>{{ first_row['quantity'] }}</td>
-        <td>{{ first_row[c.PROCESSED] }}</td>
-        <td>{{ first_row[c.AWARDED] }}</td>
-        <td>{{ first_row[c.SECURED] }}</td>
-        <td>{{ first_row['quantity']|default(0) - first_row[c.PROCESSED]|default(0) - first_row[c.AWARDED]|default(0) - first_row[c.SECURED]|default(0) }}</td>
-        {% else %}
-        <td colspan="6">No Inventory</td>
-        {% endif %}
-    </tr>
-    {% for room in room_list %}
-        {% if not loop.first %}
-        <tr>
-            <td{% if not display_hotel %} class="d-none"{% endif %}></td>
-            <td>{{ room_type_lookup[room['room_type']]['name'] }}</td>
-            <td>{{ room['quantity'] }}</td>
-            <td>{{ room[c.PROCESSED] }}</td>
-            <td>{{ room[c.AWARDED] }}</td>
-            <td>{{ room[c.SECURED] }}</td>
-            <td>{{ room['quantity']|default(0) - room[c.PROCESSED]|default(0) - room[c.AWARDED]|default(0) - room[c.SECURED]|default(0) }}</td>
-        </tr>
-        {% endif %}
+{# Partition is a filter on this page, not a navigation destination, so
+   it renders as a compact select instead of a third row of tabs. #}
+<form method="get" class="d-flex align-items-center gap-2 mb-3">
+  <label for="partition-filter" class="col-form-label">Partition</label>
+  <select id="partition-filter" name="partition"
+          class="form-select form-select-sm w-auto"
+          onchange="this.form.submit()">
+    <option value="all"{% if current_partition == 'all' %} selected{% endif %}>All</option>
+    <option value="default"{% if current_partition == 'default' %} selected{% endif %}>Default (non-partitioned)</option>
+    {% for p in partitions %}
+    <option value="{{ p.id }}"{% if current_partition == p.id|string %} selected{% endif %}>{{ p.name }}</option>
     {% endfor %}
+  </select>
+</form>
+
+<div class="mb-3">
+  <h2 class="mb-0">
+    Hotel Lottery Inventory -- {{ now_localized()|datetime("%m/%d/%Y, %-I:%M%p") }}
+  </h2>
+  {# Process Waitlist + per-row Accept buttons live on the dedicated
+     Waitlist sub-tab (reachable via the inventory subnav above). No
+     button here - the subnav is the single source of navigation. #}
+</div>
+
+{# Every card but the block count is room-nights: one room, one night,
+   summed across blocks and event nights. #}
+<div class="row g-2 mb-3" style="max-width: 900px;">
+  <div class="col-6 col-md-3">
+    <div class="card card-body py-2 text-center">
+      <div class="fs-4 fw-bold">{{ summary.offered }}</div>
+      <div class="small text-muted">room-nights offered across {{ summary.blocks }} block(s)</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card card-body py-2 text-center">
+      <div class="fs-4 fw-bold">{{ summary.assigned }}</div>
+      <div class="small text-muted">room-nights assigned</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card card-body py-2 text-center">
+      <div class="fs-4 fw-bold{% if not summary.remaining %} text-danger{% endif %}">{{ summary.remaining }}</div>
+      <div class="small text-muted">room-nights remaining</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card card-body py-2 text-center">
+      <div class="fs-4 fw-bold{% if summary.waitlisted %} text-warning{% endif %}">{{ summary.waitlisted }}</div>
+      <div class="small text-muted">room-nights waitlisted</div>
+    </div>
+  </div>
+</div>
+
+<p class="text-muted small mb-2">
+  Each row is one sellable block. Night cells read
+  <strong>assigned&nbsp;/&nbsp;available</strong>:
+  <span class="badge table-danger text-dark border">red</span> = overbooked,
+  <span class="badge table-secondary text-dark border">gray</span> = not offered that night,
+  <em>"N wl"</em> = N bookings waitlisted for that night.
+  Click any assigned count to see who's in it.
+</p>
+
+{% macro inventory_table(inventory, is_suite=False) %}
+{% for hotel, room_list in inventory.items() %}
+  {% for room in room_list %}
+  <tr>
+    {% if loop.first %}
+    {% set totals = hotel_totals.get(hotel.id|string if hotel else '') %}
+    <td rowspan="{{ room_list|length }}" class="align-middle fw-bold">
+      {% if hotel %}<a href="edit_hotel?id={{ hotel.id }}">{{ hotel.name }}</a>
+      {% else %}Unknown{% endif %}
+      {% if totals %}
+      <div class="small fw-normal text-muted">
+        {{ totals.assigned }} booked, {{ totals.remaining }} open
+        <span class="text-nowrap">(room-nights)</span>
+      </div>
+      {% endif %}
+    </td>
+    {% endif %}
+    <td>
+      <a href="edit_inventory_item?id={{ room.inventory.id }}">
+        {{- room.room_type.name if room.room_type else room.inventory.display_name -}}
+      </a>
+      {% if room.inventory.name %} <small class="text-muted">({{ room.inventory.name }})</small>{% endif %}
+    </td>
+    <td class="text-center">{{ room.quantity }}</td>
+    <td class="text-center">
+      {% if room.total_assigned > 0 %}
+      <a href="#" class="assignee-link" data-inventory-id="{{ room.inventory.id }}" data-night="" data-title="{{ (room.room_type.name if room.room_type else 'Block')|e }}">{{ room.total_assigned }}</a>
+      {% else %}0{% endif %}
+    </td>
+    <td class="text-center">{{ room.awaiting_card }}</td>
+    <td class="text-center">{{ room.secured }}</td>
+    {% for nd in room.nights %}
+    {# Red only when a night is genuinely overbooked; a night that is
+       exactly full is fine, and one with no rooms offered is gray. #}
+    <td class="text-center{% if nd.assigned > nd.available %} table-danger{% elif not nd.available %} table-secondary{% endif %}">
+      {% if nd.assigned > 0 %}
+      <a href="#" class="assignee-link" data-inventory-id="{{ room.inventory.id }}" data-night="{{ nd.night.isoformat() }}" data-title="{{ (room.room_type.name if room.room_type else 'Block')|e }} - {{ nd.night.strftime('%a %-m/%-d') }}">{{ nd.assigned }}</a>
+      {% else %}0{% endif %}/{{ nd.available }}
+      {% if nd.waitlisted %}<br><small class="text-warning" title="{{ nd.waitlisted }} waitlisted">{{ nd.waitlisted }} wl</small>{% endif %}
+    </td>
     {% endfor %}
+  </tr>
+  {% endfor %}
+{% endfor %}
 {% endmacro %}
 
-<h2 class="mb-3">
-    Hotel Lottery Inventory -- {{ now_localized()|datetime("%m/%d/%Y, %-I:%M%p") }}
-    <small><a href="index">Back to Lottery Entries</a></small>
-</h2>
+{% macro inventory_head() %}
+<thead>
+  <tr>
+    <th rowspan="2" class="align-bottom">Hotel</th>
+    <th rowspan="2" class="align-bottom">Room / Suite Type</th>
+    <th rowspan="2" class="align-bottom text-center"
+        title="Rooms offered per night (default; per-night overrides apply in the night columns)">
+      Rooms<br/><small class="fw-normal text-muted">per night</small>
+    </th>
+    <th colspan="3" class="text-center border-bottom-0">Bookings by status</th>
+    <th colspan="{{ event_nights|length }}" class="text-center border-bottom-0">
+      Assigned / available by night
+    </th>
+  </tr>
+  <tr>
+    <th class="text-center" title="Every booking in this block, any status">Total</th>
+    <th class="text-center" title="Awarded a room, no card on file yet">Awaiting card</th>
+    <th class="text-center" title="Card on file - booking locked in">Secured</th>
+    {% for night in event_nights %}
+    <th class="text-center">{{ night.strftime('%a %-m/%-d') }}</th>
+    {% endfor %}
+  </tr>
+</thead>
+{% endmacro %}
 
-<h3>Standard Rooms</h3>
-<table class="table table-bordered bg-body" style="margin: 20px; width: calc(100% - 40px);">
-    <thead>
-        <tr>
-            <th>Hotel</th>
-            <th>Room Type</th>
-            <th>Quantity</th>
-            <th>Assigned</th>
-            <th>Awarded</th>
-            <th>Secured</th>
-            <th>Remaining</th>
-        </tr>
-    </thead>
-    {{ inventory_table(room_inventory, room_lookup) }}
+{# One table for rooms AND suites (section divider rows between), so
+   the columns align all the way down the page. #}
+<div class="table-responsive">
+<table class="table table-bordered table-sm bg-body">
+    {{ inventory_head() }}
+    <tbody>
+    <tr class="table-light"><th colspan="{{ 6 + event_nights|length }}" class="fs-6">Standard Rooms</th></tr>
+    {{ inventory_table(room_inventory) }}
+    {% if suite_inventory %}
+    <tr class="table-light"><th colspan="{{ 6 + event_nights|length }}" class="fs-6">Suites</th></tr>
+    {{ inventory_table(suite_inventory, is_suite=True) }}
+    {% endif %}
+    </tbody>
 </table>
+</div>
 
-<h3>Suites</h3>
-<table class="table table-bordered bg-body" style="margin: 20px; width: calc(100% - 40px);">
-    <thead>
-        <tr>
-            <th class="d-none">Hotel</th>
-            <th>Suite Type</th>
-            <th>Quantity</th>
-            <th>Assigned</th>
-            <th>Awarded</th>
-            <th>Secured</th>
-            <th>Remaining</th>
-        </tr>
-    </thead>
-    {{ inventory_table(suite_inventory, suite_lookup, display_hotel=False) }}
-</table>
+<!-- Assignees Modal -->
+<div class="modal fade" id="assigneesModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="assignees-title">Assigned Attendees</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="assignees-loading" class="text-center py-3">Loading...</div>
+        <div id="assignees-content" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="text/javascript">
+window.hotelInventoryConfig = { partition: {{ current_partition|tojson }} };
+</script>
+{{ "js/hotel-inventory-assignees.js"|serve_static_content }}
 
 {% endblock content %}

@@ -7,6 +7,15 @@
     {{ app.attendee.full_name }},<br/>
     Thank you for {{ action_str }} for {{ c.EVENT_NAME_AND_YEAR }}! Your{% if app.entry_type == c.SUITE_ENTRY %} suite{% elif app.entry_type == c.GROUP_ENTRY %} group's{% endif %} entry details are below.
 </p>
+{% if post_cutoff %}
+<p>
+    <strong>Heads up:</strong> The standard hotel lottery has already closed, so
+    this entry won't be considered in the original drawing. We're keeping a
+    late-round list of applications received after the deadline, and if
+    additional rooms become available we'll consider you alongside others on
+    this list. We can't promise specific dates or hotels for late-round entries.
+</p>
+{% endif %}
 {% if maybe_swapped and app.entry_type == c.ROOM_ENTRY %}
 <p>
     <strong>IMPORTANT</strong>: If you originally entered the lottery for a suite, please note that your current lottery entry is <strong>ONLY</strong> for a standard room. If this was a mistake, you can <a href="{{ c.URL_BASE }}/hotel_lottery/index?id={{ app.id }}" target="_blank">change your entry</a> to a suite entry.

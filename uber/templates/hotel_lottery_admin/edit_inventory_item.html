@@ -1,0 +1,101 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% import "forms/macros.html" as form_macros with context %}
+{% set inventory_config = forms['hotel_inventory_config'] %}
+{% block title %}{{ 'Add' if item.is_new else 'Edit' }} Inventory Item{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+
+<h2>{{ 'Add' if item.is_new else 'Edit' }} Inventory Item</h2>
+
+<div class="mb-3">
+  <a href="manage_inventory" class="btn btn-outline-secondary">Back to Inventory</a>
+</div>
+
+<form method="post" action="edit_inventory_item" class="card card-body" style="max-width: 600px;">
+  {{ csrf_token() }}
+  {% if not item.is_new %}
+  <input type="hidden" name="id" value="{{ item.id }}" />
+  {% endif %}
+
+  <div class="mb-3">{{ form_macros.input(inventory_config.hotel_id) }}</div>
+  <div class="mb-3">{{ form_macros.input(inventory_config.is_suite) }}</div>
+  <div class="mb-3" id="room_type_div">{{ form_macros.input(inventory_config.room_type_id) }}</div>
+  <div class="mb-3" id="suite_type_div" style="display: none;">{{ form_macros.input(inventory_config.suite_type_id) }}</div>
+  <div class="mb-3">{{ form_macros.input(inventory_config.name) }}</div>
+
+  <div class="row g-3 mb-3">
+    <div class="col">{{ form_macros.input(inventory_config.quantity) }}</div>
+    <div class="col">{{ form_macros.input(inventory_config.capacity) }}</div>
+    <div class="col">{{ form_macros.input(inventory_config.min_capacity) }}</div>
+  </div>
+
+  {% if event_nights %}
+  <div class="mb-3">
+    <label class="form-label">Per-Night Quantities</label>
+    <div class="form-text mb-2">Set available rooms for each night. Leave blank to use the default quantity above.</div>
+    <div class="row g-2">
+      {% for night in event_nights %}
+      <div class="col-auto">
+        <label class="form-label small">{{ night.strftime('%a %-m/%-d') }}</label>
+        <input type="number" class="form-control form-control-sm" style="width: 80px;"
+               name="night_qty_{{ night.isoformat() }}"
+               value="{{ item.night_quantity_map.get(night, '') if not item.is_new else '' }}"
+               min="0" placeholder="{{ item.quantity }}" />
+      </div>
+      {% endfor %}
+    </div>
+    <div class="mt-2">
+      <button type="button" class="btn btn-sm btn-outline-secondary" onclick="fillNightQuantities()">
+        Fill all from default
+      </button>
+    </div>
+  </div>
+  {% endif %}
+
+  {# Text input plus a checkbox dropdown of the hotel's catalog type
+     codes (hotel-inventory-type-codes.js); free text still allowed. #}
+  <div class="mb-3">
+    <div class="form-text">{{ inventory_config.physical_room_types.label }}</div>
+    <div class="input-group">
+      {{ inventory_config.physical_room_types(class="form-control") }}
+      <button class="btn btn-outline-secondary dropdown-toggle" type="button"
+              data-bs-toggle="dropdown" data-bs-auto-close="outside"
+              aria-expanded="false">Choose</button>
+      <ul class="dropdown-menu dropdown-menu-end" id="type-code-menu"></ul>
+    </div>
+    <div class="form-text">{{ inventory_config.physical_room_types.description }}</div>
+  </div>
+  <div class="mb-3">{{ form_macros.input(inventory_config.info_url) }}</div>
+
+  <div class="row g-3 mb-3">
+    <div class="col">{{ form_macros.input(inventory_config.price) }}</div>
+    <div class="col">{{ form_macros.input(inventory_config.staff_price) }}</div>
+  </div>
+
+  <div class="mb-3">{{ form_macros.input(inventory_config.vault_reference) }}</div>
+  <div class="mb-3">{{ form_macros.input(inventory_config.active) }}</div>
+
+  <button type="submit" class="btn btn-primary">Save</button>
+</form>
+
+<script type="application/json" id="type-codes-data">{{ type_codes_by_hotel|tojson }}</script>
+{{ "js/hotel-inventory-type-codes.js"|serve_static_content }}
+
+<script>
+function toggleTypeFields() {
+  var isSuite = document.getElementById('is_suite').value === 'true';
+  document.getElementById('room_type_div').style.display = isSuite ? 'none' : '';
+  document.getElementById('suite_type_div').style.display = isSuite ? '' : 'none';
+}
+toggleTypeFields();
+
+function fillNightQuantities() {
+  var qty = document.getElementById('quantity').value;
+  document.querySelectorAll('input[name^="night_qty_"]').forEach(function(input) {
+    input.value = qty;
+  });
+}
+</script>
+
+{% endblock content %}

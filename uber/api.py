@@ -25,7 +25,9 @@ from uber.errors import CSRFException
 from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, Attraction, AttractionFeature, AttractionEvent,
                          BadgeInfo, Department, DeptMembership,
                          DeptRole, Event, IndieJudge, IndieStudio, Job, Session, Shift, Group,
-                         GuestGroup, Room, HotelRequests, RoomAssignment)
+                         GuestGroup, LotteryApplication)
+from uber.models.hotel import (HotelExportLog, HotelRoomInventory, LotteryHotel,
+                               RoomAssignment)
 from uber.models.badge_printing import PrintJob
 from uber.serializer import serializer
 from uber.utils import check, check_csrf, normalize_email_legacy, normalize_newlines, is_listy
@@ -1521,60 +1523,90 @@ class HotelLookup:
             return [x.id for x in attendees]
 
     @api_auth('api_update')
-    def update_room(self, id=None, **kwargs):
+    def update_inventory(self, id=None, **kwargs):
         """
-        Create or update a hotel room. If the id of an existing room is
-        supplied then it will attempt to update an existing room.
-        Possible attributes are notes, message, locked_in, nights, and created.
+        Create or update a HotelRoomInventory row. Replaces the legacy
+        update_room endpoint. If `id` is supplied, the inventory row with
+        that id is updated; otherwise a new row is created.
 
-        Returns the created room, with its id.
+        Recognised attributes: hotel_id, room_type_id, suite_type_id,
+        quantity, capacity, min_capacity, name, is_suite, active, price,
+        staff_price, info_url, vault_reference. (Connector relationships
+        are now type-level on `LotteryRoomType.connects_to_type_id`.)
         """
         with Session() as session:
             if id:
-                room = session.get(Room, id)
-                if not room:
-                    return HTTPError(404, "Could not locate room {}".format(id))
+                inv = session.query(HotelRoomInventory).filter(HotelRoomInventory.id == id).one_or_none()
+                if not inv:
+                    return HTTPError(404, "Could not locate inventory {}".format(id))
             else:
-                room = Room()
-            for attr in ['notes', 'message', 'locked_in', 'nights', 'created']:
+                inv = HotelRoomInventory()
+            for attr in ['hotel_id', 'room_type_id', 'suite_type_id', 'quantity',
+                         'capacity', 'min_capacity', 'name', 'is_suite', 'active',
+                         'price', 'staff_price', 'info_url', 'vault_reference']:
                 if attr in kwargs:
-                    setattr(room, attr, kwargs[attr])
-            session.add(room)
+                    setattr(inv, attr, kwargs[attr])
+            session.add(inv)
             session.commit()
-            return room.to_dict()
+            return inv.to_dict()
 
     @api_auth('api_update')
-    def update_request(self, id=None, **kwargs):
+    def update_application(self, id=None, **kwargs):
         """
-        Create or update a hotel request. If the id is supplied then it will
-        attempt to update the given request.
-        Possible attributes are attendee_id, nights, wanted_roommates, unwanted_roommates, special_needs, and approved.
+        Create or update a LotteryApplication. Replaces the legacy
+        update_request endpoint. If `id` is supplied, that application is
+        updated; otherwise a new one is created.
 
-        Returns the created or updated request.
+        Recognised attributes: attendee_id, status, entry_type, is_staff_entry,
+        cellphone, hotel_preference, room_type_preference,
+        suite_type_preference, earliest_checkin_date, latest_checkin_date,
+        earliest_checkout_date, latest_checkout_date, wants_ada,
+        ada_requests, room_opt_out, admin_notes, can_edit.
+
+        Legal-name fields (`legal_first_name` / `legal_last_name`) moved
+        off LotteryApplication. Update them on the linked Attendee
+        (`hotel_first_name` / `hotel_last_name`) via the attendee API
+        instead.
         """
         with Session() as session:
             if id:
-                hotel_request = session.get(HotelRequests, id)
-                if not hotel_request:
-                    return HTTPError(404, "Could not locate request {}".format(id))
+                app = session.query(LotteryApplication).filter(LotteryApplication.id == id).one_or_none()
+                if not app:
+                    return HTTPError(404, "Could not locate application {}".format(id))
             else:
-                hotel_request = HotelRequests()
-            for attr in ['attendee_id', 'nights', 'wanted_roommates', 'unwanted_roommates',
-                         'special_needs', 'approved']:
+                app = LotteryApplication()
+            for attr in ['attendee_id', 'status', 'entry_type', 'is_staff_entry',
+                         'cellphone',
+                         'hotel_preference', 'room_type_preference', 'suite_type_preference',
+                         'earliest_checkin_date', 'latest_checkin_date',
+                         'earliest_checkout_date', 'latest_checkout_date',
+                         'wants_ada', 'ada_requests', 'room_opt_out',
+                         'admin_notes', 'can_edit']:
                 if attr in kwargs:
-                    setattr(hotel_request, attr, kwargs[attr])
-            session.add(hotel_request)
+                    setattr(app, attr, kwargs[attr])
+            session.add(app)
             session.commit()
-            return hotel_request.to_dict()
+            return app.to_dict()
 
     @api_auth('api_update')
     def update_assignment(self, id=None, **kwargs):
         """
-        Create or update a hotel room assignment. If the id is supplied then it will
-        attempt to update the given request. Otherwise a new one is created.
-        Possible attributes are room_id, and attendee_id.
+        Create or update a RoomAssignment. Replaces the legacy endpoint of
+        the same name (which assigned to the now-deleted staff hotel Room).
+        If `id` is supplied, that assignment is updated; otherwise a new
+        one is created.
 
-        Returns the created or updated assignment.
+        Recognised attributes: attendee_id, inventory_id, lottery_application_id,
+        lottery_run_id, parent_assignment_id, partition_id, assignment_reason,
+        status, require_cc, assigned_check_in_date, assigned_check_out_date,
+        deposit_cutoff_date, booking_url, hotel_confirmation_number,
+        cancellation_confirmation_number, room_number, special_requests,
+        hotel_rewards_number, admin_notes.
+
+        The hotel back-import flow uses this to set hotel_confirmation_number
+        and cancellation_confirmation_number on an existing assignment;
+        setting cancellation_confirmation_number flips status to CANCELLED via
+        a presave on the model.
         """
         with Session() as session:
             if id:
@@ -1583,7 +1615,14 @@ class HotelLookup:
                     return HTTPError(404, "Could not locate room assignment {}".format(id))
             else:
                 assignment = RoomAssignment()
-            for attr in ['room_id', 'attendee_id']:
+            for attr in ['attendee_id', 'inventory_id', 'lottery_application_id',
+                         'lottery_run_id', 'parent_assignment_id', 'partition_id',
+                         'assignment_reason', 'status', 'require_cc',
+                         'assigned_check_in_date', 'assigned_check_out_date',
+                         'deposit_cutoff_date', 'booking_url',
+                         'hotel_confirmation_number', 'cancellation_confirmation_number',
+                         'room_number', 'special_requests', 'hotel_rewards_number',
+                         'admin_notes']:
                 if attr in kwargs:
                     setattr(assignment, attr, kwargs[attr])
             session.add(assignment)
@@ -1602,6 +1641,166 @@ class HotelLookup:
             "order": c.NIGHT_DISPLAY_ORDER,
             "names": c.NIGHT_NAMES
         }
+
+    @api_auth('api_update')
+    def export_room_bookings(self, hotel=None, hotel_name=None):
+        """
+        Export room booking data including PCI Vault tokens (NOT raw card numbers).
+        One entry per RoomAssignment - connectors get their own line, with
+        `parent_assignment_id` pointing at the suite assignment so the
+        receiver can group them. Creates an export log entry for tracking.
+
+        Identify the hotel by `hotel_name` (its export name or display name) or
+        by `hotel` (the LotteryHotel UUID, a name, or the PCI Vault reference
+        stored on its inventory blocks).
+
+        Each booking is the canonical booking_dict shape shared with the
+        admin spreadsheet export (see uber.hotel.exports.booking_dict);
+        the legacy duplicate alias keys (`room_id`,
+        `hotel_cancellation_number`, `last_modified`, `assigned_*`) are gone.
+
+        Requires api_update: each call records a HotelExportLog row - the
+        per-hotel watermark that drives the export's incremental
+        `last_export_time` envelope - and the payload includes vault card
+        tokens, so read-only tokens must not reach it.
+        """
+        from uber.hotel.exports import booking_dict, resolve_lottery_hotel
+        from uber.hotel.queries import live_assignments_for_hotel
+
+        with Session() as session:
+            ident = hotel_name or hotel
+            if not ident:
+                return "You must provide a hotel or hotel_name argument"
+
+            # The hotel portal scopes itself to a PCI Vault reference
+            # (stored per inventory block as `vault_reference`), which
+            # resolves to a subset of inventory blocks; any other
+            # identifier resolves to a whole LotteryHotel.
+            hotel_obj, inv_ids = resolve_lottery_hotel(session, ident)
+
+            order = (RoomAssignment.parent_assignment_id.asc().nullsfirst(),
+                     RoomAssignment.created.asc())
+            if inv_ids:
+                assignments = (session.query(RoomAssignment)
+                               .filter(RoomAssignment.is_live,
+                                       RoomAssignment.inventory_id.in_(inv_ids))
+                               .order_by(*order).all())
+                export_hotel_ids = {
+                    row[0] for row in session.query(HotelRoomInventory.hotel_id)
+                    .filter(HotelRoomInventory.id.in_(inv_ids)).distinct().all()
+                    if row[0]}
+            elif hotel_obj:
+                assignments = (live_assignments_for_hotel(session, hotel_obj.id)
+                               .order_by(*order).all())
+                export_hotel_ids = {str(hotel_obj.id)}
+            else:
+                return {'last_export_time': '', 'bookings': []}
+
+            # Per-hotel export watermark: capture the previous export time to
+            # return, then the HotelExportLog rows added below advance it to now.
+            # The viewer defaults its "changed since" filter to last_export_time.
+            last_export_time = ''
+            if export_hotel_ids:
+                prev = (session.query(HotelExportLog.exported_at)
+                        .filter(HotelExportLog.export_type == 'room_export',
+                                HotelExportLog.hotel_id.in_(export_hotel_ids))
+                        .order_by(HotelExportLog.exported_at.desc()).first())
+                if prev and prev[0]:
+                    last_export_time = prev[0].isoformat()
+
+            bookings = []
+            hotels_exported = set()
+            for ra in assignments:
+                bookings.append(booking_dict(ra, ra.lottery_application))
+                if ra.inventory and ra.inventory.hotel_id:
+                    hotels_exported.add(str(ra.inventory.hotel_id))
+
+            # Retain what each hotel actually pulled, the same way the
+            # dashboard download does, so the exports page can reproduce
+            # any file a hotel worked from.
+            from uber.hotel.exports import store_export_file
+            for hotel_id in hotels_exported:
+                rows = [b for b in bookings if b['hotel_id'] == hotel_id]
+                hotel_obj = session.query(LotteryHotel).get(hotel_id)
+                stamp = datetime.now(pytz.UTC).strftime('%Y%m%d_%H%M')
+                name = (hotel_obj.export_name or hotel_obj.name
+                        if hotel_obj else 'hotel')
+                store_export_file(
+                    session, hotel_obj,
+                    json.dumps({'bookings': rows}, indent=1,
+                               default=str).encode('utf-8'),
+                    f'{name}_bookings_{stamp}.json', 'application/json',
+                    source='api', record_count=len(rows),
+                    exported_by='api')
+            session.commit()
+
+            return {'last_export_time': last_export_time, 'bookings': bookings}
+
+    @api_auth('api_update')
+    def import_confirmation_file(self, reference=None, filename=None, file=None, uploaded_by=None):
+        """
+        Apply hotel confirmation and/or cancellation numbers from an uploaded file.
+
+        uber-vault forwards the raw uploaded file (base64) verbatim and ubersystem
+        owns parsing. Supports CSV and XLSX (first sheet, first row is the header).
+        Columns are matched case-insensitively with spaces treated as underscores:
+
+          - confirmation_num (required key; identifies the attendee booking)
+          - hotel_confirmation_number (optional)
+          - hotel_cancellation_number (optional)
+
+        A file may carry either or both hotel-number columns; whichever are
+        present are applied, keyed by confirmation_num. Unknown columns are
+        ignored and rows that don't match a known booking are skipped. Returns
+        {updated, unchanged, changes}.
+
+        `reference` identifies the uploading hotel the same way
+        export_room_bookings does (PCI Vault reference, export/display name,
+        slugified name, or UUID); it scopes the retained file and the per-hotel
+        import tracking on the exports page.
+
+        `uploaded_by` is the authenticated portal username of the uploader; it's
+        recorded for the exports page "Uploaded By" column (display/audit only).
+
+        The raw file is retained for later debugging; uber-vault rejects any
+        file containing a card number before calling this, so the file is
+        assumed card-free and nothing resembling a card number is echoed back.
+        """
+        import base64
+        from uber.hotel.exports import resolve_lottery_hotel
+        from uber.hotel.imports import import_confirmation_file as apply_import_file
+
+        if not file:
+            return {'error': 'No file provided.'}
+
+        try:
+            raw = base64.b64decode(file)
+        except Exception:
+            return {'error': 'File is not valid base64.'}
+
+        with Session() as session:
+            # `reference` resolves through the same chain as
+            # export_room_bookings (vault reference, export/display
+            # name, slug, UUID), so a portal that identifies itself by
+            # vault reference or slug still gets its upload tracked
+            # against the right hotel on the exports page.
+            hotel = None
+            if reference:
+                hotel, _inv_ids = resolve_lottery_hotel(session, reference)
+            result = apply_import_file(
+                session, raw, filename, hotel=hotel,
+                source='portal', uploaded_by=uploaded_by or 'Hotel Portal')
+            # Commit even when parsing failed: the retained-upload record
+            # (HotelImportFile) must persist either way, and the service
+            # layer only flushes (the Session context manager does not
+            # commit on exit).
+            session.commit()
+
+        summary = {'updated': result['updated'], 'unchanged': result['unchanged'],
+                   'changes': result['changes']}
+        if result.get('error'):
+            summary['error'] = result['error']
+        return summary
 
 
 @all_api_auth('api_read')

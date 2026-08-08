@@ -20,6 +20,11 @@
         {% if attendee.promo_code_groups %}
         <a class="btn btn-outline-secondary" href="../registration/promo_code_group_form?id={{ attendee.promo_code_groups[0].id }}" target="_blank">View Group "{{ attendee.promo_code_groups[0].name }}"</a>
         {% endif %}
+        {% if attendee.hotel_status and c.HAS_HOTEL_LOTTERY_ADMIN_ACCESS %}
+        <a class="btn btn-outline-secondary" href="../hotel_lottery_admin/rooms?attendee_id={{ attendee.id }}" target="_blank">
+            <i class="fa fa-bed"></i> {{ attendee.hotel_status }}
+        </a>
+        {% endif %}
     </div>
     <div class="d-flex gap-1">
         {% if not attendee.is_new %}

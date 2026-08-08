@@ -1,0 +1,8 @@
+{# Sub-navigation for the Staffing area under the hotel lottery admin.
+   Includes the main nav itself so the mobile breadcrumb renders as one
+   line ("Staffing / <page>"); pages include only this partial. #}
+{% set nav_has_subnav = true %}
+{% include 'hotel_lottery_admin/nav.html' %}
+{% import 'hotel_lottery_admin/_nav_macros.html' as navm with context %}
+{{ navm.desktop_nav(navm.staffing_items, 'pills') }}
+{{ navm.mobile_nav(navm.staffing_items, 'Staffing') }}
