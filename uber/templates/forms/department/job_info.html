@@ -21,6 +21,9 @@ applyTemplate() {
         this.visibility = template.visibility;
         this.required_roles_id = template.required_roles_id;
         this.all_roles_required = template.all_roles_required;
+        if (this.slots < template.min_slots) {
+            this.slots = template.min_slots;
+        }
 }
 {% endblock %}
 
