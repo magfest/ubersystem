@@ -22,9 +22,9 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
             description: {{ job_or_template.description|tojson }},
             duration: {{ job_or_template.duration|tojson }},
             extra15: {{ job_or_template.extra15|tojson }},
-            weight: {{ job_or_template.weight|tojson }},
+            weight: {{ job_or_template.weight|string|tojson }},
             visibility: {{ job_or_template.visibility|tojson }},
-            required_roles_id: {{ job_or_template.required_roles_ids|tojson }},
+            required_roles_ids: {{ job_or_template.required_roles_ids|tojson }},
             all_roles_required: {{ job_or_template.all_roles_required|boolean|tojson }},
             {% block extend_job_alpine_state %}
             {% endblock %}
@@ -57,7 +57,7 @@ Use these to add or rearrange fields. Remember to use {{ super() }} to print the
 
 <div class="row g-3 mb-3">
 {% block weight_visibility %}
-<div class="col-sm">{{ form_macros.input(job_or_template_info.weight,**{'x-model.number':'weight'}) }}</div>
+<div class="col-sm">{{ form_macros.input(job_or_template_info.weight, alpine_model="weight") }}</div>
 {% if job or job_or_template.is_new %}
 <div class="col-sm">{{ form_macros.input(job_or_template_info.visibility, **{'x-model.number':'visibility',':disabled':'no_slots'}) }}</div>
 {% else %}
