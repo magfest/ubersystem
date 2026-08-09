@@ -78,7 +78,6 @@ class Root:
 
         forms = load_forms(params, review, form_list)
         game_forms = load_forms({}, review.game, game_form_list, read_only=True)
-        review.judge = session.logged_in_judge()
 
         if cherrypy.request.method == 'POST':
             for form in forms.values():
