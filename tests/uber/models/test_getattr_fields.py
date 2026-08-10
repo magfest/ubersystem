@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import timezone, datetime
 
 import pytest
-from pytz import UTC
+
 
 from uber.config import c
 from uber.models import AdminAccount, Attendee

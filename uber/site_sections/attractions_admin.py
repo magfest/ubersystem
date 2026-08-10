@@ -1,9 +1,8 @@
 import uuid
-from datetime import datetime, timedelta
+from datetime import timezone, datetime, timedelta
 
 import cherrypy
 from dateutil import parser as dateparser
-import pytz
 from sqlalchemy.orm import subqueryload, joinedload, selectinload, defaultload
 
 from uber.config import c
@@ -17,7 +16,6 @@ from uber.site_sections.attractions import _attendee_for_badge_num
 from uber.tasks.attractions import send_waitlist_notification
 from uber.utils import localized_now, filename_safe, validate_model, get_api_service_from_server, slugify
 
-
 event_spec = {
     'id': True,
     'event_location_id': True,
@@ -28,7 +26,6 @@ event_spec = {
     'time_span_label': True,
     'slots': True,
     'feature': True}
-
 
 signup_spec = {
     'attraction_id': True,
@@ -42,7 +39,6 @@ signup_spec = {
     },
     'event': event_spec}
 
-
 dummy_signup = {
     'is_signed_up': False,
     'signup_time': None,
@@ -51,12 +47,11 @@ dummy_signup = {
     'waitlist_position': None,
     'is_checked_in': False}
 
-
 def import_signups_open_time(attraction_feature_event, old_signups_open_time):
     if not old_signups_open_time:
         attraction_feature_event.signups_open_time = None
         return
-    signups_open_time = pytz.UTC.localize(dateparser.parse(old_signups_open_time))
+    signups_open_time = dateparser.parse(old_signups_open_time).replace(tzinfo=timezone.utc)
     attraction_feature_event.signups_open_time = signups_open_time.replace(year=signups_open_time.year + 1)
 
 
@@ -158,7 +153,7 @@ class Root:
                                     to_feature.department_id = to_dept.id
 
                         for from_event in from_feature['events']:
-                            start_time = pytz.UTC.localize(dateparser.parse(from_event['start_time'])) + EPOCH_DELTA
+                            start_time = dateparser.parse(from_event['start_time']).replace(tzinfo=timezone.utc) + EPOCH_DELTA
                             if not new_feature:
                                 existing_event = session.query(AttractionEvent).join(AttractionFeature).filter(
                                     AttractionFeature.id == to_feature.id,
@@ -273,7 +268,7 @@ class Root:
 
         for event in feature.events_by_location_by_day[params.get('location')][params.get('day')]:
             event.signups_open_relative = 0
-            event.signups_open_time = datetime.now(pytz.UTC)
+            event.signups_open_time = datetime.now(timezone.utc)
             session.add(event)
 
         session.commit()
@@ -836,7 +831,7 @@ class Root:
             elif signup.on_waitlist:
                 message = "This attendee is still on the waitlist for this event."
             else:
-                signup.checkin_time = datetime.now(pytz.UTC)
+                signup.checkin_time = datetime.now(timezone.utc)
                 session.commit()
                 return {'result': signup.checkin_time.astimezone(c.EVENT_TIMEZONE)}
         if message:

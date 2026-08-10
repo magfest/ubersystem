@@ -1,13 +1,11 @@
 from collections import defaultdict, OrderedDict
-from datetime import datetime
-from pytz import UTC
+from datetime import timezone, datetime
 from sqlalchemy import or_
 
 from uber.config import c
 from uber.custom_tags import format_currency, datetime_local_filter
 from uber.decorators import all_renderable, csv_file
 from uber.models import Attendee
-
 
 def sort(d, label_list):
     return sorted(d.items(), key=lambda tup: label_list.index(tup[0]))
@@ -89,7 +87,7 @@ class Root:
                 label(shirt_label)][status(attendee.got_merch)] += attendee.num_free_event_shirts
             if attendee.paid_for_a_shirt:
                 counts['paid_event_shirts'][label(shirt_label)][status(attendee.got_merch)] += 1
-                sale_week = (min(datetime.now(UTC), c.ESCHATON) - attendee.registered).days // 7
+                sale_week = (min(datetime.now(timezone.utc), c.ESCHATON) - attendee.registered).days // 7
                 sales_by_week[min(sale_week, 52)] += 1
 
         for week in range(48, -1, -1):

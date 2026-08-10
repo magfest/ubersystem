@@ -1,12 +1,11 @@
 import json
 import math
 import re
-from datetime import datetime, timedelta, date
+from datetime import timezone, datetime, timedelta, date
 from markupsafe import Markup
 from uuid import uuid4
 import logging
 
-from pytz import UTC
 from sqlalchemy import and_, case, exists, func, or_, select, not_
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import subqueryload, aliased, selectinload, joinedload
@@ -28,12 +27,9 @@ from uber.utils import add_opt, get_age_from_birthday, get_age_conf_from_birthda
 
 log = logging.getLogger(__name__)
 
-
 __all__ = ['Attendee', 'AttendeeAccount', 'BadgeInfo', 'BadgePickupGroup', 'FoodRestrictions']
 
-
 RE_NONDIGIT = re.compile(r'\D+')
-
 
 # The order of name_suffixes is important. It should be sorted in descending
 # order, using the length of the suffix with periods removed.
@@ -143,9 +139,7 @@ name_suffixes = [
     'IV',
     'II']
 
-
 normalized_name_suffixes = [re.sub(r'[,\.]', '', s.lower()) for s in name_suffixes]
-
 
 class BadgeInfo(MagModel, table=True):
     """
@@ -189,14 +183,14 @@ class BadgeInfo(MagModel, table=True):
         if not self.attendee_id:
             return
 
-        self.reported_lost = datetime.now(UTC)
+        self.reported_lost = datetime.now(timezone.utc)
         self.active = False
     
     def check_in(self):
         if not self.attendee_id:
             return
 
-        self.picked_up = self.attendee.checked_in or datetime.now(UTC)
+        self.picked_up = self.attendee.checked_in or datetime.now(timezone.utc)
 
 
 Index('ix_badge_info_attendee_id', BadgeInfo.attendee_id.desc())
@@ -302,7 +296,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     can_transfer: bool = False
 
     reg_station: int | None
-    registered: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    registered: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(timezone.utc))
     confirmed: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
     checked_in: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
 
@@ -836,7 +830,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         return [badge for badge in self.allocated_badges if badge.active == False and badge.reported_lost != None]
     
     def check_in(self):
-        self.checked_in = datetime.now(UTC)
+        self.checked_in = datetime.now(timezone.utc)
 
         if not self.active_badge:
             new_badge = self.session.get_next_badge_num(self.badge_type_real)

@@ -1,8 +1,7 @@
 import re
-from datetime import datetime
+from datetime import timezone, datetime
 
 import cherrypy
-import pytz
 import inspect
 from sqlalchemy.orm import joinedload
 
@@ -11,7 +10,6 @@ from uber.decorators import ajax, all_renderable, not_site_mappable, public, sit
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, ApiJob, ApiToken
 from uber.utils import check
-
 
 @all_renderable()
 class Root:
@@ -90,7 +88,7 @@ class Root:
             raise HTTPRedirect('index')
 
         api_token = session.api_token(id)
-        api_token.revoked_time = datetime.now(pytz.UTC)
+        api_token.revoked_time = datetime.now(timezone.utc)
         raise HTTPRedirect(
             'index?message={}', 'Successfully revoked API token')
 

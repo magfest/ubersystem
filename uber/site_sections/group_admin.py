@@ -2,8 +2,7 @@ import cherrypy
 import logging
 
 from collections import defaultdict
-from datetime import datetime
-from pytz import UTC
+from datetime import timezone, datetime
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import joinedload
 
@@ -19,7 +18,6 @@ from uber.utils import check, validate_model, add_opt, SignNowRequest
 from uber.payments import ReceiptManager
 
 log = logging.getLogger(__name__)
-
 
 @all_renderable()
 class Root:
@@ -143,7 +141,7 @@ class Root:
 
                 if not signnow_signed and not signnow_request.document.last_emailed:
                     signnow_request.send_dealer_signing_invite()
-                    signnow_request.document.last_emailed = datetime.now(UTC)
+                    signnow_request.document.last_emailed = datetime.now(timezone.utc)
 
                 signnow_last_emailed = signnow_request.document.last_emailed
                 session.commit()

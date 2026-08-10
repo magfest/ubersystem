@@ -6,7 +6,7 @@ import uuid
 import inspect
 import logging
 from collections import defaultdict
-from datetime import date, datetime, timedelta
+from datetime import timezone, date, datetime, timedelta
 from functools import wraps
 from itertools import chain
 from pydantic import ConfigDict
@@ -18,7 +18,6 @@ import cherrypy
 import six
 import sqlalchemy
 from dateutil import parser as dateparser
-from pytz import UTC
 from sqlalchemy import and_, func, or_, create_engine
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.event import listen
@@ -188,8 +187,8 @@ class MagModel(SQLModel):
         return data
 
     id: str | None = Field(sa_type=Uuid(as_uuid=False), default_factory=lambda: str(uuid4()), primary_key=True)
-    created: datetime = Field(sa_type=DateTime(timezone=True), sa_column_kwargs={'server_default': utcnow()}, default_factory=lambda: datetime.now(UTC))
-    last_updated: datetime = Field(sa_type=DateTime(timezone=True), sa_column_kwargs={'server_default': utcnow()}, default_factory=lambda: datetime.now(UTC))
+    created: datetime = Field(sa_type=DateTime(timezone=True), sa_column_kwargs={'server_default': utcnow()}, default_factory=lambda: datetime.now(timezone.utc))
+    last_updated: datetime = Field(sa_type=DateTime(timezone=True), sa_column_kwargs={'server_default': utcnow()}, default_factory=lambda: datetime.now(timezone.utc))
 
     """
     The two columns below allow tracking any object in external sources,
@@ -439,10 +438,10 @@ class MagModel(SQLModel):
     @presave_adjustment
     def update_last_updated(self):
         if not getattr(self, 'skip_last_updated', None):
-            self.last_updated = datetime.now(UTC)
+            self.last_updated = datetime.now(timezone.utc)
 
     def last_synced_dt(self, key):
-        return dateparser.parse(json.loads(self.last_synced.get(key, '"1970/01/01"'))).replace(tzinfo=UTC)
+        return dateparser.parse(json.loads(self.last_synced.get(key, '"1970/01/01"'))).replace(tzinfo=timezone.utc)
     
     def update_last_synced(self, key, sync_time):
         self.last_synced[key] = json.dumps(str(dateparser.parse(sync_time)))

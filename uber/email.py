@@ -2,10 +2,9 @@ import contextlib
 import traceback
 import json
 import logging
-import pytz
 
 from collections import defaultdict
-from datetime import datetime
+from datetime import timezone, datetime
 from sqlalchemy.orm import joinedload
 from sqlalchemy import update, or_
 
@@ -18,7 +17,6 @@ from uber.models import AutomatedEmail, Email
 from uber.utils import listify, localized_now
 
 log = logging.getLogger(__name__)
-
 
 class EmailHandler:
     @reconcile_fixtures
@@ -203,7 +201,7 @@ class EmailService:
 
         queued_emails = session.query(Email).filter(
             Email.status == c.QUEUED, Email.model == model_str,
-            Email.send_after != None, Email.send_after < datetime.now(pytz.UTC)
+            Email.send_after != None, Email.send_after < datetime.now(timezone.utc)
             ).options(joinedload(Email.automated_email)).limit(5000)
 
         if not queued_emails.count():
@@ -317,7 +315,7 @@ class EmailService:
                 current_body = fixture_obj.render_template(fixture_obj.body, render_data)
                 if current_body != email.body:
                     email.body = current_body
-                    email.generated = datetime.now(pytz.UTC)
+                    email.generated = datetime.now(timezone.utc)
                     email.send_after = email.new_send_after
                     email.status_text = f"Requeued {local_now_str}: Email body changed"
                     return
@@ -358,7 +356,7 @@ class EmailService:
                 email.error = f"Error while sending email: {str(error_msg)}"
                 return
             email.status = c.SENT
-            email.sent = datetime.now(pytz.UTC)
+            email.sent = datetime.now(timezone.utc)
             return email
         except Exception as error:
             email.error = f"Error while sending email: {str(error)}"

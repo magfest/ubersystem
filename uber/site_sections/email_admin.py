@@ -1,7 +1,6 @@
 import cherrypy
-from datetime import datetime, timedelta
+from datetime import timezone, datetime, timedelta
 import logging
-import pytz
 import traceback
 
 from sqlalchemy import func, or_, any_
@@ -18,7 +17,6 @@ from uber.utils import check, get_page, listify, groupify, validate_model, local
 from uber.tasks.email import check_emails_for_fixture
 
 log = logging.getLogger(__name__)
-
 
 def filter_emails_by_dept_id(session, email_model, emails, department_id, email_depts):
     depts_by_sender = {}
@@ -75,7 +73,7 @@ class Root:
             send_after = params.get('send_after', False)
 
         if not send_after:
-            fifteen_mins = datetime.now(pytz.UTC) + timedelta(seconds=900)
+            fifteen_mins = datetime.now(timezone.utc) + timedelta(seconds=900)
             emails = emails.filter(or_(Email.send_after == None, Email.send_after < fifteen_mins))
 
         if search_text:
@@ -365,7 +363,7 @@ class Root:
         if email.status != c.QUEUED:
             return {'success': False, 'message': 'That email is not currently queued and cannot be sent.'}
         
-        one_minute = datetime.now(pytz.UTC) + timedelta(seconds=60)
+        one_minute = datetime.now(timezone.utc) + timedelta(seconds=60)
         if email.send_after < one_minute:
             return {'success': False, 'message': 'This email cannot be sent by an admin because it may already be in the process of sending.'}
         email.status = c.SENT

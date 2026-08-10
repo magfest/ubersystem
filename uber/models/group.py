@@ -1,9 +1,8 @@
 import math
-from datetime import datetime
+from datetime import timezone, datetime
 from uuid import uuid4
 
 from decimal import Decimal
-from pytz import UTC
 from sqlalchemy import and_, exists, or_, func, select, not_
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.types import DateTime, Uuid
@@ -17,9 +16,7 @@ from uber.models.types import (Choice, default_relationship as relationship, Def
                                DefaultField as Field, DefaultRelationship as Relationship)
 from uber.utils import add_opt
 
-
 __all__ = ['Group']
-
 
 class Group(MagModel, TakesPaymentMixin, table=True):
     leader_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
@@ -61,7 +58,7 @@ class Group(MagModel, TakesPaymentMixin, table=True):
     convert_badges: bool = False
     admin_notes: str = ''
     status: int = Field(sa_column=Column(Choice(c.DEALER_STATUS_OPTS)), default=c.UNAPPROVED)
-    registered: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    registered: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(timezone.utc))
     approved: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     
     attendees: list['Attendee'] = Relationship(back_populates="group",
@@ -93,7 +90,7 @@ class Group(MagModel, TakesPaymentMixin, table=True):
         elif not self.cost:
             self.cost = 0
         if self.status == c.APPROVED and not self.approved:
-            self.approved = datetime.now(UTC)
+            self.approved = datetime.now(timezone.utc)
         if self.leader and self.is_dealer and self.leader.paid == c.PAID_BY_GROUP:
             self.leader.ribbon = add_opt(self.leader.ribbon_ints, c.DEALER_RIBBON)
         if not self.is_unpaid or self.orig_value_of('status') != self.status:
@@ -437,7 +434,7 @@ class Group(MagModel, TakesPaymentMixin, table=True):
     def hours_since_registered(self):
         if not self.registered:
             return 0
-        delta = datetime.now(UTC) - self.registered
+        delta = datetime.now(timezone.utc) - self.registered
         return max(0, delta.total_seconds()) / 60.0 / 60.0
 
     @property

@@ -1,6 +1,5 @@
 from collections import defaultdict
 from datetime import timedelta, datetime
-import pytz
 import uuid
 from time import sleep, time
 import traceback
@@ -20,7 +19,6 @@ from uber.models import AutomatedEmail, Email, MagModel, UberSession, Session
 from uber.tasks import celery
 
 log = logging.getLogger(__name__)
-
 
 __all__ = ['notify_admins_of_pending_emails', 'send_automated_emails', 'send_email', 'check_emails_for_fixture']
 

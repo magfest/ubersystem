@@ -1,10 +1,9 @@
 import os
 import jinja2
 import logging
-from datetime import datetime, timedelta
+from datetime import timezone, datetime, timedelta
 import pathlib
 
-from pytz import UTC
 from sqlalchemy.orm import joinedload, subqueryload
 
 from uber.config import c
@@ -16,7 +15,6 @@ from uber.models import (AdminAccount, Attendee, AttendeeAccount, ArtShowApplica
 from uber.utils import after, before, days_after, days_before, days_between, localized_now, DeptChecklistConf
 
 log = logging.getLogger(__name__)
-
 
 class AutomatedEmailFixture:
     """
@@ -1722,7 +1720,7 @@ if c.MITS_START:
     MITSEmailFixture(
         'Thanks for showing an interest in MITS!',
         'mits/mits_registered.txt',
-        "lambda team: not team.submitted and team.applied < datetime.now(UTC) - timedelta(hours=1)",
+        "lambda team: not team.submitted and team.applied < datetime.now(timezone.utc) - timedelta(hours=1)",
         'mits_application_created')
 
     # For similar reasons to the above, we wait at least 6 hours before sending this
@@ -1733,7 +1731,7 @@ if c.MITS_START:
     MITSEmailFixture(
         'Last chance to complete your MITS application!',
         'mits/mits_reminder.txt',
-        "lambda team: not team.submitted and team.applied < datetime.now(UTC) - timedelta(hours=6)",
+        "lambda team: not team.submitted and team.applied < datetime.now(timezone.utc) - timedelta(hours=6)",
         'mits_reminder',
         when=[days_before(3, c.MITS_SUBMISSION_DEADLINE)])
 

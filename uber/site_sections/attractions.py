@@ -1,8 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import timezone, datetime
 
 import cherrypy
-from pytz import UTC
 from sqlalchemy import or_
 from sqlalchemy.orm import subqueryload
 
@@ -108,7 +107,7 @@ class Root:
         if not attraction:
             raise HTTPRedirect('index?attendee_id={}', params.get('attendee_id', ''))
 
-        no_events = datetime.max.replace(tzinfo=UTC)  # features with no events should sort to the end
+        no_events = datetime.max.replace(tzinfo=timezone.utc)  # features with no events should sort to the end
         features = attraction.public_features
         return {
             'attraction': attraction,

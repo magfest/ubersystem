@@ -2,13 +2,12 @@ import json
 import six
 import sys
 import logging
-from datetime import datetime
+from datetime import timezone, datetime
 from markupsafe import Markup
 from threading import current_thread
 from urllib.parse import parse_qsl
 
 import cherrypy
-from pytz import UTC
 from sqlalchemy.ext import associationproxy
 
 from sqlalchemy import Sequence
@@ -32,9 +31,8 @@ __all__ = ['PageViewTracking', 'ReportTracking', 'Tracking', 'TxnRequestTracking
 
 serializer.register(associationproxy._AssociationList, list)
 
-
 class ReportTracking(MagModel, table=True):
-    when: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    when: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(timezone.utc))
     who: str = ''
     supervisor: str = ''
     page: str = ''
@@ -59,7 +57,7 @@ class ReportTracking(MagModel, table=True):
 
 
 class PageViewTracking(MagModel, table=True):
-    when: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    when: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(timezone.utc))
     who: str = ''
     supervisor: str = ''
     page: str = ''
@@ -113,7 +111,7 @@ class PageViewTracking(MagModel, table=True):
 class Tracking(MagModel, table=True):
     fk_id: str = Field(sa_type=Uuid(as_uuid=False), index=True)
     model: str = ''
-    when: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC), index=True)
+    when: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(timezone.utc), index=True)
     who: str = Field(default='', index=True)
     supervisor: str = ''
     page: str = ''
@@ -286,7 +284,7 @@ class TxnRequestTracking(MagModel, table=True):
     workstation_num: int = 0
     terminal_id: str = ''
     who: str = ''
-    requested: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    requested: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(timezone.utc))
     resolved: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     success: bool = False
     response: dict[Any, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)

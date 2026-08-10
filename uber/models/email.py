@@ -1,12 +1,10 @@
 import re
 import traceback
 import logging
-import pytz
 from collections import OrderedDict
-from datetime import datetime, timedelta
+from datetime import timezone, datetime, timedelta
 from dateutil import parser as dateparser
 
-from pytz import UTC
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
@@ -24,9 +22,7 @@ from uber.utils import normalize_newlines, request_cached_context, groupify, lis
 
 log = logging.getLogger(__name__)
 
-
 __all__ = ['AutomatedEmail', 'Email']
-
 
 class BaseEmailMixin(object):
     model: str = ''
@@ -279,7 +275,7 @@ class Email(MagModel, BaseEmailMixin, table=True):
     render_data: dict[str, Any] = Field(sa_type=JSON, default_factory=dict)
     status: int = Field(sa_column=Column(Choice(c.EMAIL_STATUS_OPTS), index=True), default=c.UNAPPROVED)
     status_text: str = ''
-    generated: str = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    generated: str = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(timezone.utc))
     send_after: str | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
     sent: str | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
     error: str = ''
@@ -322,7 +318,7 @@ class Email(MagModel, BaseEmailMixin, table=True):
     
     @property
     def new_send_after(self):
-        five_minute_delay = datetime.now(pytz.UTC) + timedelta(seconds=300)
+        five_minute_delay = datetime.now(timezone.utc) + timedelta(seconds=300)
         if self.automated_email.active_after and self.automated_email.active_after > five_minute_delay:
             return self.automated_email.active_after
         

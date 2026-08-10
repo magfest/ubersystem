@@ -1,14 +1,14 @@
-from datetime import datetime, timedelta
+from datetime import timezone, datetime, timedelta
 
 import pytest
-import pytz
+
 
 from uber.config import c
 from uber.models import Event, Session
 from uber.site_sections import schedule
 
 
-UTCNOW = datetime.now(pytz.UTC)
+UTCNOW = datetime.now(timezone.utc)
 UTC20DAYSLATER = UTCNOW + timedelta(days=20)
 
 

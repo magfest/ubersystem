@@ -3,10 +3,9 @@ import re
 import cherrypy
 import logging
 
-from datetime import datetime, timedelta
+from datetime import timezone, datetime, timedelta
 from functools import wraps
 from markupsafe import Markup
-from pytz import UTC
 from sqlalchemy import func, case, or_
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.types import Boolean, Integer, String, DateTime, Uuid
@@ -23,11 +22,9 @@ from uber.utils import localized_now, make_url, remove_opt, slugify
 
 log = logging.getLogger(__name__)
 
-
 __all__ = [
     'IndieJudge', 'IndieStudio', 'IndieDeveloper', 'IndieGame',
     'IndieGameCode', 'IndieGameReview']
-
 
 class ReviewMixin:
     @property
@@ -144,7 +141,7 @@ class IndieStudio(MagModel, table=True):
 
     status: int = Field(sa_column=Choice(c.MIVS_STUDIO_STATUS_OPTS), default=c.NEW)  # Remove?
     staff_notes: str = ''
-    registered: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    registered: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(timezone.utc))
 
     accepted_core_hours: bool = False
     discussion_emails: str = ''
@@ -426,7 +423,7 @@ class IndieGame(MagModel, ReviewMixin, table=True):
     submitted: bool = False
     status: int = Field(sa_column=Column(Choice(c.MIVS_GAME_STATUS_OPTS), default=c.NEW))
     judge_notes: str = ''
-    registered: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    registered: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(timezone.utc))
     waitlisted: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     accepted: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
 
@@ -440,12 +437,12 @@ class IndieGame(MagModel, ReviewMixin, table=True):
     @presave_adjustment
     def accepted_time(self):
         if self.status == c.ACCEPTED and not self.accepted:
-            self.accepted = datetime.now(UTC)
+            self.accepted = datetime.now(timezone.utc)
 
     @presave_adjustment
     def waitlisted_time(self):
         if self.status == c.WAITLISTED and not self.waitlisted:
-            self.waitlisted = datetime.now(UTC)
+            self.waitlisted = datetime.now(timezone.utc)
 
     @property
     def email(self):

@@ -6,7 +6,7 @@ import inspect
 import math
 import os
 import pycountry
-import pytz
+from zoneinfo import ZoneInfo
 import re
 import redis
 import six
@@ -1864,7 +1864,7 @@ for _opt, _val in c.BADGE_PRICES['stocks'].items():
 c.DATES = {}
 c.TIMESTAMP_FORMAT = '%Y-%m-%d %H:%M:%S'
 c.DATE_FORMAT = '%Y-%m-%d'
-c.EVENT_TIMEZONE = pytz.timezone(c.EVENT_TIMEZONE)
+c.EVENT_TIMEZONE = ZoneInfo(c.EVENT_TIMEZONE)
 c.make_dates(_config['dates'])
 
 c.DATA_DIRS = {}

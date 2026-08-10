@@ -1,8 +1,7 @@
-from datetime import datetime
+from datetime import timezone, datetime
 import stripe
 import logging
 
-from pytz import UTC
 from sqlalchemy import func, or_
 
 from sqlalchemy.sql.functions import coalesce
@@ -22,16 +21,14 @@ from uber.payments import ReceiptManager
 
 log = logging.getLogger(__name__)
 
-
 __all__ = [
     'ArbitraryCharge', 'MerchDiscount', 'MerchPickup', 'ModelReceipt', 'MPointsForCash', 'ReceiptDiscount',
     'NoShirt', 'OldMPointExchange', 'ReceiptInfo', 'ReceiptItem', 'ReceiptTransaction', 'Sale', 'TerminalSettlement']
 
-
 class ArbitraryCharge(MagModel, table=True):
     amount: int = 0
     what: str = ''
-    when: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    when: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(timezone.utc))
     reg_station: int | None = Field(default=0, nullable=True)
 
     _repr_attr_names: ClassVar = ['what']
@@ -59,7 +56,7 @@ class MPointsForCash(MagModel, table=True):
     attendee: 'Attendee' = Relationship(back_populates="mpoints_for_cash")
 
     amount: int = 0
-    when: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    when: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(timezone.utc))
 
 
 class NoShirt(MagModel, table=True):
@@ -77,7 +74,7 @@ class OldMPointExchange(MagModel, table=True):
     attendee: 'Attendee' = Relationship(back_populates="old_mpoint_exchanges")
 
     amount: int = 0
-    when: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    when: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(timezone.utc))
 
 
 class Sale(MagModel, table=True):
@@ -87,7 +84,7 @@ class Sale(MagModel, table=True):
     what: str = ''
     cash: int = 0
     mpoints: int = 0
-    when: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    when: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(timezone.utc))
     reg_station: int | None = Field(nullable=True)
     payment_method: int = Field(sa_column=Column(Choice(c.SALE_OPTS)), default=c.MERCH)
 
@@ -377,7 +374,7 @@ class ReceiptTransaction(MagModel, table=True):
     amount: int = 0
     txn_total: int = 0
     processing_fee: int = 0
-    added: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    added: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(timezone.utc))
     on_hold: bool = False
     cancelled: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     who: str = ''
@@ -578,7 +575,7 @@ class ReceiptDiscount(MagModel, table=True):
     category: int = Field(sa_column=Column(Choice(c.RECEIPT_CATEGORY_OPTS)), default=c.OTHER)
     desc: str = ''
     who: str = ''
-    added: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    added: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(timezone.utc))
 
     discount: int | None = Field(nullable=True, default=None)
     applicable_discount: int = 0
@@ -701,7 +698,7 @@ class ReceiptItem(MagModel, table=True):
     comped: bool = False
     reverted: bool = False
     count: int = 1
-    added: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    added: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(timezone.utc))
     closed: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     who: str = ''
     desc: str = ''
@@ -894,7 +891,7 @@ class ReceiptInfo(MagModel, table=True):
 class TerminalSettlement(MagModel, table=True):
     batch_timestamp: str = ''
     batch_who: str = ''
-    requested: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    requested: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(timezone.utc))
     workstation_num: int = 0
     terminal_id: str = ''
     response: dict[str, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)

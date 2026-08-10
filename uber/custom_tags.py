@@ -14,9 +14,8 @@ import math
 import os
 import re
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from urllib.parse import quote_plus
-from pytz import UTC
 
 import cherrypy
 import jinja2
@@ -35,7 +34,6 @@ from uber.utils import ensure_csrf_token_exists, hour_day_format, localized_now,
 text_type = str
 if sys.version_info[0] == 2:
     text_type = unicode  # noqa: F821
-
 
 def safe_string(text):
     if isinstance(text, Markup):
@@ -118,7 +116,7 @@ def full_date_local(dt):
 
 @JinjaEnv.jinja_export
 def now():
-    return datetime.now(UTC)
+    return datetime.now(timezone.utc)
 
 
 @JinjaEnv.jinja_export
@@ -150,7 +148,6 @@ def timestamp(dt):
 
 @JinjaEnv.jinja_filter
 def timestamp_to_dt(timestamp):
-    from datetime import datetime
     return '' if not timestamp else datetime.fromtimestamp(int(float(timestamp)))
 
 
