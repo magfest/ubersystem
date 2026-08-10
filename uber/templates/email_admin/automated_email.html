@@ -147,9 +147,11 @@
 
     <hr/>
 
+    {% if email.can_generate %}
     <div class="row justify-content-center">
         <div id="email-loading-message" class="alert alert-info text-center mt-3 col-8"></div>
     </div>
+    {% endif %}
 
     {% if email.filter and email.can_generate and email.policy %}
         <p>

@@ -283,7 +283,7 @@ class PanelApplication(MagModel, table=True):
 
         if not self.department:
             dept_name = 'N/A'
-        elif self.department == str(c.PANELS):
+        elif self.department in [str(c.PANELS), c.PANELS]:
             dept_name = 'Panels'
         else:
             with Session() as session:
