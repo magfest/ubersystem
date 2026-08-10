@@ -6,6 +6,7 @@
     ul { margin-top:0px; }
 </style>
 
+<div class="card card-body">
 <h2>Registration</h2>
 <p>
 {% if c.AT_OR_POST_CON %}
@@ -27,12 +28,14 @@ This is calculated by taking the Attendee badge type's stock and subtracting the
 <p>
   This table shows stats related to our badge stocks and all <strong>valid badges that we have promised attendees</strong>,
   i.e., badges that are not pending, invalid, unpaid, or unapproved dealers.
+  <br/>"Reserved" badges are a combination of unclaimed badges in groups and badges represented by comp promo codes. <strong>Count</strong> includes reserved badges.
 </p>
 <table class="table table-hover table-bordered">
   <thead>
     <tr>
       <th>Badge Type</th>
       <th>Stock</th>
+      <th>Reserved</th>
       <th>Count</th>
       <th>Remaining</th>
       <th>Checked In</th>
@@ -44,6 +47,7 @@ This is calculated by taking the Attendee badge type's stock and subtracting the
         <tr>
           <td>{{ c.BADGES[key] }}</td>
           <td>{{ counts.badge_stocks[label] }}</td>
+          <td>{{ counts.reserved_badges[label] }}</td>
           <td>{{ counts.badge_counts[label] }}</td>
           <td>
             {% if counts.badge_stocks[label]|int != 0 %}
@@ -132,5 +136,5 @@ This is calculated by taking the Attendee badge type's stock and subtracting the
 Of the "paid by group" badges,
 <br/> {{ counts.groups.paid }} were from groups that actually gave us money, and
 <br/>{{ counts.groups.free }} were from groups that we didn't charge.
-
+</div>
 {% endblock %}

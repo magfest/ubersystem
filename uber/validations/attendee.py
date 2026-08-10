@@ -1,4 +1,4 @@
-import cherrypy
+import logging
 from functools import wraps
 from datetime import date, datetime, timedelta
 
@@ -18,6 +18,8 @@ from uber.models import Attendee, Session, PromoCodeGroup, BadgeInfo
 from uber.utils import get_age_conf_from_birthday, normalize_email_legacy
 from uber.forms.attendee import *
 from uber.validations import address_required_validators, valid_zip_code, placeholder_unassigned_fields, which_required_region
+
+log = logging.getLogger(__name__)
 
 
 def ignore_unassigned_and_placeholders(func):
@@ -264,7 +266,7 @@ def out_of_badge_type(form, field):
 # =============================
 @PreregOtherInfo.new_or_changed('promo_code_code')
 def promo_code_valid(form, field):
-    if field.data:
+    if field.data and field.data != form.model.promo_code_code:
         with Session() as session:
             code = session.lookup_promo_code(field.data)
             if not code:

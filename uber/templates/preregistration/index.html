@@ -80,6 +80,9 @@
                   {% for discount_str in promo_code_discounts[attendee.id] %}
                   <li>{{ discount_str }} with promo code "{{ attendee.promo_code.code }}"</li>
                   {% endfor %}
+                  {% for warning_str in promo_code_warnings[attendee.id] %}
+                  <li class="text-danger">WARNING: {{ warning_str }}!</li>
+                  {% endfor %}
                 {% endif %}
               {% endif %}
             </ul>

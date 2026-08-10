@@ -214,6 +214,7 @@ class Root:
             cart = PreregCart(list(PreregCart.unpaid_preregs.values()))
             cart.set_total_cost()
             promo_code_discounts = defaultdict(list)
+            promo_code_warnings = defaultdict(list)
             age_discounts = {}
             for attendee in cart.attendees:
                 if attendee.promo_code:
@@ -229,6 +230,8 @@ class Root:
                 for discount in promo_code_discount_objs:
                     if discount.discount_str:
                         promo_code_discounts[attendee.id].append(discount.discount_str)
+                    if discount.unused_warning(attendee):
+                        promo_code_warnings[attendee.id].append(discount.unused_warning(attendee))
 
             return {
                 'logged_in_account': session.current_attendee_account(),
@@ -236,6 +239,7 @@ class Root:
                 'message': message,
                 'cart': cart,
                 'promo_code_discounts': promo_code_discounts,
+                'promo_code_warnings': promo_code_warnings,
                 'age_discounts': age_discounts,
                 'account_email': account_email or cart.attendees[0].email,
                 'account_password': account_password,

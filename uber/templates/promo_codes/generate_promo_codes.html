@@ -325,9 +325,10 @@ $(document).ready(function() {
           </div>
         </fieldset>
         <div class="form-text">
-          This promo code's discount will apply separately to each of the categories selected above.
-          {% if c.BADGE_TYPE_PRICES %}Discounts on badge upgrades only cover the difference between the upgraded badge cost and the {{ c.BADGES[c.ATTENDEE_BADGE] }} badge cost.<br/>{% endif %}
-          "{{ c.DISCOUNT_ONS[c.EVERYTHING] }}" will apply to the total cost of a badge, including upgrades and add-ons.
+          This promo code's discount will apply separately to each of the categories selected above. Discounts for more expensive
+          {% if c.DONATION_TIERS|length > 1 %}merch packs{% if c.BADGE_TYPE_PRICES %} and {% endif %}{% endif %}{% if c.BADGE_TYPE_PRICES %}badge upgrades{% endif %} will also apply to lower tiers, but will only reserve the selected category.
+          {% if c.BADGE_TYPE_PRICES %}<br/>Discounts on badge upgrades only cover the difference between the upgraded badge cost and the {{ c.BADGES[c.ATTENDEE_BADGE] }} badge cost.<br/>{% endif %}
+          "{{ c.DISCOUNT_ONS[c.EVERYTHING] }}" will apply to the total cost of a badge, including upgrades and add-ons, but will not apply to group member badges and will not reserve upgrades or merch.
         </div>
       </div>
     </div>

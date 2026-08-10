@@ -612,6 +612,7 @@ class ReceiptDiscount(MagModel, table=True):
             else:
                 discount_label = f"{attendee.badge_type_label} badge"
         elif self.discount_on == c.GROUP_MEMBERS:
+            # TODO: Promo codes should apply to each badge individually
             if getattr(attendee, 'badges', None):
                 # During prereg we set the number of promo code badges on the attendee model
                 base_cost = c.get_group_price() * int(attendee.badges)
@@ -622,12 +623,12 @@ class ReceiptDiscount(MagModel, table=True):
                     base_cost += code.cost
                     num_codes += 1
                 discount_label = f"group badge (x{num_codes})"
-        elif self.discount_on in ([c.BADGE_UPGRADE] + list(c.BADGE_TYPE_PRICES)) and attendee.badge_type in c.BADGE_TYPE_PRICES:
+        elif self.discount_on in list(c.BADGE_TYPE_PRICES) and attendee.badge_type in c.BADGE_TYPE_PRICES:
             base_cost = c.BADGE_TYPE_PRICES[attendee.badge_type] - attendee.new_badge_cost
             discount_label = f"{attendee.badge_type_label} badge upgrade"
             if self.discount_on in c.BADGE_TYPE_PRICES:
                 real_base_cost = c.BADGE_TYPE_PRICES[self.discount_on] - attendee.new_badge_cost
-        elif self.discount_on in [c.MERCH] + list(c.DONATION_TIERS):
+        elif self.discount_on in list(c.DONATION_TIERS):
             base_cost = attendee.amount_extra
             discount_label = f"{c.DONATION_TIERS[attendee.amount_extra]} merch"
             if self.discount_on in c.DONATION_TIERS:
@@ -661,13 +662,14 @@ class ReceiptDiscount(MagModel, table=True):
                 return (self.discount, discount_str, c.ITEM_COMP)
         elif self.discount_type == c.FIXED_PRICE:
             if base_cost > self.discount:
-                return (abs(self.discount - base_cost), f"{discount_label} for ${self.discount} (${self.applicable_discount} off)", None)
+                discount = abs(self.discount - base_cost)
+                return (discount, f"{discount_label} for ${self.discount} (${discount} off)", None)
             else:
                 return (0, '', None)
         elif self.discount_type == c.PERCENT_DISCOUNT:
             discount = int(base_cost * (self.discount / 100.0))
             if discount:
-                return (discount, f"{int(self.discount)}% off {discount_label} price (${self.applicable_discount})", None)
+                return (discount, f"{int(self.discount)}% off {discount_label} price (${discount})", None)
             else:
                 return (0, '', None)
     
@@ -676,12 +678,12 @@ class ReceiptDiscount(MagModel, table=True):
         return 0, ''
 
     def get_upgrade_discount(self, update_col, preview_attendee):
-        if update_col == 'badge_type' and self.discount_on in ([c.BADGE_UPGRADE] + list(c.BADGE_TYPE_PRICES)) and preview_attendee.badge_type in c.BADGE_TYPE_PRICES:
+        if update_col == 'badge_type' and self.discount_on in list(c.BADGE_TYPE_PRICES) and preview_attendee.badge_type in c.BADGE_TYPE_PRICES:
             base_cost = c.BADGE_TYPE_PRICES[preview_attendee.badge_type] - preview_attendee.new_badge_cost
             discount_label = f"{preview_attendee.badge_type_label} badge upgrade"
             if self.discount_on in c.BADGE_TYPE_PRICES:
                 real_base_cost = c.BADGE_TYPE_PRICES[self.discount_on] - preview_attendee.new_badge_cost
-        elif update_col == 'amount_extra' and self.discount_on in [c.MERCH] + list(c.DONATION_TIERS):
+        elif update_col == 'amount_extra' and self.discount_on in list(c.DONATION_TIERS):
             base_cost = preview_attendee.amount_extra
             discount_label = f"{c.DONATION_TIERS[preview_attendee.amount_extra]} merch"
             if self.discount_on in c.DONATION_TIERS:
@@ -697,15 +699,24 @@ class ReceiptDiscount(MagModel, table=True):
     @property
     def amount(self):
         return self.applicable_discount * 100 * -1
-    
-    @property
-    def discount_warning(self, attendee):
-        if self.discount_on in ([c.BADGE_UPGRADE] + list(c.BADGE_TYPE_PRICES)):
+
+    def unused_warning(self, attendee):
+        discount_str = self.discount_on_label.replace("Upgrade", "upgrade").replace("Merch", "merch")
+        if not self.discount:
+            discount_str = f"FREE {discount_str}"
+        else:
+            discount_str = f"{discount_str} discount"
+
+        if self.discount_on in c.BADGE_TYPE_PRICES:
             if attendee.badge_type not in c.BADGE_TYPE_PRICES:
-                return "No upgrade selected!"
-        elif self.discount_on in [c.MERCH] + list(c.DONATION_TIERS):
+                return f"Unused {discount_str}"
+            elif not self.discount and c.BADGE_TYPE_PRICES[attendee.badge_type] < c.BADGE_TYPE_PRICES[self.discount_on]:
+                return f"{discount_str} not selected"
+        elif self.discount_on in c.DONATION_TIERS:
             if not attendee.amount_extra:
-                return "No merch selected!"
+                return f"Unused {discount_str}"
+            elif not self.discount and attendee.amount_extra < self.discount_on:
+                return f"{discount_str} not selected"
 
 
 class ReceiptItem(MagModel, table=True):
