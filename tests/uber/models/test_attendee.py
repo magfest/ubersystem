@@ -566,7 +566,8 @@ class TestStaffingAdjustments:
                 attendee_id=a.id,
                 department=dept,
                 department_id=dept.id,
-                is_dept_head=True),
+                is_dept_head=True)
+        ]
         a.assigned_depts = [dept]
         a.dept_memberships_with_role = dept_memberships
         a._staffing_adjustments()

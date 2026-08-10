@@ -9,7 +9,6 @@ import pycountry
 import pytz
 import re
 import redis
-import six
 import yaml
 import json
 import uuid
@@ -43,7 +42,7 @@ def reset_threadlocal():
 cherrypy.tools.reset_threadlocal = cherrypy.Tool('before_handler', reset_threadlocal, priority=51)
 cherrypy.config.update({"tools.reset_threadlocal.on": True})
 
-class threadlocal(object):
+class threadlocal:
     """
     This class exposes a dict-like interface on top of the threading.local
     utility class; the "get", "set", "setdefault", and "clear" methods work the
@@ -226,7 +225,7 @@ class _Overridable:
 
     def make_integer_enums(self, config_section):
         def is_intstr(s):
-            if not isinstance(s, six.string_types):
+            if not isinstance(s, str):
                 return isinstance(s, int)
             if s and s[0] in ('-', '+'):
                 return str(s[1:]).isdigit()

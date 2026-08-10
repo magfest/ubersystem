@@ -28,7 +28,7 @@ log = logging.getLogger(__name__)
 __all__ = ['AutomatedEmail', 'Email']
 
 
-class BaseEmailMixin(object):
+class BaseEmailMixin:
     model: str = ''
     shared_ident: str = ''
 
@@ -318,7 +318,7 @@ class Email(MagModel, BaseEmailMixin, table=True):
     def is_html(self):
         return self.automated_email.is_html \
             if self.automated_email_id and self.automated_email \
-            else super(Email, self).is_html
+            else super().is_html
     
     @property
     def new_send_after(self):

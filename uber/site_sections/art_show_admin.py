@@ -6,7 +6,6 @@ from copy import deepcopy
 import re
 import math
 import json
-import six
 import logging
 
 from datetime import datetime
@@ -517,7 +516,7 @@ class Root:
     def update_all(self, session, message='', **params):
         if 'id' in params:
             app_list = []
-            if isinstance(params.get('id'), six.string_types):
+            if isinstance(params.get('id'), str):
                 params['id'] = [params.get('id')]
 
             for id in params.get('id'):

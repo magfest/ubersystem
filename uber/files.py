@@ -14,7 +14,6 @@ import uber
 import urllib
 import logging
 import warnings
-import six
 import shutil
 
 from abc import ABC, abstractmethod

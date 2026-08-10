@@ -8,7 +8,6 @@ import traceback
 import csv
 import logging
 import random
-import six
 import pypsutil
 import cherrypy
 import threading
