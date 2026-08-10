@@ -26,7 +26,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
-          {% if c.ONLINE_PAYMENT_AVAILABLE %}<button type="submit" id="upgrade-purchase" form="purchase-upgrades" type="button" class="btn btn-success">Purchase<span id="upgrade-preview-total"></span></button>{% endif %}
+          {% if c.ONLINE_PAYMENT_AVAILABLE %}<button type="submit" id="upgrade-purchase" form="purchase-upgrades" type="button" class="btn btn-success"><span id="upgrade-preview-type">Purchase</span><span id="upgrade-preview-total"></span></button>{% endif %}
         </div>
       </div>
     </div>
@@ -35,6 +35,7 @@
 {% if c.ONLINE_PAYMENT_AVAILABLE %}
 <script type="text/javascript">
     var costChangeDict = {};
+    var discountDict = {};
     var lastAmountExtra; // I hate JavaScript
     var upgradeModal = bootstrap.Modal.getOrCreateInstance($('#upgradeModal'))
     
@@ -60,6 +61,7 @@
             val = [val];
         }
         var existing_row = $('td#' + row_id + ' > span');
+        var discount_row = $('td#' + row_id + '-discount > span');
 
         var data = [
             {name: 'csrf_token', value: csrf_token},
@@ -81,28 +83,52 @@
           if (result.error) {
             showErrorMessage(result.error, 'upgrade-message-alert');
           } else {
-            change_str = result.change > 0 ? "$" + result.change / 100 : "-$" + result.change * -1 / 100;
-            costChangeDict[colName] = result.change;
-            if (result.change == 0) {
+            costStr = result.cost > 0 ? "$" + result.cost / 100 : "-$" + result.cost * -1 / 100;
+            costChangeDict[colName] = result.cost;
+            if (result.cost == 0) {
                 if (existing_row.length) {
                     existing_row.parents('tr').remove();
                 }
             } else if (existing_row.length) {
-                existing_row.text(result.desc + ": " + change_str);
+                existing_row.text(result.desc + ": " + costStr);
             } else {
                 new_row = "<tr><td id='" + row_id + "'>" +
-                    "<span class='pull-right'>" + result.desc + ": " + change_str +
+                    "<span class='pull-right'>" + result.desc + ": " + costStr +
                     "</span></td></tr>";
                 $('#upgrade-preview > tbody:last-child').append(new_row);
             }
 
-            var upgradePreviewTotal = 0;
-            for (var col in costChangeDict) {
-                upgradePreviewTotal += costChangeDict[col];
+            [discountDesc, discountAmt] = result.discount;
+            discountDict[colName] = discountAmt;
+            if (discountAmt == 0) {
+                if (discount_row.length) {
+                    discount_row.parents('tr').remove();
+                }
+            } else if (discount_row.length) {
+                discount_row.text(discountDesc + ": -$" + discountAmt);
+            } else {
+                new_discount_row = "<tr><td id='" + row_id + "-discount'>" +
+                    "<span class='pull-right'>" + discountDesc + ": -$" + discountAmt +
+                    "</span></td></tr>";
+                $('#upgrade-preview > tbody:last-child').append(new_discount_row);
             }
-            if (upgradePreviewTotal > 0) {
+
+            var upgradePreviewTotal = 0;
+            var costTotal = 0;
+            for (var col in costChangeDict) {
+                costTotal += costChangeDict[col];
+                upgradePreviewTotal += costChangeDict[col];
+                upgradePreviewTotal -= (discountDict[col] * 100);
+            }
+            if (costTotal > 0) {
                 $('#upgrade-purchase').prop('disabled', false);
-                $('#upgrade-preview-total').text(' for $' + upgradePreviewTotal / 100);
+                if (upgradePreviewTotal > 0) {
+                    $('#upgrade-preview-type').text("Purchase");
+                    $('#upgrade-preview-total').text(' for $' + upgradePreviewTotal / 100);
+                } else {
+                    $('#upgrade-preview-total').text();
+                    $('#upgrade-preview-type').text("Redeem Free Upgrade");
+                }
             } else {
                 $('#upgrade-purchase').prop('disabled', true);
                 $('#upgrade-preview-total').text('');
@@ -125,7 +151,13 @@
                 window.scrollTo(0,0);
             } else if (result.success) {
                 upgradeModal.hide();
-                callStripeAction(autoTrigger=true);
+                if (result.free_upgrade) {
+                    $("#message-alert").addClass("alert-info").show().children('span').html("Upgrade complete!");
+                    window.scrollTo(0,0);
+                    window.setTimeout(function(){ window.location.reload(); }, 2500);
+                } else {
+                    callStripeAction(autoTrigger=true);
+                }
             }
         });
         });

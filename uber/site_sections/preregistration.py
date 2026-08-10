@@ -2329,12 +2329,19 @@ class Root:
                 new_val = preview_attendee.coerce_column_data(column, new_val)
             setattr(preview_attendee, col_name, new_val)
         
-        changes_list = ReceiptManager.process_receipt_change(attendee, update_col,
+        cost_list = ReceiptManager.process_receipt_change(attendee, update_col,
                                                              who='non-admin',
                                                              new_model=preview_attendee)
-        only_change = changes_list[0] if changes_list else ("", 0, 0)
-        desc, change, count = only_change
-        return {'desc': desc, 'change': change}  # We don't need the count for this preview
+        only_change = cost_list[0] if cost_list else ("", 0, 0)
+        desc, cost, _ = only_change
+        applicable_discount = ('', 0)
+        if cost and attendee.active_receipt:
+            for discount in attendee.active_receipt.receipt_discounts:
+                curr_discount = discount.applicable_discount
+                discount, discount_desc, _ = discount.get_upgrade_discount(update_col, preview_attendee)
+                if discount > curr_discount:
+                    applicable_discount = (discount_desc, discount)
+        return {'desc': desc, 'cost': cost, 'discount': applicable_discount}
 
     @requires_account(Attendee)
     @ajax
@@ -2372,7 +2379,9 @@ class Root:
         session.add_all(receipt_items)
         session.commit()
 
-        return {'success': True}
+        session.refresh_receipt_and_model(attendee)
+
+        return {'success': True, 'free_upgrade': not receipt.current_amount_owed}
 
     @ajax
     @credit_card
