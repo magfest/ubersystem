@@ -2344,7 +2344,7 @@ class Root:
                 curr_discount = discount.applicable_discount
                 discount, discount_desc, _ = discount.get_upgrade_discount(update_col, preview_attendee)
                 if discount > curr_discount:
-                    applicable_discount = (discount_desc, discount)
+                    applicable_discount = (discount_desc, discount - curr_discount)
         return {'desc': desc, 'cost': cost, 'discount': applicable_discount}
 
     @requires_account(Attendee)
