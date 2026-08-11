@@ -19,7 +19,7 @@ phonenumbers==9.0.9
 Pillow==11.3.0
 psutil
 pypsutil==0.2.0
-psycopg2-binary==2.9.10
+psycopg[binary]>=3.2.0
 pycountry==24.6.1
 python-barcode[images]==0.15.1
 python-dateutil==2.9.0.post0
