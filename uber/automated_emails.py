@@ -1132,6 +1132,12 @@ if c.HOTEL_LOTTERY_STAFF_START or c.HOTEL_LOTTERY_FORM_START:
     )
 
     HotelLotteryEmailFixture(
+        f'{c.EVENT_NAME_AND_YEAR} ' + '{app.entry_type_label} Lottery Updated',
+        'hotel/hotel_lottery_entry.html', None,
+        'hotel_lottery_updated'
+    )
+
+    HotelLotteryEmailFixture(
         f'{c.EVENT_NAME_AND_YEAR} Room Lottery Updated',
         'hotel/group_entry_updated.html', None,
         'group_lottery_updated'

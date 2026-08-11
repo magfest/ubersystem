@@ -342,8 +342,7 @@ class Root:
                     application.status = c.COMPLETE
                 application.last_submitted = datetime.now()
 
-                EmailService.queue_email(session, 'hotel_lottery_confirmation', application,
-                                         subject=f'{c.EVENT_NAME_AND_YEAR} Room Lottery Updated',
+                EmailService.queue_email(session, 'hotel_lottery_updated', application,
                                          data={'action_str': "updating your room lottery entry"},
                                          replace_unsent=True)
 
@@ -398,8 +397,7 @@ class Root:
                     application.status = c.COMPLETE
                 application.last_submitted = datetime.now()
 
-                EmailService.queue_email(session, 'hotel_lottery_confirmation', application,
-                                         subject=f'{c.EVENT_NAME_AND_YEAR} Suite Lottery Updated',
+                EmailService.queue_email(session, 'hotel_lottery_updated', application,
                                          data={'action_str': "updating your suite lottery entry"},
                                          replace_unsent=True)
 
@@ -432,8 +430,8 @@ class Root:
         else:
             application = session.lottery_application(params.get('id'))
             attendee = application.attendee
-        
-        if application.locked:
+
+        if not application.is_new and application.locked:
             return {"error": "You cannot edit your lottery entry at this time."}
 
         if not form_list:
