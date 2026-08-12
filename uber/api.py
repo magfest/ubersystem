@@ -944,7 +944,7 @@ class AttendeeAccountLookup:
 
             accounts = []
             for a in all_accounts:
-                d = a.to_dict(['id', 'email', 'hashed', 'unused_years'])
+                d = a.to_dict(['id', 'email', 'hashed', 'sso_id', 'unused_years'])
 
                 attendees = {}
                 for attendee in a.attendees:
