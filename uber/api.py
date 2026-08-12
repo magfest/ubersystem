@@ -805,6 +805,7 @@ class AttendeeLookup:
             if message:
                 session.rollback()
                 raise HTTPError(400, message)
+            session.commit()
 
             return attendee.id
 
@@ -842,6 +843,7 @@ class AttendeeLookup:
             if message:
                 session.rollback()
                 raise HTTPError(400, message)
+            session.commit()
 
             # Staff (not volunteers) also almost never need to pay by default
             if attendee.staffing and not attendee.orig_value_of('staffing') \
