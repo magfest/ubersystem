@@ -191,7 +191,7 @@ def _prepare_attendees_export(attendees, include_account_ids=False, include_apps
         'website',
         'special_needs',
         'admin_notes',
-    ]
+    ] + ArtShowApplication.import_fields
 
     marketplace_import_fields = [
         'name',
@@ -202,9 +202,9 @@ def _prepare_attendees_export(attendees, include_account_ids=False, include_apps
         'seating_requests',
         'accessibility_requests',
         'admin_notes',
-    ]
+    ] + ArtistMarketplaceApplication.import_fields
 
-    fields = AttendeeLookup.attendee_import_fields + Attendee.import_fields
+    fields = AttendeeLookup.attendee_import_fields
 
     if include_depts or include_apps:
         fields.extend(['shirt'])
@@ -510,7 +510,7 @@ class MivsLookup:
             judges = session.query(IndieJudge).filter(not_(IndieJudge.status.in_([c.CANCELLED, c.DISQUALIFIED])))
 
             for judge in judges:
-                fields = AttendeeLookup.attendee_import_fields + Attendee.import_fields
+                fields = AttendeeLookup.attendee_import_fields
                 judges_list.append((judge.to_dict(), judge.attendee.to_dict(fields)))
 
             return judges_list
@@ -607,7 +607,7 @@ class AttendeeLookup:
         'all_years',
         'badge_status',
         'badge_status_label',
-    ]
+    ] + Attendee.import_fields
 
     group_attendee_import_fields = [
         'placeholder',
@@ -752,7 +752,7 @@ class AttendeeLookup:
                 a for a in (id_attendees + email_attendees + name_attendees + name_and_email_attendees)
                 if a.id not in seen and not seen.add(a.id)]
 
-            fields = AttendeeLookup.attendee_import_fields + Attendee.import_fields
+            fields = AttendeeLookup.attendee_import_fields
             if full:
                 fields.extend(['shirt'])
 
@@ -942,7 +942,7 @@ class AttendeeAccountLookup:
 
             accounts = []
             for a in all_accounts:
-                d = a.to_dict(['id', 'email', 'hashed'])
+                d = a.to_dict(['id', 'email', 'hashed', 'unused_years'])
 
                 attendees = {}
                 for attendee in a.attendees:
@@ -1173,28 +1173,13 @@ class GroupLookup:
         'can_add': True,
     }
 
-    dealer_fields = dict(fields, **{
-        'tables': True,
-        'wares': True,
-        'description': True,
-        'zip_code': True,
-        'address1': True,
-        'address2': True,
-        'city': True,
-        'region': True,
-        'country': True,
-        'website': True,
-        'special_needs': True,
-        'categories': True,
-        'categories_text': True,
-    })
-
     group_import_fields = [
         'name',
         'admin_notes',
         'badges',
         'can_add',
-    ]
+        'is_dealer',
+    ] + Group.import_fields
 
     dealer_import_fields = [
         'tables',
@@ -1228,8 +1213,7 @@ class GroupLookup:
             groups = []
 
             for g in query.all():
-                d = g.to_dict(['id'] + GroupLookup.group_import_fields + Group.import_fields
-                              + GroupLookup.dealer_import_fields)
+                d = g.to_dict(['id'] + GroupLookup.group_import_fields + GroupLookup.dealer_import_fields)
 
                 attendees = {}
                 for attendee in g.attendees:
@@ -1318,7 +1302,7 @@ class GroupLookup:
                 a for a in (id_groups + name_groups)
                 if a.id not in seen and not seen.add(a.id)]
 
-            fields = GroupLookup.group_import_fields + Group.import_fields
+            fields = GroupLookup.group_import_fields
 
             groups = []
             for g in all_groups:
