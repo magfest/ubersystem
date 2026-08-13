@@ -623,10 +623,9 @@ def import_attendee_accounts(admin_id, admin_name, target_server, api_token, mod
                     log.error(f"Error when trying to get accounts in import_attendee_accounts: {service_message}")
                     return
                 account_count = model_count
-                start = 1
                 page_size = 5000
                 total_pages = math.ceil(model_count / page_size)
-                for page in range(start, total_pages+1):
+                for page in range(total_pages):
                     results = service.attendee_account.export(query='', all=True, page=page, page_size=page_size)
                     if results.get('accounts', []):
                         process_accounts(results['accounts'])
