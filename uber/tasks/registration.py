@@ -6,6 +6,7 @@ import stripe
 import time
 import logging
 import pytz
+import math
 from celery.schedules import crontab
 from sqlalchemy import not_, or_, insert
 from sqlalchemy.orm import joinedload, raiseload, subqueryload
@@ -571,44 +572,69 @@ def sunset_empty_accounts():
 
 
 @celery.task
-def import_attendee_accounts(accounts, admin_id, admin_name, target_server, api_token):
+def import_attendee_accounts(admin_id, admin_name, target_server, api_token, models=[], model_count=0):
+    from uber.utils import get_api_service_from_server
+
     already_queued = 0
+
     with Session() as session:
-        accounts_by_email = groupify(accounts, lambda a: normalize_email(a['email']))
+        def process_accounts(accounts):
+            accounts_by_email = groupify(accounts, lambda a: normalize_email(a['email']))
 
-        existing_accounts = session.query(AttendeeAccount).filter(
-            AttendeeAccount.email.in_(accounts_by_email.keys())) \
-            .options(subqueryload(AttendeeAccount.attendees)).all()
-        for account in existing_accounts:
-            existing_key = account.email
-            accounts_by_email.pop(existing_key, {})
-        accounts = list(chain(*accounts_by_email.values()))
+            existing_accounts = session.query(AttendeeAccount).filter(
+                AttendeeAccount.email.in_(accounts_by_email.keys())) \
+                .options(subqueryload(AttendeeAccount.attendees)).all()
+            for account in existing_accounts:
+                existing_key = account.email
+                accounts_by_email.pop(existing_key, {})
+            accounts = list(chain(*accounts_by_email.values()))
 
-        for account in accounts:
-            id = account['id']
-            existing_import = session.query(ApiJob).filter(ApiJob.job_name == "attendee_account_import",
-                                                           ApiJob.query == id,
-                                                           ApiJob.completed == None,  # noqa: E711
-                                                           ApiJob.cancelled == None,  # noqa: E711
-                                                           ApiJob.errors == '').count()
-            if existing_import:
-                already_queued += 1
-            else:
-                import_job = ApiJob(
-                    admin_id=admin_id,
-                    admin_name=admin_name,
-                    job_name="attendee_account_import",
-                    target_server=target_server,
-                    api_token=api_token,
-                    query=id,
-                    json_data={'all': False}
-            )
-                if len(accounts) < 25:
-                    TaskUtils.attendee_account_import(import_job)
+            for account in accounts:
+                id = account['id']
+                existing_import = session.query(ApiJob).filter(ApiJob.job_name == "attendee_account_import",
+                                                               ApiJob.query == id,
+                                                               ApiJob.completed == None,  # noqa: E711
+                                                               ApiJob.cancelled == None,  # noqa: E711
+                                                               ApiJob.errors == '').count()
+                if existing_import:
+                    already_queued += 1
                 else:
-                    session.add(import_job)
-        session.commit()
-    count = len(accounts) - already_queued
+                    import_job = ApiJob(
+                        admin_id=admin_id,
+                        admin_name=admin_name,
+                        job_name="attendee_account_import",
+                        target_server=target_server,
+                        api_token=api_token,
+                        query=id,
+                        json_data={'all': False}
+                )
+                    if len(accounts) < 25:
+                        TaskUtils.attendee_account_import(import_job)
+                    else:
+                        session.add(import_job)
+            session.commit()
+
+            if models:
+                process_accounts(models)
+                account_count = len(models)
+            elif model_count:
+                service, service_message, _ = get_api_service_from_server(target_server, api_token)
+                if not service:
+                    log.error(f"Error when trying to get accounts in import_attendee_accounts: {service_message}")
+                    return
+                account_count = model_count
+                start = 1
+                page_size = 5000
+                total_pages = math.ceil(model_count / page_size)
+                for page in range(start, total_pages+1):
+                    results = service.attendee_account.export(query='', all=True, page=page, page_size=page_size)
+                    if results.get('accounts', []):
+                        process_accounts(results['accounts'])
+            else:
+                log.error("import_attendee_accounts was called with no models to import")
+                return
+
+    count = account_count - already_queued
     return f"{count} account(s) queued for import. {already_queued} jobs were already in the queue."
     
 

@@ -897,7 +897,7 @@ class AttendeeAccountLookup:
                 'attendees': attendees,
             }
 
-    def export(self, query, all=False, page=1, page_size=1000):
+    def export(self, query, all=False, page=0, page_size=None):
         """
         Searches for attendee accounts by either email or id.
 
