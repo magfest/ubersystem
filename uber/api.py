@@ -919,9 +919,9 @@ class AttendeeAccountLookup:
             if all:
                 all_accounts = session.query(AttendeeAccount)
                 if page_size:
-                    all_accounts.limit(page_size)
+                    all_accounts = all_accounts.limit(page_size)
                 if page:
-                    all_accounts.offset(page*page_size)
+                    all_accounts = all_accounts.offset(page*page_size)
                 all_accounts = all_accounts.options(subqueryload(
                     AttendeeAccount.attendees)
                     ).order_by(AttendeeAccount.email,
