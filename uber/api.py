@@ -1262,7 +1262,7 @@ class GroupLookup:
 
             return {
                 'attendees': attendees,
-                'group_leader_id': group.leader.id,
+                'group_leader_id': group.leader.id if group.leader else '',
                 'unassigned_badge_type': unassigned_badge_type,
                 'unassigned_ribbon': unassigned_ribbon,
             }
