@@ -917,15 +917,15 @@ class AttendeeAccountLookup:
 
         with Session() as session:
             if all:
-                all_accounts = session.query(AttendeeAccount)
+                all_accounts = session.query(AttendeeAccount).order_by(AttendeeAccount.email,
+                               AttendeeAccount.id)
                 if page_size:
                     all_accounts = all_accounts.limit(page_size)
                 if page:
                     all_accounts = all_accounts.offset(page*page_size)
                 all_accounts = all_accounts.options(subqueryload(
                     AttendeeAccount.attendees)
-                    ).order_by(AttendeeAccount.email,
-                               AttendeeAccount.id).all()
+                    ).all()
             else:
                 email_accounts = []
                 if emails:
