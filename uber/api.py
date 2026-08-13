@@ -23,7 +23,7 @@ from uber.barcode import get_badge_num_from_barcode
 from uber.config import c
 from uber.errors import CSRFException
 from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, Attraction, AttractionFeature, AttractionEvent,
-                         BadgeInfo, Department, DeptMembership,
+                         ArtShowApplication, ArtistMarketplaceApplication, BadgeInfo, Department, DeptMembership,
                          DeptRole, Event, IndieJudge, IndieStudio, Job, Session, Shift, Group,
                          GuestGroup, Room, HotelRequests, RoomAssignment)
 from uber.models.badge_printing import PrintJob
