@@ -222,6 +222,8 @@ def upgrade_sold_out(form, field):
 
 @BadgeExtras.field_validation('badge_type_single')
 def must_select_day(form, field):
+    return
+
     if form.is_admin or (form.model.attendance_type == form.attendance_type.data and not form.model.is_new):
         return
 
