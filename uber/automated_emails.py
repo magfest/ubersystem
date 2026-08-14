@@ -802,7 +802,6 @@ AutomatedEmailFixture(
     'Check in faster at {EVENT_NAME}',
     'reg_workflow/attendee_qrcode.html',
     lambda a: not a.cannot_check_in_reason and c.USE_CHECKIN_BARCODE,
-    when=days_before(7, c.EPOCH),
     allow_at_the_con=True,
     ident='qrcode_for_checkin')
 
