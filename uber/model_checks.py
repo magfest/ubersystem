@@ -798,6 +798,9 @@ def attendee_badge_under_13(attendee):
             or attendee.unassigned_group_reg or attendee.valid_placeholder:
         return
 
+    # TODO: Making this work for MAGWest where child badges are not broken out this way
+    return
+
     if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and attendee.birthdate and attendee.badge_type == c.ATTENDEE_BADGE and (
             get_age_from_birthday(attendee.birthdate, c.NOW_OR_AT_CON) < 13):
         return ('badge_type', "If you will be 12 or younger at the start of {}, "
