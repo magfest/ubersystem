@@ -75,7 +75,7 @@
 {% for key, val in kwargs.items() %}
   {% if key.startswith('alpine_') %}
   {% set _ = custom_kwargs.update({'x-' ~ key[7:]: val}) %}
-  {% else %}
+  {% elif val or key != 'readonly' %}
   {% set _ = custom_kwargs.update({key: val}) %}
   {% endif %}
 {% endfor %}
