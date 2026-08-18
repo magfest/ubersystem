@@ -1070,6 +1070,20 @@ class Root:
         else:
             session.delete(account)
         raise HTTPRedirect('attendee_accounts?message={}', message or 'Account deleted.')
+    
+    def set_owner(self, session, id, account_id, message='', **params):
+        account = session.get(AttendeeAccount, account_id)
+        if not account:
+            message = "Account not found."
+
+        attendee = session.get(Attendee, id)
+        if not attendee:
+            message = "Could not find this attendee."
+        
+        if not message:
+            account.set_account_owner(attendee)
+
+        raise HTTPRedirect('attendee_account_form?id={}&message={}', account_id, message or 'Account owner set.')
 
     @site_mappable
     def orphaned_attendees(self, session, message='', **params):

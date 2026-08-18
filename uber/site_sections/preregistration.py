@@ -861,6 +861,12 @@ class Root:
 
             for group in cart.groups:
                 session.add(group)
+            
+            session.commit()
+
+            if c.ATTENDEE_ACCOUNTS_ENABLED:
+                account.set_account_owner()
+                session.commit()
 
             PreregCart.unpaid_preregs.clear()
             PreregCart.paid_preregs.extend(cart.targets)
@@ -1987,6 +1993,11 @@ class Root:
             messages.append(f"Could not cancel registration{'s' if len(failed_attendees) > 1 else ''} for \
                             {readable_join([a.full_name for a in failed_attendees])}. \
                             Please contact {email_only(c.REGDESK_EMAIL)} for assistance.")
+        
+        session.commit()
+        if c.ATTENDEE_ACCOUNTS_ENABLED and attendee.managers:
+            attendee.managers[0].set_account_owner()
+            session.commit()
 
         raise HTTPRedirect("homepage?&message={}", ' '.join(messages))
 
@@ -2045,6 +2056,11 @@ class Root:
         attendee.badge_status = c.REFUNDED_STATUS
         for shift in attendee.shifts:
             session.delete(shift)
+
+        if c.ATTENDEE_ACCOUNTS_ENABLED and attendee.managers:
+            attendee.managers[0].set_account_owner()
+            session.commit()
+
         raise HTTPRedirect('{}?message={}', page_redirect, success_message)
 
     @requires_account(Attendee)

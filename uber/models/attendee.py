@@ -2656,7 +2656,7 @@ class AttendeeAccount(MagModel, table=True):
     def backup_owner(self):
         # Used if the owner set on this account is an invalid badge
         if not self.valid_attendees:
-            return
+            return self.owner
         
         valid_badges = self.valid_adults or self.valid_attendees
 
@@ -2681,7 +2681,7 @@ class AttendeeAccount(MagModel, table=True):
         )]
 
     def set_account_owner(self, attendee=None):
-        if not attendee and self.owner:
+        if not attendee and self.owner and self.owner.is_valid:
             return
         
         attendee = attendee or self.backup_owner
@@ -2694,6 +2694,9 @@ class AttendeeAccount(MagModel, table=True):
 
             if not attendee:
                 attendee = adult_pending[0] if adult_pending else self.pending_attendees[0]
+            
+            if not attendee:
+                return
         
         self.owner = attendee
 
