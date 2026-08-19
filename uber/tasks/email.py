@@ -103,13 +103,18 @@ def check_emails_for_fixture(id):
             c.REDIS_STORE.hset(c.REDIS_PREFIX + 'email_generation:' + id, 'emails_generated', email_count)
 
 
-@celery.schedule(timedelta(minutes=30))
+@celery.schedule(timedelta(minutes=60))
 def generate_missing_emails():
     with Session() as session:
         fixture_objs = session.query(AutomatedEmail)
         for fixture_obj in fixture_objs:
-            if fixture_obj.fixture and fixture_obj.can_generate:
+            id = fixture_obj.id
+            email_check_status = c.REDIS_STORE.hgetall(c.REDIS_PREFIX + 'email_generation:' + id)
+            if not email_check_status and fixture_obj.fixture and fixture_obj.can_generate:
+                c.REDIS_STORE.hset(c.REDIS_PREFIX + 'email_generation:' + id, 'request_timestamp',
+                                   datetime.now().timestamp())
                 EmailService.check_emails_for_fixture(session, fixture_obj)
+                c.REDIS_STORE.delete(c.REDIS_PREFIX + 'email_generation:' + id)
 
 
 @celery.schedule(timedelta(minutes=5))
