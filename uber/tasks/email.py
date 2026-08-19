@@ -75,7 +75,7 @@ def notify_admins_of_pending_emails():
         return utils.groupify(pending_emails, 'sender', 'ident')
     
 
-@celery.task
+@celery.schedule(timedelta(minutes=30))
 def check_emails_for_fixture(id):
     email_check_status = c.REDIS_STORE.hgetall(c.REDIS_PREFIX + 'email_generation:' + id)
     if email_check_status:

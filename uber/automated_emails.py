@@ -1832,7 +1832,7 @@ if c.PANELS_START:
     PanelAppEmailFixture(
         f'Your {c.EVENT_NAME} Panel Application Has Been Received: ' + '{app.name}',
         'panels/application.html',
-        "lambda a: True",
+        "lambda app: int(app.department) in c.EMAILLESS_PANEL_DEPTS",
         'panel_received',
         shared_ident='panelapps_received')
 

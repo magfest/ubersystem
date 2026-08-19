@@ -152,7 +152,7 @@
   <hr/>
   {% for sender, emails in automated_emails.items() %}
   <a id="{{ sender|email_only }}"></a>
-    <h3 class="mb-0 mt-4">{{ sender }}{% if depts_by_sender[sender|email_only] %} ({% for dept in depts_by_sender[sender|email_only] %}{{ dept|form_link(true) }}{% endfor %}){% endif %}</h3>
+    <h3 class="mb-0 mt-4">{{ sender }}{% if depts_by_sender[sender|email_only] %} ({% for dept in depts_by_sender[sender|email_only] %}{% if not loop.first %} / {% endif %}{{ dept|form_link(true) }}{% endfor %}){% endif %}</h3>
     {{ email_table(emails) }}
     {% if not loop.last %}<hr/>{% endif %}
   {% endfor %}

@@ -62,6 +62,7 @@ class Root:
                                                            params.get('department_id', ''), email_depts)
 
         if status:
+            status = listify(status)
             emails = emails.filter(Email.status.in_([int(s) for s in status]))
         
         ident = params.get('ident')
@@ -167,7 +168,8 @@ class Root:
         url = 'pending?'
         params.pop('csrf_token', None)
         for key, val in params.items():
-            url += f'{key}={val}&'
+            if val:
+                url += f'{key}={val}&'
         raise HTTPRedirect(url + 'message={}', "Email deleted.")
     
     @requires_email_admin('dept_head')
