@@ -91,11 +91,11 @@ class AutomatedEmailFixture:
             name, val = filter_tuple
             if val:
                 if callable(val):
-                    setattr(self, name, lambda x: (x.gets_emails and val(x)))
+                    filter_func = val
                 else:
                     setattr(self, name + '_desc', val)
                     filter_func = eval(val)
-                    setattr(self, name, lambda x: (x.gets_emails and filter_func(x)))
+                setattr(self, name, lambda x: (x.gets_emails and filter_func(x)))
             else:
                 setattr(self, name, None)
 

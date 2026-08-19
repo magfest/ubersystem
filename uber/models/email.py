@@ -229,6 +229,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
 
     def reconcile(self, fixture):
         self.model = fixture.model.__name__ if fixture.model else ''
+        self.shared_ident = fixture.shared_ident
         self.subject = fixture.subject
         self.body = fixture.body
         self.format = fixture.format
