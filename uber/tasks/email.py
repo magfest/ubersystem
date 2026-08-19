@@ -123,11 +123,14 @@ def send_automated_emails():
     Send any queued emails while using DB locks to ensure the same email doesn't get processed twice.
     Emails are processed per model.
     """
+    from uber.tasks import panels
+
     if not (c.DEV_BOX or c.SEND_EMAILS):
         return None
 
     quantity_sent = 0
     start_time = time()
+    panels.setup_panel_emails(reconcile_fixtures=False)
 
     try:
         Session.session_factory = sessionmaker(bind=Session.engine, expire_on_commit=False, autoflush=False, autocommit=False,
