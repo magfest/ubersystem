@@ -1,0 +1,19 @@
+{#- Legacy include shim. The room-picker cascade (and escapeHtml) now
+   live in uber/static/js/hotel-room-picker.js; new templates should
+   load it directly with:
+
+       {{ "js/hotel-room-picker.js"|serve_static_content }}
+
+   This shim keeps the historical include contract working - it was
+   always pulled in INSIDE an existing <script> block:
+
+       <script>
+       {% include 'hotel_lottery_admin/_room_picker_js.html' %}
+       </script>
+
+   so it closes that block, emits the static <script src> tag, and
+   reopens an (empty) inline block for the wrapper's closing tag.
+-#}
+</script>
+{{ "js/hotel-room-picker.js"|serve_static_content }}
+<script>

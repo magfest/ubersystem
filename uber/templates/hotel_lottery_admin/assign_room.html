@@ -1,0 +1,75 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% import 'hotel_lottery_admin/_macros.html' as hotel_macros with context %}
+{% block title %}{% if assignment.is_new %}Manual{% else %}Edit{% endif %} Room Assignment{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+
+<h1>{% if assignment.is_new %}Manual Room Assignment{% else %}Edit Room Assignment{% endif %}</h1>
+<p class="text-muted">
+  Assign a room outside the lottery flow. Lottery admins record these as
+  MANUAL; partition owners with edit-assignment permission record them as
+  PARTITION_GRANT scoped to their partition.
+</p>
+
+<form method="post" action="assign_room">
+  {{ csrf_token() }}
+  {% if not assignment.is_new %}<input type="hidden" name="id" value="{{ assignment.id }}" />{% endif %}
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-6">
+      {# Attendee search - mirrors the full admin search via session.search(),
+         same pattern as the partition_admin dashboard picker. Avoids
+         rendering a <select> of every attendee in the system. #}
+      {% set _sel_attendee = assignment.attendee or prefill_attendee %}
+      {% set _selected_name = '' %}
+      {% if _sel_attendee %}
+        {% set _selected_name = _sel_attendee.full_name
+             ~ (' (' ~ _sel_attendee.email ~ ')' if _sel_attendee.email else '') %}
+      {% endif %}
+      {{ hotel_macros.attendee_search_widget(
+            selected_id=assignment.attendee_id or '',
+            selected_name=_selected_name) }}
+    </div>
+  </div>
+
+  {# data-avail (from inventory_avail_map) maps scope -> available count
+     ('' = main pool); the shared picker JS appends "(N available)" per
+     the chosen partition. #}
+  {{ hotel_macros.room_assignment_fields(
+        ra=assignment, partitions=partitions,
+        inventory_rows=inventory_rows,
+        inventory_partitions_map=inventory_partitions_map,
+        inventory_avail_map=inventory_avail_map,
+        label_mode='name',
+        require_cc=(assignment.require_cc or assignment.is_new),
+        layout='grid') }}
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-4">
+      <label class="form-label">Card Deadline <span class="text-muted small">(blank = inherit from run)</span></label>
+      <input type="date" name="deposit_cutoff_date" class="form-control"
+             value="{% if assignment.deposit_cutoff_date %}{{ assignment.deposit_cutoff_date.isoformat() }}{% endif %}" />
+    </div>
+  </div>
+
+  <div class="mb-3" style="max-width: 240px;">
+    <label class="form-label">Room Number</label>
+    <input type="text" class="form-control" name="room_number"
+           value="{{ assignment.room_number or '' }}" />
+    <div class="form-text small">Physical room at the hotel, if known.</div>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Admin Notes</label>
+    <textarea name="admin_notes" class="form-control" rows="2">{{ assignment.admin_notes }}</textarea>
+  </div>
+
+  <button type="submit" class="btn btn-primary">Save Assignment</button>
+  <a class="btn btn-outline-secondary" href="index">Cancel</a>
+</form>
+
+{{ "js/hotel-attendee-search.js"|serve_static_content }}
+{{ "js/hotel-room-picker.js"|serve_static_content }}
+
+{% endblock %}

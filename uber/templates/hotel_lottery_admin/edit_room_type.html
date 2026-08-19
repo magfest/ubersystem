@@ -1,0 +1,80 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% import "forms/macros.html" as form_macros with context %}
+{% set room_type_config = forms['lottery_room_type_config'] %}
+{% block title %}{{ 'Add' if room_type.is_new else 'Edit' }} Room Type{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+
+<h2>{{ 'Add' if room_type.is_new else 'Edit' }} Room Type</h2>
+
+<div class="mb-3">
+  <a href="manage_room_types" class="btn btn-outline-secondary">Back to Room Types</a>
+</div>
+
+<form method="post" action="edit_room_type" class="card card-body" style="max-width: 700px;">
+  {{ csrf_token() }}
+  {% if not room_type.is_new %}
+  <input type="hidden" name="id" value="{{ room_type.id }}" />
+  {% endif %}
+
+  <div class="mb-3">{{ form_macros.input(room_type_config.name) }}</div>
+  <div class="mb-3">{{ form_macros.input(room_type_config.export_name) }}</div>
+  <div class="mb-3">{{ form_macros.input(room_type_config.is_suite) }}</div>
+
+  <div class="row g-3 mb-3">
+    <div class="col">{{ form_macros.input(room_type_config.capacity) }}</div>
+    <div class="col">{{ form_macros.input(room_type_config.min_capacity) }}</div>
+  </div>
+
+  <div class="mb-3">{{ form_macros.input(room_type_config.description) }}</div>
+  <div class="mb-3">{{ form_macros.input(room_type_config.description_right) }}</div>
+  <div class="mb-3">{{ form_macros.input(room_type_config.footnote) }}</div>
+  <div class="mb-3">{{ form_macros.input(room_type_config.active) }}</div>
+
+  {# Type-level "follows another room type": this room type gets
+     automatically awarded alongside its parent in the lottery, in
+     the specified quantity. We don't allow chains, so if this type
+     is itself a parent (children list non-empty) the controls
+     render read-only with a pointer to detach the children first. #}
+  <fieldset class="mb-3 p-3 border rounded">
+    <legend class="float-none w-auto fs-6 px-2">Mandatory Connected Room(s)</legend>
+
+    {% if children %}
+      <p class="text-muted mb-2">
+        This room type is a <strong>parent</strong>. The following room
+        type{{ 's' if children|length != 1 else '' }} are awarded with it
+        whenever it is awarded:
+      </p>
+      <ul class="mb-2">
+        {% for child in children %}
+          <li>
+            {{ child.connector_quantity }}x
+            <a href="edit_room_type?id={{ child.id }}">{{ child.name }}</a>
+          </li>
+        {% endfor %}
+      </ul>
+      <p class="form-text mb-0">
+        A parent cannot itself follow another room type. Detach
+        {{ "these children" if children|length != 1 else "this child" }}
+        first if you want to change that.
+      </p>
+      <input type="hidden" name="connects_to_type_id" value="" />
+      <input type="hidden" name="connector_quantity" value="0" />
+    {% else %}
+      <div class="row g-3">
+        <div class="col-md-8">{{ form_macros.input(room_type_config.connects_to_type_id) }}</div>
+        <div class="col-md-4">{{ form_macros.input(room_type_config.connector_quantity, value=room_type.connector_quantity or 1) }}</div>
+      </div>
+      <div class="form-text mt-2">
+        Each time the parent is awarded by the lottery, this many of
+        this room type are awarded along with it to the same attendee.
+        Leave the parent blank for standalone room types.
+      </div>
+    {% endif %}
+  </fieldset>
+
+  <button type="submit" class="btn btn-primary">Save</button>
+</form>
+
+{% endblock content %}

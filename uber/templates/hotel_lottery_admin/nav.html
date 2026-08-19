@@ -1,0 +1,8 @@
+{# Top-level Hotel Lottery admin nav: horizontal tabs at md and up, a
+   breadcrumb section-switcher below. Item lists and renderers live in
+   _nav_macros.html. Subnav partials set `nav_has_subnav` and include
+   this template themselves, so their single mobile breadcrumb covers
+   both tiers. #}
+{% import 'hotel_lottery_admin/_nav_macros.html' as navm with context %}
+{{ navm.desktop_nav(navm.sections, 'tabs') }}
+{% if not nav_has_subnav %}{{ navm.mobile_nav() }}{% endif %}

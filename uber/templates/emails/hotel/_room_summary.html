@@ -1,0 +1,43 @@
+{# Shared "which room is this about" bullet list for the hotel emails.
+   Unlike the other files in `emails/hotel/` this is never sent on its
+   own - consumers import it into their (bare-fragment) email bodies:
+
+       {% import 'emails/hotel/_room_summary.html' as room_summary_macros with context %}
+       {{ room_summary_macros.room_summary(assignment) }}
+
+   `room_summary` renders a <ul> with Hotel / Room type / dates.
+
+   Arguments:
+     ra          - RoomAssignment (optional if `inv` is given; without
+                   it the date rows are omitted)
+     inv         - HotelRoomInventory; defaults to ra.inventory
+     date_fmt    - strftime format for the date line(s)
+     split_dates - True renders separate Check-in / Check-out bullets
+                   instead of one combined "Dates: X to Y" bullet
+
+   Extra bullets (confirmation numbers etc.) can be appended via
+   `{% call %}`:
+
+       {% call room_summary_macros.room_summary(assignment) %}
+         <li><strong>Confirmation #</strong>: ...</li>
+       {% endcall %}
+#}
+{% macro room_summary(ra=None, inv=None, date_fmt="%B %-d", split_dates=False) %}
+{% set inv = inv or (ra.inventory if ra else None) %}
+<ul>
+  {% if inv and inv.hotel %}<li><strong>Hotel:</strong> {{ inv.hotel.name }}</li>{% endif %}
+  {% if inv %}<li><strong>Room type:</strong> {{ inv.display_name }}</li>{% endif %}
+  {% if ra and ra.assigned_check_in_date and ra.assigned_check_out_date %}
+    {% if split_dates %}
+      <li><strong>Check-in:</strong> {{ ra.assigned_check_in_date|date(date_fmt) }}</li>
+      <li><strong>Check-out:</strong> {{ ra.assigned_check_out_date|date(date_fmt) }}</li>
+    {% else %}
+      <li><strong>Dates:</strong>
+        {{ ra.assigned_check_in_date|date(date_fmt) }}
+        to {{ ra.assigned_check_out_date|date(date_fmt) }}
+      </li>
+    {% endif %}
+  {% endif %}
+  {% if caller %}{{ caller() }}{% endif %}
+</ul>
+{% endmacro %}

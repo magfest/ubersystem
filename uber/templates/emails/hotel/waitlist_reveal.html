@@ -1,0 +1,13 @@
+{{ attendee.first_name }},
+
+Although we weren't able to assign you a room in the {{ c.EVENT_NAME_AND_YEAR }} hotel lottery, we've reserved a chance for you to grab one of the remaining rooms through our partner hotel before public booking opens.
+
+Your personal link is below. Bookmark it now - the booking link itself stays hidden on the page until the reveal time, but you can sit there with the countdown if you want.
+
+<a href="{{ c.URL_BASE }}/hotel_lottery/waitlist_reveal_page?token={{ link.token }}">{{ c.URL_BASE }}/hotel_lottery/waitlist_reveal_page?token={{ link.token }}</a>
+
+This link is unique to you. Don't share it - anyone with the URL can book during your window.
+
+Thanks for entering the lottery, and we hope to see you at {{ c.EVENT_NAME }}.
+
+- {{ c.EVENT_NAME }} Hotel Team

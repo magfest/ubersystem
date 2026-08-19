@@ -1,0 +1,372 @@
+{# Shared macros for the attendee-facing hotel lottery section
+   (hotel_lottery). Goal: one definition of the room title, status
+   badges, needs-card alert, summary table, and card-reuse picker so
+   every page in the section looks and behaves the same.
+
+   Import at the top of any consumer template with:
+
+       {% import 'hotel_lottery/_macros.html' as room_macros with context %}
+
+   (`with context` is required - several macros read `c` and call
+   `csrf_token()`.)
+#}
+
+{# Confirm-before-submit
+
+   `confirm_attrs` emits the `data-confirm-*` attributes read by
+   uber/static/js/hotel-confirm-submit.js. Drop it inside the opening
+   <form> tag of any form that needs an "are you sure?" gate, and load
+   the script once on the page:
+
+       {{ "js/hotel-confirm-submit.js"|serve_static_content }}
+
+   This replaces hand-rolled `bootbox.confirm({...})` handlers - the
+   dialog chrome (Nevermind button, backdrop, submit-on-confirm) lives
+   in the one script instead of being retyped per page.
+
+   `message` may contain HTML; autoescaping in the attribute plus the
+   browser's own attribute decoding round-trips it intact. A `{name}`
+   placeholder in any of the strings is substituted client-side with the
+   form's `member_name` input, for per-row forms rendered in a loop.
+#}
+{%- macro confirm_attrs(title, message, label='Yes', cls='btn-danger') -%}
+ data-confirm-title="{{ title }}" data-confirm-message="{{ message }}" data-confirm-label="{{ label }}" data-confirm-class="{{ cls }}"
+{%- endmacro %}
+
+{# The withdraw-from-the-lottery warning. Four forms across three pages
+   (the status page, the guarantee page, and the options page) have to
+   agree on this copy, so it lives here rather than in each of them. #}
+{%- macro withdraw_confirm_attrs(application) -%}
+  {%- set _has_award = (application.app_or_parent.attendee.room_assignments
+                        if application.app_or_parent and application.app_or_parent.attendee
+                        else [])|selectattr('is_live')|list|length > 0 -%}
+  {{- confirm_attrs(
+        'Withdraw From Hotel Lottery?',
+        '<p>Are you sure you want to withdraw from the ' ~ c.EVENT_NAME ~ ' hotel lottery?</p>'
+        ~ '<p>This will <strong>delete your lottery entry'
+        ~ (' and disband your group' if application.group_members else '')
+        ~ '</strong>'
+        ~ ((' and your group leader will be '
+            ~ ('instructed to remove your name from the reservation' if _has_award else 'notified'))
+           if application.parent_application else '')
+        ~ '. '
+        ~ ('You will need to re-enter the hotel lottery from the beginning to be eligible for a room or suite.'
+           if not application.current_lottery_closed and not application.finalized else '')
+        ~ '</p>',
+        'Yes, Withdraw') -}}
+{%- endmacro %}
+
+{# The room-entry <-> suite-entry swap warning, shared by the two
+   "Change to X Entry" buttons on the options page. #}
+{%- macro switch_entry_confirm_attrs(application) -%}
+  {%- set _to_room = application.entry_type == c.SUITE_ENTRY -%}
+  {%- set _ada_warning = (application.wants_ada
+                          and 'suite_ada_info' not in c.HOTEL_LOTTERY_FORM_STEPS) -%}
+  {{- confirm_attrs(
+        'Change Entry Type?',
+        ('<p>This will convert your suite lottery entry to a standard room entry.</p>'
+         if _to_room else
+         '<p>This will convert your room lottery entry to a suite entry.'
+         ' You will still be able to enter the lottery for a standard room.</p>')
+        ~ '<p><strong>Your entry will be considered incomplete until you confirm'
+          ' your entry details on the next page.</strong></p>'
+        ~ ('<p>Additionally, <span class="text-danger">we cannot accommodate ADA'
+           ' requests for suite entries</span>, so your ADA request and details'
+           ' will be removed from your entry.</p>'
+           if not _to_room and _ada_warning else '')
+        ~ '<p>Are you sure?</p>',
+        'Yes, Change to ' ~ ('Room' if _to_room else 'Suite') ~ ' Entry',
+        'btn-primary') -}}
+{%- endmacro %}
+
+{# The transfer-group-leadership warning, shared by the group-members
+   table and the award-info roster. `{name}` is filled in client-side
+   from each row's `member_name` input. #}
+{%- macro transfer_leadership_confirm_attrs(application) -%}
+  {%- set _entered = application.status in [c.COMPLETE, c.PROCESSED, c.AWARDED, c.SECURED] -%}
+  {{- confirm_attrs(
+        'Transfer Group Leadership?',
+        '<p>This will make {name} the new leader for your '
+        ~ c.HOTEL_LOTTERY_GROUP_TERM|lower ~ '.</p>'
+        ~ '<p>All group members will be notified via email.'
+        ~ ((' You will no longer be able to view your group\'s reservation, but'
+            " you'll be able to withdraw from the lottery without affecting your"
+            " group's room or suite award."
+            if application.finalized else
+            ' You will then be able to withdraw from the lottery without'
+            ' disbanding the group.') if _entered else '')
+        ~ '</p><p>Are you sure?</p>',
+        'Yes, Transfer Leadership to {name}',
+        'btn-warning') -}}
+{%- endmacro %}
+
+{# Room name
+
+   `room_name` renders the "Hotel - Room/Suite Type" title for a
+   RoomAssignment, e.g. "Hyatt Regency - Double Queen Suite".
+
+   Arguments:
+     ra        - RoomAssignment
+     fallback  - string shown when the assignment has no inventory
+                 (default "Room Assignment")
+#}
+{% macro room_name(ra, fallback='Room Assignment') -%}
+  {%- if ra.inventory -%}
+    {{ ra.inventory.hotel.name if ra.inventory.hotel else 'Hotel' }} - {{ ra.inventory.display_name }}
+  {%- else -%}
+    {{ fallback }}
+  {%- endif -%}
+{%- endmacro %}
+
+{# Room dates
+
+   `room_dates` renders "Thu Jan 15 &rarr; Sun Jan 18" for an
+   assignment's check-in/check-out, or the fallback when no dates are
+   assigned yet.
+
+   Arguments:
+     ra        - RoomAssignment
+     fallback  - string shown when assigned_check_in_date is empty
+                 (default "Dates TBD"; pass '' to render nothing)
+#}
+{% macro room_dates(ra, fallback='Dates TBD') -%}
+  {%- if ra.assigned_check_in_date -%}
+    {{ ra.assigned_check_in_date|date("%a %b %-d") }}
+    &rarr; {{ ra.assigned_check_out_date|date("%a %b %-d") }}
+  {%- else -%}
+    {{ fallback }}
+  {%- endif -%}
+{%- endmacro %}
+
+{# Needs-card alert
+
+   `needs_card_alert` renders the big red "not secured - credit card
+   required" banner, including the card deadline when one is set. The
+   `ra.needs_card` guard lives inside the macro, so call it
+   unconditionally.
+
+   Arguments:
+     ra        - RoomAssignment
+     compact   - bool, True for the smaller inline variant used on
+                 nested (connector) room cards: small text, no fa-lg
+                 icon, shorter heading (default False)
+     classes   - extra classes on the alert div (default 'mb-3')
+     add_hint  - the no-deadline fallback sentence
+                 (default 'Add a card to guarantee this room.')
+#}
+{% macro needs_card_alert(ra, compact=False, classes='mb-3',
+                          add_hint='Add a card to guarantee this room.') %}
+  {% if ra.needs_card %}
+  <div class="alert alert-danger d-flex align-items-center gap-2 py-2 {{ classes }}">
+    <i class="fa fa-exclamation-triangle{% if not compact %} fa-lg{% endif %}"></i>
+    <div{% if compact %} class="small"{% endif %}>
+      <strong>{% if compact %}Not secured - a credit card is required.{% else %}This room is not secured - a credit card is required.{% endif %}</strong>
+      {% if ra.card_deadline %}
+        Put a card down by
+        <strong>{{ ra.card_deadline|date("%A, %B %-d") }}</strong>
+        or this room will be released.
+      {% else %}
+        {{ add_hint }}
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+{% endmacro %}
+
+{# Status badges
+
+   `room_status_badges` renders the badge cluster for a room card:
+   either the "Booking exported" lock badge (once the booking has been
+   transferred to the hotel) or the status badge (Secured / Assigned /
+   Expired / other), plus the "Master bill" badge for rooms that don't
+   require a credit card.
+
+   Arguments:
+     ra - RoomAssignment
+#}
+{% macro room_status_badges(ra) %}
+  {% if ra.export_locked %}
+    <span class="badge bg-warning text-dark"
+          title="This booking has been transferred to the hotel.">
+      <i class="fa fa-lock"></i> Booking exported
+    </span>
+  {% else %}
+    <span class="badge bg-{% if ra.status == c.SECURED %}success{% elif ra.status == c.ASSIGNED %}warning text-dark{% elif ra.status == c.EXPIRED %}danger{% else %}secondary{% endif %}">
+      {{ ra.status_label }}
+    </span>
+  {% endif %}
+  {% if not ra.require_cc %}
+    <span class="badge bg-info text-dark ms-1"
+          title="{{ c.EVENT_NAME }} pays - no credit card needed.">
+      Master bill
+    </span>
+  {% endif %}
+{% endmacro %}
+
+{# Room summary table
+
+   `room_summary_table` renders the compact Hotel / Room Type /
+   info-url / Check-in / Check-out table used by the secure wizard and
+   the room invite page. Extra rows (e.g. the guest list) can be
+   appended via `{% call %}`:
+
+       {% call room_macros.room_summary_table(ra) %}
+         <tr><th>Guests</th><td>...</td></tr>
+       {% endcall %}
+
+   Arguments:
+     ra          - RoomAssignment
+     table_class - class attribute for the <table>
+                   (default 'table table-sm mb-0')
+     table_style - optional inline style for the <table>
+     date_fmt    - strftime format for the date rows
+                   (default '%a %b %-d')
+#}
+{% macro room_summary_table(ra, table_class='table table-sm mb-0',
+                            table_style='', date_fmt='%a %b %-d') %}
+  {% set inv = ra.inventory %}
+  <table class="{{ table_class }}"{% if table_style %} style="{{ table_style }}"{% endif %}>
+    <tr><th>Hotel</th><td>{{ inv.hotel.name if inv and inv.hotel else '' }}</td></tr>
+    <tr><th>Room Type</th><td>{{ inv.display_name if inv else '' }}</td></tr>
+    {% if inv and inv.info_url %}
+    <tr><th>Room Info</th><td><a href="{{ inv.info_url }}" target="_blank">View room details and photos</a></td></tr>
+    {% endif %}
+    {% if ra.assigned_check_in_date %}
+    <tr><th>Check-in</th><td>{{ ra.assigned_check_in_date|date(date_fmt) }}</td></tr>
+    <tr><th>Check-out</th><td>{{ ra.assigned_check_out_date|date(date_fmt) }}</td></tr>
+    {% endif %}
+    {% if caller %}{{ caller() }}{% endif %}
+  </table>
+{% endmacro %}
+
+{# Card-reuse picker
+
+   `card_reuse_picker` renders the copy_booking_info form: a select of
+   the booker's other rooms whose vaulted card can secure the target
+   room. Takes raw RoomAssignment rows (pre-filtered server-side via
+   `_card_reuse_sources`) and builds option labels itself from
+   inventory.display_name + cc_last_four. Renders nothing when
+   `sources` is empty, so call it unconditionally.
+
+   Arguments:
+     sources     - list of RoomAssignment rows to offer as card sources
+     target      - RoomAssignment the card/address is copied onto
+     attendee_id - attendee id posted with the form (view-as context)
+     label       - label text above the select
+     button_text - submit button text
+     help_text   - form-text hint below/inside the form
+     boxed       - bool; True renders the highlighted bg-light box used
+                   inside the secure wizard, False the two-column row
+                   layout used on the room editor (default False)
+#}
+{% macro card_reuse_picker(sources, target, attendee_id,
+                           label='Reuse a card from another of your rooms',
+                           button_text='Use this card',
+                           help_text='Copies the card and billing address from the selected room onto this one.',
+                           boxed=False) %}
+  {% if sources %}
+  <form method="post" action="copy_booking_info"
+        class="{% if boxed %}mb-3 p-2 bg-light rounded border{% else %}row g-2 align-items-end{% endif %}">
+    {{ csrf_token() }}
+    <input type="hidden" name="attendee_id" value="{{ attendee_id }}" />
+    <input type="hidden" name="target_id" value="{{ target.id }}" />
+    <input type="hidden" name="return_to_room" value="1" />
+    {% if boxed %}
+      <label for="billing-copy-source" class="form-label mb-1">{{ label }}</label>
+      <div class="d-flex gap-2">
+        {{ _card_source_select(sources, select_id='billing-copy-source') }}
+        <button type="submit" class="btn btn-outline-secondary text-nowrap">{{ button_text }}</button>
+      </div>
+      <div class="form-text">{{ help_text }}</div>
+    {% else %}
+      <div class="col-md-9">
+        <label class="form-label">{{ label }}</label>
+        {{ _card_source_select(sources) }}
+        <div class="form-text small">{{ help_text }}</div>
+      </div>
+      <div class="col-md-3 d-flex align-items-end">
+        <button type="submit" class="btn btn-outline-secondary w-100">{{ button_text }}</button>
+      </div>
+    {% endif %}
+  </form>
+  {% endif %}
+{% endmacro %}
+
+{% macro _card_source_select(sources, select_id=None) %}
+  <select class="form-select" name="source_id"{% if select_id %} id="{{ select_id }}"{% endif %} required>
+    <option value="">Select a room...</option>
+    {% for src in sources %}
+    <option value="{{ src.id }}">
+      {%- if src.inventory and src.inventory.hotel %}{{ src.inventory.hotel.name }} - {{ src.inventory.display_name }}{% else %}Another room{% endif %}
+      {%- if src.cc_last_four %} (card {{ src.cc_last_four }}){% endif -%}
+    </option>
+    {% endfor %}
+  </select>
+{% endmacro %}
+
+{# Billing-address fieldset
+
+   `billing_address_fields` renders the address1 / address2 / city /
+   region / zip_code / country fields shared by the room editor's
+   save_billing_address form and step 2 of the secure wizard. POSTed
+   field NAMES (address1, address2, city, region, zip_code, country)
+   are part of the contract and never change.
+
+   Arguments:
+     ra        - RoomAssignment supplying current values
+     fallback  - OPTIONAL second model (e.g. the booker Attendee) whose
+                 address prefills any field the assignment lacks
+     required  - mark everything but address2 required (with * in the
+                 labels)
+     with_ids  - give each control an id matching its name (the secure
+                 wizard's JS reads the fields by id) and wire label
+                 `for=` attributes
+     gutter    - Bootstrap gutter class for the row (default 'g-2')
+
+   Helper `_addr_val` resolves ra-then-fallback-then-'' for one field.
+#}
+{%- macro _addr_val(ra, fallback, attr) -%}
+{{ ra[attr] or (fallback[attr] if fallback else '') or '' }}
+{%- endmacro -%}
+
+{% macro billing_address_fields(ra, fallback=None, required=False,
+                                with_ids=False, gutter='g-2') %}
+  {% set _star = ' <span class="text-danger">*</span>' if required else '' %}
+  <div class="row {{ gutter }}">
+    <div class="col-12">
+      <label class="form-label"{% if with_ids %} for="address1"{% endif %}>Address Line 1{{ _star|safe }}</label>
+      <input type="text" class="form-control" name="address1"{% if with_ids %} id="address1"{% endif %}
+             value="{{ _addr_val(ra, fallback, 'address1') }}"{% if required %} required{% endif %} />
+    </div>
+    <div class="col-12">
+      <label class="form-label"{% if with_ids %} for="address2"{% endif %}>Address Line 2</label>
+      <input type="text" class="form-control" name="address2"{% if with_ids %} id="address2"{% endif %}
+             value="{{ _addr_val(ra, fallback, 'address2') }}" />
+    </div>
+    <div class="col-md-5">
+      <label class="form-label"{% if with_ids %} for="city"{% endif %}>City{{ _star|safe }}</label>
+      <input type="text" class="form-control" name="city"{% if with_ids %} id="city"{% endif %}
+             value="{{ _addr_val(ra, fallback, 'city') }}"{% if required %} required{% endif %} />
+    </div>
+    <div class="col-md-4">
+      <label class="form-label"{% if with_ids %} for="region"{% endif %}>State / Province / Region{{ _star|safe }}</label>
+      <input type="text" class="form-control" name="region"{% if with_ids %} id="region"{% endif %}
+             value="{{ _addr_val(ra, fallback, 'region') }}"{% if required %} required{% endif %} />
+    </div>
+    <div class="col-md-3">
+      <label class="form-label"{% if with_ids %} for="zip_code"{% endif %}>ZIP / Postal Code{{ _star|safe }}</label>
+      <input type="text" class="form-control" name="zip_code"{% if with_ids %} id="zip_code"{% endif %}
+             value="{{ _addr_val(ra, fallback, 'zip_code') }}"{% if required %} required{% endif %} />
+    </div>
+    <div class="col-md-6">
+      <label class="form-label"{% if with_ids %} for="country"{% endif %}>Country{{ _star|safe }}</label>
+      {% set _country = ra.country or (fallback.country if fallback else '') or '' %}
+      <select class="form-select" name="country"{% if with_ids %} id="country"{% endif %}{% if required %} required{% endif %}>
+        <option value="">- Select country -</option>
+        {% for opt in c.COUNTRY_OPTS %}
+        <option value="{{ opt.value }}" {% if _country == opt.value %}selected{% endif %}>{{ opt.label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+{% endmacro %}

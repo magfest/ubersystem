@@ -1,0 +1,8 @@
+{# Sub-navigation for the consolidated Inventory area. Includes the
+   main nav itself so the mobile breadcrumb renders as one line
+   ("Inventory / <page>"); pages include only this partial. #}
+{% set nav_has_subnav = true %}
+{% include 'hotel_lottery_admin/nav.html' %}
+{% import 'hotel_lottery_admin/_nav_macros.html' as navm with context %}
+{{ navm.desktop_nav(navm.inventory_items, 'pills') }}
+{{ navm.mobile_nav(navm.inventory_items, 'Inventory') }}

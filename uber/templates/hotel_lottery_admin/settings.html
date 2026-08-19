@@ -1,0 +1,122 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Hotel Lottery Settings{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+
+<div class="card card-body mb-3">
+  <h4>PCI Vault Integration</h4>
+
+  <table class="table table-sm mb-3">
+    <tr>
+      <th>Vault Enabled</th>
+      <td>{{ 'Yes' if c.VAULT_ENABLED else 'No' }}</td>
+    </tr>
+    <tr>
+      <th>Lambda Function</th>
+      <td>{{ c.VAULT_LAMBDA_FUNCTION_NAME or 'Not configured' }}</td>
+    </tr>
+    <tr>
+      <th>Lambda Region</th>
+      <td>{{ c.VAULT_LAMBDA_REGION or 'Not configured' }}</td>
+    </tr>
+    <tr>
+      <th>Capture Form ID</th>
+      <td>{{ c.VAULT_CAPTURE_FORM_ID or 'Not configured' }}</td>
+    </tr>
+    <tr>
+      <th>Webhook URL</th>
+      <td>
+        {% if c.VAULT_WEBHOOK_URL %}
+          {{ c.VAULT_WEBHOOK_URL }}
+        {% else %}
+          <span class="text-muted">Not configured</span>
+        {% endif %}
+      </td>
+    </tr>
+    <tr>
+      <th>Webhook Path</th>
+      <td><code>{{ c.URL_BASE }}/hotel_lottery/vault_webhook</code></td>
+    </tr>
+    <tr>
+      <th>Webhook Secret</th>
+      <td>{{ 'Configured' if c.VAULT_WEBHOOK_SECRET else 'Not configured' }}</td>
+    </tr>
+  </table>
+</div>
+
+{% if c.VAULT_ENABLED %}
+<div class="card card-body mb-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">Vault Usage</h4>
+    <div class="d-flex align-items-center gap-2">
+      <input type="month" class="form-control form-control-sm" id="usage-month" style="width: 180px;" />
+      <button type="button" class="btn btn-sm btn-outline-primary" onclick="loadVaultUsage()">Refresh</button>
+    </div>
+  </div>
+
+  <div id="vault-usage-loading" class="text-center py-3">
+    <div class="spinner-border spinner-border-sm" role="status"></div> Loading vault usage...
+  </div>
+  <div id="vault-usage-error" class="alert alert-danger" style="display: none;"></div>
+  <div id="vault-usage-content" style="display: none;">
+    <div class="row">
+      <div class="col-md-6">
+        <h5>Usage</h5>
+        <table class="table table-sm" id="usage-table">
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="col-md-6">
+        <h5>Billing</h5>
+        <table class="table table-sm" id="billing-table">
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+{{ "js/json-table.js"|serve_static_content }}
+<script>
+function loadVaultUsage() {
+    var month = document.getElementById('usage-month').value;
+    document.getElementById('vault-usage-loading').style.display = '';
+    document.getElementById('vault-usage-content').style.display = 'none';
+    document.getElementById('vault-usage-error').style.display = 'none';
+
+    $.ajax({
+        method: 'POST',
+        url: 'vault_usage',
+        dataType: 'json',
+        data: { month: month, csrf_token: csrf_token },
+        success: function(json) {
+            document.getElementById('vault-usage-loading').style.display = 'none';
+            if (json.success) {
+                renderJsonTable('usage-table', json.usage);
+                renderJsonTable('billing-table', json.billing);
+                document.getElementById('vault-usage-content').style.display = '';
+            } else {
+                document.getElementById('vault-usage-error').textContent = json.error || 'Failed to load vault usage.';
+                document.getElementById('vault-usage-error').style.display = '';
+            }
+        },
+        error: function() {
+            document.getElementById('vault-usage-loading').style.display = 'none';
+            document.getElementById('vault-usage-error').textContent = 'Failed to connect to vault service.';
+            document.getElementById('vault-usage-error').style.display = '';
+        }
+    });
+}
+
+// Set default month to current month and load
+$(function() {
+    var now = new Date();
+    var month = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+    document.getElementById('usage-month').value = month;
+    loadVaultUsage();
+});
+</script>
+{% endif %}
+
+{% endblock content %}
