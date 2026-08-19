@@ -1832,28 +1832,28 @@ if c.PANELS_START:
     PanelAppEmailFixture(
         f'Your {c.EVENT_NAME} Panel Application Has Been Received: ' + '{app.name}',
         'panels/application.html',
-        "lambda app: int(app.department) in c.EMAILLESS_PANEL_DEPTS",
+        "lambda app: app.department in c.EMAILLESS_PANEL_DEPTS",
         'panel_received',
         shared_ident='panelapps_received')
 
     PanelAppEmailFixture(
         f'Your {c.EVENT_NAME} Panel Application Has Been Accepted: ' + '{app.name}',
         'panels/panel_app_accepted.html',
-        "lambda app: app.status == c.ACCEPTED and int(app.department) in c.EMAILLESS_PANEL_DEPTS",
+        "lambda app: app.status == c.ACCEPTED and app.department in c.EMAILLESS_PANEL_DEPTS",
         'panel_accepted',
         shared_ident='panelapps_accepted')
 
     PanelAppEmailFixture(
         f'Your {c.EVENT_NAME} Panel Application Has Been Declined: ' + '{app.name}',
         'panels/panel_app_declined.html',
-        "lambda app: app.status == c.DECLINED and int(app.department) in c.EMAILLESS_PANEL_DEPTS",
+        "lambda app: app.status == c.DECLINED and app.department in c.EMAILLESS_PANEL_DEPTS",
         'panel_declined',
         shared_ident='panelapps_declined')
 
     PanelAppEmailFixture(
         f'Your {c.EVENT_NAME} Panel Application Has Been Waitlisted: ' + '{app.name}',
         'panels/panel_app_waitlisted.html',
-        "lambda app: app.status == c.WAITLISTED and int(app.department) in c.EMAILLESS_PANEL_DEPTS",
+        "lambda app: app.status == c.WAITLISTED and app.department in c.EMAILLESS_PANEL_DEPTS",
         'panel_waitlisted',
         shared_ident='panelapps_waitlisted')
 
@@ -1861,7 +1861,7 @@ if c.PANELS_START:
         PanelAppEmailFixture(
             'Last chance to confirm your panel',
             'panels/panel_accept_reminder.html',
-            "lambda app: c.PANELS_CONFIRM_DEADLINE and app.confirm_deadline and int(app.department) in c.EMAILLESS_PANEL_DEPTS \
+            "lambda app: c.PANELS_CONFIRM_DEADLINE and app.confirm_deadline and app.department in c.EMAILLESS_PANEL_DEPTS \
                 and (localized_now() + timedelta(days=2)) > app.confirm_deadline",
             'panel_accept_reminder',
             shared_ident='panelapps_accept_reminder')
@@ -1877,7 +1877,7 @@ if c.PANELS_START:
     PanelAppEmailFixture(
         f'Your {c.EVENT_NAME} Panel Has Been Scheduled: ' + '{app.name}',
         'panels/panel_app_scheduled.html',
-        "lambda app: app.event_id and int(app.department) in c.EMAILLESS_PANEL_DEPTS",
+        "lambda app: app.event_id and app.department in c.EMAILLESS_PANEL_DEPTS",
         'panel_scheduled',
         shared_ident='panelapps_received')
 

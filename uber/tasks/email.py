@@ -22,7 +22,8 @@ from uber.tasks import celery
 log = logging.getLogger(__name__)
 
 
-__all__ = ['notify_admins_of_pending_emails', 'send_automated_emails', 'send_email', 'check_emails_for_fixture']
+__all__ = ['notify_admins_of_pending_emails', 'send_automated_emails', 'send_email',
+           'check_emails_for_fixture', 'generate_missing_emails']
 
 def _is_dev_email(email):
     """
@@ -75,7 +76,7 @@ def notify_admins_of_pending_emails():
         return utils.groupify(pending_emails, 'sender', 'ident')
     
 
-@celery.schedule(timedelta(minutes=30))
+@celery.task
 def check_emails_for_fixture(id):
     email_check_status = c.REDIS_STORE.hgetall(c.REDIS_PREFIX + 'email_generation:' + id)
     if email_check_status:
@@ -100,6 +101,15 @@ def check_emails_for_fixture(id):
         email_count = EmailService.check_emails_for_fixture(session, fixture_obj)
         if email_count or email_count == 0:
             c.REDIS_STORE.hset(c.REDIS_PREFIX + 'email_generation:' + id, 'emails_generated', email_count)
+
+
+@celery.schedule(timedelta(minutes=30))
+def generate_missing_emails():
+    with Session() as session:
+        fixture_objs = session.query(AutomatedEmail)
+        for fixture_obj in fixture_objs:
+            if fixture_obj.fixture and fixture_obj.can_generate:
+                EmailService.check_emails_for_fixture(session, fixture_obj)
 
 
 @celery.schedule(timedelta(minutes=5))

@@ -1542,7 +1542,7 @@ class Config(_Overridable):
     def EMAILLESS_PANEL_DEPTS(self):
         from uber.models import Session, Department
 
-        id_list = [c.PANELS]
+        id_list = [str(c.PANELS)]
         with Session() as session:
             panels_depts_query = session.query(Department).filter(Department.manages_panels == True)
             for dept in panels_depts_query.filter(or_(Department.from_email == '',
