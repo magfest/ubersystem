@@ -352,10 +352,10 @@ def requires_email_admin(inherent_role=None):
             if c.HAS_FULL_EMAIL_ADMIN_ACCESS:
                 return func(*args, **kwargs)
 
-            department_id = kwargs.get('department_id', kwargs.get('department'))
-            if not department_id or department_id in ['None', 'All']:
-                message = ''
-                with uber.models.Session() as session:
+            with uber.models.Session() as session:
+                department_id = kwargs.get('department_id', kwargs.get('department'))
+                if not department_id or department_id in ['None', 'All']:
+                    message = ''
                     id = kwargs.get('id')
                     if not id:
                         email = session.query(AutomatedEmail).filter(AutomatedEmail.ident == kwargs.get('ident')).first()
@@ -378,9 +378,14 @@ def requires_email_admin(inherent_role=None):
                             return func(*args, **kwargs)
                     if message:
                         ajax_or_redirect(func, '../accounts/homepage?message=', message, False)
-                return func(*args, **kwargs)
-            else:
-                return requires_admin(func, inherent_role, override_access='full_email_admin')
+                    session.close()
+                    return func(*args, **kwargs)
+                else:
+                    message = check_can_edit_dept(session, department_id, inherent_role, 'full_email_admin')
+                    if message:
+                        ajax_or_redirect(func, '../accounts/homepage?message=', message, True)
+                    session.close()
+                    return func(*args, **kwargs)
         return protected
     return email_admin_decorator
 

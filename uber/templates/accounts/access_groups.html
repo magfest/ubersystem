@@ -110,8 +110,8 @@
                   $('.select_read_only_access').val("0");
                   $.field('name').val('');
                   updateAllColors();
-                  startFlatpickr.setDate(default_start);
-                  endFlatpickr.setDate(default_end);
+                  startFlatpickr.setDate('');
+                  endFlatpickr.setDate('');
               }
               enableOrDisabledDelete();
           });
@@ -174,7 +174,6 @@
                 altFormat: 'M/D/YYYY hh:mm A dddd',
                 disableMobile: true, //Do not let mobile native datepicker take over.
                 dateFormat: 'YYYY-MM-DD\\\\THH:mm:ssZ', // use moment formats, not flatpickr
-                defaultDate: default_start,
                 parseDate(dateString, format) {
                     //Parses on the way into the internals.
                     let eventTimezonedDate = new moment.tz(dateString, format, eventTimeZone);
@@ -209,7 +208,6 @@
                 altFormat: 'M/D/YYYY hh:mm A dddd',
                 disableMobile: true, //Do not let mobile native datepicker take over.
                 dateFormat: 'YYYY-MM-DD\\\\THH:mm:ssZ', // use moment formats, not flatpickr
-                defaultDate: default_end,
                 parseDate(dateString, format) {
                     //Parses on the way into the internals.
                     let eventTimezonedDate = new moment.tz(dateString, format, eventTimeZone);
