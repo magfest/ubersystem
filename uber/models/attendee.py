@@ -2701,7 +2701,7 @@ class AttendeeAccount(MagModel, table=True):
     
     @property
     def hotel_eligible_staff(self):
-        return any([a.badge_type == c.STAFF_BADGE for a in self.hotel_eligible_attendees])
+        return [a.badge_type == c.STAFF_BADGE for a in self.hotel_eligible_attendees]
 
     @property
     def valid_attendees(self):
