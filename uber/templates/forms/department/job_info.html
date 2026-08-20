@@ -1,13 +1,40 @@
 {% extends 'forms/department/base_job_info.html' %}
 
+{# A special block that drops right into an alpine data initialization function, allowing JS extensibility with jinja layout #}
+{% block extend_job_alpine_state %}
+{{ super() }}
+job_template_id : {{ job_or_template.job_template_id|tojson }},
+slots: {{ job_or_template.slots if job_or_template.slots is not none else 0|tojson }},
+full_template_details : {{ department.job_templates_data | jsonize }},
+applyTemplate() {
+        const template = this.full_template_details[this.job_template_id];
+
+        if (!template) {
+            return;
+        }
+
+        this.name = template.name;
+        this.description = template.description;
+        this.duration = template.duration;
+        this.extra15 = template.extra15;
+        this.weight = template.weight;
+        this.visibility = template.visibility;
+        this.required_roles_id = template.required_roles_id;
+        this.all_roles_required = template.all_roles_required;
+        if (this.slots < template.min_slots) {
+            this.slots = template.min_slots;
+        }
+}
+{% endblock %}
+
 {% block name_desc %}
-<div class="col-sm">{{ form_macros.input(job_or_template_info.job_template_id, choices=[('', 'No Template')] + department.job_templates_choices) }}</div>
+<div class="col-sm">{{ form_macros.input(job_or_template_info.job_template_id, alpine_model='job_template_id', choices=[('', 'No Template')] + department.job_templates_choices, **{'x-on:change':'applyTemplate()'}) }}</div>
 {{ super() }}
 {% endblock %}
 
 {% block weight_visibility %}
 <div class="col-sm">
-    {% call form_macros.input(job_or_template_info.slots, **{':disabled':'no_slots'}) %}
+    {% call form_macros.input(job_or_template_info.slots, **{'x-model.number':'slots', ':disabled':'no_slots'}) %}
     {{ form_macros.input(job_or_template_info.no_slots, alpine_model='no_slots') }}
     {% endcall %}
 </div>
