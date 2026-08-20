@@ -1070,6 +1070,20 @@ class Root:
         else:
             session.delete(account)
         raise HTTPRedirect('attendee_accounts?message={}', message or 'Account deleted.')
+    
+    def set_owner(self, session, id, account_id, message='', **params):
+        account = session.get(AttendeeAccount, account_id)
+        if not account:
+            message = "Account not found."
+
+        attendee = session.get(Attendee, id)
+        if not attendee:
+            message = "Could not find this attendee."
+        
+        if not message:
+            account.set_account_owner(attendee)
+
+        raise HTTPRedirect('attendee_account_form?id={}&message={}', account_id, message or 'Account owner set.')
 
     @site_mappable
     def orphaned_attendees(self, session, message='', **params):
@@ -1421,16 +1435,20 @@ class Root:
                     results_name = 'attendees'
                     href_base = '{}/reg_admin/attendee_account_form?id={}'
                 elif which_import == 'accounts':
-                    results = service.attendee_account.export(query=query, all=params.get('all', False))
+                    all_accounts = params.get('all', False)
+                    if all_accounts:
+                        results = service.attendee_account.count()
+                    else:
+                        results = service.attendee_account.export(query=query, all=all_accounts)
                     results_name = 'accounts'
                     href_base = '{}/registration/form?id={}'
                 elif which_import == 'groups':
                     if params.get('dealers', ''):
-                        status = c.DEALER_STATUS.get(int(params.get('dealer_status', 0)), None)
-                        if not status:
-                            message = "Invalid group status."
-                        else:
+                        if params.get('dealer_status', ''):
+                            status = c.DEALER_STATUS.get(int(params.get('dealer_status', 0)), None)
                             results = service.group.dealers(status=status)
+                        else:
+                            results = service.group.dealers()
                     else:
                         results = service.group.export(query=query)
                     results_name = 'groups'
@@ -1467,11 +1485,17 @@ class Root:
                     attendees_by_name_email.pop(existing_key, {})
                 attendees = list(chain(*attendees_by_name_email.values()))
 
-            if models and which_import == 'accounts':
+            if which_import == 'accounts':
                 admin_id = cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))
                 admin_name = session.admin_attendee().full_name
-                import_attendee_accounts.delay(models, admin_id, admin_name, target_server, api_token)
-                message = f"{len(models)} attendee accounts queued for import. Existing accounts and pending imports will be skipped."
+                if models:
+                    account_count = len(models)
+                    import_attendee_accounts.delay(admin_id, admin_name, target_server, api_token, models=models)
+                else:
+                    account_count = results.get('count', 0)
+                    import_attendee_accounts.delay(admin_id, admin_name, target_server, api_token, model_count=account_count)
+                message = f"{account_count} attendee accounts set up to be queued for import. \
+                    Existing accounts and pending imports will be skipped."
 
             if models and which_import == 'groups':
                 groups = models

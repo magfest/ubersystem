@@ -5,7 +5,7 @@ import six
 import cherrypy
 import logging
 
-from collections import defaultdict, OrderedDict
+from collections import defaultdict, OrderedDict, namedtuple
 from wtforms import (Form, Field, StringField, SelectField, SelectMultipleField, IntegerField,
                      BooleanField, DateField, validators, Label)
 import wtforms.widgets.core as wtforms_widgets
@@ -156,7 +156,7 @@ class CustomValidation:
             self.validations[field_name][func.__name__] = func
             return func
         return wrapper
-    
+
     def build_flags_dict(self):
         for field_name, validators in self.get_validation_dict().items():
             for v in validators:
@@ -285,8 +285,9 @@ class MagForm(Form):
                         form.field_validation.set_email_validators(field_name)
                     elif ufield.field_class.__name__ == "TelField":
                         form.field_validation.set_phone_validators(field_name)
-                    elif 'length' not in form.field_validation.validations[field_name]:
-                        form.field_validation.set_server_max(field_name)
+                    elif ufield.field_class.__name__ != "FormField":
+                        if 'length' not in form.field_validation.validations[field_name]:
+                            form.field_validation.set_server_max(field_name)
 
     @classmethod
     def inherit_validations(cls, form, inherit_from):
@@ -376,7 +377,7 @@ class MagForm(Form):
 
     def process(self, formdata={}, obj=None, data=None, extra_filters=None,
                 checkboxes_present=True, force_form_defaults=True, **kwargs):
-        formdata = self.meta.wrap_formdata(self, formdata)
+        from uber.models import MagModel
 
         # Special form data preprocessing!
         #
@@ -391,13 +392,25 @@ class MagForm(Form):
         # This function needs a revisit; we're often using formdata even when a form hasn't been submitted.
         # We can probably refactor this to use `data` more and depend more on the defaults models have defined.
 
-        force_defaults = force_form_defaults and (not obj or obj.is_new) and cherrypy.request.method != 'POST'
+        formdata = self.meta.wrap_formdata(self, formdata)
+
+        if obj and not isinstance(obj, MagModel):
+            obj_is_new = False
+            try:
+                # WTForms expects objects, but we store FormFields as JSON dicts
+                obj_dict = json.loads(obj)
+                FormObj = namedtuple('FormObj', obj_dict)
+                obj = FormObj(**obj_dict)
+            except json.decoder.JSONDecodeError:
+                return
+        else:
+            obj_is_new = obj.is_new if obj else True
+            
+        force_defaults = force_form_defaults and (not obj or obj_is_new) and cherrypy.request.method != 'POST'
+        field_prefix = kwargs.get('field_prefix', '')
 
         for name, field in self._fields.items():
-            if kwargs.get('field_prefix', ''):
-                prefixed_name = f"{kwargs['field_prefix']}-{name}"
-            else:
-                prefixed_name = name
+            prefixed_name = f"{field_prefix}-{name}" if field_prefix else name
 
             field_in_obj = hasattr(obj, name)
             field_in_formdata = prefixed_name in formdata
@@ -470,7 +483,7 @@ class MagForm(Form):
     def bool_list(self):
         return [(key, field) for key, field in self._fields.items() if field.type == 'BooleanField']
 
-    def populate_obj(self, obj, is_admin=False, dry_run=False):
+    def populate_obj(self, obj, is_admin=False, dry_run=False, session=None):
         """
         Adds alias processing, field locking, and data coercion to populate_obj.
         
@@ -496,7 +509,7 @@ class MagForm(Form):
                     pass  # Indicates collision between a property name and a field name, like 'badges' for GroupInfo
             else:
                 try:
-                    field.populate_obj(obj, name, is_admin=is_admin, dry_run=dry_run)
+                    field.populate_obj(obj, name, is_admin=is_admin, dry_run=dry_run, session=session)
                 except TypeError:
                     field.populate_obj(obj, name)
 
@@ -684,7 +697,8 @@ class FileUploadField(Field):
     """
 
     def __init__(self, label=None, validators=None, multiple=False, file_flags={}, required=False,
-                 delete_existing=True, update_model=None, description_field_name='', show_thumbnail=False, **kwargs):
+                 delete_existing=True, update_model=None, description_field_name='', show_thumbnail=False,
+                 show_delete_btn=True, **kwargs):
         super().__init__(label, validators, **kwargs)
         self.widget = wtforms_widgets.FileInput(multiple=multiple)
         self.multiple = multiple
@@ -694,6 +708,7 @@ class FileUploadField(Field):
         self.delete_existing = delete_existing
         self.update_model = update_model
         self.show_thumbnail = show_thumbnail
+        self.show_delete_btn = show_delete_btn
 
         # Fields can't access other fields, so we set description_field_val when we run `process` on MagForm
         self.description_field_name = description_field_name
@@ -707,21 +722,79 @@ class FileUploadField(Field):
         return file_flags
 
     def process_data(self, value):
-        if value and value.session:
-            data_attr = 'preview_image_with_filename' if self.show_thumbnail else 'html_link'
-
+        from uber.models import Session
+        if not value:
+            return
+        
+        with Session() as session:
             if isinstance(value, File):
-                file_handler = FileService.file_handler(value.session, value)
-                self.data = getattr(file_handler.file_obj, data_attr)
+                file_handler = FileService.file_handler(session, value)
+                self.data = file_handler.file_obj
             else:
                 file_flags = self.all_file_flags(value)
-                existing_files = FileService.get_existing_files(value.session, value,
-                                                                and_flags=[key for key in file_flags.keys() if file_flags[key]],
-                                                                uselist=self.multiple)
-                if self.multiple:
-                    self.data = '<br/>'.join([getattr(file, data_attr) for file in existing_files])
-                elif existing_files:
-                    self.data = getattr(existing_files, data_attr)
+                self.data = FileService.get_existing_files(session, value,
+                                                           and_flags=[key for key in file_flags.keys() if file_flags[key]],
+                                                           uselist=self.multiple)
+
+    def __call__(self, **kwargs):
+        from uber.utils import listify
+
+        data_attr = 'preview_image_with_filename' if self.show_thumbnail else 'html_link'
+
+        input = self.meta.render_field(self, kwargs)
+        script = """
+        <script type="text/javascript">
+        if(!deleteFile) {
+            function deleteFile(id, filename) {
+                bootbox.confirm({
+                    backdrop: true,
+                    title: 'Delete File?',
+                    message: 'Are you sure you want to delete file "' + filename + '"? This cannot be undone.',
+                    buttons: {
+                        confirm: { label: 'Delete File', className: 'btn-danger' },
+                        cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+                    },
+                    callback: function (result) {
+                        if (result) {
+                            $.ajax({
+                                method: 'POST',
+                                url: '../services/delete_file',
+                                dataType: 'json',
+                                data: {
+                                    id: id,
+                                    csrf_token: csrf_token
+                                },
+                                success: function (json) {
+                                    hideMessageBox();
+                                    var message = json.message;
+                                    $("#message-alert").addClass("alert-info").show().children('span').html(message);
+                                    $("#file_" + id).remove();
+                                    window.scrollTo(0,0);
+                                },
+                                error: function () {
+                                    showErrorMessage('Unable to connect to server, please try again.');
+                                }
+                            });
+                        }
+                    }
+                });
+            }
+        }
+        </script>
+        """
+
+        html = []
+
+        data_list = listify(getattr(self, 'data', []))
+
+        for file in data_list:
+            del_button = "" if not self.show_delete_btn else file.delete_button
+            html.append(f"<span id='file_{file.id}'>{getattr(file, data_attr)}&nbsp;{del_button}</span>")
+
+        if self.show_delete_btn:
+            return input + Markup('<br/>'.join(html) + (script if html else ''))
+        else:
+            return Markup('<br/>'.join(html)) + input
 
     def process_formdata(self, valuelist):
         if self.multiple:
@@ -729,18 +802,20 @@ class FileUploadField(Field):
         elif valuelist:
             self.data = valuelist[0]
 
-    def populate_obj(self, obj, name, dry_run=False, **kwargs):
+    def populate_obj(self, obj, name, dry_run=False, session=None, **kwargs):
         file_flags = self.all_file_flags(obj)
 
+        session = session or obj.session
+
         if not self.data or not self.data.filename:
-            if self.description_field_name and obj.session:
+            if self.description_field_name and session:
                 if isinstance(obj, File):
-                    file_handler = FileService.file_handler(obj.session, obj)
+                    file_handler = FileService.file_handler(session, obj)
                 else:
-                    existing_file = FileService.get_existing_files(obj.session, obj,
+                    existing_file = FileService.get_existing_files(session, obj,
                                                                    and_flags=[flag for flag in file_flags.keys() if file_flags[flag]])
                     if existing_file:
-                        file_handler = FileService.file_handler(obj.session, existing_file)
+                        file_handler = FileService.file_handler(session, existing_file)
                     else:
                         return
                 file_handler.update_file_obj(description=self.description_field_val)
@@ -748,23 +823,22 @@ class FileUploadField(Field):
 
         delete_existing = False if dry_run else self.delete_existing
 
-        if obj.session:
+        if session:
             if isinstance(obj, File):
                 if obj.is_new:
                     # This is a new file, set the proper attributes on it and queue it for upload
                     obj.flags = file_flags
                     obj.description = self.description_field_val
-                    new_file_handler = FileService.file_handler(obj.session, obj)
+                    new_file_handler = FileService.file_handler(session, obj)
                 else:
                     if not dry_run:
-                        file_handler = FileService.file_handler(obj.session, obj)
+                        file_handler = FileService.file_handler(session, obj)
                         file_handler.delete()
-                    new_file_handler = FileService.from_fk_model_id(obj.session, obj.fk_model, obj.fk_id,
+                    new_file_handler = FileService.from_fk_model_id(session, obj.fk_model, obj.fk_id,
                                                                     description=self.description_field_val, flags=file_flags)
             else:
-                new_file_handler = FileService.file_handler(obj.session, obj, description=self.description_field_val, flags=file_flags)
-                obj.session.add(new_file_handler.file_obj)
-                log.error(new_file_handler.file_obj)
+                new_file_handler = FileService.file_handler(session, obj, description=self.description_field_val, flags=file_flags)
+                session.add(new_file_handler.file_obj)
 
             new_file_handler.process_file_upload(self.data, delete_existing=delete_existing,
                                                  update_model=self.update_model, run_validations=False)

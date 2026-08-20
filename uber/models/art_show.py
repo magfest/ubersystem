@@ -246,7 +246,7 @@ class ArtShowApplication(MagModel, table=True):
             return 0
         else:
             if self.active_receipt:
-                return self.active_receipt.item_total / 100
+                return (self.active_receipt.item_total - self.active_receipt.discount_total) / 100
             return self.true_default_cost or self.calc_default_cost()
 
     @property

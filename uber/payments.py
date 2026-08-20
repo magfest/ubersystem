@@ -1859,7 +1859,24 @@ class ReceiptManager:
         
         if attendee.promo_code:
             promo_code = attendee.promo_code
+
+            max_upgrade, max_merch = None, None
+            for upgrade in sorted(c.BADGE_TYPE_PRICES, key=lambda x: c.BADGE_TYPE_PRICES[x], reverse=True):
+                if upgrade in promo_code.discount_on_ints:
+                    max_upgrade = upgrade
+                    break
+            
+            for merch in sorted(list(c.DONATION_TIERS), reverse=True):
+                if merch in promo_code.discount_on_ints:
+                    max_merch = merch
+                    break
+
             for discount_item in promo_code.discount_on_ints:
+                if discount_item in list(c.BADGE_TYPE_PRICES) and discount_item != max_upgrade:
+                    continue
+                elif discount_item in list(c.DONATION_TIERS) and discount_item != max_merch:
+                    continue
+
                 new_discount = ReceiptDiscount(
                     receipt_id=receipt.id if receipt else None,
                     promo_code_id=promo_code.id,

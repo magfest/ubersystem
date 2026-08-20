@@ -68,7 +68,7 @@
             <th>Marketplace</th>
             <th>Badge #</th>
             <th>Paid</th>
-            <th data-orderable="false">Reassign</th>
+            <th data-orderable="false"></th>
             </tr>
         </thead>
         <tbody>
@@ -84,9 +84,25 @@
             </td>
             <td data-order="{{ can_refund|yesno('0,1') }}-{{ attendee.badge_status_label }}">{{ attendee.badge_status_label }}</td>
             <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
+                <div class="d-flex flex-wrap gap-2">
                 {{ attendee|form_link(true) }}
                 {% if attendee.group %}({{ attendee.group|form_link(true) }}){% endif %}
-                {% if attendee == account.owner %}(Owner){% endif %}
+                {% if attendee == account.owner %}(Owner){% else %}
+                <form class="form set_owner" method="post" action="set_owner">
+                    <input type="hidden" name="id" value="{{ attendee.id }}" />
+                    {{ csrf_token() }}
+                    <input type="hidden" name="account_id" value="{{ account.id }}" />
+                    <input type="hidden" class="full_name" value="{{ attendee.full_name }}" />
+                    <input type="hidden" class="is_valid" value="{{ attendee.is_valid }}" />
+                    <div class="input-group">
+                        <button type="submit" class="btn btn-sm btn-secondary" {% if not attendee.is_valid %}data-bs-toggle="tooltip" data-bs-placement="top" title="This is an invalid badge and in most cases should not be set as the account owner."{% endif %}>
+                            Set Account Owner
+                            {% if not attendee.is_valid %}<i class="fa fa-exclamation-circle"></i>{% endif %}
+                        </button>
+                    </div>
+                </form>
+                {% endif %}
+                </div>
             </td>
             <td>
                 <a href="receipt_items?id={{ attendee.id }}" target="_blank">View Receipt</a>
@@ -132,6 +148,38 @@
 </div>
 <script type="text/javascript">
     $(function() {
+        $('.set_owner').on('submit', function(event) {
+        var $formToSubmit = $(this);
+        var name = $formToSubmit.find('.full_name').val();
+        var validText = "";
+        if ($formToSubmit.find('.is_valid').val() != 'True') {
+            validText = "</p><p>WARNING: " + name + " does not have a valid badge! Only set them as the account owner if you KNOW you need to do so."
+        }
+        event.preventDefault();
+        bootbox.confirm({
+            title: "Set Account Owner?",
+            message: "<p>This will {% if account.owner %}change the account owner{% else %}set the accont owner{% endif %} for this account to " + name + "." + 
+                    {% if account.owner %}" The current account owner is {{ account.owner.full_name }}, who {% if account.owner.is_valid %}has{% else %}does NOT have{% endif %} a valid badge." +{% endif %}
+                    validText +
+                     "</p><p>Are you sure?</p>",
+            buttons: {
+                confirm: {
+                    label: 'Yes, {% if account.owner %}Change{% else %}Set{% endif %} Owner',
+                    className: 'btn-secondary'
+                },
+                cancel: {
+                    label: 'Nevermind',
+                    className: 'btn-outline-secondary'
+                }
+            },
+            callback: function (result) {
+                if(result) {
+                    $formToSubmit[0].submit();
+                }
+            }
+        });
+    });
+
       $('#delete-account').on('submit', function(event) {
         event.preventDefault();
         var $toSubmit = $(this);

@@ -2,6 +2,38 @@
 {% block title %}Hotel Lottery Admin{% endblock %}
 {% block content %}
 
+<script type="text/javascript">
+  processStaffConfirm = function(event){
+        var formToSubmit = this;
+        event.preventDefault();
+        bootbox.confirm({
+            title: "Finalize Staff Lottery?",
+            message: "<p>This will mark all 'staff' lottery entries as processed, allowing them to enter the attendee lottery.</p>" + 
+                     "<p>This should only been done once we've exported the staff entries and emailed entrants their results.</p>" +
+                     "<p>Are you sure?</p>",
+            buttons: {
+                confirm: {
+                    label: 'Yes, Finalize Staff Lottery',
+                    className: 'btn-warning'
+                },
+                cancel: {
+                    label: 'Nevermind',
+                    className: 'btn-outline-secondary'
+                }
+            },
+            callback: function (result) {
+                if(result) {
+                    formToSubmit.submit();
+                }
+            }
+        });
+    }
+
+  $().ready(function () {
+    if($('#staff-process-form').length) { $("#staff-process-form").submit(processStaffConfirm); }
+  });
+</script>
+
 <h2>Hotel Lottery Applications</h2>
 
 <div class="row g-3 mb-3">
@@ -94,10 +126,12 @@
   </div>
 </form>
 {% else %}
-<form method="post" action="mark_staff_processed">
+<div class="d-flex justify-content-end">
+<form method="post" id="staff-process-form" action="mark_staff_processed" class="mb-3">
   {{ csrf_token() }}
-  <button type="submit" class="btn btn-primary">Unlock Staff Entries</button>
+  <button type="submit" class="btn btn-warning">Finalize Staff Lottery</button>
 </form>
+</div>
 {% endif %}
 
 {% if search_results %}

@@ -82,21 +82,25 @@
 </li>
 {% endif %}
 
-<li class="nav-item ms-auto">
-  <div class="input-group me-2">
+  <li class="nav-item ms-auto"></li>
     {% if c.ART_SHOW_ENABLED and c.ART_SHOW_OPEN and not attendee.art_show_application %}
-    <a class="p-0" href="../art_show_applications/index?attendee_id={{ attendee.id }}">
+    <li class="nav-item">
+    <a class="p-0 pe-1" href="../art_show_applications/index?attendee_id={{ attendee.id }}">
       <button type="button" class="btn btn-outline-primary"><i class="fa fa-tags"></i>&nbsp; Apply for Art Show</button>
     </a>
+    </li>
     {% endif %}
     {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE and not attendee.marketplace_application and (attendee.has_badge or attendee.badge_status == c.UNAPPROVED_DEALER_STATUS) %}
-    <a class="p-0" href="../marketplace/apply?attendee_id={{ attendee.id }}">
+    <li class="nav-item">
+    <a class="p-0 pe-1" href="../marketplace/apply?attendee_id={{ attendee.id }}">
       <button type="button" class="btn btn-outline-primary"><i class="fa fa-shopping-cart"></i> Apply for Marketplace</button>
     </a>
+    </li>
     {% endif %}
     {% if 'hotel_lottery' not in c.PAGE_PATH and (c.HOTEL_LOTTERY_OPEN or c.STAFF_HOTEL_LOTTERY_OPEN and attendee.staff_hotel_lottery_eligible) and (not attendee.lottery_application or attendee.lottery_application.status not in [c.COMPLETE, c.PROCESSED, c.DISQUALIFIED] and not attendee.lottery_application.finalized) %}
+      <li class="nav-item">
       {% if attendee.hotel_lottery_eligible %}
-      <a class="p-0" href="../hotel_lottery/start?attendee_id={{ attendee.id }}">
+      <a class="p-0 pe-1" href="../hotel_lottery/start?attendee_id={{ attendee.id }}">
         <button type="button" class="btn btn-outline-primary"><i class="fa fa-hotel"></i>&nbsp; Enter Hotel Lottery</button>
       </a>
       {% else %}
@@ -104,16 +108,17 @@
       <button type="button" class="btn btn-secondary" disabled><i class="fa fa-hotel"></i>&nbsp; Enter Hotel Lottery</button>
       </span>
       {% endif %}
+      </li>
     {% endif %}
     {% if attendee.has_badge and attendee.staffing and attendee.badge_type != c.CONTRACTOR_BADGE and c.VOLUNTEER_SIGNUPS_AVAILABLE %}
-      <a class="p-0" href="../staffing/index?id={{ attendee.id }}" target="_blank">
+    <li class="nav-item">
+      <a class="p-0 pe-1" href="../staffing/index?id={{ attendee.id }}" target="_blank">
         {% if (not c.VOLUNTEER_CHECKLIST_OPEN or attendee.shift_prereqs_complete) and c.AFTER_SHIFTS_CREATED %}
         <button type="button" class="btn btn-secondary"><i class="fa fa-external-link"></i>&nbsp; View Shifts</button>
         {% else %}
         <button type="button" class="btn btn-secondary"><i class="fa fa-external-link"></i>&nbsp; Volunteer Checklist</button>
         {% endif %}
       </a>
+    </li>
     {% endif %}
-  </div>
-</li>
 </ul>
