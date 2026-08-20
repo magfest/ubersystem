@@ -93,6 +93,7 @@
 <div class="card">
   <div class="card-body">
     <div class="row g-3 mb-3">
+      {% if c.DEPARTMENTS %}
       <div class="col-6 col-sm-4">
           <label for="department_id" class="form-text">Department</label>
           <select id="department_id" onChange="deptIdChanged()" class="form-select">
@@ -102,6 +103,7 @@
           {{ options(c.get_dept_opts(admin_access=True, has_email=True), department_id) }}
           </select>
       </div>
+      {% endif %}
       <div class="col-6 col-sm-4">
           <label for="policy" class="form-text">Email Policy</label>
           <select id="policy" onChange="emailPolicyChanged()" class="form-select">
@@ -152,7 +154,7 @@
   <hr/>
   {% for sender, emails in automated_emails.items() %}
   <a id="{{ sender|email_only }}"></a>
-    <h3 class="mb-0 mt-4">{{ sender }}{% if depts_by_sender[sender|email_only] %} ({% for dept in depts_by_sender[sender|email_only] %}{{ dept|form_link(true) }}{% endfor %}){% endif %}</h3>
+    <h3 class="mb-0 mt-4">{{ sender }}{% if depts_by_sender[sender|email_only] %} ({% for dept in depts_by_sender[sender|email_only] %}{% if not loop.first %} / {% endif %}{{ dept|form_link(true) }}{% endfor %}){% endif %}</h3>
     {{ email_table(emails) }}
     {% if not loop.last %}<hr/>{% endif %}
   {% endfor %}

@@ -22,7 +22,8 @@ from uber.tasks import celery
 log = logging.getLogger(__name__)
 
 
-__all__ = ['notify_admins_of_pending_emails', 'send_automated_emails', 'send_email', 'check_emails_for_fixture']
+__all__ = ['notify_admins_of_pending_emails', 'send_automated_emails', 'send_email',
+           'check_emails_for_fixture', 'generate_missing_emails']
 
 def _is_dev_email(email):
     """
@@ -102,17 +103,34 @@ def check_emails_for_fixture(id):
             c.REDIS_STORE.hset(c.REDIS_PREFIX + 'email_generation:' + id, 'emails_generated', email_count)
 
 
+@celery.schedule(timedelta(minutes=60))
+def generate_missing_emails():
+    with Session() as session:
+        fixture_objs = session.query(AutomatedEmail)
+        for fixture_obj in fixture_objs:
+            id = fixture_obj.id
+            email_check_status = c.REDIS_STORE.hgetall(c.REDIS_PREFIX + 'email_generation:' + id)
+            if not email_check_status and fixture_obj.fixture and fixture_obj.can_generate:
+                c.REDIS_STORE.hset(c.REDIS_PREFIX + 'email_generation:' + id, 'request_timestamp',
+                                   datetime.now().timestamp())
+                EmailService.check_emails_for_fixture(session, fixture_obj)
+                c.REDIS_STORE.delete(c.REDIS_PREFIX + 'email_generation:' + id)
+
+
 @celery.schedule(timedelta(minutes=5))
 def send_automated_emails():
     """
     Send any queued emails while using DB locks to ensure the same email doesn't get processed twice.
     Emails are processed per model.
     """
+    from uber.tasks import panels
+
     if not (c.DEV_BOX or c.SEND_EMAILS):
         return None
 
     quantity_sent = 0
     start_time = time()
+    panels.setup_panel_emails(reconcile_fixtures=False)
 
     try:
         Session.session_factory = sessionmaker(bind=Session.engine, expire_on_commit=False, autoflush=False, autocommit=False,

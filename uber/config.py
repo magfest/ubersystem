@@ -1568,12 +1568,14 @@ class Config(_Overridable):
     @dynamic
     def EMAILLESS_PANEL_DEPTS(self):
         from uber.models import Session, Department
+        from uber.custom_tags import email_only
 
-        id_list = [c.PANELS]
+        id_list = [str(c.PANELS)]
         with Session() as session:
+            panels_email = email_only(c.PANELS_EMAIL)
             panels_depts_query = session.query(Department).filter(Department.manages_panels == True)
             for dept in panels_depts_query.filter(or_(Department.from_email == '',
-                                                      Department.from_email == c.PANELS_EMAIL)):
+                                                      Department.from_email == panels_email)):
                 id_list.append(dept.id)
         return id_list
 
