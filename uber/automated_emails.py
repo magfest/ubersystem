@@ -330,12 +330,11 @@ if c.GUIDEBOOK_UPDATES_EMAIL:
     )
 
 
-if c.ENABLE_PENDING_EMAILS_REPORT:
-    AdminReportEmailFixture(
-        f'{c.EVENT_NAME} Pending Emails Report',
-        'daily_checks/pending_emails.html',
-        'pending_emails_admin',
-    )
+AdminReportEmailFixture(
+    f'{c.EVENT_NAME} Pending Emails Report',
+    'daily_checks/pending_emails.html',
+    'pending_emails_admin',
+)
 
 
 AdminReportEmailFixture(
