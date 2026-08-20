@@ -51,7 +51,7 @@ This is calculated by taking the Attendee badge type's stock and subtracting the
           <td>{{ counts.badge_counts[label] }}</td>
           <td>
             {% if counts.badge_stocks[label]|int != 0 %}
-              {{ counts.badge_stocks[label] - counts.badge_counts[label] }}
+              {{ counts.badge_stocks[label] - counts.badge_counts[label] - counts.reserved_badges[label] }}
             {% else %}N/A{% endif %}
           </td>
           <td>{{ counts.checked_in_by_type[label] }}</td>
