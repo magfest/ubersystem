@@ -1081,50 +1081,51 @@ if c.HOTEL_LOTTERY_FORM_START:
 
 
 if c.HOTEL_LOTTERY_STAFF_START or c.HOTEL_LOTTERY_FORM_START:
-    HotelLotteryEmailFixture(
-        f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Notification',
-        'hotel/award_notification.html',
-        "lambda a: a.status == c.AWARDED and not a.final_status_hidden and a.booking_url_ready",
-        'hotel_lottery_awarded'
-    )
+    if c.HOTEL_LOTTERY_ROOM_INVENTORY:
+        HotelLotteryEmailFixture(
+            f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Notification',
+            'hotel/award_notification.html',
+            "lambda a: a.status == c.AWARDED and not a.final_status_hidden and a.booking_url_ready",
+            'hotel_lottery_awarded'
+        )
 
-    HotelLotteryEmailFixture(
-        f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Notification',
-        'hotel/reject_notification.html',
-        "lambda a: a.status == c.REJECTED and not a.final_status_hidden",
-        'hotel_lottery_rejected'
-    )
-
-    if c.HOTEL_LOTTERY_FORM_WAITLIST:
         HotelLotteryEmailFixture(
             f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Notification',
             'hotel/reject_notification.html',
-            "lambda a: a.status == c.COMPLETE and a.qualifies_for_first_round",
-            'hotel_lottery_first_round_rejected',
-            when=[after(c.HOTEL_LOTTERY_FORM_WAITLIST)],
+            "lambda a: a.status == c.REJECTED and not a.final_status_hidden",
+            'hotel_lottery_rejected'
         )
 
-    HotelLotteryEmailFixture(
-        f'Reminder to confirm your {c.EVENT_NAME_AND_YEAR} hotel reservation',
-        'hotel/guarantee_reminder.html',
-        "lambda a: a.status == c.AWARDED and a.booking_url_ready and \
-            days_before(7, a.guarantee_deadline)() and not a.parent_application",
-        'hotel_lottery_guarantee_reminder'
-    )
-    
-    HotelLotteryEmailFixture(
-        f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Award Cancelled',
-        'hotel/cancel_notification.html',
-        "lambda a: a.status == c.CANCELLED",
-        'hotel_lottery_award_cancelled'
-    )
+        if c.HOTEL_LOTTERY_FORM_WAITLIST:
+            HotelLotteryEmailFixture(
+                f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Notification',
+                'hotel/reject_notification.html',
+                "lambda a: a.status == c.COMPLETE and a.qualifies_for_first_round",
+                'hotel_lottery_first_round_rejected',
+                when=[after(c.HOTEL_LOTTERY_FORM_WAITLIST)],
+            )
 
-    HotelLotteryEmailFixture(
-        f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Award Confirmed!',
-        'hotel/secure_notification.html',
-        "lambda a: a.status == c.SECURED",
-        'hotel_lottery_secured'
-    )
+        HotelLotteryEmailFixture(
+            f'Reminder to confirm your {c.EVENT_NAME_AND_YEAR} hotel reservation',
+            'hotel/guarantee_reminder.html',
+            "lambda a: a.status == c.AWARDED and a.booking_url_ready and \
+                days_before(7, a.guarantee_deadline)() and not a.parent_application",
+            'hotel_lottery_guarantee_reminder'
+        )
+        
+        HotelLotteryEmailFixture(
+            f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Award Cancelled',
+            'hotel/cancel_notification.html',
+            "lambda a: a.status == c.CANCELLED",
+            'hotel_lottery_award_cancelled'
+        )
+
+        HotelLotteryEmailFixture(
+            f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Award Confirmed!',
+            'hotel/secure_notification.html',
+            "lambda a: a.status == c.SECURED",
+            'hotel_lottery_secured'
+        )
 
     HotelLotteryEmailFixture(
         f'{c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM} Disbanded',
@@ -1969,14 +1970,6 @@ class GuestEmailFixture(AutomatedEmailFixture):
 
 
 AdminReportEmailFixture(
-    '{guest.group.name} Meet & Greet Notification',
-    'guests/meetgreet_notification.txt',
-    'guest_meet_greet_admin',
-    sender=c.ROCK_ISLAND_EMAIL,
-)
-
-
-AdminReportEmailFixture(
     '{guest.group.name} Donation Notification',
     'guests/charity_notification.txt',
     'guest_charity_admin',
@@ -2129,6 +2122,13 @@ ArenaEmailFixture(
     when=[days_after(7, c.ARENA_INFO_DEADLINE)])
 
 if c.ROCK_ISLAND_GROUPS:
+    AdminReportEmailFixture(
+        '{guest.group.name} Meet & Greet Notification',
+        'guests/meetgreet_notification.txt',
+        'guest_meet_greet_admin',
+        sender=c.ROCK_ISLAND_EMAIL,
+    )
+
     AdminReportEmailFixture(
         f'{c.EVENT_NAME} Rock Island Inventory Updates',
         'daily_checks/ri_inventory_updates.html',
