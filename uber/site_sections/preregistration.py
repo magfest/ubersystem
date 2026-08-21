@@ -2361,10 +2361,10 @@ class Root:
             if column is not None:
                 new_val = preview_attendee.coerce_column_data(column, new_val)
             setattr(preview_attendee, col_name, new_val)
-        
+
         cost_list = ReceiptManager.process_receipt_change(attendee, update_col,
-                                                             who='non-admin',
-                                                             new_model=preview_attendee)
+                                                          who='non-admin',
+                                                          new_model=preview_attendee)
         only_change = cost_list[0] if cost_list else ("", 0, 0)
         desc, cost, _ = only_change
         applicable_discount = ('', 0)
@@ -2381,6 +2381,7 @@ class Root:
     def purchase_upgrades(self, session, id, **params):
         message = ''
         attendee = session.attendee(id)
+
         try:
             receipt = session.model_receipt(params.get('receipt_id'))
         except Exception:

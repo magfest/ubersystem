@@ -600,6 +600,8 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
 
         if self.birthdate:
             self.age_group = self.age_group_conf['val']
+            if self.age_now_or_at_con < 13:
+                self.can_spam = False
 
         for attr in ['first_name', 'last_name']:
             value = getattr(self, attr, '')

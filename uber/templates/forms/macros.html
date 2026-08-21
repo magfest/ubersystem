@@ -1,5 +1,5 @@
 {% macro label(field, label_text='', required_if="false") %}
-  <label for="{{ field.label.field_id }}"
+  <label for="{{ kwargs.get('field_id', field.label.field_id) }}"
 {% for key in kwargs %} {{ key }}="{{ kwargs[key] }}"{% endfor %}>{{ label_text }}
   <span class="required-indicator text-danger" x-show="{{ required_if }}"> *</span></label>
 {% endmacro %}
@@ -77,6 +77,9 @@
   {% set _ = custom_kwargs.update({'x-' ~ key[7:]: val}) %}
   {% elif val or key != 'readonly' %}
   {% set _ = custom_kwargs.update({key: val}) %}
+  {% endif %}
+  {% if key == 'id' %}
+  {% set _ = label_kwargs.update({'field_id': val}) %}
   {% endif %}
 {% endfor %}
 
