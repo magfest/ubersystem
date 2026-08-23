@@ -1513,9 +1513,7 @@ class Root:
             EmailService.queue_email(
                 session, 'hotel_lottery_group_member_left', old_room_group,
                 subject=f'{application.attendee.first_name} has left your {c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM}',
-                data={
-                'member': application})
-
+                data={'member_name': application.attendee.full_name})
         if has_actually_entered:
             EmailService.queue_email(
                 session, 'hotel_lottery_cancelled', application,
@@ -1900,8 +1898,8 @@ class Root:
             EmailService.queue_email(
                 session, 'group_lottery_leader_changed', member,
                 subject=f'{c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM} Leader Changed',
-                data={
-                    'old_leader': application, 'new_leader': new_leader})
+                data={'old_leader': application, 'old_leader_name': application.group_leader_name,
+                      'new_leader': new_leader, 'new_leader_name': new_leader.group_leader_name})
         
         raise HTTPRedirect('index?id={}&message={}', application.id,
                            f"Group leadership successfully transferred to {new_leader.attendee.full_name}.")
@@ -1990,16 +1988,14 @@ class Root:
         EmailService.queue_email(
             session, 'group_lottery_member_joined', room_group,
             subject=f'{application.attendee.first_name} has joined your {c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM}',
-            data={
-            'member': application})
+            data={'member_name': application.attendee.full_name})
 
         EmailService.queue_email(
             session, 'hotel_lottery_confirmation', application,
             subject=c.EVENT_NAME_AND_YEAR + f' {application.entry_type_label} Lottery Confirmation',
-            data={
-            'new_conf': got_new_conf_num,
-            'post_cutoff': _is_post_cutoff(application),
-            'action_str': f"entering the lottery as a roommate"})
+            data={'new_conf': got_new_conf_num,
+                  'post_cutoff': _is_post_cutoff(application),
+                  'action_str': f"entering the lottery as a roommate"})
 
         raise HTTPRedirect('room_group?id={}&action={}&new_conf={}', application.id, "joined", got_new_conf_num)
 
@@ -2026,8 +2022,7 @@ class Root:
             EmailService.queue_email(
                 session, 'hotel_lottery_group_member_left', room_group,
                 subject=f'{application.attendee.first_name} has left your {c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM}',
-                data={
-                'member': application})
+                data={'member_name': application.attendee.full_name})
 
         if room_group.status == c.PROCESSED or room_group.finalized:
             application = _clear_application(application)
