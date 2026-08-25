@@ -335,6 +335,9 @@ class OIDC(cherrypy.Tool):
         raise HTTPRedirect(c.OIDC_AUTH_ENDPOINT + params)
 
     def do_before_request(self):
+        if not c.OIDC_ENABLED:
+            return
+        
         if 'state' in cherrypy.request.params:
             try:
                 oidc_state = base64.urlsafe_b64decode(cherrypy.request.params['state'].encode()).decode()
@@ -353,5 +356,5 @@ class OIDC(cherrypy.Tool):
         else:
             cherrypy.request.attendee_account = self._get_attendee_account_for_claims(claims)
             cherrypy.request.admin_account = self._get_admin_account_for_claims(claims)
-            
+
 cherrypy.tools.oidc = OIDC()

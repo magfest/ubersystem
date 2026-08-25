@@ -30,7 +30,7 @@ def get_other_panelists_forms(num, submitter=None, **params):
 @all_renderable(public=True)
 class Root:
     @requires_account(Attendee)
-    def index(self, session, message='', attendee_id=None, return_to='', **params):
+    def index(self, session, message='', attendee_id=None, panelist_id=None, return_to='', **params):
         """
         Our production NGINX config caches the page at /panels/index.
         Since it's cached, we CAN'T return a session cookie with the page. We
@@ -63,6 +63,8 @@ class Root:
                     email=attendee.email,
                     cellphone=attendee.cellphone
                 )
+        elif panelist_id:
+            panelist = session.get(PanelApplicant, panelist_id)
         else:
             panelist = PanelApplicant()
             for attr in attrs:
@@ -120,9 +122,8 @@ class Root:
                 if attendee_id:
                     raise HTTPRedirect(f"index?attendee_id={attendee_id}&message={message}&return_to=\
                                        {return_to if 'ignore_return_to' not in params else ''}")
-                raise HTTPRedirect("index?first_name={}&last_name={}&email={}&cellphone={}&message={}",
-                                   panelist.first_name, panelist.last_name,
-                                   panelist.email, panelist.cellphone, message)
+                raise HTTPRedirect("index?panelist_id={}&message={}",
+                                   panelist.id, message)
                 
             go_to = (return_to + "&") if 'ignore_return_to' not in params and return_to else 'index?'
             raise HTTPRedirect(f'{go_to}message={message}')

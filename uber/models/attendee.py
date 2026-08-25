@@ -608,6 +608,8 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
 
         if self.birthdate:
             self.age_group = self.age_group_conf['val']
+            if self.age_now_or_at_con < 13:
+                self.can_spam = False
 
         for attr in ['first_name', 'last_name']:
             value = getattr(self, attr, '')
@@ -1169,13 +1171,13 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
             return 0
 
         if self.active_receipt:
-            return self.active_receipt.item_total / 100
+            return (self.active_receipt.item_total - self.active_receipt.discount_total) / 100
         return self.default_cost or self.calc_default_cost()
 
     @property
     def total_cost_if_valid(self):
         if self.active_receipt:
-            return self.active_receipt.item_total / 100
+            return (self.active_receipt.item_total - self.active_receipt.discount_total) / 100
         return self.default_cost or self.calc_default_cost()
 
     @property
@@ -2038,8 +2040,6 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     @classproperty
     def searchable_fields(cls):
         fields = [col.name for col in cls.__table__.columns if isinstance(col.type, (String, AutoString))]
-        if "other_accessibility_requests" in fields:
-            fields.remove('other_accessibility_requests')
         return fields
 
     @classproperty
@@ -2661,6 +2661,10 @@ class AttendeeAccount(MagModel, table=True):
         return self.panel_applications or self.indie_studios or self.mits_teams
     
     @property
+    def default_group_email(self):
+        return self.email
+    
+    @property
     def admin_account_id(self):
         for attendee in self.valid_attendees:
             if attendee.admin_account:
@@ -2670,7 +2674,7 @@ class AttendeeAccount(MagModel, table=True):
     def backup_owner(self):
         # Used if the owner set on this account is an invalid badge
         if not self.valid_attendees:
-            return
+            return self.owner
         
         valid_badges = self.valid_adults or self.valid_attendees
 
@@ -2695,7 +2699,7 @@ class AttendeeAccount(MagModel, table=True):
         )]
 
     def set_account_owner(self, attendee=None):
-        if not attendee and self.owner:
+        if not attendee and self.owner and self.owner.is_valid:
             return
         
         attendee = attendee or self.backup_owner
@@ -2708,6 +2712,9 @@ class AttendeeAccount(MagModel, table=True):
 
             if not attendee:
                 attendee = adult_pending[0] if adult_pending else self.pending_attendees[0]
+            
+            if not attendee:
+                return
         
         self.owner = attendee
 
@@ -2815,6 +2822,8 @@ class BadgePickupGroup(MagModel, table=True):
         
         for attendee in pending_free_badges:
             attendee.badge_status = c.COMPLETED_STATUS
+            if attendee.paid == c.PENDING:
+                attendee.paid = c.NEED_NOT_PAY
             attendee.badge_pickup_group_id = None
             session.add(attendee)
     

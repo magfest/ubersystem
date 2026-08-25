@@ -35,9 +35,10 @@ def filter_emails_by_dept_id(session, email_model, emails, department_id, email_
     if not department_id and c.HAS_FULL_EMAIL_ADMIN_ACCESS:
         return emails, depts_by_sender
     elif department_id == 'None':
-        emails = emails.filter(~email_model.sender.regexp_match(any_(dept_email_re), flags="i"))
+        exclude_emails = emails.filter(email_model.sender.regexp_match(any_(dept_email_re), flags="i"))
         if email_model == Email:
-            emails = emails.filter(~Email.to.regexp_match(any_(dept_email_re), flags="i"))
+            exclude_emails = emails.filter(Email.to.regexp_match(any_(dept_email_re), flags="i"))
+        emails = emails.filter(~email_model.id.in_([e.id for e in exclude_emails]))
     else:
         if email_model == Email:
             emails = emails.filter(or_(Email.sender.regexp_match(any_(dept_email_re), flags="i"),
@@ -62,6 +63,7 @@ class Root:
                                                            params.get('department_id', ''), email_depts)
 
         if status:
+            status = listify(status)
             emails = emails.filter(Email.status.in_([int(s) for s in status]))
         
         ident = params.get('ident')
@@ -167,7 +169,8 @@ class Root:
         url = 'pending?'
         params.pop('csrf_token', None)
         for key, val in params.items():
-            url += f'{key}={val}&'
+            if val:
+                url += f'{key}={val}&'
         raise HTTPRedirect(url + 'message={}', "Email deleted.")
     
     @requires_email_admin('dept_head')

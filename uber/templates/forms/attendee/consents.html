@@ -10,11 +10,14 @@
 Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
 #}
 
-<div x-data="{ {% block x_data %}{% endblock %} }">
+<div x-data="{ {% block x_data %}
+age_now_or_at_con: '{{ attendee.age_now_or_at_con }}',
+get hideCanSpam() { return this.badge_type == '{{ c.CHILD_BADGE }}' || (this.age_now_or_at_con != 'None' && parseInt(this.age_now_or_at_con) < 13) }
+{% endblock %} }">
 
 <div class="row g-3 mb-3">
 {% block optional %}
-    <div class="col-12">{{ form_macros.input(consents.can_spam) }}</div>
+    <div class="col-12" x-show="!hideCanSpam">{{ form_macros.input(consents.can_spam) }}</div>
 {% endblock %}
 </div>
 

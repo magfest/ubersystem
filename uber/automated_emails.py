@@ -89,11 +89,11 @@ class AutomatedEmailFixture:
             name, val = filter_tuple
             if val:
                 if callable(val):
-                    setattr(self, name, lambda x: (x.gets_emails and val(x)))
+                    filter_func = val
                 else:
                     setattr(self, name + '_desc', val)
                     filter_func = eval(val)
-                    setattr(self, name, lambda x: (x.gets_emails and filter_func(x)))
+                setattr(self, name, lambda x: (x.gets_emails and filter_func(x)))
             else:
                 setattr(self, name, None)
 
@@ -149,30 +149,30 @@ class AdminReportEmailFixture(AutomatedEmailFixture):
                                        ident,
                                        sender=kwargs.pop('sender', c.ADMIN_EMAIL), **kwargs)
 
-
-AutomatedEmailFixture(
-    AttractionSignup,
-    'Signed up from waitlist',
-    'panels/attractions_waitlist.html', None,
-    'signup_from_waitlist',
-    sender=c.ATTRACTIONS_EMAIL)
-
-
-AutomatedEmailFixture(
-    AttractionSignup,
-    f'Welcome to {c.EVENT_NAME} Attractions',
-    'panels/attractions_welcome.html', None,
-    'first_attractions_signup',
-    sender=c.ATTRACTIONS_EMAIL,
-)
+if c.ATTRACTIONS_ENABLED:
+    AutomatedEmailFixture(
+        AttractionSignup,
+        'Signed up from waitlist',
+        'panels/attractions_waitlist.html', None,
+        'signup_from_waitlist',
+        sender=c.ATTRACTIONS_EMAIL)
 
 
-AutomatedEmailFixture(
-    AttractionSignup,
-    'Checkin for {event.name} is at {event.checkin_start_time_label}',
-    'panels/attractions_notification.html', None,
-    'signup_checkin_notice',
-    sender=c.ATTRACTIONS_EMAIL,
+    AutomatedEmailFixture(
+        AttractionSignup,
+        f'Welcome to {c.EVENT_NAME} Attractions',
+        'panels/attractions_welcome.html', None,
+        'first_attractions_signup',
+        sender=c.ATTRACTIONS_EMAIL,
+    )
+
+
+    AutomatedEmailFixture(
+        AttractionSignup,
+        'Checkin for {event.name} is at {event.checkin_start_time_label}',
+        'panels/attractions_notification.html', None,
+        'signup_checkin_notice',
+        sender=c.ATTRACTIONS_EMAIL,
 )
 
 
@@ -185,115 +185,123 @@ AutomatedEmailFixture(
 )
 
 
-AutomatedEmailFixture(
-    AdminAccount,
-    f'{c.EVENT_NAME} Admin Password Reset',
-    'accounts/password_reset.txt', None,
-    'admin_password_reset',
-    sender=c.ADMIN_EMAIL,
-)
+if c.PANELS_START:
+    AdminReportEmailFixture(
+        f'{c.EVENT_NAME} Panel Accepted With Accessibility Request(s)',
+        'panels/accessibility_requested.txt',
+        'panel_accepted_accessibility_admin',
+    )
 
 
-AutomatedEmailFixture(
-    AttendeeAccount,
-    f'{c.EVENT_NAME} Password Reset',
-    'accounts/password_reset.html', None,
-    'attendee_password_reset',
-    sender=c.ADMIN_EMAIL,
-)
+if not c.SAML_SETTINGS and not c.OIDC_ENABLED:
+    AutomatedEmailFixture(
+        AdminAccount,
+        f'{c.EVENT_NAME} Admin Password Reset',
+        'accounts/password_reset.txt', None,
+        'admin_password_reset',
+        sender=c.ADMIN_EMAIL,
+    )
 
 
-AdminReportEmailFixture(
-    f'{c.EVENT_NAME} Panel Accepted With Accessibility Request(s)',
-    'panels/accessibility_requested.txt',
-    'panel_accepted_accessibility_admin',
-)
+if c.ATTENDEE_ACCOUNTS_ENABLED:
+    AutomatedEmailFixture(
+        AttendeeAccount,
+        f'{c.EVENT_NAME} Password Reset',
+        'accounts/password_reset.html', None,
+        'attendee_password_reset',
+        sender=c.ADMIN_EMAIL,
+    )
+
+    AutomatedEmailFixture(
+        AttendeeAccount,
+        f'New Badge Added to Your {c.EVENT_NAME} Account',
+        'accounts/attendee_added.html', None,
+        'attendee_account_attendee_added',
+        sender=c.ADMIN_EMAIL,
+    )
+
+    if c.OIDC_ENABLED:
+        AutomatedEmailFixture(
+            AttendeeAccount,
+            f'{c.EVENT_NAME_AND_YEAR} Account Setup',
+            'accounts/new_sso_account.html', None,
+            'sso_account_setup',
+            sender=c.ADMIN_EMAIL,
+        )
+
+    if not c.LOCAL_ACCOUNTS_DISABLED:
+        AutomatedEmailFixture(
+            AttendeeAccount,
+            f'{c.EVENT_NAME_AND_YEAR} Account Setup',
+            'accounts/new_account.html', None,
+            'local_account_setup',
+            sender=c.ADMIN_EMAIL
+        )
+
+if c.AUTHORIZENET_LOGIN_ID:
+    AutomatedEmailFixture(
+        None, f'Your {c.EVENT_NAME_AND_YEAR} receipt ' + '[#{receiptinfo.reference_id}]',
+        'reg_workflow/receipt.html', None,
+        'receipt_info',
+        sender=c.ADMIN_EMAIL,
+    )
+
+    AdminReportEmailFixture(
+        f'AuthNet Held Transaction Declined',
+        'held_txn_declined.html',
+        'authnet_held_txn_admin',
+        sender=c.REPORTS_EMAIL
+    )
+
+if not c.ATTENDEE_ACCOUNTS_ENABLED:
+    AutomatedEmailFixture(
+        Attendee,
+        f'{c.EVENT_NAME_AND_YEAR} Registration Confirmation',
+        'reg_workflow/prereg_check.txt', None,
+        'prereg_check',
+        sender=c.REGDESK_EMAIL
+    )
 
 
-AutomatedEmailFixture(
-    AttendeeAccount,
-    f'New Badge Added to Your {c.EVENT_NAME} Account',
-    'accounts/attendee_added.html', None,
-    'attendee_account_attendee_added',
-    sender=c.ADMIN_EMAIL,
-)
+if c.GROUPS_ENABLED:
+    AutomatedEmailFixture(
+        None, f'Claim a {c.EVENT_NAME} badge in ' + '"{code.group.name}"',
+        'reg_workflow/promo_code_invite.txt', None,
+        'promo_code_group_invite',
+        sender=c.REGDESK_EMAIL
+    )
 
 
-AutomatedEmailFixture(
-    AttendeeAccount,
-    f'{c.EVENT_NAME_AND_YEAR} Account Setup',
-    'accounts/new_sso_account.html', None,
-    'sso_account_setup',
-    sender=c.ADMIN_EMAIL,
-)
+if c.TRANSFERABLE_BADGE_TYPES:
+    AutomatedEmailFixture(
+        Attendee,
+        f'{c.EVENT_NAME} Pending Badge Code',
+        'reg_workflow/pending_code.txt', None,
+        'badge_transfer_code',
+        sender=c.REGDESK_EMAIL,
+        send_filter='lambda a: a.badge_status == c.PENDING_STATUS and a.paid == c.PENDING'
+    )
 
+    AutomatedEmailFixture(
+        None, f'{c.EVENT_NAME} Registration Transferred',
+        'reg_workflow/badge_transferee.txt', None,
+        'code_badge_transfer_new_badge',
+        sender=c.REGDESK_EMAIL
+    )
 
-AutomatedEmailFixture(
-    AttendeeAccount,
-    f'{c.EVENT_NAME_AND_YEAR} Account Setup',
-    'accounts/new_account.html', None,
-    'local_account_setup',
-    sender=c.ADMIN_EMAIL
-)
+    AutomatedEmailFixture(
+        None, f'{c.EVENT_NAME} Registration Transferred',
+        'reg_workflow/badge_transferer.txt', None,
+        'code_badge_transfer_old_badge',
+        sender=c.REGDESK_EMAIL
+    )
 
-
-AutomatedEmailFixture(
-    None, f'Your {c.EVENT_NAME_AND_YEAR} receipt ' + '[#{receiptinfo.reference_id}]',
-    'reg_workflow/receipt.html', None,
-    'receipt_info',
-    sender=c.ADMIN_EMAIL,
-)
-
-
-AutomatedEmailFixture(
-    Attendee,
-    f'{c.EVENT_NAME_AND_YEAR} Registration Confirmation',
-    'reg_workflow/prereg_check.txt', None,
-    'prereg_check',
-    sender=c.REGDESK_EMAIL
-)
-
-
-AutomatedEmailFixture(
-    None, f'Claim a {c.EVENT_NAME} badge in ' + '"{code.group.name}"',
-    'reg_workflow/promo_code_invite.txt', None,
-    'promo_code_group_invite',
-    sender=c.REGDESK_EMAIL
-)
-
-
-AutomatedEmailFixture(
-    Attendee,
-    f'{c.EVENT_NAME} Pending Badge Code',
-    'reg_workflow/pending_code.txt', None,
-    'badge_transfer_code',
-    sender=c.REGDESK_EMAIL,
-    send_filter='lambda a: a.badge_status == c.PENDING_STATUS and a.paid == c.PENDING'
-)
-
-
-AutomatedEmailFixture(
-    None, f'{c.EVENT_NAME} Registration Transferred',
-    'reg_workflow/badge_transferee.txt', None,
-    'code_badge_transfer_new_badge',
-    sender=c.REGDESK_EMAIL
-)
-
-
-AutomatedEmailFixture(
-    None, f'{c.EVENT_NAME} Registration Transferred',
-    'reg_workflow/badge_transferer.txt', None,
-    'code_badge_transfer_old_badge',
-    sender=c.REGDESK_EMAIL
-)
-
-
-AutomatedEmailFixture(
-    None, f'{c.EVENT_NAME} Registration Transferred',
-    'reg_workflow/badge_transfer.txt', None,
-    'link_badge_transfer',
-    sender=c.REGDESK_EMAIL
-)
+    AutomatedEmailFixture(
+        None, f'{c.EVENT_NAME} Registration Transferred',
+        'reg_workflow/badge_transfer.txt', None,
+        'link_badge_transfer',
+        sender=c.REGDESK_EMAIL
+    )
 
 
 AdminReportEmailFixture(
@@ -304,26 +312,26 @@ AdminReportEmailFixture(
 )
 
 
+if c.GUIDEBOOK_UPDATES_EMAIL:
+    AdminReportEmailFixture(
+        'Deleted Guidebook Items',
+        'guidebook_deletes.txt',
+        'guidebook_deletes',
+        sender=c.REPORTS_EMAIL
+    )
+
+    AdminReportEmailFixture(
+        'Guidebook Updates',
+        'guidebook_updates.txt',
+        'guidebook_updates',
+        sender=c.REPORTS_EMAIL
+    )
+
+
 AdminReportEmailFixture(
     f'{c.EVENT_NAME} Pending Emails Report',
     'daily_checks/pending_emails.html',
     'pending_emails_admin',
-)
-
-
-AdminReportEmailFixture(
-    'Deleted Guidebook Items',
-    'guidebook_deletes.txt',
-    'guidebook_deletes',
-    sender=c.REPORTS_EMAIL
-)
-
-
-AdminReportEmailFixture(
-    'Guidebook Updates',
-    'guidebook_updates.txt',
-    'guidebook_updates',
-    sender=c.REPORTS_EMAIL
 )
 
 
@@ -367,14 +375,6 @@ AdminReportEmailFixture(
 )
 
 
-AdminReportEmailFixture(
-    f'AuthNet Held Transaction Declined',
-    'held_txn_declined.html',
-    'authnet_held_txn_admin',
-    sender=c.REPORTS_EMAIL
-)
-
-
 # Payment reminder emails, including ones for groups, which are always safe to be here, since they just
 # won't get sent if group registration is turned off.
 
@@ -398,13 +398,14 @@ if c.ATTENDEE_ACCOUNTS_ENABLED:
         sender=c.REGDESK_EMAIL,
         allow_at_the_con=True)
 
-AutomatedEmailFixture(
-    PromoCodeGroup,
-    f'{c.EVENT_NAME} group registration successful',
-    'reg_workflow/promo_code_group_confirmation.html',
-    "lambda g: g.buyer and g.buyer.amount_paid > 0",
-    'pc_group_payment_received',
-    sender=c.REGDESK_EMAIL,
+if c.GROUPS_ENABLED:
+    AutomatedEmailFixture(
+        PromoCodeGroup,
+        f'{c.EVENT_NAME} group registration successful',
+        'reg_workflow/promo_code_group_confirmation.html',
+        "lambda g: g.buyer and g.buyer.amount_paid > 0",
+        'pc_group_payment_received',
+        sender=c.REGDESK_EMAIL,
     allow_at_the_con=True)
 
 AutomatedEmailFixture(
@@ -435,19 +436,22 @@ AutomatedEmailFixture(
     sender=c.REGDESK_EMAIL,
     allow_at_the_con=True)
 
+
 AutomatedEmailFixture(
     None, f'{c.EVENT_NAME} group registration dropped',
     'reg_workflow/group_member_dropped.txt', None,
     'attendee_removed_from_group'
 )
 
-AutomatedEmailFixture(
-    Attendee,
-    f'{c.EVENT_NAME} merch pre-order received',
-    'reg_workflow/group_donation.txt',
-    "lambda a: a.paid == c.PAID_BY_GROUP and a.amount_extra and a.amount_paid >= (a.amount_extra * 100)",
-    'group_extra_payment_received',
-    sender=c.MERCH_EMAIL)
+
+if len(c.DONATION_TIERS) > 1:
+    AutomatedEmailFixture(
+        Attendee,
+        f'{c.EVENT_NAME} merch pre-order received',
+        'reg_workflow/group_donation.txt',
+        "lambda a: a.paid == c.PAID_BY_GROUP and a.amount_extra and a.amount_paid >= (a.amount_extra * 100)",
+        'group_extra_payment_received',
+        sender=c.MERCH_EMAIL)
 
 
 # Reminder emails for groups to allocated their unassigned badges.  These emails are safe to be turned on for
@@ -768,26 +772,27 @@ if c.DEALER_REG_START:
             "lambda g: g.status in [c.APPROVED, c.SHARED] and c.SIGNNOW_DEALER_TEMPLATE_ID and not g.signnow_document_signed",
             'dealer_signnow_email')
 
-    MarketplaceEmailFixture(
-        f'Reminder to pay for your {c.EVENT_NAME} {c.DEALER_REG_TERM.capitalize()}',
-        'dealers/payment_reminder.txt',
-        "lambda g: g.status in c.DEALER_ACCEPTED_STATUSES and days_after(30, g.approved)() and g.is_unpaid",
-        'dealer_reg_payment_reminder',
-        when=[days_before(60, c.DEALER_PAYMENT_DUE, 7)])
+    if c.DEALER_PAYMENT_DUE:
+        MarketplaceEmailFixture(
+            f'Reminder to pay for your {c.EVENT_NAME} {c.DEALER_REG_TERM.capitalize()}',
+            'dealers/payment_reminder.txt',
+            "lambda g: g.status in c.DEALER_ACCEPTED_STATUSES and days_after(30, g.approved)() and g.is_unpaid",
+            'dealer_reg_payment_reminder',
+            when=[days_before(60, c.DEALER_PAYMENT_DUE, 7)])
 
-    MarketplaceEmailFixture(
-        f'Your {c.EVENT_NAME} ({c.EVENT_DATE}) {c.DEALER_REG_TERM.capitalize()} is due in one week',
-        'dealers/payment_reminder.txt',
-        "lambda g: g.status in c.DEALER_ACCEPTED_STATUSES and g.is_unpaid",
-        'dealer_reg_payment_reminder_due_soon',
-        when=[days_before(7, c.DEALER_PAYMENT_DUE, 2)])
+        MarketplaceEmailFixture(
+            f'Your {c.EVENT_NAME} ({c.EVENT_DATE}) {c.DEALER_REG_TERM.capitalize()} is due in one week',
+            'dealers/payment_reminder.txt',
+            "lambda g: g.status in c.DEALER_ACCEPTED_STATUSES and g.is_unpaid",
+            'dealer_reg_payment_reminder_due_soon',
+            when=[days_before(7, c.DEALER_PAYMENT_DUE, 2)])
 
-    MarketplaceEmailFixture(
-        f'Last chance to pay for your {c.EVENT_NAME} ({c.EVENT_DATE}) {c.DEALER_REG_TERM.capitalize()}',
-        'dealers/payment_reminder.txt',
-        "lambda g: g.status in c.DEALER_ACCEPTED_STATUSES and g.is_unpaid",
-        'dealer_reg_payment_reminder_last_chance',
-        when=[days_before(2, c.DEALER_PAYMENT_DUE)])
+        MarketplaceEmailFixture(
+            f'Last chance to pay for your {c.EVENT_NAME} ({c.EVENT_DATE}) {c.DEALER_REG_TERM.capitalize()}',
+            'dealers/payment_reminder.txt',
+            "lambda g: g.status in c.DEALER_ACCEPTED_STATUSES and g.is_unpaid",
+            'dealer_reg_payment_reminder_last_chance',
+            when=[days_before(2, c.DEALER_PAYMENT_DUE)])
 
 
 class StopsEmailFixture(AutomatedEmailFixture):
@@ -980,15 +985,16 @@ AutomatedEmailFixture(
 
 # Emails sent out to all attendees who can check in. These emails contain useful information about the event and are
 # sent close to the event start date.
-AutomatedEmailFixture(
-    Attendee,
-    f'Check in faster at {c.EVENT_NAME}',
-    'reg_workflow/attendee_qrcode.html',
-    "lambda a: not a.cannot_check_in_reason and c.USE_CHECKIN_BARCODE",
-    'qrcode_for_checkin',
-    sender=c.REGDESK_EMAIL,
-    when=[days_before(7, c.EPOCH)],
-    allow_at_the_con=True)
+if c.USE_CHECKIN_BARCODE:
+    AutomatedEmailFixture(
+        Attendee,
+        f'Check in faster at {c.EVENT_NAME}',
+        'reg_workflow/attendee_qrcode.html',
+        "lambda a: not a.cannot_check_in_reason",
+        'qrcode_for_checkin',
+        sender=c.REGDESK_EMAIL,
+        when=[days_before(7, c.EPOCH)],
+        allow_at_the_con=True)
 
 
 class DeptChecklistEmailFixture(AutomatedEmailFixture):
@@ -1004,7 +1010,7 @@ class DeptChecklistEmailFixture(AutomatedEmailFixture):
             Attendee,
             f'{c.EVENT_NAME} Department Checklist: ' + conf.name,
             'shifts/dept_checklist.txt',
-            f"lambda a: a.admin_account and any(not d.checklist_item_for_slug({conf.slug}) for d in a.checklist_admin_depts)",
+            f"lambda a: a.admin_account and any(not d.checklist_item_for_slug('{conf.slug}') for d in a.checklist_admin_depts)",
             'department_checklist_{}'.format(conf.name),
             when=when,
             sender=c.STAFF_EMAIL,
@@ -1123,6 +1129,12 @@ HotelLotteryEmailFixture(
     f'{c.EVENT_NAME_AND_YEAR} ' + '{app.entry_type_label} Lottery Confirmation',
     'hotel/hotel_lottery_entry.html', None,
     'hotel_lottery_confirmation'
+)
+
+HotelLotteryEmailFixture(
+    f'{c.EVENT_NAME_AND_YEAR} ' + '{app.entry_type_label} Lottery Updated',
+    'hotel/hotel_lottery_entry.html', None,
+    'hotel_lottery_updated'
 )
 
 HotelLotteryEmailFixture(
@@ -1821,28 +1833,28 @@ if c.PANELS_START:
     PanelAppEmailFixture(
         f'Your {c.EVENT_NAME} Panel Application Has Been Received: ' + '{app.name}',
         'panels/application.html',
-        "lambda a: True",
+        "lambda app: app.department in c.EMAILLESS_PANEL_DEPTS",
         'panel_received',
         shared_ident='panelapps_received')
 
     PanelAppEmailFixture(
         f'Your {c.EVENT_NAME} Panel Application Has Been Accepted: ' + '{app.name}',
         'panels/panel_app_accepted.html',
-        "lambda app: app.status == c.ACCEPTED and int(app.department) in c.EMAILLESS_PANEL_DEPTS",
+        "lambda app: app.status == c.ACCEPTED and app.department in c.EMAILLESS_PANEL_DEPTS",
         'panel_accepted',
         shared_ident='panelapps_accepted')
 
     PanelAppEmailFixture(
         f'Your {c.EVENT_NAME} Panel Application Has Been Declined: ' + '{app.name}',
         'panels/panel_app_declined.html',
-        "lambda app: app.status == c.DECLINED and int(app.department) in c.EMAILLESS_PANEL_DEPTS",
+        "lambda app: app.status == c.DECLINED and app.department in c.EMAILLESS_PANEL_DEPTS",
         'panel_declined',
         shared_ident='panelapps_declined')
 
     PanelAppEmailFixture(
         f'Your {c.EVENT_NAME} Panel Application Has Been Waitlisted: ' + '{app.name}',
         'panels/panel_app_waitlisted.html',
-        "lambda app: app.status == c.WAITLISTED and int(app.department) in c.EMAILLESS_PANEL_DEPTS",
+        "lambda app: app.status == c.WAITLISTED and app.department in c.EMAILLESS_PANEL_DEPTS",
         'panel_waitlisted',
         shared_ident='panelapps_waitlisted')
 
@@ -1850,7 +1862,7 @@ if c.PANELS_START:
         PanelAppEmailFixture(
             'Last chance to confirm your panel',
             'panels/panel_accept_reminder.html',
-            "lambda app: c.PANELS_CONFIRM_DEADLINE and app.confirm_deadline and int(app.department) in c.EMAILLESS_PANEL_DEPTS \
+            "lambda app: c.PANELS_CONFIRM_DEADLINE and app.confirm_deadline and app.department in c.EMAILLESS_PANEL_DEPTS \
                 and (localized_now() + timedelta(days=2)) > app.confirm_deadline",
             'panel_accept_reminder',
             shared_ident='panelapps_accept_reminder')
@@ -1866,7 +1878,7 @@ if c.PANELS_START:
     PanelAppEmailFixture(
         f'Your {c.EVENT_NAME} Panel Has Been Scheduled: ' + '{app.name}',
         'panels/panel_app_scheduled.html',
-        "lambda app: app.event_id and int(app.department) in c.EMAILLESS_PANEL_DEPTS",
+        "lambda app: app.event_id and app.department in c.EMAILLESS_PANEL_DEPTS",
         'panel_scheduled',
         shared_ident='panelapps_received')
 
@@ -1945,26 +1957,10 @@ class GuestEmailFixture(AutomatedEmailFixture):
 
 
 AdminReportEmailFixture(
-    '{guest.group.name} Meet & Greet Notification',
-    'guests/meetgreet_notification.txt',
-    'guest_meet_greet_admin',
-    sender=c.ROCK_ISLAND_EMAIL,
-)
-
-
-AdminReportEmailFixture(
     '{guest.group.name} Donation Notification',
     'guests/charity_notification.txt',
     'guest_charity_admin',
     sender=c.CHARITY_EMAIL,
-)
-
-
-AdminReportEmailFixture(
-    f'{c.EVENT_NAME} Rock Island Inventory Updates',
-    'daily_checks/ri_inventory_updates.html',
-    'rock_island_updates_admin',
-    sender=c.REPORTS_EMAIL
 )
 
 
@@ -2112,19 +2108,34 @@ ArenaEmailFixture(
     'arena_reminder_2',
     when=[days_after(7, c.ARENA_INFO_DEADLINE)])
 
-AutomatedEmailFixture(
-    GuestGroup,
-    f'Sign up to sell merch at {c.EVENT_NAME} Rock Island',
-    'guests/rock_island_intro.txt',
-    "lambda g: g.group_type in c.ROCK_ISLAND_GROUPS and g.deadline_from_model('merch') and not g.group_type == c.BAND",
-    'rock_island_intro',
-    sender=c.ROCK_ISLAND_EMAIL)
+if c.ROCK_ISLAND_GROUPS:
+    AdminReportEmailFixture(
+        '{guest.group.name} Meet & Greet Notification',
+        'guests/meetgreet_notification.txt',
+        'guest_meet_greet_admin',
+        sender=c.ROCK_ISLAND_EMAIL,
+    )
 
-AutomatedEmailFixture(
-    GuestGroup,
-    f'Last chance to finalize your {c.EVENT_NAME} Rock Island Inventory',
-    'guests/rock_island_inventory_reminder.txt',
-    "lambda g: g.group_type in c.ROCK_ISLAND_GROUPS and g.merch and g.merch.selling_merch == c.ROCK_ISLAND",
-    'ri_inventory_reminder',
-    when=[days_before(7, c.ROCK_ISLAND_DEADLINE)],
-    sender=c.ROCK_ISLAND_EMAIL)
+    AdminReportEmailFixture(
+        f'{c.EVENT_NAME} Rock Island Inventory Updates',
+        'daily_checks/ri_inventory_updates.html',
+        'rock_island_updates_admin',
+        sender=c.REPORTS_EMAIL
+    )
+
+    AutomatedEmailFixture(
+        GuestGroup,
+        f'Sign up to sell merch at {c.EVENT_NAME} Rock Island',
+        'guests/rock_island_intro.txt',
+        "lambda g: g.group_type in c.ROCK_ISLAND_GROUPS and g.deadline_from_model('merch') and not g.group_type == c.BAND",
+        'rock_island_intro',
+        sender=c.ROCK_ISLAND_EMAIL)
+
+    AutomatedEmailFixture(
+        GuestGroup,
+        f'Last chance to finalize your {c.EVENT_NAME} Rock Island Inventory',
+        'guests/rock_island_inventory_reminder.txt',
+        "lambda g: g.group_type in c.ROCK_ISLAND_GROUPS and g.merch and g.merch.selling_merch == c.ROCK_ISLAND",
+        'ri_inventory_reminder',
+        when=[days_before(7, c.ROCK_ISLAND_DEADLINE)],
+        sender=c.ROCK_ISLAND_EMAIL)

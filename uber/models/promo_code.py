@@ -336,10 +336,7 @@ class PromoCode(MagModel, table=True):
 
     @property
     def discount_str(self):
-        if self.discount_type == c.FIXED_DISCOUNT and self.discount == 0:
-            # This is done to account for Art Show Agent codes, which use the PromoCode class
-            return 'No discount'
-        elif not self.discount:
+        if not self.discount:
             return 'Comped item(s)'
 
         if self.discount_type == c.FIXED_DISCOUNT:

@@ -214,6 +214,7 @@ class Root:
             cart = PreregCart(list(PreregCart.unpaid_preregs.values()))
             cart.set_total_cost()
             promo_code_discounts = defaultdict(list)
+            promo_code_warnings = defaultdict(list)
             age_discounts = {}
             for attendee in cart.attendees:
                 if attendee.promo_code:
@@ -229,6 +230,8 @@ class Root:
                 for discount in promo_code_discount_objs:
                     if discount.discount_str:
                         promo_code_discounts[attendee.id].append(discount.discount_str)
+                    if discount.unused_warning(attendee):
+                        promo_code_warnings[attendee.id].append(discount.unused_warning(attendee))
 
             return {
                 'logged_in_account': session.current_attendee_account(),
@@ -236,6 +239,7 @@ class Root:
                 'message': message,
                 'cart': cart,
                 'promo_code_discounts': promo_code_discounts,
+                'promo_code_warnings': promo_code_warnings,
                 'age_discounts': age_discounts,
                 'account_email': account_email or cart.attendees[0].email,
                 'account_password': account_password,
@@ -365,7 +369,7 @@ class Root:
 
         if cherrypy.request.method == 'POST':
             for form in forms.values():
-                form.populate_obj(group)
+                form.populate_obj(group, session=session)
 
             message = check(group, prereg=True)
             if not message:
@@ -564,7 +568,7 @@ class Root:
             for form in forms.values():
                 if hasattr(form, 'same_legal_name') and params.get('same_legal_name'):
                     form['legal_name'].data = ''
-                form.populate_obj(attendee)
+                form.populate_obj(attendee, session=session)
 
         if (cherrypy.request.method == 'POST' or edit_id is not None) and c.PRE_CON:
             if not message and attendee.badge_type not in c.PREREG_BADGE_TYPES:
@@ -687,7 +691,7 @@ class Root:
 
         if cherrypy.request.method == "POST":
             for form in forms.values():
-                form.populate_obj(attendee)
+                form.populate_obj(attendee, session=session)
 
             _add_promo_code(session, attendee, params.get('promo_code_code'))
 
@@ -754,8 +758,12 @@ class Root:
         if not list(PreregCart.unpaid_preregs.values()):
             if qr_code_id:
                 current_pickup_group = session.query(BadgePickupGroup).filter_by(public_id=qr_code_id).first()
-                for attendee in current_pickup_group.attendees:
-                    registrations_list.append(attendee.full_name)
+                if not current_pickup_group:
+                    single_attendee = session.query(Attendee).filter_by(public_id=qr_code_id).first()
+                    registrations_list.append(single_attendee.full_name)
+                else:
+                    for attendee in current_pickup_group.attendees:
+                        registrations_list.append(attendee.full_name)
             elif c.ATTENDEE_ACCOUNTS_ENABLED:
                 qr_code_id = qr_code_id or (account_pickup_group.public_id if account_pickup_group else '')
 
@@ -799,6 +807,10 @@ class Root:
                 session.add(old_attendee)
                 del cherrypy.session['imported_attendee_ids'][attendee.id]
 
+            if attendee.badges:
+                pc_group = session.create_promo_code_group(attendee, attendee.name, int(attendee.badges) - 1)
+                session.add(pc_group)
+
             if account:
                 session.add_attendee_to_account(attendee, account)
             else:
@@ -810,6 +822,7 @@ class Root:
             total_cost = sum([(item.amount * item.count) for item in receipt_items])
             if total_cost == 0:
                 attendee.paid = c.NEED_NOT_PAY
+
         for group in cart.groups:
             session.add(group)
 
@@ -844,6 +857,10 @@ class Root:
                 attendee.badge_cost = attendee.calculate_badge_cost()
                 attendee.paid = c.NEED_NOT_PAY
 
+                if attendee.badges:
+                    pc_group = session.create_promo_code_group(attendee, attendee.name, int(attendee.badges) - 1)
+                    session.add(pc_group)
+
                 if attendee.id in cherrypy.session.setdefault('imported_attendee_ids', {}):
                     old_attendee = session.attendee(cherrypy.session['imported_attendee_ids'][attendee.id])
                     old_attendee.current_attendee = attendee
@@ -857,6 +874,12 @@ class Root:
 
             for group in cart.groups:
                 session.add(group)
+            
+            session.commit()
+
+            if c.ATTENDEE_ACCOUNTS_ENABLED:
+                account.set_account_owner()
+                session.commit()
 
             PreregCart.unpaid_preregs.clear()
             PreregCart.paid_preregs.extend(cart.targets)
@@ -1983,6 +2006,11 @@ class Root:
             messages.append(f"Could not cancel registration{'s' if len(failed_attendees) > 1 else ''} for \
                             {readable_join([a.full_name for a in failed_attendees])}. \
                             Please contact {email_only(c.REGDESK_EMAIL)} for assistance.")
+        
+        session.commit()
+        if c.ATTENDEE_ACCOUNTS_ENABLED and attendee.managers:
+            attendee.managers[0].set_account_owner()
+            session.commit()
 
         raise HTTPRedirect("homepage?&message={}", ' '.join(messages))
 
@@ -2041,6 +2069,11 @@ class Root:
         attendee.badge_status = c.REFUNDED_STATUS
         for shift in attendee.shifts:
             session.delete(shift)
+
+        if c.ATTENDEE_ACCOUNTS_ENABLED and attendee.managers:
+            attendee.managers[0].set_account_owner()
+            session.commit()
+
         raise HTTPRedirect('{}?message={}', page_redirect, success_message)
 
     @requires_account(Attendee)
@@ -2328,19 +2361,27 @@ class Root:
             if column is not None:
                 new_val = preview_attendee.coerce_column_data(column, new_val)
             setattr(preview_attendee, col_name, new_val)
-        
-        changes_list = ReceiptManager.process_receipt_change(attendee, update_col,
-                                                             who='non-admin',
-                                                             new_model=preview_attendee)
-        only_change = changes_list[0] if changes_list else ("", 0, 0)
-        desc, change, count = only_change
-        return {'desc': desc, 'change': change}  # We don't need the count for this preview
+
+        cost_list = ReceiptManager.process_receipt_change(attendee, update_col,
+                                                          who='non-admin',
+                                                          new_model=preview_attendee)
+        only_change = cost_list[0] if cost_list else ("", 0, 0)
+        desc, cost, _ = only_change
+        applicable_discount = ('', 0)
+        if cost and attendee.active_receipt:
+            for discount in attendee.active_receipt.receipt_discounts:
+                curr_discount = discount.applicable_discount
+                discount, discount_desc, _ = discount.get_upgrade_discount(update_col, preview_attendee)
+                if discount > curr_discount:
+                    applicable_discount = (discount_desc, discount - curr_discount)
+        return {'desc': desc, 'cost': cost, 'discount': applicable_discount}
 
     @requires_account(Attendee)
     @ajax
     def purchase_upgrades(self, session, id, **params):
         message = ''
         attendee = session.attendee(id)
+
         try:
             receipt = session.model_receipt(params.get('receipt_id'))
         except Exception:
@@ -2369,9 +2410,12 @@ class Root:
             # "is_admin" bypasses the locked fields, which includes purchaseable upgrades
             form.populate_obj(attendee, is_admin=True)
 
+        session.add_all(receipt_items)
         session.commit()
 
-        return {'success': True}
+        session.refresh_receipt_and_model(attendee)
+
+        return {'success': True, 'free_upgrade': not receipt.current_amount_owed}
 
     @ajax
     @credit_card

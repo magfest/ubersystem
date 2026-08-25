@@ -1,5 +1,5 @@
 {% macro label(field, label_text='', required_if="false") %}
-  <label for="{{ field.label.field_id }}"
+  <label for="{{ kwargs.get('field_id', field.label.field_id) }}"
 {% for key in kwargs %} {{ key }}="{{ kwargs[key] }}"{% endfor %}>{{ label_text }}
   <span class="required-indicator text-danger" x-show="{{ required_if }}"> *</span></label>
 {% endmacro %}
@@ -75,8 +75,11 @@
 {% for key, val in kwargs.items() %}
   {% if key.startswith('alpine_') %}
   {% set _ = custom_kwargs.update({'x-' ~ key[7:]: val}) %}
-  {% else %}
+  {% elif val or key != 'readonly' %}
   {% set _ = custom_kwargs.update({key: val}) %}
+  {% endif %}
+  {% if key == 'id' %}
+  {% set _ = label_kwargs.update({'field_id': val}) %}
   {% endif %}
 {% endfor %}
 
@@ -140,7 +143,6 @@
   {{ text_below_field }}
 </fieldset>
 {% else %}
-  {% if 'FileInput' in widget and field.data %}<p>{{ field.data }}</p>{% endif %}
   {{ field(**custom_kwargs) }}
   {{ text_below_field }}
   {% if caller %}{{ caller() }}{% endif %}

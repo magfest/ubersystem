@@ -67,6 +67,7 @@ class PersonalInfo(AddressForm):
 
 
 class BadgeExtras(MagForm):
+    field_aliases = {'badge_type': ['badge_type_single']}
     dynamic_choices_fields = {'shirt': lambda: c.SHIRT_OPTS, 'staff_shirt': lambda: c.STAFF_SHIRT_OPTS}
 
     attendance_type = HiddenIntField('Single Day or Weekend Badge?')
@@ -191,7 +192,7 @@ class PreregOtherInfo(OtherInfo, StaffingInfo):
 class Consents(MagForm):
     can_spam = BooleanField(
         f'Please send me emails relating to {c.EVENT_NAME} and {c.ORGANIZATION_NAME} in future years.',
-        description=popup_link("../static_views/privacy.html", "View Our Spam Policy"))
+        description=popup_link("../static_views/privacy.html", "Read our Email &amp; Text Communications policy"))
     pii_consent = BooleanField(
         Markup(f'<strong>Yes</strong>, I understand and agree that {c.ORGANIZATION_NAME} will store '
                'the personal information I provided above for the limited purposes '

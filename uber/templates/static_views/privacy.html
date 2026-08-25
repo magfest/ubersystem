@@ -1,24 +1,91 @@
 <html>
 <head>
-    <title> {{ c.EVENT_NAME }} - Privacy Policy </title>
+    <title> {{ c.EVENT_NAME }} - Email &amp; Text Communications </title>
     {{ "styles/styles.css"|serve_static_content }}
 </head>
 <body>
 
-<h3 class="center">We Hate Spam!</h3>
+{# Carriers require a single, always-reachable opt-in disclosure URL for A2P 10DLC campaign
+   registration. Every section renders unconditionally for that reason; do not wrap the text
+   message sections in feature flags, even on events that send no texts. #}
 
-If you don't opt-in to receiving emails related to {{ organization_with_event_name('or') }} in the future, then we will only
-use your email address to contact you as necessary about this year's {{ c.EVENT_NAME }}, and then the
-address will never again be used.
+<h2>Email &amp; Text Communications</h2>
+
+We hate spam too. Here's exactly what we'll send you, when, and how to make it stop.
+
+<h3>Email</h3>
+
+If you register for an event, we'll email you about it: confirmation, badge info,{% if c.HOTELS_ENABLED %} hotel info,{% endif %}
+a schedule of the attractions you signed up for (if applicable), and similar registration-related
+messages. These aren't optional; they're part of running the event. An authorized
+{{ c.ORGANIZATION_NAME }} staff member may also reach out directly if there's something specific
+about your registration or general attendance to address.
 
 <br/> <br/>
 
-If you do opt-in to receiving emails in the future, here are some assurances:
+If you opt in during registration, we'll also email you about future {{ organization_with_event_name() }}
+events and news. You can opt out at any time using the unsubscribe link in any email. We never sell
+or share your email address.
+
+<br/> <br/>
+
+We use service providers to deliver messages on our behalf, and our contracts prohibit them from
+using your address for any purpose other than message delivery.
+
+<h3>Text Messages</h3>
+
+{{ c.ORGANIZATION_NAME }} uses two separate text message systems. They're completely independent,
+and you can opt in to one without the other.
+
+<h4>Emergency Text Alerts</h4>
+
+If you opt in during registration, {{ c.ORGANIZATION_NAME }} will text you only in the event of a
+life-safety emergency at the event you registered for. This means situations like tornado warnings,
+evacuations, or active threats; anything that requires a message of urgency and safety.
+
+<br/> <br/>
+
+We do not use this system for schedule changes, general event updates, weather updates that don't
+require immediate action, lost and found, merchandise, or any marketing. Schedule and event updates
+go through email, our schedule app, and our social media.
+
+<br/> <br/>
+
+During a typical event, we expect to send zero messages. You will receive a welcome message after
+submitting your details at registration, and a reminder message a few days before the event
+confirming your sign-up. Reply STOP to any message to opt out, or HELP for help.
+
+<h4>Activity &amp; Sign-Up Texts</h4>
+
+If you sign up for sessions, meetups, attractions, or other activities, you may have the option to
+opt in to text reminders for those activities. These texts come from a different number than
+emergency alerts and have their own opt-in. Frequency depends on which activities you signed up for.
+Reply STOP to opt out, or HELP for help.
+
+<h4>What applies to all our text messages</h4>
 <ul class="pad-top-10">
-    <li> Your email address will never be shared with anyone; not companies which partner with {{ organization_with_event_name('or') }}, not third parties, no one. </li>
-    <li> You may opt-out of receiving further emails at any time. </li>
-    <li> You will only be contacted about things relating to {{ organization_with_event_name() }}. </li>
+    <li> Message and data rates may apply. Carriers are not liable for delayed or undelivered messages. </li>
+    <li> We never sell or share your phone number, and we never use it for marketing. We use service providers to deliver messages on our behalf, and our contracts prohibit them from using your number for any purpose other than message delivery. </li>
+    <li> Reply STOP to opt out of the specific program you reply to; emergency and activity texts have separate opt-outs. </li>
+    <li> Reply HELP for program info and how to reach us. </li>
+    <li> If you change your phone number, please update it in your registration profile. </li>
 </ul>
+
+<h3>Children Under 13</h3>
+
+We don't add anyone under 13 to our text or email opt-in lists, even if a checkbox is selected
+during registration. Parents who want to receive emergency texts about a child attending
+{{ c.EVENT_NAME }} should opt in on their own adult registration.
+{%- if c.PRIVACY_POLICY_URL %} For more on how we handle minors' information, see our
+<a href="{{ c.PRIVACY_POLICY_URL }}" target="_blank">Privacy Policy</a>.{% endif %}
+
+<h3>Questions or Issues</h3>
+
+For any questions about your communication preferences, contact us
+{%- if c.CONTACT_URL %} at <a href="{{ c.CONTACT_URL }}" target="_blank">{{ c.CONTACT_URL }}</a>.
+{%- else %} through the contact information on our website.{% endif %}
+{%- if c.PRIVACY_POLICY_URL %} For our full data practices, see our
+<a href="{{ c.PRIVACY_POLICY_URL }}" target="_blank">Privacy Policy</a>.{% endif %}
 
 </body>
 </html>

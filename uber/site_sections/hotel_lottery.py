@@ -1455,11 +1455,11 @@ class Root:
                 application.last_submitted = datetime.now()
 
                 EmailService.queue_email(
-                    session, 'hotel_lottery_confirmation', application,
-                    subject=c.EVENT_NAME_AND_YEAR + f' Room Lottery Updated',
+                    session, 'hotel_lottery_updated', application,
                     data={
                     'post_cutoff': _is_post_cutoff(application),
-                    'action_str': "updating your room lottery entry"})
+                    'action_str': "updating your room lottery entry"},
+                    replace_unsent=True)
                 if update_group_members:
                     for member in application.valid_group_members:
                         EmailService.queue_email(
@@ -1517,12 +1517,12 @@ class Root:
                 application.last_submitted = datetime.now()
 
                 EmailService.queue_email(
-                    session, 'hotel_lottery_confirmation', application,
-                    subject=c.EVENT_NAME_AND_YEAR + f' Suite Lottery Updated',
+                    session, 'hotel_lottery_updated', application,
                     data={
                     'post_cutoff': _is_post_cutoff(application),
-                    'action_str': "updating your suite lottery entry"})
-                
+                    'action_str': "updating your suite lottery entry"},
+                    replace_unsent=True)
+
                 if update_group_members:
                     for member in application.valid_group_members:
                         EmailService.queue_email(
@@ -1554,8 +1554,8 @@ class Root:
         else:
             application = session.lottery_application(params.get('id'))
             attendee = application.attendee
-        
-        if application.locked:
+
+        if not application.is_new and application.locked:
             return {"error": "You cannot edit your lottery entry at this time."}
 
         if not form_list:

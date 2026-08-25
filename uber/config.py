@@ -519,15 +519,42 @@ class Config(_Overridable):
     @dynamic
     def ATTENDEE_BADGE_COUNT(self):
         """
-        Adds paid promo codes to the badge count, since these are promised badges and this property is used for our
-        badge sales cap. Free PC groups are excluded as they often have far more badges than will ever be claimed.
+        Adds free promo codes to the badge count, since these are promised badges and this property is used for our
+        badge sales cap. Free codes in PC groups are excluded as they often have far more badges than will ever be claimed.
         """
-        from uber.models import Session, PromoCode, PromoCodeGroup
+        from uber.models import Session, PromoCode
         base_count = self.get_badge_count_by_type(c.ATTENDEE_BADGE)
         with Session() as session:
-            pc_code_count = session.query(PromoCode).join(PromoCodeGroup).filter(PromoCode.cost > 0,
-                                                                                 PromoCode.uses_remaining > 0).count()
-        return base_count + pc_code_count
+            pc_code_sum = session.query(func.sum(PromoCode.uses_remaining)).filter(
+                or_(PromoCode.cost > 0, PromoCode.group_id == None),
+                PromoCode.discount == None, PromoCode.uses_remaining > 0,
+                or_(PromoCode.discount_on.contains(c.EVERYTHING),
+                    PromoCode.discount_on.contains(c.BASE_BADGE))).all()
+            code_count = pc_code_sum[0][0]
+        return base_count + self.get_badge_promo_codes()
+    
+    def get_badge_promo_codes(self):
+        # We need a slightly different calculation than normal for base badge promo codes
+        from uber.models import Session, PromoCode
+        with Session() as session:
+            pc_code_sum = session.query(func.sum(PromoCode.uses_remaining)).filter(
+                or_(PromoCode.cost > 0, PromoCode.group_id == None),
+                PromoCode.discount == None, PromoCode.uses_remaining > 0,
+                or_(PromoCode.discount_on.contains(c.EVERYTHING),
+                    PromoCode.discount_on.contains(c.BASE_BADGE))).all()
+            code_count = pc_code_sum[0][0]
+        return int(code_count) if code_count else 0
+
+    def get_comped_promo_codes(self, discount_on):
+        from uber.models import Session, PromoCode
+        with Session() as session:
+            pc_code_sum = session.query(func.sum(PromoCode.uses_remaining)).filter(
+                or_(PromoCode.cost > 0, PromoCode.group_id == None),
+                PromoCode.discount == None, PromoCode.uses_remaining > 0,
+                PromoCode.discount_on.contains(discount_on)).all()
+            
+            code_count = pc_code_sum[0][0]
+        return int(code_count) if code_count else 0
 
     @request_cached_property
     @dynamic
@@ -1239,17 +1266,17 @@ class Config(_Overridable):
     @request_cached_property
     @dynamic
     def SEASON_COUNT(self):
-        return self.get_kickin_count(self.SEASON_LEVEL)
+        return self.get_kickin_count(self.SEASON_LEVEL) + self.get_comped_promo_codes(self.SEASON_LEVEL)
 
     @request_cached_property
     @dynamic
     def SUPPORTER_COUNT(self):
-        return self.get_kickin_count(self.SUPPORTER_LEVEL)
+        return self.get_kickin_count(self.SUPPORTER_LEVEL) + self.get_comped_promo_codes(self.SUPPORTER_LEVEL)
 
     @request_cached_property
     @dynamic
     def SHIRT_COUNT(self):
-        return self.get_kickin_count(self.SHIRT_LEVEL)
+        return self.get_kickin_count(self.SHIRT_LEVEL) + self.get_comped_promo_codes(self.SHIRT_LEVEL)
 
     @property
     @dynamic
@@ -1603,12 +1630,14 @@ class Config(_Overridable):
     @dynamic
     def EMAILLESS_PANEL_DEPTS(self):
         from uber.models import Session, Department
+        from uber.custom_tags import email_only
 
-        id_list = [c.PANELS]
+        id_list = [str(c.PANELS)]
         with Session() as session:
+            panels_email = email_only(c.PANELS_EMAIL)
             panels_depts_query = session.query(Department).filter(Department.manages_panels == True)
             for dept in panels_depts_query.filter(or_(Department.from_email == '',
-                                                      Department.from_email == c.PANELS_EMAIL)):
+                                                      Department.from_email == panels_email)):
                 id_list.append(dept.id)
         return id_list
 
@@ -1965,27 +1994,18 @@ for _badge_type, _price in _config['badge_type_prices'].items():
         pass
 
 orig_discount_opts = c.DISCOUNT_ON_OPTS.copy()
-current_idx = 0
-for key, desc in orig_discount_opts:
-    if key == c.BADGE_UPGRADE:
-        if not c.BADGE_TYPE_PRICES:
-            del (c.DISCOUNT_ON_OPTS[current_idx])
-            current_idx -= 1
-        else:
-            for key in c.BADGE_TYPE_PRICES:
-                c.DISCOUNT_ON_OPTS.insert(current_idx, (key, c.BADGES[key] + " Upgrade"))
-                current_idx += 1
-            
-    if key == c.MERCH:
-        if len(c.DONATION_TIERS) <= 1:
-            del (c.DISCOUNT_ON_OPTS[current_idx])
-            current_idx -= 1
-        else:
-            for price, name in c.DONATION_TIERS.items():
-                if price > 0:
-                    c.DISCOUNT_ON_OPTS.insert(current_idx, (price, name + " Merch"))
-                    current_idx += 1
-    current_idx += 1
+current_idx = len(orig_discount_opts) - 1
+
+if c.BADGE_TYPE_PRICES:
+    for key in c.BADGE_TYPE_PRICES:
+        c.DISCOUNT_ON_OPTS.insert(current_idx, (key, c.BADGES[key] + " Upgrade"))
+        current_idx += 1
+
+if len(c.DONATION_TIERS) > 1:
+    for price, name in c.DONATION_TIERS.items():
+        if price > 0:
+            c.DISCOUNT_ON_OPTS.insert(current_idx, (price, name + " Merch"))
+            current_idx += 1
 
 c.DISCOUNT_ONS = dict(c.DISCOUNT_ON_OPTS)
 

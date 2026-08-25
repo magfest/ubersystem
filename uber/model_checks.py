@@ -255,13 +255,23 @@ def valid_uses_allowed(promo_code):
 
 
 @validation.PromoCode
-def no_unlimited_free_badges(promo_code):
+def no_unlimited_comp_codes(promo_code):
     if promo_code.is_new \
             or promo_code.uses_allowed != promo_code.orig_value_of('uses_allowed') \
             or promo_code.discount != promo_code.orig_value_of('discount') \
             or promo_code.discount_type != promo_code.orig_value_of('discount_type'):
         if promo_code.is_unlimited and promo_code.is_free:
-            return 'Unlimited-use, free-badge promo codes are not allowed.'
+            return 'You cannot make an unlimited-use comp promo code.'
+
+
+@validation.PromoCode
+def no_comp_group_badges(promo_code):
+    if promo_code.is_new \
+        or promo_code.discount_on != promo_code.orig_value_of('discount_on') \
+        or promo_code.discount != promo_code.orig_value_of('discount') \
+        or promo_code.discount_type != promo_code.orig_value_of('discount_type'):
+        if promo_code.is_free and c.GROUP_MEMBERS in promo_code.discount_on_ints:
+            return 'You cannot create a comp promo code for group badges. Consider making a free promo code group instead.'
 
 
 @validation.PromoCode

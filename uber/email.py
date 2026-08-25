@@ -59,19 +59,19 @@ class EmailHandler:
             email_obj.sender = email_obj.sender or fixture_obj.sender
             email_obj.subject = email_obj.subject or fixture_obj.subject
             email_obj.shared_ident = email_obj.shared_ident or fixture_obj.shared_ident
+
+            if not email_obj.body:
+                try:
+                    render_data = fixture_obj.renderable_data(to_model, email_obj.render_data)
+                    email_obj.body = fixture_obj.render_template(fixture_obj.body, render_data)
+                except Exception as e:
+                    log.error(f"Error generating body for email {email_obj.__repr__()}: {e}")
+                    traceback.print_exc()
         
         if to_model:
             # We want queued emails to have a 'to' address so admins can see + search by it
             # The 'to' address will always be re-generated on send and cannot be overridden with a custom value
             email_obj.to = to_model.email_to_address
-
-        if fixture_obj and not email_obj.body:
-            try:
-                render_data = fixture_obj.renderable_data(to_model, email_obj.render_data)
-                email_obj.body = fixture_obj.render_template(fixture_obj.body, render_data)
-            except Exception as e:
-                log.error(f"Error generating body for email {email_obj.__repr__()}: {e}")
-                traceback.print_exc()
 
         email_obj.sender = email_obj.sender or c.CONTACT_EMAIL
         email_obj.ident = kwargs.get('ident', '')
@@ -310,10 +310,9 @@ class EmailService:
                 return
         
         if fixture_obj:
+            render_data = fixture_obj.renderable_data(to_model, email.render_data)
             with contextlib.suppress(Exception):
                 # Generate body if possible, then check against stored body. If it's different, save the new body and requeue it
-                render_data = fixture_obj.renderable_data(to_model, email.render_data)
-
                 current_body = fixture_obj.render_template(fixture_obj.body, render_data)
                 if current_body != email.body:
                     email.body = current_body
@@ -321,8 +320,6 @@ class EmailService:
                     email.send_after = email.new_send_after
                     email.status_text = f"Requeued {local_now_str}: Email body changed"
                     return
-
-                email.subject = (email.subject or fixture_obj.subject).format(render_data)
 
         missing = []
         if not email.subject:
@@ -337,6 +334,9 @@ class EmailService:
         if missing:
             email.error = f"Email {email.id} cannot be sent: missing {readable_join(missing)}"
             return
+        
+        if fixture_obj:
+            email.subject = (email.subject or fixture_obj.subject).format_map(render_data)
         
         try:
             error_msg = ''

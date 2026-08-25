@@ -23,7 +23,7 @@ from uber.barcode import get_badge_num_from_barcode
 from uber.config import c
 from uber.errors import CSRFException
 from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, Attraction, AttractionFeature, AttractionEvent,
-                         BadgeInfo, Department, DeptMembership,
+                         ArtShowApplication, ArtistMarketplaceApplication, BadgeInfo, Department, DeptMembership,
                          DeptRole, Event, IndieJudge, IndieStudio, Job, Session, Shift, Group,
                          GuestGroup, LotteryApplication)
 from uber.models.hotel import (HotelExportLog, HotelRoomInventory, LotteryHotel,
@@ -193,7 +193,7 @@ def _prepare_attendees_export(attendees, include_account_ids=False, include_apps
         'website',
         'special_needs',
         'admin_notes',
-    ]
+    ] + ArtShowApplication.import_fields
 
     marketplace_import_fields = [
         'name',
@@ -204,9 +204,9 @@ def _prepare_attendees_export(attendees, include_account_ids=False, include_apps
         'seating_requests',
         'accessibility_requests',
         'admin_notes',
-    ]
+    ] + ArtistMarketplaceApplication.import_fields
 
-    fields = AttendeeLookup.attendee_import_fields + Attendee.import_fields
+    fields = AttendeeLookup.attendee_import_fields
 
     if include_depts or include_apps:
         fields.extend(['shirt'])
@@ -512,7 +512,7 @@ class MivsLookup:
             judges = session.query(IndieJudge).filter(not_(IndieJudge.status.in_([c.CANCELLED, c.DISQUALIFIED])))
 
             for judge in judges:
-                fields = AttendeeLookup.attendee_import_fields + Attendee.import_fields
+                fields = AttendeeLookup.attendee_import_fields
                 judges_list.append((judge.to_dict(), judge.attendee.to_dict(fields)))
 
             return judges_list
@@ -609,7 +609,7 @@ class AttendeeLookup:
         'all_years',
         'badge_status',
         'badge_status_label',
-    ]
+    ] + Attendee.import_fields
 
     group_attendee_import_fields = [
         'placeholder',
@@ -754,7 +754,7 @@ class AttendeeLookup:
                 a for a in (id_attendees + email_attendees + name_attendees + name_and_email_attendees)
                 if a.id not in seen and not seen.add(a.id)]
 
-            fields = AttendeeLookup.attendee_import_fields + Attendee.import_fields
+            fields = AttendeeLookup.attendee_import_fields
             if full:
                 fields.extend(['shirt'])
 
@@ -780,7 +780,7 @@ class AttendeeLookup:
         Example `params` dictionary for setting extra parameters:
         <pre>{"placeholder": "yes", "legal_name": "First Last", "cellphone": "5555555555"}</pre>
         """
-        with Session(create_savepoint=True) as session:
+        with Session() as session:
             attendee_query = session.query(Attendee).filter(Attendee.first_name.ilike(first_name),
                                                             Attendee.last_name.ilike(last_name),
                                                             Attendee.email.ilike(email))
@@ -807,6 +807,7 @@ class AttendeeLookup:
             if message:
                 session.rollback()
                 raise HTTPError(400, message)
+            session.commit()
 
             return attendee.id
 
@@ -822,7 +823,7 @@ class AttendeeLookup:
         Example:
         <pre>{"first_name": "First", "paid": "doesn't need to", "ribbon": "Volunteer, Panelist"}</pre>
         """
-        with Session(create_savepoint=True) as session:
+        with Session() as session:
             attendee = session.attendee(id, allow_invalid=True)
 
             if not attendee:
@@ -844,6 +845,7 @@ class AttendeeLookup:
             if message:
                 session.rollback()
                 raise HTTPError(400, message)
+            session.commit()
 
             # Staff (not volunteers) also almost never need to pay by default
             if attendee.staffing and not attendee.orig_value_of('staffing') \
@@ -897,7 +899,7 @@ class AttendeeAccountLookup:
                 'attendees': attendees,
             }
 
-    def export(self, query, all=False):
+    def export(self, query, all=False, page=0, page_size=None):
         """
         Searches for attendee accounts by either email or id.
 
@@ -905,6 +907,8 @@ class AttendeeAccountLookup:
         queries.
 
         `all` ignores the query and returns all attendee accounts.
+
+        `page` and `page_size` are only used when `all` is true and paginate the results.
 
         Example:
         <pre>account.email@example.com, e3a670c4-8f7e-4d62-841d-49f73f58d8b1</pre>
@@ -915,7 +919,15 @@ class AttendeeAccountLookup:
 
         with Session() as session:
             if all:
-                all_accounts = session.query(AttendeeAccount).all()
+                all_accounts = session.query(AttendeeAccount).order_by(AttendeeAccount.email,
+                               AttendeeAccount.id)
+                if page_size:
+                    all_accounts = all_accounts.limit(page_size)
+                if page:
+                    all_accounts = all_accounts.offset(page*page_size)
+                all_accounts = all_accounts.options(subqueryload(
+                    AttendeeAccount.attendees)
+                    ).all()
             else:
                 email_accounts = []
                 if emails:
@@ -944,7 +956,7 @@ class AttendeeAccountLookup:
 
             accounts = []
             for a in all_accounts:
-                d = a.to_dict(['id', 'email', 'hashed'])
+                d = a.to_dict(['id', 'email', 'hashed', 'sso_id', 'unused_years'])
 
                 attendees = {}
                 for attendee in a.attendees:
@@ -1175,28 +1187,13 @@ class GroupLookup:
         'can_add': True,
     }
 
-    dealer_fields = dict(fields, **{
-        'tables': True,
-        'wares': True,
-        'description': True,
-        'zip_code': True,
-        'address1': True,
-        'address2': True,
-        'city': True,
-        'region': True,
-        'country': True,
-        'website': True,
-        'special_needs': True,
-        'categories': True,
-        'categories_text': True,
-    })
-
     group_import_fields = [
         'name',
         'admin_notes',
         'badges',
         'can_add',
-    ]
+        'is_dealer',
+    ] + Group.import_fields
 
     dealer_import_fields = [
         'tables',
@@ -1230,8 +1227,7 @@ class GroupLookup:
             groups = []
 
             for g in query.all():
-                d = g.to_dict(['id'] + GroupLookup.group_import_fields + Group.import_fields
-                              + GroupLookup.dealer_import_fields)
+                d = g.to_dict(['id'] + GroupLookup.group_import_fields + GroupLookup.dealer_import_fields)
 
                 attendees = {}
                 for attendee in g.attendees:
@@ -1278,7 +1274,7 @@ class GroupLookup:
 
             return {
                 'attendees': attendees,
-                'group_leader_id': group.leader.id,
+                'group_leader_id': group.leader.id if group.leader else '',
                 'unassigned_badge_type': unassigned_badge_type,
                 'unassigned_ribbon': unassigned_ribbon,
             }
@@ -1320,7 +1316,7 @@ class GroupLookup:
                 a for a in (id_groups + name_groups)
                 if a.id not in seen and not seen.add(a.id)]
 
-            fields = GroupLookup.group_import_fields + Group.import_fields
+            fields = GroupLookup.group_import_fields
 
             groups = []
             for g in all_groups:
