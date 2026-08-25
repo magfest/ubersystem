@@ -263,7 +263,7 @@
           {% endif %}
         {% endif %}
       </p>
-      <a href="secure_room?assignment_id={{ ra.id }}&attendee_id={{ viewer.id }}" class="btn btn-{% if ra.needs_card %}danger{% else %}outline-primary{% endif %} btn-sm">
+      <a href="secure_room?assignment_id={{ ra.id }}&attendee_id={{ viewer.id }}&return_to=room" class="btn btn-{% if ra.needs_card %}danger{% else %}outline-primary{% endif %} btn-sm">
         {% if ra.cc_token %}Change card{% else %}Add a card{% endif %}
       </a>
 

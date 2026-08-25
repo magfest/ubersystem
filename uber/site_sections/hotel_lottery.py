@@ -1,4 +1,5 @@
 import json
+import re
 import secrets
 import uuid
 import cherrypy
@@ -2051,7 +2052,7 @@ class Root:
 
     @requires_account()
     def secure_room(self, session, id=None, assignment_id=None, attendee_id='',
-                    message='', **params):
+                    message='', return_to='', **params):
         """Render the credit-card capture page for a specific RoomAssignment.
 
         `assignment_id` picks the room. `id` is the LotteryApplication
@@ -2115,6 +2116,9 @@ class Root:
             'attendee_id': attendee_id,
             'billing_source_rooms': billing_source_rooms,
             'message': message,
+            # Where the post-secure redirect lands: the per-room editor
+            # when the user came from there, else the rooms list.
+            'return_to': 'room' if return_to == 'room' else 'rooms',
         }
 
     @ajax
@@ -2154,8 +2158,13 @@ class Root:
             return error
 
         ra.cc_token = token
-        ra.cc_last_four = last_four
-        ra.cc_card_type = card_type
+        # Only overwrite metadata when actually provided - the browser
+        # usually sends none, and the vault webhook may already have
+        # filled these in.
+        if last_four:
+            ra.cc_last_four = last_four
+        if card_type:
+            ra.cc_card_type = card_type
         ra.cc_captured_at = datetime.now(UTC)
 
         session.add(ra)
@@ -2199,8 +2208,13 @@ class Root:
             return {'error': 'Please fill in all required billing address fields.'}
 
         ra.cc_token = token
-        ra.cc_last_four = last_four
-        ra.cc_card_type = card_type
+        # Only overwrite metadata when actually provided: the browser
+        # sends none, and clobbering here is how webhook-delivered last
+        # four / card type used to vanish when the room was secured.
+        if last_four:
+            ra.cc_last_four = last_four
+        if card_type:
+            ra.cc_card_type = card_type
         ra.cc_captured_at = datetime.now(UTC)
         ra.status = c.SECURED
 
@@ -2313,36 +2327,76 @@ class Root:
                      "(a different token is already stored)", assignment_id)
             return {'success': True}
 
-        # Parse safe_data (JSON string with card holder, last four, etc.)
-        try:
-            safe_data = json.loads(token_info.get('safe_data', '{}'))
-        except (json.JSONDecodeError, TypeError):
+        # Parse safe_data - documented as a JSON string with the card
+        # holder, last four, etc., but tolerate it arriving as a plain
+        # object (json.loads on a dict raises TypeError, which the old
+        # code swallowed - metadata then silently never landed).
+        safe_data = token_info.get('safe_data', '{}')
+        if isinstance(safe_data, str):
+            try:
+                safe_data = json.loads(safe_data or '{}')
+            except json.JSONDecodeError:
+                log.warning("vault_webhook: unparseable safe_data for assignment %s: %r",
+                            assignment_id, safe_data[:200])
+                safe_data = {}
+        if not isinstance(safe_data, dict):
+            log.warning("vault_webhook: unexpected safe_data type %s for assignment %s",
+                        type(safe_data).__name__, assignment_id)
             safe_data = {}
 
-        if safe_data.get('last_four'):
-            ra.cc_last_four = safe_data['last_four']
-        if safe_data.get('card_type'):
-            ra.cc_card_type = safe_data['card_type']
-        if safe_data.get('card_holder'):
-            ra.cc_card_holder = safe_data['card_holder']
-        if safe_data.get('expiry'):
-            ra.cc_card_expiry = safe_data['expiry']
+        def _first_of(mapping, *keys):
+            for key in keys:
+                if mapping.get(key):
+                    return mapping[key]
+            return ''
+
+        updated = []
+        for attr, keys in [('cc_last_four', ('last_four', 'last4')),
+                           ('cc_card_type', ('card_type', 'scheme')),
+                           ('cc_card_holder', ('card_holder', 'cardholder', 'name')),
+                           ('cc_card_expiry', ('expiry', 'expiry_date'))]:
+            value = _first_of(safe_data, *keys)
+            if value:
+                setattr(ra, attr, value)
+                updated.append(attr)
+
+        if not ra.cc_last_four:
+            # safe_data may carry only a masked card number rather than a
+            # separate last-four field - derive it from the trailing digits.
+            masked = _first_of(safe_data, 'masked_card', 'masked_pan',
+                               'masked_number', 'card_number', 'number', 'pan')
+            match = re.search(r'(\d{4})\s*$', str(masked)) if masked else None
+            if match:
+                ra.cc_last_four = match.group(1)
+                updated.append('cc_last_four(masked)')
 
         # Parse issuer metadata
-        card_metadata = token_info.get('card_metadata', {})
-        issuers = card_metadata.get('issuer', [])
+        card_metadata = token_info.get('card_metadata') or {}
+        issuers = card_metadata.get('issuer', []) if isinstance(card_metadata, dict) else []
         if issuers and isinstance(issuers, list):
             issuer = issuers[0]
-            if issuer.get('brand'):
-                ra.cc_issuer_brand = issuer['brand']
-            if issuer.get('issuing_bank'):
-                ra.cc_issuer_bank = issuer['issuing_bank']
-            if issuer.get('country_name'):
-                ra.cc_issuer_country = issuer['country_name']
-            if issuer.get('card_type'):
-                ra.cc_issuer_card_type = issuer['card_type']
-            if issuer.get('card_level'):
-                ra.cc_issuer_card_level = issuer['card_level']
+            for attr, key in [('cc_issuer_brand', 'brand'),
+                              ('cc_issuer_bank', 'issuing_bank'),
+                              ('cc_issuer_country', 'country_name'),
+                              ('cc_issuer_card_type', 'card_type'),
+                              ('cc_issuer_card_level', 'card_level')]:
+                if issuer.get(key):
+                    setattr(ra, attr, issuer[key])
+                    updated.append(attr)
+
+        # The shape summary is the first thing to check when card metadata
+        # doesn't show up in the admin UI: it reports what PCI Vault
+        # actually sent versus which fields we managed to extract.
+        log.info("vault_webhook: assignment %s body keys=%s token_info keys=%s "
+                 "safe_data keys=%s issuers=%s updated=%s",
+                 assignment_id, sorted(body), sorted(token_info),
+                 sorted(safe_data), len(issuers) if isinstance(issuers, list) else 0,
+                 updated or 'nothing')
+        if not updated:
+            redacted = {k: ('<redacted>' if k == 'token' else v)
+                        for k, v in token_info.items()}
+            log.warning("vault_webhook: no card metadata extracted for assignment %s; "
+                        "token_info: %s", assignment_id, redacted)
 
         session.add(ra)
         session.commit()

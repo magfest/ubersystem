@@ -168,12 +168,12 @@ function startCardPolling() {
         // Only adopt a token that differs from what we already have, so
         // the change-card flow isn't cancelled by its own old card.
         if (json.has_card && json.token && json.token !== cardToken) {
-          console.log('[secure-wizard] card token arrived server-side (via webhook); adopting it');
+          console.log('[secure-wizard] card token arrived server-side (via webhook); securing room');
           cardToken = json.token;
           cardLastFour = json.last_four || '';
           cardType = json.card_type || '';
           $('#vault-iframe-container').data('showIframe', false);
-          updateCardDisplay();
+          autoSecureRoom();
         }
       },
       error: function(xhr, status) {
@@ -202,7 +202,54 @@ $('#change-card-btn').on('click', function() {
   });
 });
 
+var secureSubmitInFlight = false;
+
+// Fresh capture path: the card form was just submitted, the address was
+// already validated on step 2, so finish securing without another click.
+function autoSecureRoom() {
+  if (secureSubmitInFlight) return;
+  console.log('[secure-wizard] auto-securing room with captured card');
+  stopCardPolling();
+  $('#card-summary, #vault-iframe-container, #secure-btn').hide();
+  $('#step3-back-btn').prop('disabled', true);
+  $('#secure-progress').show();
+  submitWithExistingCard();
+}
+
+// Securing failed: persist the token anyway (so the card survives a
+// reload and the webhook has a row to attach metadata to), then fall
+// back to the card summary + manual Secure Room button.
+function secureFailed(messageText) {
+  secureSubmitInFlight = false;
+  $('#secure-progress').hide();
+  $('#step3-back-btn').prop('disabled', false);
+  $('#secure-btn').prop('disabled', false);
+  $.ajax({
+    url: 'save_card_token',
+    method: 'POST',
+    data: {
+      assignment_id: secureWizardConfig.assignmentId,
+      token: cardToken,
+      csrf_token: csrf_token
+    },
+    success: function(response) {
+      if (response.success) {
+        console.log('[secure-wizard] card token saved for manual retry');
+      } else {
+        console.error('[secure-wizard] save_card_token failed:', response.error);
+      }
+    },
+    error: function(xhr, status) {
+      console.error('[secure-wizard] save_card_token request failed:', status, xhr.status);
+    }
+  });
+  $('#secure-error').text(messageText).show();
+  updateCardDisplay();
+}
+
 function submitWithExistingCard() {
+  if (secureSubmitInFlight) return;
+  secureSubmitInFlight = true;
   $('#secure-error').hide();
   $('#secure-btn').prop('disabled', true);
 
@@ -231,21 +278,19 @@ function submitWithExistingCard() {
     success: function(response) {
       if (response.success) {
         console.log('[secure-wizard] room secured, redirecting');
-        $('#card-summary, #vault-iframe-container, #secure-btn, #step3-back-btn').hide();
+        $('#card-summary, #vault-iframe-container, #secure-btn, #step3-back-btn, #secure-progress').hide();
         $('#secure-success').show();
         setTimeout(function() {
           window.location.href = secureWizardConfig.redirectUrl;
         }, 2000);
       } else {
         console.error('[secure-wizard] secure_room_callback failed:', response.error);
-        $('#secure-error').text(response.error || 'An error occurred.').show();
-        $('#secure-btn').prop('disabled', false);
+        secureFailed(response.error || 'An error occurred.');
       }
     },
     error: function(xhr, status) {
       console.error('[secure-wizard] secure_room_callback request failed:', status, xhr.status);
-      $('#secure-error').show();
-      $('#secure-btn').prop('disabled', false);
+      secureFailed('There was an error securing your room. Please try again or contact us for assistance.');
     }
   });
 }
@@ -291,36 +336,12 @@ window.addEventListener('message', function(event) {
   var token = data.token || (data.data && data.data.token)
       || (data.token_info && data.token_info.token);
   if (token) {
-    console.log('[secure-wizard] card token received via postMessage, saving to server');
+    console.log('[secure-wizard] card token received via postMessage - securing room');
     cardToken = token;
     cardLastFour = '';
     cardType = '';
     $('#vault-iframe-container').data('showIframe', false);
-
-    // Save just the token to the server (card metadata arrives via webhook)
-    $.ajax({
-      url: 'save_card_token',
-      method: 'POST',
-      data: {
-        assignment_id: secureWizardConfig.assignmentId,
-        token: cardToken,
-        csrf_token: csrf_token
-      },
-      success: function(response) {
-        if (response.success) {
-          console.log('[secure-wizard] card token saved');
-        } else {
-          console.error('[secure-wizard] save_card_token failed:', response.error);
-          $('#secure-error').text(response.error || 'Failed to save card token.').show();
-        }
-      },
-      error: function(xhr, status) {
-        console.error('[secure-wizard] save_card_token request failed:', status, xhr.status);
-        $('#secure-error').text('Failed to save card token. Please try again.').show();
-      }
-    });
-
-    updateCardDisplay();
+    autoSecureRoom();
   } else if (data.error) {
     console.error('[secure-wizard] error message from vault iframe:', data.error);
     $('#secure-error').text(data.error).show();

@@ -122,7 +122,10 @@ def booking_dict(ra, app):
     room_type = None if not inv or inv.is_suite else type_label
     suite_type = type_label if inv and inv.is_suite else None
 
-    attendee = app.attendee if app else None
+    # The booker: prefer the application's attendee, but fall back to the
+    # assignment's own attendee - manually-granted and partition rooms have
+    # no lottery application, and their guest names must still export.
+    attendee = (app.attendee if app else None) or ra.attendee
 
     guests = []
     for a in ra.effective_occupants:
@@ -165,8 +168,10 @@ def booking_dict(ra, app):
         # hotel_last_name with the legal/first/last fallback chain).
         'legal_first_name': (attendee.effective_hotel_first_name if attendee else ''),
         'legal_last_name': (attendee.effective_hotel_last_name if attendee else ''),
-        'cellphone': app.cellphone if app else '',
-        'email': app.email if app else '',
+        'cellphone': ((app.cellphone if app else '')
+                      or (attendee.cellphone if attendee else '')),
+        'email': ((app.email if app else '')
+                  or (attendee.email if attendee else '')),
         'address1': ra.address1,
         'address2': ra.address2,
         'city': ra.city,

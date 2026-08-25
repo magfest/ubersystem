@@ -212,6 +212,11 @@
     <i class="fa fa-lock me-1"></i> Secure Room
   </button>
 
+  <div id="secure-progress" style="display: none;" class="text-center py-4">
+    <div class="spinner-border" role="status"></div>
+    <p class="mt-2 text-muted">Securing your room...</p>
+  </div>
+
   <div id="secure-success" style="display: none;" class="alert alert-success mt-3">
     Your room has been secured! Redirecting...
   </div>
@@ -236,8 +241,14 @@ window.secureWizardConfig = {
   cardToken: {{ (assignment.cc_token or '')|tojson }},
   cardLastFour: {{ (assignment.cc_last_four or '')|tojson }},
   cardType: {{ (assignment.cc_card_type or '')|tojson }},
+{% if return_to == 'room' %}
+  redirectUrl: {{ ('room?id=' ~ assignment.id|string
+                   ~ ('&attendee_id=' ~ attendee_id if attendee_id else '')
+                   ~ '&message=Your+room+has+been+secured!')|tojson }}
+{% else %}
   redirectUrl: {{ ('rooms?attendee_id=' ~ (application.attendee.id if application else assignment.attendee.id)|string
                    ~ '&message=Your+room+has+been+secured!')|tojson }}
+{% endif %}
 };
 </script>
 {{ "js/hotel-secure-wizard.js"|serve_static_content }}
