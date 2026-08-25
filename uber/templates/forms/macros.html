@@ -14,9 +14,10 @@
   show_label (bool): Set to False to avoid rendering the label for the field.
   field_only (bool): Set to True to suppress all other text associated with this field,
                      including the validation and label.
+  label_kwargs (dict): Passed to the label macro.
   null_text (str): Only used when an entire form is set to read-only. This controls what
                    is displayed if the field is empty.
-  label_kwargs (dict): Passed to the label macro.
+  readonly_caller (bool): Display the data in a {% call %} block even if the field's value is not c.OTHER.
 #}
 
 {% set label_text = label_text or field.label.text %}
@@ -27,8 +28,8 @@
   <div class="form-text">{{ label_text }}</div>
   {% endif %}
 
-  {% set choices = kwargs['choices'] if 'choices' in kwargs else field.choices %}
-  {% set null_text = null_text or "N/A" %}
+  {% set choices = kwargs.get('choices', field.choices) %}
+  {% set null_text = kwargs.get('null_text', "N/A") %}
 
   {% set field_display %}
     {% if 'Ranking' in widget %}
@@ -64,7 +65,7 @@
       {{ field.data|default(null_text, true) }}
     {%- endif %}
   {%- endset %}
-  {{ field_display }}{% if caller and field.data == c.OTHER %}{% if field.data %}: {% endif %}{{ caller() }}{% endif %}
+  {{ field_display }}{% if caller and (field.data == c.OTHER or kwargs.get('readonly_caller', False)) %}{% if field.data %}: {% endif %}{{ caller() }}{% endif %}
 
 {% else %}
 

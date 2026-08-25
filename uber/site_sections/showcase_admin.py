@@ -416,15 +416,19 @@ class Root:
             if review.has_video_issues:
                 review.video_status = c.PENDING
                 if not no_emails:
+                    email_data = {'review': review, 'game': review.game, 'judge_name': review.judge.attendee.first_name}
                     EmailService.queue_email(session, 'indies_video_problems_fixed', review.judge, sender=game.admin_email,
                                              subject=f'{game.showcase_type_label}: Video Problems Resolved for {game.title}',
-                                             data={'review': review})
+                                             data=email_data)
             if review.has_game_issues:
+                old_status_label = review.game_status_label
                 review.game_status = c.PENDING
                 if not no_emails:
+                    email_data = {'review': review, 'game': review.game, 'judge_name': review.judge.attendee.first_name,
+                                  'review_status_label': old_status_label}
                     EmailService.queue_email(session, 'indies_game_problems_fixed', review.judge, sender=game.admin_email,
                                              subject=f'{game.showcase_type_label}: Game Problems Resolved for {game.title}',
-                                             data={'review': review})
+                                             data=email_data)
         raise HTTPRedirect(
             'edit_game?id={}&message={}{}{}', game.id, game.title,
             ' has been marked as having its judging issues fixed',

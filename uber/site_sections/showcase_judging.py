@@ -78,18 +78,21 @@ class Root:
 
         forms = load_forms(params, review, form_list)
         game_forms = load_forms({}, review.game, game_form_list, read_only=True)
-        review.judge = session.logged_in_judge()
 
         if cherrypy.request.method == 'POST':
             for form in forms.values():
                 form.populate_obj(review)
 
             if review.video_status in c.MIVS_PROBLEM_STATUSES and review.video_status != review.orig_value_of('video_status'):
+                email_data = {'review': review, 'game': review.game, 'judge_name': review.judge.full_name,
+                              'review_status_label': review.video_status_label}
                 EmailService.queue_email(session, 'indies_video_problems_admin', to=review.game.admin_email,
-                                         sender=review.game.admin_email, data={'review': review})
+                                         sender=review.game.admin_email, data=email_data)
             if review.game_status in c.MIVS_PROBLEM_STATUSES and review.game_status != review.orig_value_of('game_status'):
+                email_data = {'review': review, 'game': review.game, 'judge_name': review.judge.full_name,
+                              'review_status_label': review.game_status_label}
                 EmailService.queue_email(session, 'indies_game_problems_admin', to=review.game.admin_email,
-                                         sender=review.game.admin_email, data={'review': review})
+                                         sender=review.game.admin_email, data=email_data)
 
             raise HTTPRedirect('index?id={}&message={}{}', review.judge.id,
                                review.game.title, ' game review has been uploaded')

@@ -1,4 +1,5 @@
 import ast
+import contextlib
 import csv
 import hashlib
 import inspect
@@ -2301,6 +2302,8 @@ c.EVENT_BOOKED = {'colspan': 0}
 c.EVENT_OPEN = {'colspan': 1}
 
 c.PRESENTATION_OPTS.sort(key=lambda tup: 'zzz' if tup[0] == c.OTHER else tup[1])
+with contextlib.suppress(Exception):
+    c.PANEL_LENGTH_OPTS.sort(key=lambda tup: 'zzz' if tup[0] == c.OTHER else int(tup[1].split(' ')[0]))
 
 
 # =============================

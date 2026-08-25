@@ -22,7 +22,7 @@ get MIVSInfo() { return true; },
 {% block genres_platforms %}
   <div class="col-sm">{{ form_macros.input(mivs_judge_info.genres, required_if="MIVSInfo") }}</div>
   <div class="col-sm">
-    {% call form_macros.input(mivs_judge_info.platforms, required_if="MIVSInfo") %}
+    {% call form_macros.input(mivs_judge_info.platforms, required_if="MIVSInfo", alpine_model="platforms") %}
     <div class="col-sm-6" x-show="hasVR">
       {{ form_macros.input(mivs_judge_info.vr_text, required_if="hasVR", show_label=False) }}
     </div>

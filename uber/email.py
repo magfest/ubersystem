@@ -1,4 +1,5 @@
 import contextlib
+import traceback
 import json
 import logging
 import pytz
@@ -64,8 +65,13 @@ class EmailHandler:
             # The 'to' address will always be re-generated on send and cannot be overridden with a custom value
             email_obj.to = to_model.email_to_address
 
-        if fixture_obj and to_model:
-            email_obj.body = email_obj.body or fixture_obj.render_body(to_model, email_obj.render_data)
+        if fixture_obj and not email_obj.body:
+            try:
+                render_data = fixture_obj.renderable_data(to_model, email_obj.render_data)
+                email_obj.body = fixture_obj.render_template(fixture_obj.body, render_data)
+            except Exception as e:
+                log.error(f"Error generating body for email {email_obj.__repr__()}: {e}")
+                traceback.print_exc()
 
         email_obj.sender = email_obj.sender or c.CONTACT_EMAIL
         email_obj.ident = kwargs.get('ident', '')
