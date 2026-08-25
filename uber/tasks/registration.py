@@ -12,6 +12,7 @@ from sqlalchemy import not_, or_, insert
 from sqlalchemy.orm import joinedload, raiseload, subqueryload
 from sqlalchemy.orm.exc import NoResultFound
 
+from uber.auth import OIDC
 from uber.email import EmailService
 from uber.config import c
 from uber.custom_tags import readable_join
@@ -29,7 +30,7 @@ if c.AUTHORIZENET_LOGIN_ID:
     from authorizenet import apicontractsv1, apicontrollers
 
 
-__all__ = ['check_duplicate_registrations', 'check_placeholder_registrations', 'check_pending_badges',
+__all__ = ['check_duplicate_registrations', 'check_placeholder_registrations', 'check_pending_badges', 'create_sso_accounts',
            'check_unassigned_volunteers', 'check_near_cap', 'check_missed_stripe_payments', 'process_api_queue',
            'process_terminal_sale', 'send_receipt_email', 'create_badge_nums', 'create_badge_pickup_groups', 'update_receipt']
 
@@ -240,6 +241,28 @@ def invalidate_dealer_badges():
             badge.badge_status = c.INVALID_STATUS
             session.add(badge)
 
+        session.commit()
+
+
+@celery.task
+def create_sso_accounts(id_list):
+    if not c.LOCAL_ACCOUNTS_DISABLED:
+        return
+    
+    with Session() as session:
+        accountless_attendees = session.query(Attendee).filter(Attendee.id.in_(id_list),
+                                                               Attendee.email != '',
+                                                               Attendee.managers == None)
+        for attendee in accountless_attendees:
+            new_account = session.create_attendee_account(attendee.email)
+            session.add(new_account)
+            session.add_attendee_to_account(attendee, new_account)
+            if attendee.group and attendee.id == attendee.group.leader_id:
+                for group_member in attendee.group.attendees:
+                    if not group_member.is_unassigned and group_member != attendee:
+                        session.add_attendee_to_account(group_member, new_account)
+            session.commit()
+            OIDC.send_claim_token(session, new_account)
         session.commit()
 
 

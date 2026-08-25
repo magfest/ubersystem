@@ -300,6 +300,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     got_staff_merch: bool = False
     got_swadge: bool = False
     can_transfer: bool = False
+    imported_staff: bool = False
 
     reg_station: int | None
     registered: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))

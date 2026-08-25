@@ -2113,6 +2113,7 @@ class TaskUtils:
 
     @staticmethod
     def attendee_import(import_job):
+        from uber.badge_funcs import needs_badge_num
         from uber.models import Attendee, AttendeeAccount, DeptMembership, DeptRole
         from functools import partial
 
@@ -2148,11 +2149,7 @@ class TaskUtils:
 
             attendee = results.get('attendees', [])[0]
             badge_label = c.BADGES[badge_type].lower()
-
-            if badge_type == c.STAFF_BADGE:
-                paid = c.NEED_NOT_PAY
-            else:
-                paid = c.NOT_PAID
+            old_badge_num = attendee['badge_num']
 
             import_from_url = '{}/registration/form?id={}\n\n'.format(import_job.target_server, attendee['id'])
             new_admin_notes = '{}\n\n'.format(extra_admin_notes) if extra_admin_notes else ''
@@ -2162,7 +2159,7 @@ class TaskUtils:
             attendee.update({
                 'badge_type': badge_type,
                 'badge_status': badge_status,
-                'paid': paid,
+                'paid': c.NEED_NOT_PAY if badge_type == c.STAFF_BADGE else c.NOT_PAID,
                 'placeholder': True,
                 'admin_notes': 'Imported {} from {}{}{}'.format(
                     badge_label, import_from_url, new_admin_notes, old_admin_notes),
@@ -2190,6 +2187,8 @@ class TaskUtils:
 
                 attendee.update({
                     'staffing': True,
+                    'imported_staff': True,
+                    'badge_num': old_badge_num,
                     'ribbon': str(c.DEPT_HEAD_RIBBON) if dept_head_depts else '',
                 })
 
@@ -2208,6 +2207,9 @@ class TaskUtils:
                         if role:
                             dept_membership.dept_roles.append(role)
                     attendee.dept_memberships.append(dept_membership)
+
+            if needs_badge_num(attendee) and not attendee.badge_num:
+                session.update_badge(attendee)
 
             session.add(attendee)
 
@@ -2336,22 +2338,18 @@ class TaskUtils:
 
             for attendee in account_attendees:
                 if attendee.get('badge_num', 0) in range(c.BADGE_RANGES[c.STAFF_BADGE][0],
-                                                         c.BADGE_RANGES[c.STAFF_BADGE][1]):
-                    if not c.SSO_EMAIL_DOMAINS:
-                        # Try to match staff to their existing badge, which would be newer than the one we're importing
+                                                         c.BADGE_RANGES[c.STAFF_BADGE][1]) \
+                        or int(attendee.get('badge_type', 0)) in [c.STAFF_BADGE, c.CONTRACTOR_BADGE]:
+                    if c.IMPORT_STAFF_ACCOUNTS:
                         old_badge_num = attendee['badge_num']
-                        existing_staff = session.query(Attendee).join(BadgeInfo).filter(BadgeInfo.ident == old_badge_num).first()
-                        if existing_staff:
-                            existing_staff.managers.append(account)
-                            session.add(existing_staff)
-                            account_owner = existing_staff
-                        else:
-                            new_staff = TaskUtils.basic_attendee_import(attendee)
-                            new_staff.badge_num = old_badge_num
-                            new_staff.managers.append(account)
-                            session.add(new_staff)
-                            account_owner = new_staff
-                    # If SSO is used for attendee accounts, we don't import staff at all
+
+                        new_staff = TaskUtils.basic_attendee_import(attendee)
+                        new_staff.badge_status = c.NEW_STATUS
+                        new_staff.badge_num = old_badge_num
+                        new_staff.managers.append(account)
+                        new_staff.imported_staff = True
+                        session.add(new_staff)
+                        account_owner = new_staff
                 else:
                     new_attendee = TaskUtils.basic_attendee_import(attendee)
                     new_attendee.paid = c.NOT_PAID
@@ -2414,6 +2412,7 @@ class TaskUtils:
             except Exception as ex:
                 attendee_warning = "Could not import attendees: {}".format(str(ex))
                 import_job.errors += "; {}".format(attendee_warning) if import_job.errors else attendee_warning
+                return
 
             # Remove categories that don't exist this year
             current_categories = group_to_import.get('categories', '')

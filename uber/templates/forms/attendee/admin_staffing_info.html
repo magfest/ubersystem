@@ -18,9 +18,13 @@
     </div>
 </div>
 <div class="row g-3 mb-3" x-show="staffing">
-    <div class="col-12">
+    <div class="col-sm">
         <div class="form-text">Walk-On Volunteer</div>
         {{ form_macros.input(staffing_info.walk_on_volunteer) }}
+    </div>
+    <div class="col-sm">
+        <div class="form-text">Imported Staff</div>
+        {{ form_macros.input(staffing_info.imported_staff) }}
     </div>
 {% if c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC|length > 1 %}
 </div>

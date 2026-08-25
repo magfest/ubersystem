@@ -99,7 +99,6 @@ def save_attendee(session, attendee, params):
 
     return message
 
-
 def create_new_account(session, attendee):
     new_account = session.create_attendee_account(attendee.email)
     session.add(new_account)
@@ -139,13 +138,15 @@ class Root:
         count = 0
         search_text = search_text.strip()
         if search_text:
-            search_results, message = session.search(search_text, *filter)
+            search_results, error = session.search(search_text, *filter)
             if search_results and search_results.count():
                 attendees = search_results
                 count = attendees.count()
                 if count == total_count:
                     message = 'Every{} attendee matched this search.'.format('' if invalid else ' valid')
-            elif not message:
+            elif error:
+                message = error
+            else:
                 message = 'No matches found.{}'.format(
                     '' if invalid else ' Try showing all badges to expand your search.')
         if not count:

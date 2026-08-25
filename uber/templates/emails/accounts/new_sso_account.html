@@ -14,17 +14,21 @@ badge
     {% if account.valid_attendees|length == 1 %}
         {% set attendee = account.valid_attendees[0] %}
         {% if attendee.group and attendee.id == attendee.group.leader_id %}
-        <p>
-            You have been invited to manage the {% if attendee.group.guest_group %}{{ attendee.group.guest_group.group_type }} {% endif %}
-            group "{{ attendee.group.name }}" for {{ c.EVENT_NAME_AND_YEAR }}.
-        </p>
-        {% if attendee.group.attendees|length > 1 %}
-        <p>Once you claim your badge, you will be able to manage your group members' badges{% if attendee.group.guest_group %} and complete your group's checklist{% endif %}.</p>
-        {% endif %}
+            <p>
+                You have been invited to manage the {% if attendee.group.guest_group %}{{ attendee.group.guest_group.group_type }} {% endif %}
+                group "{{ attendee.group.name }}" for {{ c.EVENT_NAME_AND_YEAR }}.
+            </p>
+            {% if attendee.group.attendees|length > 1 %}
+            <p>Once you claim your badge, you will be able to manage your group members' badges{% if attendee.group.guest_group %} and complete your group's checklist{% endif %}.</p>
+            {% endif %}
         {% else %}
-        <p>
-            You have been invited to claim a {{ badge_description(attendee) }} for {{ c.EVENT_NAME_AND_YEAR }}.
-        </p>
+            {% if attendee.imported_staff %}
+            {% include 'emails/accounts/imported_staff.html' with context %}
+            {% else %}
+            <p>
+                You have been invited to claim a {{ badge_description(attendee) }} for {{ c.EVENT_NAME_AND_YEAR }}.
+            </p>
+            {% endif %}
         {% endif %}
         {% if attendee.admin_account %}
             <p>

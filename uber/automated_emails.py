@@ -840,10 +840,6 @@ AutomatedEmailFixture(
 if not c.LOCAL_ACCOUNTS_DISABLED:
     earliest_opening_date = min(c.PREREG_OPEN, c.DEALER_REG_START) if c.DEALER_REG_START else c.PREREG_OPEN
 
-    def staff_import_placeholder(a): return a.placeholder and (a.registered_local <= c.PREREG_OPEN
-                                                               and (a.admin_account or
-                                                                    "staff import" in a.admin_notes.lower()))
-
     AutomatedEmailFixture(
         Attendee,
         f'Claim your badge for {c.EVENT_NAME_AND_YEAR}!',
@@ -866,7 +862,7 @@ if not c.LOCAL_ACCOUNTS_DISABLED:
     StopsEmailFixture(
         f'Claim your Staff badge for {c.EVENT_NAME} {c.EVENT_YEAR}!',
         'placeholders/imported_volunteer.txt',
-        staff_import_placeholder,
+        "lambda a: a.placeholder and a.imported_staff",
         'volunteer_again_inquiry')
 
     AutomatedEmailFixture(
