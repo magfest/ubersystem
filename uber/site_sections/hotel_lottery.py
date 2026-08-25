@@ -2162,6 +2162,23 @@ class Root:
         session.commit()
         return {'success': True}
 
+    @ajax_gettable
+    def card_status(self, session, assignment_id=None, **params):
+        """Lightweight poll target for the secure-room wizard: reports
+        whether a card token has landed on this assignment (via the
+        browser callback or the vault webhook), so the page can advance
+        even when the capture iframe's postMessage never reaches us."""
+        ra, error = _secure_flow_assignment(session, assignment_id)
+        if error:
+            return error
+        return {
+            'success': True,
+            'has_card': bool(ra.cc_token),
+            'token': ra.cc_token or '',
+            'last_four': ra.cc_last_four or '',
+            'card_type': ra.cc_card_type or '',
+        }
+
     @ajax
     def secure_room_callback(self, session, token, assignment_id=None, id=None,
                              last_four='', card_type='', **params):
@@ -2280,8 +2297,20 @@ class Root:
             cherrypy.response.status = 404
             return {'error': 'Assignment not found'}
 
-        # Only update if the token matches what we have stored
-        if ra.cc_token != token:
+        # A webhook for an assignment with no stored token bootstraps the
+        # card (the capture iframe's postMessage to the parent page can be
+        # lost, e.g. blocked or unparsed - the wizard polls card_status to
+        # recover). A webhook for a *different* stored token is stale and
+        # must not clobber the newer card.
+        if not ra.cc_token:
+            log.info("vault_webhook: bootstrapping card token onto assignment %s "
+                     "(browser postMessage never saved one)", assignment_id)
+            from pytz import UTC
+            ra.cc_token = token
+            ra.cc_captured_at = datetime.now(UTC)
+        elif ra.cc_token != token:
+            log.info("vault_webhook: ignoring stale token for assignment %s "
+                     "(a different token is already stored)", assignment_id)
             return {'success': True}
 
         # Parse safe_data (JSON string with card holder, last four, etc.)

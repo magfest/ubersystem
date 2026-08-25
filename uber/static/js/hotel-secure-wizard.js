@@ -48,15 +48,20 @@ function loadVaultSession(callback) {
       $('#vault-loading').hide();
       if (json.success) {
         iframeUrl = json.iframe_url;
-        try { vaultOrigin = new URL(iframeUrl).origin; } catch(e) {}
+        try { vaultOrigin = new URL(iframeUrl).origin; } catch(e) {
+          console.warn('[secure-wizard] could not parse vault iframe URL origin:', e);
+        }
+        console.log('[secure-wizard] vault capture session ready, iframe origin:', vaultOrigin);
         vaultSessionReady = true;
         document.getElementById('vault-iframe').src = iframeUrl;
         if (callback) callback();
       } else {
+        console.error('[secure-wizard] create_vault_session failed:', json.error);
         $('#secure-error').text(json.error || 'Failed to load card form.').show();
       }
     },
-    error: function() {
+    error: function(xhr, status) {
+      console.error('[secure-wizard] create_vault_session request failed:', status, xhr.status);
       vaultSessionLoading = false;
       $('#vault-loading').hide();
       $('#secure-error').text('Failed to connect to payment service. Please try again.').show();
@@ -70,6 +75,8 @@ function goToStep(step) {
     return;
   }
   $('#step2-error').hide();
+
+  if (step !== 3) stopCardPolling();
 
   // Hide all steps
   $('#step-1, #step-2, #step-3').hide();
@@ -126,6 +133,7 @@ function updateCardDisplay() {
   $('#card-summary, #vault-iframe-container, #secure-btn, #vault-loading').hide();
 
   if (card && !editing) {
+    stopCardPolling();
     $('#card-summary-text').text(cardSummaryText());
     $('#card-summary').show();
     $('#secure-btn').show();
@@ -135,6 +143,51 @@ function updateCardDisplay() {
       $('#card-summary-text').text(cardSummaryText());
       $('#card-summary').show();
     }
+    // While the capture iframe is up, poll for the token landing
+    // server-side (via the vault webhook) in case the iframe's
+    // postMessage never reaches us.
+    startCardPolling();
+  }
+}
+
+var cardPollTimer = null;
+
+function startCardPolling() {
+  if (cardPollTimer) return;
+  console.debug('[secure-wizard] starting card_status polling');
+  cardPollTimer = setInterval(function() {
+    $.ajax({
+      url: 'card_status',
+      method: 'GET',
+      data: { assignment_id: secureWizardConfig.assignmentId },
+      success: function(json) {
+        if (json.error) {
+          console.warn('[secure-wizard] card_status poll returned error:', json.error);
+          return;
+        }
+        // Only adopt a token that differs from what we already have, so
+        // the change-card flow isn't cancelled by its own old card.
+        if (json.has_card && json.token && json.token !== cardToken) {
+          console.log('[secure-wizard] card token arrived server-side (via webhook); adopting it');
+          cardToken = json.token;
+          cardLastFour = json.last_four || '';
+          cardType = json.card_type || '';
+          $('#vault-iframe-container').data('showIframe', false);
+          updateCardDisplay();
+        }
+      },
+      error: function(xhr, status) {
+        console.debug('[secure-wizard] card_status poll request failed:', status, xhr.status);
+      }
+    });
+  }, 3000);
+}
+
+function stopCardPolling() {
+  if (cardPollTimer) {
+    console.debug('[secure-wizard] stopping card_status polling');
+    clearInterval(cardPollTimer);
+    cardPollTimer = null;
   }
 }
 
@@ -177,17 +230,20 @@ function submitWithExistingCard() {
     },
     success: function(response) {
       if (response.success) {
+        console.log('[secure-wizard] room secured, redirecting');
         $('#card-summary, #vault-iframe-container, #secure-btn, #step3-back-btn').hide();
         $('#secure-success').show();
         setTimeout(function() {
           window.location.href = secureWizardConfig.redirectUrl;
         }, 2000);
       } else {
+        console.error('[secure-wizard] secure_room_callback failed:', response.error);
         $('#secure-error').text(response.error || 'An error occurred.').show();
         $('#secure-btn').prop('disabled', false);
       }
     },
-    error: function() {
+    error: function(xhr, status) {
+      console.error('[secure-wizard] secure_room_callback request failed:', status, xhr.status);
       $('#secure-error').show();
       $('#secure-btn').prop('disabled', false);
     }
@@ -196,18 +252,47 @@ function submitWithExistingCard() {
 
 window.addEventListener('message', function(event) {
   // Only accept messages from the vault iframe origin
-  if (vaultOrigin && event.origin !== vaultOrigin) return;
-
-  var data = event.data;
-  if (!data || typeof data !== 'object') return;
-
-  if (data.height) {
-    document.getElementById('vault-iframe').style.height = data.height + 'px';
+  if (vaultOrigin && event.origin !== vaultOrigin) {
+    // Browser extensions and other embeds also post messages, so this
+    // fires routinely - but if capture succeeds and nothing happens,
+    // a vault message being dropped HERE is the prime suspect.
+    console.debug('[secure-wizard] ignoring message from', event.origin,
+                  '(expected', vaultOrigin + ')');
     return;
   }
 
-  if (data.token) {
-    cardToken = data.token;
+  var data = event.data;
+  console.log('[secure-wizard] message from vault iframe (' + event.origin + '), type:',
+              typeof data);
+  // PCI Vault's hosted capture form posts JSON-encoded strings
+  if (typeof data === 'string') {
+    try { data = JSON.parse(data); } catch (e) {
+      console.warn('[secure-wizard] unparseable string message from vault iframe:',
+                   data.length > 200 ? data.slice(0, 200) + '…' : data);
+      return;
+    }
+  }
+  if (!data || typeof data !== 'object') {
+    console.warn('[secure-wizard] non-object message from vault iframe:', data);
+    return;
+  }
+
+  console.log('[secure-wizard] vault message keys:', Object.keys(data).join(', '));
+
+  var height = data.height || (data.data && data.data.height);
+  if (height) {
+    console.debug('[secure-wizard] resize request from vault iframe:', height);
+    document.getElementById('vault-iframe').style.height =
+        Math.max(800, parseInt(height, 10) || 0) + 'px';
+    return;
+  }
+
+  // The token's location varies by form/message version
+  var token = data.token || (data.data && data.data.token)
+      || (data.token_info && data.token_info.token);
+  if (token) {
+    console.log('[secure-wizard] card token received via postMessage, saving to server');
+    cardToken = token;
     cardLastFour = '';
     cardType = '';
     $('#vault-iframe-container').data('showIframe', false);
@@ -222,17 +307,28 @@ window.addEventListener('message', function(event) {
         csrf_token: csrf_token
       },
       success: function(response) {
-        if (!response.success) {
+        if (response.success) {
+          console.log('[secure-wizard] card token saved');
+        } else {
+          console.error('[secure-wizard] save_card_token failed:', response.error);
           $('#secure-error').text(response.error || 'Failed to save card token.').show();
         }
       },
-      error: function() {
+      error: function(xhr, status) {
+        console.error('[secure-wizard] save_card_token request failed:', status, xhr.status);
         $('#secure-error').text('Failed to save card token. Please try again.').show();
       }
     });
 
     updateCardDisplay();
   } else if (data.error) {
+    console.error('[secure-wizard] error message from vault iframe:', data.error);
     $('#secure-error').text(data.error).show();
+  } else {
+    // A message from the vault origin that carries neither a token nor
+    // an error - if the flow stalls after "Card successfully captured",
+    // this log line shows the shape we failed to recognize.
+    console.warn('[secure-wizard] unrecognized message from vault iframe; keys:',
+                 Object.keys(data).join(', '), '- waiting on webhook poll instead');
   }
 });
