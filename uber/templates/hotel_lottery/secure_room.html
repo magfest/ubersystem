@@ -1,0 +1,258 @@
+{% extends "./preregistration/preregbase.html" %}
+{% import 'hotel_lottery/_macros.html' as room_macros with context %}
+{% set title_text = "Secure Your Room" %}
+
+{% block content %}
+
+{# Same framing as index / rooms / room: an outer card plus the
+   cross-section tab nav, so the secure wizard doesn't feel like it
+   left the app shell. #}
+<div class="card card-body">
+{% if not c.ATTENDEE_ACCOUNTS_ENABLED %}
+  {% set attendee = assignment.attendee %}
+  {% include 'confirm_tabs.html' with context %}
+{% endif %}
+
+{# Back to the room editor for this assignment, preserving the
+   view-as attendee_id when present. #}
+<div class="mb-3">
+  <a href="room?id={{ assignment.id }}{% if attendee_id %}&attendee_id={{ attendee_id }}{% endif %}"
+     class="btn btn-outline-secondary btn-sm">
+    <i class="fa fa-arrow-left me-1"></i> Back to room
+  </a>
+</div>
+
+{# Secure-deadline reminder. Only render when this specific room has to
+   put down a card; master-bill rooms (require_cc=False) skip it. The
+   deadline lives on the RoomAssignment row, so each room can have its
+   own override. #}
+{% if assignment.require_cc and assignment.deposit_cutoff_date %}
+<div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+  <i class="fa fa-exclamation-triangle me-2"></i>
+  <div>
+    <strong>Card deadline:</strong>
+    {{ assignment.deposit_cutoff_date|date("%A, %B %-d, %Y") }}.
+    If a credit card isn't on file by then, this room will be released to
+    the next attendee in line.
+  </div>
+</div>
+{% endif %}
+
+<div class="d-flex justify-content-center mb-4">
+  <div class="d-flex align-items-center gap-2" id="step-indicators">
+    <span class="badge rounded-pill bg-primary step-badge" id="badge-1">1. Review Dates</span>
+    <i class="fa fa-chevron-right text-muted small"></i>
+    <span class="badge rounded-pill bg-secondary step-badge" id="badge-2">2. Billing Details</span>
+    <i class="fa fa-chevron-right text-muted small"></i>
+    <span class="badge rounded-pill bg-secondary step-badge" id="badge-3">3. Payment</span>
+  </div>
+</div>
+
+<div id="step-1">
+
+<div class="card card-body mb-3">
+  <h4>Room Award Summary</h4>
+  {% call room_macros.room_summary_table(assignment) %}
+    <tr><th>Guests</th><td>
+      {# Occupants live on the RoomAssignment; fall back to leader plus
+         group members when the list is empty. #}
+      {% if assignment.occupants %}
+        {% for occ in assignment.occupants %}
+          {{ occ.effective_hotel_first_name }} {{ occ.effective_hotel_last_name }}{% if not loop.last %}<br/>{% endif %}
+        {% endfor %}
+      {% elif application %}
+        {{ application.attendee.effective_hotel_first_name }} {{ application.attendee.effective_hotel_last_name }}
+        {% for member in application.valid_group_members %}
+          <br/>{{ member.attendee.effective_hotel_first_name }} {{ member.attendee.effective_hotel_last_name }}
+        {% endfor %}
+      {% elif assignment.attendee %}
+        {{ assignment.attendee.effective_hotel_first_name }} {{ assignment.attendee.effective_hotel_last_name }}
+      {% endif %}
+    </td></tr>
+  {% endcall %}
+</div>
+
+<div class="card card-body mb-3">
+  <h4>Your Room Dates</h4>
+  <p>You have been awarded the following nights:</p>
+  <p><strong>Check-in:</strong> {{ assignment.assigned_check_in_date.strftime("%B %-d") }}
+     - <strong>Check-out:</strong> {{ assignment.assigned_check_out_date.strftime("%B %-d") }}</p>
+
+  {% if application and (application.earliest_checkin_date != assignment.assigned_check_in_date or application.latest_checkout_date != assignment.assigned_check_out_date) %}
+  <div class="alert alert-info">
+    <strong>Note:</strong> Your original request was for
+    {{ application.earliest_checkin_date.strftime("%B %-d") }} - {{ application.latest_checkout_date.strftime("%B %-d") }}.
+    Not all requested nights were available.
+  </div>
+  {% endif %}
+
+  {% if assignment.is_connector %}
+  {# Connector rooms inherit their dates from the parent suite, so the
+     waitlist date-change option doesn't apply here - request extra
+     nights from the suite instead. Post a fixed `date_choice=accept`
+     so the secure callback's date handling is a no-op for this room. #}
+  <input type="hidden" name="date_choice" value="accept" />
+  <p class="text-muted small mb-0">
+    These dates follow your suite. To request additional nights, edit
+    the suite's dates.
+  </p>
+  {% else %}
+  <div class="form-check mb-2">
+    <input class="form-check-input" type="radio" name="date_choice" id="accept_dates" value="accept" checked>
+    <label class="form-check-label" for="accept_dates">
+      I accept these dates.
+    </label>
+  </div>
+  <div class="form-check mb-2">
+    <input class="form-check-input" type="radio" name="date_choice" id="request_more" value="waitlist">
+    <label class="form-check-label" for="request_more">
+      I'd like to request additional nights (waitlist). I'll be notified if availability opens up.
+    </label>
+  </div>
+
+  <div id="waitlist-dates" style="display: none;" class="mt-3">
+    <p class="text-muted">Set your preferred dates below. Nights outside your awarded range will be waitlisted.</p>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">Preferred Check-in</label>
+        <input type="date" class="form-control" id="requested_checkin"
+               value="{{ (application.earliest_checkin_date if application else None) or assignment.assigned_check_in_date }}"
+               min="{{ c.HOTEL_LOTTERY_CHECKIN_START.strftime('%Y-%m-%d') }}"
+               max="{{ assignment.assigned_check_in_date }}" />
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Preferred Check-out</label>
+        <input type="date" class="form-control" id="requested_checkout"
+               value="{{ (application.latest_checkout_date if application else None) or assignment.assigned_check_out_date }}"
+               min="{{ assignment.assigned_check_out_date }}"
+               max="{{ c.HOTEL_LOTTERY_CHECKOUT_END.strftime('%Y-%m-%d') }}" />
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<div class="d-flex justify-content-end">
+  <button type="button" class="btn btn-primary" onclick="goToStep(2)">Continue to Billing Details <i class="fa fa-arrow-right ms-1"></i></button>
+</div>
+
+</div>{# /step-1 #}
+
+
+<div id="step-2" style="display: none;">
+
+{# The "booker" is the attendee whose name will appear on the hotel
+   reservation. For a lottery-tied room that's application.attendee;
+   for a non-lottery (department / partition / manual) room it's
+   assignment.attendee - fall back to whichever is present. #}
+{% set _booker = (application.attendee if application else assignment.attendee) %}
+
+<div class="card card-body mb-3">
+  <h4>Billing Address</h4>
+  <p>Please provide the billing address associated with the credit card you will use to secure your room.</p>
+
+  {# Copy billing details from another of the booker's rooms in the same
+     hotel's payment system that already has a card + address on file.
+     Pre-filtered server-side; reuses that room's card and address and
+     secures this room without re-entering the card. #}
+  {{ room_macros.card_reuse_picker(
+        billing_source_rooms, assignment, attendee_id or assignment.attendee_id,
+        label='Copy billing details from another room',
+        button_text='Copy',
+        help_text='Reuses the card and billing address from the selected room and secures this room.',
+        boxed=True) }}
+
+  {{ room_macros.billing_address_fields(assignment, fallback=_booker,
+        required=True, with_ids=True, gutter='g-3') }}
+
+  <div class="my-3">
+    <label for="hotel_rewards_number" class="form-label">Hotel Rewards Program Number</label>
+    <input type="text" class="form-control" name="hotel_rewards_number" id="hotel_rewards_number"
+           value="{{ assignment.hotel_rewards_number or '' }}"
+           placeholder="Enter your hotel loyalty/rewards number (optional)" />
+    <div class="form-text">If you have a rewards membership with this hotel, enter your number to earn points for your stay.</div>
+  </div>
+</div>
+
+<div id="step2-error" class="alert alert-danger" style="display: none;"></div>
+
+<div class="d-flex justify-content-between">
+  <button type="button" class="btn btn-outline-secondary" onclick="goToStep(1)"><i class="fa fa-arrow-left me-1"></i> Back</button>
+  <button type="button" class="btn btn-primary" onclick="goToStep(3)">Continue to Payment <i class="fa fa-arrow-right ms-1"></i></button>
+</div>
+
+</div>{# /step-2 #}
+
+
+<div id="step-3" style="display: none;">
+
+<div class="card card-body mb-3">
+  <h4>Credit Card Information</h4>
+  <p>Your card information is submitted directly to our secure payment vault and never touches our servers.</p>
+
+  <div id="card-summary" style="display: none;">
+    <div class="d-flex align-items-center gap-3 mb-3">
+      <span>Card on file: <strong id="card-summary-text"></strong></span>
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="change-card-btn">Change Card</button>
+    </div>
+  </div>
+
+  <div id="vault-loading" style="display: none;" class="text-center py-4">
+    <div class="spinner-border" role="status"></div>
+    <p class="mt-2 text-muted">Loading secure card form...</p>
+  </div>
+
+  <div id="vault-iframe-container" style="display: none; min-height: 800px;">
+    <iframe id="vault-iframe" title="Secure credit card entry form"
+            style="width: 100%; height: 800px; min-height: 800px; border: none; overflow: hidden;"
+            scrolling="no" allow="payment"></iframe>
+  </div>
+
+  <button type="button" class="btn btn-primary btn-lg w-100 mt-3" id="secure-btn" style="display: none;" onclick="submitWithExistingCard()">
+    <i class="fa fa-lock me-1"></i> Secure Room
+  </button>
+
+  <div id="secure-progress" style="display: none;" class="text-center py-4">
+    <div class="spinner-border" role="status"></div>
+    <p class="mt-2 text-muted">Securing your room...</p>
+  </div>
+
+  <div id="secure-success" style="display: none;" class="alert alert-success mt-3">
+    Your room has been secured! Redirecting...
+  </div>
+  <div id="secure-error" style="display: none;" class="alert alert-danger mt-3">
+    There was an error securing your room. Please try again or contact us for assistance.
+  </div>
+</div>
+
+<div class="d-flex justify-content-start">
+  <button type="button" class="btn btn-outline-secondary" id="step3-back-btn" onclick="goToStep(2)"><i class="fa fa-arrow-left me-1"></i> Back</button>
+</div>
+
+</div>
+
+
+{# The wizard state machine lives in
+   uber/static/js/hotel-secure-wizard.js; this stanza only passes the
+   per-assignment values it needs. #}
+<script type="text/javascript">
+window.secureWizardConfig = {
+  assignmentId: {{ assignment.id|string|tojson }},
+  cardToken: {{ (assignment.cc_token or '')|tojson }},
+  cardLastFour: {{ (assignment.cc_last_four or '')|tojson }},
+  cardType: {{ (assignment.cc_card_type or '')|tojson }},
+{% if return_to == 'room' %}
+  redirectUrl: {{ ('room?id=' ~ assignment.id|string
+                   ~ ('&attendee_id=' ~ attendee_id if attendee_id else '')
+                   ~ '&message=Your+room+has+been+secured!')|tojson }}
+{% else %}
+  redirectUrl: {{ ('rooms?attendee_id=' ~ (application.attendee.id if application else assignment.attendee.id)|string
+                   ~ '&message=Your+room+has+been+secured!')|tojson }}
+{% endif %}
+};
+</script>
+{{ "js/hotel-secure-wizard.js"|serve_static_content }}
+
+</div>{# /card #}
+
+{% endblock content %}

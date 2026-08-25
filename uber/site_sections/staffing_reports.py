@@ -19,7 +19,7 @@ def volunteer_checklists(session):
         .filter(
             Attendee.staffing == True,  # noqa: E712
             Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS])).options(
-                selectinload(Attendee.hotel_requests), selectinload(Attendee.food_restrictions),
+                selectinload(Attendee.food_restrictions),
                 selectinload(Attendee.shifts)
             ) \
         .order_by(Attendee.full_name, Attendee.id).all()

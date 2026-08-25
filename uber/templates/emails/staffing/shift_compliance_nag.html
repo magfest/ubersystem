@@ -1,0 +1,22 @@
+{{ attendee.first_name }},
+
+Our records show you have a hotel room assignment for {{ c.EVENT_NAME_AND_YEAR }}, but you haven't yet met the shift requirements that come with it.
+
+To keep your hotel space, please address the following before the convention starts:
+
+<ul>
+{% for req in attendee.shift_compliance_violations %}
+  {% if req.kind == c.CORE %}
+  <li>Reach at least {{ req.required_weighted_hours }} weighted shift hours by {{ req.night_date|date("%A, %B %-d") }} (you currently have {{ attendee.weighted_hours }}).</li>
+  {% else %}
+  <li>Pick up a shift overlapping {{ req.shift_window_start|datetime_local("%A, %B %-d %-I:%M%p") }} - {{ req.shift_window_end|datetime_local("%-I:%M%p") }} ({{ req.kind_label }}).</li>
+  {% endif %}
+{% endfor %}
+</ul>
+
+You can sign up for shifts here: <a href="{{ c.URL_BASE }}/staffing/shifts">{{ c.URL_BASE }}/staffing/shifts</a>
+
+If you can no longer fulfil these requirements, please reply to this email so we can release the room to someone else.
+
+Thanks,<br/>
+{{ c.EVENT_NAME }} Staff

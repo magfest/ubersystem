@@ -316,6 +316,23 @@ class UniqueList(TypeDecorator):
         return ','.join(map(str, list(set(listify(value))))) if value else ''
 
 
+class RankedList(UniqueList):
+    """
+    A UniqueList whose ORDER IS MEANINGFUL: values are deduplicated but
+    keep their first-seen position (dict.fromkeys) instead of being run
+    through set(), which scrambles them. Use for ranked-preference
+    columns where index == rank (hotel/room-type preferences, selection
+    priorities).
+    """
+    impl = String
+    inherit_cache = True
+
+    def process_bind_param(self, value, dialect):
+        if not value:
+            return ''
+        return ','.join(dict.fromkeys(map(str, listify(value))))
+
+
 class MultiChoice(UniqueList):
     """
     Utility class for storing the results of a group of checkboxes. Each value

@@ -1,0 +1,32 @@
+{% import 'emails/hotel/_room_summary.html' as room_summary_macros with context %}
+{% set ra = assignment %}
+<html>
+<head></head>
+<body>
+<p>
+  {% if leader %}{{ leader.first_name }} {{ leader.last_name }}{% else %}A {{ c.EVENT_NAME }} attendee{% endif %}
+  has invited you to share their hotel room at {{ c.EVENT_NAME_AND_YEAR }}.
+</p>
+
+<p>The room they'd like to add you to:</p>
+{{ room_summary_macros.room_summary(ra) }}
+
+<p>
+  <a href="{{ c.URL_BASE }}/hotel_lottery/invite?token={{ token }}">
+    Click here to accept or reject the invite
+  </a>
+  - you'll be asked to log in to your {{ c.EVENT_NAME }} account first.
+</p>
+
+<p>
+  If you accept, your name and email will be visible to everyone else
+  staying in the room. Your photo-ID legal name and other personal
+  details remain private to you.
+</p>
+
+<p>
+  If you don't recognize this invite or weren't expecting it, you can
+  safely ignore this email.
+</p>
+</body>
+</html>

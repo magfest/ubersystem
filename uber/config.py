@@ -378,7 +378,15 @@ class Config(_Overridable):
         if section == 'group_admin' and any(x in access for x in ['dealer_admin', 'guest_admin',
                                                                   'band_admin', 'showcase_admin']):
             return True
-        
+
+        # partition_admin: any admin with at least one PartitionOwner grant
+        # (or a global lottery admin) may visit the partition-scoped pages;
+        # the per-page methods then gate further via uber.hotel.perms
+        # helpers. HAS_HOTEL_LOTTERY_ACCESS is request-cached, so repeated
+        # access checks during one render don't re-query.
+        if section == 'partition_admin' and self.HAS_HOTEL_LOTTERY_ACCESS:
+            return True
+
     def update_name_problems(self):
         c.PROBLEM_NAMES = {}
         file_loc = os.path.join(c.UPLOADED_FILES_DIR, 'problem_names.csv')
@@ -470,20 +478,30 @@ class Config(_Overridable):
         We have to run our form validations based on which 'step' in the form someone is, but
         the number of steps depends on the entry type and event config. This builds
         a dict that allows you to look up each step number based on a key.
+
+        The lists are the EFFECTIVE steps: 'selection_pref' only renders
+        when the selection-priorities feature is on and more than one
+        priority option is configured (both config-driven -
+        HOTEL_LOTTERY_PRIORITIES_OPTS comes from [hotel_lottery]
+        [[priorities]]), so it is dropped here when it wouldn't render.
+        That keeps the step numbers - which the form templates' step JS,
+        LotteryApplication.last_step, and the hotel_lottery validations
+        all use - in sync with the accordion steps actually shown.
         """
+        priorities_shown = (
+            self.HOTEL_LOTTERY_PRIORITIES_ENABLED
+            and len(getattr(self, 'HOTEL_LOTTERY_PRIORITIES_OPTS', [])) > 1)
 
         steps = {}
-        step = 0
-        for step_name in c.HOTEL_LOTTERY_ROOM_STEPS:
-            step += 1
-            steps[f'room_{step_name}'] = step
-        steps['room_final_step'] = step
-
-        step = 0
-        for step_name in c.HOTEL_LOTTERY_SUITE_STEPS:
-            step += 1
-            steps[f'suite_{step_name}'] = step
-        steps['suite_final_step'] = step
+        for prefix, step_names in [('room', c.HOTEL_LOTTERY_ROOM_STEPS),
+                                   ('suite', c.HOTEL_LOTTERY_SUITE_STEPS)]:
+            step = 0
+            for step_name in step_names:
+                if step_name == 'selection_pref' and not priorities_shown:
+                    continue
+                step += 1
+                steps[f'{prefix}_{step_name}'] = step
+            steps[f'{prefix}_final_step'] = step
 
         return steps
 
@@ -1092,6 +1110,27 @@ class Config(_Overridable):
 
     @request_cached_property
     @dynamic
+    def CURRENT_VOLUNTEER(self):
+        try:
+            from uber.models import Session, Attendee
+            with Session() as session:
+                attrs = Attendee.to_dict_default_attrs + ['logged_in_name']
+                attendee = session.volunteer_from_id(cherrypy.session.get('staffer_id'))
+                data = attendee.to_dict(attrs)
+                # to_dict only serializes column attrs cleanly; the shifts
+                # page's compliance banner needs these computed properties,
+                # so serialize them by hand (violations are model rows).
+                data['weighted_hours'] = attendee.weighted_hours
+                data['shift_compliance_violations'] = [
+                    {'night_date': req.night_date,
+                     'required_weighted_hours': req.required_weighted_hours}
+                    for req in attendee.shift_compliance_violations]
+                return data
+        except Exception:
+            return {}
+
+    @request_cached_property
+    @dynamic
     def CURRENT_KIOSK_SUPERVISOR(self):
         try:
             from uber.models import Session
@@ -1276,6 +1315,29 @@ class Config(_Overridable):
     @dynamic
     def ADMIN_FULL_ACCESS_SET(self):
         return uber.models.AdminAccount.get_access_set(full=True)
+
+    @request_cached_property
+    @dynamic
+    def HAS_HOTEL_LOTTERY_ACCESS(self):
+        """True iff the current admin can see the hotel lottery admin area
+        at all - either as a global lottery admin (HAS_HOTEL_LOTTERY_ADMIN_ACCESS)
+        or as a per-partition owner with at least one PartitionOwner grant.
+
+        Used to gate the cross-section "Hotel" menu entry under People;
+        partition owners need a way to reach their dashboard even though
+        they don't carry the site-section permission.
+        """
+        if self.HAS_HOTEL_LOTTERY_ADMIN_ACCESS:
+            return True
+        try:
+            account_id = cherrypy.session.get('account_id')
+            if not account_id:
+                return False
+            from uber.hotel.perms import has_any_lottery_access
+            with uber.models.Session() as sess:
+                return has_any_lottery_access(sess, account_id)
+        except Exception:
+            return False
 
     @cached_property
     def ADMIN_PAGES(self):
@@ -1814,26 +1876,6 @@ def create_hour_opts(start_hour, end_hour, step, prefix=''):
             return opt_list
 
 
-def build_hotel_inventory(inventory_type, room_types):
-    hotel_inventory = []
-    hotel_inventory_config = _config['hotel_lottery'].get(inventory_type, {})
-    for key, item in c.HOTEL_LOTTERY_HOTELS.items():
-        hotel_enum, _ = item
-        for room_type_key, quantity in hotel_inventory_config.get(key, {}).items():
-            room_type_enum, room_type = room_types.get(room_type_key)
-            if not room_type:
-                raise ValueError(f"Could not locate hotel room_type {room_type_key}")
-            capacity = room_type.get(f'{key}_capacity', room_type['capacity'])
-            min_capacity = room_type.get(f'{key}_min_capacity', room_type['min_capacity'])
-            hotel_inventory.append({
-                "id": str(hotel_enum),
-                "capacity": int(capacity),
-                "min_capacity": int(min_capacity),
-                "room_type": str(room_type_enum),
-                "quantity": int(quantity),
-                "name": room_type_key,
-            })
-    return hotel_inventory
     
 
 c = Config()
@@ -2126,23 +2168,27 @@ c.WRISTBAND_COLORS = defaultdict(lambda: c.WRISTBAND_COLORS[c.DEFAULT_WRISTBAND]
 c.SAME_NUMBER_REPEATED = r'^(\d)\1+$'
 
 c.HOTEL_LOTTERY = _config.get('hotel_lottery', {})
-for key in ["hotels", "room_types", "suite_room_types", "priorities"]:
-    opts = []
-    dictionary = {}
-    for name, item in c.HOTEL_LOTTERY.get(key, {}).items():
-        if isinstance(item, dict):
-            item.__hash__ = lambda x: hash(x.name + x.description)
-            base_key = f"HOTEL_LOTTERY_{name.upper()}"
-            dict_key = int(sha512(base_key.encode()).hexdigest()[:7], 16)
-            setattr(c, base_key, dict_key)
-            opts.append((dict_key, item))
-            dictionary[name] = (dict_key, item)
-    setattr(c, f"HOTEL_LOTTERY_{key.upper()}_OPTS", opts)
-    setattr(c, f"HOTEL_LOTTERY_{key.upper()}", dictionary)
 
-c.HOTEL_LOTTERY_ROOM_INVENTORY = build_hotel_inventory('hotel_room_inventory', c.HOTEL_LOTTERY_ROOM_TYPES)
-c.HOTEL_LOTTERY_SUITE_INVENTORY = build_hotel_inventory('hotel_suite_inventory', c.HOTEL_LOTTERY_SUITE_ROOM_TYPES)
+# Ranking options for the optional "selection priorities" step. Built from the
+# [hotel_lottery] [[priorities]] config; each entry becomes a (key, info) pair
+# the Ranking widget can render. Only used when HOTEL_LOTTERY_PRIORITIES_ENABLED.
+c.HOTEL_LOTTERY_PRIORITIES_OPTS = [
+    (key, {
+        'name': item.get('name', key),
+        'description': item.get('description', ''),
+        'footnote': item.get('footnote', ''),
+    })
+    for key, item in c.HOTEL_LOTTERY.get('priorities', {}).items()
+    if isinstance(item, dict)
+]
+
 c.HOTEL_LOTTERY_AWARD_STATUSES = [c.PROCESSED, c.AWARDED, c.SECURED]
+
+# RoomAssignment statuses that still hold inventory - the canonical "live
+# room" predicate used by capacity math, exports, and the attendee-facing
+# rooms views. Prefer RoomAssignment.is_live / Attendee.active_room_assignments
+# over spelling this list out at call sites.
+c.HOTEL_LIVE_ASSIGNMENT_STATUSES = [c.ASSIGNED, c.SECURED]
 
 # Allows 0-9, a-z, A-Z, and a handful of punctuation characters
 c.VALID_BADGE_PRINTED_CHARS = r'[a-zA-Z0-9!"#$%&\'()*+,\-\./:;<=>?@\[\\\]^_`\{|\}~ "]'

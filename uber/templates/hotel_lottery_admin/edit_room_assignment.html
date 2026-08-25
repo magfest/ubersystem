@@ -1,0 +1,215 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% import 'hotel_lottery_admin/_macros.html' as hotel_macros with context %}
+{% block title %}Edit Room Assignment{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+
+{% set ra = assignment %}
+{% set inv = ra.inventory %}
+{% set app = ra.lottery_application %}
+{% set attendee = ra.attendee %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="mb-0">
+    Edit Room Assignment
+    {% if ra.is_connector %}{{ hotel_macros.connector_chip() }}{% endif %}
+  </h2>
+  <div>
+    <a href="rooms" class="btn btn-outline-secondary">Back to Rooms</a>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header py-2"><strong>Summary</strong></div>
+  <div class="card-body py-2 small">
+    <div class="row g-2 align-items-start">
+      <div class="col-md-3">
+        <div class="form-text mb-0">Attendee</div>
+        {{ hotel_macros.attendee_cell(attendee) }}
+      </div>
+      <div class="col-md-3">
+        <div class="form-text mb-0">Lottery Application</div>
+        {% if app %}
+          <a href="form?id={{ app.id }}">
+            {{ app.confirmation_num or app.id }}
+          </a>
+        {% else %}
+          <em>None (non-lottery room)</em>
+        {% endif %}
+      </div>
+      <div class="col-md-2">
+        <div class="form-text mb-0">Assignment Reason</div>
+        {{ ra.assignment_reason_label }}
+      </div>
+      <div class="col-md-2">
+        <div class="form-text mb-0">Status</div>
+        {{ hotel_macros.room_status_chip(ra) }}
+      </div>
+      <div class="col-md-2">
+        <div class="form-text mb-0">Billing</div>
+        {{ hotel_macros.billing_chip(ra) }}
+      </div>
+    </div>
+
+    {# -- Payment / card-on-file status. A card is "on file" when a vault
+       token exists; `cc_last_four` is populated asynchronously by the
+       vault webhook so it can lag (or be absent in dev), so we gate on
+       `cc_token` and show the digits/type/timestamp only when present. #}
+    <hr class="my-2"/>
+    <div class="row g-2 align-items-start">
+      <div class="col-md-3">
+        <div class="form-text mb-0">Card on file</div>
+        {% if ra.cc_token %}
+          <span class="badge bg-success">Card on file</span>
+        {% elif ra.require_cc %}
+          <span class="badge bg-warning text-dark">No card on file</span>
+        {% else %}
+          <span class="text-muted">N/A - master bill</span>
+        {% endif %}
+      </div>
+      {% if ra.cc_token %}
+      <div class="col-md-3">
+        <div class="form-text mb-0">Card</div>
+        {% if ra.cc_last_four %}
+          {% if ra.cc_card_type %}{{ ra.cc_card_type }} {% endif %}ending in {{ ra.cc_last_four }}
+        {% else %}
+          <span class="text-muted">stored (digits not available)</span>
+        {% endif %}
+      </div>
+      <div class="col-md-3">
+        <div class="form-text mb-0">Cardholder</div>
+        {{ ra.cc_card_holder or '-' }}
+      </div>
+      <div class="col-md-3">
+        <div class="form-text mb-0">Captured</div>
+        {{ ra.cc_captured_at|datetime_local("%Y-%m-%d %H:%M") if ra.cc_captured_at else '-' }}
+      </div>
+      {% endif %}
+    </div>
+
+    {% if ra.is_connector %}
+    <hr class="my-2"/>
+    <div class="text-muted">
+      This is a connector room. Its parent is
+      <a href="edit_room_assignment?id={{ ra.parent_assignment_id }}">
+        room <code>{{ ra.parent_assignment_id }}</code>
+      </a>.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<form method="post" action="save_room_assignment">
+  {{ csrf_token() }}
+  <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
+
+  <div class="card mb-3">
+    <div class="card-header py-2"><strong>Room &amp; Dates</strong></div>
+    <div class="card-body py-2">
+      {{ hotel_macros.room_assignment_fields(
+            ra=ra, partitions=partitions,
+            inventory_rows=inventory_blocks,
+            inventory_partitions_map=inventory_partitions_map,
+            require_cc=ra.require_cc, layout='grid') }}
+
+      <div class="row g-2 mb-2">
+        <div class="col-md-3">
+          <label class="form-label">Deposit Cutoff</label>
+          <input type="date" class="form-control" name="deposit_cutoff_date"
+                 value="{{ ra.deposit_cutoff_date or '' }}" />
+          <div class="form-text small">Override the lottery-run default per-assignment.</div>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Status</label>
+          <select class="form-select" name="status">
+            {% for val, label in c.HOTEL_ASSIGNMENT_STATUS_OPTS %}
+              <option value="{{ val }}" {% if ra.status == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="row g-2 mb-0">
+        <div class="col-md-4">
+          <label class="form-label">Hotel Confirmation #</label>
+          <input type="text" class="form-control" name="hotel_confirmation_number"
+                 value="{{ ra.hotel_confirmation_number or '' }}" />
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Cancellation Confirmation #</label>
+          <input type="text" class="form-control" name="cancellation_confirmation_number"
+                 value="{{ ra.cancellation_confirmation_number or '' }}" />
+          <div class="form-text small">Setting this flips status to Cancelled.</div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Physical Room</label>
+          <div class="d-flex gap-1">
+            <select class="form-select" name="physical_room_id">
+              <option value="">(none / free text below)</option>
+              {% for r in assignable_rooms %}
+              <option value="{{ r.id }}" {% if ra.physical_room_id == r.id %}selected{% endif %}>
+                {{ hotel_macros.physical_room_option_label(r) }}
+              </option>
+              {% endfor %}
+            </select>
+            {% if map_hotel %}{{ hotel_macros.room_map_button(ra) }}{% endif %}
+          </div>
+          <div class="form-text small">Catalogued rooms in this block,
+            vacant for these dates. Also managed on the
+            <a href="physical_rooms{% if inv and inv.hotel_id %}?hotel_id={{ inv.hotel_id }}{% endif %}">Physical Rooms board</a>.</div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Room Number</label>
+          <input type="text" class="form-control" name="room_number"
+                 value="{{ ra.room_number or '' }}"
+                 {% if ra.physical_room_id %}readonly{% endif %} />
+          <div class="form-text small">
+            {% if ra.physical_room_id %}Synced from the linked physical room.
+            {% else %}Free text when no physical room is linked.{% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header py-2"><strong>Special Requests</strong></div>
+    <div class="card-body py-2">
+      <textarea class="form-control" name="special_requests" rows="3">{{ ra.special_requests or '' }}</textarea>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header py-2"><strong>Admin Notes</strong></div>
+    <div class="card-body py-2">
+      <textarea class="form-control" name="admin_notes" rows="3"
+                placeholder="Internal notes - never shown to the attendee">{{ ra.admin_notes or '' }}</textarea>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-end gap-2">
+    <a href="rooms" class="btn btn-outline-secondary">Cancel</a>
+    <button type="submit" class="btn btn-primary">Save</button>
+  </div>
+</form>
+
+{# Delete form lives OUTSIDE the edit form - HTML doesn't allow nested
+   forms, and we want a separate POST endpoint anyway. #}
+<form method="post" action="delete_room_assignment" class="mt-3"
+      data-confirm-message="Remove this room? Any connector rooms will also be removed.">
+  {{ csrf_token() }}
+  <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
+  <button type="submit" class="btn btn-outline-danger">
+    <i class="fa fa-trash"></i> Remove Room
+  </button>
+</form>
+
+{% if map_hotel %}
+{{ hotel_macros.room_map_modal(map_hotel, map_rooms) }}
+{% endif %}
+
+{{ "js/hotel-room-picker.js"|serve_static_content }}
+{{ "js/hotel-confirm-submit.js"|serve_static_content }}
+
+{% endblock content %}
