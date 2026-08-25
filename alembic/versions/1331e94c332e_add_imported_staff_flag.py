@@ -1,7 +1,7 @@
 """Add imported staff flag
 
 Revision ID: 1331e94c332e
-Revises: 855b23e9aea1
+Revises: e1a4d7c93b60
 Create Date: 2026-08-25 12:51:53.194995
 
 """
@@ -9,7 +9,7 @@ Create Date: 2026-08-25 12:51:53.194995
 
 # revision identifiers, used by Alembic.
 revision = '1331e94c332e'
-down_revision = '855b23e9aea1'
+down_revision = 'e1a4d7c93b60'
 branch_labels = None
 depends_on = None
 
