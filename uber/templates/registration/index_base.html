@@ -125,7 +125,7 @@
 
         {% if c.HAS_REG_ADMIN_ACCESS and search_results and attendees %}
         <a class="btn btn-success" href="#" onClick="exportSearch()">Export Current Search</a>
-        {% if c.LOCAL_ACCOUNTS_DISABLED %}<a class="btn btn-info" href="#" onClick="sendClaims()">Send Account Claim Links</a>{% endif %}
+        {% if c.LOCAL_ACCOUNTS_DISABLED %}<a class="btn btn-info" href="#" onClick="sendClaims()">Create Accounts</a>{% endif %}
         {% endif %}
     </div>
     {% if c.HAS_REG_ADMIN_ACCESS %}
@@ -184,7 +184,7 @@
         message: '<p>This will create accounts for any valid attendees in this search who do not already have an account. They will get an email to link their {{ c.OIDC_ACCOUNT_NAME|default("SSO") }} account to their registration.</p>' +
                  '<p>Are you sure?</p>',
         buttons: {
-          confirm: { label: 'Yes, Send Claim Links!', className: 'btn-info' },
+          confirm: { label: 'Yes, Create Accounts!', className: 'btn-info' },
           cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
         },
         callback: function (result) {

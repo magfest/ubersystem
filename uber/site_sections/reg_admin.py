@@ -1376,7 +1376,7 @@ class Root:
             raise HTTPRedirect('../registration/index?search_text={}&order={}&invalid={}&message={}',
                                search_text, order, invalid, error)
         
-        create_sso_accounts([attendee.id for attendee in attendees])
+        create_sso_accounts.delay([attendee.id for attendee in attendees])
 
         raise HTTPRedirect('../registration/index?search_text={}&order={}&invalid={}&message={}',
                            search_text, order, invalid, 'Account creation started; this may take several minutes to complete.')
