@@ -203,7 +203,7 @@
           </form>
           {% endif %}
         </td>
-        <td>{{ hotel_macros.hotel_conf_cell(ra) }}</td>
+        <td>{{ hotel_macros.hotel_conf_cell(ra, show_room_number=can_view_room_numbers) }}</td>
         <td class="text-end">
           {% if can_edit_assignments and ra.attendee_id %}
           <button type="button" class="btn btn-sm btn-outline-primary"
@@ -349,6 +349,20 @@
                     inventory_required=False,
                     inventory_editable=(ra.partition_id == partition.id),
                     include_current_option=True) }}
+              {% if can_edit_room_numbers %}
+              <div class="mb-2">
+                <label class="form-label small">Room number</label>
+                <input type="text" class="form-control form-control-sm" name="room_number"
+                       value="{{ ra.room_number or '' }}"
+                       {% if ra.physical_room_id %}readonly
+                       title="Set from the linked physical room."{% endif %} />
+              </div>
+              {% elif can_view_room_numbers and ra.room_number %}
+              <div class="mb-2">
+                <label class="form-label small">Room number</label>
+                <div class="form-control-plaintext form-control-sm">{{ ra.room_number }}</div>
+              </div>
+              {% endif %}
               <div class="text-end">
                 <button type="submit" class="btn btn-primary btn-sm">Save changes</button>
               </div>

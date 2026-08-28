@@ -130,7 +130,7 @@ def create_room_assignment(session, *, attendee_id, inventory_id,
                            assigned_check_out_date=None,
                            deposit_cutoff_date=None, room_number='',
                            admin_notes='', enforce_partition_block=None,
-                           audit_description=None):
+                           audit_description=None, allow_room_number=True):
     """Create one RoomAssignment (added and flushed, NOT committed).
 
     Validates that the attendee and inventory exist, parses the date
@@ -181,7 +181,7 @@ def create_room_assignment(session, *, attendee_id, inventory_id,
             assigned_check_out_date, 'check-out'),
         deposit_cutoff_date=parse_date_param(
             deposit_cutoff_date, 'deposit cutoff'),
-        room_number=(room_number or '').strip() or None,
+        room_number=((room_number or '').strip() or None) if allow_room_number else None,
         admin_notes=(admin_notes or '').strip(),
     )
     session.add(ra)
@@ -199,7 +199,8 @@ def create_room_assignment(session, *, attendee_id, inventory_id,
 
 
 def apply_room_assignment_edits(session, ra, params, *, audit_prefix, fail,
-                                allowed_inventory_ids=None):
+                                allowed_inventory_ids=None,
+                                allow_room_number=True):
     """Shared save path for the RoomAssignment edit surfaces (the
     application form's per-room modal, the standalone edit page, the
     assign-room page's edit mode, and the partition dashboard modal).
@@ -215,6 +216,11 @@ def apply_room_assignment_edits(session, ra, params, *, audit_prefix, fail,
     `allowed_inventory_ids`, when given, bounds any inventory change to
     that set of ids (partition-scoped callers pass their partition's
     block inventory ids); a change outside the set calls `fail`.
+
+    `allow_room_number=False` ignores both room_number and
+    physical_room_id. Both, because linking a physical room re-stamps
+    room_number via a presave, so dropping only the text field would
+    still let the caller set the number indirectly.
 
     Returns the user-facing result message; flushes (never commits - the
     caller owns the transaction) and writes one partition audit row
@@ -267,7 +273,7 @@ def apply_room_assignment_edits(session, ra, params, *, audit_prefix, fail,
         if new_status != ra.status:
             changes.append('status'); ra.status = new_status
 
-    if 'physical_room_id' in params:
+    if 'physical_room_id' in params and allow_room_number:
         from uber.models.hotel import PhysicalRoom
         new_room_id = params.get('physical_room_id', '').strip() or None
         if new_room_id != (ra.physical_room_id or None):
@@ -290,6 +296,8 @@ def apply_room_assignment_edits(session, ra, params, *, audit_prefix, fail,
                             ('special_requests', False),
                             ('admin_notes', False)):
         if field not in params:
+            continue
+        if field == 'room_number' and not allow_room_number:
             continue
         raw = (params.get(field, '') or '').strip()
         if raw != (getattr(ra, field) or ''):

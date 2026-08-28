@@ -31,6 +31,7 @@ import pycountry
 import xlsxwriter
 from pytz import UTC
 from sqlalchemy import and_, func, or_
+from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.custom_tags import datetime_local_filter
@@ -53,7 +54,8 @@ from uber.models.hotel import (HotelExportLog, HotelRoomInventory,
 BOOKING_BASE_COLS = [
     'assignment_id', 'lottery_application_id', 'parent_assignment_id',
     'confirmation_num', 'assignment_reason', 'status', 'payment_code',
-    'hotel', 'room_type', 'suite_type',
+    'hotel', 'partition_name', 'partition_bill_reference',
+    'room_type', 'suite_type',
     'check_in_date', 'check_out_date',
     'hotel_confirmation_number', 'cancellation_confirmation_number',
     'room_number',
@@ -154,6 +156,12 @@ def booking_dict(ra, app):
         'status': ra.status_label if hasattr(ra, 'status_label') else ra.status,
         'hotel': hotel.name if hotel else '',
         'hotel_id': str(inv.hotel_id) if inv and inv.hotel_id else None,
+        # Which carve-out the room came from, and the hotel's billing account
+        # reference for it. partition_id is JSON-only; the two labels are in
+        # the spreadsheet so the hotel can reconcile against its own billing.
+        'partition_id': str(ra.partition_id) if ra.partition_id else None,
+        'partition_name': ra.partition.name if ra.partition else '',
+        'partition_bill_reference': ra.partition.bill_reference if ra.partition else '',
         'room_type': room_type,
         'suite_type': suite_type,
         'check_in_date': iso(ra.assigned_check_in_date),
@@ -219,10 +227,11 @@ def booking_row(ra, app, d=None):
     rest of the system treats the vault token as PCI-sensitive, so it
     never leaves the database in a spreadsheet - as are the JSON-only
     identifiers the spreadsheet has no column for (response_id,
-    hotel_id, num_nights, num_occupants, hotel_rewards_number,
-    payment_type, guests - guest columns are appended separately by
-    booking_export_data). payment_code IS included, since that is the
-    value the hotel keys billing off.
+    hotel_id, partition_id, num_nights, num_occupants,
+    hotel_rewards_number, payment_type, guests - guest columns are
+    appended separately by booking_export_data). payment_code IS
+    included, since that is the value the hotel keys billing off, as are
+    partition_name and partition_bill_reference for reconciliation.
     """
     d = d if d is not None else booking_dict(ra, app)
     return [
@@ -232,7 +241,9 @@ def booking_row(ra, app, d=None):
         d['assignment_reason'],
         d['status'],
         d['payment_code'] or '',
-        d['hotel'] or '', d['room_type'] or '', d['suite_type'] or '',
+        d['hotel'] or '',
+        d['partition_name'] or '', d['partition_bill_reference'] or '',
+        d['room_type'] or '', d['suite_type'] or '',
         d['check_in_date'] or '',
         d['check_out_date'] or '',
         d['hotel_confirmation_number'] or '',
@@ -267,6 +278,7 @@ def booking_export_data(session, hotel_id):
 
     from uber.hotel.queries import live_assignments_for_hotel
     assignments = (live_assignments_for_hotel(session, hotel.id)
+                   .options(joinedload(RoomAssignment.partition))
                    .order_by(RoomAssignment.parent_assignment_id.asc().nullsfirst(),
                              RoomAssignment.created.asc())
                    .all())

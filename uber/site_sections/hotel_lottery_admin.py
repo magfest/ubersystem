@@ -20,7 +20,7 @@ from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import (AdminAccount, Attendee, Group, LotteryApplication,
                          Email, Tracking, PageViewTracking)
-from uber.hotel.perms import record_partition_audit
+from uber.hotel.perms import is_lottery_admin, record_partition_audit
 from uber.models.hotel import (HotelRoomInventory, InventoryNightQuantity, InventoryPartition,
                                InventoryPartitionBlock, LotteryRun, HotelExportLog, LotteryHotel, LotteryRoomType,
                                PartitionOwner, RoomAssignment,
@@ -2657,7 +2657,7 @@ class Root:
         partition_id is locked to their grant's scope. Used by Marketplace,
         Belvedere, Panels, Accessibility to assign exhibitor/panelist rooms.
         """
-        from uber.hotel.perms import is_lottery_admin, can_edit_assignments_in
+        from uber.hotel.perms import can_edit_assignments_in
 
         assignment = None
         if id and id not in ('None', ''):
@@ -2829,7 +2829,7 @@ class Root:
                 grant.admin_account_id = picked_account
                 grant.partition_id = picked_partition
 
-                # Three scoped access levels are submitted as
+                # Scoped access levels are submitted as
                 # `<scope>_level` = none | view | edit. We unpack each
                 # into the underlying view/edit flag pair so the
                 # invariant "edit implies view" is enforced at the UI
@@ -2838,6 +2838,7 @@ class Root:
                 level_scopes = [
                     ('inventory_level',  'can_view_inventory',  'can_edit_inventory'),
                     ('assignments_level', 'can_view_assignments', 'can_edit_assignments'),
+                    ('room_numbers_level', 'can_view_room_numbers', 'can_edit_room_numbers'),
                 ]
                 for level_field, view_flag, edit_flag in level_scopes:
                     level = (params.get(level_field) or '').strip()
@@ -2925,8 +2926,11 @@ class Root:
         forms = load_forms(params, partition, ['InventoryPartitionConfig'])
 
         if cherrypy.request.method == 'POST':
+            # Not is_admin=True: bill_reference is locked for anyone who is not
+            # a full lottery admin, and that lock only applies when the form is
+            # populated as a non-admin.
             for form in forms.values():
-                form.populate_obj(partition, is_admin=True)
+                form.populate_obj(partition, is_admin=is_lottery_admin())
             session.add(partition)
             session.flush()
 

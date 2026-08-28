@@ -389,7 +389,14 @@ class InventoryPartitionConfig(MagForm):
 
     name = StringField('Name', render_kw={'required': True})
     description = TextAreaField('Description', render_kw={'rows': 2})
+    bill_reference = StringField(
+        'Bill Reference',
+        description="The hotel's billing account reference for this partition. "
+                    "Included in the booking export. Lottery admins only.")
     active = SelectBooleanField('Active', widget=Select())
+
+    def get_non_admin_locked_fields(self, partition):
+        return ['bill_reference']
 
 
 class WaitlistRevealConfig(MagForm):

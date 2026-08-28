@@ -27,6 +27,8 @@ from uber.hotel.service import (
 )
 from uber.hotel.perms import (
     can_edit_assignments_in,
+    can_edit_room_numbers_in,
+    can_view_room_numbers_in,
     can_edit_inventory_in,
     can_view_assignments_in,
     can_view_guest_legal_names,
@@ -273,6 +275,8 @@ class Root:
             'can_edit_assignments': can_edit_assignments_in(session, partition_id),
             'can_edit_inventory': can_edit_inventory_in(session, partition_id),
             'can_view_guest_names': can_view_guest_names_in(session, partition_id),
+            'can_view_room_numbers': can_view_room_numbers_in(session, partition_id),
+            'can_edit_room_numbers': can_edit_room_numbers_in(session, partition_id),
             'can_view_guest_legal_names': can_view_guest_legal_names(session, partition_id),
             'message': message,
         }
@@ -337,6 +341,7 @@ class Root:
                 assigned_check_in_date=params.get('assigned_check_in_date', ''),
                 assigned_check_out_date=params.get('assigned_check_out_date', ''),
                 enforce_partition_block=True,
+                allow_room_number=can_edit_room_numbers_in(session, partition_id),
                 audit_description=f"Assigned room to attendee {attendee_id}",
             )
         except RoomAssignmentError as e:
@@ -376,7 +381,8 @@ class Root:
             session, assignment, params,
             audit_prefix='Updated', fail=fail,
             allowed_inventory_ids=_partition_block_inventory_ids(
-                session, target_partition))
+                session, target_partition),
+            allow_room_number=can_edit_room_numbers_in(session, target_partition))
         session.commit()
 
         raise HTTPRedirect(
