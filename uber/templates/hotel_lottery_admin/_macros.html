@@ -798,3 +798,18 @@
   {%- else -%}{{ lottery_type }}
   {%- endif -%}
 {%- endmacro %}
+
+{# Delete control for a hotel lottery resource. A real form posting to
+   confirm_delete_resource, so it still works without JavaScript;
+   hotel-delete-conflicts.js intercepts it and offers the same choices in a
+   dialog. Pages using it must load that script. #}
+{% macro delete_button(kind, obj, return_to='', label='Delete') %}
+  <form method="post" action="confirm_delete_resource" class="d-inline hl-delete-form"
+        data-kind="{{ kind }}" data-id="{{ obj.id }}" data-return-to="{{ return_to }}">
+    {{ csrf_token() }}
+    <input type="hidden" name="kind" value="{{ kind }}" />
+    <input type="hidden" name="id" value="{{ obj.id }}" />
+    <input type="hidden" name="return_to" value="{{ return_to }}" />
+    <button type="submit" class="btn btn-sm btn-outline-danger">{{ label }}</button>
+  </form>
+{% endmacro %}

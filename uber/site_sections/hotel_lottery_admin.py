@@ -16,12 +16,15 @@ from sqlalchemy.types import String
 
 from uber.config import c
 from uber.decorators import (all_renderable, log_pageview, ajax, ajax_gettable, xlsx_file, csv_file,
-                             multifile_zipfile)
+                             multifile_zipfile, render)
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
-from uber.models import (AdminAccount, Attendee, Group, LotteryApplication,
-                         Email, Tracking, PageViewTracking)
+from uber.models import (AdminAccount, Attendee, AutomatedEmail, Group,
+                         LotteryApplication, Email, Tracking, PageViewTracking)
 from uber.hotel import pricing
+from uber.hotel.deletion import (DeletionError, RESOURCE_SPECS, has_blocking,
+                                 inspect_conflicts, perform_delete,
+                                 resolve_conflict)
 from uber.hotel.perms import is_lottery_admin, record_partition_audit
 from uber.models.hotel import (HotelRoomInventory, InventoryNightQuantity, InventoryPartition,
                                InventoryPartitionBlock, LotteryRun, HotelExportLog, LotteryHotel, LotteryRoomType,
@@ -111,6 +114,61 @@ def _unroomed_order(sort):
     if sort == 'checkout':
         return (RoomAssignment.assigned_check_out_date.asc().nullsfirst(),)
     return (RoomAssignment.assigned_check_in_date.asc().nullsfirst(),)
+
+
+def _waitlist_reveal_candidates(session, reveal):
+    """(eligible_ids, emailed_ids, pending_ids, new_ids) for one reveal.
+
+    Shared by the sender, the link generator, and the recipient preview, so
+    the preview cannot drift from what a send would actually do.
+
+    Eligible: lottery-eligible attendees holding no live room.
+    """
+    eligible_subq = session.query(Attendee.id).outerjoin(
+        RoomAssignment,
+        sa.and_(
+            RoomAssignment.attendee_id == Attendee.id,
+            RoomAssignment.is_live,
+        )
+    ).filter(
+        Attendee.hotel_lottery_eligible == True,  # noqa: E712
+        RoomAssignment.id.is_(None),
+    ).subquery()
+
+    eligible_ids = [row[0] for row in session.query(eligible_subq.c.id).all()]
+
+    emailed_ids, pending_ids = set(), set()
+    for attendee_id, emailed_at in session.query(
+            WaitlistRevealLink.attendee_id,
+            WaitlistRevealLink.emailed_at).filter_by(waitlist_reveal_id=reveal.id):
+        (emailed_ids if emailed_at else pending_ids).add(attendee_id)
+
+    # Anyone eligible who has no link row at all yet.
+    new_ids = [aid for aid in eligible_ids
+               if aid not in emailed_ids and aid not in pending_ids]
+    return eligible_ids, emailed_ids, pending_ids, new_ids
+
+
+def _mint_reveal_links(session, reveal, attendee_ids):
+    """Create the missing link rows and return every row that still needs
+    emailing, which includes ones generated earlier without sending."""
+    import secrets
+
+    for attendee_id in attendee_ids:
+        session.add(WaitlistRevealLink(
+            waitlist_reveal_id=reveal.id,
+            attendee_id=attendee_id,
+            token=secrets.token_urlsafe(24)))
+    session.flush()
+
+    return session.query(WaitlistRevealLink).filter(
+        WaitlistRevealLink.waitlist_reveal_id == reveal.id,
+        WaitlistRevealLink.emailed_at.is_(None)).all()
+
+
+def _deletion_label(obj):
+    return (getattr(obj, 'name', None) or getattr(obj, 'display_name', None)
+            or 'this item')
 
 
 LOTTERY_TYPE_VALUES = {
@@ -2685,11 +2743,113 @@ class Root:
 
         return {'reveal': reveal, 'forms': forms, 'message': message}
 
+    @ajax
+    def waitlist_reveal_recipients(self, session, id='', csrf_token=None):
+        """Who a send would reach right now, from the same query the sender
+        uses."""
+        if cherrypy.request.method != 'POST':
+            return {'error': 'This endpoint requires a POST.'}
+        check_csrf(csrf_token)
+
+        reveal = session.query(WaitlistReveal).get(id)
+        if not reveal:
+            return {'error': 'Reveal not found.'}
+
+        eligible, emailed, pending, new_ids = _waitlist_reveal_candidates(
+            session, reveal)
+        would_email = list(pending) + new_ids
+
+        sample = []
+        for attendee in session.query(Attendee).filter(
+                Attendee.id.in_(would_email[:200])).all() if would_email else []:
+            sample.append({'name': attendee.full_name, 'email': attendee.email,
+                           'badge': attendee.badge_num or ''})
+        sample.sort(key=lambda row: row['name'])
+
+        return {
+            'ok': True,
+            'eligible': len(eligible),
+            'already_emailed': len(emailed),
+            'awaiting_send': len(pending),
+            'new': len(new_ids),
+            'would_email': len(would_email),
+            'sample': sample,
+            'truncated': len(would_email) > len(sample),
+        }
+
+    @ajax
+    def preview_waitlist_reveal_email(self, session, id='', csrf_token=None):
+        """The reveal email as one recipient would receive it."""
+        if cherrypy.request.method != 'POST':
+            return {'error': 'This endpoint requires a POST.'}
+        check_csrf(csrf_token)
+
+        reveal = session.query(WaitlistReveal).get(id)
+        if not reveal:
+            return {'error': 'Reveal not found.'}
+
+        _eligible, _emailed, pending, new_ids = _waitlist_reveal_candidates(
+            session, reveal)
+        sample_ids = list(pending) + new_ids
+        attendee = (session.query(Attendee).get(sample_ids[0]) if sample_ids
+                    else session.query(Attendee).first())
+        if not attendee:
+            return {'error': 'No attendee available to preview against.'}
+
+        automated = session.query(AutomatedEmail).filter_by(
+            ident='hotel_lottery_waitlist_reveal').first()
+        if not automated:
+            return {'error': 'The reveal email is not configured yet.'}
+
+        # Unflushed: previewing must not create a link row.
+        link = WaitlistRevealLink(waitlist_reveal_id=reveal.id,
+                                  attendee_id=attendee.id,
+                                  token='PREVIEW-TOKEN')
+        data = {'reveal': reveal, 'link': link}
+        subject = automated.render_subject(attendee, data)
+        body = automated.render_body(attendee, data)
+
+        # The template only prints the ubersystem token URL today, but a later
+        # edit could start printing the destination. Catching it here turns a
+        # silent leak into a visible one.
+        leaked = bool(reveal.external_url and reveal.external_url in body)
+        if leaked:
+            body = body.replace(reveal.external_url, '[HIDDEN UNTIL REVEAL TIME]')
+
+        return {'ok': True, 'subject': subject, 'body': body,
+                'recipient': f'{attendee.full_name} <{attendee.email}>',
+                'leak_warning': leaked}
+
+    def generate_waitlist_reveal_links(self, session, id='', csrf_token=None):
+        """Create the link rows without emailing anyone, so the URLs can be
+        handed out another way."""
+        import secrets
+
+        _require_post_csrf({'csrf_token': csrf_token}, redirect='waitlist_reveals')
+
+        reveal = session.query(WaitlistReveal).get(id)
+        if not reveal:
+            raise HTTPRedirect('waitlist_reveals?message={}', 'Reveal not found.')
+
+        _eligible, _emailed, _pending, new_ids = _waitlist_reveal_candidates(
+            session, reveal)
+        if not reveal.use_unique_links and not reveal.shared_token:
+            reveal.shared_token = secrets.token_urlsafe(24)
+            session.add(reveal)
+        _mint_reveal_links(session, reveal, new_ids)
+        session.commit()
+
+        raise HTTPRedirect(
+            'waitlist_reveals?message={}',
+            f'Generated {len(new_ids)} link(s). Nothing was emailed.')
+
     def send_waitlist_reveal_emails(self, session, id, csrf_token=None):
         """Materialize one WaitlistRevealLink per eligible attendee (anyone
         hotel-lottery-eligible without an active RoomAssignment) and queue
-        the reveal email. Idempotent for already-emailed (attendee, reveal)
-        pairs - running this again only emails new candidates.
+        the reveal email.
+
+        Idempotent on emailed_at, not on the link row existing: generating
+        links without sending must not make a later send skip everyone.
         """
         import secrets
 
@@ -2702,36 +2862,17 @@ class Root:
             raise HTTPRedirect('waitlist_reveals?message={}',
                                'Reveal is missing or inactive.')
 
-        eligible_subq = session.query(Attendee.id).outerjoin(
-            RoomAssignment,
-            sa.and_(
-                RoomAssignment.attendee_id == Attendee.id,
-                RoomAssignment.is_live,
-            )
-        ).filter(
-            Attendee.hotel_lottery_eligible == True,  # noqa: E712
-            RoomAssignment.id.is_(None),
-        ).subquery()
+        _eligible, _emailed, _pending, new_ids = _waitlist_reveal_candidates(
+            session, reveal)
+        if not reveal.use_unique_links and not reveal.shared_token:
+            reveal.shared_token = secrets.token_urlsafe(24)
+            session.add(reveal)
 
-        eligible_ids = [row[0] for row in session.query(eligible_subq.c.id).all()]
-        existing_attendee_ids = {
-            row[0] for row in session.query(WaitlistRevealLink.attendee_id).filter_by(
-                waitlist_reveal_id=reveal.id).all()}
+        # Skip on emailed_at rather than on the row existing, so links
+        # generated earlier without sending still get their email.
+        unsent_links = _mint_reveal_links(session, reveal, new_ids)
 
-        new_links = []
-        for aid in eligible_ids:
-            if aid in existing_attendee_ids:
-                continue
-            link = WaitlistRevealLink(
-                waitlist_reveal_id=reveal.id,
-                attendee_id=aid,
-                token=secrets.token_urlsafe(24),
-            )
-            session.add(link)
-            new_links.append(link)
-        session.flush()
-
-        for link in new_links:
+        for link in unsent_links:
             attendee = session.query(Attendee).get(link.attendee_id)
             if not attendee:
                 continue
@@ -2990,6 +3131,95 @@ class Root:
             'partitions': partitions,
             'message': message,
         }
+
+    @ajax
+    def deletion_conflicts(self, session, kind='', id='', csrf_token=None):
+        """What still points at this resource, rendered for the dialog.
+
+        Returns HTML rather than a JSON tree so the modal and the no-JS
+        interstitial page share one template.
+        """
+        if cherrypy.request.method != 'POST':
+            return {'error': 'This endpoint requires a POST.'}
+        check_csrf(csrf_token)
+        try:
+            obj, spec, groups = inspect_conflicts(session, kind, id)
+        except DeletionError as e:
+            return {'error': e.message}
+
+        return {
+            'ok': True,
+            'kind': kind,
+            'id': str(obj.id),
+            'label': _deletion_label(obj),
+            'title': spec['title'],
+            'is_active': bool(getattr(obj, 'active', False)),
+            'soft_delete_available': bool(spec.get('soft_delete')),
+            'has_blocking': has_blocking(groups),
+            'force_required': any(g['category'] == 'emailed_links' for g in groups),
+            'html': render('hotel_lottery_admin/_deletion_conflicts.html', {
+                'kind': kind, 'obj': obj, 'spec': spec, 'groups': groups,
+            }).decode('utf-8'),
+        }
+
+    @ajax
+    def resolve_deletion_conflict(self, session, kind='', id='', category='',
+                                  action='', item_id='', target_id='',
+                                  csrf_token=None):
+        """Apply one resolution, then re-render so the dialog can never act on
+        a stale view."""
+        if cherrypy.request.method != 'POST':
+            return {'error': 'This endpoint requires a POST.'}
+        check_csrf(csrf_token)
+        try:
+            message = resolve_conflict(session, kind, id, category, action,
+                                       item_id=item_id, target_id=target_id)
+            session.commit()
+        except DeletionError as e:
+            session.rollback()
+            return {'error': e.message}
+
+        result = self.deletion_conflicts(session, kind=kind, id=id,
+                                         csrf_token=csrf_token)
+        if isinstance(result, dict):
+            result['message'] = message
+        return result
+
+    def confirm_delete_resource(self, session, kind='', id='', return_to='',
+                                message=''):
+        """Full-page fallback for the same dialog, so the delete controls work
+        without JavaScript."""
+        try:
+            obj, spec, groups = inspect_conflicts(session, kind, id)
+        except DeletionError as e:
+            raise HTTPRedirect('index?message={}', e.message)
+
+        return {
+            'kind': kind,
+            'obj': obj,
+            'spec': spec,
+            'groups': groups,
+            'label': _deletion_label(obj),
+            'has_blocking': has_blocking(groups),
+            'return_to': return_to or spec['list_page'],
+            'message': message,
+        }
+
+    def delete_resource(self, session, kind='', id='', mode='soft', force='',
+                        return_to='', csrf_token=None):
+        spec = RESOURCE_SPECS.get(kind)
+        list_page = spec['list_page'] if spec else 'index'
+        _require_post_csrf({'csrf_token': csrf_token}, redirect=list_page)
+
+        try:
+            message = perform_delete(session, kind, id, mode=mode,
+                                     force=force in ('1', 'true', 'True'))
+            session.commit()
+        except DeletionError as e:
+            session.rollback()
+            raise HTTPRedirect('{}?message={}', return_to or list_page, e.message)
+
+        raise HTTPRedirect('{}?message={}', return_to or list_page, message)
 
     def delete_partition_owner(self, session, id, csrf_token=None, return_to=''):
         if cherrypy.request.method != 'POST':

@@ -422,6 +422,19 @@ class WaitlistRevealConfig(MagForm):
         'Audience Description',
         description='Shown to the attendee on the reveal page above the countdown. Optional.',
         render_kw={'rows': 2})
+    use_unique_links = SelectBooleanField(
+        'Link Type', widget=Select(),
+        choices=[('true', 'A unique link for each attendee'),
+                 ('false', 'One shared link for everyone')],
+        description='Unique links let you see who clicked and stop a forwarded '
+                    'link from working. A shared link can only be counted in '
+                    'aggregate.')
+    require_login = BooleanField(
+        'Require sign-in to view',
+        description='Only meaningful when attendee accounts are enabled. With '
+                    'unique links this checks the link belongs to the viewer; '
+                    'with a shared link it can only require any eligible '
+                    'signed-in attendee.')
     active = BooleanField('Active')
 
 

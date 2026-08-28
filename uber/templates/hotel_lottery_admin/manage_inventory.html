@@ -1,4 +1,5 @@
 {% extends "base.html" %}{% set admin_area=True %}
+{% import 'hotel_lottery_admin/_macros.html' as hotel_macros with context %}
 {% block title %}Manage Room Inventory{% endblock %}
 {% block content %}
 
@@ -49,7 +50,10 @@
       <td>{{ item.base_staff_price|format_price or '-' }}</td>
       <td>{{ item.vault_reference or '' }}</td>
       <td>{{ 'Yes' if item.active else 'No' }}</td>
-      <td><a href="edit_inventory_item?id={{ item.id }}" class="btn btn-sm btn-outline-primary">Edit</a></td>
+      <td class="d-flex gap-1">
+        <a href="edit_inventory_item?id={{ item.id }}" class="btn btn-sm btn-outline-primary">Edit</a>
+        {{ hotel_macros.delete_button('inventory', item, 'manage_inventory') }}
+      </td>
     </tr>
     {% endfor %}
   </tbody>
@@ -59,5 +63,7 @@
   No inventory items configured. <a href="edit_inventory_item">Add one</a>.
 </div>
 {% endif %}
+
+{{ "js/hotel-delete-conflicts.js"|serve_static_content }}
 
 {% endblock content %}

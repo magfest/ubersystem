@@ -13,7 +13,8 @@ from uber.decorators import all_renderable, ajax, ajax_gettable, requires_accoun
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, LotteryApplication, RoomAssignment
-from uber.models.hotel import RoomAssignmentInvite, WaitlistRevealLink
+from uber.models.hotel import (RoomAssignmentInvite, WaitlistReveal,
+                               WaitlistRevealLink)
 from uber.hotel.waitlist import WaitlistError, resize_assignment
 from uber.email import EmailService
 from uber.utils import (RegistrationCode, check_csrf, redirect_with_params,
@@ -630,20 +631,66 @@ class Root:
         """
         return self._waitlist_reveal_payload(session, token)
 
+    def _resolve_reveal_token(self, session, token):
+        """(reveal, link) for a token, or (None, None).
+
+        A token is either one attendee's unique link or the reveal's shared
+        token. Shared views have no row to stamp, so their clicks are only
+        counted in aggregate.
+        """
+        if not token:
+            return None, None
+        link = session.query(WaitlistRevealLink).filter_by(token=token).first()
+        if link:
+            return link.waitlist_reveal, link
+        reveal = session.query(WaitlistReveal).filter(
+            WaitlistReveal.shared_token == token,
+            WaitlistReveal.shared_token != '').first()
+        return reveal, None
+
+    def _reveal_login_ok(self, session, reveal, link):
+        """Whether this viewer may see the reveal at all.
+
+        requires_account cannot be used here: it keys off an id parameter and
+        a model lookup, and these endpoints are token-keyed with no id.
+
+        For a unique link we require the viewer to own it, so forwarding one
+        does not hand over access. A shared token has no owner to check
+        against, so it can only require an eligible signed-in attendee; the
+        admin form says so.
+        """
+        if not reveal.require_login:
+            return True
+        if not c.ATTENDEE_ACCOUNTS_ENABLED:
+            # The option is meaningless without accounts, and silently locking
+            # everyone out would be worse than ignoring it.
+            return True
+
+        from uber.hotel.perms import is_lottery_admin
+        if is_lottery_admin():
+            return True
+
+        viewer = _viewer_attendee(session)
+        if not viewer:
+            return False
+        if link is not None:
+            return _attendee_account_owns(session, link.attendee_id)
+        return bool(viewer.hotel_lottery_eligible)
+
     def _waitlist_reveal_payload(self, session, token):
+        reveal, link = self._resolve_reveal_token(session, token)
         if not token:
             return {'error': 'missing-token'}
-        link = session.query(WaitlistRevealLink).filter_by(token=token).first()
-        if not link:
+        if not reveal:
             return {'error': 'invalid-token'}
-        reveal = link.waitlist_reveal
-        if not reveal or not reveal.active:
+        if not reveal.active:
             return {'error': 'inactive'}
+        # Before the payload is built, so an unauthenticated caller never has
+        # a destination URL constructed for them at all.
+        if not self._reveal_login_ok(session, reveal, link):
+            return {'error': 'login-required'}
 
-        if not link.clicked_at:
-            link.clicked_at = datetime.now()
-            session.add(link)
-            session.commit()
+        self._stamp_reveal_click(session, reveal, link)
 
         now = datetime.now(c.EVENT_TIMEZONE) if reveal.reveal_at else None
         is_revealed = reveal.reveal_at and reveal.reveal_at <= now
@@ -654,6 +701,17 @@ class Root:
             'external_url': reveal.external_url if is_revealed else None,
         }
 
+    def _stamp_reveal_click(self, session, reveal, link):
+        if link is not None:
+            if not link.clicked_at:
+                link.clicked_at = datetime.now()
+                session.add(link)
+                session.commit()
+            return
+        reveal.shared_clicks = (reveal.shared_clicks or 0) + 1
+        session.add(reveal)
+        session.commit()
+
     # Plain HTML view (the email links point here; the JS-poll variant uses
     # the ajax endpoint above when polling for reveal time).
     def waitlist_reveal_page(self, session, token=None, message=''):
@@ -663,21 +721,23 @@ class Root:
         # against), and the only write is stamping `clicked_at` once.
         if not token:
             raise HTTPRedirect('../preregistration/homepage')
-        link = session.query(WaitlistRevealLink).filter_by(token=token).first()
-        if not link or not link.waitlist_reveal or not link.waitlist_reveal.active:
+        reveal, link = self._resolve_reveal_token(session, token)
+        if not reveal or not reveal.active:
             return {'error': 'invalid-token', 'message': message}
+        if not self._reveal_login_ok(session, reveal, link):
+            return {'error': 'login-required', 'message': message}
 
-        reveal = link.waitlist_reveal
-        if not link.clicked_at:
-            link.clicked_at = datetime.now()
-            session.add(link)
-            session.commit()
+        self._stamp_reveal_click(session, reveal, link)
 
         now = datetime.now(c.EVENT_TIMEZONE) if reveal.reveal_at else None
+        is_revealed = bool(reveal.reveal_at and reveal.reveal_at <= now)
         return {
             'reveal': reveal,
             'token': token,
-            'is_revealed': bool(reveal.reveal_at and reveal.reveal_at <= now),
+            'is_revealed': is_revealed,
+            # Passed separately and only once revealed, so the template cannot
+            # leak it by reaching through `reveal`.
+            'external_url': reveal.external_url if is_revealed else None,
             'message': message,
         }
 

@@ -37,7 +37,8 @@
              or 'manage_partitions' in c.PAGE_PATH
              or 'edit_partition' in c.PAGE_PATH
              or 'physical_room' in c.PAGE_PATH
-             or c.PAGE_PATH.endswith('/hotel_lottery_admin/waitlist')},
+             or c.PAGE_PATH.endswith('/hotel_lottery_admin/waitlist')
+             or 'waitlist_reveal' in c.PAGE_PATH},
   {'label': 'Lottery Runs', 'href': '/hotel_lottery_admin/lottery_runs',
    'active': 'lottery_run' in c.PAGE_PATH},
   {'label': 'Staffing', 'href': '/staff_rooming/compliance_report',
@@ -75,6 +76,8 @@
    'active': 'physical_room' in c.PAGE_PATH},
   {'label': 'Waitlist', 'href': '/hotel_lottery_admin/waitlist',
    'active': c.PAGE_PATH.endswith('/hotel_lottery_admin/waitlist')},
+  {'label': 'Waitlist Reveals', 'href': '/hotel_lottery_admin/waitlist_reveals',
+   'active': 'waitlist_reveal' in c.PAGE_PATH},
 ] %}
 
 {# Staff Room Nights matches by suffix: see "Applications" above. #}

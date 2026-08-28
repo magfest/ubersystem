@@ -16,6 +16,8 @@ POST handlers in uber.site_sections.hotel_lottery_admin.
 """
 from collections import defaultdict
 
+import sqlalchemy as sa
+
 from uber.config import c
 from uber.hotel.queries import occupancy_by_block_night, overlaps
 from uber.models import LotteryApplication
@@ -816,6 +818,39 @@ def load_issue_notes(session):
         (n.issue_kind, n.target_type, n.target_id): n
         for n in session.query(HotelRoomIssueNote).all()
     }
+
+
+def purge_issue_notes(session, target_type, target_id):
+    """Drop the hide flags and notes keyed to a row that is being deleted.
+
+    Inventory issues that are partition-scoped key as "inv_id|partition_id"
+    (see issue_identity), so deleting an inventory block has to match that
+    prefix and deleting a partition has to match that suffix. Exact-match-only
+    would leave orphaned notes that reappear against a recycled id.
+    """
+    from uber.models.hotel import HotelRoomIssueNote
+
+    target_id = str(target_id)
+    query = session.query(HotelRoomIssueNote)
+    if target_type == 'partition':
+        # Both the partition's own notes and the inventory notes scoped to it.
+        query = query.filter(sa.or_(
+            sa.and_(HotelRoomIssueNote.target_type == 'partition',
+                    HotelRoomIssueNote.target_id == target_id),
+            sa.and_(HotelRoomIssueNote.target_type == 'inventory',
+                    HotelRoomIssueNote.target_id.like('%|' + target_id))))
+    elif target_type == 'inventory':
+        query = query.filter(
+            HotelRoomIssueNote.target_type == 'inventory',
+            sa.or_(HotelRoomIssueNote.target_id == target_id,
+                   HotelRoomIssueNote.target_id.like(target_id + '|%')))
+    else:
+        query = query.filter(HotelRoomIssueNote.target_type == target_type,
+                             HotelRoomIssueNote.target_id == target_id)
+
+    removed = query.count()
+    query.delete(synchronize_session=False)
+    return removed
 
 
 def issue_identity(iss):
