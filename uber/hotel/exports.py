@@ -1145,3 +1145,18 @@ def build_waitlist_xlsx(session):
                 ws.freeze_panes(3, 1)
 
     return rawoutput.getvalue()
+
+
+def unprocessed_imports(session, hotel_id=None):
+    """Uploads still waiting for someone to review them, newest first.
+
+    Rows predating the status column report through effective_status, so an
+    older upload that was already applied does not resurface here.
+    """
+    from uber.models.hotel import HotelImportFile
+
+    query = session.query(HotelImportFile)
+    if hotel_id:
+        query = query.filter(HotelImportFile.hotel_id == hotel_id)
+    files = query.order_by(HotelImportFile.uploaded_at.desc()).all()
+    return [f for f in files if f.effective_status == 'pending']

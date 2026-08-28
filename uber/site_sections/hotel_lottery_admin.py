@@ -166,6 +166,54 @@ def _mint_reveal_links(session, reveal, attendee_ids):
         WaitlistRevealLink.emailed_at.is_(None)).all()
 
 
+def _prepare_import_review(session, record, raw, filename, template_id=''):
+    """Freeze a template-mapped read of an upload onto its HotelImportFile.
+
+    Frozen rather than re-parsed on view because templates stay editable: an
+    admin fixing a template mid-review must not silently change what a
+    half-reviewed file is recorded as having said. The comparison against
+    live bookings is still recomputed on every view, so a synced value stops
+    showing as changed immediately.
+
+    Returns a summary, or None when no template applies and the older
+    confirmation-number import already handled the file.
+    """
+    from uber.hotel import mapping
+
+    fieldnames, _rows, error = mapping.parse_with_template(raw, filename, None)
+    if error:
+        record.parse_error = error
+        record.status = 'pending'
+        session.add(record)
+        return None
+
+    template = mapping.detect_template(session, fieldnames, hotel=record.hotel,
+                                       template_id=template_id or None)
+    if template is None:
+        return None
+
+    rows, error = mapping.build_rows(
+        session, raw, filename, template,
+        hotel_id=record.hotel_id if record.hotel_id else None)
+    if error:
+        record.parse_error = error
+        record.status = 'pending'
+        session.add(record)
+        return None
+
+    counts = mapping.counts_for(rows)
+    record.parsed_rows = rows
+    record.parse_error = ''
+    record.status = 'pending'
+    record.template_id = getattr(template, 'id', None)
+    record.matched_count = counts['matched']
+    record.ambiguous_count = counts['ambiguous']
+    record.unmatched_count = counts['unmatched']
+    session.add(record)
+
+    return {'total': len(rows), 'template_name': template.name, 'counts': counts}
+
+
 def _deletion_label(obj):
     return (getattr(obj, 'name', None) or getattr(obj, 'display_name', None)
             or 'this item')
@@ -1666,6 +1714,9 @@ class Root:
         elif all_hotels:
             timeline_hotel = all_hotels[0]
 
+        from uber.hotel.exports import unprocessed_imports
+        from uber.models.hotel import ImportMappingTemplate
+
         return {
             'hotels': hotels,
             'message': message,
@@ -1673,6 +1724,9 @@ class Root:
             'timeline': (hotel_activity_timeline(session, timeline_hotel.id)
                          if timeline_hotel else []),
             'all_hotels': all_hotels,
+            'pending_uploads': unprocessed_imports(session),
+            'import_templates': session.query(ImportMappingTemplate).filter_by(
+                active=True).order_by(ImportMappingTemplate.name).all(),
         }
 
     def upload_confirmation_file(self, session, hotel_id=None, message='', **params):
@@ -1707,11 +1761,349 @@ class Root:
         # only flushes.
         session.commit()
 
+        record = result.get('record')
+        if record is not None:
+            review = _prepare_import_review(
+                session, record, raw, getattr(upload, 'filename', ''),
+                template_id=params.get('template_id', ''))
+            session.commit()
+            if review:
+                raise HTTPRedirect(
+                    'review_import?id={}&message={}', record.id,
+                    f"Read {review['total']} row(s) with the "
+                    f"{review['template_name']} format. Review the changes below.")
+
         if result.get('error'):
             message = f"File saved, but could not be parsed: {result['error']}"
         else:
             message = f"Imported {result['updated']} update(s), {result['unchanged']} unchanged."
         raise HTTPRedirect('export_tracking?message={}', message)
+
+    def import_templates(self, session, message=''):
+        """The saved upload formats, with what each one is used by."""
+        from uber.models.hotel import ImportMappingTemplate
+
+        templates = session.query(ImportMappingTemplate).order_by(
+            ImportMappingTemplate.name).all()
+        hotels_by_template = defaultdict(list)
+        for hotel in session.query(LotteryHotel).filter(
+                LotteryHotel.default_import_template_id.isnot(None)).all():
+            hotels_by_template[str(hotel.default_import_template_id)].append(hotel.name)
+
+        usage = dict(session.query(
+            HotelImportFile.template_id, sa.func.count(HotelImportFile.id)).filter(
+            HotelImportFile.template_id.isnot(None)).group_by(
+            HotelImportFile.template_id).all())
+
+        return {
+            'templates': templates,
+            'hotels_by_template': hotels_by_template,
+            'usage': {str(k): v for k, v in usage.items()},
+            'message': message,
+        }
+
+    def edit_import_template(self, session, id='', message='', **params):
+        """Build one hotel's format: which column feeds which field, how they
+        spell our enum values, and what date formats they use.
+
+        The maps are edited as raw params rather than through WTForms: the
+        column set is whatever the sample file happens to have.
+        """
+        from uber.hotel import mapping
+        from uber.models.hotel import ImportMappingTemplate
+
+        if id and id not in ('None', ''):
+            template = session.query(ImportMappingTemplate).get(id)
+            if not template:
+                raise HTTPRedirect('import_templates?message={}', 'Format not found.')
+        else:
+            template = ImportMappingTemplate()
+
+        if cherrypy.request.method == 'POST':
+            check_csrf(params.get('csrf_token'))
+            template.name = (params.get('name') or '').strip()
+            template.description = (params.get('description') or '').strip()
+            template.sheet_name = (params.get('sheet_name') or '').strip()
+            try:
+                template.header_row = max(1, int(params.get('header_row') or 1))
+            except ValueError:
+                template.header_row = 1
+            template.active = params.get('active', 'true') != 'false'
+
+            column_map, format_map, enum_map = {}, {}, {}
+            for key, value in params.items():
+                if key.startswith('column__') and value:
+                    column_map[key[len('column__'):]] = value
+                elif key.startswith('format__') and value:
+                    format_map[key[len('format__'):]] = value
+                elif key.startswith('enum__') and value:
+                    # enum__<target>__<source value>
+                    rest = key[len('enum__'):]
+                    target, _, source_value = rest.partition('__')
+                    if target and source_value:
+                        enum_map.setdefault(target, {})[source_value] = value
+
+            template.column_map = column_map
+            template.format_map = format_map
+            template.enum_map = enum_map
+            template.source_signature = mapping.signature_for(column_map.keys())
+            session.add(template)
+            session.commit()
+            raise HTTPRedirect('import_templates?message={}',
+                               f'{template.name or "Format"} saved.')
+
+        return {
+            'template': template,
+            'target_fields': mapping.TARGET_FIELDS,
+            'payment_types': c.HOTEL_PAYMENT_TYPE_OPTS,
+            'message': message,
+        }
+
+    @ajax
+    def preview_import_template(self, session, maps='', hotel_id='',
+                                sample_file_id='', csrf_token=None, **params):
+        """Read a sample file with the maps currently on screen.
+
+        Nothing is written, so an admin can get the mapping right before
+        saving the format or touching a real upload.
+        """
+        import json as _json
+        from uber.hotel import mapping
+
+        if cherrypy.request.method != 'POST':
+            return {'error': 'This endpoint requires a POST.'}
+        check_csrf(csrf_token)
+
+        upload = params.get('sample_file')
+        raw = None
+        filename = ''
+        if upload is not None and getattr(upload, 'file', None):
+            raw = upload.file.read()
+            filename = getattr(upload, 'filename', '')
+            if len(raw) > 5 * 1024 * 1024:
+                return {'error': 'Sample file is too large (5 MB max).'}
+        elif sample_file_id:
+            record = session.query(HotelImportFile).get(sample_file_id)
+            if not record or not record.filepath or not os.path.exists(record.filepath):
+                return {'error': 'That stored upload is no longer on disk.'}
+            with open(record.filepath, 'rb') as f:
+                raw = f.read()
+            filename = record.filename or ''
+
+        if raw is None:
+            return {'error': 'Choose a sample file first.'}
+
+        try:
+            supplied = _json.loads(maps or '{}')
+        except ValueError:
+            return {'error': 'Could not read the mapping.'}
+
+        draft = mapping.draft_template(supplied)
+
+        fieldnames, _rows, error = mapping.parse_with_template(raw, filename, draft)
+        if error:
+            return {'error': error}
+
+        rows, error = mapping.build_rows(session, raw, filename, draft,
+                                         hotel_id=hotel_id or None)
+        if error:
+            return {'error': error}
+
+        counts = mapping.counts_for(rows)
+        sample = []
+        for row in rows[:10]:
+            sample.append({
+                'status': row['status'],
+                'mapped': {mapping.TARGETS_BY_KEY[k]['label']: v
+                           for k, v in row['mapped'].items()
+                           if k in mapping.TARGETS_BY_KEY and v},
+            })
+
+        return {'ok': True, 'headers': fieldnames, 'total': len(rows),
+                'counts': counts, 'sample': sample}
+
+    def delete_import_template(self, session, id='', csrf_token=None):
+        from uber.models.hotel import ImportMappingTemplate
+
+        _require_post_csrf({'csrf_token': csrf_token}, redirect='import_templates')
+
+        template = session.query(ImportMappingTemplate).get(id)
+        if not template:
+            raise HTTPRedirect('import_templates?message={}', 'Format not found.')
+
+        used_by_hotel = session.query(LotteryHotel).filter_by(
+            default_import_template_id=template.id).count()
+        used_by_file = session.query(HotelImportFile).filter_by(
+            template_id=template.id).count()
+        if used_by_hotel or used_by_file:
+            # Deleting would orphan the provenance of a completed review.
+            template.active = False
+            session.add(template)
+            session.commit()
+            raise HTTPRedirect(
+                'import_templates?message={}',
+                f'{template.name} is in use, so it was deactivated rather than '
+                'deleted. It will no longer be detected automatically.')
+
+        name = template.name
+        session.delete(template)
+        session.commit()
+        raise HTTPRedirect('import_templates?message={}', f'{name} deleted.')
+
+    def review_import(self, session, id='', page='1', filter='all', message=''):
+        """Row-by-row review of one uploaded file.
+
+        Its own page rather than an extension of the changes modal: per-value
+        sync and disambiguation need CSRF-bearing posts and pagination, and a
+        review worked through over several sittings needs to be linkable.
+        """
+        from uber.hotel import mapping
+
+        record = session.query(HotelImportFile).get(id)
+        if not record:
+            raise HTTPRedirect('export_tracking?message={}', 'Upload not found.')
+
+        rows = list(record.parsed_rows or [])
+        assignment_ids = {aid for row in rows for aid in row.get('assignment_ids', [])}
+        by_id = {}
+        if assignment_ids:
+            by_id = {str(ra.id): ra for ra in session.query(RoomAssignment).filter(
+                RoomAssignment.id.in_(assignment_ids)).all()}
+
+        # The comparison is recomputed here rather than stored, so a value
+        # synced a moment ago stops showing as changed.
+        prepared = []
+        for row in rows:
+            ids = row.get('assignment_ids', [])
+            primary = by_id.get(ids[0]) if len(ids) == 1 else None
+            diff = mapping.diff_row(primary, row.get('mapped', {})) if primary else []
+            prepared.append({
+                'index': row.get('index'),
+                'status': row.get('status'),
+                'source': row.get('source', {}),
+                'mapped': row.get('mapped', {}),
+                'assignment': primary,
+                'candidates': [by_id[i] for i in ids if i in by_id],
+                'diff': diff,
+                'changed': [d for d in diff if d['changed']],
+            })
+
+        if filter == 'changed':
+            prepared = [r for r in prepared if r['changed']]
+        elif filter in ('ambiguous', 'unmatched', 'matched'):
+            prepared = [r for r in prepared if r['status'] == filter]
+
+        page_num = max(1, int(page or 1))
+        page_size = 50
+        total = len(prepared)
+        page_count = max(1, (total + page_size - 1) // page_size)
+        page_num = min(page_num, page_count)
+        window = prepared[(page_num - 1) * page_size:page_num * page_size]
+
+        return {
+            'record': record,
+            'rows': window,
+            'total': total,
+            'page': page_num,
+            'page_count': page_count,
+            'filter': filter,
+            'counts': {
+                'matched': record.matched_count,
+                'ambiguous': record.ambiguous_count,
+                'unmatched': record.unmatched_count,
+            },
+            'message': message,
+        }
+
+    @ajax
+    def sync_import_value(self, session, file_id='', row_index='', field='',
+                          assignment_id='', csrf_token=None):
+        """Write one imported value onto its booking."""
+        from uber.hotel import mapping
+
+        if cherrypy.request.method != 'POST':
+            return {'error': 'This endpoint requires a POST.'}
+        check_csrf(csrf_token)
+
+        record = session.query(HotelImportFile).get(file_id)
+        ra = session.query(RoomAssignment).get(assignment_id) if assignment_id else None
+        if not record or not ra:
+            return {'error': 'That upload or booking no longer exists.'}
+
+        row = next((r for r in (record.parsed_rows or [])
+                    if str(r.get('index')) == str(row_index)), None)
+        if row is None:
+            return {'error': 'That row is no longer in this upload.'}
+
+        value = (row.get('mapped') or {}).get(field, '')
+        ok, message = mapping.sync_value(session, ra, field, value)
+        if not ok:
+            session.rollback()
+            return {'error': message}
+        session.commit()
+        return {'ok': True, 'message': message,
+                'current': mapping._current_value(ra, field)}
+
+    @ajax
+    def resolve_import_row(self, session, file_id='', row_index='',
+                           assignment_id='', csrf_token=None):
+        """Point an ambiguous row at one booking.
+
+        Stamps the row's acknowledgement number onto the chosen booking, so
+        that booking matches outright on every later upload rather than
+        needing to be disambiguated again.
+        """
+        from uber.hotel import mapping
+
+        if cherrypy.request.method != 'POST':
+            return {'error': 'This endpoint requires a POST.'}
+        check_csrf(csrf_token)
+
+        record = session.query(HotelImportFile).get(file_id)
+        ra = session.query(RoomAssignment).get(assignment_id) if assignment_id else None
+        if not record or not ra:
+            return {'error': 'That upload or booking no longer exists.'}
+
+        rows = list(record.parsed_rows or [])
+        row = next((r for r in rows if str(r.get('index')) == str(row_index)), None)
+        if row is None:
+            return {'error': 'That row is no longer in this upload.'}
+
+        confirmation = (row.get('mapped') or {}).get(
+            'assignment.hotel_confirmation_number', '').strip()
+        if confirmation:
+            ra.hotel_confirmation_number = confirmation
+            session.add(ra)
+
+        row['assignment_ids'] = [str(ra.id)]
+        row['status'] = 'matched'
+        record.parsed_rows = rows
+        counts = mapping.counts_for(rows)
+        record.matched_count = counts['matched']
+        record.ambiguous_count = counts['ambiguous']
+        record.unmatched_count = counts['unmatched']
+        session.add(record)
+        session.commit()
+
+        return {'ok': True, 'message': f'Row matched to {ra.room_summary}.'}
+
+    def mark_import_processed(self, session, id='', status='processed',
+                              csrf_token=None):
+        _require_post_csrf({'csrf_token': csrf_token}, redirect='export_tracking')
+
+        record = session.query(HotelImportFile).get(id)
+        if not record:
+            raise HTTPRedirect('export_tracking?message={}', 'Upload not found.')
+
+        account = session.current_admin_account()
+        record.status = 'ignored' if status == 'ignored' else 'processed'
+        record.processed_at = datetime.now(UTC)
+        record.processed_by = (account.attendee.full_name
+                               if account and account.attendee else 'Admin')
+        session.add(record)
+        session.commit()
+        raise HTTPRedirect('export_tracking?message={}',
+                           f'{record.filename or "Upload"} marked {record.status}.')
 
     def download_import_file(self, session, id):
         """Download a previously uploaded hotel import file."""

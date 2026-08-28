@@ -31,18 +31,24 @@
     });
   }
 
-  function submitBulk(value) {
+  // Which of the two eligibility flags this bulk action targets.
+  var fieldInput = document.getElementById('bulk-field-value');
+
+  function submitBulk(field, value) {
     if (updateIds() === 0) {
       alert('No staffers selected.');
       return;
     }
+    if (fieldInput) { fieldInput.value = field; }
     eligibleInput.value = value;
     form.submit();
   }
-  var markEligible = document.getElementById('bulk-mark-eligible');
-  var markIneligible = document.getElementById('bulk-mark-ineligible');
-  if (markEligible) markEligible.addEventListener('click', function () { submitBulk('true'); });
-  if (markIneligible) markIneligible.addEventListener('click', function () { submitBulk('false'); });
+
+  document.querySelectorAll('.bulk-set').forEach(function (button) {
+    button.addEventListener('click', function () {
+      submitBulk(button.dataset.field, button.dataset.eligible);
+    });
+  });
 
   updateIds();
 })();

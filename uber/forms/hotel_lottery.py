@@ -301,8 +301,21 @@ class EventTimeStringField(StringField):
             self.data = self._display(valuelist[0])
 
 
+def _import_template_choices():
+    from uber.models import Session
+    from uber.models.hotel import ImportMappingTemplate
+    with Session() as session:
+        templates = session.query(ImportMappingTemplate).filter_by(
+            active=True).order_by(ImportMappingTemplate.name).all()
+        return [('', 'Detect automatically')] + [
+            (str(t.id), t.name or '(unnamed)') for t in templates]
+
+
 class LotteryHotelConfig(MagForm):
     admin_desc = True
+    dynamic_choices_fields = {
+        'default_import_template_id': _import_template_choices,
+    }
 
     name = StringField('Hotel Name', render_kw={'required': True})
     export_name = StringField(
@@ -311,6 +324,10 @@ class LotteryHotelConfig(MagForm):
     description = TextAreaField('Description (Left)')
     description_right = TextAreaField('Description (Right)')
     footnote = StringField('Footnote')
+    default_import_template_id = SelectField(
+        'Room List Format', coerce=str, choices=[],
+        description='Used when reading this hotel\'s uploaded room lists. '
+                    'Leave on automatic to match by column names.')
     active = SelectBooleanField('Active', widget=Select())
 
 

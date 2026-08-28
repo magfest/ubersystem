@@ -56,7 +56,7 @@ def parse_iso_date(raw):
         return None
 
 
-def parse_spreadsheet(raw, filename):
+def parse_spreadsheet(raw, filename, sheet_name=None, header_row=1):
     """Parse CSV or XLSX file bytes into (fieldnames, rows, error).
 
     fieldnames are the normalized header cells (lowercased, stripped, spaces
@@ -64,6 +64,10 @@ def parse_spreadsheet(raw, filename):
     every value a string (dates/datetimes rendered as ISO 8601 via
     cell_to_str). XLSX is detected by filename extension or the PK zip magic
     bytes. Parse failures come back as an error string rather than raising.
+
+    `sheet_name` picks a worksheet by name when a hotel's format does not put
+    the data on the first sheet; `header_row` skips leading junk rows above
+    the header. Both default to the original behavior.
     """
     name = (filename or '').lower()
     fieldnames = []
@@ -72,8 +76,14 @@ def parse_spreadsheet(raw, filename):
         if name.endswith(('.xlsx', '.xlsm')) or raw[:2] == b'PK':
             from openpyxl import load_workbook
             wb = load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
+            sheet = (wb[sheet_name] if sheet_name and sheet_name in wb.sheetnames
+                     else wb.active)
             header = None
-            for excel_row in wb.active.iter_rows(values_only=True):
+            skip = max(0, int(header_row or 1) - 1)
+            for excel_row in sheet.iter_rows(values_only=True):
+                if skip:
+                    skip -= 1
+                    continue
                 if header is None:
                     header = [_normalize(cell) for cell in excel_row]
                     continue
@@ -154,7 +164,8 @@ def import_confirmation_file(session, raw, filename, hotel=None, source='',
     if error:
         record.note = error
         session.flush()
-        return {'updated': 0, 'unchanged': 0, 'changes': [], 'error': error}
+        return {'updated': 0, 'unchanged': 0, 'changes': [], 'error': error,
+                'record': record}
 
     # (file column, RoomAssignment attribute)
     fields = [('hotel_confirmation_number', 'hotel_confirmation_number'),
@@ -217,7 +228,8 @@ def import_confirmation_file(session, raw, filename, hotel=None, source='',
             hotel_id=hotel_id, export_type='confirmation_import', record_count=updated))
     session.flush()
 
-    return {'updated': updated, 'unchanged': unchanged, 'changes': changes, 'error': None}
+    return {'updated': updated, 'unchanged': unchanged, 'changes': changes,
+            'error': None, 'record': record}
 
 
 def match_assignments(session, app_id='', conf=''):

@@ -46,7 +46,9 @@
   {'label': 'Exports', 'href': '/hotel_lottery_admin/export_tracking',
    'active': 'export_tracking' in c.PAGE_PATH
              or 'assigned_entries' in c.PAGE_PATH
-             or 'hotel_inventory_zip' in c.PAGE_PATH},
+             or 'hotel_inventory_zip' in c.PAGE_PATH
+             or 'import_template' in c.PAGE_PATH
+             or 'review_import' in c.PAGE_PATH},
   {'label': 'Issues', 'href': '/hotel_lottery_admin/room_issues',
    'icon': 'exclamation-triangle',
    'active': 'room_issues' in c.PAGE_PATH},

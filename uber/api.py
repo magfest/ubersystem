@@ -1510,13 +1510,38 @@ class ConfigLookup:
 
 @all_api_auth('api_read')
 class HotelLookup:
-    def eligible_attendees(self):
+    def eligible_attendees(self, full=False):
         """
-        Returns a list of hotel eligible attendees
+        Returns the attendees eligible for a shared staff room.
+
+        Excludes anyone who is not flagged eligible, and anyone who already
+        holds a live room: a staffer may take a room through the lottery or
+        through the shared room signup, but not both, so someone already
+        roomed must stop being offered one.
+
+        Returns a bare list of attendee ids by default, which is the shape
+        this endpoint has always had. Pass full=True for a list of dicts with
+        the name, email, badge type, and both eligibility flags, which is
+        enough to explain why someone is or is not on the list.
         """
         with Session() as session:
-            attendees = session.query(Attendee.id).filter(Attendee.hotel_eligible == True).all()  # noqa: E712
-            return [x.id for x in attendees]
+            query = session.query(Attendee).filter(
+                Attendee.hotel_eligible == True,  # noqa: E712
+                ~Attendee.room_assignments.any(RoomAssignment.is_live))
+
+            if not full:
+                return [str(a.id) for a in query.all()]
+
+            return [{
+                'id': str(a.id),
+                'first_name': a.first_name,
+                'last_name': a.last_name,
+                'email': a.email,
+                'badge_type_label': a.badge_type_label,
+                'hotel_eligible': a.hotel_eligible,
+                'staff_lottery_eligible': a.staff_lottery_eligible,
+                'has_live_room': bool(a.active_room_assignments),
+            } for a in query.all()]
 
     @api_auth('api_update')
     def update_inventory(self, id=None, **kwargs):
@@ -1648,7 +1673,7 @@ class HotelLookup:
         }
 
     @api_auth('api_update')
-    def export_room_bookings(self, hotel=None, hotel_name=None):
+    def export_room_bookings(self, hotel=None, hotel_name=None, exported_by=None):
         """
         Export room booking data including PCI Vault tokens (NOT raw card numbers).
         One entry per RoomAssignment - connectors get their own line, with
@@ -1664,11 +1689,17 @@ class HotelLookup:
         the legacy duplicate alias keys (`room_id`,
         `hotel_cancellation_number`, `last_modified`, `assigned_*`) are gone.
 
+        `exported_by` is the portal username of whoever pulled the export,
+        shown in the Who column of the exports page. Optional, so an older
+        client keeps working; without it the row is attributed to `api`,
+        which is what every export said before.
+
         Requires api_update: each call records a HotelExportLog row - the
         per-hotel watermark that drives the export's incremental
         `last_export_time` envelope - and the payload includes vault card
         tokens, so read-only tokens must not reach it.
         """
+        who = str(exported_by or '').strip()[:255] or 'api'
         from uber.hotel.exports import booking_dict, resolve_lottery_hotel
         from uber.hotel.queries import live_assignments_for_hotel
 
@@ -1736,7 +1767,7 @@ class HotelLookup:
                                default=str).encode('utf-8'),
                     f'{name}_bookings_{stamp}.json', 'application/json',
                     source='api', record_count=len(rows),
-                    exported_by='api')
+                    exported_by=who)
             session.commit()
 
             return {'last_export_time': last_export_time, 'bookings': bookings}

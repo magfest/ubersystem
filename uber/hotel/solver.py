@@ -387,7 +387,12 @@ def build_eligible_applications(session, lottery_type_val, lottery_group,
                                                LotteryApplication.room_opt_out == False))  # noqa: E712
 
     if lottery_group == "staff":
-        applications = applications.filter(LotteryApplication.is_staff_entry == True)  # noqa: E712
+        # Also check current eligibility, not just that the entry was made as
+        # a staff one: without this, revoking a staffer's lottery eligibility
+        # after they entered would have no effect on the next run.
+        applications = applications.filter(
+            LotteryApplication.is_staff_entry == True,  # noqa: E712
+            Attendee.staff_lottery_eligible == True)  # noqa: E712
     elif lottery_group == "attendee":
         applications = applications.filter(LotteryApplication.is_staff_entry == False)  # noqa: E712
 

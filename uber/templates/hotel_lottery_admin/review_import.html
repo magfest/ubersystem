@@ -1,0 +1,152 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% import 'hotel_lottery_admin/_macros.html' as hotel_macros with context %}
+{% block title %}Review Upload{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+
+<h2>Review upload</h2>
+
+<div class="card card-body mb-3">
+  <div class="row g-3">
+    <div class="col-md-6">
+      <div><strong>{{ record.filename or 'Uploaded file' }}</strong></div>
+      <div class="small text-muted">
+        {{ record.hotel.name if record.hotel else 'No hotel' }}
+        &middot; uploaded {{ record.uploaded_at|datetime_local("%Y-%m-%d %H:%M %Z") if record.uploaded_at else 'unknown' }}
+        by {{ record.uploaded_by or 'unknown' }}
+        &middot; <span class="badge bg-{{ 'secondary' if record.source == 'portal' else 'light text-dark border' }}">
+          {{ 'Hotel portal' if record.source == 'portal' else 'Admin upload' }}
+        </span>
+      </div>
+      {% if record.template %}
+      <div class="small text-muted">Read with the {{ record.template.name }} format.</div>
+      {% endif %}
+      {% if record.parse_error %}
+      <div class="alert alert-danger mt-2 mb-0">{{ record.parse_error }}</div>
+      {% endif %}
+    </div>
+    <div class="col-md-6 text-md-end">
+      <span class="badge bg-success">{{ counts.matched }} matched</span>
+      <span class="badge bg-warning text-dark">{{ counts.ambiguous }} ambiguous</span>
+      <span class="badge bg-secondary">{{ counts.unmatched }} unmatched</span>
+    </div>
+  </div>
+</div>
+
+<div class="d-flex gap-2 mb-3 align-items-center flex-wrap">
+  {% for key, label in [('all', 'All rows'), ('changed', 'With changes'),
+                        ('ambiguous', 'Ambiguous'), ('unmatched', 'Unmatched')] %}
+    <a href="review_import?id={{ record.id }}&filter={{ key }}"
+       class="btn btn-sm {{ 'btn-primary' if filter == key else 'btn-outline-secondary' }}">{{ label }}</a>
+  {% endfor %}
+
+  <span class="ms-auto d-flex gap-2">
+    <a href="download_import_file?id={{ record.id }}" class="btn btn-sm btn-outline-secondary">
+      Download original
+    </a>
+    <form method="post" action="mark_import_processed" class="d-inline">
+      {{ csrf_token() }}
+      <input type="hidden" name="id" value="{{ record.id }}" />
+      <input type="hidden" name="status" value="processed" />
+      <button type="submit" class="btn btn-sm btn-success">Mark processed</button>
+    </form>
+    <form method="post" action="mark_import_processed" class="d-inline">
+      {{ csrf_token() }}
+      <input type="hidden" name="id" value="{{ record.id }}" />
+      <input type="hidden" name="status" value="ignored" />
+      <button type="submit" class="btn btn-sm btn-outline-secondary">Ignore</button>
+    </form>
+  </span>
+</div>
+
+{% if not rows %}
+<div class="card card-body text-center text-muted">No rows match this filter.</div>
+{% else %}
+
+<div id="import-review" data-file-id="{{ record.id }}">
+{% for row in rows %}
+<div class="card mb-2 import-row" data-row-index="{{ row.index }}">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <div>
+      <strong>
+        {{ row.source.get('first_name', '') }} {{ row.source.get('last_name', '') }}
+        {%- if not row.source.get('first_name') %}Row {{ row.index + 1 }}{% endif %}
+      </strong>
+      <span class="small text-muted ms-2">{{ row.source.get('email', '') }}</span>
+    </div>
+    <span class="badge bg-{{ 'success' if row.status == 'matched' else ('warning text-dark' if row.status == 'ambiguous' else 'secondary') }}">
+      {{ row.status }}
+    </span>
+  </div>
+  <div class="card-body py-2">
+
+    {% if row.status == 'unmatched' %}
+      <p class="form-text mb-0">
+        No booking matched this row. Check the guest's email and room type, or
+        add the acknowledgement number to the right booking by hand.
+      </p>
+
+    {% elif row.status == 'ambiguous' %}
+      <p class="form-text">
+        Several bookings match. Pick the right one; its confirmation number
+        will be set from this row so later uploads match it directly.
+      </p>
+      <div class="d-flex gap-2 align-items-center flex-wrap">
+        <select class="form-select form-select-sm w-auto import-candidate">
+          {% for ra in row.candidates %}
+          <option value="{{ ra.id }}">
+            {{ ra.attendee.full_name if ra.attendee else 'Unknown' }} - {{ ra.room_summary }}
+          </option>
+          {% endfor %}
+        </select>
+        <button type="button" class="btn btn-sm btn-primary import-disambiguate">
+          This is the one
+        </button>
+      </div>
+
+    {% else %}
+      <div class="small text-muted mb-2">
+        Matched to
+        <a href="edit_room_assignment?id={{ row.assignment.id }}">{{ row.assignment.room_summary }}</a>
+      </div>
+      {% if not row.changed %}
+        <p class="form-text mb-0">Everything in this row already matches the booking.</p>
+      {% else %}
+      <table class="table table-sm align-middle mb-0">
+        <thead>
+          <tr><th>Field</th><th>In the file</th><th>On the booking</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for change in row.changed %}
+          <tr data-field="{{ change.key }}">
+            <td class="small">{{ change.label }}</td>
+            <td class="small"><code>{{ change.imported }}</code></td>
+            <td class="small current-value">
+              {% if change.current %}<code>{{ change.current }}</code>{% else %}<span class="text-muted">empty</span>{% endif %}
+            </td>
+            <td>
+              <button type="button" class="btn btn-sm btn-outline-primary import-sync"
+                      data-assignment-id="{{ row.assignment.id }}"
+                      data-field="{{ change.key }}">Use the file's value</button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+    {% endif %}
+  </div>
+</div>
+{% endfor %}
+</div>
+
+{{ hotel_macros.pagination(page, page_count,
+                           'review_import?id=' ~ record.id ~ '&filter=' ~ filter,
+                           total=total, page_size=50, current_count=rows|length,
+                           label='row') }}
+{% endif %}
+
+{{ "js/hotel-import-review.js"|serve_static_content }}
+
+{% endblock content %}
