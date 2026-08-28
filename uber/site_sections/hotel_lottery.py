@@ -593,6 +593,33 @@ def _return_link(attendee_id):
         return f"../preregistration/confirm?id={attendee_id}&"
 
 
+def _entry_form_context(session, application, include_suites):
+    """Pricing and room-type availability data shared by both entry forms.
+
+    Staff rates only ship when the entrant qualifies for them. Suite pages
+    also carry room blocks, since a suite entry can fall back to the room
+    lottery via room_opt_out.
+    """
+    from uber.hotel.pricing import entry_pricing_config
+    from uber.hotel.queries import active_inventory_type_map
+    from uber.models.hotel import LotteryRoomType
+
+    show_staff_rates = bool(c.STAFF_HOTEL_LOTTERY_OPEN
+                            and application.qualifies_for_staff_lottery)
+    type_names = {str(rt.id): rt.name for rt in
+                  session.query(LotteryRoomType).filter_by(active=True).all()}
+    return {
+        'pricing_config': entry_pricing_config(
+            session, include_rooms=True, include_suites=include_suites,
+            show_staff_rates=show_staff_rates),
+        'availability_config': {
+            'room': active_inventory_type_map(session, is_suite=False),
+            'suite': active_inventory_type_map(session, is_suite=True),
+            'type_names': type_names,
+        },
+    }
+
+
 @all_renderable(public=True)
 class Root:
     @ajax_gettable
@@ -1473,14 +1500,15 @@ class Root:
                 raise HTTPRedirect('index?id={}&confirm=room&action=updated',
                                    application.id)
 
-        return {
-            'id': application.id,
-            'homepage_account': session.get_attendee_account_by_attendee(application.attendee),
-            'forms': forms,
-            'message': message,
-            'application': application,
-        }
-    
+        return dict(
+            _entry_form_context(session, application, include_suites=False),
+            id=application.id,
+            homepage_account=session.get_attendee_account_by_attendee(application.attendee),
+            forms=forms,
+            message=message,
+            application=application,
+        )
+
     @requires_account(LotteryApplication)
     def suite_lottery(self, session, id=None, message="", **params):
         application = session.lottery_application(id)
@@ -1536,14 +1564,15 @@ class Root:
                 raise HTTPRedirect('index?id={}&confirm=suite&action=updated',
                                    application.id)
 
-        return {
-            'id': application.id,
-            'homepage_account': session.get_attendee_account_by_attendee(application.attendee),
-            'forms': forms,
-            'message': message,
-            'application': application,
-            'read_only': False,
-        }
+        return dict(
+            _entry_form_context(session, application, include_suites=True),
+            id=application.id,
+            homepage_account=session.get_attendee_account_by_attendee(application.attendee),
+            forms=forms,
+            message=message,
+            application=application,
+            read_only=False,
+        )
 
     @ajax
     def validate_hotel_lottery(self, session, attendee_id=None, form_list=[], **params):

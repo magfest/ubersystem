@@ -22,7 +22,7 @@ def _price(session, inventory, amount, night=None, occupancy=None, is_staff=Fals
                          occupancy=occupancy, is_staff=is_staff,
                          price=Decimal(amount))
     session.add(row)
-    session.commit()
+    session.flush()
     return row
 
 
@@ -30,7 +30,7 @@ def _inventory(session, **overrides):
     inv = make_inventory(session, make_hotel(session), capacity=4, min_capacity=1)
     for key, value in overrides.items():
         setattr(inv, key, value)
-    session.commit()
+    session.flush()
     return inv
 
 

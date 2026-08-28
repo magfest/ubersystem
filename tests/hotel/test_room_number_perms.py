@@ -26,7 +26,7 @@ def _grant(session, partition, **flags):
     owner = PartitionOwner(partition_id=partition.id,
                            admin_account_id=account.id, **flags)
     session.add(owner)
-    session.commit()
+    session.flush()
     return account, owner
 
 
@@ -73,7 +73,7 @@ def test_create_ignores_room_number_when_not_allowed(session, no_cherrypy_sessio
     ra = create_room_assignment(
         session, attendee_id=attendee.id, inventory_id=inventory.id,
         room_number='1204', allow_room_number=False)
-    session.commit()
+    session.flush()
     assert ra.room_number is None
 
 
@@ -85,7 +85,7 @@ def test_create_keeps_room_number_when_allowed(session, no_cherrypy_session):
     ra = create_room_assignment(
         session, attendee_id=attendee.id, inventory_id=inventory.id,
         room_number='1204', allow_room_number=True)
-    session.commit()
+    session.flush()
     assert ra.room_number == '1204'
 
 
@@ -101,12 +101,12 @@ def test_edit_ignores_both_room_number_and_physical_room(session, no_cherrypy_se
     room = PhysicalRoom(hotel_id=hotel.id, inventory_id=inventory.id,
                         room_number='0909')
     session.add(room)
-    session.commit()
+    session.flush()
 
     apply_room_assignment_edits(
         session, ra, {'room_number': '1204', 'physical_room_id': str(room.id)},
         audit_prefix='test', fail=_fail, allow_room_number=False)
-    session.commit()
+    session.flush()
 
     assert ra.room_number is None
     assert ra.physical_room_id is None
@@ -121,7 +121,7 @@ def test_edit_applies_room_number_when_allowed(session, no_cherrypy_session):
     apply_room_assignment_edits(
         session, ra, {'room_number': '1204'},
         audit_prefix='test', fail=_fail, allow_room_number=True)
-    session.commit()
+    session.flush()
 
     assert ra.room_number == '1204'
 
@@ -135,7 +135,7 @@ def test_gate_does_not_disturb_other_fields(session, no_cherrypy_session):
     apply_room_assignment_edits(
         session, ra, {'room_number': '1204', 'admin_notes': 'kept'},
         audit_prefix='test', fail=_fail, allow_room_number=False)
-    session.commit()
+    session.flush()
 
     assert ra.room_number is None
     assert ra.admin_notes == 'kept'

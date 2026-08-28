@@ -343,7 +343,10 @@ class Ranking():
             price_str = f"{choice_item['price']}"
             if show_staff_rates and choice_item.get('staff_price'):
                 price_str = price_str + f"/{choice_item['staff_price']}"
-            extra_info.append(f"""<h5 class="card-subtitle mb-2 text-muted">{price_str}</h5>""")
+            # ranking-price is the hook the hotel lottery's pricing script uses
+            # to swap this range for a total once dates and occupancy are known.
+            extra_info.append(
+                f"""<h5 class="card-subtitle mb-2 text-muted ranking-price">{price_str}</h5>""")
         if choice_item.get('description') or choice_item.get('description_right'):
             extra_info.append("""<div class="card-text">""")
             if choice_item.get('description'):

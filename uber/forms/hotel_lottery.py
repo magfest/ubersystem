@@ -374,8 +374,14 @@ class HotelInventoryConfig(MagForm):
         description='Link to an informational page about this room type (photos, amenities, etc). '
                     'Shown to attendees on their room assignment.',
         render_kw={'placeholder': 'https://example.com/room-details'})
-    price = StringField('Price', render_kw={'placeholder': 'e.g., $199/night'})
-    staff_price = StringField('Staff Price', render_kw={'placeholder': 'e.g., $149/night'})
+    # Prices are not WTForms fields: coerce_column_data's Numeric branch does
+    # int(float(value)) and would drop the cents. The handler parses the whole
+    # pricing grid from raw params instead; see _save_inventory_prices.
+    pricing_notes = TextAreaField(
+        'Pricing Notes',
+        description='Shown to attendees beside this block\'s prices, e.g. what taxes '
+                    'and fees are excluded.',
+        render_kw={'rows': 2})
     vault_reference = StringField(
         'Vault Reference',
         description='PCI Vault reference used to group cards for this hotel. '

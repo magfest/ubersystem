@@ -145,3 +145,67 @@ def price_matrices(inv):
     """Both scopes in one call, for surfaces that render standard and staff
     rates side by side."""
     return {'standard': price_matrix(inv), 'staff': price_matrix(inv, is_staff=True)}
+
+
+def entry_pricing_config(session, include_rooms=True, include_suites=False,
+                         show_staff_rates=False):
+    """Price data for the lottery entry form, as JSON-safe data for a script
+    tag. The client recomputes totals as the entrant changes dates and
+    occupancy, so this ships the whole matrix rather than one total.
+
+    Staff rates are only included when the entrant actually qualifies for
+    them, so an ineligible attendee is never shown a rate they cannot get.
+    """
+    from uber.models.hotel import HotelRoomInventory
+
+    wanted = []
+    if include_rooms:
+        wanted.append(False)
+    if include_suites:
+        wanted.append(True)
+    if not wanted:
+        return {'hotels': [], 'occupancy': {'min': 1, 'max': 1},
+                'show_staff_rates': False}
+
+    blocks = (session.query(HotelRoomInventory)
+              .filter(HotelRoomInventory.active == True,  # noqa: E712
+                      HotelRoomInventory.is_suite.in_(wanted))
+              .all())
+
+    hotels, by_hotel = [], {}
+    occupancies = []
+    for inv in blocks:
+        if not inv.hotel_id or not inv.hotel:
+            continue
+        occupancies.extend(occupancy_range(inv))
+        hotel_id = str(inv.hotel_id)
+        if hotel_id not in by_hotel:
+            by_hotel[hotel_id] = {'id': hotel_id, 'name': inv.hotel.name, 'blocks': []}
+            hotels.append(by_hotel[hotel_id])
+
+        rates = {'public': price_matrix(inv)}
+        if show_staff_rates:
+            rates['staff'] = price_matrix(inv, is_staff=True)
+
+        room_type = inv.room_or_suite_type
+        by_hotel[hotel_id]['blocks'].append({
+            'id': str(inv.id),
+            'type_id': str(inv.room_or_suite_type_id) if inv.room_or_suite_type_id else '',
+            'type_name': room_type.name if room_type else inv.name,
+            'is_suite': bool(inv.is_suite),
+            'min_capacity': inv.min_capacity,
+            'capacity': inv.capacity,
+            'notes': inv.pricing_notes,
+            'rates': rates,
+        })
+
+    for hotel in hotels:
+        hotel['blocks'].sort(key=lambda b: (b['is_suite'], b['type_name']))
+    hotels.sort(key=lambda h: h['name'])
+
+    return {
+        'show_staff_rates': bool(show_staff_rates),
+        'occupancy': {'min': min(occupancies) if occupancies else 1,
+                      'max': max(occupancies) if occupancies else 1},
+        'hotels': hotels,
+    }

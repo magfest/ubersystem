@@ -69,6 +69,18 @@ window.SortableExt = (function () {
             li.querySelector("input").removeAttribute("name");
             li.querySelector(".selected-order").innerHTML = "";
         }
+
+        // Every way of changing a ranking (drag, the arrow buttons, and the
+        // add/remove buttons) ends up here, so one event covers them all.
+        // Note initWidget calls sortLists during parse, before page scripts
+        // have registered, so listeners must also do an initial pass
+        // themselves rather than waiting for the first event.
+        document.dispatchEvent(new CustomEvent('sortableext:change', {
+            detail: {
+                id: dataId,
+                selected: Array.from(selectedEl.children).map(li => li.dataset.choice),
+            }
+        }));
     }
 
     function moveElement(element, direction, dataId) {

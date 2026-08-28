@@ -58,13 +58,36 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
     .placeholder-select-opt::after {
         content: "Drag an item here to select it.";
     }
+    /* Applied to the li, not its h4, because sortLists rewrites h4 classes. */
+    .ranking-unavailable {
+        opacity: 0.55;
+    }
+    .ranking-unavailable .card-title::after {
+        content: " (not at your selected hotels)";
+        font-style: italic;
+        font-size: 0.8rem;
+    }
 </style>
+<script type="text/javascript">
+  window.hotelAvailabilityConfig = {{ availability_config|tojson }};
+</script>
+{{ "js/hotel-lottery-availability.js"|serve_static_content }}
 {% endif %}
 {% endblock %}
 
 {% block form_js %}
 {% if not read_only %}
 <script type="text/javascript">
+    // Both the page-load pass and goToNextStep mark steps complete, and an
+    // entrant can re-save a step they already finished, so this has to be
+    // idempotent or the header collects a check per save.
+    var markStepComplete = function(step) {
+        var $button = $('#step-' + step + '-button');
+        if (!$button.find('.fa-check').length) {
+            $button.append("&nbsp;<i class='fa fa-check'></i>");
+        }
+    };
+
     var goToNextStep = function(response) {
         let step = 0;
         if (response.step_completed != '') {
@@ -83,7 +106,7 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
             $('#step-' + step).collapse('hide');
             $('#step-' + step + '-submit').hide();
             $('#step-' + step + '-save-reminder').collapse('show');
-            $('#step-' + step + '-button').html($('#step-' + step + '-button').html() + "&nbsp;<i class='fa fa-check'></i>");
+            markStepComplete(step);
             $('#step-' + next_step + '-button').prop('disabled', false);
             $('#step-' + next_step).collapse('show');
             $('#form-validations-{{ room_text }}-lottery-form').detach().prependTo($('#step-' + next_step).find('.accordion-body'));
@@ -97,7 +120,8 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
         $('#step-1').collapse('hide');
         current_step = parseInt("{{ application.current_step }}");
         for (let step = 1; step <= current_step; step++) {
-            $('#step-' + step + '-button').prop('disabled', false).html($('#step-' + step + '-button').html() + "&nbsp;<i class='fa fa-check'></i>");
+            $('#step-' + step + '-button').prop('disabled', false);
+            markStepComplete(step);
             $('#step-' + step + '-submit').hide();
             $('#step-' + step + '-save-reminder').collapse('show');
         }
@@ -174,6 +198,89 @@ wants_ada: {{ room_or_suite_lottery.wants_ada.data|tojson }},
             </div>
             {% endif %}
 
+            {% block room_pricing %}
+            {% if not read_only and pricing_config and pricing_config.hotels %}
+            <script type="text/javascript">
+              window.hotelPricingConfig = {{ pricing_config|tojson }};
+            </script>
+            {{ "js/hotel-lottery-pricing.js"|serve_static_content }}
+            <hr/>
+            <div class="mb-3" x-data="hotelPricing()">
+              <h5>Room Pricing</h5>
+              <p class="form-text">
+                Nightly room rates for the dates above, before taxes and fees. Rates
+                are not guaranteed until a room is awarded and booked.
+              </p>
+
+              <div class="row g-3 mb-3">
+                <div class="col-sm-4">
+                  <label class="form-label" for="pricing-occupancy">How many people will stay in your room?</label>
+                  <select class="form-select" id="pricing-occupancy" x-model.number="occupancy">
+                    <template x-for="n in occupancyOptions()" :key="n">
+                      <option :value="n" x-text="n + (n === 1 ? ' person' : ' people')"></option>
+                    </template>
+                  </select>
+                  <div class="form-text">
+                    This only changes the prices shown to you. It is <strong>not saved</strong> and has
+                    no effect on your lottery entry or the room you may be awarded.
+                  </div>
+                </div>
+              </div>
+
+              <template x-if="!hasDates()">
+                <p class="form-text fst-italic">Choose your preferred dates above to see totals.</p>
+              </template>
+
+              <template x-if="hasDates()">
+                <div>
+                  <p class="form-text"
+                     x-text="nightCount() + (nightCount() === 1 ? ' night' : ' nights') + ' selected.'"></p>
+                  <ul class="list-group mb-2">
+                    <template x-for="hotel in config.hotels" :key="hotel.id">
+                      <li class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-start gap-3">
+                          <div>
+                            <strong x-text="hotel.name"></strong>
+                            <template x-for="block in hotel.blocks" :key="block.id">
+                              <div class="small text-muted">
+                                <span x-text="block.type_name"></span>:
+                                <span x-text="blockTotalText(block)"></span>
+                                <template x-if="block.notes">
+                                  <span class="fst-italic" x-text="' (' + block.notes + ')'"></span>
+                                </template>
+                              </div>
+                            </template>
+                          </div>
+                          <div class="text-end text-nowrap">
+                            <span class="badge bg-secondary" x-text="hotelRangeText(hotel)"></span>
+                          </div>
+                        </div>
+                      </li>
+                    </template>
+                  </ul>
+
+                  <div class="accordion" id="pricing-accordion">
+                    <template x-for="hotel in config.hotels" :key="hotel.id">
+                      <div class="accordion-item">
+                        <h2 class="accordion-header">
+                          <button class="accordion-button collapsed" type="button"
+                                  data-bs-toggle="collapse"
+                                  :data-bs-target="'#pricing-panel-' + hotel.id"
+                                  x-text="'All ' + hotel.name + ' rates'"></button>
+                        </h2>
+                        <div class="accordion-collapse collapse" :id="'pricing-panel-' + hotel.id"
+                             data-bs-parent="#pricing-accordion">
+                          <div class="accordion-body p-2" x-html="rateTable(hotel)"></div>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </template>
+            </div>
+            {% endif %}
+            {% endblock %}
+
             {{ step_macros.step_footer(steps.counter) }}
             {% endblock %}
         </div>
@@ -248,10 +355,20 @@ wants_ada: {{ room_or_suite_lottery.wants_ada.data|tojson }},
 
             {% block hotel_and_room_type_ranking_form %}
             <div class="hotel_and_room_type_ranking">
+            {% if not read_only and pricing_config and pricing_config.hotels %}
+            <div class="form-text mb-2">
+              Prices below are the total for your selected dates and number of occupants,
+              before taxes and fees. They update as you change those on the dates step.
+            </div>
+            {% endif %}
             {% if room_or_suite_lottery.hotel_preference.choices|length > 1 %}
             {{ form_macros.input(room_or_suite_lottery.hotel_preference) }}
             {% endif %}
             {{ form_macros.input(room_or_suite_lottery.room_type_preference) }}
+            {# Advisory only. Deliberately not the field's own
+               #<id>-validation div, which the AJAX validator clears on
+               every round trip. #}
+            <div class="form-text text-warning" id="room_type_preference-availability-warning"></div>
             </div>
             {{ step_macros.step_footer(steps.counter) }}
             {% endblock %}

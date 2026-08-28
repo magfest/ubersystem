@@ -516,3 +516,25 @@ def vacant_rooms_map(session, hotel_id, bookings):
                                   for b_ci, b_co in busy.get(r.id, []))]
         out[ra.id] = options
     return out
+
+
+def active_inventory_type_map(session, is_suite=None):
+    """{hotel_id: [room_or_suite_type_id, ...]} over active inventory.
+
+    Lets the entry form gray out room types no selected hotel actually
+    offers; the ranking choices themselves are event-wide.
+    """
+    query = session.query(HotelRoomInventory).filter(
+        HotelRoomInventory.active == True)  # noqa: E712
+    if is_suite is not None:
+        query = query.filter(HotelRoomInventory.is_suite == is_suite)
+
+    out = {}
+    for inv in query.all():
+        type_id = inv.room_or_suite_type_id
+        if not inv.hotel_id or not type_id:
+            continue
+        out.setdefault(str(inv.hotel_id), [])
+        if str(type_id) not in out[str(inv.hotel_id)]:
+            out[str(inv.hotel_id)].append(str(type_id))
+    return out

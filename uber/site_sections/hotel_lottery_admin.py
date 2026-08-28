@@ -6,6 +6,7 @@ from cherrypy.lib.static import serve_file
 import math
 from collections import defaultdict
 from datetime import date, datetime, timedelta
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pytz import UTC
 from dateutil import parser as dateparser
 import sqlalchemy as sa
@@ -20,6 +21,7 @@ from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import (AdminAccount, Attendee, Group, LotteryApplication,
                          Email, Tracking, PageViewTracking)
+from uber.hotel import pricing
 from uber.hotel.perms import is_lottery_admin, record_partition_audit
 from uber.models.hotel import (HotelRoomInventory, InventoryNightQuantity, InventoryPartition,
                                InventoryPartitionBlock, LotteryRun, HotelExportLog, LotteryHotel, LotteryRoomType,
@@ -121,6 +123,89 @@ def _event_nights():
         nights.append(day)
         day += timedelta(days=1)
     return nights
+
+
+def _parse_price(raw):
+    """One submitted price box. '' means "not set"; anything unparseable or
+    negative raises so the admin sees it rather than losing the value.
+
+    Prices bypass WTForms entirely: coerce_column_data's Numeric branch does
+    int(float(value)), which would silently drop the cents.
+    """
+    raw = str(raw or '').strip().replace('$', '').replace(',', '')
+    if not raw:
+        return None
+    try:
+        amount = Decimal(raw)
+    except InvalidOperation:
+        raise ValueError('not a number')
+    if amount < 0:
+        raise ValueError('negative')
+    return amount.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+
+def _save_inventory_prices(session, item, params, event_nights):
+    """Replace this block's InventoryPrice rows from the posted grid.
+
+    Rows are deleted and reinserted wholesale rather than merged, so turning a
+    dimension off cannot leave orphaned cells that reappear if it is turned
+    back on. Returns an error message, or '' on success.
+    """
+    from uber.models.hotel import InventoryPrice
+
+    item.price_per_night = params.get('price_per_night') == '1'
+    item.price_per_occupancy = params.get('price_per_occupancy') == '1'
+    item.pricing_notes = (params.get('pricing_notes') or '').strip()
+
+    occupancies = list(range(item.min_capacity, item.capacity + 1))
+    nights = event_nights if item.price_per_night else []
+
+    # (field prefix, is_staff) for the two scopes the grid collects.
+    scopes = (('price', False), ('staff_price', True))
+
+    parsed = []
+    for prefix, is_staff in scopes:
+        try:
+            base = _parse_price(params.get(f'{prefix}_base'))
+        except ValueError:
+            return f'Could not read the {"staff " if is_staff else ""}base price.'
+        if is_staff:
+            item.base_staff_price = base
+        else:
+            item.base_price = base
+
+        if item.price_per_night and item.price_per_occupancy:
+            cells = [(night, occ, f'{prefix}_cell_{night.isoformat()}_{occ}')
+                     for night in nights for occ in occupancies]
+        elif item.price_per_night:
+            cells = [(night, None, f'{prefix}_night_{night.isoformat()}')
+                     for night in nights]
+        elif item.price_per_occupancy:
+            cells = [(None, occ, f'{prefix}_occ_{occ}') for occ in occupancies]
+        else:
+            cells = []
+
+        for night, occupancy, field in cells:
+            try:
+                amount = _parse_price(params.get(field))
+            except ValueError:
+                where = []
+                if night:
+                    where.append(night.strftime('%b %-d'))
+                if occupancy:
+                    where.append(f'{occupancy} occupants')
+                return (f'Could not read the {"staff " if is_staff else ""}price for '
+                        f'{" / ".join(where)}.')
+            if amount is not None:
+                parsed.append((night, occupancy, is_staff, amount))
+
+    session.query(InventoryPrice).filter_by(inventory_id=item.id).delete(
+        synchronize_session=False)
+    for night, occupancy, is_staff, amount in parsed:
+        session.add(InventoryPrice(inventory_id=item.id, night_date=night,
+                                   occupancy=occupancy, is_staff=is_staff,
+                                   price=amount))
+    return ''
 
 
 def _search(session, text):
@@ -912,6 +997,12 @@ class Root:
                         nq = InventoryNightQuantity(inventory_id=item.id, night_date=night, quantity=qty)
                         session.add(nq)
 
+            price_error = _save_inventory_prices(session, item, params, event_nights)
+            if price_error:
+                session.rollback()
+                raise HTTPRedirect('edit_inventory_item?id={}&message={}',
+                                   '' if item.is_new else item.id, price_error)
+
             session.commit()
 
             # Notify applicants whose preferences referenced this block if it
@@ -953,6 +1044,7 @@ class Root:
             'forms': forms,
             'event_nights': event_nights,
             'type_codes_by_hotel': type_codes_by_hotel,
+            'price_matrices': pricing.price_matrices(item) if not item.is_new else None,
             'message': message,
         }
 

@@ -83,7 +83,14 @@
             </p>
             {% endblock %}
             {% block suite_ranking_form %}
+            {% if not read_only and pricing_config and pricing_config.hotels %}
+            <div class="form-text mb-2">
+              Prices below are the total for your selected dates and number of occupants,
+              before taxes and fees. They update as you change those on the dates step.
+            </div>
+            {% endif %}
             {{ form_macros.input(suite_lottery.suite_type_preference, show_staff_rates=c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery) }}
+            <div class="form-text text-warning" id="suite_type_preference-availability-warning"></div>
             
             {{ step_macros.step_footer(steps.counter) }}
             {% endblock %}

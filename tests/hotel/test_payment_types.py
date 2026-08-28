@@ -52,7 +52,7 @@ def test_require_cc_property_and_sql_expression_agree(session, payment_type):
     inventory = make_inventory(session, make_hotel(session))
     ra = make_assignment(session, attendee=attendee, inventory=inventory,
                          payment_type=payment_type)
-    session.commit()
+    session.flush()
 
     matched = session.query(RoomAssignment).filter(
         RoomAssignment.id == ra.id, RoomAssignment.require_cc).count()

@@ -1526,9 +1526,12 @@ class HotelLookup:
         that id is updated; otherwise a new row is created.
 
         Recognised attributes: hotel_id, room_type_id, suite_type_id,
-        quantity, capacity, min_capacity, name, is_suite, active, price,
-        staff_price, info_url, vault_reference. (Connector relationships
-        are now type-level on `LotteryRoomType.connects_to_type_id`.)
+        quantity, capacity, min_capacity, name, is_suite, active,
+        base_price, base_staff_price, pricing_notes, info_url,
+        vault_reference. (Connector relationships are now type-level on
+        `LotteryRoomType.connects_to_type_id`.) Per-night and per-occupancy
+        prices are not settable here; they live in InventoryPrice rows and
+        are edited on the inventory page.
         """
         with Session() as session:
             if id:
@@ -1539,7 +1542,8 @@ class HotelLookup:
                 inv = HotelRoomInventory()
             for attr in ['hotel_id', 'room_type_id', 'suite_type_id', 'quantity',
                          'capacity', 'min_capacity', 'name', 'is_suite', 'active',
-                         'price', 'staff_price', 'info_url', 'vault_reference']:
+                         'base_price', 'base_staff_price', 'pricing_notes',
+                         'info_url', 'vault_reference']:
                 if attr in kwargs:
                     setattr(inv, attr, kwargs[attr])
             session.add(inv)
