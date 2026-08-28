@@ -157,7 +157,7 @@ def make_assignment(session, attendee, inventory=None, status=None,
         inventory_id=inventory.id if inventory is not None else None,
         status=status if status is not None else c.ASSIGNED,
         assignment_reason=c.MANUAL,
-        require_cc=True,
+        payment_type='credit_card',
         assigned_check_in_date=check_in,
         assigned_check_out_date=check_out,
     )

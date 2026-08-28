@@ -472,7 +472,13 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     indie_developer: 'IndieDeveloper' = Relationship(
         back_populates="attendee")
 
+    # The two ways a staffer can be given a room, tracked independently so an
+    # admin can grant or revoke either. hotel_eligible is the shared room
+    # (crash space) flag, signed up for through the external staff checklist;
+    # staff_lottery_eligible gates entry to the early staff lottery. A staffer
+    # may only end up with one actual room.
     hotel_eligible: bool = False
+    staff_lottery_eligible: bool = True
     # Hotel-facing legal name overrides. When set, these are the names the
     # attendee wants written on the hotel reservation; otherwise the system
     # falls back to the parsed `legal_first_name` / `legal_last_name`

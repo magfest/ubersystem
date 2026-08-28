@@ -242,9 +242,11 @@ class Root:
             badge_types=staff_badges)
 
         if billing == 'self_pay':
-            q = q.filter(RoomAssignment.require_cc.is_(True))
+            q = q.filter(RoomAssignment.require_cc)
         elif billing == 'master_bill':
-            q = q.filter(RoomAssignment.require_cc.is_(False))
+            q = q.filter(~RoomAssignment.require_cc)
+        elif billing == 'parking':
+            q = q.filter(RoomAssignment.payment_type.in_(c.HOTEL_PAYMENT_TYPES_WITH_PARKING))
 
         q = q.order_by(RoomAssignment.assigned_check_in_date.asc().nullsfirst(),
                        Attendee.last_name.asc())
@@ -255,8 +257,8 @@ class Root:
         # narrows the view).
         live_q = build_room_assignment_query(
             session, status='live', badge_types=staff_badges)
-        total_self = live_q.filter(RoomAssignment.require_cc.is_(True)).count()
-        total_master = live_q.filter(RoomAssignment.require_cc.is_(False)).count()
+        total_self = live_q.filter(RoomAssignment.require_cc).count()
+        total_master = live_q.filter(~RoomAssignment.require_cc).count()
 
         hotels = (session.query(LotteryHotel)
                   .filter_by(active=True)

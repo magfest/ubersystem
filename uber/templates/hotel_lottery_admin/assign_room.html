@@ -42,7 +42,7 @@
         inventory_partitions_map=inventory_partitions_map,
         inventory_avail_map=inventory_avail_map,
         label_mode='name',
-        require_cc=(assignment.require_cc or assignment.is_new),
+        payment_type=(assignment.payment_type or c.DEFAULT_HOTEL_PAYMENT_TYPE),
         layout='grid') }}
 
   <div class="row g-3 mb-3">

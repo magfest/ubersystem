@@ -23,7 +23,7 @@
 </div>
 
 {# Secure-deadline reminder. Only render when this specific room has to
-   put down a card; master-bill rooms (require_cc=False) skip it. The
+   put down a card; master-bill payment types skip it. The
    deadline lives on the RoomAssignment row, so each room can have its
    own override. #}
 {% if assignment.require_cc and assignment.deposit_cutoff_date %}

@@ -215,7 +215,8 @@ def _resolve_assignment(session, assignment_id, application=None, *,
         elif statuses:
             filters.append(RoomAssignment.status.in_(list(statuses)))
         if require_cc is not None:
-            filters.append(RoomAssignment.require_cc.is_(require_cc))
+            filters.append(RoomAssignment.require_cc if require_cc
+                           else ~RoomAssignment.require_cc)
         if without_card:
             filters.append(RoomAssignment.cc_token.is_(None))
         ra = (session.query(RoomAssignment)

@@ -3,14 +3,15 @@ import random
 
 import checkdigit.verhoeff as verhoeff
 from datetime import timedelta, datetime, date, time
+from decimal import Decimal
 from pytz import UTC
 from markupsafe import Markup
 import sqlalchemy as sa
 from sqlalchemy import Sequence
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.types import Date, Integer, DateTime, Uuid
+from sqlalchemy.ext.mutable import MutableDict, MutableList
+from sqlalchemy.types import Date, Integer, DateTime, Numeric, Uuid
 from typing import Any, ClassVar
 
 from uber.config import c
@@ -25,6 +26,7 @@ log = logging.getLogger(__name__)
 
 __all__ = ['LotteryApplication',
            'HotelRoomInventory', 'InventoryNightQuantity', 'InventoryPartition', 'InventoryPartitionBlock',
+           'InventoryPrice', 'ImportMappingTemplate',
            'LotteryRun', 'RoomAssignment', 'RoomAssignmentInvite',
            'PartitionOwner', 'PartitionAuditLog', 'NightShiftRequirement',
            'PhysicalRoom', 'PhysicalRoomConnection',
@@ -566,6 +568,13 @@ class LotteryHotel(MagModel, table=True):
     map_yaml: str = ''
     map_svg: str = ''
 
+    # Preselected when parsing this hotel's room-list uploads.
+    default_import_template_id: str | None = Field(
+        sa_type=Uuid(as_uuid=False), foreign_key='import_mapping_template.id',
+        ondelete='SET NULL', nullable=True)
+    default_import_template: 'ImportMappingTemplate' = Relationship(
+        sa_relationship_kwargs={'foreign_keys': 'LotteryHotel.default_import_template_id'})
+
 
 class LotteryRoomType(MagModel, table=True):
     name: str = ''
@@ -617,6 +626,10 @@ class InventoryPartition(MagModel, table=True):
     description: str = ''
     active: bool = True
 
+    # The hotel's billing account reference for this partition. Lottery admins
+    # only; partition owners see it read-only. Included in the booking export.
+    bill_reference: str = ''
+
     blocks: list['InventoryPartitionBlock'] = Relationship(
         back_populates="partition",
         sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
@@ -653,6 +666,29 @@ class InventoryNightQuantity(MagModel, table=True):
     quantity: int = 0
 
 
+class InventoryPrice(MagModel, table=True):
+    """One nightly rate for a block, optionally scoped to a night and/or an
+    occupancy. NULL means "applies to all", so a block with neither
+    price_per_night nor price_per_occupancy set needs no rows here at all and
+    falls back to the block's base price. See uber.hotel.pricing."""
+
+    __table_args__ = (
+        sa.UniqueConstraint('inventory_id', 'is_staff', 'night_date', 'occupancy',
+                            name='uq_inventory_price_scope',
+                            postgresql_nulls_not_distinct=True),
+    )
+
+    inventory_id: str = Field(sa_type=Uuid(as_uuid=False), foreign_key='hotel_room_inventory.id',
+                              ondelete='CASCADE', index=True)
+    inventory: 'HotelRoomInventory' = Relationship(
+        back_populates="prices",
+        sa_relationship_kwargs={'foreign_keys': 'InventoryPrice.inventory_id'})
+    night_date: date | None = Field(sa_type=Date, nullable=True)
+    occupancy: int | None = Field(default=None, nullable=True)
+    is_staff: bool = False
+    price: Decimal = Field(sa_type=Numeric(10, 2))
+
+
 class HotelRoomInventory(MagModel, table=True):
     hotel_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='lottery_hotel.id', nullable=True)
     hotel: 'LotteryHotel' = Relationship(
@@ -671,8 +707,15 @@ class HotelRoomInventory(MagModel, table=True):
     active: bool = True
     vault_reference: str | None = Field(nullable=True)
     info_url: str = ''
-    price: str = ''
-    staff_price: str = ''
+
+    # Nightly rate when neither dimension varies, and the fallback for any
+    # scope the InventoryPrice rows do not cover. The two flags decide which
+    # dimensions the admin grid collects and which scopes are consulted.
+    base_price: Decimal | None = Field(default=None, sa_type=Numeric(10, 2), nullable=True)
+    base_staff_price: Decimal | None = Field(default=None, sa_type=Numeric(10, 2), nullable=True)
+    price_per_night: bool = False
+    price_per_occupancy: bool = False
+    pricing_notes: str = ''
 
     # Physical-room type codes this block sells (comma-separated, e.g.
     # "T2, T2A, T2H"). Used to resolve catalog imports to a block and to
@@ -685,6 +728,11 @@ class HotelRoomInventory(MagModel, table=True):
     night_quantities: list['InventoryNightQuantity'] = Relationship(
         back_populates="inventory",
         sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
+    # selectin because the price-range helpers walk every block of a hotel.
+    prices: list['InventoryPrice'] = Relationship(
+        back_populates="inventory",
+        sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True,
+                                'lazy': 'selectin'})
     partition_blocks: list['InventoryPartitionBlock'] = Relationship(
         sa_relationship_kwargs={'foreign_keys': 'InventoryPartitionBlock.inventory_id',
                                 'overlaps': 'inventory'})
@@ -762,23 +810,22 @@ class HotelRoomInventory(MagModel, table=True):
         ).all()
         return HotelRoomInventory._compute_price_range(items)
 
-    @staticmethod
-    def _compute_price_range(items):
-        prices = [inv.price for inv in items if inv.price]
-        staff_prices = [inv.staff_price for inv in items if inv.staff_price]
-        return (
-            HotelRoomInventory._format_range(prices),
-            HotelRoomInventory._format_range(staff_prices),
-        )
+    def all_prices(self, is_staff=False):
+        """Every rate this block can charge for the given scope: the base plus
+        any per-night or per-occupancy overrides."""
+        amounts = [p.price for p in self.prices if p.is_staff == is_staff and p.price is not None]
+        base = self.base_staff_price if is_staff else self.base_price
+        if base is not None:
+            amounts.append(base)
+        return amounts
 
     @staticmethod
-    def _format_range(values):
-        if not values:
-            return ''
-        unique = sorted(set(values))
-        if len(unique) == 1:
-            return unique[0]
-        return f"{unique[0]}\u2013{unique[-1]}"
+    def _compute_price_range(items):
+        from uber.hotel.pricing import format_price_range
+
+        prices = [amount for inv in items for amount in inv.all_prices()]
+        staff_prices = [amount for inv in items for amount in inv.all_prices(is_staff=True)]
+        return (format_price_range(prices), format_price_range(staff_prices))
 
 
 class LotteryRun(MagModel, table=True):
@@ -866,9 +913,10 @@ class RoomAssignment(MagModel, table=True):
     status: int = Field(
         sa_column=Column(Choice(c.HOTEL_ASSIGNMENT_STATUS_OPTS), default=c.ASSIGNED))
 
-    # When False the assignment is on the master bill: no CC required, deadline
-    # cron does not expire it.
-    require_cc: bool = True
+    # A [hotel_lottery] [[payment_types]] section name, not an export_name, so
+    # export codes stay editable. Master bill types need no CC and the deadline
+    # cron does not expire them; see the require_cc hybrid below.
+    payment_type: str = Field(default=c.DEFAULT_HOTEL_PAYMENT_TYPE)
 
     assigned_check_in_date: date | None = Field(sa_type=Date, nullable=True)
     assigned_check_out_date: date | None = Field(sa_type=Date, nullable=True)
@@ -995,6 +1043,44 @@ class RoomAssignment(MagModel, table=True):
                              if m.attendee)
         return occupants
 
+    @property
+    def payment_type_config(self):
+        """This room's [[payment_types]] entry. Falls back to a stub naming the
+        raw stored key so a renamed config section shows up as an orphaned row
+        rather than blanking out."""
+        return c.HOTEL_PAYMENT_TYPES.get(
+            self.payment_type,
+            {'name': self.payment_type or '', 'export_name': '',
+             'require_cc': True, 'event_pays_parking': False})
+
+    @property
+    def payment_type_label(self):
+        return self.payment_type_config['name']
+
+    @property
+    def payment_code(self):
+        """The code the hotel expects on the rooming list, e.g. RT or IPOP."""
+        return self.payment_type_config['export_name']
+
+    @property
+    def event_pays_parking(self):
+        return self.payment_type_config['event_pays_parking']
+
+    @hybrid_property
+    def require_cc(self):
+        """True when the guest guarantees the room with their own card, False
+        when it is on the master bill. Derived from payment_type so there is one
+        source of truth; both sides read HOTEL_PAYMENT_TYPES_REQUIRING_CC.
+
+        Read-only on purpose: MagModel allows extra attributes, so a writable
+        alias would let RoomAssignment(require_cc=True) silently do nothing.
+        Set payment_type instead."""
+        return self.payment_type in c.HOTEL_PAYMENT_TYPES_REQUIRING_CC
+
+    @require_cc.expression
+    def require_cc(cls):
+        return cls.payment_type.in_(c.HOTEL_PAYMENT_TYPES_REQUIRING_CC)
+
     @hybrid_property
     def needs_card(self):
         """True iff this room still requires a credit-card guarantee
@@ -1012,7 +1098,7 @@ class RoomAssignment(MagModel, table=True):
 
     @needs_card.expression
     def needs_card(cls):
-        return sa.and_(cls.require_cc.is_(True),
+        return sa.and_(cls.require_cc,
                        cls.status == c.ASSIGNED,
                        sa.or_(cls.cc_token.is_(None), cls.cc_token == ''))
 
@@ -1224,7 +1310,7 @@ class RoomAssignment(MagModel, table=True):
     @presave_adjustment
     def update_last_modified(self):
         tracked = ['attendee_id', 'inventory_id', 'partition_id', 'assignment_reason',
-                   'status', 'require_cc', 'assigned_check_in_date', 'assigned_check_out_date',
+                   'status', 'payment_type', 'assigned_check_in_date', 'assigned_check_out_date',
                    'deposit_cutoff_date', 'booking_url', 'hotel_confirmation_number',
                    'cancellation_confirmation_number', 'special_requests', 'hotel_rewards_number',
                    'cc_token', 'cc_captured_at',
@@ -1389,10 +1475,15 @@ class PartitionOwner(MagModel, table=True):
     can_view_inventory: bool = True
     can_edit_inventory: bool = False
 
-    # Assignments: roster of RoomAssignment rows in this partition, billing
-    # flips (require_cc), and the assign/unassign UI.
+    # Assignments: roster of RoomAssignment rows in this partition, payment
+    # type changes, and the assign/unassign UI.
     can_view_assignments: bool = True
     can_edit_assignments: bool = False
+
+    # Room numbers: the physical room number on this partition's assignments,
+    # and the physical room link that stamps it.
+    can_view_room_numbers: bool = False
+    can_edit_room_numbers: bool = False
 
     # Display (preferred) names of attendees holding rooms in this partition.
     # Legal-name visibility is gated separately by
@@ -1440,11 +1531,15 @@ class PartitionAuditLog(MagModel, table=True):
     'assignment.billing_flipped', 'inventory.quantity_changed').
     `description` is the human-readable line shown on the dashboard.
     """
-    partition_id: str = Field(
+    # SET NULL rather than CASCADE, and partition_name snapshotted alongside,
+    # for the same reason attendee_id is below: deleting a partition must not
+    # destroy the record of what was done in it.
+    partition_id: str | None = Field(
         sa_type=Uuid(as_uuid=False), foreign_key='inventory_partition.id',
-        ondelete='CASCADE', nullable=False)
+        ondelete='SET NULL', nullable=True, index=True)
     partition: 'InventoryPartition' = Relationship(
         sa_relationship_kwargs={'foreign_keys': 'PartitionAuditLog.partition_id'})
+    partition_name: str = ''
 
     admin_account_id: str | None = Field(
         sa_type=Uuid(as_uuid=False), foreign_key='admin_account.id',
@@ -1512,11 +1607,28 @@ class WaitlistReveal(MagModel, table=True):
     the real URL after that moment, giving lottery losers a small head
     start over the general scalping population.
     """
+    __table_args__ = (
+        sa.Index('uq_waitlist_reveal_shared_token', 'shared_token', unique=True,
+                 postgresql_where=sa.text("shared_token <> ''")),
+    )
+
     name: str = ''
     external_url: str = ''
     reveal_at: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     audience_description: str = ''
     active: bool = True
+
+    # False hands everyone the same shared_token instead of a per-attendee one.
+    # Link rows are still created either way; they are the send ledger that
+    # keeps the sender idempotent. Shared views have no row to stamp, so their
+    # clicks are only counted in aggregate.
+    use_unique_links: bool = True
+    shared_token: str = ''
+    shared_clicks: int = 0
+
+    # Requires the viewer to be signed in to an attendee account. Only
+    # meaningful when attendee accounts are enabled.
+    require_login: bool = False
 
     links: list['WaitlistRevealLink'] = Relationship(
         back_populates="waitlist_reveal",
@@ -1604,6 +1716,52 @@ class HotelImportFile(MagModel, table=True):
         sa_type=DateTime(timezone=True), nullable=True)
     applied_to: datetime | None = Field(
         sa_type=DateTime(timezone=True), nullable=True)
+
+    # 'pending', 'processed', or 'ignored'. Read effective_status instead, which
+    # covers rows predating this column.
+    status: str = Field(default='', index=True)
+    processed_at: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
+    processed_by: str = ''
+
+    template_id: str | None = Field(
+        sa_type=Uuid(as_uuid=False), foreign_key='import_mapping_template.id',
+        ondelete='SET NULL', nullable=True)
+    template: 'ImportMappingTemplate' = Relationship(
+        sa_relationship_kwargs={'foreign_keys': 'HotelImportFile.template_id'})
+
+    # The rows as parsed and mapped at upload time. Frozen because templates
+    # stay editable: an admin fixing a template mid-review must not silently
+    # change what this file is recorded as having said. The comparison against
+    # live bookings is recomputed on every view instead.
+    parsed_rows: list = Field(sa_type=MutableList.as_mutable(JSONB), default_factory=list)
+    parse_error: str = ''
+    matched_count: int = 0
+    ambiguous_count: int = 0
+    unmatched_count: int = 0
+
+    @property
+    def effective_status(self):
+        if self.status:
+            return self.status
+        return 'processed' if self.applied_to else 'pending'
+
+
+class ImportMappingTemplate(MagModel, table=True):
+    """How to read one hotel's room-list format: which source column feeds
+    which booking field, how its enum-ish values spell ours, and what date
+    formats it uses. Matched to an upload by source_signature (the sorted,
+    normalized header names) when no template is chosen explicitly."""
+
+    name: str = ''
+    description: str = ''
+    source_signature: str = ''
+    sheet_name: str = ''
+    header_row: int = 1
+    active: bool = True
+
+    column_map: dict[str, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
+    enum_map: dict[str, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
+    format_map: dict[str, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
 
 
 #

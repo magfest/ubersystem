@@ -109,6 +109,20 @@ def can_view_guest_names_in(session, partition_id, *, admin_account=None):
                                  admin_account=admin_account)
 
 
+def can_view_room_numbers_in(session, partition_id, *, admin_account=None):
+    """Physical room number visibility within a partition."""
+    return _partition_capability(session, partition_id, 'can_view_room_numbers',
+                                 admin_account=admin_account)
+
+
+def can_edit_room_numbers_in(session, partition_id, *, admin_account=None):
+    """Whether room numbers may be changed within a partition. Callers must
+    also refuse edits to physical_room_id, since linking a physical room
+    restamps room_number (RoomAssignment.sync_room_number_from_physical)."""
+    return _partition_capability(session, partition_id, 'can_edit_room_numbers',
+                                 admin_account=admin_account)
+
+
 def can_view_guest_legal_names(session, partition_id=None, *, admin_account=None):
     """Strongest gate: legal-name visibility, scoped to the given partition.
 

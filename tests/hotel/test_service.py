@@ -59,6 +59,7 @@ def test_create_room_assignment_happy_path(session, no_cherrypy_session):
     assert ra.assigned_check_out_date == date(2026, 1, 10)
     assert ra.room_number == '1204'
     assert ra.admin_notes == 'note'
+    assert ra.payment_type == 'masterbill'
     assert ra.require_cc is False
 
 

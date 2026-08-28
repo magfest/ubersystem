@@ -190,6 +190,9 @@
   {% else %}
     <span class="badge bg-info text-dark">Master bill</span>
   {% endif %}
+  {% if ra.event_pays_parking %}
+    <span class="badge bg-light text-dark border ms-1">Parking</span>
+  {% endif %}
 {% endmacro %}
 
 {# Tiny pill that flags a connector RoomAssignment. Used everywhere a
@@ -390,7 +393,7 @@
 
    POSTed field NAMES are part of the contract and never change:
    partition_id, inventory_id, assigned_check_in_date,
-   assigned_check_out_date, require_cc ('true'/'false' via the select).
+   assigned_check_out_date, payment_type (a [[payment_types]] key).
 
    The partition/inventory selects carry the room-picker-partition /
    room-picker-inventory classes plus data-partitions (and optional
@@ -413,7 +416,7 @@
                                 option label (e.g. "(3 unassigned of 10)")
      label_mode               - 'type' (default): "Hotel - Type name";
                                 'name': "Block name - Hotel (Suite)"
-     require_cc               - bool, current billing value
+     payment_type             - current payment type key
      layout                   - 'stacked' (modal-friendly, default) or
                                 'grid' (two Bootstrap rows)
      size                     - '' or 'sm' for compact controls
@@ -423,19 +426,19 @@
      include_current_option   - keep a (current) option when ra's block
                                 is not in inventory_rows
      show_dates               - render the check-in/check-out inputs
-     show_require_cc          - render the billing select
+     show_payment_type        - render the payment type select
 #}
 {% macro room_assignment_fields(ra=None, partitions=None, inventory_rows=None,
                                 inventory_partitions_map=None,
                                 inventory_avail_map=None,
                                 option_suffix_map=None,
                                 label_mode='type',
-                                require_cc=False,
+                                payment_type='',
                                 layout='stacked', size='',
                                 inventory_required=True,
                                 inventory_editable=True,
                                 include_current_option=False,
-                                show_dates=True, show_require_cc=True) %}
+                                show_dates=True, show_payment_type=True) %}
   {% set _sel = 'form-select form-select-sm' if size == 'sm' else 'form-select' %}
   {% set _inp = 'form-control form-control-sm' if size == 'sm' else 'form-control' %}
   {% set _lbl = 'form-label small' if size == 'sm' else 'form-label' %}
@@ -466,9 +469,9 @@
              value="{{ (ra.assigned_check_out_date or '') if ra else '' }}" />
     </div>
     {% endif %}
-    {% if show_require_cc %}
+    {% if show_payment_type %}
     <div class="col-md-4">
-      {{ _ra_billing_field(require_cc, _sel, _lbl) }}
+      {{ _ra_billing_field(payment_type, _sel, _lbl) }}
     </div>
     {% endif %}
   </div>
@@ -498,9 +501,9 @@
     </div>
   </div>
   {% endif %}
-  {% if show_require_cc %}
+  {% if show_payment_type %}
   <div class="mb-3">
-    {{ _ra_billing_field(require_cc, _sel, _lbl) }}
+    {{ _ra_billing_field(payment_type, _sel, _lbl) }}
   </div>
   {% endif %}
   {% endif %}
@@ -562,11 +565,12 @@
   {% endif %}
 {% endmacro %}
 
-{% macro _ra_billing_field(require_cc, sel_cls, lbl_cls) %}
+{% macro _ra_billing_field(payment_type, sel_cls, lbl_cls) %}
   <label class="{{ lbl_cls }}">Billing</label>
-  <select class="{{ sel_cls }}" name="require_cc">
-    <option value="false" {% if not require_cc %}selected{% endif %}>Master bill (no CC required)</option>
-    <option value="true" {% if require_cc %}selected{% endif %}>Self-pay (requires CC)</option>
+  <select class="{{ sel_cls }}" name="payment_type">
+    {% for key, name in c.HOTEL_PAYMENT_TYPE_OPTS %}
+    <option value="{{ key }}" {% if payment_type == key %}selected{% endif %}>{{ name }}</option>
+    {% endfor %}
   </select>
 {% endmacro %}
 

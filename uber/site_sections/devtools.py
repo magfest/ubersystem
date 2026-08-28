@@ -451,7 +451,7 @@ def _seed_curated_scenarios(session, ctx):
         session.add(RoomAssignment(
             attendee_id=att.id, inventory_id=inv_blocks[0].id,
             lottery_application_id=app.id, lottery_run_id=run.id,
-            assignment_reason=c.LOTTERY_AWARD, status=c.SECURED, require_cc=True,
+            assignment_reason=c.LOTTERY_AWARD, status=c.SECURED, payment_type='credit_card',
             assigned_check_in_date=event_start, assigned_check_out_date=event_end,
             cc_token='test-vault-token', cc_last_four='4242', cc_card_type='Visa',
             cc_captured_at=now, address1='123 Test St', city='Rockville',
@@ -478,7 +478,7 @@ def _seed_curated_scenarios(session, ctx):
         group_room = RoomAssignment(
             attendee_id=leader.id, inventory_id=inv_blocks[0].id,
             lottery_application_id=leader_app.id, lottery_run_id=run.id,
-            assignment_reason=c.LOTTERY_AWARD, status=c.ASSIGNED, require_cc=True,
+            assignment_reason=c.LOTTERY_AWARD, status=c.ASSIGNED, payment_type='credit_card',
             assigned_check_in_date=event_start, assigned_check_out_date=event_end)
         group_room.occupants = [leader] + members
         session.add(group_room)
@@ -494,7 +494,7 @@ def _seed_curated_scenarios(session, ctx):
         session.add(RoomAssignment(
             attendee_id=att.id, inventory_id=inv_blocks[0].id,
             lottery_application_id=app.id, lottery_run_id=run.id,
-            assignment_reason=c.LOTTERY_AWARD, status=c.ASSIGNED, require_cc=True,
+            assignment_reason=c.LOTTERY_AWARD, status=c.ASSIGNED, payment_type='credit_card',
             assigned_check_in_date=event_start + timedelta(days=1),
             assigned_check_out_date=event_end,
             waitlisted_check_in_date=event_start,
@@ -511,7 +511,7 @@ def _seed_curated_scenarios(session, ctx):
         session.add(RoomAssignment(
             attendee_id=att.id, inventory_id=inv_blocks[0].id,
             lottery_application_id=app.id, lottery_run_id=run.id,
-            assignment_reason=c.STAFF_AUTO, status=c.SECURED, require_cc=False,
+            assignment_reason=c.STAFF_AUTO, status=c.SECURED, payment_type='masterbill',
             assigned_check_in_date=event_start, assigned_check_out_date=event_end))
         curated_created += 1
 
@@ -525,7 +525,7 @@ def _seed_curated_scenarios(session, ctx):
         suite_room = RoomAssignment(
             attendee_id=att.id, inventory_id=suite_blocks[0].id,
             lottery_application_id=app.id, lottery_run_id=run.id,
-            assignment_reason=c.LOTTERY_AWARD, status=c.ASSIGNED, require_cc=True,
+            assignment_reason=c.LOTTERY_AWARD, status=c.ASSIGNED, payment_type='credit_card',
             assigned_check_in_date=event_start, assigned_check_out_date=event_end)
         session.add(suite_room)
         session.flush()
@@ -534,7 +534,7 @@ def _seed_curated_scenarios(session, ctx):
             lottery_application_id=app.id, lottery_run_id=run.id,
             parent_assignment_id=suite_room.id,
             assignment_reason=c.SUITE_CONNECTOR, status=c.ASSIGNED,
-            require_cc=True, assigned_check_in_date=event_start,
+            payment_type='credit_card', assigned_check_in_date=event_start,
             assigned_check_out_date=event_end))
         curated_created += 1
 
@@ -546,7 +546,7 @@ def _seed_curated_scenarios(session, ctx):
         session.add(Shift(attendee_id=att.id, job_id=job_two.id))
         session.add(RoomAssignment(
             attendee_id=att.id, inventory_id=inv_blocks[0].id,
-            assignment_reason=c.MANUAL, status=c.ASSIGNED, require_cc=False,
+            assignment_reason=c.MANUAL, status=c.ASSIGNED, payment_type='masterbill',
             assigned_check_in_date=event_start, assigned_check_out_date=event_end,
             partition_id=partition.id))
         curated_created += 1
@@ -558,7 +558,7 @@ def _seed_curated_scenarios(session, ctx):
         session.add(DeptMembership(attendee_id=att.id, department_id=dept.id))
         session.add(RoomAssignment(
             attendee_id=att.id, inventory_id=inv_blocks[0].id,
-            assignment_reason=c.MANUAL, status=c.ASSIGNED, require_cc=False,
+            assignment_reason=c.MANUAL, status=c.ASSIGNED, payment_type='masterbill',
             assigned_check_in_date=event_start, assigned_check_out_date=event_end))
         curated_created += 1
 
@@ -696,12 +696,13 @@ def _seed_bulk_personas(session, ctx, count, seed):
         else:
             ra_status = c.EXPIRED
 
-        require_cc = not (staff and rng.random() < 0.7)
+        payment_type = rng.choice(list(c.HOTEL_PAYMENT_TYPES)) if not staff \
+            else rng.choice(['masterbill', 'masterbill_parking'])
         ra = RoomAssignment(
             attendee_id=att.id, inventory_id=inv.id,
             lottery_application_id=app.id, lottery_run_id=run.id,
             assignment_reason=c.LOTTERY_AWARD, status=ra_status,
-            require_cc=require_cc,
+            payment_type=payment_type,
             assigned_check_in_date=ci, assigned_check_out_date=co,
             special_requests=rng.choice(REQUESTS),
             booking_url=(f'https://booking.example.com/test/{i:04d}'
@@ -717,7 +718,7 @@ def _seed_bulk_personas(session, ctx, count, seed):
                 ra.hotel_rewards_number = f'HR{rng.randint(10000000, 99999999)}'
             if rng.random() < 0.5:
                 ra.hotel_confirmation_number = f'CONF{rng.randint(100000, 999999)}'
-        elif ra_status == c.ASSIGNED and require_cc:
+        elif ra_status == c.ASSIGNED and payment_type in c.HOTEL_PAYMENT_TYPES_REQUIRING_CC:
             # Some awaiting-card rooms carry a deadline (future and past,
             # so the expiry cron has something to chew on).
             if rng.random() < 0.6:
@@ -741,7 +742,7 @@ def _seed_bulk_personas(session, ctx, count, seed):
                 attendee_id=att.id, inventory_id=connector_blocks[hotel.id].id,
                 lottery_application_id=app.id, lottery_run_id=run.id,
                 parent_assignment_id=ra.id, assignment_reason=c.SUITE_CONNECTOR,
-                status=ra_status, require_cc=require_cc,
+                status=ra_status, payment_type=payment_type,
                 assigned_check_in_date=ra.assigned_check_in_date,
                 assigned_check_out_date=co))
             stats['connectors'] += 1

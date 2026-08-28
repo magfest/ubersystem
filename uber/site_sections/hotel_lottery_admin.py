@@ -2705,10 +2705,6 @@ class Root:
                     if (not assignment.assignment_reason
                             or assignment.assignment_reason == c.MANUAL):
                         assignment.assignment_reason = reason
-                    # The billing checkbox posts nothing when unchecked; pin
-                    # an explicit value so the sparse-params contract sees it.
-                    params['require_cc'] = (
-                        'true' if params.get('require_cc') == 'true' else 'false')
                     apply_room_assignment_edits(
                         session, assignment, params,
                         audit_prefix='Assign-room page updated', fail=fail)
@@ -2721,7 +2717,7 @@ class Root:
                             inventory_id=picked_inventory,
                             partition_id=picked_partition,
                             assignment_reason=reason,
-                            require_cc=params.get('require_cc') == 'true',
+                            payment_type=params.get('payment_type'),
                             assigned_check_in_date=params.get('assigned_check_in_date', ''),
                             assigned_check_out_date=params.get('assigned_check_out_date', ''),
                             deposit_cutoff_date=params.get('deposit_cutoff_date', ''),
@@ -3068,7 +3064,7 @@ class Root:
                 lottery_application_id=app.id,
                 assignment_reason=c.MANUAL,
                 status=c.ASSIGNED,
-                require_cc=params.get('require_cc') == 'true',
+                payment_type=params.get('payment_type'),
                 assigned_check_in_date=params.get('assigned_check_in_date', ''),
                 assigned_check_out_date=params.get('assigned_check_out_date', ''),
                 audit_description=f"Manually added room to attendee {app.attendee_id}",
@@ -3251,7 +3247,7 @@ class Root:
         elif sort == 'status':
             order = ordered(RoomAssignment.status)
         elif sort == 'billing':
-            order = ordered(RoomAssignment.require_cc,
+            order = ordered(RoomAssignment.payment_type,
                             RoomAssignment.cc_last_four)
         elif sort == 'partition':
             part = aliased(InventoryPartition)

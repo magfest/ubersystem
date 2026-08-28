@@ -47,6 +47,20 @@ def parse_date_param(raw, label):
         raise RoomAssignmentError(f'Could not parse the {label} date.')
 
 
+def parse_payment_type(raw, default=None):
+    """Resolve a submitted payment type to a [[payment_types]] key.
+
+    '' or None falls back to `default`, or master bill. An unknown key raises
+    rather than silently storing something no config entry describes.
+    """
+    raw = str(raw or '').strip()
+    if not raw:
+        return default or 'masterbill'
+    if raw not in c.HOTEL_PAYMENT_TYPES:
+        raise RoomAssignmentError(f'Unknown payment type: {raw}')
+    return raw
+
+
 def validate_physical_room(session, ra, room):
     """Why a physical room can't take this booking, or None if it can."""
     from uber.hotel.queries import physical_room_conflicts
@@ -112,7 +126,7 @@ def assign_physical_room(session, ra, room, auto=False):
 def create_room_assignment(session, *, attendee_id, inventory_id,
                            partition_id=None, lottery_application_id=None,
                            assignment_reason=None, status=None,
-                           require_cc=False, assigned_check_in_date=None,
+                           payment_type=None, assigned_check_in_date=None,
                            assigned_check_out_date=None,
                            deposit_cutoff_date=None, room_number='',
                            admin_notes='', enforce_partition_block=None,
@@ -160,7 +174,7 @@ def create_room_assignment(session, *, attendee_id, inventory_id,
         assignment_reason=(assignment_reason if assignment_reason is not None
                            else c.MANUAL),
         status=status if status is not None else c.ASSIGNED,
-        require_cc=bool(require_cc),
+        payment_type=parse_payment_type(payment_type),
         assigned_check_in_date=parse_date_param(
             assigned_check_in_date, 'check-in'),
         assigned_check_out_date=parse_date_param(
@@ -219,10 +233,14 @@ def apply_room_assignment_edits(session, ra, params, *, audit_prefix, fail,
         new_part = params.get('partition_id', '').strip() or None
         if new_part != ra.partition_id:
             changes.append('partition'); ra.partition_id = new_part
-    if 'require_cc' in params:
-        new_require_cc = params.get('require_cc') == 'true'
-        if new_require_cc != ra.require_cc:
-            changes.append('billing'); ra.require_cc = new_require_cc
+    if 'payment_type' in params:
+        try:
+            new_payment_type = parse_payment_type(params.get('payment_type'),
+                                                  default=ra.payment_type)
+        except RoomAssignmentError as e:
+            fail(e.message)
+        if new_payment_type != ra.payment_type:
+            changes.append('billing'); ra.payment_type = new_payment_type
 
     for name, label in (('assigned_check_in_date', 'check-in'),
                         ('assigned_check_out_date', 'check-out'),

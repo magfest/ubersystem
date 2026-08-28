@@ -23,6 +23,7 @@ from uber.hotel.queries import (attendee_search_results,
                                 build_room_assignment_query, paginate)
 from uber.hotel.service import (
     RoomAssignmentError, apply_room_assignment_edits, create_room_assignment,
+    parse_payment_type,
 )
 from uber.hotel.perms import (
     can_edit_assignments_in,
@@ -225,13 +226,17 @@ class Root:
             paginate(activity_q, activity_page, PAGE_SIZE)
 
         all_status_rows = session.query(
-            RoomAssignment.status, RoomAssignment.require_cc).filter_by(
+            RoomAssignment.status, RoomAssignment.payment_type).filter_by(
             partition_id=partition.id).all()
         status_counts = Counter(s for s, _ in all_status_rows)
-        billing_counts = Counter(
-            ('require_cc' if rc else 'master_bill')
-            for s, rc in all_status_rows
-            if s in c.HOTEL_LIVE_ASSIGNMENT_STATUSES)
+        # Keyed by payment type, plus the self-pay/master-bill rollup the
+        # dashboard's summary cards show.
+        live_payment_types = [pt for s, pt in all_status_rows
+                              if s in c.HOTEL_LIVE_ASSIGNMENT_STATUSES]
+        billing_counts = Counter(live_payment_types)
+        billing_counts.update(
+            'require_cc' if pt in c.HOTEL_PAYMENT_TYPES_REQUIRING_CC else 'master_bill'
+            for pt in live_payment_types)
 
         # Inventory the modals' block-picker can pivot to: only active rows
         # allocated to THIS partition via a block. update_assignment and
@@ -273,8 +278,8 @@ class Root:
         }
 
     @requires_partition_capability('can_edit_assignments')
-    def toggle_billing(self, session, assignment_id, csrf_token=None):
-        """Flip RoomAssignment.require_cc within a partition."""
+    def set_payment_type(self, session, assignment_id, payment_type='', csrf_token=None):
+        """Change how a room in this partition is paid for."""
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect('index')
         check_csrf(csrf_token)
@@ -282,22 +287,29 @@ class Root:
         if not assignment:
             raise HTTPRedirect('index?message={}', 'Assignment not found.')
 
-        assignment.require_cc = not assignment.require_cc
+        try:
+            new_payment_type = parse_payment_type(payment_type, default=assignment.payment_type)
+        except RoomAssignmentError as e:
+            raise HTTPRedirect('dashboard?partition_id={}&tab=assignments&message={}',
+                               assignment.partition_id, e.message)
+
+        if new_payment_type == assignment.payment_type:
+            raise HTTPRedirect('dashboard?partition_id={}&tab=assignments&message={}',
+                               assignment.partition_id, 'That is already the payment type.')
+
+        assignment.payment_type = new_payment_type
         session.add(assignment)
         record_partition_audit(
             session, assignment.partition_id,
-            action='assignment.billing_flipped',
-            description=("Switched to self-pay (CC required)" if assignment.require_cc
-                         else "Switched to master bill")
-                        + f": {assignment.room_summary}",
+            action='assignment.payment_type_changed',
+            description=f"Switched to {assignment.payment_type_label}: {assignment.room_summary}",
             target_type='assignment', target_id=assignment.id,
             attendee_id=assignment.attendee_id)
         session.commit()
         raise HTTPRedirect(
             'dashboard?partition_id={}&tab=assignments&message={}',
             assignment.partition_id,
-            f"Billing for this assignment is now "
-            f"{'self-pay (CC required)' if assignment.require_cc else 'master bill'}.")
+            f"Payment for this assignment is now {assignment.payment_type_label}.")
 
     @requires_partition_capability('can_edit_assignments')
     def assign_room(self, session, partition_id, attendee_id='',
@@ -321,7 +333,7 @@ class Root:
                 partition_id=partition_id,
                 assignment_reason=c.PARTITION_GRANT,
                 status=c.ASSIGNED,
-                require_cc=params.get('require_cc') == 'true',
+                payment_type=params.get('payment_type'),
                 assigned_check_in_date=params.get('assigned_check_in_date', ''),
                 assigned_check_out_date=params.get('assigned_check_out_date', ''),
                 enforce_partition_block=True,
@@ -342,7 +354,7 @@ class Root:
     def update_assignment(self, session, assignment_id, csrf_token=None, **params):
         """Edit fields on a single RoomAssignment (from the modal).
 
-        Editable: inventory_id, require_cc, assigned_check_in_date,
+        Editable: inventory_id, payment_type, assigned_check_in_date,
         assigned_check_out_date. Per-row permission check against the
         assignment's current partition.
         """

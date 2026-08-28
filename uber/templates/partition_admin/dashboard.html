@@ -148,7 +148,7 @@
             inventory_rows=blocks|selectattr('inventory')|map(attribute='inventory')|list,
             option_suffix_map=_suffix_map,
             label_mode='name',
-            require_cc=True,
+            payment_type=c.DEFAULT_HOTEL_PAYMENT_TYPE,
             layout='grid', size='sm') }}
       <div class="mt-2 text-end">
         <button type="submit" class="btn btn-primary btn-sm">Create Assignment</button>
@@ -191,12 +191,15 @@
         <td>
           {{ hotel_macros.billing_chip(ra) }}
           {% if can_edit_assignments %}
-          <form method="post" action="toggle_billing" class="d-inline">
+          <form method="post" action="set_payment_type" class="d-inline">
             {{ csrf_token() }}
             <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
-            <button type="submit" class="btn btn-link btn-sm p-0 small">
-              Flip to {% if ra.require_cc %}master bill{% else %}self-pay{% endif %}
-            </button>
+            <select name="payment_type" class="form-select form-select-sm d-inline w-auto align-middle">
+              {% for key, name in c.HOTEL_PAYMENT_TYPE_OPTS %}
+              <option value="{{ key }}" {% if ra.payment_type == key %}selected{% endif %}>{{ name }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-link btn-sm p-0 small">Change</button>
           </form>
           {% endif %}
         </td>
@@ -341,7 +344,7 @@
                     ra=ra,
                     inventory_rows=all_inventory,
                     label_mode='name',
-                    require_cc=ra.require_cc,
+                    payment_type=ra.payment_type,
                     layout='grid', size='sm',
                     inventory_required=False,
                     inventory_editable=(ra.partition_id == partition.id),

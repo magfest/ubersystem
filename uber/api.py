@@ -1594,10 +1594,15 @@ class HotelLookup:
 
         Recognised attributes: attendee_id, inventory_id, lottery_application_id,
         lottery_run_id, parent_assignment_id, partition_id, assignment_reason,
-        status, require_cc, assigned_check_in_date, assigned_check_out_date,
+        status, payment_type, assigned_check_in_date, assigned_check_out_date,
         deposit_cutoff_date, booking_url, hotel_confirmation_number,
         cancellation_confirmation_number, room_number, special_requests,
         hotel_rewards_number, admin_notes.
+
+        `payment_type` is a [[payment_types]] config key; the response carries
+        the hotel-facing payment_code alongside the stored columns. It replaced
+        the old require_cc boolean, which could not express whether parking was
+        covered.
 
         The hotel back-import flow uses this to set hotel_confirmation_number
         and cancellation_confirmation_number on an existing assignment;
@@ -1613,7 +1618,7 @@ class HotelLookup:
                 assignment = RoomAssignment()
             for attr in ['attendee_id', 'inventory_id', 'lottery_application_id',
                          'lottery_run_id', 'parent_assignment_id', 'partition_id',
-                         'assignment_reason', 'status', 'require_cc',
+                         'assignment_reason', 'status', 'payment_type',
                          'assigned_check_in_date', 'assigned_check_out_date',
                          'deposit_cutoff_date', 'booking_url',
                          'hotel_confirmation_number', 'cancellation_confirmation_number',
@@ -1623,7 +1628,7 @@ class HotelLookup:
                     setattr(assignment, attr, kwargs[attr])
             session.add(assignment)
             session.commit()
-            return assignment.to_dict()
+            return dict(assignment.to_dict(), payment_code=assignment.payment_code)
 
     def nights(self):
         """

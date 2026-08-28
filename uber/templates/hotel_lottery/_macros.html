@@ -201,6 +201,12 @@
       Master bill
     </span>
   {% endif %}
+  {% if ra.event_pays_parking %}
+    <span class="badge bg-light text-dark border ms-1"
+          title="{{ c.EVENT_NAME }} covers parking for this room.">
+      Parking covered
+    </span>
+  {% endif %}
 {% endmacro %}
 
 {# Room summary table
