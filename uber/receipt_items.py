@@ -320,6 +320,34 @@ def extra_donation_cost(attendee, new_attendee=None):
 
 @receipt_calculation.Attendee
 def amount_extra_cost(attendee, new_attendee=None):
+    from uber.custom_tags import format_currency
+
+    if c.MERCH_TAX:
+        amount_extra = attendee.amount_extra
+        if not new_attendee:
+            if not amount_extra:
+                return
+            tax = c.get_amount_extra_tax(amount_extra)
+            total = amount_extra + tax
+            label = c.DONATION_TIERS[amount_extra] + f" (Includes {format_currency(amount_extra)} base price + {format_currency(tax)} Sales Tax)"
+            return (f"Upgrade to {label}", total * 100, 'amount_extra')
+        
+        new_amount_extra = new_attendee.amount_extra
+        if new_amount_extra > amount_extra:
+            prefix = "Upgrade"
+        else:
+            prefix = "Downgrade"
+        
+        diff = (new_amount_extra - amount_extra)
+        if diff:
+            old_total = amount_extra + c.get_amount_extra_tax(amount_extra)
+            new_tax = c.get_amount_extra_tax(new_amount_extra)
+            new_total = new_amount_extra + new_tax
+            label = c.DONATION_TIERS[amount_extra] + f" (Includes {format_currency(new_amount_extra)} base price + {format_currency(new_tax)} Sales Tax)"
+            real_diff = new_total - old_total
+            return (f"{prefix} to {label}", real_diff * 100, 'amount_extra')
+        return
+
     cost_change_tuple = calc_simple_cost_change(attendee, 'amount_extra', "Preordered Merch", new_attendee)
     if not cost_change_tuple:
         return

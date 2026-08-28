@@ -1799,8 +1799,24 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
 
     @property
     def donation_swag(self):
-        donation_items = [
-            desc for amount, desc in sorted(c.DONATION_TIERS.items()) if amount and (self.amount_extra or 0) >= amount]
+        from uber.custom_tags import format_currency
+
+        donation_items = []
+        highest_tier_listed = False
+
+        for amount, desc in sorted(c.DONATION_TIERS.items(), reverse=True):
+            if amount and self.amount_extra >= amount:
+                if not highest_tier_listed:
+                    if c.MERCH_TAX:
+                        tax = c.get_amount_extra_tax(self.amount_extra)
+                        donation_items.append(f'{format_currency(self.amount_extra + tax)} {c.DONATION_TIERS[self.amount_extra]} \
+                                              (Includes {format_currency(self.amount_extra)} base price + {format_currency(tax)} Sales Tax)')
+                    else:
+                        donation_items.append(f"${amount} {desc}")
+                    highest_tier_listed = True
+                else:
+                    donation_items.append(f"{desc} (Included)")
+
         extra_donations = ['Extra donation of ${}'.format(self.extra_donation)] if self.extra_donation else []
         return donation_items + extra_donations
 
