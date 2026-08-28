@@ -788,7 +788,12 @@ class HotelRoomInventory(MagModel, table=True):
 
     @staticmethod
     def get_inventory(session, is_suite=False, active_only=True):
-        query = session.query(HotelRoomInventory).filter_by(is_suite=is_suite)
+        """is_suite=None returns rooms and suites together, for a combined
+        lottery run. Room types and suite types are distinct rows, so the
+        union's room_type ids never collide."""
+        query = session.query(HotelRoomInventory)
+        if is_suite is not None:
+            query = query.filter_by(is_suite=is_suite)
         if active_only:
             query = query.filter_by(active=True)
         return [inv.to_inventory_dict() for inv in query.all()]

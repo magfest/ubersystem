@@ -427,6 +427,8 @@
                                 is not in inventory_rows
      show_dates               - render the check-in/check-out inputs
      show_payment_type        - render the payment type select
+     bound_dates              - constrain the date inputs to the lottery
+                                window (default True)
 #}
 {% macro room_assignment_fields(ra=None, partitions=None, inventory_rows=None,
                                 inventory_partitions_map=None,
@@ -438,10 +440,19 @@
                                 inventory_required=True,
                                 inventory_editable=True,
                                 include_current_option=False,
-                                show_dates=True, show_payment_type=True) %}
+                                show_dates=True, show_payment_type=True,
+                                bound_dates=True) %}
   {% set _sel = 'form-select form-select-sm' if size == 'sm' else 'form-select' %}
   {% set _inp = 'form-control form-control-sm' if size == 'sm' else 'form-control' %}
   {% set _lbl = 'form-label small' if size == 'sm' else 'form-label' %}
+  {# What an assignment may HOLD, which is wider than what an entrant may
+     request. These are the same bounds the out_of_range room issue uses, so
+     the picker and the issues page never disagree. #}
+  {% set _dmin = c.HOTEL_LOTTERY_CHECKIN_START|datetime_local('%Y-%m-%d')
+                 if bound_dates and c.HOTEL_LOTTERY_CHECKIN_START else '' %}
+  {% set _dmax = c.HOTEL_LOTTERY_CHECKOUT_END|datetime_local('%Y-%m-%d')
+                 if bound_dates and c.HOTEL_LOTTERY_CHECKOUT_END else '' %}
+  {% set _dbounds %}{% if _dmin %} min="{{ _dmin }}"{% endif %}{% if _dmax %} max="{{ _dmax }}"{% endif %}{% endset %}
   {% if layout == 'grid' %}
   <div class="row g-2 mb-2">
     {% if partitions is not none %}
@@ -461,12 +472,12 @@
     <div class="col-md-3">
       <label class="{{ _lbl }}">Check-in</label>
       <input type="date" class="{{ _inp }}" name="assigned_check_in_date"
-             value="{{ (ra.assigned_check_in_date or '') if ra else '' }}" />
+             value="{{ (ra.assigned_check_in_date or '') if ra else '' }}"{{ _dbounds }} />
     </div>
     <div class="col-md-3">
       <label class="{{ _lbl }}">Check-out</label>
       <input type="date" class="{{ _inp }}" name="assigned_check_out_date"
-             value="{{ (ra.assigned_check_out_date or '') if ra else '' }}" />
+             value="{{ (ra.assigned_check_out_date or '') if ra else '' }}"{{ _dbounds }} />
     </div>
     {% endif %}
     {% if show_payment_type %}
@@ -492,12 +503,12 @@
     <div class="col">
       <label class="{{ _lbl }}">Check-in</label>
       <input type="date" class="{{ _inp }}" name="assigned_check_in_date"
-             value="{{ (ra.assigned_check_in_date or '') if ra else '' }}" />
+             value="{{ (ra.assigned_check_in_date or '') if ra else '' }}"{{ _dbounds }} />
     </div>
     <div class="col">
       <label class="{{ _lbl }}">Check-out</label>
       <input type="date" class="{{ _inp }}" name="assigned_check_out_date"
-             value="{{ (ra.assigned_check_out_date or '') if ra else '' }}" />
+             value="{{ (ra.assigned_check_out_date or '') if ra else '' }}"{{ _dbounds }} />
     </div>
   </div>
   {% endif %}
@@ -778,3 +789,12 @@
   <a href="{{ reset_href }}" class="btn btn-outline-secondary btn-sm">{{ reset_label }}</a>
   {% endif %}
 {% endmacro %}
+
+{# Readable label for a LotteryRun's stored type string. #}
+{% macro lottery_run_type_label(lottery_type) -%}
+  {%- if lottery_type == 'both' -%}Room + Suite
+  {%- elif lottery_type == 'suite' -%}Suite
+  {%- elif lottery_type == 'room' -%}Room
+  {%- else -%}{{ lottery_type }}
+  {%- endif -%}
+{%- endmacro %}

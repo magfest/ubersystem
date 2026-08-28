@@ -167,8 +167,42 @@ def build_audit_context(session):
 
 
 def _fix_url_for(ra):
+    """Where to send an admin to fix a room issue.
+
+    Falls back to the assignment editor when there is no application, which
+    is the case for every manual and partition-grant room; those used to get
+    no link at all.
+    """
     app_id = ra.lottery_application_id
-    return f'form?id={app_id}' if app_id else None
+    if app_id:
+        return f'form?id={app_id}'
+    return f'edit_room_assignment?id={ra.id}'
+
+
+def _fixes_for_ra(ra, primary='room'):
+    """Ordered [{label, url}] for one assignment, built from what the row
+    actually has. `primary` names which target goes first, since the most
+    useful lever differs by issue: capacity problems are usually fixed on the
+    inventory block, connector problems on the application.
+    """
+    options = {}
+    options['room'] = {'label': 'Edit room', 'url': f'edit_room_assignment?id={ra.id}'}
+    if ra.lottery_application_id:
+        options['application'] = {'label': 'Open application',
+                                  'url': f'form?id={ra.lottery_application_id}'}
+    if ra.inventory_id:
+        options['inventory'] = {'label': 'Edit inventory block',
+                                'url': f'edit_inventory_item?id={ra.inventory_id}'}
+    if ra.partition_id:
+        options['partition'] = {'label': 'Edit partition',
+                                'url': f'edit_partition?id={ra.partition_id}'}
+    if ra.physical_room_id:
+        options['physical'] = {'label': 'Edit physical room',
+                               'url': f'edit_physical_room?id={ra.physical_room_id}'}
+
+    order = [primary] + [k for k in ('room', 'application', 'inventory',
+                                     'partition', 'physical') if k != primary]
+    return [options[key] for key in order if key in options]
 
 
 def check_orphan_connectors(ctx):
@@ -464,14 +498,16 @@ def check_inventory_blocks(ctx):
                 'warning', 'inactive_parent',
                 f"Inventory points at inactive hotel "
                 f"'{inv.hotel.name}'.",
-                inventory=inv, fix_url=fix))
+                inventory=inv, fix_url=fix,
+                extra={'parent_kind': 'hotel', 'parent_id': str(inv.hotel.id)}))
         rt = inv.suite_type if inv.is_suite else inv.room_type
         if rt and not rt.active:
             inv_issues.append(_inv_issue(
                 'warning', 'inactive_parent',
                 f"Inventory points at inactive room type "
                 f"'{rt.name}'.",
-                inventory=inv, fix_url=fix))
+                inventory=inv, fix_url=fix,
+                extra={'parent_kind': 'room_type', 'parent_id': str(rt.id)}))
         if inv.is_suite and not inv.suite_type:
             inv_issues.append(_inv_issue(
                 'warning', 'type_mismatch',
@@ -678,7 +714,8 @@ def check_physical_double_booked(ctx):
                         f"({a.assigned_check_in_date}->{a.assigned_check_out_date} "
                         f"overlaps {b.assigned_check_in_date}->"
                         f"{b.assigned_check_out_date}).",
-                        a, fix_url=_fix_url_for(a)))
+                        a, fix_url=_fix_url_for(a),
+                        extra={'other_assignment': b, 'physical_room': ctx['physical_rooms'].get(room_id)}))
     return issues
 
 
@@ -808,13 +845,102 @@ def issue_identity(iss):
     return ('other', iss.get('kind') or 'unknown')
 
 
+# Which target an admin should reach for first, per issue kind. Anything not
+# listed leads with the room (for room issues) or the block (for inventory
+# issues), which is the right default for most.
+_PRIMARY_FIX = {
+    'over_capacity': 'inventory',
+    'under_capacity': 'inventory',
+    'childless_parent': 'application',
+    'status_mismatch': 'application',
+    'physical_block_mismatch': 'physical',
+    'oversubscribed_partition': 'partition',
+    'partition_unconfigured': 'partition',
+    'partition_overallocated': 'partition',
+}
+
+
+def _inventory_fixes(iss):
+    """Ordered fix targets for an inventory-scoped issue."""
+    fixes = []
+    inv = iss.get('inventory')
+    partition = iss.get('partition')
+    room_type = iss.get('room_type')
+    extra = iss.get('extra') or {}
+
+    if inv is not None:
+        fixes.append({'label': 'Edit inventory block',
+                      'url': f'edit_inventory_item?id={inv.id}'})
+    if partition is not None:
+        fixes.append({'label': 'Edit partition',
+                      'url': f'edit_partition?id={partition.id}'})
+    if room_type is not None:
+        fixes.append({'label': 'Edit room type',
+                      'url': f'edit_room_type?id={room_type.id}'})
+
+    # inactive_parent covers two different broken parents, so point at
+    # whichever one is actually inactive.
+    if extra.get('parent_kind') == 'hotel' and extra.get('parent_id'):
+        fixes.append({'label': 'Edit hotel', 'url': f"edit_hotel?id={extra['parent_id']}"})
+    elif extra.get('parent_kind') == 'room_type' and extra.get('parent_id'):
+        fixes.append({'label': 'Edit room type',
+                      'url': f"edit_room_type?id={extra['parent_id']}"})
+
+    if iss.get('kind') in ('catalog_count_mismatch', 'physical_room_wrong_hotel'):
+        fixes.append({'label': 'Physical rooms', 'url': 'physical_rooms'})
+
+    if iss.get('kind', '').startswith('insufficient_connectors'):
+        fixes.append({'label': 'Manage inventory', 'url': 'manage_inventory'})
+
+    return fixes
+
+
+def _issue_fixes(iss):
+    """Every place an admin could go to resolve this issue, best first."""
+    if iss.get('fixes'):
+        return iss['fixes']
+
+    ra = iss.get('assignment')
+    if ra is not None:
+        primary = _PRIMARY_FIX.get(iss.get('kind'), 'room')
+        # An inventory-led fix is only reachable when the row has a block.
+        if primary == 'inventory' and not ra.inventory_id:
+            primary = 'room'
+        if primary == 'partition' and not ra.partition_id:
+            primary = 'room'
+        if primary == 'physical' and not ra.physical_room_id:
+            primary = 'room'
+        if primary == 'application' and not ra.lottery_application_id:
+            primary = 'room'
+        fixes = _fixes_for_ra(ra, primary=primary)
+
+        # Double-booking needs both rooms, not just the one the issue is filed
+        # against.
+        other = (iss.get('extra') or {}).get('other_assignment')
+        if other is not None:
+            fixes.append({'label': 'Edit the conflicting room',
+                          'url': f'edit_room_assignment?id={other.id}'})
+        return fixes
+
+    fixes = _inventory_fixes(iss)
+    if not fixes and iss.get('fix_url'):
+        fixes = [{'label': 'Fix', 'url': iss['fix_url']}]
+    return fixes
+
+
 def annotate_issues(issue_list, notes_by_key):
-    """Annotate every issue in place with its stable identity plus its
-    note + hidden flag (so the caller can split shown vs hidden)."""
+    """Annotate every issue in place with its stable identity, its fix
+    targets, and its note + hidden flag (so the caller can split shown vs
+    hidden)."""
     for iss in issue_list:
         ttype, tid = issue_identity(iss)
         iss['target_type'] = ttype
         iss['target_id'] = tid
+        iss['fixes'] = _issue_fixes(iss)
+        # Kept for anything still reading the single-URL form, and pointed at
+        # the same place the list leads with so the two cannot disagree.
+        if iss['fixes']:
+            iss['fix_url'] = iss['fixes'][0]['url']
         note = notes_by_key.get((iss.get('kind'), ttype, tid))
         iss['note'] = note
         iss['admin_notes'] = note.admin_notes if note else ''

@@ -42,7 +42,8 @@ from uber.hotel.imports import (apply_cancellation_rows, apply_confirmation_rows
 from uber.hotel.service import (RoomAssignmentError, apply_room_assignment_edits,
                                 assign_physical_room, create_room_assignment,
                                 validate_physical_room)
-from uber.hotel.solver import (adjust_available_rooms,
+from uber.hotel.solver import (LOTTERY_TYPE_BOTH,
+                                       adjust_available_rooms,
                                        build_eligible_applications,
                                        count_assigned_per_block_night,
                                        filter_inventory_table,
@@ -110,6 +111,13 @@ def _unroomed_order(sort):
     if sort == 'checkout':
         return (RoomAssignment.assigned_check_out_date.asc().nullsfirst(),)
     return (RoomAssignment.assigned_check_in_date.asc().nullsfirst(),)
+
+
+LOTTERY_TYPE_VALUES = {
+    'room': c.ROOM_ENTRY,
+    'suite': c.SUITE_ENTRY,
+    'both': LOTTERY_TYPE_BOTH,
+}
 
 
 def _event_nights():
@@ -1661,11 +1669,8 @@ class Root:
         # RoomAssignment rows - it must never fire on a bare GET.
         _require_post_csrf(params)
 
-        if lottery_type == "room":
-            lottery_type_val = c.ROOM_ENTRY
-        elif lottery_type == "suite":
-            lottery_type_val = c.SUITE_ENTRY
-        else:
+        lottery_type_val = LOTTERY_TYPE_VALUES.get(lottery_type)
+        if lottery_type_val is None:
             return {'error': f'Invalid lottery type: {lottery_type}'}
         cutoff = None
         if params.get('cutoff', ''):
@@ -1704,7 +1709,8 @@ class Root:
 
         assigned_per_block_night = count_assigned_per_block_night(already_assigned)
 
-        is_suite = lottery_type_val == c.SUITE_ENTRY
+        # None for a combined run, which pulls room and suite blocks together.
+        is_suite = {c.ROOM_ENTRY: False, c.SUITE_ENTRY: True}.get(lottery_type_val)
         inventory_table = HotelRoomInventory.get_inventory(session, is_suite=is_suite)
 
         # Apply filters

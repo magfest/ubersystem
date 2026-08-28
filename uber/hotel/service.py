@@ -47,6 +47,19 @@ def parse_date_param(raw, label):
         raise RoomAssignmentError(f'Could not parse the {label} date.')
 
 
+def validate_stay_dates(check_in, check_out):
+    """Reject a stay range that contradicts itself.
+
+    Only the self-contradictory cases, which the room issues report grades as
+    errors. Being outside the lottery window stays allowed here: that is a
+    warning on the issues page, and admins legitimately book nights outside it.
+    A missing date is the caller's business, not this check's.
+    """
+    if check_in and check_out and check_out <= check_in:
+        raise RoomAssignmentError(
+            'The check-out date must be after the check-in date.')
+
+
 def parse_payment_type(raw, default=None):
     """Resolve a submitted payment type to a [[payment_types]] key.
 
@@ -166,6 +179,10 @@ def create_room_assignment(session, *, attendee_id, inventory_id,
             raise RoomAssignmentError(
                 'That room block is not allocated to this partition.')
 
+    check_in = parse_date_param(assigned_check_in_date, 'check-in')
+    check_out = parse_date_param(assigned_check_out_date, 'check-out')
+    validate_stay_dates(check_in, check_out)
+
     ra = RoomAssignment(
         attendee_id=attendee_id,
         inventory_id=inventory_id,
@@ -175,10 +192,8 @@ def create_room_assignment(session, *, attendee_id, inventory_id,
                            else c.MANUAL),
         status=status if status is not None else c.ASSIGNED,
         payment_type=parse_payment_type(payment_type),
-        assigned_check_in_date=parse_date_param(
-            assigned_check_in_date, 'check-in'),
-        assigned_check_out_date=parse_date_param(
-            assigned_check_out_date, 'check-out'),
+        assigned_check_in_date=check_in,
+        assigned_check_out_date=check_out,
         deposit_cutoff_date=parse_date_param(
             deposit_cutoff_date, 'deposit cutoff'),
         room_number=((room_number or '').strip() or None) if allow_room_number else None,
@@ -248,6 +263,11 @@ def apply_room_assignment_edits(session, ra, params, *, audit_prefix, fail,
         if new_payment_type != ra.payment_type:
             changes.append('billing'); ra.payment_type = new_payment_type
 
+    # Collected first, then validated as a set, because a surface may post
+    # only one of the two stay dates and the pair has to be checked against
+    # what the row will actually hold. Nothing is assigned until it passes:
+    # fail() raises, and a half-updated row would still be in the session.
+    pending_dates = {}
     for name, label in (('assigned_check_in_date', 'check-in'),
                         ('assigned_check_out_date', 'check-out'),
                         ('deposit_cutoff_date', 'deposit cutoff')):
@@ -256,11 +276,23 @@ def apply_room_assignment_edits(session, ra, params, *, audit_prefix, fail,
         raw = (params.get(name, '') or '').strip()
         if raw:
             try:
-                new_val = date.fromisoformat(raw)
+                pending_dates[name] = (date.fromisoformat(raw), label)
             except ValueError:
                 fail(f"Could not parse the {label} date.")
         else:
-            new_val = None
+            pending_dates[name] = (None, label)
+
+    if 'assigned_check_in_date' in pending_dates or 'assigned_check_out_date' in pending_dates:
+        check_in = pending_dates.get('assigned_check_in_date',
+                                     (ra.assigned_check_in_date, ''))[0]
+        check_out = pending_dates.get('assigned_check_out_date',
+                                      (ra.assigned_check_out_date, ''))[0]
+        try:
+            validate_stay_dates(check_in, check_out)
+        except RoomAssignmentError as e:
+            fail(e.message)
+
+    for name, (new_val, label) in pending_dates.items():
         if new_val != getattr(ra, name):
             changes.append(label); setattr(ra, name, new_val)
 
