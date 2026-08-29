@@ -42,7 +42,7 @@ FROM build AS test
 ADD requirements_test.txt /app/
 RUN uv pip install --system -r requirements_test.txt
 ADD . /app
-CMD ["python3", "-m", "pytest"]
+CMD ["python3", "-m", "pytest", "-s", "/app/tests/integration/performance.py"]
 
 
 FROM build AS release
