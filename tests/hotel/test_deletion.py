@@ -247,6 +247,66 @@ def test_partition_delete_keeps_its_audit_trail(session, no_cherrypy_session):
     assert entry.partition_name == name, 'the log must still say where this happened'
 
 
+def test_partition_reassignment_writes_audit_rows_on_both_sides(session, no_cherrypy_session):
+    hotel = make_hotel(session)
+    inv = make_inventory(session, hotel)
+    partition = make_partition(session)
+    other = make_partition(session)
+    ra = make_assignment(session, attendee=make_attendee(session), inventory=inv,
+                         partition_id=partition.id)
+    session.flush()
+
+    resolve_conflict(session, 'partition', partition.id, 'live_assignments',
+                     'reassign', target_id=str(other.id))
+
+    moved_out = session.query(PartitionAuditLog).filter_by(
+        partition_id=partition.id, action='assignment.partition_changed').all()
+    moved_in = session.query(PartitionAuditLog).filter_by(
+        partition_id=other.id, action='assignment.partition_changed').all()
+    assert len(moved_out) == 1
+    assert len(moved_in) == 1
+    assert moved_out[0].attendee_id == ra.attendee_id
+
+
+def test_partition_clear_and_delete_write_audit_rows(session, no_cherrypy_session):
+    hotel = make_hotel(session)
+    inv = make_inventory(session, hotel)
+    partition = make_partition(session)
+    ra = make_assignment(session, attendee=make_attendee(session), inventory=inv,
+                         partition_id=partition.id)
+    session.flush()
+
+    resolve_conflict(session, 'partition', partition.id, 'live_assignments', 'clear')
+    cleared = session.query(PartitionAuditLog).filter_by(
+        partition_id=partition.id, action='assignment.partition_cleared').all()
+    assert len(cleared) == 1
+    assert cleared[0].attendee_id == ra.attendee_id
+
+    name = partition.name
+    perform_delete(session, 'partition', partition.id, mode='hard')
+    session.flush()
+
+    entry = session.query(PartitionAuditLog).filter_by(
+        action='partition.deleted', partition_name=name).one()
+    assert entry.partition_id is None, 'detached but retained'
+
+
+def test_partition_run_filters_null_only_for_pending_runs(session, no_cherrypy_session):
+    partition = make_partition(session)
+    pid = str(partition.id)
+
+    pending = make_run(session, status=c.LOTTERY_PENDING, partition_filter=pid)
+    awarded = make_run(session, status=c.LOTTERY_AWARDED, partition_filter=pid)
+    session.flush()
+
+    perform_delete(session, 'partition', partition.id, mode='hard')
+    session.flush()
+
+    assert pending.partition_filter is None
+    assert awarded.partition_filter == pid, \
+        'an awarded run records what was actually run'
+
+
 # ---------------------------------------------------------------------------
 # waitlist reveals
 # ---------------------------------------------------------------------------

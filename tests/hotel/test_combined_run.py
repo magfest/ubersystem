@@ -5,9 +5,9 @@ from datetime import date
 import pytest
 
 from uber.config import c
-from uber.hotel.solver import (LOTTERY_TYPE_BOTH, SUITE_TIER_BONUS,
-                               _entry_preferences, _rank_map, solve_lottery,
-                               weight_entry)
+from uber.hotel.solver import (LOTTERY_TYPE_BOTH, MAX_PREFERENCE_RANK,
+                               SUITE_TIER_BONUS, _entry_preferences, _rank_map,
+                               solve_lottery, weight_entry)
 
 
 N1 = date(2027, 1, 7)
@@ -66,34 +66,36 @@ def test_rank_map_keeps_the_primary_score_for_a_shared_id():
 
 def test_combined_run_gives_suite_entries_a_room_fallback():
     app = _App('a', c.SUITE_ENTRY, room_types='r1', suite_types='s1')
-    assert _entry_preferences(app, LOTTERY_TYPE_BOTH) == (['s1'], ['r1'])
+    assert _entry_preferences(app, LOTTERY_TYPE_BOTH) == (['s1'], ['r1'], SUITE_TIER_BONUS)
 
 
-def test_combined_run_honors_room_opt_out():
+@pytest.mark.parametrize('room_opt_out', [True, None])
+def test_combined_run_honors_room_opt_out(room_opt_out):
     app = _App('a', c.SUITE_ENTRY, room_types='r1', suite_types='s1',
-               room_opt_out=True)
-    assert _entry_preferences(app, LOTTERY_TYPE_BOTH) == (['s1'], [])
+               room_opt_out=room_opt_out)
+    assert _entry_preferences(app, LOTTERY_TYPE_BOTH) == (['s1'], [], SUITE_TIER_BONUS)
 
 
 def test_combined_run_leaves_room_entries_on_rooms_only():
     app = _App('a', c.ROOM_ENTRY, room_types='r1', suite_types='s1')
-    assert _entry_preferences(app, LOTTERY_TYPE_BOTH) == (['r1'], [])
+    assert _entry_preferences(app, LOTTERY_TYPE_BOTH) == (['r1'], [], 0)
 
 
 def test_single_type_runs_are_unchanged():
     room_app = _App('a', c.ROOM_ENTRY, room_types='r1')
     suite_app = _App('b', c.SUITE_ENTRY, suite_types='s1', room_types='r1')
 
-    assert _entry_preferences(room_app, c.ROOM_ENTRY) == (['r1'], [])
-    assert _entry_preferences(suite_app, c.SUITE_ENTRY) == (['s1'], [])
+    assert _entry_preferences(room_app, c.ROOM_ENTRY) == (['r1'], [], 0)
+    assert _entry_preferences(suite_app, c.SUITE_ENTRY) == (['s1'], [], 0)
     # A suite entry that has not opted out still falls into a room-only run.
-    assert _entry_preferences(suite_app, c.ROOM_ENTRY) == (['r1'], [])
+    assert _entry_preferences(suite_app, c.ROOM_ENTRY) == (['r1'], [], 0)
     assert _entry_preferences(room_app, c.SUITE_ENTRY) is None
 
 
-def test_opted_out_suite_entry_stays_out_of_a_room_run():
+@pytest.mark.parametrize('room_opt_out', [True, None])
+def test_opted_out_suite_entry_stays_out_of_a_room_run(room_opt_out):
     app = _App('a', c.SUITE_ENTRY, room_types='r1', suite_types='s1',
-               room_opt_out=True)
+               room_opt_out=room_opt_out)
     assert _entry_preferences(app, c.ROOM_ENTRY) is None
 
 
@@ -112,9 +114,19 @@ def test_suite_option_outscores_room_fallback_for_one_entrant():
     assert suite > room
 
 
-def test_unranked_type_still_scores():
-    entry = {'hotels': ['h1'], 'hotel_ranks': _rank_map(['h1']), 'type_ranks': {}}
-    assert weight_entry(entry, _block('i1', 'anything'), 0) > 0
+def test_tier_bonus_is_uniform_across_suite_entrants():
+    """An opted-out suite entrant scores a suite exactly like one with room
+    fallbacks."""
+    with_fallback = _App('a', c.SUITE_ENTRY, room_types='r1', suite_types='s1')
+    opted_out = _App('b', c.SUITE_ENTRY, room_types='r1', suite_types='s1',
+                     room_opt_out=True)
+
+    ranks = {}
+    for app in (with_fallback, opted_out):
+        primary, fallback, tier_bonus = _entry_preferences(app, LOTTERY_TYPE_BOTH)
+        ranks[app.id] = _rank_map(primary, fallback, tier_bonus=tier_bonus)
+
+    assert ranks['a']['s1'] == ranks['b']['s1'] == SUITE_TIER_BONUS + MAX_PREFERENCE_RANK
 
 
 # ---------------------------------------------------------------------------

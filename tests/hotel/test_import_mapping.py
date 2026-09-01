@@ -74,6 +74,46 @@ def test_an_unknown_layout_detects_nothing(session):
     assert mapping.detect_template(session, ['wibble', 'wobble']) is None
 
 
+ROOM_LIST_HEADERS = ['Last Name', 'First Name', 'Email', 'Check-In', 'Checkout',
+                     'Room Type', 'Attendee Type', 'Acknowledgement Number',
+                     'Ext. Confirmation Number', 'Other Pay Description']
+
+
+def _two_sheet_workbook():
+    """An xlsx whose Room List sheet is deliberately not the active one."""
+    import io
+
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    summary = wb.active
+    summary.title = 'Summary'
+    summary.append(['Totals', 'Nights'])
+    summary.append([2, 6])
+    rooms = wb.create_sheet('Room List')
+    rooms.append(ROOM_LIST_HEADERS)
+    rooms.append(['Example', 'Ada', 'ada.example@example.org', '2027-01-07',
+                  '2027-01-10', 'Deluxe Guest Room', 'Attendee', 'ACK1',
+                  '95555414', ''])
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def test_detection_retries_the_other_sheets(session, no_cherrypy_session):
+    """A workbook whose Room List sheet is not first must still detect and
+    read the right sheet."""
+    raw = _two_sheet_workbook()
+    template = mapping.detect_upload_template(session, raw, 'rooms.xlsx')
+    assert template is not None
+    assert template.name == 'Standard room list'
+
+    rows, error = mapping.build_rows(session, raw, 'rooms.xlsx', template)
+    assert error is None
+    assert len(rows) == 1
+    assert rows[0]['mapped']['assignment.hotel_confirmation_number'] == 'ACK1'
+
+
 # ---------------------------------------------------------------------------
 # mapping
 # ---------------------------------------------------------------------------
@@ -233,8 +273,138 @@ def test_sync_rejects_an_unknown_payment_type(session, no_cherrypy_session):
     assert 'payment type' in message
 
 
-def test_payment_types_are_offered_as_a_target():
-    """The sample's Other Pay Description column maps here once an event
-    configures how that hotel spells each type."""
-    assert 'assignment.payment_type' in mapping.TARGETS_BY_KEY
+def test_other_pay_description_maps_to_payment_type():
+    """The sample's Other Pay Description column feeds payment_type through
+    the enum map, and values with no entry pass through unchanged rather
+    than crashing."""
     assert mapping.TARGETS_BY_KEY['assignment.payment_type']['kind'] == 'enum:payment_type'
+
+    template = mapping.builtin_template()
+    assert template.column_map['other_pay_description'] == 'assignment.payment_type'
+    template.enum_map = {'assignment.payment_type': {'Room & Tax': 'masterbill'}}
+
+    mapped = mapping.apply_maps({'other_pay_description': 'room & tax'}, template)
+    assert mapped['assignment.payment_type'] == 'masterbill'
+
+    unmapped = mapping.apply_maps({'other_pay_description': 'Comp'}, template)
+    assert unmapped['assignment.payment_type'] == 'Comp'
+
+
+def test_an_unmapped_payment_value_diffs_without_crashing(session, no_cherrypy_session):
+    ra = _booking(session)
+    diff = mapping.diff_row(ra, {'assignment.payment_type': 'Comp'})
+    by_key = {d['key']: d for d in diff}
+    assert by_key['assignment.payment_type']['imported'] == 'Comp'
+    assert by_key['assignment.payment_type']['changed'] is True
+
+
+def test_disambiguation_makes_the_rematch_unambiguous(session, no_cherrypy_session):
+    """Stamping the row's acknowledgement number onto the chosen booking (as
+    resolve_import_row does) makes every later match deterministic."""
+    hotel = make_hotel(session)
+    inv = make_inventory(session, hotel)
+    attendee = make_attendee(session)
+    attendee.email = 'dup@example.com'
+    chosen = make_assignment(session, attendee=attendee, inventory=inv,
+                             check_in=date(2027, 1, 7), check_out=date(2027, 1, 10))
+    make_assignment(session, attendee=attendee, inventory=inv,
+                    check_in=date(2027, 1, 7), check_out=date(2027, 1, 10))
+    session.flush()
+
+    mapped = {'attendee.email': 'dup@example.com',
+              'assignment.hotel_confirmation_number': 'ACK42'}
+    found, status = mapping.match_row(session, mapped)
+    assert status == 'ambiguous'
+    assert len(found) == 2
+
+    chosen.hotel_confirmation_number = 'ACK42'
+    session.flush()
+
+    found, status = mapping.match_row(session, mapped)
+    assert status == 'matched'
+    assert found[0].id == chosen.id
+
+
+# ---------------------------------------------------------------------------
+# the import pipeline around the mapping layer
+# ---------------------------------------------------------------------------
+
+def _room_list_csv(rows):
+    """CSV bytes with the standard room-list headers, so the built-in format
+    is detected. Each row is a dict keyed by normalized column name."""
+    import csv
+    import io
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(ROOM_LIST_HEADERS)
+    for row in rows:
+        writer.writerow([row.get('last_name', ''), row.get('first_name', ''),
+                         row.get('email', ''), row.get('check-in', ''),
+                         row.get('checkout', ''), row.get('room_type', ''),
+                         row.get('attendee_type', ''),
+                         row.get('acknowledgement_number', ''),
+                         row.get('ext._confirmation_number', ''),
+                         row.get('other_pay_description', '')])
+    return buf.getvalue().encode('utf-8')
+
+
+def test_template_import_auto_applies_confirmation_numbers(session, no_cherrypy_session):
+    """An unambiguous match gets its acknowledgement number applied at
+    upload; everything else is left for review."""
+    from uber.hotel.imports import import_confirmation_file
+
+    ra = _booking(session, email='auto@example.com')
+    raw = _room_list_csv([
+        {'email': 'auto@example.com', 'acknowledgement_number': 'NEWACK',
+         'checkout': '2027-01-11'},
+        {'email': 'nobody@example.com', 'acknowledgement_number': 'MISSED'},
+    ])
+
+    result = import_confirmation_file(session, raw, 'list.csv',
+                                      template=mapping.builtin_template())
+    assert result['error'] is None
+    assert ra.hotel_confirmation_number == 'NEWACK'
+    # The differing checkout date is not auto-applied.
+    assert ra.assigned_check_out_date == date(2027, 1, 10)
+
+    record = result['record']
+    assert record.matched_count == 1
+    assert record.unmatched_count == 1
+    assert record.updated_count == 1
+    assert record.applied_from is not None and record.applied_to is not None
+
+
+def test_stored_rows_are_capped_and_reread_from_disk(session, no_cherrypy_session,
+                                                     monkeypatch):
+    from uber.hotel.imports import _store_file
+
+    monkeypatch.setattr(mapping, 'STORED_ROW_CAP', 2)
+    raw = _room_list_csv([
+        {'email': f'row{i}@example.com', 'acknowledgement_number': f'ACK{i}'}
+        for i in range(4)])
+
+    record = _store_file(session, raw, 'big.csv', 'text/csv', None, 'admin', 'T')
+    summary = mapping.prepare_import_review(session, record, raw, 'big.csv')
+    assert summary is not None
+    assert summary['total'] == 4
+    assert len(record.parsed_rows) == 2
+
+    full = mapping.full_parsed_rows(session, record)
+    assert len(full) == 4
+    assert [row['index'] for row in full] == [0, 1, 2, 3]
+
+
+def test_header_map_round_trips(session):
+    from uber.models.hotel import ImportMappingTemplate
+
+    template = ImportMappingTemplate(
+        name='Header map format',
+        column_map={'acknowledgement_number': 'assignment.hotel_confirmation_number'},
+        header_map={'acknowledgement_number': 'Acknowledgement Number'})
+    session.add(template)
+    session.flush()
+    session.expire(template)
+
+    stored = session.query(ImportMappingTemplate).get(template.id)
+    assert stored.header_map == {'acknowledgement_number': 'Acknowledgement Number'}
