@@ -332,10 +332,13 @@ class Root:
         # Cross-status counts for the header badges.
         all_staff_q = session.query(Attendee).filter(Attendee.badge_type.in_(
             [c.STAFF_BADGE, c.CONTRACTOR_BADGE]))
+        total_staff = all_staff_q.count()
         total_eligible = all_staff_q.filter(Attendee.hotel_eligible.is_(True)).count()
         total_ineligible = all_staff_q.filter(Attendee.hotel_eligible.is_(False)).count()
         total_staff_lottery = all_staff_q.filter(
             Attendee.staff_lottery_eligible.is_(True)).count()
+        total_not_staff_lottery = all_staff_q.filter(
+            Attendee.staff_lottery_eligible.is_(False)).count()
 
         return {
             'message': message,
@@ -347,9 +350,11 @@ class Root:
             'show': show,
             'search': search,
             'shared_enabled': shared_enabled,
+            'total_staff': total_staff,
             'total_eligible': total_eligible,
             'total_ineligible': total_ineligible,
             'total_staff_lottery': total_staff_lottery,
+            'total_not_staff_lottery': total_not_staff_lottery,
         }
 
     ELIGIBILITY_FIELDS = {

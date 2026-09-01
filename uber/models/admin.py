@@ -110,6 +110,17 @@ class AdminAccount(MagModel, table=True):
             return None
         
     @staticmethod
+    def acting_name():
+        """The name changes should be attributed to: the portal user an API
+        method stashed on the request, or the logged-in admin or kiosk
+        volunteer otherwise. The 'api:' prefix marks the attribution as
+        coming from an API client rather than a session."""
+        api_user = getattr(cherrypy.request, 'api_acting_user', '')
+        if api_user:
+            return f'api:{api_user}'
+        return AdminAccount.admin_or_volunteer_name()
+
+    @staticmethod
     def supervisor_name():
         try:
             from uber.models import Session

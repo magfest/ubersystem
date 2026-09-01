@@ -86,6 +86,7 @@ def upgrade():
         sa.Column('column_map', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False),
         sa.Column('enum_map', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False),
         sa.Column('format_map', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False),
+        sa.Column('header_map', postgresql.JSONB(astext_type=sa.Text()), server_default='{}', nullable=False),
         sa.PrimaryKeyConstraint('id', name=op.f('pk_import_mapping_template')))
 
     op.create_table(
@@ -124,6 +125,9 @@ def upgrade():
         SET payment_type = CASE WHEN require_cc THEN 'credit_card' ELSE 'masterbill' END
     """)
     op.drop_column('room_assignment', 'require_cc')
+
+    op.create_index(op.f('ix_room_assignment_hotel_confirmation_number'),
+                    'room_assignment', ['hotel_confirmation_number'])
 
     # Numeric pricing. New column names rather than an in-place type change so
     # any reader still expecting the old strings fails loudly.
@@ -261,6 +265,8 @@ def downgrade():
                 'base_staff_price', 'base_price'):
         op.drop_column('hotel_room_inventory', col)
 
+    op.drop_index(op.f('ix_room_assignment_hotel_confirmation_number'),
+                  table_name='room_assignment')
     op.add_column('room_assignment', sa.Column('require_cc', sa.Boolean(),
                                                server_default='true', nullable=False))
     op.execute("""

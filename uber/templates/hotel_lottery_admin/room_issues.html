@@ -220,7 +220,6 @@
           {% endif %}
         </small>
       {% endif %}
-
     </div>
   </div>
   <ul class="list-group list-group-flush">
@@ -286,9 +285,6 @@
         <strong>Inventory configuration</strong>
       {% endif %}
     </div>
-    <div>
-
-    </div>
   </div>
   <ul class="list-group list-group-flush">
     {% for iss in group.issues %}
@@ -301,7 +297,20 @@
           {% if iss.kind in ('oversubscribed_inventory', 'oversubscribed_partition') and iss.extra.get('bad_nights') %}
             <div class="small text-muted">
               {% set _show = iss.extra['bad_nights'][:5] %}
-              Bad nights: {% for n, used, cap in _show %}{{ n }} ({{ used }}/{{ cap }}){% if not loop.last %}, {% endif %}{% endfor %}{% if iss.extra['bad_nights']|length > 5 %} ... and {{ iss.extra['bad_nights']|length - 5 }} more{% endif %}.
+              {# Each night links to the assignees modal so the admin can
+                 see who is booked without leaving the report. #}
+              Bad nights: {% for n, used, cap in _show %}{% if iss.inventory %}<a href="#" class="assignee-link" data-inventory-id="{{ iss.inventory.id }}" data-night="{{ n.isoformat() }}" data-title="{{ iss.inventory.display_name|e }} - {{ n.strftime('%a %-m/%-d') }}">{{ n }} ({{ used }}/{{ cap }})</a>{% else %}{{ n }} ({{ used }}/{{ cap }}){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}{% if iss.extra['bad_nights']|length > 5 %} ... and {{ iss.extra['bad_nights']|length - 5 }} more{% endif %}.
+            </div>
+          {% endif %}
+          {% if iss.kind == 'partition_overallocated' and iss.extra.get('partitions') %}
+            <div class="small text-muted">
+              {% for p in iss.extra['partitions'] %}
+              <div>
+                Partition '{{ p.name }}' allocates {{ p.quantity }} of
+                {{ iss.extra['inventory_quantity'] }} room(s)
+                <a href="edit_partition?id={{ p.id }}" class="ms-1">Edit partition</a>
+              </div>
+              {% endfor %}
             </div>
           {% endif %}
           {{ fix_buttons(iss) }}
@@ -364,6 +373,7 @@
         <strong class="ms-1">{{ kind_labels.get(iss.kind, iss.kind) }}</strong>
         - {{ iss.label }}
       </div>
+      {{ fix_buttons(iss) }}
       {{ issue_actions(iss, hidden_mode=True) }}
     </li>
     {% endfor %}
@@ -376,5 +386,7 @@
 {{ hidden_block(hidden_inv_groups, is_inv=True) }}
 {% endif %}
 {% endif %}
+
+{% include 'hotel_lottery_admin/_assignee_modal.html' %}
 
 {% endblock content %}

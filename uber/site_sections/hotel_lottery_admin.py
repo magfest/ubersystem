@@ -166,57 +166,35 @@ def _mint_reveal_links(session, reveal, attendee_ids):
         WaitlistRevealLink.emailed_at.is_(None)).all()
 
 
-def _prepare_import_review(session, record, raw, filename, template_id=''):
-    """Freeze a template-mapped read of an upload onto its HotelImportFile.
-
-    Frozen rather than re-parsed on view because templates stay editable: an
-    admin fixing a template mid-review must not silently change what a
-    half-reviewed file is recorded as having said. The comparison against
-    live bookings is still recomputed on every view, so a synced value stops
-    showing as changed immediately.
-
-    Returns a summary, or None when no template applies and the older
-    confirmation-number import already handled the file.
-    """
-    from uber.hotel import mapping
-
-    fieldnames, _rows, error = mapping.parse_with_template(raw, filename, None)
-    if error:
-        record.parse_error = error
-        record.status = 'pending'
-        session.add(record)
-        return None
-
-    template = mapping.detect_template(session, fieldnames, hotel=record.hotel,
-                                       template_id=template_id or None)
-    if template is None:
-        return None
-
-    rows, error = mapping.build_rows(
-        session, raw, filename, template,
-        hotel_id=record.hotel_id if record.hotel_id else None)
-    if error:
-        record.parse_error = error
-        record.status = 'pending'
-        session.add(record)
-        return None
-
-    counts = mapping.counts_for(rows)
-    record.parsed_rows = rows
-    record.parse_error = ''
-    record.status = 'pending'
-    record.template_id = getattr(template, 'id', None)
-    record.matched_count = counts['matched']
-    record.ambiguous_count = counts['ambiguous']
-    record.unmatched_count = counts['unmatched']
-    session.add(record)
-
-    return {'total': len(rows), 'template_name': template.name, 'counts': counts}
-
-
 def _deletion_label(obj):
     return (getattr(obj, 'name', None) or getattr(obj, 'display_name', None)
             or 'this item')
+
+
+def _deletion_conflicts_context(session, kind, id):
+    """The dialog's view of what still points at this resource, with the
+    conflict list rendered as HTML so the modal and the no-JS interstitial
+    page share one template. Raises DeletionError for a bad kind or id.
+
+    Module-level rather than a Root method: all_renderable wraps every
+    method, and the wrapper would render the returned dict as a page.
+    """
+    obj, spec, groups = inspect_conflicts(session, kind, id)
+
+    return {
+        'ok': True,
+        'kind': kind,
+        'id': str(obj.id),
+        'label': _deletion_label(obj),
+        'title': spec['title'],
+        'is_active': bool(getattr(obj, 'active', False)),
+        'soft_delete_available': bool(spec.get('soft_delete')),
+        'has_blocking': has_blocking(groups),
+        'force_required': any(g['category'] == 'emailed_links' for g in groups),
+        'html': render('hotel_lottery_admin/_deletion_conflicts.html', {
+            'kind': kind, 'obj': obj, 'spec': spec, 'groups': groups,
+        }).decode('utf-8'),
+    }
 
 
 LOTTERY_TYPE_VALUES = {
@@ -1751,11 +1729,18 @@ class Root:
         account = session.current_admin_account()
         uploaded_by = account.attendee.full_name if account and account.attendee else 'Admin'
 
+        from uber.hotel import mapping
         from uber.hotel.imports import import_confirmation_file
+
+        filename = getattr(upload, 'filename', '')
+        template = mapping.detect_upload_template(
+            session, raw, filename, hotel=hotel,
+            template_id=params.get('template_id') or None)
         result = import_confirmation_file(
-            session, raw, getattr(upload, 'filename', ''), hotel=hotel,
+            session, raw, filename, hotel=hotel,
             source='admin', uploaded_by=uploaded_by,
-            content_type=getattr(upload, 'content_type', '') or '')
+            content_type=getattr(upload, 'content_type', '') or '',
+            template=template)
         # Commit even when parsing failed: the retained-upload record
         # (HotelImportFile) must persist either way, and the service layer
         # only flushes.
@@ -1763,9 +1748,8 @@ class Root:
 
         record = result.get('record')
         if record is not None:
-            review = _prepare_import_review(
-                session, record, raw, getattr(upload, 'filename', ''),
-                template_id=params.get('template_id', ''))
+            review = mapping.prepare_import_review(
+                session, record, raw, filename, template=template)
             session.commit()
             if review:
                 raise HTTPRedirect(
@@ -1830,10 +1814,12 @@ class Root:
                 template.header_row = 1
             template.active = params.get('active', 'true') != 'false'
 
-            column_map, format_map, enum_map = {}, {}, {}
+            column_map, format_map, enum_map, header_map = {}, {}, {}, {}
             for key, value in params.items():
                 if key.startswith('column__') and value:
                     column_map[key[len('column__'):]] = value
+                elif key.startswith('raw__') and value:
+                    header_map[key[len('raw__'):]] = value
                 elif key.startswith('format__') and value:
                     format_map[key[len('format__'):]] = value
                 elif key.startswith('enum__') and value:
@@ -1846,6 +1832,8 @@ class Root:
             template.column_map = column_map
             template.format_map = format_map
             template.enum_map = enum_map
+            template.header_map = {k: v for k, v in header_map.items()
+                                   if k in column_map}
             template.source_signature = mapping.signature_for(column_map.keys())
             session.add(template)
             session.commit()
@@ -1900,9 +1888,13 @@ class Root:
 
         draft = mapping.draft_template(supplied)
 
-        fieldnames, _rows, error = mapping.parse_with_template(raw, filename, draft)
+        from uber.hotel.imports import parse_spreadsheet_with_headers
+        header_pairs, _rows, error = parse_spreadsheet_with_headers(
+            raw, filename, sheet_name=draft.sheet_name or None,
+            header_row=draft.header_row or 1)
         if error:
             return {'error': error}
+        fieldnames = [key for _raw_header, key in header_pairs]
 
         rows, error = mapping.build_rows(session, raw, filename, draft,
                                          hotel_id=hotel_id or None)
@@ -1919,8 +1911,10 @@ class Root:
                            if k in mapping.TARGETS_BY_KEY and v},
             })
 
-        return {'ok': True, 'headers': fieldnames, 'total': len(rows),
-                'counts': counts, 'sample': sample}
+        return {'ok': True, 'headers': fieldnames,
+                'header_pairs': [{'raw': raw_header, 'key': key}
+                                 for raw_header, key in header_pairs],
+                'total': len(rows), 'counts': counts, 'sample': sample}
 
     def delete_import_template(self, session, id='', csrf_token=None):
         from uber.models.hotel import ImportMappingTemplate
@@ -1963,7 +1957,18 @@ class Root:
         if not record:
             raise HTTPRedirect('export_tracking?message={}', 'Upload not found.')
 
+        page_num = max(1, int(page or 1))
+        page_size = 50
+
         rows = list(record.parsed_rows or [])
+        total_rows = ((record.matched_count or 0) + (record.ambiguous_count or 0)
+                      + (record.unmatched_count or 0))
+        # Files above the storage cap keep only a slice in JSONB; anything
+        # a filter or a later page might need comes from the file on disk.
+        if len(rows) < total_rows and (
+                filter != 'all' or page_num * page_size > len(rows)):
+            rows = mapping.full_parsed_rows(session, record)
+
         assignment_ids = {aid for row in rows for aid in row.get('assignment_ids', [])}
         by_id = {}
         if assignment_ids:
@@ -1993,9 +1998,10 @@ class Root:
         elif filter in ('ambiguous', 'unmatched', 'matched'):
             prepared = [r for r in prepared if r['status'] == filter]
 
-        page_num = max(1, int(page or 1))
-        page_size = 50
         total = len(prepared)
+        if filter == 'all':
+            # A capped row set still paginates over the whole file.
+            total = max(total, total_rows)
         page_count = max(1, (total + page_size - 1) // page_size)
         page_num = min(page_num, page_count)
         window = prepared[(page_num - 1) * page_size:page_num * page_size]
@@ -2033,6 +2039,10 @@ class Root:
         row = next((r for r in (record.parsed_rows or [])
                     if str(r.get('index')) == str(row_index)), None)
         if row is None:
+            # Rows past the storage cap live only in the retained file.
+            row = next((r for r in mapping.full_parsed_rows(session, record)
+                        if str(r.get('index')) == str(row_index)), None)
+        if row is None:
             return {'error': 'That row is no longer in this upload.'}
 
         value = (row.get('mapped') or {}).get(field, '')
@@ -2066,6 +2076,11 @@ class Root:
 
         rows = list(record.parsed_rows or [])
         row = next((r for r in rows if str(r.get('index')) == str(row_index)), None)
+        stored = row is not None
+        if row is None:
+            # Rows past the storage cap live only in the retained file.
+            row = next((r for r in mapping.full_parsed_rows(session, record)
+                        if str(r.get('index')) == str(row_index)), None)
         if row is None:
             return {'error': 'That row is no longer in this upload.'}
 
@@ -2075,13 +2090,19 @@ class Root:
             ra.hotel_confirmation_number = confirmation
             session.add(ra)
 
+        previous_status = row.get('status')
         row['assignment_ids'] = [str(ra.id)]
         row['status'] = 'matched'
-        record.parsed_rows = rows
-        counts = mapping.counts_for(rows)
-        record.matched_count = counts['matched']
-        record.ambiguous_count = counts['ambiguous']
-        record.unmatched_count = counts['unmatched']
+        if stored:
+            record.parsed_rows = rows
+        # Adjusted incrementally rather than recounted, because the stored
+        # rows may be only a slice of the file.
+        if previous_status != 'matched':
+            record.matched_count += 1
+            if previous_status == 'ambiguous':
+                record.ambiguous_count = max(0, record.ambiguous_count - 1)
+            elif previous_status == 'unmatched':
+                record.unmatched_count = max(0, record.unmatched_count - 1)
         session.add(record)
         session.commit()
 
@@ -3264,6 +3285,7 @@ class Root:
         # generated earlier without sending still get their email.
         unsent_links = _mint_reveal_links(session, reveal, new_ids)
 
+        queued = 0
         for link in unsent_links:
             attendee = session.query(Attendee).get(link.attendee_id)
             if not attendee:
@@ -3274,11 +3296,12 @@ class Root:
                 data={'reveal': reveal, 'link': link})
             link.emailed_at = datetime.now(UTC)
             session.add(link)
+            queued += 1
 
         session.commit()
         raise HTTPRedirect(
             'waitlist_reveals?message={}',
-            f"Queued {len(new_links)} new waitlist email{'s' if len(new_links) != 1 else ''}.")
+            f"Queued {queued} new waitlist email{'s' if queued != 1 else ''}.")
 
     def assign_room(self, session, id=None, message='', **params):
         """Create or edit a RoomAssignment outside the lottery flow.
@@ -3535,24 +3558,9 @@ class Root:
             return {'error': 'This endpoint requires a POST.'}
         check_csrf(csrf_token)
         try:
-            obj, spec, groups = inspect_conflicts(session, kind, id)
+            return _deletion_conflicts_context(session, kind, id)
         except DeletionError as e:
             return {'error': e.message}
-
-        return {
-            'ok': True,
-            'kind': kind,
-            'id': str(obj.id),
-            'label': _deletion_label(obj),
-            'title': spec['title'],
-            'is_active': bool(getattr(obj, 'active', False)),
-            'soft_delete_available': bool(spec.get('soft_delete')),
-            'has_blocking': has_blocking(groups),
-            'force_required': any(g['category'] == 'emailed_links' for g in groups),
-            'html': render('hotel_lottery_admin/_deletion_conflicts.html', {
-                'kind': kind, 'obj': obj, 'spec': spec, 'groups': groups,
-            }).decode('utf-8'),
-        }
 
     @ajax
     def resolve_deletion_conflict(self, session, kind='', id='', category='',
@@ -3567,14 +3575,12 @@ class Root:
             message = resolve_conflict(session, kind, id, category, action,
                                        item_id=item_id, target_id=target_id)
             session.commit()
+            result = _deletion_conflicts_context(session, kind, id)
         except DeletionError as e:
             session.rollback()
             return {'error': e.message}
 
-        result = self.deletion_conflicts(session, kind=kind, id=id,
-                                         csrf_token=csrf_token)
-        if isinstance(result, dict):
-            result['message'] = message
+        result['message'] = message
         return result
 
     def confirm_delete_resource(self, session, kind='', id='', return_to='',
@@ -3603,9 +3609,13 @@ class Root:
         list_page = spec['list_page'] if spec else 'index'
         _require_post_csrf({'csrf_token': csrf_token}, redirect=list_page)
 
+        # force carries the emailed-links acknowledgement checkbox; only a
+        # waitlist reveal has an acknowledgeable group.
+        acknowledged = (kind == 'waitlist_reveal'
+                        and force in ('1', 'true', 'True'))
         try:
             message = perform_delete(session, kind, id, mode=mode,
-                                     force=force in ('1', 'true', 'True'))
+                                     force=acknowledged)
             session.commit()
         except DeletionError as e:
             session.rollback()

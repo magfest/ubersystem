@@ -116,7 +116,9 @@
       <div class="row g-2 mb-2">
         <div class="col-md-3">
           <label class="form-label">Deposit Cutoff</label>
+          {# A payment deadline is normally before the event, so only cap the top. #}
           <input type="date" class="form-control" name="deposit_cutoff_date"
+                 {% if c.HOTEL_LOTTERY_CHECKOUT_END %}max="{{ c.HOTEL_LOTTERY_CHECKOUT_END|datetime_local('%Y-%m-%d') }}"{% endif %}
                  value="{{ ra.deposit_cutoff_date or '' }}" />
           <div class="form-text small">Override the lottery-run default per-assignment.</div>
         </div>

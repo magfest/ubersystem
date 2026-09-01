@@ -211,7 +211,7 @@ class Tracking(MagModel, table=True):
         if sys.argv == ['']:
             who = 'server admin'
         else:
-            who = AdminAccount.admin_or_volunteer_name() or (current_thread().name if current_thread().daemon else 'non-admin')
+            who = AdminAccount.acting_name() or (current_thread().name if current_thread().daemon else 'non-admin')
 
         with Session() as session:
             session.add(Tracking(
@@ -251,8 +251,8 @@ class Tracking(MagModel, table=True):
         if sys.argv == ['']:
             who = 'server admin'
         else:
-            who = AdminAccount.admin_or_volunteer_name() or (current_thread().name if current_thread().daemon else 'non-admin')
-        
+            who = AdminAccount.acting_name() or (current_thread().name if current_thread().daemon else 'non-admin')
+
         if isinstance(instance, ApiJob) and who == 'non-admin':
             # Automated processing of API jobs is tracked in the jobs themselves
             # Skipping these logs saves us tens of thousands of extra rows

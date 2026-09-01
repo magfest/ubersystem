@@ -957,7 +957,7 @@ class RoomAssignment(MagModel, table=True):
     deposit_cutoff_date: date | None = Field(sa_type=Date, nullable=True)
 
     booking_url: str = ''
-    hotel_confirmation_number: str | None = Field(nullable=True)
+    hotel_confirmation_number: str | None = Field(nullable=True, index=True)
     cancellation_confirmation_number: str | None = Field(nullable=True)
     # Physical room number at the hotel. Free text when no catalog exists;
     # stamped from the linked PhysicalRoom when one is assigned (see the
@@ -1767,6 +1767,8 @@ class ImportMappingTemplate(MagModel, table=True):
     column_map: dict[str, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
     enum_map: dict[str, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
     format_map: dict[str, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
+    # Normalized key to the heading as the source file spells it.
+    header_map: dict[str, Any] = Field(sa_type=MutableDict.as_mutable(JSONB), default_factory=dict)
 
 
 #

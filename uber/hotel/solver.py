@@ -42,10 +42,6 @@ SUITE_TIER_BONUS = 30
 # so an entrant who ranks more than ten options still scores sanely.
 MAX_PREFERENCE_RANK = 10
 
-# What an unranked but eligible room type scores. Room types are optional, so
-# entries that skipped them still need a weight.
-UNRANKED_TYPE_SCORE = 9
-
 
 def _rank_map(primary, fallback=(), tier_bonus=0):
     """{id: score} for one entry's ranked choices, best first.
@@ -62,31 +58,35 @@ def _rank_map(primary, fallback=(), tier_bonus=0):
 
 
 def _entry_preferences(app, lottery_type):
-    """(primary_types, fallback_types) for this app in this run, or None when
-    the app is not in the run's pool at all.
+    """(primary_types, fallback_types, tier_bonus) for this app in this run,
+    or None when the app is not in the run's pool at all.
 
     A suite entry that has not opted out of the room lottery ranks suites
     first and standard rooms as a fallback; in a combined run both compete in
     one model, and the per-app cap of one primary award means the entrant
-    wins a suite or a room, never both.
+    wins a suite or a room, never both. Every suite entry in a combined run
+    carries the tier bonus, opted out or not, so suite entrants stay on an
+    equal footing with each other.
     """
     room_types = app.room_type_preference.split(",") if app.room_type_preference else []
     suite_types = app.suite_type_preference.split(",") if app.suite_type_preference else []
 
     if lottery_type == LOTTERY_TYPE_BOTH:
         if app.entry_type == c.SUITE_ENTRY:
-            return suite_types, ([] if app.room_opt_out else room_types)
+            return (suite_types,
+                    (room_types if app.room_opt_out is False else []),
+                    SUITE_TIER_BONUS)
         if app.entry_type == c.ROOM_ENTRY:
-            return room_types, []
+            return room_types, [], 0
         return None
 
     if app.entry_type == lottery_type:
-        return (room_types if lottery_type == c.ROOM_ENTRY else suite_types), []
+        return (room_types if lottery_type == c.ROOM_ENTRY else suite_types), [], 0
 
     # A suite entry still competing in a room-only run.
     if (lottery_type == c.ROOM_ENTRY and app.entry_type == c.SUITE_ENTRY
             and app.room_opt_out is False):
-        return room_types, []
+        return room_types, [], 0
 
     return None
 
@@ -96,7 +96,7 @@ def weight_entry(entry, hotel_room, base_weight):
         should be to get that particular room.
     """
     weight = entry["hotel_ranks"].get(hotel_room["hotel_id"], 0)
-    weight += entry["type_ranks"].get(hotel_room["room_type"], UNRANKED_TYPE_SCORE)
+    weight += entry["type_ranks"][hotel_room["room_type"]]
     return weight + base_weight
 
 def solve_lottery(applications, hotel_rooms, lottery_type=c.ROOM_ENTRY,
@@ -162,7 +162,7 @@ def solve_lottery(applications, hotel_rooms, lottery_type=c.ROOM_ENTRY,
         preferences = _entry_preferences(app, lottery_type)
         if preferences is None:
             continue
-        primary_types, fallback_types = preferences
+        primary_types, fallback_types, tier_bonus = preferences
         hotels = app.hotel_preference.split(",")
         entries[app.id] = {
             "app": app,
@@ -174,7 +174,7 @@ def solve_lottery(applications, hotel_rooms, lottery_type=c.ROOM_ENTRY,
                                            if t not in primary_types],
             "hotel_ranks": _rank_map(hotels),
             "type_ranks": _rank_map(primary_types, fallback_types,
-                                    tier_bonus=SUITE_TIER_BONUS if fallback_types else 0),
+                                    tier_bonus=tier_bonus),
             "primary_vars": [],     # [(BoolVar, weight, hotel_room)]
             "connector_vars": [],   # [(BoolVar, hotel_room, parent_inv_id, child_type, qty)]
             "check_in": app.earliest_checkin_date,

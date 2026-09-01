@@ -25,21 +25,29 @@
     </form>
     {% endif %}
 
+    {% set ack_group = (groups|selectattr('category', 'equalto', 'emailed_links')|list or [none])|first %}
+    {% set other_blocking = groups|selectattr('severity', 'equalto', 'blocking')|rejectattr('category', 'equalto', 'emailed_links')|list %}
     <form method="post" action="delete_resource" class="d-inline">
       {{ csrf_token() }}
       <input type="hidden" name="kind" value="{{ kind }}" />
       <input type="hidden" name="id" value="{{ obj.id }}" />
       <input type="hidden" name="mode" value="hard" />
       <input type="hidden" name="return_to" value="{{ return_to }}" />
-      {% if groups|selectattr('category', 'equalto', 'emailed_links')|list %}
-      <input type="hidden" name="force" value="1" />
+      {% if ack_group and not other_blocking %}
+      <div class="form-check d-inline-block me-2">
+        <input class="form-check-input" type="checkbox" name="force" value="1"
+               id="ack-emailed-links" required />
+        <label class="form-check-label" for="ack-emailed-links">
+          I understand {{ ack_group.item_total }} attendee(s) hold links that will stop working
+        </label>
+      </div>
       {% endif %}
-      <button type="submit" class="btn btn-danger" {% if has_blocking %}disabled{% endif %}>
+      <button type="submit" class="btn btn-danger" {% if other_blocking %}disabled{% endif %}>
         Delete permanently
       </button>
     </form>
 
-    {% if has_blocking %}
+    {% if other_blocking %}
     <span class="form-text mb-0">
       Resolve the blocking items above first. Without JavaScript, use the
       linked pages to move or clear them.

@@ -48,7 +48,9 @@
   <div class="row g-3 mb-3">
     <div class="col-md-4">
       <label class="form-label">Card Deadline <span class="text-muted small">(blank = inherit from run)</span></label>
+      {# A payment deadline is normally before the event, so only cap the top. #}
       <input type="date" name="deposit_cutoff_date" class="form-control"
+             {% if c.HOTEL_LOTTERY_CHECKOUT_END %}max="{{ c.HOTEL_LOTTERY_CHECKOUT_END|datetime_local('%Y-%m-%d') }}"{% endif %}
              value="{% if assignment.deposit_cutoff_date %}{{ assignment.deposit_cutoff_date.isoformat() }}{% endif %}" />
     </div>
   </div>

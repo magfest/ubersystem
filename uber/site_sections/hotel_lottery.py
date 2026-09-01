@@ -194,7 +194,8 @@ def _resolve_assignment(session, assignment_id, application=None, *,
         (nulls first), filtered by:
           - statuses: 'live' for RoomAssignment.is_live, or an iterable
             of exact status consts;
-          - require_cc=True adds require_cc IS TRUE;
+          - require_cc filters payment_type through the require_cc
+            hybrid (True keeps card-guaranteed types, False the rest);
           - without_card=True adds cc_token IS NULL.
 
     Returns the row or None; callers keep their own error redirects.

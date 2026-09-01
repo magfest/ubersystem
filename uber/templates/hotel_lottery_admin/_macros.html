@@ -803,7 +803,10 @@
    confirm_delete_resource, so it still works without JavaScript;
    hotel-delete-conflicts.js intercepts it and offers the same choices in a
    dialog. Pages using it must load that script. #}
-{% macro delete_button(kind, obj, return_to='', label='Delete') %}
+{% macro delete_button(kind, obj, return_to='', label='') %}
+  {# Soft-deletable rows lead with Deactivate; permanent delete is an
+     escalation inside the dialog. Already-inactive rows say Delete. #}
+  {% set label = label or ('Deactivate' if obj.active is defined and obj.active else 'Delete') %}
   <form method="post" action="confirm_delete_resource" class="d-inline hl-delete-form"
         data-kind="{{ kind }}" data-id="{{ obj.id }}" data-return-to="{{ return_to }}">
     {{ csrf_token() }}

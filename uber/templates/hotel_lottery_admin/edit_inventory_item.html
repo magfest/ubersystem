@@ -178,11 +178,6 @@
       </div>
       {% endfor %}
 
-      <div class="alert alert-warning py-2 small d-none" id="occupancy-range-warning">
-        You changed the occupancy range. Save, then reopen this page to price
-        the occupancies you just added or removed.
-      </div>
-
       <div>{{ form_macros.input(inventory_config.pricing_notes) }}</div>
     </div>
   </div>
@@ -238,15 +233,90 @@ document.getElementById('price_per_night').addEventListener('change', togglePric
 document.getElementById('price_per_occupancy').addEventListener('change', togglePricingLayout);
 togglePricingLayout();
 
-// The occupancy boxes are rendered from min/max capacity, so changing either
-// makes them stale until the page is reloaded.
-['capacity', 'min_capacity'].forEach(function(id) {
-  document.getElementById(id).addEventListener('change', function() {
-    var warn = document.getElementById('occupancy-range-warning');
-    if (document.getElementById('price_per_occupancy').checked) {
-      warn.classList.remove('d-none');
+// The occupancy boxes are rendered from min/max capacity, so rebuild them
+// when either changes, keeping the values of occupancies that survive.
+var pricingNights = {{ (event_nights or [])|map('string')|list|tojson }};
+
+function moneyInputGroup(name, value, width) {
+  var group = document.createElement('div');
+  group.className = 'input-group input-group-sm';
+  group.style.width = width;
+  var symbol = document.createElement('span');
+  symbol.className = 'input-group-text';
+  symbol.textContent = '$';
+  var input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'form-control';
+  input.name = name;
+  input.value = value || '';
+  group.appendChild(symbol);
+  group.appendChild(input);
+  return group;
+}
+
+function occupancyLabel(occ) {
+  return occ + ' occupant' + (occ === 1 ? '' : 's');
+}
+
+function savedPriceValues(selector) {
+  var values = {};
+  document.querySelectorAll(selector).forEach(function(input) {
+    values[input.name] = input.value;
+  });
+  return values;
+}
+
+function rebuildOccupancyColumns() {
+  var min = parseInt(document.getElementById('min_capacity').value, 10) || 1;
+  var max = parseInt(document.getElementById('capacity').value, 10) || 1;
+  var occupancies = [];
+  for (var occ = min; occ <= max; occ++) { occupancies.push(occ); }
+
+  ['price', 'staff_price'].forEach(function(prefix) {
+    var byOcc = document.querySelector('.pricing-by-occupancy[data-scope="' + prefix + '"] .row');
+    if (byOcc) {
+      var saved = savedPriceValues('input[name^="' + prefix + '_occ_"]');
+      byOcc.replaceChildren();
+      occupancies.forEach(function(occ) {
+        var col = document.createElement('div');
+        col.className = 'col-auto';
+        var label = document.createElement('label');
+        label.className = 'form-label small';
+        label.textContent = occupancyLabel(occ);
+        col.appendChild(label);
+        col.appendChild(moneyInputGroup(prefix + '_occ_' + occ,
+                                        saved[prefix + '_occ_' + occ], '9em'));
+        byOcc.appendChild(col);
+      });
+    }
+
+    var gridBody = document.querySelector('.pricing-grid[data-scope="' + prefix + '"] tbody');
+    if (gridBody) {
+      var savedCells = savedPriceValues('input[name^="' + prefix + '_cell_"]');
+      gridBody.replaceChildren();
+      occupancies.forEach(function(occ) {
+        var row = document.createElement('tr');
+        var head = document.createElement('th');
+        head.className = 'small text-nowrap';
+        head.textContent = occupancyLabel(occ);
+        row.appendChild(head);
+        pricingNights.forEach(function(night) {
+          var cell = document.createElement('td');
+          var name = prefix + '_cell_' + night + '_' + occ;
+          cell.appendChild(moneyInputGroup(name, savedCells[name], '8em'));
+          row.appendChild(cell);
+        });
+        gridBody.appendChild(row);
+      });
     }
   });
+
+  // Rebuilt inputs start enabled; reapply the current layout's disabling.
+  togglePricingLayout();
+}
+
+['capacity', 'min_capacity'].forEach(function(id) {
+  document.getElementById(id).addEventListener('change', rebuildOccupancyColumns);
 });
 </script>
 

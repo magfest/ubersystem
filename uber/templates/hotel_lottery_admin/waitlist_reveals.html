@@ -85,7 +85,10 @@
 </table>
 {% endif %}
 
+{% include 'hotel_lottery_admin/_waitlist_reveal_preview.html' %}
+
 {{ "js/hotel-confirm-submit.js"|serve_static_content }}
+{{ "js/hotel-delete-conflicts.js"|serve_static_content }}
+{{ "js/hotel-waitlist-reveal.js"|serve_static_content }}
 
 {% endblock %}
-{{ "js/hotel-delete-conflicts.js"|serve_static_content }}

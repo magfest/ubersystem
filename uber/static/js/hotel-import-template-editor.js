@@ -33,24 +33,27 @@
   }
 
   // Build a row per column the sample file actually has, keeping whatever was
-  // already chosen for a column of that name.
-  function renderColumns(headers) {
+  // already chosen for a column of that key. Each pair is {raw, key}: the
+  // heading as the file spells it and the normalized key it matches under.
+  function renderColumns(pairs) {
     var existing = {};
     columnMap.querySelectorAll('.column-row').forEach(function (row) {
       var select = row.querySelector('.column-target');
       existing[row.dataset.source] = select ? select.value : '';
     });
 
-    columnMap.innerHTML = headers.map(function (header) {
+    columnMap.innerHTML = pairs.map(function (pair) {
       return [
-        '<div class="row g-2 align-items-end mb-2 column-row" data-source="' + escapeHtml(header) + '">',
+        '<div class="row g-2 align-items-end mb-2 column-row" data-source="' + escapeHtml(pair.key) + '">',
         '  <div class="col-md-5">',
-        '    <div class="form-control form-control-sm bg-light">' + escapeHtml(header) + '</div>',
-        '    <input type="hidden" name="column__' + escapeHtml(header) + '" class="column-target-input" />',
+        '    <div class="form-control form-control-sm bg-light">' + escapeHtml(pair.raw || pair.key) + '</div>',
+        '    <div class="form-text mt-1 mb-0 matched-as">matched as <code>' + escapeHtml(pair.key) + '</code></div>',
+        '    <input type="hidden" name="column__' + escapeHtml(pair.key) + '" class="column-target-input" />',
+        '    <input type="hidden" name="raw__' + escapeHtml(pair.key) + '" class="raw-header-input" value="' + escapeHtml(pair.raw || '') + '" />',
         '  </div>',
         '  <div class="col-md-5">',
         '    <select class="form-select form-select-sm column-target">' +
-             optionsHtml(existing[header] || 'match.ignore') + '</select>',
+             optionsHtml(existing[pair.key] || 'match.ignore') + '</select>',
         '  </div>',
         '  <div class="col-md-2 date-format" style="display:none;">',
         '    <input type="text" class="form-control form-control-sm" placeholder="%m/%d/%Y" />',
@@ -59,6 +62,45 @@
       ].join('');
     }).join('');
     syncHiddenInputs();
+  }
+
+  // Older payloads carry only normalized header keys.
+  function headerPairs(payload) {
+    if (payload.header_pairs && payload.header_pairs.length) {
+      return payload.header_pairs;
+    }
+    return (payload.headers || []).map(function (key) {
+      return { raw: key, key: key };
+    });
+  }
+
+  // Update existing rows with the raw headings a preview reports, including
+  // the raw__ inputs so saving persists them on the format.
+  function annotateRawHeaders(pairs) {
+    pairs.forEach(function (pair) {
+      var row = columnMap.querySelector(
+        '.column-row[data-source="' + CSS.escape(pair.key) + '"]');
+      if (!row || !pair.raw) { return; }
+      var display = row.querySelector('.form-control.bg-light');
+      if (!display) { return; }
+      display.textContent = pair.raw;
+      var note = row.querySelector('.matched-as');
+      if (!note) {
+        note = document.createElement('div');
+        note.className = 'form-text mt-1 mb-0 matched-as';
+        display.insertAdjacentElement('afterend', note);
+      }
+      note.innerHTML = 'matched as <code>' + escapeHtml(pair.key) + '</code>';
+      var rawInput = row.querySelector('.raw-header-input');
+      if (!rawInput) {
+        rawInput = document.createElement('input');
+        rawInput.type = 'hidden';
+        rawInput.name = 'raw__' + pair.key;
+        rawInput.className = 'raw-header-input';
+        row.querySelector('.col-md-5').appendChild(rawInput);
+      }
+      rawInput.value = pair.raw;
+    });
   }
 
   // The selects drive hidden inputs so the form posts column__<name> pairs.
@@ -136,10 +178,13 @@
       }
 
       // First preview of a file also loads its columns, so the mapping rows
-      // appear without a separate step.
-      if (payload.headers && payload.headers.length &&
-          !columnMap.querySelector('.column-row')) {
-        renderColumns(payload.headers);
+      // appear without a separate step; rows already on screen keep their
+      // choices and just gain the raw headings.
+      var pairs = headerPairs(payload);
+      if (pairs.length && !columnMap.querySelector('.column-row')) {
+        renderColumns(pairs);
+      } else {
+        annotateRawHeaders(pairs);
       }
 
       var rows = payload.sample.map(function (row) {
@@ -159,7 +204,7 @@
         '<span class="badge bg-warning text-dark">' + payload.counts.ambiguous + ' ambiguous</span> ',
         '<span class="badge bg-secondary">' + payload.counts.unmatched + ' unmatched</span></p>',
         '<p class="form-text">Columns found: ' +
-          payload.headers.map(escapeHtml).join(', ') + '</p>',
+          pairs.map(function (p) { return escapeHtml(p.raw || p.key); }).join(', ') + '</p>',
         '<ul class="list-group list-group-flush">' + rows + '</ul>'
       ].join('');
     });

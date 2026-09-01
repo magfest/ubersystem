@@ -66,10 +66,12 @@
           {% for source, target in (template.column_map or {}).items() %}
           <div class="row g-2 align-items-end mb-2 column-row" data-source="{{ source }}">
             <div class="col-md-5">
-              <label class="form-label small mb-0">{{ source }}</label>
               <input type="hidden" name="column__{{ source }}" value="{{ target }}"
                      class="column-target-input" />
-              <div class="form-control form-control-sm bg-light">{{ source }}</div>
+              <input type="hidden" name="raw__{{ source }}" class="raw-header-input"
+                     value="{{ (template.header_map or {}).get(source, '') }}" />
+              <div class="form-control form-control-sm bg-light">{{ (template.header_map or {}).get(source) or source }}</div>
+              <div class="form-text mt-1 mb-0 matched-as">matched as <code>{{ source }}</code></div>
             </div>
             <div class="col-md-5">
               <select class="form-select form-select-sm column-target" data-source="{{ source }}">
@@ -80,7 +82,7 @@
                 {% endfor %}
               </select>
             </div>
-            <div class="col-md-2 date-format" {% if not field or field.kind != 'date' %}style="display:none;"{% endif %}>
+            <div class="col-md-2 date-format" style="display:none;">
               <input type="text" class="form-control form-control-sm"
                      name="format__{{ target }}" placeholder="%m/%d/%Y"
                      value="{{ (template.format_map or {}).get(target, '') }}" />

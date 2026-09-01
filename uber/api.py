@@ -1524,6 +1524,8 @@ class HotelLookup:
         the name, email, badge type, and both eligibility flags, which is
         enough to explain why someone is or is not on the list.
         """
+        if isinstance(full, six.string_types):
+            full = full.strip().lower() not in ('', 'f', 'false', 'n', 'no', '0')
         with Session() as session:
             query = session.query(Attendee).filter(
                 Attendee.hotel_eligible == True,  # noqa: E712
@@ -1540,7 +1542,6 @@ class HotelLookup:
                 'badge_type_label': a.badge_type_label,
                 'hotel_eligible': a.hotel_eligible,
                 'staff_lottery_eligible': a.staff_lottery_eligible,
-                'has_live_room': bool(a.active_room_assignments),
             } for a in query.all()]
 
     @api_auth('api_update')
@@ -1614,12 +1615,17 @@ class HotelLookup:
             return app.to_dict()
 
     @api_auth('api_update')
-    def update_assignment(self, id=None, **kwargs):
+    def update_assignment(self, id=None, acting_user=None, **kwargs):
         """
         Create or update a RoomAssignment. Replaces the legacy endpoint of
         the same name (which assigned to the now-deleted staff hotel Room).
         If `id` is supplied, that assignment is updated; otherwise a new
         one is created.
+
+        `acting_user` is the portal username of whoever made this change,
+        shown as `api:<name>` in the change log's Who column. Optional, so
+        an older client keeps working; without it the change carries the
+        usual API attribution.
 
         Recognised attributes: attendee_id, inventory_id, lottery_application_id,
         lottery_run_id, parent_assignment_id, partition_id, assignment_reason,
@@ -1638,6 +1644,11 @@ class HotelLookup:
         setting cancellation_confirmation_number flips status to CANCELLED via
         a presave on the model.
         """
+        acting_user = str(acting_user or '').strip()[:255]
+        if acting_user:
+            # Stashed on the request so change tracking attributes this
+            # request's writes to the named portal user.
+            cherrypy.request.api_acting_user = acting_user
         with Session() as session:
             if id:
                 assignment = session.query(RoomAssignment).filter(RoomAssignment.id == id).one_or_none()
@@ -1798,11 +1809,20 @@ class HotelLookup:
         `uploaded_by` is the authenticated portal username of the uploader; it's
         recorded for the exports page "Uploaded By" column (display/audit only).
 
+        Files in a recognized room-list format (an ImportMappingTemplate, the
+        uploading hotel's default, or the built-in layout) additionally get
+        the same review preparation as admin uploads: rows are frozen onto
+        the retained file, confirmation/cancellation numbers are auto-applied
+        for unambiguous matches, and the upload appears as pending review on
+        the exports page. A `review` key with {total, template_name, counts}
+        is added to the response when that happens.
+
         The raw file is retained for later debugging; uber-vault rejects any
         file containing a card number before calling this, so the file is
         assumed card-free and nothing resembling a card number is echoed back.
         """
         import base64
+        from uber.hotel import mapping
         from uber.hotel.exports import resolve_lottery_hotel
         from uber.hotel.imports import import_confirmation_file as apply_import_file
 
@@ -1823,9 +1843,17 @@ class HotelLookup:
             hotel = None
             if reference:
                 hotel, _inv_ids = resolve_lottery_hotel(session, reference)
+            template = mapping.detect_upload_template(session, raw, filename,
+                                                      hotel=hotel)
             result = apply_import_file(
                 session, raw, filename, hotel=hotel,
-                source='portal', uploaded_by=uploaded_by or 'Hotel Portal')
+                source='portal', uploaded_by=uploaded_by or 'Hotel Portal',
+                template=template)
+            review = None
+            record = result.get('record')
+            if record is not None:
+                review = mapping.prepare_import_review(
+                    session, record, raw, filename, template=template)
             # Commit even when parsing failed: the retained-upload record
             # (HotelImportFile) must persist either way, and the service
             # layer only flushes (the Session context manager does not
@@ -1834,6 +1862,8 @@ class HotelLookup:
 
         summary = {'updated': result['updated'], 'unchanged': result['unchanged'],
                    'changes': result['changes']}
+        if review is not None:
+            summary['review'] = review
         if result.get('error'):
             summary['error'] = result['error']
         return summary

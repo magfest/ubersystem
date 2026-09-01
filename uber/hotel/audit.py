@@ -528,12 +528,22 @@ def check_inventory_blocks(ctx):
         blocks = partition_blocks_by_inv.get(inv_id, [])
         partition_total = sum(pb.quantity for pb in blocks)
         if inv.quantity and partition_total > inv.quantity:
+            # Largest allocator first.
+            breakdown = sorted(
+                ({'id': str(pb.partition_id),
+                  'name': (pb.partition.name if pb.partition
+                           else f'id {pb.partition_id}'),
+                  'quantity': pb.quantity}
+                 for pb in blocks),
+                key=lambda p: p['quantity'], reverse=True)
             inv_issues.append(_inv_issue(
                 'error', 'partition_overallocated',
                 f"Partition blocks sum to {partition_total} rooms "
                 f"but this inventory only has {inv.quantity}.",
                 inventory=inv, fix_url=fix,
-                extra={'partition_total': partition_total}))
+                extra={'partition_total': partition_total,
+                       'inventory_quantity': inv.quantity,
+                       'partitions': breakdown}))
 
         # Night-level oversubscription: walk every night in the
         # event window covered by an assignment and tally occupancy
@@ -775,7 +785,8 @@ def check_physical_room_wrong_hotel(ctx):
                 f"Physical room {room.room_number} belongs to a block at a "
                 f"different hotel.",
                 inventory=inv,
-                fix_url=f'edit_physical_room?id={room.id}'))
+                fix_url=f'edit_physical_room?id={room.id}',
+                extra={'physical_room': room}))
     return issues
 
 
@@ -892,26 +903,46 @@ _PRIMARY_FIX = {
     'oversubscribed_partition': 'partition',
     'partition_unconfigured': 'partition',
     'partition_overallocated': 'partition',
+    'physical_room_wrong_hotel': 'physical',
 }
 
 
 def _inventory_fixes(iss):
-    """Ordered fix targets for an inventory-scoped issue."""
-    fixes = []
+    """Ordered fix targets for an inventory-scoped issue, best first per
+    _PRIMARY_FIX (defaulting to the inventory block)."""
     inv = iss.get('inventory')
     partition = iss.get('partition')
     room_type = iss.get('room_type')
     extra = iss.get('extra') or {}
+    kind = iss.get('kind') or ''
 
+    options = {}
     if inv is not None:
-        fixes.append({'label': 'Edit inventory block',
-                      'url': f'edit_inventory_item?id={inv.id}'})
+        options['inventory'] = {'label': 'Edit inventory block',
+                                'url': f'edit_inventory_item?id={inv.id}'}
     if partition is not None:
-        fixes.append({'label': 'Edit partition',
-                      'url': f'edit_partition?id={partition.id}'})
+        options['partition'] = {'label': 'Edit partition',
+                                'url': f'edit_partition?id={partition.id}'}
+    elif extra.get('partitions'):
+        # partition_overallocated carries a per-partition breakdown
+        # rather than a single partition; lead with the largest allocator.
+        options['partition'] = {
+            'label': 'Edit partition',
+            'url': f"edit_partition?id={extra['partitions'][0]['id']}"}
     if room_type is not None:
-        fixes.append({'label': 'Edit room type',
-                      'url': f'edit_room_type?id={room_type.id}'})
+        options['room_type'] = {'label': 'Edit room type',
+                                'url': f'edit_room_type?id={room_type.id}'}
+    physical_room = extra.get('physical_room')
+    if physical_room is not None:
+        options['physical'] = {'label': 'Edit physical room',
+                               'url': f'edit_physical_room?id={physical_room.id}'}
+
+    primary = _PRIMARY_FIX.get(kind, 'inventory')
+    if primary not in options:
+        primary = 'inventory'
+    order = [primary] + [k for k in ('inventory', 'partition', 'room_type',
+                                     'physical') if k != primary]
+    fixes = [options[key] for key in order if key in options]
 
     # inactive_parent covers two different broken parents, so point at
     # whichever one is actually inactive.
@@ -921,10 +952,13 @@ def _inventory_fixes(iss):
         fixes.append({'label': 'Edit room type',
                       'url': f"edit_room_type?id={extra['parent_id']}"})
 
-    if iss.get('kind') in ('catalog_count_mismatch', 'physical_room_wrong_hotel'):
-        fixes.append({'label': 'Physical rooms', 'url': 'physical_rooms'})
+    if kind in ('catalog_count_mismatch', 'physical_room_wrong_hotel'):
+        url = 'physical_rooms'
+        if inv is not None and inv.hotel_id:
+            url = f'physical_rooms?hotel_id={inv.hotel_id}'
+        fixes.append({'label': 'Physical rooms', 'url': url})
 
-    if iss.get('kind', '').startswith('insufficient_connectors'):
+    if kind.startswith('insufficient_connectors'):
         fixes.append({'label': 'Manage inventory', 'url': 'manage_inventory'})
 
     return fixes
@@ -958,8 +992,12 @@ def _issue_fixes(iss):
         return fixes
 
     fixes = _inventory_fixes(iss)
-    if not fixes and iss.get('fix_url'):
-        fixes = [{'label': 'Fix', 'url': iss['fix_url']}]
+    if not fixes:
+        app = (iss.get('extra') or {}).get('application')
+        if app is not None:
+            fixes = [{'label': 'Open application', 'url': f'form?id={app.id}'}]
+        elif iss.get('fix_url'):
+            fixes = [{'label': 'Fix', 'url': iss['fix_url']}]
     return fixes
 
 

@@ -12,6 +12,9 @@
 
 <h1>{{ partition.name }}</h1>
 {% if partition.description %}<p class="text-muted">{{ partition.description }}</p>{% endif %}
+{% if partition.bill_reference %}
+<p class="text-muted">Bill reference: <code>{{ partition.bill_reference }}</code></p>
+{% endif %}
 
 {# Stats summary across the whole partition (not just the current page) #}
 <div class="row g-2 mb-4">

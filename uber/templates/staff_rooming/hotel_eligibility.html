@@ -1,24 +1,34 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% import 'hotel_lottery_admin/_macros.html' as hotel_macros with context %}
-{% block title %}Hotel Eligibility{% if shared_enabled %}{{ "js/tuber-status.js"|serve_static_content }}{% endif %}
-
-{% endblock %}
+{% block title %}Hotel Eligibility{% endblock %}
 {% block content %}
 
 {% include 'staff_rooming/staffing_subnav.html' %}
 
 <h2>Staff Hotel Eligibility</h2>
 <p class="text-muted">
-  Toggle each Staff or Contractor badge's <code>hotel_eligible</code> flag.
-  Only eligible staffers can enter the next staff hotel lottery. Use the
-  per-row switch for one-off changes or the bulk action for batches.
+  {% if shared_enabled %}
+  Each Staff or Contractor badge carries two independent eligibility flags:
+  <code>staff_lottery_eligible</code> lets a Staff badge enter the early
+  staff hotel lottery, and <code>hotel_eligible</code> lets them sign up
+  for a shared staff room. Use the per-row switches for one-off changes or
+  the bulk actions for batches.
+  {% else %}
+  Toggle each Staff or Contractor badge's <code>staff_lottery_eligible</code>
+  flag. Only Staff badges with the flag set can enter the early staff hotel
+  lottery. Use the per-row switch for one-off changes or the bulk action
+  for batches.
+  {% endif %}
 </p>
 
 <div class="d-flex gap-2 align-items-center mb-3 flex-wrap">
-  <span class="badge bg-success">Eligible: {{ total_eligible }}</span>
-  <span class="badge bg-secondary">Ineligible: {{ total_ineligible }}</span>
-  <span class="badge bg-primary">Total staff: {{ total_eligible + total_ineligible }}</span>
-  <span class="badge bg-secondary">Staff lottery eligible: {{ total_staff_lottery }}</span>
+  <span class="badge bg-success">Staff lottery eligible: {{ total_staff_lottery }}</span>
+  <span class="badge bg-secondary">Staff lottery ineligible: {{ total_not_staff_lottery }}</span>
+  {% if shared_enabled %}
+  <span class="badge bg-success">Shared room eligible: {{ total_eligible }}</span>
+  <span class="badge bg-secondary">Shared room ineligible: {{ total_ineligible }}</span>
+  {% endif %}
+  <span class="badge bg-primary">Total staff: {{ total_staff }}</span>
 </div>
 
 <form method="get" action="hotel_eligibility" class="card card-body mb-3">
@@ -191,6 +201,7 @@
   </table>
 
 {{ "js/hotel-eligibility-bulk.js"|serve_static_content }}
+{% if shared_enabled %}{{ "js/tuber-status.js"|serve_static_content }}{% endif %}
 
 {% set _qs = 'search=' ~ search|urlencode ~ '&show=' ~ show ~ '&page_size=' ~ page_size %}
 {{ hotel_macros.pagination(page, page_count, 'hotel_eligibility?' ~ _qs,

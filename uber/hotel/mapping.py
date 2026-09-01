@@ -13,6 +13,7 @@ Transaction convention matches the rest of the package: flush, never commit.
 """
 
 import logging
+import os
 from datetime import datetime
 
 from uber.config import c
@@ -68,9 +69,15 @@ BUILTIN_ROOM_LIST = {
         'acknowledgement_number': 'assignment.hotel_confirmation_number',
         # Hotel-internal; we do not track it.
         'ext._confirmation_number': 'match.ignore',
-        'other_pay_description': 'match.ignore',
+        # Payment types are config keys, so the enum map is a source-string
+        # to config-key lookup each event fills in for its hotels.
+        'other_pay_description': 'assignment.payment_type',
     },
 }
+
+# How many parsed rows are frozen onto a HotelImportFile as JSONB. Larger
+# files re-read the retained file from disk (see full_parsed_rows).
+STORED_ROW_CAP = 500
 
 
 def signature_for(fieldnames):
@@ -117,6 +124,41 @@ def detect_template(session, fieldnames, hotel=None, template_id=None):
 
     if _signature_overlap(signature, signature_for(BUILTIN_ROOM_LIST['column_map'])) >= 0.6:
         return builtin_template()
+    return None
+
+
+def detect_upload_template(session, raw, filename, hotel=None, template_id=None):
+    """The template to read an upload with, chosen before its rows are read.
+
+    An explicit choice or the hotel's default is honored without sniffing
+    headers, so its own sheet_name and header_row govern the parse from the
+    start. Signature detection reads the active sheet first, then retries
+    every other sheet of an XLSX workbook, since the recognizable sheet is
+    not always the first one; a retry match is only accepted when the
+    template names the sheet it matched on, so the eventual parse reads the
+    same headers that were detected.
+    """
+    from uber.hotel.imports import parse_spreadsheet, workbook_sheet_names
+
+    # With no fieldnames the signature paths score zero, so this returns
+    # only an explicit choice or the hotel's default.
+    template = detect_template(session, [], hotel=hotel, template_id=template_id)
+    if template is not None:
+        return template
+
+    fieldnames, _rows, error = parse_spreadsheet(raw, filename)
+    if not error:
+        template = detect_template(session, fieldnames)
+        if template is not None:
+            return template
+
+    for sheet in workbook_sheet_names(raw, filename):
+        fieldnames, _rows, error = parse_spreadsheet(raw, filename, sheet_name=sheet)
+        if error or not fieldnames:
+            continue
+        template = detect_template(session, fieldnames)
+        if template is not None and (template.sheet_name or '') == sheet:
+            return template
     return None
 
 
@@ -382,3 +424,77 @@ def counts_for(rows):
     for row in rows:
         counts[row['status']] = counts.get(row['status'], 0) + 1
     return counts
+
+
+def prepare_import_review(session, record, raw, filename, template_id='',
+                          template=None):
+    """Freeze a template-mapped read of an upload onto its HotelImportFile.
+
+    Frozen rather than re-parsed on view because templates stay editable: an
+    admin fixing a template mid-review must not silently change what a
+    half-reviewed file is recorded as having said. The comparison against
+    live bookings is still recomputed on every view, so a synced value stops
+    showing as changed immediately. Storage is capped at STORED_ROW_CAP rows;
+    the retained file on disk covers the rest (see full_parsed_rows).
+
+    Returns a summary, or None when no template applies and the older
+    confirmation-number import already handled the file.
+    """
+    if template is None:
+        template = detect_upload_template(session, raw, filename,
+                                          hotel=record.hotel,
+                                          template_id=template_id or None)
+    if template is None:
+        _fieldnames, _rows, error = parse_with_template(raw, filename, None)
+        if error:
+            record.parse_error = error
+            record.status = 'pending'
+            session.add(record)
+        return None
+
+    rows, error = build_rows(
+        session, raw, filename, template,
+        hotel_id=record.hotel_id if record.hotel_id else None)
+    if error:
+        record.parse_error = error
+        record.status = 'pending'
+        session.add(record)
+        return None
+
+    counts = counts_for(rows)
+    record.parsed_rows = rows[:STORED_ROW_CAP]
+    record.parse_error = ''
+    record.status = 'pending'
+    record.template_id = getattr(template, 'id', None)
+    record.matched_count = counts['matched']
+    record.ambiguous_count = counts['ambiguous']
+    record.unmatched_count = counts['unmatched']
+    session.add(record)
+
+    return {'total': len(rows), 'template_name': template.name, 'counts': counts}
+
+
+def full_parsed_rows(session, record):
+    """Every parsed row of an upload, re-read from the retained file on disk
+    when the frozen JSONB was capped at STORED_ROW_CAP. Falls back to the
+    stored slice when the file is gone or no longer readable."""
+    stored = list(record.parsed_rows or [])
+    total = ((record.matched_count or 0) + (record.ambiguous_count or 0)
+             + (record.unmatched_count or 0))
+    if len(stored) >= total:
+        return stored
+    if not record.filepath or not os.path.exists(record.filepath):
+        return stored
+
+    with open(record.filepath, 'rb') as f:
+        raw = f.read()
+    template = record.template if record.template_id else None
+    if template is None:
+        template = detect_upload_template(session, raw, record.filename,
+                                          hotel=record.hotel)
+    rows, error = build_rows(
+        session, raw, record.filename, template,
+        hotel_id=record.hotel_id if record.hotel_id else None)
+    if error:
+        return stored
+    return rows

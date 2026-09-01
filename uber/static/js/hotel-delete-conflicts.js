@@ -75,8 +75,6 @@
     hard.disabled = Boolean(payload.has_blocking);
     hard.title = payload.has_blocking
       ? 'Resolve the items above first.' : '';
-
-    state.forceRequired = Boolean(payload.force_required);
   }
 
   function refresh(extra) {
@@ -96,7 +94,7 @@
     form.action = 'delete_resource';
     [['csrf_token', csrfToken()], ['kind', state.kind], ['id', state.id],
      ['mode', mode], ['return_to', state.returnTo],
-     ['force', state.forceRequired ? '1' : '']].forEach(function (pair) {
+     ['force', state.acknowledged ? '1' : '']].forEach(function (pair) {
       var input = document.createElement('input');
       input.type = 'hidden';
       input.name = pair[0];
@@ -115,6 +113,7 @@
     state.kind = form.dataset.kind;
     state.id = form.dataset.id;
     state.returnTo = form.dataset.returnTo || '';
+    state.acknowledged = false;
 
     refresh().then(function (payload) {
       if (payload.error) { return; }

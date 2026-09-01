@@ -47,7 +47,8 @@
       <td>{{ item.min_capacity }}</td>
       <td>{{ item.base_price|format_price or '-' }}{% if item.price_per_night or item.price_per_occupancy %}
         <br/><small class="text-muted">varies</small>{% endif %}</td>
-      <td>{{ item.base_staff_price|format_price or '-' }}</td>
+      <td>{{ item.base_staff_price|format_price or '-' }}{% if item.price_per_night or item.price_per_occupancy %}
+        <br/><small class="text-muted">varies</small>{% endif %}</td>
       <td>{{ item.vault_reference or '' }}</td>
       <td>{{ 'Yes' if item.active else 'No' }}</td>
       <td class="d-flex gap-1">

@@ -527,8 +527,41 @@ def _resolve_inventory_assignments(session, inv, action, item_id, target_id):
 
 
 def _resolve_partition_assignments(session, partition, action, item_id, target_id):
-    return _resolve_assignments(session, partition, action, item_id, target_id,
-                                'partition_id')
+    from uber.hotel.perms import record_partition_audit
+    from uber.models.hotel import RoomAssignment
+
+    targets = session.query(RoomAssignment).filter(
+        RoomAssignment.partition_id == partition.id, RoomAssignment.is_live)
+    if item_id:
+        targets = targets.filter(RoomAssignment.id == item_id)
+    rows = targets.all()
+
+    message = _resolve_assignments(session, partition, action, item_id,
+                                   target_id, 'partition_id')
+
+    for ra in rows:
+        if action == 'reassign':
+            record_partition_audit(
+                session, partition.id,
+                action='assignment.partition_changed',
+                description=f'Moved to another partition: {ra.room_summary}',
+                target_type='assignment', target_id=ra.id,
+                attendee_id=ra.attendee_id)
+            record_partition_audit(
+                session, target_id,
+                action='assignment.partition_changed',
+                description=f'Moved from {partition.name}: {ra.room_summary}',
+                target_type='assignment', target_id=ra.id,
+                attendee_id=ra.attendee_id)
+        elif action == 'clear':
+            record_partition_audit(
+                session, partition.id,
+                action='assignment.partition_cleared',
+                description=f'Returned to the general pool: {ra.room_summary}',
+                target_type='assignment', target_id=ra.id,
+                attendee_id=ra.attendee_id)
+    session.flush()
+    return message
 
 
 def _resolve_type_blocks(session, room_type, action, item_id, target_id):
@@ -709,6 +742,13 @@ def _cleanup_before_delete(session, kind, obj):
         _strip_run_filter(session, 'hotel_filter', obj_id)
 
     elif kind == 'partition':
+        from uber.hotel.perms import record_partition_audit
+        record_partition_audit(
+            session, obj.id,
+            action='partition.deleted',
+            description=f'Permanently deleted partition {obj.name}',
+            target_type='partition', target_id=obj.id)
+        session.flush()
         # Stamp the name before the FK goes null, so the log still says where
         # each entry happened.
         session.query(PartitionAuditLog).filter_by(partition_id=obj.id).update(
@@ -718,7 +758,9 @@ def _cleanup_before_delete(session, kind, obj):
             {'partition_id': None}, synchronize_session='fetch')
         session.query(LotteryApplication).filter_by(partition_id=obj.id).update(
             {'partition_id': None}, synchronize_session='fetch')
-        session.query(LotteryRun).filter_by(partition_filter=obj_id).update(
+        session.query(LotteryRun).filter(
+            LotteryRun.partition_filter == obj_id,
+            LotteryRun.status == c.LOTTERY_PENDING).update(
             {'partition_filter': None}, synchronize_session='fetch')
         purge_issue_notes(session, 'partition', obj_id)
 
