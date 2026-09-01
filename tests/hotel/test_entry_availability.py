@@ -185,14 +185,23 @@ def test_validator_ignores_empty_selections(session):
     _check(hotel, [str(hotel.id)], [])
 
 
-def test_ranking_widget_marks_the_price_element():
-    """The pricing script finds these to swap nightly ranges for stay totals,
-    so the class is a contract between the widget and the JS."""
+def test_ranking_widget_price_element_starts_hidden_and_empty():
+    """The pricing script fills these with stay totals, so the class is a
+    contract between the widget and the JS. No nightly rate is rendered:
+    with no calculable total the element stays hidden."""
     from uber.forms.widgets import Ranking
 
     html = ' '.join(Ranking().extra_info_list({'name': 'Deluxe', 'price': '$199'}))
     assert 'ranking-price' in html
-    assert '$199' in html
+    assert 'hidden' in html
+    assert '$199' not in html
+
+
+def test_ranking_widget_unpriced_choice_has_no_price_element():
+    from uber.forms.widgets import Ranking
+
+    html = ' '.join(Ranking().extra_info_list({'name': 'Deluxe'}))
+    assert 'ranking-price' not in html
 
 
 # ---------------------------------------------------------------------------

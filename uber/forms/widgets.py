@@ -340,13 +340,11 @@ class Ranking():
         #              description (text), description_right (right-aligned text), footnote (form-text text)
         extra_info = []
         if choice_item.get('price'):
-            price_str = f"{choice_item['price']}"
-            if show_staff_rates and choice_item.get('staff_price'):
-                price_str = price_str + f"/{choice_item['staff_price']}"
-            # ranking-price is the hook the hotel lottery's pricing script uses
-            # to swap this range for a total once dates and occupancy are known.
+            # Filled with a computed stay total by the hotel lottery's pricing
+            # script; stays hidden when no total is calculable, so a nightly
+            # rate is never shown as though it were a total.
             extra_info.append(
-                f"""<h5 class="card-subtitle mb-2 text-muted ranking-price">{price_str}</h5>""")
+                """<h5 class="card-subtitle mb-2 text-muted ranking-price" hidden></h5>""")
         if choice_item.get('description') or choice_item.get('description_right'):
             extra_info.append("""<div class="card-text">""")
             if choice_item.get('description'):

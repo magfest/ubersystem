@@ -68,9 +68,8 @@ document.addEventListener('alpine:init', function () {
                             : this.money(low) + ' - ' + this.money(high) + ' total';
       },
 
-      // Swap each ranking card's static price range for the total this
-      // entrant would actually pay. Falls back to the server-rendered range
-      // whenever there is nothing to compute from.
+      // Fill each ranking card's price element with the total this entrant
+      // would actually pay, or hide it when no total is calculable.
       updateRankingPrices: function () {
         var self = this;
         [['hotel_preference', this.blocksForHotel],
@@ -84,13 +83,11 @@ document.addEventListener('alpine:init', function () {
             Array.from(list.children).forEach(function (li) {
               var priceEl = li.querySelector('.ranking-price');
               if (!priceEl) { return; }
-              if (priceEl.dataset.baseText === undefined) {
-                priceEl.dataset.baseText = priceEl.textContent;
-              }
               var text = self.hasDates()
                 ? self.totalsRangeText(lookup.call(self, li.dataset.choice))
                 : null;
-              priceEl.textContent = text || priceEl.dataset.baseText;
+              priceEl.textContent = text || '';
+              priceEl.hidden = !text;
             });
           });
         });
