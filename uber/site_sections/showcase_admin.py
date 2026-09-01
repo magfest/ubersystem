@@ -397,10 +397,31 @@ class Root:
         if not status:
             raise HTTPRedirect('edit_game?id={}&message={}#results', id, 'You did not mark a status.')
         else:
-            game = session.indie_game(id)
+            game = session.get(IndieGame, id)
             game.status = int(status)
             game.hotel_included = bool(hotel_included)
             raise HTTPRedirect('edit_game?id={}&message={}#results', game.id, f"{game.title} has been marked as {game.status_label}.")
+        
+    @csrf_protected
+    def mark_verdicts(self, session, game_ids, status, hotel_included=False, showcase_type='all', show_all=False):
+
+        return_to = f"index?showcase_type={showcase_type}"
+        if show_all:
+            return_to += "&show_all=True"
+        if not status:
+            raise HTTPRedirect('{}&message={}', return_to, 'You did not mark a status.')
+
+        if isinstance(game_ids, str):
+            game_ids = [game_ids]
+        status = int(status)
+        hotel_included = bool(hotel_included)
+
+        for id in game_ids:
+            game = session.get(IndieGame, id)
+            game.status = status
+            game.hotel_included = hotel_included
+        raise HTTPRedirect(return_to + '&message={}',
+                           f"Selected games have been marked as {c.MIVS_GAME_STATUS[status]}{' with hotel space included' if hotel_included else ''}.")
 
     @csrf_protected
     def send_reviews(self, session, game_id, review_id=None):
