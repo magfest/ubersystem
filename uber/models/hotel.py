@@ -291,11 +291,10 @@ class LotteryApplication(MagModel, table=True):
             you_str = "Your"
 
         # Multi-room: derive room/suite phrasing and award presence from
-        # the attendee's RoomAssignment rows. A "suite" wins if any
+        # this entry's RoomAssignment rows. A "suite" wins if any
         # awarded room is a suite. "Chosen" = any non-cancelled awarded row.
-        _attendee = app_or_parent.attendee
         _existing = [
-            ra for ra in (_attendee.room_assignments if _attendee else [])
+            ra for ra in self.lottery_room_assignments
             if ra.status in (c.ASSIGNED, c.SECURED, c.CANCELLED, c.EXPIRED)
         ]
         _live = [ra for ra in _existing if ra.is_live]
@@ -365,16 +364,35 @@ class LotteryApplication(MagModel, table=True):
             session.add(self)
 
     @property
+    def lottery_room_assignments(self):
+        """RoomAssignment rows linked to this entry (its leader's, for group
+        members). Manual, partition, and other non-lottery rooms the attendee
+        holds are excluded, so award text and deadlines never key off them."""
+        from sqlalchemy.orm import object_session
+        session = object_session(self)
+        if not session:
+            return []
+        return session.query(RoomAssignment).filter(
+            RoomAssignment.lottery_application_id == self.app_or_parent.id).all()
+
+    @property
+    def other_live_room_assignments(self):
+        """Live rooms the attendee holds outside this lottery entry (manual,
+        partition grant, or another entry). Lottery result emails mention
+        these so a rejection or cancellation never reads as touching them."""
+        attendee = self.app_or_parent.attendee
+        lottery_ids = {ra.id for ra in self.lottery_room_assignments}
+        return [ra for ra in (attendee.active_room_assignments if attendee else [])
+                if ra.id not in lottery_ids]
+
+    @property
     def booking_url_ready(self):
-        # Multi-room: "ready" = at least one of the attendee's RoomAssignment
-        # rows has its booking URL populated. The URL is per-assignment:
-        # each room has its own booking link from the hotel (LotteryHotel
-        # deliberately has no hotel-wide booking link column).
-        app_or_parent = self.app_or_parent
-        attendee = app_or_parent.attendee
-        if not attendee:
-            return False
-        return any(ra.booking_url for ra in attendee.active_room_assignments)
+        # Multi-room: "ready" = at least one of this entry's RoomAssignment
+        # rows is live with its booking URL populated. The URL is
+        # per-assignment: each room has its own booking link from the hotel
+        # (LotteryHotel deliberately has no hotel-wide booking link column).
+        return any(ra.booking_url for ra in self.lottery_room_assignments
+                   if ra.is_live)
 
     @property
     def group_status_str(self):
@@ -455,24 +473,23 @@ class LotteryApplication(MagModel, table=True):
     @property
     def guarantee_deadline(self):
         # Multi-room: the earliest unsecured RoomAssignment.deposit_cutoff_date
-        # across this application's attendee - that's the date the
-        # reminder/award emails reference. Fall back to the global staff
-        # / attendee guarantee deadline when nothing per-room is set yet
-        # (e.g. pre-award, or master-bill rooms exempted from the cron).
+        # across this entry's rooms - that's the date the reminder/award
+        # emails reference. Fall back to the global staff / attendee
+        # guarantee deadline when nothing per-room is set yet (e.g.
+        # pre-award, or master-bill rooms exempted from the cron).
         #
         # Always returns a tz-aware datetime: the per-room cutoff is a bare
         # date column, but consumers (`days_before` email filters,
         # `|datetime_local`) require a datetime, so a date-based deadline
         # means end of that day, event-local.
-        if self.attendee:
-            unsecured_cutoffs = [
-                ra.deposit_cutoff_date for ra in (self.attendee.room_assignments or [])
-                if ra.status == c.ASSIGNED and ra.require_cc and ra.deposit_cutoff_date
-            ]
-            if unsecured_cutoffs:
-                cutoff = min(unsecured_cutoffs)
-                return c.EVENT_TIMEZONE.localize(
-                    datetime.combine(cutoff, time(23, 59)))
+        unsecured_cutoffs = [
+            ra.deposit_cutoff_date for ra in self.lottery_room_assignments
+            if ra.status == c.ASSIGNED and ra.require_cc and ra.deposit_cutoff_date
+        ]
+        if unsecured_cutoffs:
+            cutoff = min(unsecured_cutoffs)
+            return c.EVENT_TIMEZONE.localize(
+                datetime.combine(cutoff, time(23, 59)))
 
         if c.HOTEL_LOTTERY_STAFF_GUARANTEE_DUE and (
                 self.is_staff_entry or c.STAFF_HOTEL_LOTTERY_OPEN and self.qualifies_for_staff_lottery):

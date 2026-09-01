@@ -6,6 +6,12 @@
     {{ app.attendee.full_name }},<br/>
     <strong><span class="text-danger">{{ app.award_status_str }}</span></strong>
 </p>
+{% if app.other_live_room_assignments %}
+<p>
+    This only affects your hotel lottery entry. The room reservation{{ 's' if app.other_live_room_assignments|length > 1 }}
+    you hold outside the lottery {{ 'are' if app.other_live_room_assignments|length > 1 else 'is' }} not affected.
+</p>
+{% endif %}
 {% block reject_info %}{% endblock %}
 </body>
 </html>

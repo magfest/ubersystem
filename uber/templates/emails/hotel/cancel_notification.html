@@ -1,7 +1,7 @@
 {# Cancel notification fires once any RoomAssignment is cancelled.
-   Determine room/suite phrasing by scanning whichever rooms still
-   exist in any award state - or fall back to "room" if all gone. #}
-{% set _existing = (app.attendee.room_assignments if app.attendee else [])
+   Determine room/suite phrasing by scanning whichever of this entry's rooms
+   still exist in any award state - or fall back to "room" if all gone. #}
+{% set _existing = app.lottery_room_assignments
                    |selectattr('status', 'in', [c.ASSIGNED, c.SECURED, c.CANCELLED, c.EXPIRED])|list %}
 {% set _has_suite = _existing|selectattr('inventory.is_suite')|list|length > 0 %}
 {% set room_type = 'suite' if _has_suite else 'room' %}
@@ -19,6 +19,12 @@
         This {{ room_type }} has been returned to the lottery{% if has_or_had_parent and not app.entry_started %} and your lottery entry has been withdrawn{% endif %}.
     {% endif %}
 </p>
+{% if app.other_live_room_assignments %}
+<p>
+    This only affects your hotel lottery {{ room_type }}. The room reservation{{ 's' if app.other_live_room_assignments|length > 1 }}
+    you hold outside the lottery {{ 'are' if app.other_live_room_assignments|length > 1 else 'is' }} not affected.
+</p>
+{% endif %}
 {% if not has_or_had_parent %}
 <p>
     {% if not app.entry_started %}We appreciate you letting us know you don't need your {{ room_type }} reservation, and we will award this {{ room_type }} to another lottery entrant. T{% else %} We t{% endif %}hank you for participating in the {{ c.EVENT_NAME_AND_YEAR }} hotel lottery.

@@ -193,3 +193,75 @@ def test_ranking_widget_marks_the_price_element():
     html = ' '.join(Ranking().extra_info_list({'name': 'Deluxe', 'price': '$199'}))
     assert 'ranking-price' in html
     assert '$199' in html
+
+
+# ---------------------------------------------------------------------------
+# room_pricing block survival under plugin overrides
+# ---------------------------------------------------------------------------
+
+MAGPRIME_STYLE_OVERRIDE = """
+{% extends 'forms/hotel/room_lottery.html' %}
+{% block check_in_out_dates_form %}<div class="dates-replaced"></div>{% endblock %}
+"""
+
+PRICING_SUPPRESSED_OVERRIDE = """
+{% extends 'forms/hotel/room_lottery.html' %}
+{% block check_in_out_dates_form %}<div class="dates-replaced"></div>
+{% block room_pricing %}{% endblock %}{% endblock %}
+"""
+
+
+def _entry_form_html(session, template_source=None):
+    import uber.forms.hotel_lottery  # noqa: F401 - registers the form class
+    from uber.config import c
+    from uber.forms import load_forms
+    from uber.jinja import JinjaEnv
+
+    from tests.hotel.factories import make_application, make_attendee
+
+    hotel = make_hotel(session)
+    inv = make_inventory(session, hotel, room_type=make_room_type(session))
+    inv.base_price = Decimal('199.00')
+    session.flush()
+
+    attendee = make_attendee(session)
+    app = make_application(session, attendee)
+    forms = load_forms({}, app, ['RoomLottery'])
+    context = {
+        'c': c,
+        'forms': forms,
+        'application': app,
+        'read_only': False,
+        'pricing_config': entry_pricing_config(session),
+        'availability_config': {
+            'room': active_inventory_type_map(session, is_suite=False),
+            'suite': active_inventory_type_map(session, is_suite=True),
+            'type_names': {},
+        },
+    }
+    env = JinjaEnv.env()
+    if template_source:
+        template = env.from_string(template_source)
+    else:
+        template = env.get_template('forms/hotel/room_lottery.html')
+    return template.render(context)
+
+
+def test_pricing_renders_before_the_save_button(session, no_cherrypy_session):
+    html = _entry_form_html(session)
+    assert html.count('hotelPricingConfig') == 1
+    assert html.index('hotelPricingConfig') < html.index('step-1-submit')
+
+
+def test_pricing_survives_a_dates_form_override(session, no_cherrypy_session):
+    """A plugin replacing check_in_out_dates_form without touching
+    room_pricing must not lose the pricing section."""
+    html = _entry_form_html(session, MAGPRIME_STYLE_OVERRIDE)
+    assert 'dates-replaced' in html
+    assert html.count('hotelPricingConfig') == 1
+
+
+def test_pricing_can_still_be_suppressed_explicitly(session, no_cherrypy_session):
+    html = _entry_form_html(session, PRICING_SUPPRESSED_OVERRIDE)
+    assert 'dates-replaced' in html
+    assert 'hotelPricingConfig' not in html
