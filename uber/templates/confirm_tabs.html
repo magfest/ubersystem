@@ -92,6 +92,7 @@
 {# Hotel Rooms tab: the rooms the attendee has been assigned, decoupled
    from the lottery. Always visible so even attendees with no rooms
    yet can reach the page to redeem an invite code from a friend. #}
+{% if c.HOTEL_LOTTERY_FORM_START %}
 <li class="nav-item" role="presentation">
   <a href="../hotel_lottery/rooms?attendee_id={{ attendee.id }}" class="nav-link{% if _on_rooms %} active{% endif %}">
     <span class="fa fa-bed"></span> Hotel Rooms
@@ -101,6 +102,7 @@
     {% endif %}
   </a>
 </li>
+{% endif %}
 {% if not c.ATTENDEE_ACCOUNTS_ENABLED %}
   <li class="nav-item ms-auto"></li>
     {% if c.ART_SHOW_ENABLED and c.ART_SHOW_OPEN and not attendee.art_show_application %}
