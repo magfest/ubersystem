@@ -49,6 +49,13 @@
 {% if not _rooms and not _guest_rooms %}
 <div class="alert alert-secondary mb-3">
   You don't have any room assignments yet.
+  {% if c.HOTEL_LOTTERY_OPEN or (c.STAFF_HOTEL_LOTTERY_OPEN and attendee.staff_hotel_lottery_eligible) %}
+    {% set _page, _text = attendee.lottery_application.homepage_link
+       if attendee.lottery_application
+       else ('start?attendee_id=' ~ attendee.id, 'Enter Hotel Lottery') %}
+    The hotel lottery is currently open:
+    <a href="{{ _page }}" class="alert-link">{{ _text }}</a>
+  {% endif %}
 </div>
 {% endif %}
 
