@@ -439,50 +439,6 @@ def _waitlist_block_rows(session, filtered):
     return block_rows
 
 
-def _notify_applicants_of_inventory_change(session, inventory):
-    """When an inventory row is deactivated, email applicants whose
-    preferences referenced it. Matches by UUID inside the comma-separated
-    preference strings on LotteryApplication.
-    """
-    if not inventory:
-        return
-    hotel_id = str(inventory.hotel_id) if inventory.hotel_id else None
-    type_id = (str(inventory.suite_type_id) if inventory.is_suite
-               else str(inventory.room_type_id))
-
-    # Pre-filter in SQL with LIKE over the CSV preference columns so we
-    # don't load every COMPLETE/PROCESSED application. The ids are UUIDs,
-    # so a substring collision is effectively impossible; the exact
-    # set-membership checks below still confirm on the loaded rows.
-    candidates_q = session.query(LotteryApplication).filter(
-        LotteryApplication.status.in_([c.COMPLETE, c.PROCESSED]),
-    )
-    if hotel_id:
-        candidates_q = candidates_q.filter(
-            LotteryApplication.hotel_preference.like(f'%{hotel_id}%'))
-    if type_id:
-        type_col = (LotteryApplication.suite_type_preference if inventory.is_suite
-                    else LotteryApplication.room_type_preference)
-        candidates_q = candidates_q.filter(type_col.like(f'%{type_id}%'))
-
-    for app in candidates_q:
-        hotels = {x.strip() for x in (app.hotel_preference or '').split(',') if x.strip()}
-        rooms = {x.strip() for x in (app.room_type_preference or '').split(',') if x.strip()}
-        suites = {x.strip() for x in (app.suite_type_preference or '').split(',') if x.strip()}
-        if hotel_id and hotel_id not in hotels:
-            continue
-        if type_id and type_id not in (suites if inventory.is_suite else rooms):
-            continue
-        if not app.attendee:
-            continue
-        EmailService.queue_email(
-            session, 'hotel_lottery_inventory_changed_applicant', app,
-            subject=f"{c.EVENT_NAME_AND_YEAR}: One of your lottery preferences is no longer available",
-            data={
-            'attendee': app.attendee, 'application': app, 'inventory': inventory,
-        })
-
-
 def _notify_partition_owners_of_inventory_change(session, partition, change_description):
     """Notify partition owners with can_view_inventory of edits to
     blocks in their partition."""
@@ -1060,7 +1016,6 @@ class Root:
                                    '' if item.is_new else item.id,
                                    'Quantity, capacity, and min capacity must be numbers.')
 
-            was_active = not item.is_new and item.active
             for form in forms.values():
                 form.populate_obj(item, is_admin=True)
             # A block is either a room block or a suite block - blank out
@@ -1070,7 +1025,6 @@ class Root:
             else:
                 item.suite_type_id = None
             item.vault_reference = item.vault_reference or None
-            became_inactive = was_active and not item.active
             session.add(item)
             session.flush()
 
@@ -1096,12 +1050,6 @@ class Root:
                                    '' if item.is_new else item.id, price_error)
 
             session.commit()
-
-            # Notify applicants whose preferences referenced this block if it
-            # was just deactivated. Async + best-effort - failures don't roll
-            # back the inventory change.
-            if became_inactive:
-                _notify_applicants_of_inventory_change(session, item)
 
             # Auto-process waitlist for this inventory block. The engine
             # only flushes; commit here, then queue the notification

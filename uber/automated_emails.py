@@ -1059,7 +1059,8 @@ if c.HOTEL_LOTTERY_FORM_START:
         Attendee,
         f'Did you want to enter the {c.EVENT_NAME} {c.EVENT_YEAR} hotel lottery?',
         'hotel/enter_lottery.html',
-        "lambda a: a.hotel_lottery_eligible and not a.lottery_application and days_after(1, a.registered)()",
+        "lambda a: a.hotel_lottery_eligible and not a.lottery_application "
+        "and not a.active_room_assignments and days_after(1, a.registered)()",
         'enter_hotel_lottery',
         when=[days_before(7, earliest_hotel_deadline)],
         sender=c.HOTEL_LOTTERY_EMAIL,)
@@ -1187,11 +1188,6 @@ HotelLotteryEmailFixture(
     f'{c.EVENT_NAME_AND_YEAR} Hotel Reservation Updated',
     'hotel/confirmation_updated.html', None,
     'hotel_lottery_confirmation_updated'
-)
-HotelLotteryEmailFixture(
-    f'A {c.EVENT_NAME_AND_YEAR} hotel preference is no longer available',
-    'hotel/inventory_changed_applicant.html', None,
-    'hotel_lottery_inventory_changed_applicant'
 )
 HotelLotteryEmailFixture(
     f'{c.EVENT_NAME_AND_YEAR} hotel inventory changed',

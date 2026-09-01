@@ -150,6 +150,10 @@ Due to the extra scaffolding involved on this form, each block also has a _desc 
 {% endif %}
 {% endblock %}
 
+{# Tracks whether the room_pricing block rendered at its normal spot, so a
+   plugin override of check_in_out_dates_form cannot silently drop it. #}
+{% set pricing_slot = namespace(rendered=false) %}
+
 <div x-data="{ {% block x_data %}
 wants_ada: {{ room_or_suite_lottery.wants_ada.data|tojson }},
 {% endblock %} }">
@@ -198,6 +202,7 @@ wants_ada: {{ room_or_suite_lottery.wants_ada.data|tojson }},
             </div>
             {% endif %}
 
+            {% set pricing_slot.rendered = true %}
             {% block room_pricing %}
             {% if not read_only and pricing_config and pricing_config.hotels %}
             <script type="text/javascript">
@@ -283,6 +288,7 @@ wants_ada: {{ room_or_suite_lottery.wants_ada.data|tojson }},
 
             {{ step_macros.step_footer(steps.counter) }}
             {% endblock %}
+            {% if not pricing_slot.rendered %}{{ self.room_pricing() }}{% endif %}
         </div>
     </div>
 </div>

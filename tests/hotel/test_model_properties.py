@@ -213,3 +213,55 @@ def test_guarantee_deadline_global_fallback(session):
     deadline = app.guarantee_deadline
     assert deadline == c.HOTEL_LOTTERY_GUARANTEE_DUE
     assert deadline.tzinfo is not None
+
+
+# ---------------------------------------------------------------------------
+# lottery_room_assignments scoping: rooms from other sources must not leak
+# into award text, booking readiness, or deadlines.
+# ---------------------------------------------------------------------------
+
+def test_rejected_entry_ignores_unrelated_live_room(session):
+    inv = _inv(session)
+    attendee = make_attendee(session)
+    app = make_application(session, attendee, status=c.REJECTED)
+    make_assignment(session, attendee, inv, status=c.ASSIGNED,
+                    assignment_reason=c.MANUAL, booking_url='https://example.com/book',
+                    check_in=N[1], check_out=N[3])
+
+    assert 'not chosen' in app.award_status_str
+    assert not app.booking_url_ready
+    assert app.lottery_room_assignments == []
+
+
+def test_awarded_entry_reads_its_own_rooms(session):
+    inv = _inv(session)
+    attendee = make_attendee(session)
+    app = make_application(session, attendee, status=c.AWARDED)
+    ra = make_assignment(session, attendee, inv, status=c.ASSIGNED,
+                         assignment_reason=c.LOTTERY_AWARD,
+                         booking_url='https://example.com/book',
+                         check_in=N[1], check_out=N[3],
+                         lottery_application_id=app.id)
+
+    assert 'was chosen' in app.award_status_str
+    assert app.booking_url_ready
+    assert app.lottery_room_assignments == [ra]
+
+
+def test_guarantee_deadline_ignores_unrelated_room_cutoff(session):
+    inv = _inv(session)
+    attendee = make_attendee(session)
+    app = make_application(session, attendee, status=c.AWARDED)
+    make_assignment(session, attendee, inv, status=c.ASSIGNED,
+                    payment_type='credit_card',
+                    deposit_cutoff_date=date(2026, 9, 1),
+                    check_in=N[1], check_out=N[3])
+    make_assignment(session, attendee, inv, status=c.ASSIGNED,
+                    payment_type='credit_card',
+                    deposit_cutoff_date=date(2026, 10, 1),
+                    check_in=N[1], check_out=N[3],
+                    lottery_application_id=app.id)
+
+    expected = c.EVENT_TIMEZONE.localize(
+        datetime.combine(date(2026, 10, 1), time(23, 59)))
+    assert app.guarantee_deadline == expected
