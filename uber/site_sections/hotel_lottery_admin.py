@@ -588,7 +588,9 @@ def _index_stats(session):
 @all_renderable()
 class Root:
     def index(self, session, message='', page='0', search_text='', order='status', **params):
-        if c.DEV_BOX and not int(page):
+        # Default to the first page: with page 0 nothing lists, and on a
+        # single page of results the pagination nav renders no links at all.
+        if not int(page):
             page = 1
 
         stats = _index_stats(session)
