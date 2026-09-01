@@ -205,7 +205,10 @@ def _room_type_conflicts(session, room_type):
             'preferences', 'Entries ranking this type', 'advisory',
             note='The type is removed from their rankings, keeping the order '
                  'of the rest.',
-            item_total=len(referencing)))
+            items=[_item(app.id, app.attendee.full_name if app.attendee
+                         else 'Unknown entrant',
+                         link=f'form?id={app.id}')
+                   for app in referencing]))
         if emptied:
             groups.append(_group(
                 'emptied_preferences', 'Entries left with no ranked types',
@@ -283,7 +286,10 @@ def _hotel_conflicts(session, hotel):
         groups.append(_group(
             'preferences', 'Entries ranking this hotel', 'advisory',
             note='The hotel is removed from their rankings.',
-            item_total=len(referencing)))
+            items=[_item(app.id, app.attendee.full_name if app.attendee
+                         else 'Unknown entrant',
+                         link=f'form?id={app.id}')
+                   for app in referencing]))
         if emptied:
             groups.append(_group(
                 'emptied_preferences', 'Entries left with no ranked hotels',

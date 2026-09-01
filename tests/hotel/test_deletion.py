@@ -169,6 +169,20 @@ def test_entries_left_with_nothing_are_named(session, no_cherrypy_session):
     assert groups['emptied_preferences']['item_total'] == 1
 
 
+def test_entries_ranking_the_resource_are_named(session, no_cherrypy_session):
+    doomed = make_room_type(session)
+    attendee = make_attendee(session)
+    app = make_application(session, attendee)
+    app.room_type_preference = str(doomed.id)
+    session.flush()
+
+    groups = _groups(session, 'room_type', doomed)
+    prefs = groups['preferences']
+    assert prefs['item_total'] == 1
+    assert prefs['items'][0]['label'] == attendee.full_name
+    assert prefs['items'][0]['link'] == f'form?id={app.id}'
+
+
 # ---------------------------------------------------------------------------
 # hotels
 # ---------------------------------------------------------------------------
