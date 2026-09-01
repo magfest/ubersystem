@@ -372,14 +372,13 @@ def _viewer_attendee(session):
 
 
 def _attendee_account_owns(session, attendee_id):
-    """True iff the currently-logged-in attendee account claims the
+    """True if the currently-logged-in attendee account claims the
     given attendee_id among its attendees. Used as the non-admin
     branch of the view-as-attendee access gate."""
     if not attendee_id:
         return False
     from uber.models import AttendeeAccount
-    aa_id = (cherrypy.session.get('attendee_account_id')
-             if cherrypy.session else None)
+    aa_id = cherrypy.session.get('attendee_account_id', getattr(cherrypy.request, 'attendee_account', None))
     if not aa_id:
         return False
     aa = session.query(AttendeeAccount).get(aa_id)
