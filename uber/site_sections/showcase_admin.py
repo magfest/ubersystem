@@ -1,4 +1,5 @@
 import cherrypy
+import logging
 from sqlalchemy import func, and_, or_
 from sqlalchemy.orm import joinedload
 
@@ -10,6 +11,9 @@ from uber.files import FileService
 from uber.forms import load_forms
 from uber.models import AdminAccount, Attendee, Email, IndieJudge, IndieGameReview, IndieStudio, IndieGame, PageViewTracking, Tracking
 from uber.utils import check, get_api_service_from_server, normalize_email_legacy, validate_model, listify
+
+
+log = logging.getLogger(__name__)
 
 
 def _process_showcase_type(showcase_type, message=''):
@@ -389,12 +393,13 @@ class Root:
         raise HTTPRedirect(return_to, f'{what_removed} successfully removed.')
 
     @csrf_protected
-    def mark_verdict(self, session, id, status):
+    def mark_verdict(self, session, id, status, hotel_included=False):
         if not status:
             raise HTTPRedirect('edit_game?id={}&message={}#results', id, 'You did not mark a status.')
         else:
             game = session.indie_game(id)
             game.status = int(status)
+            game.hotel_included = bool(hotel_included)
             raise HTTPRedirect('edit_game?id={}&message={}#results', game.id, f"{game.title} has been marked as {game.status_label}.")
 
     @csrf_protected

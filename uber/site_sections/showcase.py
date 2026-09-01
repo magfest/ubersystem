@@ -307,6 +307,10 @@ class Root:
                 group.cost = group.calc_default_cost()
                 group.guest = GuestGroup()
                 group.guest.group_type = c.MIVS
+                group.guest.hotel_included = False
+                for game in studio.games:
+                    if game.status == c.ACCEPTED and game.hotel_included:
+                        group.guest.hotel_included = True
                 raise HTTPRedirect('index?id={}&message={}', studio.id, 'Your studio has been registered!')
 
         return {

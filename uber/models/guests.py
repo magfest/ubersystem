@@ -42,6 +42,7 @@ class GuestGroup(MagModel, table=True):
     estimated_performance_minutes: int = Field(default=c.DEFAULT_PERFORMANCE_MINUTES, admin_only=True)
     wants_mc: bool | None = Field(nullable=True)
     needs_rehearsal: int | None = Field(sa_column=Column(Choice(c.GUEST_REHEARSAL_OPTS), nullable=True))
+    hotel_included: bool = True
     badges_assigned: bool = False
 
     info: 'GuestInfo' = Relationship(
@@ -158,6 +159,10 @@ class GuestGroup(MagModel, table=True):
         if self.group.unregistered_badges:
             return str(self.group.unregistered_badges) + " Unclaimed"
         return "Yes"
+    
+    @property
+    def hospitality_status(self):
+        return "No Hotel Space" if not self.hotel_included else self.status('hospitality')
 
     @property
     def taxes_status(self):

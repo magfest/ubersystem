@@ -204,10 +204,8 @@ class Root:
                 if group.guest_group_type:
                     group.guest = group.guest or GuestGroup()
                     group.guest.group_type = group.guest_group_type
-                    if params.get('payment', None):
-                        group.guest.payment = 1
-                    else:
-                        group.guest.payment = 0
+                    group.guest.payment = 1 if params.get('payment', None) else 0
+                    group.guest.hotel_included = True if params.get('hotel_included', None) else False
                 elif group.guest:
                     session.delete(group.guest)
 
