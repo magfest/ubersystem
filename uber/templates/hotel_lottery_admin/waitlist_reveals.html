@@ -1,4 +1,5 @@
 {% extends "base.html" %}{% set admin_area=True %}
+{% import 'hotel_lottery_admin/_macros.html' as hotel_macros with context %}
 {% block title %}Waitlist Reveals{% endblock %}
 {% block content %}
 
@@ -23,6 +24,7 @@
       <th>Name</th>
       <th>Reveal At</th>
       <th>External URL</th>
+      <th>Links</th>
       <th>Active</th>
       <th>Emailed / Clicked</th>
       <th></th>
@@ -38,14 +40,24 @@
         <a href="{{ r.external_url }}" target="_blank" class="text-truncate d-inline-block" style="max-width: 30em;">{{ r.external_url }}</a>
         {% endif %}
       </td>
+      <td class="small">
+        {{ 'Unique per attendee' if r.use_unique_links else 'One shared link' }}
+        {% if r.require_login %}<br/><span class="badge bg-secondary">Sign-in required</span>{% endif %}
+      </td>
       <td>{{ "Yes" if r.active else "No" }}</td>
       <td>
         {% set emailed = r.links|selectattr("emailed_at")|list|length %}
         {% set clicked = r.links|selectattr("clicked_at")|list|length %}
-        {{ emailed }} sent / {{ clicked }} clicked
+        {{ emailed }} sent /
+        {% if r.use_unique_links %}
+          {{ r.links|selectattr("clicked_at")|list|length }} clicked
+        {% else %}
+          {{ r.shared_clicks or 0 }} views
+        {% endif %}
       </td>
       <td>
         <a href="edit_waitlist_reveal?id={{ r.id }}" class="btn btn-sm btn-outline-primary">Edit</a>
+        {{ hotel_macros.delete_button('waitlist_reveal', r, 'waitlist_reveals') }}
         {% if r.active and r.external_url %}
         <form method="post" action="send_waitlist_reveal_emails" class="d-inline"
               data-confirm-message="Email all eligible attendees who have not received a link for this reveal yet?"
@@ -55,6 +67,17 @@
           <button type="submit" class="btn btn-sm btn-outline-success">Send Emails</button>
         </form>
         {% endif %}
+        <button type="button" class="btn btn-sm btn-outline-secondary hl-reveal-recipients"
+                data-id="{{ r.id }}">Preview recipients</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary hl-reveal-email"
+                data-id="{{ r.id }}">Preview email</button>
+        <form method="post" action="generate_waitlist_reveal_links" class="d-inline"
+              data-confirm-message="Create links for everyone eligible without emailing anyone?"
+              data-confirm-class="btn-primary">
+          {{ csrf_token() }}
+          <input type="hidden" name="id" value="{{ r.id }}" />
+          <button type="submit" class="btn btn-sm btn-outline-secondary">Generate links only</button>
+        </form>
       </td>
     </tr>
     {% endfor %}
@@ -62,6 +85,10 @@
 </table>
 {% endif %}
 
+{% include 'hotel_lottery_admin/_waitlist_reveal_preview.html' %}
+
 {{ "js/hotel-confirm-submit.js"|serve_static_content }}
+{{ "js/hotel-delete-conflicts.js"|serve_static_content }}
+{{ "js/hotel-waitlist-reveal.js"|serve_static_content }}
 
 {% endblock %}

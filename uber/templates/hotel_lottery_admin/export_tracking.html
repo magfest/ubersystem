@@ -100,7 +100,10 @@
   </tbody>
 </table>
 
-<h4 class="mt-4 mb-2">Uploaded confirmation files</h4>
+<h4 class="mt-4 mb-2">
+  Uploaded confirmation files
+  <a href="import_templates" class="btn btn-sm btn-outline-secondary ms-2">Upload formats</a>
+</h4>
 <p class="text-muted small">
   Raw files uploaded by hotels (through the hotel portal) or by admins are kept
   here so formatting issues can be reviewed and re-applied after the fact.
@@ -124,11 +127,68 @@
            accept=".csv,.xlsx,.xlsm" required />
   </div>
   <div class="col-auto">
+    <label class="form-label small mb-0" for="import-template">Format</label>
+    <select class="form-select form-select-sm" name="template_id" id="import-template">
+      <option value="">Detect automatically</option>
+      {% for tpl in import_templates %}
+      <option value="{{ tpl.id }}">{{ tpl.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
     <button type="submit" class="btn btn-success btn-sm">
       <i class="fa fa-upload"></i> Upload
     </button>
   </div>
 </form>
+
+{# Anything uploaded but not yet reviewed. Sits directly under the upload
+   form so the page reads top to bottom: upload, see it appear here, review,
+   mark processed, then find it in the timeline below. #}
+<h5 class="mt-4 mb-2">
+  Waiting for review
+  {% if pending_uploads %}<span class="badge bg-warning text-dark">{{ pending_uploads|length }}</span>{% endif %}
+</h5>
+{% if not pending_uploads %}
+<p class="text-muted small">Nothing is waiting for review.</p>
+{% else %}
+<table class="table table-sm align-middle">
+  <thead>
+    <tr>
+      <th>File</th><th>Hotel</th><th>Uploaded</th><th>By</th><th>Rows</th><th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for upload in pending_uploads %}
+    <tr>
+      <td>{{ upload.filename or '(unnamed)' }}</td>
+      <td>{{ upload.hotel.name if upload.hotel else '-' }}</td>
+      <td class="small">{{ upload.uploaded_at|datetime_local("%Y-%m-%d %H:%M %Z") if upload.uploaded_at else '-' }}</td>
+      <td class="small">{{ upload.uploaded_by or '-' }}</td>
+      <td class="small">
+        {% if upload.parse_error %}
+          <span class="text-danger">could not be read</span>
+        {% else %}
+          <span class="badge bg-success">{{ upload.matched_count }}</span>
+          <span class="badge bg-warning text-dark">{{ upload.ambiguous_count }}</span>
+          <span class="badge bg-secondary">{{ upload.unmatched_count }}</span>
+        {% endif %}
+      </td>
+      <td class="d-flex gap-1">
+        <a href="review_import?id={{ upload.id }}" class="btn btn-sm btn-primary">Review changes</a>
+        <a href="download_import_file?id={{ upload.id }}" class="btn btn-sm btn-outline-secondary">Download</a>
+        <form method="post" action="mark_import_processed" class="d-inline">
+          {{ csrf_token() }}
+          <input type="hidden" name="id" value="{{ upload.id }}" />
+          <input type="hidden" name="status" value="ignored" />
+          <button type="submit" class="btn btn-sm btn-outline-secondary">Ignore</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
 
 {# One chronological list per hotel: what we sent, what came back, and
    how many rooms changed in between. #}

@@ -1,0 +1,151 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% import 'hotel_lottery_admin/_macros.html' as hotel_macros with context %}
+{% block title %}{{ 'Add' if template.is_new else 'Edit' }} Upload Format{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/nav.html' %}
+
+<h2>{{ 'Add' if template.is_new else 'Edit' }} upload format</h2>
+
+<div class="mb-3">
+  <a href="import_templates" class="btn btn-outline-secondary">Back to formats</a>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    <form method="post" action="edit_import_template" id="template-form" class="card card-body">
+      {{ csrf_token() }}
+      {% if not template.is_new %}
+      <input type="hidden" name="id" value="{{ template.id }}" />
+      {% endif %}
+
+      <div class="row g-2 mb-3">
+        <div class="col-md-6">
+          <label class="form-label" for="name">Name</label>
+          <input type="text" class="form-control" name="name" id="name"
+                 value="{{ template.name or '' }}" required />
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="sheet_name">Worksheet name</label>
+          <input type="text" class="form-control" name="sheet_name" id="sheet_name"
+                 value="{{ template.sheet_name or '' }}" placeholder="first sheet" />
+          <div class="form-text">Leave blank to read the first sheet.</div>
+        </div>
+      </div>
+
+      <div class="row g-2 mb-3">
+        <div class="col-md-8">
+          <label class="form-label" for="description">Description</label>
+          <input type="text" class="form-control" name="description" id="description"
+                 value="{{ template.description or '' }}" />
+        </div>
+        <div class="col-md-2">
+          <label class="form-label" for="header_row">Header row</label>
+          <input type="number" min="1" class="form-control" name="header_row" id="header_row"
+                 value="{{ template.header_row or 1 }}" />
+        </div>
+        <div class="col-md-2">
+          <label class="form-label" for="active">Active</label>
+          <select class="form-select" name="active" id="active">
+            <option value="true" {% if template.active %}selected{% endif %}>Yes</option>
+            <option value="false" {% if not template.active %}selected{% endif %}>No</option>
+          </select>
+        </div>
+      </div>
+
+      <hr/>
+      <h5>Columns</h5>
+      <p class="form-text">
+        Upload a sample file on the right to load its column names. Column names
+        are matched after being lowercased with spaces turned into underscores,
+        so the raw heading and the key we match on are both shown.
+      </p>
+
+      <div id="column-map">
+        {% if template.column_map %}
+          {% for source, target in (template.column_map or {}).items() %}
+          <div class="row g-2 align-items-end mb-2 column-row" data-source="{{ source }}">
+            <div class="col-md-5">
+              <input type="hidden" name="column__{{ source }}" value="{{ target }}"
+                     class="column-target-input" />
+              <input type="hidden" name="raw__{{ source }}" class="raw-header-input"
+                     value="{{ (template.header_map or {}).get(source, '') }}" />
+              <div class="form-control form-control-sm bg-light">{{ (template.header_map or {}).get(source) or source }}</div>
+              <div class="form-text mt-1 mb-0 matched-as">matched as <code>{{ source }}</code></div>
+            </div>
+            <div class="col-md-5">
+              <select class="form-select form-select-sm column-target" data-source="{{ source }}">
+                {% for field in target_fields %}
+                <option value="{{ field.key }}" {% if field.key == target %}selected{% endif %}>
+                  {{ field.label }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-2 date-format" style="display:none;">
+              <input type="text" class="form-control form-control-sm"
+                     name="format__{{ target }}" placeholder="%m/%d/%Y"
+                     value="{{ (template.format_map or {}).get(target, '') }}" />
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <p class="text-muted mb-0" id="no-columns">No columns loaded yet.</p>
+        {% endif %}
+      </div>
+
+      <hr/>
+      <h5>Value names</h5>
+      <p class="form-text">
+        When a column maps to one of our lists, say how this hotel spells each
+        value. Anything not listed is passed through as-is.
+      </p>
+      <div id="enum-map">
+        {% for target, values in (template.enum_map or {}).items() %}
+          {% for source_value, our_value in values.items() %}
+          <div class="row g-2 align-items-end mb-1">
+            <div class="col-md-5">
+              <input type="text" class="form-control form-control-sm bg-light"
+                     value="{{ source_value }}" readonly />
+            </div>
+            <div class="col-md-5">
+              <input type="text" class="form-control form-control-sm"
+                     name="enum__{{ target }}__{{ source_value }}" value="{{ our_value }}" />
+            </div>
+          </div>
+          {% endfor %}
+        {% endfor %}
+        <p class="form-text mb-0">
+          Payment types available: {% for key, label in payment_types %}<code>{{ key }}</code>{% if not loop.last %}, {% endif %}{% endfor %}
+        </p>
+      </div>
+
+      <div class="mt-3">
+        <button type="submit" class="btn btn-primary">Save format</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card card-body">
+      <h5>Try it on a file</h5>
+      <p class="form-text">
+        Nothing is saved or changed by previewing. Use a real file from this
+        hotel to check the mapping before saving.
+      </p>
+      <div class="mb-2">
+        <input type="file" class="form-control form-control-sm" id="sample-file"
+               accept=".csv,.xlsx,.xlsm" />
+      </div>
+      <button type="button" class="btn btn-sm btn-outline-primary" id="run-preview">
+        Preview
+      </button>
+      <div id="preview-output" class="mt-3"></div>
+    </div>
+  </div>
+</div>
+
+<script type="application/json" id="target-fields-data">{{ target_fields|tojson }}</script>
+{{ "js/hotel-import-template-editor.js"|serve_static_content }}
+
+{% endblock content %}

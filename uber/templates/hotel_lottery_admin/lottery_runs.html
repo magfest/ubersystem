@@ -30,6 +30,7 @@
       <select class="form-select" id="lottery_type" name="lottery_type">
         <option selected value="room">Room</option>
         <option value="suite">Suite</option>
+        <option value="both">Both</option>
       </select>
     </div>
     <div class="col-md-3">
@@ -118,7 +119,9 @@ $(function() {
     Object.assign({}, tagifySettings, { whitelist: inventoryWhitelist })
   );
 
-  // Swap room type whitelist when switching between room/suite
+  // Swap the room type whitelist when switching between room/suite/both.
+  // filter_inventory_table matches ids against whichever list is chosen, so a
+  // combined run just offers both.
   var lotteryTypeSelect = document.getElementById('lottery_type');
   var roomTypeLabel = document.getElementById('room_type_filter_label');
   lotteryTypeSelect.addEventListener('change', function() {
@@ -127,6 +130,10 @@ $(function() {
       roomTypeTagify.whitelist = suiteTypeWhitelist;
       roomTypeLabel.textContent = 'Suite Type';
       roomTypeTagify.DOM.input.setAttribute('data-placeholder', 'Click to select suite types...');
+    } else if (this.value === 'both') {
+      roomTypeTagify.whitelist = roomTypeWhitelist.concat(suiteTypeWhitelist);
+      roomTypeLabel.textContent = 'Room/Suite Type';
+      roomTypeTagify.DOM.input.setAttribute('data-placeholder', 'Click to select room or suite types...');
     } else {
       roomTypeTagify.whitelist = roomTypeWhitelist;
       roomTypeLabel.textContent = 'Room Type';
@@ -157,7 +164,7 @@ $(function() {
       <td>{{ hotel_macros.lottery_run_status_chip(run) }}</td>
       <td>{{ run.run_at|datetime_local }}</td>
       <td>{{ run.lottery_group }}</td>
-      <td>{{ run.lottery_type }}</td>
+      <td>{{ hotel_macros.lottery_run_type_label(run.lottery_type) }}</td>
       <td>{{ run.entries_considered }}</td>
       <td>{{ run.rooms_assigned }}</td>
       <td>

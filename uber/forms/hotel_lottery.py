@@ -301,8 +301,21 @@ class EventTimeStringField(StringField):
             self.data = self._display(valuelist[0])
 
 
+def _import_template_choices():
+    from uber.models import Session
+    from uber.models.hotel import ImportMappingTemplate
+    with Session() as session:
+        templates = session.query(ImportMappingTemplate).filter_by(
+            active=True).order_by(ImportMappingTemplate.name).all()
+        return [('', 'Detect automatically')] + [
+            (str(t.id), t.name or '(unnamed)') for t in templates]
+
+
 class LotteryHotelConfig(MagForm):
     admin_desc = True
+    dynamic_choices_fields = {
+        'default_import_template_id': _import_template_choices,
+    }
 
     name = StringField('Hotel Name', render_kw={'required': True})
     export_name = StringField(
@@ -311,6 +324,10 @@ class LotteryHotelConfig(MagForm):
     description = TextAreaField('Description (Left)')
     description_right = TextAreaField('Description (Right)')
     footnote = StringField('Footnote')
+    default_import_template_id = SelectField(
+        'Room List Format', coerce=str, choices=[],
+        description='Used when reading this hotel\'s uploaded room lists. '
+                    'Leave on automatic to match by column names.')
     active = SelectBooleanField('Active', widget=Select())
 
 
@@ -374,8 +391,14 @@ class HotelInventoryConfig(MagForm):
         description='Link to an informational page about this room type (photos, amenities, etc). '
                     'Shown to attendees on their room assignment.',
         render_kw={'placeholder': 'https://example.com/room-details'})
-    price = StringField('Price', render_kw={'placeholder': 'e.g., $199/night'})
-    staff_price = StringField('Staff Price', render_kw={'placeholder': 'e.g., $149/night'})
+    # Prices are not WTForms fields: coerce_column_data's Numeric branch does
+    # int(float(value)) and would drop the cents. The handler parses the whole
+    # pricing grid from raw params instead; see _save_inventory_prices.
+    pricing_notes = TextAreaField(
+        'Pricing Notes',
+        description='Shown to attendees beside this block\'s prices, e.g. what taxes '
+                    'and fees are excluded.',
+        render_kw={'rows': 2})
     vault_reference = StringField(
         'Vault Reference',
         description='PCI Vault reference used to group cards for this hotel. '
@@ -389,7 +412,14 @@ class InventoryPartitionConfig(MagForm):
 
     name = StringField('Name', render_kw={'required': True})
     description = TextAreaField('Description', render_kw={'rows': 2})
+    bill_reference = StringField(
+        'Bill Reference',
+        description="The hotel's billing account reference for this partition. "
+                    "Included in the booking export. Lottery admins only.")
     active = SelectBooleanField('Active', widget=Select())
+
+    def get_non_admin_locked_fields(self, partition):
+        return ['bill_reference']
 
 
 class WaitlistRevealConfig(MagForm):
@@ -409,6 +439,19 @@ class WaitlistRevealConfig(MagForm):
         'Audience Description',
         description='Shown to the attendee on the reveal page above the countdown. Optional.',
         render_kw={'rows': 2})
+    use_unique_links = SelectBooleanField(
+        'Link Type', widget=Select(),
+        choices=[('true', 'A unique link for each attendee'),
+                 ('false', 'One shared link for everyone')],
+        description='Unique links let you see who clicked and stop a forwarded '
+                    'link from working. A shared link can only be counted in '
+                    'aggregate.')
+    require_login = BooleanField(
+        'Require sign-in to view',
+        description='Only meaningful when attendee accounts are enabled. With '
+                    'unique links this checks the link belongs to the viewer; '
+                    'with a shared link it can only require any eligible '
+                    'signed-in attendee.')
     active = BooleanField('Active')
 
 

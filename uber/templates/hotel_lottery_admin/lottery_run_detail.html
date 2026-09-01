@@ -47,7 +47,7 @@
         {% if lottery_run.awarded_at %}<tr><th>Awarded At</th><td>{{ lottery_run.awarded_at|datetime_local }}</td></tr>{% endif %}
         {% if lottery_run.reverted_at %}<tr><th>Reverted At</th><td>{{ lottery_run.reverted_at|datetime_local }}</td></tr>{% endif %}
         <tr><th>Group</th><td>{{ lottery_run.lottery_group }}</td></tr>
-        <tr><th>Type</th><td>{{ lottery_run.lottery_type }}</td></tr>
+        <tr><th>Type</th><td>{{ hotel_macros.lottery_run_type_label(lottery_run.lottery_type) }}</td></tr>
         {% if lottery_run.cutoff %}<tr><th>Cutoff</th><td>{{ lottery_run.cutoff|datetime_local }}</td></tr>{% endif %}
         {% if lottery_run.hotel_filter %}
         <tr><th>Hotel Filter</th><td>

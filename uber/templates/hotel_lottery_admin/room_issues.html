@@ -37,6 +37,10 @@
   'insufficient_connectors': 'Not enough connector inventory',
   'insufficient_connectors_at_hotel': 'Not enough connector inventory at hotel',
   'broken_connector_config': 'Broken connector config',
+  'physical_double_booked': 'Physical room double-booked',
+  'physical_block_mismatch': 'Physical room in the wrong block',
+  'catalog_count_mismatch': 'Catalog count does not match inventory',
+  'physical_room_wrong_hotel': 'Physical room at the wrong hotel',
 } %}
 
 {# Combined filter bar: severity + issue type + free-text search, all
@@ -87,6 +91,22 @@
 {% set _filters_active = severity != 'all' or kind not in ('all', '', None) or search %}
 
 {# Error / Warning badge for a single issue. #}
+{# Every place an admin could go to resolve one issue, best first. Labelled
+   with the destination rather than a bare "Fix", since a group's issues
+   often need different targets. #}
+{% macro fix_buttons(iss) %}
+  {% if iss.fixes %}
+  <div class="mt-1 d-flex gap-1 flex-wrap">
+    {% for fix in iss.fixes %}
+      <a href="{{ fix.url }}"
+         class="btn btn-sm {{ 'btn-primary' if loop.first else 'btn-outline-secondary' }}">
+        {{ fix.label }}
+      </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+{% endmacro %}
+
 {% macro severity_badge(severity) %}
   {%- if severity == 'error' -%}
     <span class="badge bg-danger">Error</span>
@@ -200,10 +220,6 @@
           {% endif %}
         </small>
       {% endif %}
-      {% set _first_fix = group.issues[0].fix_url if group.issues else None %}
-      {% if _first_fix %}
-        <a href="{{ _first_fix }}" class="btn btn-sm btn-light ms-2">Fix</a>
-      {% endif %}
     </div>
   </div>
   <ul class="list-group list-group-flush">
@@ -224,6 +240,7 @@
               {% if other.inventory %}{{ other.inventory.name }}{% endif %}
             </div>
           {% endif %}
+          {{ fix_buttons(iss) }}
           {{ issue_actions(iss) }}
         </div>
       </div>
@@ -268,12 +285,6 @@
         <strong>Inventory configuration</strong>
       {% endif %}
     </div>
-    <div>
-      {% set _first_fix = group.issues[0].fix_url if group.issues else None %}
-      {% if _first_fix %}
-        <a href="{{ _first_fix }}" class="btn btn-sm btn-light ms-2">Fix</a>
-      {% endif %}
-    </div>
   </div>
   <ul class="list-group list-group-flush">
     {% for iss in group.issues %}
@@ -286,9 +297,23 @@
           {% if iss.kind in ('oversubscribed_inventory', 'oversubscribed_partition') and iss.extra.get('bad_nights') %}
             <div class="small text-muted">
               {% set _show = iss.extra['bad_nights'][:5] %}
-              Bad nights: {% for n, used, cap in _show %}{{ n }} ({{ used }}/{{ cap }}){% if not loop.last %}, {% endif %}{% endfor %}{% if iss.extra['bad_nights']|length > 5 %} ... and {{ iss.extra['bad_nights']|length - 5 }} more{% endif %}.
+              {# Each night links to the assignees modal so the admin can
+                 see who is booked without leaving the report. #}
+              Bad nights: {% for n, used, cap in _show %}{% if iss.inventory %}<a href="#" class="assignee-link" data-inventory-id="{{ iss.inventory.id }}" data-night="{{ n.isoformat() }}" data-title="{{ iss.inventory.display_name|e }} - {{ n.strftime('%a %-m/%-d') }}">{{ n }} ({{ used }}/{{ cap }})</a>{% else %}{{ n }} ({{ used }}/{{ cap }}){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}{% if iss.extra['bad_nights']|length > 5 %} ... and {{ iss.extra['bad_nights']|length - 5 }} more{% endif %}.
             </div>
           {% endif %}
+          {% if iss.kind == 'partition_overallocated' and iss.extra.get('partitions') %}
+            <div class="small text-muted">
+              {% for p in iss.extra['partitions'] %}
+              <div>
+                Partition '{{ p.name }}' allocates {{ p.quantity }} of
+                {{ iss.extra['inventory_quantity'] }} room(s)
+                <a href="edit_partition?id={{ p.id }}" class="ms-1">Edit partition</a>
+              </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+          {{ fix_buttons(iss) }}
           {{ issue_actions(iss) }}
         </div>
       </div>
@@ -348,6 +373,7 @@
         <strong class="ms-1">{{ kind_labels.get(iss.kind, iss.kind) }}</strong>
         - {{ iss.label }}
       </div>
+      {{ fix_buttons(iss) }}
       {{ issue_actions(iss, hidden_mode=True) }}
     </li>
     {% endfor %}
@@ -360,5 +386,7 @@
 {{ hidden_block(hidden_inv_groups, is_inv=True) }}
 {% endif %}
 {% endif %}
+
+{% include 'hotel_lottery_admin/_assignee_modal.html' %}
 
 {% endblock content %}

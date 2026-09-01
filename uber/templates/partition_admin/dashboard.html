@@ -12,6 +12,9 @@
 
 <h1>{{ partition.name }}</h1>
 {% if partition.description %}<p class="text-muted">{{ partition.description }}</p>{% endif %}
+{% if partition.bill_reference %}
+<p class="text-muted">Bill reference: <code>{{ partition.bill_reference }}</code></p>
+{% endif %}
 
 {# Stats summary across the whole partition (not just the current page) #}
 <div class="row g-2 mb-4">
@@ -148,7 +151,7 @@
             inventory_rows=blocks|selectattr('inventory')|map(attribute='inventory')|list,
             option_suffix_map=_suffix_map,
             label_mode='name',
-            require_cc=True,
+            payment_type=c.DEFAULT_HOTEL_PAYMENT_TYPE,
             layout='grid', size='sm') }}
       <div class="mt-2 text-end">
         <button type="submit" class="btn btn-primary btn-sm">Create Assignment</button>
@@ -191,16 +194,19 @@
         <td>
           {{ hotel_macros.billing_chip(ra) }}
           {% if can_edit_assignments %}
-          <form method="post" action="toggle_billing" class="d-inline">
+          <form method="post" action="set_payment_type" class="d-inline">
             {{ csrf_token() }}
             <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
-            <button type="submit" class="btn btn-link btn-sm p-0 small">
-              Flip to {% if ra.require_cc %}master bill{% else %}self-pay{% endif %}
-            </button>
+            <select name="payment_type" class="form-select form-select-sm d-inline w-auto align-middle">
+              {% for key, name in c.HOTEL_PAYMENT_TYPE_OPTS %}
+              <option value="{{ key }}" {% if ra.payment_type == key %}selected{% endif %}>{{ name }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-link btn-sm p-0 small">Change</button>
           </form>
           {% endif %}
         </td>
-        <td>{{ hotel_macros.hotel_conf_cell(ra) }}</td>
+        <td>{{ hotel_macros.hotel_conf_cell(ra, show_room_number=can_view_room_numbers) }}</td>
         <td class="text-end">
           {% if can_edit_assignments and ra.attendee_id %}
           <button type="button" class="btn btn-sm btn-outline-primary"
@@ -341,11 +347,25 @@
                     ra=ra,
                     inventory_rows=all_inventory,
                     label_mode='name',
-                    require_cc=ra.require_cc,
+                    payment_type=ra.payment_type,
                     layout='grid', size='sm',
                     inventory_required=False,
                     inventory_editable=(ra.partition_id == partition.id),
                     include_current_option=True) }}
+              {% if can_edit_room_numbers %}
+              <div class="mb-2">
+                <label class="form-label small">Room number</label>
+                <input type="text" class="form-control form-control-sm" name="room_number"
+                       value="{{ ra.room_number or '' }}"
+                       {% if ra.physical_room_id %}readonly
+                       title="Set from the linked physical room."{% endif %} />
+              </div>
+              {% elif can_view_room_numbers and ra.room_number %}
+              <div class="mb-2">
+                <label class="form-label small">Room number</label>
+                <div class="form-control-plaintext form-control-sm">{{ ra.room_number }}</div>
+              </div>
+              {% endif %}
               <div class="text-end">
                 <button type="submit" class="btn btn-primary btn-sm">Save changes</button>
               </div>

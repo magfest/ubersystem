@@ -68,9 +68,118 @@
   </div>
   <div class="mb-3">{{ form_macros.input(inventory_config.info_url) }}</div>
 
-  <div class="row g-3 mb-3">
-    <div class="col">{{ form_macros.input(inventory_config.price) }}</div>
-    <div class="col">{{ form_macros.input(inventory_config.staff_price) }}</div>
+  {# Pricing. One box by default; ticking a dimension swaps in a row, a
+     column, or a grid. Only the layout matching the current checkboxes is
+     in the DOM, so the handler never sees stale cells. #}
+  {% set pm = price_matrices %}
+  <div class="card mb-3">
+    <div class="card-header d-flex align-items-center gap-3 flex-wrap">
+      <strong>Pricing</strong>
+      <div class="form-check form-check-inline mb-0">
+        <input class="form-check-input" type="checkbox" value="1" id="price_per_night"
+               name="price_per_night" {% if item.price_per_night %}checked{% endif %}
+               {% if not event_nights %}disabled{% endif %} />
+        <label class="form-check-label small" for="price_per_night">One price per night</label>
+      </div>
+      <div class="form-check form-check-inline mb-0">
+        <input class="form-check-input" type="checkbox" value="1" id="price_per_occupancy"
+               name="price_per_occupancy" {% if item.price_per_occupancy %}checked{% endif %} />
+        <label class="form-check-label small" for="price_per_occupancy">One price per occupancy</label>
+      </div>
+    </div>
+    <div class="card-body">
+      {% if not event_nights %}
+      <div class="form-text mb-2">
+        Set the lottery check-in and check-out dates to price per night.
+      </div>
+      {% endif %}
+
+      {% for prefix, scope, heading in [('price', 'standard', 'Attendee'),
+                                        ('staff_price', 'staff', 'Staff')] %}
+      <div class="mb-3">
+        <div class="fw-semibold small mb-1">{{ heading }} rates</div>
+
+        <div class="pricing-flat" data-scope="{{ prefix }}">
+          <div style="max-width: 12em;">
+            <div class="input-group input-group-sm">
+              <span class="input-group-text">$</span>
+              <input type="text" class="form-control" name="{{ prefix }}_base"
+                     value="{{ pm[scope].base if pm and pm[scope].base else '' }}"
+                     placeholder="per night" />
+            </div>
+          </div>
+        </div>
+
+        <div class="pricing-by-occupancy d-none" data-scope="{{ prefix }}">
+          <div class="row g-2">
+            {% for occ in range(item.min_capacity or 1, (item.capacity or 1) + 1) %}
+            <div class="col-auto">
+              <label class="form-label small">{{ occ }} occupant{{ '' if occ == 1 else 's' }}</label>
+              <div class="input-group input-group-sm" style="width: 9em;">
+                <span class="input-group-text">$</span>
+                <input type="text" class="form-control" name="{{ prefix }}_occ_{{ occ }}"
+                       value="{{ pm[scope].cells.get('', {}).get(occ|string, '') or '' if pm else '' }}" />
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        {% if event_nights %}
+        <div class="pricing-by-night d-none" data-scope="{{ prefix }}">
+          <div class="row g-2">
+            {% for night in event_nights %}
+            <div class="col-auto">
+              <label class="form-label small">{{ night.strftime('%a %-m/%-d') }}</label>
+              <div class="input-group input-group-sm" style="width: 9em;">
+                <span class="input-group-text">$</span>
+                <input type="text" class="form-control"
+                       name="{{ prefix }}_night_{{ night.isoformat() }}"
+                       value="{{ pm[scope].cells.get(night.isoformat(), {}).get('', '') or '' if pm else '' }}" />
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="pricing-grid d-none" data-scope="{{ prefix }}">
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead>
+                <tr>
+                  <th></th>
+                  {% for night in event_nights %}
+                  <th class="small">{{ night.strftime('%a %-m/%-d') }}</th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for occ in range(item.min_capacity or 1, (item.capacity or 1) + 1) %}
+                <tr>
+                  <th class="small text-nowrap">{{ occ }} occupant{{ '' if occ == 1 else 's' }}</th>
+                  {% for night in event_nights %}
+                  <td>
+                    <div class="input-group input-group-sm" style="width: 8em;">
+                      <span class="input-group-text">$</span>
+                      <input type="text" class="form-control"
+                             name="{{ prefix }}_cell_{{ night.isoformat() }}_{{ occ }}"
+                             value="{{ pm[scope].cells.get(night.isoformat(), {}).get(occ|string, '')
+                                       or '' if pm else '' }}" />
+                    </div>
+                  </td>
+                  {% endfor %}
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+
+      <div>{{ form_macros.input(inventory_config.pricing_notes) }}</div>
+    </div>
   </div>
 
   <div class="mb-3">{{ form_macros.input(inventory_config.vault_reference) }}</div>
@@ -96,6 +205,119 @@ function fillNightQuantities() {
     input.value = qty;
   });
 }
+
+// Show only the pricing layout matching the two checkboxes, and disable the
+// inputs in the hidden ones so the handler is never sent cells for a
+// dimension that is switched off.
+function togglePricingLayout() {
+  var byNight = document.getElementById('price_per_night').checked;
+  var byOccupancy = document.getElementById('price_per_occupancy').checked;
+  var wanted = byNight && byOccupancy ? 'pricing-grid'
+             : byNight ? 'pricing-by-night'
+             : byOccupancy ? 'pricing-by-occupancy'
+             : 'pricing-flat';
+
+  ['pricing-flat', 'pricing-by-occupancy', 'pricing-by-night', 'pricing-grid'
+  ].forEach(function(cls) {
+    document.querySelectorAll('.' + cls).forEach(function(el) {
+      var active = cls === wanted;
+      el.classList.toggle('d-none', !active);
+      el.querySelectorAll('input').forEach(function(input) {
+        input.disabled = !active;
+      });
+    });
+  });
+}
+
+document.getElementById('price_per_night').addEventListener('change', togglePricingLayout);
+document.getElementById('price_per_occupancy').addEventListener('change', togglePricingLayout);
+togglePricingLayout();
+
+// The occupancy boxes are rendered from min/max capacity, so rebuild them
+// when either changes, keeping the values of occupancies that survive.
+var pricingNights = {{ (event_nights or [])|map('string')|list|tojson }};
+
+function moneyInputGroup(name, value, width) {
+  var group = document.createElement('div');
+  group.className = 'input-group input-group-sm';
+  group.style.width = width;
+  var symbol = document.createElement('span');
+  symbol.className = 'input-group-text';
+  symbol.textContent = '$';
+  var input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'form-control';
+  input.name = name;
+  input.value = value || '';
+  group.appendChild(symbol);
+  group.appendChild(input);
+  return group;
+}
+
+function occupancyLabel(occ) {
+  return occ + ' occupant' + (occ === 1 ? '' : 's');
+}
+
+function savedPriceValues(selector) {
+  var values = {};
+  document.querySelectorAll(selector).forEach(function(input) {
+    values[input.name] = input.value;
+  });
+  return values;
+}
+
+function rebuildOccupancyColumns() {
+  var min = parseInt(document.getElementById('min_capacity').value, 10) || 1;
+  var max = parseInt(document.getElementById('capacity').value, 10) || 1;
+  var occupancies = [];
+  for (var occ = min; occ <= max; occ++) { occupancies.push(occ); }
+
+  ['price', 'staff_price'].forEach(function(prefix) {
+    var byOcc = document.querySelector('.pricing-by-occupancy[data-scope="' + prefix + '"] .row');
+    if (byOcc) {
+      var saved = savedPriceValues('input[name^="' + prefix + '_occ_"]');
+      byOcc.replaceChildren();
+      occupancies.forEach(function(occ) {
+        var col = document.createElement('div');
+        col.className = 'col-auto';
+        var label = document.createElement('label');
+        label.className = 'form-label small';
+        label.textContent = occupancyLabel(occ);
+        col.appendChild(label);
+        col.appendChild(moneyInputGroup(prefix + '_occ_' + occ,
+                                        saved[prefix + '_occ_' + occ], '9em'));
+        byOcc.appendChild(col);
+      });
+    }
+
+    var gridBody = document.querySelector('.pricing-grid[data-scope="' + prefix + '"] tbody');
+    if (gridBody) {
+      var savedCells = savedPriceValues('input[name^="' + prefix + '_cell_"]');
+      gridBody.replaceChildren();
+      occupancies.forEach(function(occ) {
+        var row = document.createElement('tr');
+        var head = document.createElement('th');
+        head.className = 'small text-nowrap';
+        head.textContent = occupancyLabel(occ);
+        row.appendChild(head);
+        pricingNights.forEach(function(night) {
+          var cell = document.createElement('td');
+          var name = prefix + '_cell_' + night + '_' + occ;
+          cell.appendChild(moneyInputGroup(name, savedCells[name], '8em'));
+          row.appendChild(cell);
+        });
+        gridBody.appendChild(row);
+      });
+    }
+  });
+
+  // Rebuilt inputs start enabled; reapply the current layout's disabling.
+  togglePricingLayout();
+}
+
+['capacity', 'min_capacity'].forEach(function(id) {
+  document.getElementById(id).addEventListener('change', rebuildOccupancyColumns);
+});
 </script>
 
 {% endblock content %}

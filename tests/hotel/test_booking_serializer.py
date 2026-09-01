@@ -13,13 +13,15 @@ from tests.hotel.factories import (N, make_application, make_assignment,
 CANONICAL_KEYS = {
     'assignment_id', 'lottery_application_id', 'parent_assignment_id',
     'confirmation_num', 'response_id', 'assignment_reason', 'status',
-    'hotel', 'hotel_id', 'room_type', 'suite_type',
+    'hotel', 'hotel_id', 'partition_id', 'partition_name',
+    'partition_bill_reference', 'room_type', 'suite_type',
     'check_in_date', 'check_out_date', 'num_nights',
     'hotel_confirmation_number', 'cancellation_confirmation_number',
     'room_number', 'legal_first_name', 'legal_last_name', 'cellphone',
     'email', 'address1', 'address2', 'city', 'region', 'zip_code',
     'country', 'wants_ada', 'ada_requests', 'special_requests',
-    'hotel_rewards_number', 'require_cc', 'num_occupants', 'guests',
+    'hotel_rewards_number', 'payment_type', 'payment_code',
+    'num_occupants', 'guests',
     'cc_token', 'cc_last_four', 'cc_card_type', 'cc_card_expiry',
     'cc_card_holder', 'last_modified_at', 'cc_captured_at',
 }
@@ -29,6 +31,9 @@ DROPPED_ALIASES = {
     'assigned_hotel', 'assigned_hotel_id', 'assigned_room_type',
     'assigned_suite_type', 'assigned_check_in_date',
     'assigned_check_out_date',
+    # Superseded by payment_type / payment_code, which can also say whether
+    # parking is covered.
+    'require_cc',
 }
 
 

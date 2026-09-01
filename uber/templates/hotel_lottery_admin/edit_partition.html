@@ -21,6 +21,9 @@
 
   <div class="mb-3">{{ form_macros.input(partition_config.name) }}</div>
   <div class="mb-3">{{ form_macros.input(partition_config.description) }}</div>
+  {% if c.HAS_HOTEL_LOTTERY_ADMIN_ACCESS %}
+  <div class="mb-3">{{ form_macros.input(partition_config.bill_reference) }}</div>
+  {% endif %}
   <div class="mb-3">{{ form_macros.input(partition_config.active) }}</div>
 
   <div class="mb-3">

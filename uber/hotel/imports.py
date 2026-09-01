@@ -56,41 +56,81 @@ def parse_iso_date(raw):
         return None
 
 
-def parse_spreadsheet(raw, filename):
-    """Parse CSV or XLSX file bytes into (fieldnames, rows, error).
+def parse_spreadsheet_with_headers(raw, filename, sheet_name=None, header_row=1):
+    """Parse CSV or XLSX file bytes into (header_pairs, rows, error).
 
-    fieldnames are the normalized header cells (lowercased, stripped, spaces
-    treated as underscores) and rows are dicts keyed by those names, with
-    every value a string (dates/datetimes rendered as ISO 8601 via
-    cell_to_str). XLSX is detected by filename extension or the PK zip magic
-    bytes. Parse failures come back as an error string rather than raising.
+    header_pairs is [(raw_header, normalized_key)], preserving the header
+    cells exactly as the file spells them alongside the normalized keys
+    (lowercased, stripped, spaces treated as underscores) that the rows are
+    keyed by. Rows are dicts keyed by those normalized names, with every
+    value a string (dates/datetimes rendered as ISO 8601 via cell_to_str).
+    XLSX is detected by filename extension or the PK zip magic bytes. Parse
+    failures come back as an error string rather than raising.
+
+    `sheet_name` picks a worksheet by name when a hotel's format does not put
+    the data on the first sheet; `header_row` skips leading junk rows above
+    the header. Both default to the original behavior.
     """
     name = (filename or '').lower()
-    fieldnames = []
+    header_pairs = []
     rows = []
     try:
         if name.endswith(('.xlsx', '.xlsm')) or raw[:2] == b'PK':
             from openpyxl import load_workbook
             wb = load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
+            sheet = (wb[sheet_name] if sheet_name and sheet_name in wb.sheetnames
+                     else wb.active)
             header = None
-            for excel_row in wb.active.iter_rows(values_only=True):
+            raw_header = None
+            skip = max(0, int(header_row or 1) - 1)
+            for excel_row in sheet.iter_rows(values_only=True):
+                if skip:
+                    skip -= 1
+                    continue
                 if header is None:
+                    raw_header = [cell_to_str(cell).strip() for cell in excel_row]
                     header = [_normalize(cell) for cell in excel_row]
                     continue
                 rows.append({header[i]: cell_to_str(v)
                              for i, v in enumerate(excel_row)
                              if i < len(header) and header[i]})
-            fieldnames = [h for h in (header or []) if h]
+            header_pairs = [(raw_header[i], h)
+                            for i, h in enumerate(header or []) if h]
         else:
             text = raw.decode('utf-8-sig', errors='replace')
             reader = csv.DictReader(io.StringIO(text))
             for record in reader:
                 rows.append({_normalize(k): cell_to_str(v)
                              for k, v in record.items() if k})
-            fieldnames = [_normalize(f) for f in (reader.fieldnames or []) if f]
+            header_pairs = [(str(f).strip(), _normalize(f))
+                            for f in (reader.fieldnames or []) if _normalize(f)]
     except Exception as e:
         return [], [], f'Could not parse file: {e}'
-    return fieldnames, rows, None
+    return header_pairs, rows, None
+
+
+def parse_spreadsheet(raw, filename, sheet_name=None, header_row=1):
+    """Parse CSV or XLSX file bytes into (fieldnames, rows, error).
+
+    Same as parse_spreadsheet_with_headers except only the normalized keys
+    are returned, which is all most callers need.
+    """
+    header_pairs, rows, error = parse_spreadsheet_with_headers(
+        raw, filename, sheet_name=sheet_name, header_row=header_row)
+    return [key for _raw_header, key in header_pairs], rows, error
+
+
+def workbook_sheet_names(raw, filename):
+    """Every sheet name in an XLSX upload; [] for CSV or unreadable files."""
+    name = (filename or '').lower()
+    if not (name.endswith(('.xlsx', '.xlsm')) or raw[:2] == b'PK'):
+        return []
+    try:
+        from openpyxl import load_workbook
+        wb = load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
+        return list(wb.sheetnames)
+    except Exception:
+        return []
 
 
 def parse_confirmation_rows(raw, filename):
@@ -130,11 +170,95 @@ def _store_file(session, raw, filename, content_type, hotel, source, uploaded_by
     return record
 
 
+def _apply_with_template(session, record, raw, filename, template, hotel):
+    """Template-driven half of import_confirmation_file.
+
+    Auto-applies confirmation and cancellation numbers to unambiguously
+    matched rows only; every other differing field is left for the review
+    page. Match counts land on the HotelImportFile record.
+    """
+    from uber.hotel import mapping
+    from uber.models.hotel import HotelExportLog
+
+    _fieldnames, source_rows, error = mapping.parse_with_template(raw, filename, template)
+    if error:
+        record.note = error
+        session.flush()
+        return {'updated': 0, 'unchanged': 0, 'changes': [], 'error': error,
+                'record': record}
+
+    # The only fields safe to write without review: they identify the
+    # booking rather than changing what was booked.
+    auto_fields = ('assignment.hotel_confirmation_number',
+                   'assignment.cancellation_confirmation_number')
+
+    # The change feed records no link back to this file, so bracket the
+    # writes: everything tracked inside this window is this import's
+    # doing (see uber.hotel.exports.import_changes).
+    record.applied_from = datetime.now(UTC)
+
+    updated = 0
+    unchanged = 0
+    changes = []
+    counts = {'matched': 0, 'ambiguous': 0, 'unmatched': 0}
+    hotels_imported = set()
+    hotel_id = str(hotel.id) if hotel else None
+    for source in source_rows:
+        mapped = mapping.apply_maps(source, template)
+        assignments, status = mapping.match_row(session, mapped, hotel_id=hotel_id)
+        counts[status] += 1
+        if status != 'matched':
+            continue
+
+        row_present = any((mapped.get(key) or '').strip() for key in auto_fields)
+        row_changed = False
+        for ra in assignments:
+            diff = mapping.diff_row(ra, mapped)
+            for entry in diff:
+                if entry['key'] not in auto_fields or not entry['changed']:
+                    continue
+                ok, _msg = mapping.sync_value(session, ra, entry['key'],
+                                              entry['imported'])
+                if not ok:
+                    continue
+                row_changed = True
+                changes.append({'field': entry['key'], 'old': entry['current'],
+                                'new': entry['imported']})
+                if ra.inventory and ra.inventory.hotel_id:
+                    hotels_imported.add(str(ra.inventory.hotel_id))
+        if row_present:
+            updated += 1 if row_changed else 0
+            unchanged += 0 if row_changed else 1
+
+    session.flush()  # emit the row updates before closing the window
+    record.applied_to = datetime.now(UTC)
+    record.updated_count = updated
+    record.unchanged_count = unchanged
+    record.matched_count = counts['matched']
+    record.ambiguous_count = counts['ambiguous']
+    record.unmatched_count = counts['unmatched']
+    record.note = f"{updated} updated, {unchanged} unchanged"
+
+    for hotel_id in hotels_imported:
+        session.add(HotelExportLog(
+            hotel_id=hotel_id, export_type='confirmation_import', record_count=updated))
+    session.flush()
+
+    return {'updated': updated, 'unchanged': unchanged, 'changes': changes,
+            'error': None, 'record': record, 'counts': counts}
+
+
 def import_confirmation_file(session, raw, filename, hotel=None, source='',
-                             uploaded_by='', content_type=''):
+                             uploaded_by='', content_type='', template=None):
     """Store the raw file, then apply confirmation/cancellation numbers.
 
-    Recognized columns (case-insensitive, spaces treated as underscores):
+    With a `template` (an ImportMappingTemplate or the built-in format), rows
+    are mapped and matched through uber.hotel.mapping and confirmation and
+    cancellation numbers are auto-applied for unambiguous matches only; all
+    other differing fields are left for the review page.
+
+    Without a template, recognized columns are (case-insensitive, spaces
+    treated as underscores):
       - confirmation_num (required key; identifies the attendee booking)
       - hotel_confirmation_number (optional)
       - hotel_cancellation_number (optional)
@@ -150,11 +274,15 @@ def import_confirmation_file(session, raw, filename, hotel=None, source='',
 
     record = _store_file(session, raw, filename, content_type, hotel, source, uploaded_by)
 
+    if template is not None:
+        return _apply_with_template(session, record, raw, filename, template, hotel)
+
     rows, error = parse_confirmation_rows(raw, filename)
     if error:
         record.note = error
         session.flush()
-        return {'updated': 0, 'unchanged': 0, 'changes': [], 'error': error}
+        return {'updated': 0, 'unchanged': 0, 'changes': [], 'error': error,
+                'record': record}
 
     # (file column, RoomAssignment attribute)
     fields = [('hotel_confirmation_number', 'hotel_confirmation_number'),
@@ -217,7 +345,8 @@ def import_confirmation_file(session, raw, filename, hotel=None, source='',
             hotel_id=hotel_id, export_type='confirmation_import', record_count=updated))
     session.flush()
 
-    return {'updated': updated, 'unchanged': unchanged, 'changes': changes, 'error': None}
+    return {'updated': updated, 'unchanged': unchanged, 'changes': changes,
+            'error': None, 'record': record}
 
 
 def match_assignments(session, app_id='', conf=''):

@@ -472,7 +472,13 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     indie_developer: 'IndieDeveloper' = Relationship(
         back_populates="attendee")
 
+    # The two ways a staffer can be given a room, tracked independently so an
+    # admin can grant or revoke either. hotel_eligible is the shared room
+    # (crash space) flag, signed up for through the external staff checklist;
+    # staff_lottery_eligible gates entry to the early staff lottery. A staffer
+    # may only end up with one actual room.
     hotel_eligible: bool = False
+    staff_lottery_eligible: bool = True
     # Hotel-facing legal name overrides. When set, these are the names the
     # attendee wants written on the hotel reservation; otherwise the system
     # falls back to the parsed `legal_first_name` / `legal_last_name`
@@ -2418,7 +2424,32 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
 
     @property
     def staff_hotel_lottery_eligible(self):
-        return self.badge_type == c.STAFF_BADGE
+        """The single gate on entering the staff lottery: every entry path,
+        room-group ownership, and staff pricing reads this."""
+        return self.badge_type == c.STAFF_BADGE and self.staff_lottery_eligible
+
+    @property
+    def hotel_room_kind(self):
+        """Which kind of provided room this attendee actually holds:
+        '' (none), 'lottery', 'shared', 'other', or 'mixed'.
+
+        A staffer may take a room through the lottery or through the shared
+        room signup, but not both, so the eligibility page needs to show which
+        one happened rather than just yes or no.
+        """
+        kinds = set()
+        for ra in self.active_room_assignments:
+            if ra.lottery_run_id or ra.assignment_reason == c.LOTTERY_AWARD:
+                kinds.add('lottery')
+            elif ra.assignment_reason in (c.STAFF_AUTO, c.PARTITION_GRANT):
+                kinds.add('shared')
+            else:
+                kinds.add('other')
+        if not kinds:
+            return ''
+        if len(kinds) > 1:
+            return 'mixed'
+        return kinds.pop()
 
     @property
     def active_room_assignments(self):

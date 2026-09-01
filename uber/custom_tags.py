@@ -49,6 +49,13 @@ def basename(s):
     return os.path.basename(s) if s else ''
 
 
+@JinjaEnv.jinja_filter(name='format_price')
+def format_price_filter(amount):
+    """A room rate as '$199' or '$199.50'; '' when unset."""
+    from uber.hotel.pricing import format_price
+    return format_price(amount)
+
+
 @JinjaEnv.jinja_test(name='class')
 def is_class(value):
     return inspect.isclass(value)

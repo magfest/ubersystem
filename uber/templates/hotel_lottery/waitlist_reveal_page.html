@@ -7,6 +7,9 @@
     <h1>Hotel Waitlist Link</h1>
     <p>This link is invalid or has expired. If you believe this is a mistake,
     please contact us.</p>
+  {% elif error == 'login-required' %}
+    <h1>Hotel Waitlist Link</h1>
+    <p>Please <a href="../landing/index">sign in</a> to view this link.</p>
   {% else %}
     <h1>{{ reveal.name or 'Hotel Waitlist' }}</h1>
     {% if reveal.audience_description %}
@@ -17,7 +20,7 @@
       <div class="alert alert-success">
         <h4>The link is open.</h4>
         <p>
-          <a id="external-link" href="{{ reveal.external_url }}" target="_blank" class="btn btn-primary">
+          <a id="external-link" href="{{ external_url }}" target="_blank" class="btn btn-primary">
             Go to the booking page ->
           </a>
         </p>

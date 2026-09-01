@@ -27,25 +27,76 @@ from uber.config import c
 log = logging.getLogger(__name__)
 
 
+# A combined run solves the room and suite lotteries together, so one
+# entrant's suite and room options compete in the same model.
+LOTTERY_TYPE_BOTH = 'both'
+
+# Added to every suite score in a combined run. The within-entry spread is at
+# most hotel rank (10) plus type rank (10), so this keeps any suite choice
+# ahead of any room fallback for the same entrant, matching the stated policy
+# that suite entries are prioritized. It is uniform across suite entrants and
+# absent from room entries, so it does not disturb competition between them.
+SUITE_TIER_BONUS = 30
+
+# Preference ranks run 10, 9, 8 ... and clamp at 0 rather than going negative,
+# so an entrant who ranks more than ten options still scores sanely.
+MAX_PREFERENCE_RANK = 10
+
+
+def _rank_map(primary, fallback=(), tier_bonus=0):
+    """{id: score} for one entry's ranked choices, best first.
+
+    `primary` outranks `fallback` by `tier_bonus`; an id in both keeps its
+    primary score.
+    """
+    scores = {}
+    for index, choice_id in enumerate(primary):
+        scores.setdefault(choice_id, tier_bonus + max(0, MAX_PREFERENCE_RANK - index))
+    for index, choice_id in enumerate(fallback):
+        scores.setdefault(choice_id, max(0, MAX_PREFERENCE_RANK - index))
+    return scores
+
+
+def _entry_preferences(app, lottery_type):
+    """(primary_types, fallback_types, tier_bonus) for this app in this run,
+    or None when the app is not in the run's pool at all.
+
+    A suite entry that has not opted out of the room lottery ranks suites
+    first and standard rooms as a fallback; in a combined run both compete in
+    one model, and the per-app cap of one primary award means the entrant
+    wins a suite or a room, never both. Every suite entry in a combined run
+    carries the tier bonus, opted out or not, so suite entrants stay on an
+    equal footing with each other.
+    """
+    room_types = app.room_type_preference.split(",") if app.room_type_preference else []
+    suite_types = app.suite_type_preference.split(",") if app.suite_type_preference else []
+
+    if lottery_type == LOTTERY_TYPE_BOTH:
+        if app.entry_type == c.SUITE_ENTRY:
+            return (suite_types,
+                    (room_types if app.room_opt_out is False else []),
+                    SUITE_TIER_BONUS)
+        if app.entry_type == c.ROOM_ENTRY:
+            return room_types, [], 0
+        return None
+
+    if app.entry_type == lottery_type:
+        return (room_types if lottery_type == c.ROOM_ENTRY else suite_types), [], 0
+
+    # A suite entry still competing in a room-only run.
+    if (lottery_type == c.ROOM_ENTRY and app.entry_type == c.SUITE_ENTRY
+            and app.room_opt_out is False):
+        return room_types, [], 0
+
+    return None
+
+
 def weight_entry(entry, hotel_room, base_weight):
     """Takes a lottery entry and a hotel room and returns an arbitrary score for how likely that applicant
         should be to get that particular room.
     """
-    weight = 0
-
-    # Give 10 points for being the first choice hotel, 9 points for the second, etc
-    hotel_choice_rank = 10 - entry["hotels"].index(hotel_room["hotel_id"])
-    weight += hotel_choice_rank
-
-    # Give 10 points for being the first choice room type, 9 points for the second, etc
-    try:
-        room_type_rank = 10 - entry["room_types"].index(hotel_room["room_type"])
-        assert room_type_rank >= 0
-        weight += room_type_rank
-    except ValueError:
-        # room types are optional, so we need to figure out how much weight to give people who don't choose any
-        weight += 9 # Probably fine?
-
+    weight = entry["hotel_ranks"].get(hotel_room["hotel_id"], 0)
+    weight += entry["type_ranks"][hotel_room["room_type"]]
     return weight + base_weight
 
 def solve_lottery(applications, hotel_rooms, lottery_type=c.ROOM_ENTRY,
@@ -73,7 +124,8 @@ def solve_lottery(applications, hotel_rooms, lottery_type=c.ROOM_ENTRY,
         hotel_rooms List[dict]: Iterable set of hotel rooms; each dict
             has id, hotel_id, capacity, min_capacity, room_type,
             quantity, night_quantities.
-        lottery_type: c.ROOM_ENTRY or c.SUITE_ENTRY.
+        lottery_type: c.ROOM_ENTRY, c.SUITE_ENTRY, or LOTTERY_TYPE_BOTH
+            to solve rooms and suites together in one model.
         connector_map: dict {child_type_id: (parent_type_id, qty)}.
             Empty / None when no types are configured as connectors.
 
@@ -107,22 +159,27 @@ def solve_lottery(applications, hotel_rooms, lottery_type=c.ROOM_ENTRY,
     # Build entries (one per non-group app), then absorb group members.
     entries = {}
     for app in applications:
-        if app.entry_type == lottery_type or (
-                lottery_type == c.ROOM_ENTRY
-                and app.entry_type == c.SUITE_ENTRY
-                and app.room_opt_out is False):
-            type_pref = (app.room_type_preference if lottery_type == c.ROOM_ENTRY
-                         else app.suite_type_preference)
-            entries[app.id] = {
-                "app": app,
-                "members": [app],
-                "hotels": app.hotel_preference.split(","),
-                "room_types": type_pref.split(","),
-                "primary_vars": [],     # [(BoolVar, weight, hotel_room)]
-                "connector_vars": [],   # [(BoolVar, hotel_room, parent_inv_id, child_type, qty)]
-                "check_in": app.earliest_checkin_date,
-                "check_out": app.latest_checkout_date,
-            }
+        preferences = _entry_preferences(app, lottery_type)
+        if preferences is None:
+            continue
+        primary_types, fallback_types, tier_bonus = preferences
+        hotels = app.hotel_preference.split(",")
+        entries[app.id] = {
+            "app": app,
+            "members": [app],
+            "hotels": hotels,
+            # Flat membership list; ranking is done by the score maps below,
+            # which is what lets a combined run hold two ranked lists at once.
+            "room_types": primary_types + [t for t in fallback_types
+                                           if t not in primary_types],
+            "hotel_ranks": _rank_map(hotels),
+            "type_ranks": _rank_map(primary_types, fallback_types,
+                                    tier_bonus=tier_bonus),
+            "primary_vars": [],     # [(BoolVar, weight, hotel_room)]
+            "connector_vars": [],   # [(BoolVar, hotel_room, parent_inv_id, child_type, qty)]
+            "check_in": app.earliest_checkin_date,
+            "check_out": app.latest_checkout_date,
+        }
 
     for app in applications:
         if app.parent_application and app.parent_application.id in entries:
@@ -299,6 +356,9 @@ def build_eligible_applications(session, lottery_type_val, lottery_group,
     We always grab all roommate entries, but the solver only looks at
     those that have a matching parent in the lottery batch. If
     lottery_group is "both" we don't filter staff/attendee either way.
+
+    `lottery_type_val` may be LOTTERY_TYPE_BOTH, which pools room and suite
+    entries into a single run.
     """
     from uber.models import Attendee, LotteryApplication
 
@@ -315,14 +375,24 @@ def build_eligible_applications(session, lottery_type_val, lottery_group,
             LotteryApplication.last_confirmed_at >= confirmation_window_start,
         )
 
-    if lottery_type_val == c.SUITE_ENTRY:
+    if lottery_type_val == LOTTERY_TYPE_BOTH:
+        # Every non-group entry competes; _entry_preferences decides what each
+        # one is competing for.
+        applications = applications.filter(
+            LotteryApplication.entry_type.in_([c.ROOM_ENTRY, c.SUITE_ENTRY, c.GROUP_ENTRY]))
+    elif lottery_type_val == c.SUITE_ENTRY:
         applications = applications.filter(LotteryApplication.entry_type.in_([lottery_type_val, c.GROUP_ENTRY]))
     else:
         applications = applications.filter(or_(LotteryApplication.entry_type.in_([lottery_type_val, c.GROUP_ENTRY]),
                                                LotteryApplication.room_opt_out == False))  # noqa: E712
 
     if lottery_group == "staff":
-        applications = applications.filter(LotteryApplication.is_staff_entry == True)  # noqa: E712
+        # Also check current eligibility, not just that the entry was made as
+        # a staff one: without this, revoking a staffer's lottery eligibility
+        # after they entered would have no effect on the next run.
+        applications = applications.filter(
+            LotteryApplication.is_staff_entry == True,  # noqa: E712
+            Attendee.staff_lottery_eligible == True)  # noqa: E712
     elif lottery_group == "attendee":
         applications = applications.filter(LotteryApplication.is_staff_entry == False)  # noqa: E712
 
@@ -469,7 +539,7 @@ def materialize_room_assignments(session, applications, allocations,
                 partition_id=partition_filter or None,
                 assignment_reason=c.LOTTERY_AWARD,
                 status=c.ASSIGNED,
-                require_cc=True,
+                payment_type=c.DEFAULT_HOTEL_PAYMENT_TYPE,
                 assigned_check_in_date=leader.earliest_checkin_date,
                 assigned_check_out_date=leader.latest_checkout_date,
                 deposit_cutoff_date=run_deadline,
@@ -497,7 +567,7 @@ def materialize_room_assignments(session, applications, allocations,
                 partition_id=partition_filter or None,
                 assignment_reason=c.SUITE_CONNECTOR,
                 status=c.ASSIGNED,
-                require_cc=True,
+                payment_type=c.DEFAULT_HOTEL_PAYMENT_TYPE,
                 assigned_check_in_date=leader.earliest_checkin_date,
                 assigned_check_out_date=leader.latest_checkout_date,
                 deposit_cutoff_date=run_deadline,

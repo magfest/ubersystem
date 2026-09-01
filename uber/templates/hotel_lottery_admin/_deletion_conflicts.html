@@ -1,0 +1,112 @@
+{# What still points at a resource being deleted. Rendered server-side so the
+   modal and the no-JS interstitial page show exactly the same thing. #}
+
+{% if not groups %}
+  <p class="mb-0">Nothing else references this {{ spec.title }}.</p>
+{% else %}
+
+{% set blocking = groups|selectattr('severity', 'equalto', 'blocking')|list %}
+{% set advisory = groups|selectattr('severity', 'equalto', 'advisory')|list %}
+
+{% if blocking %}
+<div class="alert alert-warning">
+  These have to be dealt with before this {{ spec.title }} can be deleted
+  permanently. Deactivating it instead needs none of this.
+</div>
+{% endif %}
+
+{% for group in blocking + advisory %}
+<div class="card mb-2">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <div>
+      <strong>{{ group.label }}</strong>
+      <span class="badge bg-{{ 'danger' if group.severity == 'blocking' else 'secondary' }} ms-1">
+        {{ group.item_total }}
+      </span>
+    </div>
+    {% if group.severity == 'blocking' %}
+      <span class="badge bg-danger">Must resolve</span>
+    {% else %}
+      <span class="badge bg-light text-dark border">Handled automatically</span>
+    {% endif %}
+  </div>
+  <div class="card-body py-2">
+    {% if group.note %}<p class="form-text mt-0">{{ group.note }}</p>{% endif %}
+
+    {% if group.actions %}
+    {# Apply to every item in the group at once. Per-item controls below. #}
+    <div class="d-flex gap-2 align-items-end flex-wrap mb-2 hl-conflict-bulk"
+         data-category="{{ group.category }}">
+      {% if 'reassign' in group.actions and group.reassign_choices %}
+        <div>
+          <label class="form-label small mb-0">Move all to</label>
+          <select class="form-select form-select-sm hl-conflict-target">
+            {% for choice in group.reassign_choices %}
+            <option value="{{ choice.id }}">
+              {{ choice.label }}{% if choice.warning %} ({{ choice.warning }}){% endif %}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="button" class="btn btn-sm btn-primary hl-conflict-action"
+                data-action="reassign">Move all</button>
+      {% endif %}
+      {% if 'clear' in group.actions %}
+        <button type="button" class="btn btn-sm btn-outline-secondary hl-conflict-action"
+                data-action="clear">Clear all associations</button>
+      {% endif %}
+      {% if 'cancel' in group.actions %}
+        <button type="button" class="btn btn-sm btn-outline-danger hl-conflict-action"
+                data-action="cancel">Cancel all bookings</button>
+      {% endif %}
+      {% if 'delete_all' in group.actions %}
+        <div class="form-check">
+          <input class="form-check-input hl-conflict-confirm" type="checkbox"
+                 id="confirm-{{ group.category }}" />
+          <label class="form-check-label small" for="confirm-{{ group.category }}">
+            I understand these {{ group.item_total }} rooms will be deleted
+          </label>
+        </div>
+        <button type="button" class="btn btn-sm btn-danger hl-conflict-action"
+                data-action="delete_all" data-needs-confirm="1">Delete them</button>
+      {% endif %}
+      {% if 'acknowledge' in group.actions %}
+        <div class="form-check">
+          <input class="form-check-input hl-conflict-confirm" type="checkbox"
+                 id="confirm-{{ group.category }}" />
+          <label class="form-check-label small" for="confirm-{{ group.category }}">
+            I understand {{ group.item_total }} attendee(s) hold links that will stop working
+          </label>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-danger hl-conflict-action"
+                data-action="acknowledge" data-needs-confirm="1">Acknowledge</button>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% if group['items'] %}
+    <ul class="list-group list-group-flush small">
+      {% for item in group['items'] %}
+      <li class="list-group-item px-0 py-1 d-flex justify-content-between align-items-center gap-2">
+        <span>
+          {{ item.label }}
+          {% if item.detail %}<span class="text-muted">({{ item.detail }})</span>{% endif %}
+        </span>
+        <span class="d-flex gap-1">
+          {% if item.link %}
+            <a href="{{ item.link }}" class="btn btn-sm btn-outline-secondary">Open</a>
+          {% endif %}
+        </span>
+      </li>
+      {% endfor %}
+      {% if group.truncated %}
+      <li class="list-group-item px-0 py-1 text-muted">
+        and {{ group.item_total - group['items']|length }} more
+      </li>
+      {% endif %}
+    </ul>
+    {% endif %}
+  </div>
+</div>
+{% endfor %}
+{% endif %}

@@ -47,6 +47,33 @@ def parse_date_param(raw, label):
         raise RoomAssignmentError(f'Could not parse the {label} date.')
 
 
+def validate_stay_dates(check_in, check_out):
+    """Reject a stay range that contradicts itself.
+
+    Only the self-contradictory cases, which the room issues report grades as
+    errors. Being outside the lottery window stays allowed here: that is a
+    warning on the issues page, and admins legitimately book nights outside it.
+    A missing date is the caller's business, not this check's.
+    """
+    if check_in and check_out and check_out <= check_in:
+        raise RoomAssignmentError(
+            'The check-out date must be after the check-in date.')
+
+
+def parse_payment_type(raw, default=None):
+    """Resolve a submitted payment type to a [[payment_types]] key.
+
+    '' or None falls back to `default`, or master bill. An unknown key raises
+    rather than silently storing something no config entry describes.
+    """
+    raw = str(raw or '').strip()
+    if not raw:
+        return default or 'masterbill'
+    if raw not in c.HOTEL_PAYMENT_TYPES:
+        raise RoomAssignmentError(f'Unknown payment type: {raw}')
+    return raw
+
+
 def validate_physical_room(session, ra, room):
     """Why a physical room can't take this booking, or None if it can."""
     from uber.hotel.queries import physical_room_conflicts
@@ -112,11 +139,11 @@ def assign_physical_room(session, ra, room, auto=False):
 def create_room_assignment(session, *, attendee_id, inventory_id,
                            partition_id=None, lottery_application_id=None,
                            assignment_reason=None, status=None,
-                           require_cc=False, assigned_check_in_date=None,
+                           payment_type=None, assigned_check_in_date=None,
                            assigned_check_out_date=None,
                            deposit_cutoff_date=None, room_number='',
                            admin_notes='', enforce_partition_block=None,
-                           audit_description=None):
+                           audit_description=None, allow_room_number=True):
     """Create one RoomAssignment (added and flushed, NOT committed).
 
     Validates that the attendee and inventory exist, parses the date
@@ -152,6 +179,10 @@ def create_room_assignment(session, *, attendee_id, inventory_id,
             raise RoomAssignmentError(
                 'That room block is not allocated to this partition.')
 
+    check_in = parse_date_param(assigned_check_in_date, 'check-in')
+    check_out = parse_date_param(assigned_check_out_date, 'check-out')
+    validate_stay_dates(check_in, check_out)
+
     ra = RoomAssignment(
         attendee_id=attendee_id,
         inventory_id=inventory_id,
@@ -160,14 +191,12 @@ def create_room_assignment(session, *, attendee_id, inventory_id,
         assignment_reason=(assignment_reason if assignment_reason is not None
                            else c.MANUAL),
         status=status if status is not None else c.ASSIGNED,
-        require_cc=bool(require_cc),
-        assigned_check_in_date=parse_date_param(
-            assigned_check_in_date, 'check-in'),
-        assigned_check_out_date=parse_date_param(
-            assigned_check_out_date, 'check-out'),
+        payment_type=parse_payment_type(payment_type),
+        assigned_check_in_date=check_in,
+        assigned_check_out_date=check_out,
         deposit_cutoff_date=parse_date_param(
             deposit_cutoff_date, 'deposit cutoff'),
-        room_number=(room_number or '').strip() or None,
+        room_number=((room_number or '').strip() or None) if allow_room_number else None,
         admin_notes=(admin_notes or '').strip(),
     )
     session.add(ra)
@@ -185,7 +214,8 @@ def create_room_assignment(session, *, attendee_id, inventory_id,
 
 
 def apply_room_assignment_edits(session, ra, params, *, audit_prefix, fail,
-                                allowed_inventory_ids=None):
+                                allowed_inventory_ids=None,
+                                allow_room_number=True):
     """Shared save path for the RoomAssignment edit surfaces (the
     application form's per-room modal, the standalone edit page, the
     assign-room page's edit mode, and the partition dashboard modal).
@@ -201,6 +231,11 @@ def apply_room_assignment_edits(session, ra, params, *, audit_prefix, fail,
     `allowed_inventory_ids`, when given, bounds any inventory change to
     that set of ids (partition-scoped callers pass their partition's
     block inventory ids); a change outside the set calls `fail`.
+
+    `allow_room_number=False` ignores both room_number and
+    physical_room_id. Both, because linking a physical room re-stamps
+    room_number via a presave, so dropping only the text field would
+    still let the caller set the number indirectly.
 
     Returns the user-facing result message; flushes (never commits - the
     caller owns the transaction) and writes one partition audit row
@@ -219,11 +254,20 @@ def apply_room_assignment_edits(session, ra, params, *, audit_prefix, fail,
         new_part = params.get('partition_id', '').strip() or None
         if new_part != ra.partition_id:
             changes.append('partition'); ra.partition_id = new_part
-    if 'require_cc' in params:
-        new_require_cc = params.get('require_cc') == 'true'
-        if new_require_cc != ra.require_cc:
-            changes.append('billing'); ra.require_cc = new_require_cc
+    if 'payment_type' in params:
+        try:
+            new_payment_type = parse_payment_type(params.get('payment_type'),
+                                                  default=ra.payment_type)
+        except RoomAssignmentError as e:
+            fail(e.message)
+        if new_payment_type != ra.payment_type:
+            changes.append('billing'); ra.payment_type = new_payment_type
 
+    # Collected first, then validated as a set, because a surface may post
+    # only one of the two stay dates and the pair has to be checked against
+    # what the row will actually hold. Nothing is assigned until it passes:
+    # fail() raises, and a half-updated row would still be in the session.
+    pending_dates = {}
     for name, label in (('assigned_check_in_date', 'check-in'),
                         ('assigned_check_out_date', 'check-out'),
                         ('deposit_cutoff_date', 'deposit cutoff')):
@@ -232,11 +276,23 @@ def apply_room_assignment_edits(session, ra, params, *, audit_prefix, fail,
         raw = (params.get(name, '') or '').strip()
         if raw:
             try:
-                new_val = date.fromisoformat(raw)
+                pending_dates[name] = (date.fromisoformat(raw), label)
             except ValueError:
                 fail(f"Could not parse the {label} date.")
         else:
-            new_val = None
+            pending_dates[name] = (None, label)
+
+    if 'assigned_check_in_date' in pending_dates or 'assigned_check_out_date' in pending_dates:
+        check_in = pending_dates.get('assigned_check_in_date',
+                                     (ra.assigned_check_in_date, ''))[0]
+        check_out = pending_dates.get('assigned_check_out_date',
+                                      (ra.assigned_check_out_date, ''))[0]
+        try:
+            validate_stay_dates(check_in, check_out)
+        except RoomAssignmentError as e:
+            fail(e.message)
+
+    for name, (new_val, label) in pending_dates.items():
         if new_val != getattr(ra, name):
             changes.append(label); setattr(ra, name, new_val)
 
@@ -249,7 +305,7 @@ def apply_room_assignment_edits(session, ra, params, *, audit_prefix, fail,
         if new_status != ra.status:
             changes.append('status'); ra.status = new_status
 
-    if 'physical_room_id' in params:
+    if 'physical_room_id' in params and allow_room_number:
         from uber.models.hotel import PhysicalRoom
         new_room_id = params.get('physical_room_id', '').strip() or None
         if new_room_id != (ra.physical_room_id or None):
@@ -272,6 +328,8 @@ def apply_room_assignment_edits(session, ra, params, *, audit_prefix, fail,
                             ('special_requests', False),
                             ('admin_notes', False)):
         if field not in params:
+            continue
+        if field == 'room_number' and not allow_room_number:
             continue
         raw = (params.get(field, '') or '').strip()
         if raw != (getattr(ra, field) or ''):

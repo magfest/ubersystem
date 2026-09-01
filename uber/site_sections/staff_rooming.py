@@ -13,6 +13,7 @@ from datetime import datetime, time, timedelta
 import cherrypy
 
 from sqlalchemy import or_
+from sqlalchemy.orm import selectinload
 
 from uber.config import c
 from uber.decorators import all_renderable
@@ -242,9 +243,11 @@ class Root:
             badge_types=staff_badges)
 
         if billing == 'self_pay':
-            q = q.filter(RoomAssignment.require_cc.is_(True))
+            q = q.filter(RoomAssignment.require_cc)
         elif billing == 'master_bill':
-            q = q.filter(RoomAssignment.require_cc.is_(False))
+            q = q.filter(~RoomAssignment.require_cc)
+        elif billing == 'parking':
+            q = q.filter(RoomAssignment.payment_type.in_(c.HOTEL_PAYMENT_TYPES_WITH_PARKING))
 
         q = q.order_by(RoomAssignment.assigned_check_in_date.asc().nullsfirst(),
                        Attendee.last_name.asc())
@@ -255,8 +258,8 @@ class Root:
         # narrows the view).
         live_q = build_room_assignment_query(
             session, status='live', badge_types=staff_badges)
-        total_self = live_q.filter(RoomAssignment.require_cc.is_(True)).count()
-        total_master = live_q.filter(RoomAssignment.require_cc.is_(False)).count()
+        total_self = live_q.filter(RoomAssignment.require_cc).count()
+        total_master = live_q.filter(~RoomAssignment.require_cc).count()
 
         hotels = (session.query(LotteryHotel)
                   .filter_by(active=True)
@@ -283,15 +286,33 @@ class Root:
     # through everyone who's been disqualified historically.
 
     def hotel_eligibility(self, session, message='', page='1', page_size='50',
-                          show='eligible', search=''):
+                          show='all', search=''):
+        """Staff hotel eligibility, tracked separately for the two ways a
+        staffer can be given a room.
+
+        When hotel_requests_url is unset there is no shared room signup to
+        integrate with, so the lottery is the only route and the shared room
+        controls are hidden entirely.
+        """
         ps = clamp_page_size(page_size)
+        shared_enabled = bool(c.HOTEL_REQUESTS_URL)
 
         q = session.query(Attendee).filter(Attendee.badge_type.in_(
             [c.STAFF_BADGE, c.CONTRACTOR_BADGE]))
-        if show == 'eligible':
+
+        # 'eligible' and 'ineligible' are the pre-split values; keep them
+        # meaning the shared room flag so existing links still work.
+        if show in ('eligible', 'shared'):
             q = q.filter(Attendee.hotel_eligible.is_(True))
-        elif show == 'ineligible':
+        elif show in ('ineligible', 'not_shared'):
             q = q.filter(Attendee.hotel_eligible.is_(False))
+        elif show == 'staff_lottery':
+            q = q.filter(Attendee.staff_lottery_eligible.is_(True))
+        elif show == 'not_staff_lottery':
+            q = q.filter(Attendee.staff_lottery_eligible.is_(False))
+        elif show == 'neither':
+            q = q.filter(Attendee.hotel_eligible.is_(False),
+                         Attendee.staff_lottery_eligible.is_(False))
 
         if search:
             like = f'%{search.strip()}%'
@@ -302,13 +323,22 @@ class Root:
             ))
 
         q = q.order_by(Attendee.last_name.asc(), Attendee.first_name.asc())
+        # The template reads both per row, and without these it is one query
+        # per staffer for each.
+        q = q.options(selectinload(Attendee.room_assignments),
+                      selectinload(Attendee.assigned_depts))
         staffers, total, page_num, page_count = paginate(q, page, ps)
 
         # Cross-status counts for the header badges.
         all_staff_q = session.query(Attendee).filter(Attendee.badge_type.in_(
             [c.STAFF_BADGE, c.CONTRACTOR_BADGE]))
+        total_staff = all_staff_q.count()
         total_eligible = all_staff_q.filter(Attendee.hotel_eligible.is_(True)).count()
         total_ineligible = all_staff_q.filter(Attendee.hotel_eligible.is_(False)).count()
+        total_staff_lottery = all_staff_q.filter(
+            Attendee.staff_lottery_eligible.is_(True)).count()
+        total_not_staff_lottery = all_staff_q.filter(
+            Attendee.staff_lottery_eligible.is_(False)).count()
 
         return {
             'message': message,
@@ -319,40 +349,57 @@ class Root:
             'page_count': page_count,
             'show': show,
             'search': search,
+            'shared_enabled': shared_enabled,
+            'total_staff': total_staff,
             'total_eligible': total_eligible,
             'total_ineligible': total_ineligible,
+            'total_staff_lottery': total_staff_lottery,
+            'total_not_staff_lottery': total_not_staff_lottery,
         }
 
+    ELIGIBILITY_FIELDS = {
+        'shared_room': ('hotel_eligible', 'a shared staff room'),
+        'staff_lottery': ('staff_lottery_eligible', 'the staff hotel lottery'),
+    }
+
     def set_hotel_eligibility(self, session, attendee_id, eligible='false',
-                              csrf_token=None, return_url=''):
-        """Toggle one staffer's `hotel_eligible` flag. Posted from the
-        hotel_eligibility page; the row's checkbox doubles as the
-        submit input via a per-row tiny form."""
+                              field='shared_room', csrf_token=None,
+                              return_url=''):
+        """Toggle one of a staffer's two eligibility flags.
+
+        `field` defaults to the shared room flag, which is what this endpoint
+        toggled before the two were split apart.
+        """
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect('hotel_eligibility')
         check_csrf(csrf_token)
+
+        column, label = self.ELIGIBILITY_FIELDS.get(
+            field, self.ELIGIBILITY_FIELDS['shared_room'])
 
         attendee = session.query(Attendee).get(attendee_id)
         if not attendee:
             _redirect_back(return_url, 'hotel_eligibility',
                            'Attendee not found.')
         new_val = (str(eligible).lower() == 'true')
-        attendee.hotel_eligible = new_val
+        setattr(attendee, column, new_val)
         session.add(attendee)
         session.commit()
 
         msg = (f"{attendee.full_name} is now "
-               f"{'eligible' if new_val else 'ineligible'} for the staff hotel lottery.")
+               f"{'eligible' if new_val else 'ineligible'} for {label}.")
         _redirect_back(return_url, 'hotel_eligibility', msg)
 
     def bulk_set_hotel_eligibility(self, session, attendee_ids='',
-                                   eligible='false', csrf_token=None,
-                                   return_url=''):
-        """Bulk flip - the checkboxes on the eligibility page can be
-        submitted together via 'Set selected to eligible/ineligible'."""
+                                   eligible='false', field='shared_room',
+                                   csrf_token=None, return_url=''):
+        """Bulk flip of one eligibility flag across the selected rows."""
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect('hotel_eligibility')
         check_csrf(csrf_token)
+
+        column, _label = self.ELIGIBILITY_FIELDS.get(
+            field, self.ELIGIBILITY_FIELDS['shared_room'])
 
         ids = [i.strip() for i in (attendee_ids or '').split(',') if i.strip()]
         if not ids:
@@ -361,7 +408,7 @@ class Root:
         new_val = (str(eligible).lower() == 'true')
         rows = session.query(Attendee).filter(Attendee.id.in_(ids)).all()
         for a in rows:
-            a.hotel_eligible = new_val
+            setattr(a, column, new_val)
             session.add(a)
         session.commit()
 

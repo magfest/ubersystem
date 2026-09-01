@@ -94,13 +94,13 @@ def test_needs_card_python_matches_sql(session):
 
     inv = _inv(session)
     matrix = [
-        dict(require_cc=True, status=c.ASSIGNED, cc_token=None),   # needs
-        dict(require_cc=True, status=c.ASSIGNED, cc_token=''),     # needs
-        dict(require_cc=True, status=c.ASSIGNED, cc_token='tok'),  # token on file
-        dict(require_cc=True, status=c.SECURED, cc_token='tok'),
-        dict(require_cc=True, status=c.CANCELLED, cc_token=None),
-        dict(require_cc=False, status=c.ASSIGNED, cc_token=None),  # master bill
-        dict(require_cc=False, status=c.SECURED, cc_token='tok'),
+        dict(payment_type='credit_card', status=c.ASSIGNED, cc_token=None),   # needs
+        dict(payment_type='credit_card', status=c.ASSIGNED, cc_token=''),     # needs
+        dict(payment_type='credit_card', status=c.ASSIGNED, cc_token='tok'),  # token on file
+        dict(payment_type='credit_card', status=c.SECURED, cc_token='tok'),
+        dict(payment_type='credit_card', status=c.CANCELLED, cc_token=None),
+        dict(payment_type='masterbill', status=c.ASSIGNED, cc_token=None),  # master bill
+        dict(payment_type='masterbill', status=c.SECURED, cc_token='tok'),
     ]
     rows = [make_assignment(session, make_attendee(session), inv,
                             check_in=N[1], check_out=N[3], **params)
@@ -158,7 +158,7 @@ def test_copy_card_from_and_secure_if_carded(session):
                              hotel_rewards_number='HR-42')
     target = make_assignment(session, make_attendee(session), inv,
                              check_in=N[1], check_out=N[3],
-                             status=c.ASSIGNED, require_cc=True)
+                             status=c.ASSIGNED, payment_type='credit_card')
 
     target.copy_card_from(source)
     assert target.cc_token == 'tok-src'
@@ -170,7 +170,7 @@ def test_copy_card_from_and_secure_if_carded(session):
     # Master-bill rooms never flip to SECURED.
     master = make_assignment(session, make_attendee(session), inv,
                              check_in=N[1], check_out=N[3],
-                             status=c.ASSIGNED, require_cc=False)
+                             status=c.ASSIGNED, payment_type='masterbill')
     master.cc_token = 'tok-master'
     master.secure_if_carded()
     assert master.status == c.ASSIGNED
@@ -186,12 +186,12 @@ def test_guarantee_deadline_from_room_cutoff_is_tz_aware(session):
     app = make_application(session, attendee)
     cutoff = date(2026, 10, 1)
     make_assignment(session, attendee, inv, status=c.ASSIGNED,
-                    require_cc=True, deposit_cutoff_date=cutoff,
+                    payment_type='credit_card', deposit_cutoff_date=cutoff,
                     check_in=N[1], check_out=N[3],
                     lottery_application_id=app.id)
     # A later cutoff on a second unsecured room: the EARLIEST one wins.
     make_assignment(session, attendee, inv, status=c.ASSIGNED,
-                    require_cc=True, deposit_cutoff_date=date(2026, 10, 15),
+                    payment_type='credit_card', deposit_cutoff_date=date(2026, 10, 15),
                     check_in=N[1], check_out=N[3],
                     lottery_application_id=app.id)
 

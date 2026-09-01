@@ -31,6 +31,7 @@ import pycountry
 import xlsxwriter
 from pytz import UTC
 from sqlalchemy import and_, func, or_
+from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.custom_tags import datetime_local_filter
@@ -52,8 +53,9 @@ from uber.models.hotel import (HotelExportLog, HotelRoomInventory,
 
 BOOKING_BASE_COLS = [
     'assignment_id', 'lottery_application_id', 'parent_assignment_id',
-    'confirmation_num', 'assignment_reason', 'status',
-    'hotel', 'room_type', 'suite_type',
+    'confirmation_num', 'assignment_reason', 'status', 'payment_code',
+    'hotel', 'partition_name', 'partition_bill_reference',
+    'room_type', 'suite_type',
     'check_in_date', 'check_out_date',
     'hotel_confirmation_number', 'cancellation_confirmation_number',
     'room_number',
@@ -154,6 +156,12 @@ def booking_dict(ra, app):
         'status': ra.status_label if hasattr(ra, 'status_label') else ra.status,
         'hotel': hotel.name if hotel else '',
         'hotel_id': str(inv.hotel_id) if inv and inv.hotel_id else None,
+        # Which carve-out the room came from, and the hotel's billing account
+        # reference for it. partition_id is JSON-only; the two labels are in
+        # the spreadsheet so the hotel can reconcile against its own billing.
+        'partition_id': str(ra.partition_id) if ra.partition_id else None,
+        'partition_name': ra.partition.name if ra.partition else '',
+        'partition_bill_reference': ra.partition.bill_reference if ra.partition else '',
         'room_type': room_type,
         'suite_type': suite_type,
         'check_in_date': iso(ra.assigned_check_in_date),
@@ -184,9 +192,13 @@ def booking_dict(ra, app):
         # Loyalty / rewards program number (e.g. Hilton Honors).
         'hotel_rewards_number':
             ra.hotel_rewards_number or (app.hotel_rewards_number if app else ''),
-        # Billing: True = self-pay (guest's card guarantees the room,
-        # "individual pays own"); False = on the master bill ("room & tax").
-        'require_cc': ra.require_cc,
+        # Billing. payment_code is what the hotel expects on the rooming list
+        # (RT for the master bill, IPO for individual-pays-own, plus the
+        # parking variants); payment_type is the internal key behind it.
+        # These replaced the old require_cc boolean, which could not express
+        # whether parking was covered.
+        'payment_type': ra.payment_type,
+        'payment_code': ra.payment_code,
         # Occupancy: booker plus the additional guests below.
         'num_occupants': 1 + len(guests),
         'guests': guests,
@@ -215,9 +227,11 @@ def booking_row(ra, app, d=None):
     rest of the system treats the vault token as PCI-sensitive, so it
     never leaves the database in a spreadsheet - as are the JSON-only
     identifiers the spreadsheet has no column for (response_id,
-    hotel_id, num_nights, num_occupants, hotel_rewards_number,
-    require_cc, guests - guest columns are appended separately by
-    booking_export_data).
+    hotel_id, partition_id, num_nights, num_occupants,
+    hotel_rewards_number, payment_type, guests - guest columns are
+    appended separately by booking_export_data). payment_code IS
+    included, since that is the value the hotel keys billing off, as are
+    partition_name and partition_bill_reference for reconciliation.
     """
     d = d if d is not None else booking_dict(ra, app)
     return [
@@ -226,7 +240,10 @@ def booking_row(ra, app, d=None):
         d['confirmation_num'] or '',
         d['assignment_reason'],
         d['status'],
-        d['hotel'] or '', d['room_type'] or '', d['suite_type'] or '',
+        d['payment_code'] or '',
+        d['hotel'] or '',
+        d['partition_name'] or '', d['partition_bill_reference'] or '',
+        d['room_type'] or '', d['suite_type'] or '',
         d['check_in_date'] or '',
         d['check_out_date'] or '',
         d['hotel_confirmation_number'] or '',
@@ -261,6 +278,7 @@ def booking_export_data(session, hotel_id):
 
     from uber.hotel.queries import live_assignments_for_hotel
     assignments = (live_assignments_for_hotel(session, hotel.id)
+                   .options(joinedload(RoomAssignment.partition))
                    .order_by(RoomAssignment.parent_assignment_id.asc().nullsfirst(),
                              RoomAssignment.created.asc())
                    .all())
@@ -1127,3 +1145,18 @@ def build_waitlist_xlsx(session):
                 ws.freeze_panes(3, 1)
 
     return rawoutput.getvalue()
+
+
+def unprocessed_imports(session, hotel_id=None):
+    """Uploads still waiting for someone to review them, newest first.
+
+    Rows predating the status column report through effective_status, so an
+    older upload that was already applied does not resurface here.
+    """
+    from uber.models.hotel import HotelImportFile
+
+    query = session.query(HotelImportFile)
+    if hotel_id:
+        query = query.filter(HotelImportFile.hotel_id == hotel_id)
+    files = query.order_by(HotelImportFile.uploaded_at.desc()).all()
+    return [f for f in files if f.effective_status == 'pending']

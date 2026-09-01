@@ -59,6 +59,7 @@ def test_create_room_assignment_happy_path(session, no_cherrypy_session):
     assert ra.assigned_check_out_date == date(2026, 1, 10)
     assert ra.room_number == '1204'
     assert ra.admin_notes == 'note'
+    assert ra.payment_type == 'masterbill'
     assert ra.require_cc is False
 
 
@@ -180,3 +181,81 @@ def test_apply_edits_allowed_inventory_ids_gate(session, no_cherrypy_session):
         allowed_inventory_ids={inv.id, other_inv.id})
     assert 'inventory' in message
     assert ra.inventory_id == other_inv.id
+
+
+# ---------------------------------------------------------------------------
+# stay date validation
+# ---------------------------------------------------------------------------
+
+def test_create_rejects_an_inverted_stay(session, no_cherrypy_session):
+    hotel = make_hotel(session)
+    inv = make_inventory(session, hotel)
+    attendee = make_attendee(session)
+
+    with pytest.raises(RoomAssignmentError) as exc:
+        create_room_assignment(
+            session, attendee_id=attendee.id, inventory_id=inv.id,
+            assigned_check_in_date='2027-01-10',
+            assigned_check_out_date='2027-01-07')
+    assert 'after the check-in date' in exc.value.message
+
+
+def test_create_rejects_a_zero_night_stay(session, no_cherrypy_session):
+    hotel = make_hotel(session)
+    inv = make_inventory(session, hotel)
+    attendee = make_attendee(session)
+
+    with pytest.raises(RoomAssignmentError):
+        create_room_assignment(
+            session, attendee_id=attendee.id, inventory_id=inv.id,
+            assigned_check_in_date='2027-01-07',
+            assigned_check_out_date='2027-01-07')
+
+
+def test_edit_rejects_a_one_sided_change_that_inverts_the_stay(session, no_cherrypy_session):
+    """Only the check-out is posted, so the pair has to be validated against
+    the check-in already on the row."""
+    from tests.hotel.factories import make_assignment
+
+    hotel = make_hotel(session)
+    inv = make_inventory(session, hotel)
+    attendee = make_attendee(session)
+    ra = make_assignment(session, attendee=attendee, inventory=inv,
+                         check_in=date(2027, 1, 8), check_out=date(2027, 1, 11))
+
+    with pytest.raises(_Fail):
+        apply_room_assignment_edits(
+            session, ra, {'assigned_check_out_date': '2027-01-07'},
+            audit_prefix='test', fail=_fail)
+
+    # The rejected value must not have been written before the check ran.
+    assert ra.assigned_check_out_date == date(2027, 1, 11)
+
+
+def test_edit_accepts_a_valid_one_sided_change(session, no_cherrypy_session):
+    from tests.hotel.factories import make_assignment
+
+    hotel = make_hotel(session)
+    inv = make_inventory(session, hotel)
+    attendee = make_attendee(session)
+    ra = make_assignment(session, attendee=attendee, inventory=inv,
+                         check_in=date(2027, 1, 8), check_out=date(2027, 1, 11))
+
+    apply_room_assignment_edits(
+        session, ra, {'assigned_check_out_date': '2027-01-12'},
+        audit_prefix='test', fail=_fail)
+    assert ra.assigned_check_out_date == date(2027, 1, 12)
+
+
+def test_dates_outside_the_lottery_window_are_still_allowed(session, no_cherrypy_session):
+    """Out-of-window is a warning on the issues page, not a hard error; admins
+    legitimately book nights outside it."""
+    hotel = make_hotel(session)
+    inv = make_inventory(session, hotel)
+    attendee = make_attendee(session)
+
+    ra = create_room_assignment(
+        session, attendee_id=attendee.id, inventory_id=inv.id,
+        assigned_check_in_date='2030-06-01',
+        assigned_check_out_date='2030-06-03')
+    assert ra.assigned_check_in_date == date(2030, 6, 1)

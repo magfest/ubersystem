@@ -13,7 +13,8 @@ from uber.decorators import all_renderable, ajax, ajax_gettable, requires_accoun
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, LotteryApplication, RoomAssignment
-from uber.models.hotel import RoomAssignmentInvite, WaitlistRevealLink
+from uber.models.hotel import (RoomAssignmentInvite, WaitlistReveal,
+                               WaitlistRevealLink)
 from uber.hotel.waitlist import WaitlistError, resize_assignment
 from uber.email import EmailService
 from uber.utils import (RegistrationCode, check_csrf, redirect_with_params,
@@ -193,7 +194,8 @@ def _resolve_assignment(session, assignment_id, application=None, *,
         (nulls first), filtered by:
           - statuses: 'live' for RoomAssignment.is_live, or an iterable
             of exact status consts;
-          - require_cc=True adds require_cc IS TRUE;
+          - require_cc filters payment_type through the require_cc
+            hybrid (True keeps card-guaranteed types, False the rest);
           - without_card=True adds cc_token IS NULL.
 
     Returns the row or None; callers keep their own error redirects.
@@ -215,7 +217,8 @@ def _resolve_assignment(session, assignment_id, application=None, *,
         elif statuses:
             filters.append(RoomAssignment.status.in_(list(statuses)))
         if require_cc is not None:
-            filters.append(RoomAssignment.require_cc.is_(require_cc))
+            filters.append(RoomAssignment.require_cc if require_cc
+                           else ~RoomAssignment.require_cc)
         if without_card:
             filters.append(RoomAssignment.cc_token.is_(None))
         ra = (session.query(RoomAssignment)
@@ -592,6 +595,33 @@ def _return_link(attendee_id):
         return f"../preregistration/confirm?id={attendee_id}&"
 
 
+def _entry_form_context(session, application, include_suites):
+    """Pricing and room-type availability data shared by both entry forms.
+
+    Staff rates only ship when the entrant qualifies for them. Suite pages
+    also carry room blocks, since a suite entry can fall back to the room
+    lottery via room_opt_out.
+    """
+    from uber.hotel.pricing import entry_pricing_config
+    from uber.hotel.queries import active_inventory_type_map
+    from uber.models.hotel import LotteryRoomType
+
+    show_staff_rates = bool(c.STAFF_HOTEL_LOTTERY_OPEN
+                            and application.qualifies_for_staff_lottery)
+    type_names = {str(rt.id): rt.name for rt in
+                  session.query(LotteryRoomType).filter_by(active=True).all()}
+    return {
+        'pricing_config': entry_pricing_config(
+            session, include_rooms=True, include_suites=include_suites,
+            show_staff_rates=show_staff_rates),
+        'availability_config': {
+            'room': active_inventory_type_map(session, is_suite=False),
+            'suite': active_inventory_type_map(session, is_suite=True),
+            'type_names': type_names,
+        },
+    }
+
+
 @all_renderable(public=True)
 class Root:
     @ajax_gettable
@@ -602,20 +632,66 @@ class Root:
         """
         return self._waitlist_reveal_payload(session, token)
 
+    def _resolve_reveal_token(self, session, token):
+        """(reveal, link) for a token, or (None, None).
+
+        A token is either one attendee's unique link or the reveal's shared
+        token. Shared views have no row to stamp, so their clicks are only
+        counted in aggregate.
+        """
+        if not token:
+            return None, None
+        link = session.query(WaitlistRevealLink).filter_by(token=token).first()
+        if link:
+            return link.waitlist_reveal, link
+        reveal = session.query(WaitlistReveal).filter(
+            WaitlistReveal.shared_token == token,
+            WaitlistReveal.shared_token != '').first()
+        return reveal, None
+
+    def _reveal_login_ok(self, session, reveal, link):
+        """Whether this viewer may see the reveal at all.
+
+        requires_account cannot be used here: it keys off an id parameter and
+        a model lookup, and these endpoints are token-keyed with no id.
+
+        For a unique link we require the viewer to own it, so forwarding one
+        does not hand over access. A shared token has no owner to check
+        against, so it can only require an eligible signed-in attendee; the
+        admin form says so.
+        """
+        if not reveal.require_login:
+            return True
+        if not c.ATTENDEE_ACCOUNTS_ENABLED:
+            # The option is meaningless without accounts, and silently locking
+            # everyone out would be worse than ignoring it.
+            return True
+
+        from uber.hotel.perms import is_lottery_admin
+        if is_lottery_admin():
+            return True
+
+        viewer = _viewer_attendee(session)
+        if not viewer:
+            return False
+        if link is not None:
+            return _attendee_account_owns(session, link.attendee_id)
+        return bool(viewer.hotel_lottery_eligible)
+
     def _waitlist_reveal_payload(self, session, token):
+        reveal, link = self._resolve_reveal_token(session, token)
         if not token:
             return {'error': 'missing-token'}
-        link = session.query(WaitlistRevealLink).filter_by(token=token).first()
-        if not link:
+        if not reveal:
             return {'error': 'invalid-token'}
-        reveal = link.waitlist_reveal
-        if not reveal or not reveal.active:
+        if not reveal.active:
             return {'error': 'inactive'}
+        # Before the payload is built, so an unauthenticated caller never has
+        # a destination URL constructed for them at all.
+        if not self._reveal_login_ok(session, reveal, link):
+            return {'error': 'login-required'}
 
-        if not link.clicked_at:
-            link.clicked_at = datetime.now()
-            session.add(link)
-            session.commit()
+        self._stamp_reveal_click(session, reveal, link)
 
         now = datetime.now(c.EVENT_TIMEZONE) if reveal.reveal_at else None
         is_revealed = reveal.reveal_at and reveal.reveal_at <= now
@@ -626,6 +702,17 @@ class Root:
             'external_url': reveal.external_url if is_revealed else None,
         }
 
+    def _stamp_reveal_click(self, session, reveal, link):
+        if link is not None:
+            if not link.clicked_at:
+                link.clicked_at = datetime.now()
+                session.add(link)
+                session.commit()
+            return
+        reveal.shared_clicks = (reveal.shared_clicks or 0) + 1
+        session.add(reveal)
+        session.commit()
+
     # Plain HTML view (the email links point here; the JS-poll variant uses
     # the ajax endpoint above when polling for reveal time).
     def waitlist_reveal_page(self, session, token=None, message=''):
@@ -635,21 +722,23 @@ class Root:
         # against), and the only write is stamping `clicked_at` once.
         if not token:
             raise HTTPRedirect('../preregistration/homepage')
-        link = session.query(WaitlistRevealLink).filter_by(token=token).first()
-        if not link or not link.waitlist_reveal or not link.waitlist_reveal.active:
+        reveal, link = self._resolve_reveal_token(session, token)
+        if not reveal or not reveal.active:
             return {'error': 'invalid-token', 'message': message}
+        if not self._reveal_login_ok(session, reveal, link):
+            return {'error': 'login-required', 'message': message}
 
-        reveal = link.waitlist_reveal
-        if not link.clicked_at:
-            link.clicked_at = datetime.now()
-            session.add(link)
-            session.commit()
+        self._stamp_reveal_click(session, reveal, link)
 
         now = datetime.now(c.EVENT_TIMEZONE) if reveal.reveal_at else None
+        is_revealed = bool(reveal.reveal_at and reveal.reveal_at <= now)
         return {
             'reveal': reveal,
             'token': token,
-            'is_revealed': bool(reveal.reveal_at and reveal.reveal_at <= now),
+            'is_revealed': is_revealed,
+            # Passed separately and only once revealed, so the template cannot
+            # leak it by reaching through `reveal`.
+            'external_url': reveal.external_url if is_revealed else None,
             'message': message,
         }
 
@@ -1472,14 +1561,15 @@ class Root:
                 raise HTTPRedirect('index?id={}&confirm=room&action=updated',
                                    application.id)
 
-        return {
-            'id': application.id,
-            'homepage_account': session.get_attendee_account_by_attendee(application.attendee),
-            'forms': forms,
-            'message': message,
-            'application': application,
-        }
-    
+        return dict(
+            _entry_form_context(session, application, include_suites=False),
+            id=application.id,
+            homepage_account=session.get_attendee_account_by_attendee(application.attendee),
+            forms=forms,
+            message=message,
+            application=application,
+        )
+
     @requires_account(LotteryApplication)
     def suite_lottery(self, session, id=None, message="", **params):
         application = session.lottery_application(id)
@@ -1535,14 +1625,15 @@ class Root:
                 raise HTTPRedirect('index?id={}&confirm=suite&action=updated',
                                    application.id)
 
-        return {
-            'id': application.id,
-            'homepage_account': session.get_attendee_account_by_attendee(application.attendee),
-            'forms': forms,
-            'message': message,
-            'application': application,
-            'read_only': False,
-        }
+        return dict(
+            _entry_form_context(session, application, include_suites=True),
+            id=application.id,
+            homepage_account=session.get_attendee_account_by_attendee(application.attendee),
+            forms=forms,
+            message=message,
+            application=application,
+            read_only=False,
+        )
 
     @ajax
     def validate_hotel_lottery(self, session, attendee_id=None, form_list=[], **params):

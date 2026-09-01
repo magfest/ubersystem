@@ -6,6 +6,7 @@ from cherrypy.lib.static import serve_file
 import math
 from collections import defaultdict
 from datetime import date, datetime, timedelta
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pytz import UTC
 from dateutil import parser as dateparser
 import sqlalchemy as sa
@@ -15,12 +16,16 @@ from sqlalchemy.types import String
 
 from uber.config import c
 from uber.decorators import (all_renderable, log_pageview, ajax, ajax_gettable, xlsx_file, csv_file,
-                             multifile_zipfile)
+                             multifile_zipfile, render)
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
-from uber.models import (AdminAccount, Attendee, Group, LotteryApplication,
-                         Email, Tracking, PageViewTracking)
-from uber.hotel.perms import record_partition_audit
+from uber.models import (AdminAccount, Attendee, AutomatedEmail, Group,
+                         LotteryApplication, Email, Tracking, PageViewTracking)
+from uber.hotel import pricing
+from uber.hotel.deletion import (DeletionError, RESOURCE_SPECS, has_blocking,
+                                 inspect_conflicts, perform_delete,
+                                 resolve_conflict)
+from uber.hotel.perms import is_lottery_admin, record_partition_audit
 from uber.models.hotel import (HotelRoomInventory, InventoryNightQuantity, InventoryPartition,
                                InventoryPartitionBlock, LotteryRun, HotelExportLog, LotteryHotel, LotteryRoomType,
                                PartitionOwner, RoomAssignment,
@@ -40,7 +45,8 @@ from uber.hotel.imports import (apply_cancellation_rows, apply_confirmation_rows
 from uber.hotel.service import (RoomAssignmentError, apply_room_assignment_edits,
                                 assign_physical_room, create_room_assignment,
                                 validate_physical_room)
-from uber.hotel.solver import (adjust_available_rooms,
+from uber.hotel.solver import (LOTTERY_TYPE_BOTH,
+                                       adjust_available_rooms,
                                        build_eligible_applications,
                                        count_assigned_per_block_night,
                                        filter_inventory_table,
@@ -110,6 +116,94 @@ def _unroomed_order(sort):
     return (RoomAssignment.assigned_check_in_date.asc().nullsfirst(),)
 
 
+def _waitlist_reveal_candidates(session, reveal):
+    """(eligible_ids, emailed_ids, pending_ids, new_ids) for one reveal.
+
+    Shared by the sender, the link generator, and the recipient preview, so
+    the preview cannot drift from what a send would actually do.
+
+    Eligible: lottery-eligible attendees holding no live room.
+    """
+    eligible_subq = session.query(Attendee.id).outerjoin(
+        RoomAssignment,
+        sa.and_(
+            RoomAssignment.attendee_id == Attendee.id,
+            RoomAssignment.is_live,
+        )
+    ).filter(
+        Attendee.hotel_lottery_eligible == True,  # noqa: E712
+        RoomAssignment.id.is_(None),
+    ).subquery()
+
+    eligible_ids = [row[0] for row in session.query(eligible_subq.c.id).all()]
+
+    emailed_ids, pending_ids = set(), set()
+    for attendee_id, emailed_at in session.query(
+            WaitlistRevealLink.attendee_id,
+            WaitlistRevealLink.emailed_at).filter_by(waitlist_reveal_id=reveal.id):
+        (emailed_ids if emailed_at else pending_ids).add(attendee_id)
+
+    # Anyone eligible who has no link row at all yet.
+    new_ids = [aid for aid in eligible_ids
+               if aid not in emailed_ids and aid not in pending_ids]
+    return eligible_ids, emailed_ids, pending_ids, new_ids
+
+
+def _mint_reveal_links(session, reveal, attendee_ids):
+    """Create the missing link rows and return every row that still needs
+    emailing, which includes ones generated earlier without sending."""
+    import secrets
+
+    for attendee_id in attendee_ids:
+        session.add(WaitlistRevealLink(
+            waitlist_reveal_id=reveal.id,
+            attendee_id=attendee_id,
+            token=secrets.token_urlsafe(24)))
+    session.flush()
+
+    return session.query(WaitlistRevealLink).filter(
+        WaitlistRevealLink.waitlist_reveal_id == reveal.id,
+        WaitlistRevealLink.emailed_at.is_(None)).all()
+
+
+def _deletion_label(obj):
+    return (getattr(obj, 'name', None) or getattr(obj, 'display_name', None)
+            or 'this item')
+
+
+def _deletion_conflicts_context(session, kind, id):
+    """The dialog's view of what still points at this resource, with the
+    conflict list rendered as HTML so the modal and the no-JS interstitial
+    page share one template. Raises DeletionError for a bad kind or id.
+
+    Module-level rather than a Root method: all_renderable wraps every
+    method, and the wrapper would render the returned dict as a page.
+    """
+    obj, spec, groups = inspect_conflicts(session, kind, id)
+
+    return {
+        'ok': True,
+        'kind': kind,
+        'id': str(obj.id),
+        'label': _deletion_label(obj),
+        'title': spec['title'],
+        'is_active': bool(getattr(obj, 'active', False)),
+        'soft_delete_available': bool(spec.get('soft_delete')),
+        'has_blocking': has_blocking(groups),
+        'force_required': any(g['category'] == 'emailed_links' for g in groups),
+        'html': render('hotel_lottery_admin/_deletion_conflicts.html', {
+            'kind': kind, 'obj': obj, 'spec': spec, 'groups': groups,
+        }).decode('utf-8'),
+    }
+
+
+LOTTERY_TYPE_VALUES = {
+    'room': c.ROOM_ENTRY,
+    'suite': c.SUITE_ENTRY,
+    'both': LOTTERY_TYPE_BOTH,
+}
+
+
 def _event_nights():
     """Hotel night dates for the lottery window, from the first check-in
     night through the night before the last check-out. Drives the
@@ -121,6 +215,89 @@ def _event_nights():
         nights.append(day)
         day += timedelta(days=1)
     return nights
+
+
+def _parse_price(raw):
+    """One submitted price box. '' means "not set"; anything unparseable or
+    negative raises so the admin sees it rather than losing the value.
+
+    Prices bypass WTForms entirely: coerce_column_data's Numeric branch does
+    int(float(value)), which would silently drop the cents.
+    """
+    raw = str(raw or '').strip().replace('$', '').replace(',', '')
+    if not raw:
+        return None
+    try:
+        amount = Decimal(raw)
+    except InvalidOperation:
+        raise ValueError('not a number')
+    if amount < 0:
+        raise ValueError('negative')
+    return amount.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+
+def _save_inventory_prices(session, item, params, event_nights):
+    """Replace this block's InventoryPrice rows from the posted grid.
+
+    Rows are deleted and reinserted wholesale rather than merged, so turning a
+    dimension off cannot leave orphaned cells that reappear if it is turned
+    back on. Returns an error message, or '' on success.
+    """
+    from uber.models.hotel import InventoryPrice
+
+    item.price_per_night = params.get('price_per_night') == '1'
+    item.price_per_occupancy = params.get('price_per_occupancy') == '1'
+    item.pricing_notes = (params.get('pricing_notes') or '').strip()
+
+    occupancies = list(range(item.min_capacity, item.capacity + 1))
+    nights = event_nights if item.price_per_night else []
+
+    # (field prefix, is_staff) for the two scopes the grid collects.
+    scopes = (('price', False), ('staff_price', True))
+
+    parsed = []
+    for prefix, is_staff in scopes:
+        try:
+            base = _parse_price(params.get(f'{prefix}_base'))
+        except ValueError:
+            return f'Could not read the {"staff " if is_staff else ""}base price.'
+        if is_staff:
+            item.base_staff_price = base
+        else:
+            item.base_price = base
+
+        if item.price_per_night and item.price_per_occupancy:
+            cells = [(night, occ, f'{prefix}_cell_{night.isoformat()}_{occ}')
+                     for night in nights for occ in occupancies]
+        elif item.price_per_night:
+            cells = [(night, None, f'{prefix}_night_{night.isoformat()}')
+                     for night in nights]
+        elif item.price_per_occupancy:
+            cells = [(None, occ, f'{prefix}_occ_{occ}') for occ in occupancies]
+        else:
+            cells = []
+
+        for night, occupancy, field in cells:
+            try:
+                amount = _parse_price(params.get(field))
+            except ValueError:
+                where = []
+                if night:
+                    where.append(night.strftime('%b %-d'))
+                if occupancy:
+                    where.append(f'{occupancy} occupants')
+                return (f'Could not read the {"staff " if is_staff else ""}price for '
+                        f'{" / ".join(where)}.')
+            if amount is not None:
+                parsed.append((night, occupancy, is_staff, amount))
+
+    session.query(InventoryPrice).filter_by(inventory_id=item.id).delete(
+        synchronize_session=False)
+    for night, occupancy, is_staff, amount in parsed:
+        session.add(InventoryPrice(inventory_id=item.id, night_date=night,
+                                   occupancy=occupancy, is_staff=is_staff,
+                                   price=amount))
+    return ''
 
 
 def _search(session, text):
@@ -912,6 +1089,12 @@ class Root:
                         nq = InventoryNightQuantity(inventory_id=item.id, night_date=night, quantity=qty)
                         session.add(nq)
 
+            price_error = _save_inventory_prices(session, item, params, event_nights)
+            if price_error:
+                session.rollback()
+                raise HTTPRedirect('edit_inventory_item?id={}&message={}',
+                                   '' if item.is_new else item.id, price_error)
+
             session.commit()
 
             # Notify applicants whose preferences referenced this block if it
@@ -953,6 +1136,7 @@ class Root:
             'forms': forms,
             'event_nights': event_nights,
             'type_codes_by_hotel': type_codes_by_hotel,
+            'price_matrices': pricing.price_matrices(item) if not item.is_new else None,
             'message': message,
         }
 
@@ -1508,6 +1692,9 @@ class Root:
         elif all_hotels:
             timeline_hotel = all_hotels[0]
 
+        from uber.hotel.exports import unprocessed_imports
+        from uber.models.hotel import ImportMappingTemplate
+
         return {
             'hotels': hotels,
             'message': message,
@@ -1515,6 +1702,9 @@ class Root:
             'timeline': (hotel_activity_timeline(session, timeline_hotel.id)
                          if timeline_hotel else []),
             'all_hotels': all_hotels,
+            'pending_uploads': unprocessed_imports(session),
+            'import_templates': session.query(ImportMappingTemplate).filter_by(
+                active=True).order_by(ImportMappingTemplate.name).all(),
         }
 
     def upload_confirmation_file(self, session, hotel_id=None, message='', **params):
@@ -1539,21 +1729,402 @@ class Root:
         account = session.current_admin_account()
         uploaded_by = account.attendee.full_name if account and account.attendee else 'Admin'
 
+        from uber.hotel import mapping
         from uber.hotel.imports import import_confirmation_file
+
+        filename = getattr(upload, 'filename', '')
+        template = mapping.detect_upload_template(
+            session, raw, filename, hotel=hotel,
+            template_id=params.get('template_id') or None)
         result = import_confirmation_file(
-            session, raw, getattr(upload, 'filename', ''), hotel=hotel,
+            session, raw, filename, hotel=hotel,
             source='admin', uploaded_by=uploaded_by,
-            content_type=getattr(upload, 'content_type', '') or '')
+            content_type=getattr(upload, 'content_type', '') or '',
+            template=template)
         # Commit even when parsing failed: the retained-upload record
         # (HotelImportFile) must persist either way, and the service layer
         # only flushes.
         session.commit()
+
+        record = result.get('record')
+        if record is not None:
+            review = mapping.prepare_import_review(
+                session, record, raw, filename, template=template)
+            session.commit()
+            if review:
+                raise HTTPRedirect(
+                    'review_import?id={}&message={}', record.id,
+                    f"Read {review['total']} row(s) with the "
+                    f"{review['template_name']} format. Review the changes below.")
 
         if result.get('error'):
             message = f"File saved, but could not be parsed: {result['error']}"
         else:
             message = f"Imported {result['updated']} update(s), {result['unchanged']} unchanged."
         raise HTTPRedirect('export_tracking?message={}', message)
+
+    def import_templates(self, session, message=''):
+        """The saved upload formats, with what each one is used by."""
+        from uber.models.hotel import ImportMappingTemplate
+
+        templates = session.query(ImportMappingTemplate).order_by(
+            ImportMappingTemplate.name).all()
+        hotels_by_template = defaultdict(list)
+        for hotel in session.query(LotteryHotel).filter(
+                LotteryHotel.default_import_template_id.isnot(None)).all():
+            hotels_by_template[str(hotel.default_import_template_id)].append(hotel.name)
+
+        usage = dict(session.query(
+            HotelImportFile.template_id, sa.func.count(HotelImportFile.id)).filter(
+            HotelImportFile.template_id.isnot(None)).group_by(
+            HotelImportFile.template_id).all())
+
+        return {
+            'templates': templates,
+            'hotels_by_template': hotels_by_template,
+            'usage': {str(k): v for k, v in usage.items()},
+            'message': message,
+        }
+
+    def edit_import_template(self, session, id='', message='', **params):
+        """Build one hotel's format: which column feeds which field, how they
+        spell our enum values, and what date formats they use.
+
+        The maps are edited as raw params rather than through WTForms: the
+        column set is whatever the sample file happens to have.
+        """
+        from uber.hotel import mapping
+        from uber.models.hotel import ImportMappingTemplate
+
+        if id and id not in ('None', ''):
+            template = session.query(ImportMappingTemplate).get(id)
+            if not template:
+                raise HTTPRedirect('import_templates?message={}', 'Format not found.')
+        else:
+            template = ImportMappingTemplate()
+
+        if cherrypy.request.method == 'POST':
+            check_csrf(params.get('csrf_token'))
+            template.name = (params.get('name') or '').strip()
+            template.description = (params.get('description') or '').strip()
+            template.sheet_name = (params.get('sheet_name') or '').strip()
+            try:
+                template.header_row = max(1, int(params.get('header_row') or 1))
+            except ValueError:
+                template.header_row = 1
+            template.active = params.get('active', 'true') != 'false'
+
+            column_map, format_map, enum_map, header_map = {}, {}, {}, {}
+            for key, value in params.items():
+                if key.startswith('column__') and value:
+                    column_map[key[len('column__'):]] = value
+                elif key.startswith('raw__') and value:
+                    header_map[key[len('raw__'):]] = value
+                elif key.startswith('format__') and value:
+                    format_map[key[len('format__'):]] = value
+                elif key.startswith('enum__') and value:
+                    # enum__<target>__<source value>
+                    rest = key[len('enum__'):]
+                    target, _, source_value = rest.partition('__')
+                    if target and source_value:
+                        enum_map.setdefault(target, {})[source_value] = value
+
+            template.column_map = column_map
+            template.format_map = format_map
+            template.enum_map = enum_map
+            template.header_map = {k: v for k, v in header_map.items()
+                                   if k in column_map}
+            template.source_signature = mapping.signature_for(column_map.keys())
+            session.add(template)
+            session.commit()
+            raise HTTPRedirect('import_templates?message={}',
+                               f'{template.name or "Format"} saved.')
+
+        return {
+            'template': template,
+            'target_fields': mapping.TARGET_FIELDS,
+            'payment_types': c.HOTEL_PAYMENT_TYPE_OPTS,
+            'message': message,
+        }
+
+    @ajax
+    def preview_import_template(self, session, maps='', hotel_id='',
+                                sample_file_id='', csrf_token=None, **params):
+        """Read a sample file with the maps currently on screen.
+
+        Nothing is written, so an admin can get the mapping right before
+        saving the format or touching a real upload.
+        """
+        import json as _json
+        from uber.hotel import mapping
+
+        if cherrypy.request.method != 'POST':
+            return {'error': 'This endpoint requires a POST.'}
+        check_csrf(csrf_token)
+
+        upload = params.get('sample_file')
+        raw = None
+        filename = ''
+        if upload is not None and getattr(upload, 'file', None):
+            raw = upload.file.read()
+            filename = getattr(upload, 'filename', '')
+            if len(raw) > 5 * 1024 * 1024:
+                return {'error': 'Sample file is too large (5 MB max).'}
+        elif sample_file_id:
+            record = session.query(HotelImportFile).get(sample_file_id)
+            if not record or not record.filepath or not os.path.exists(record.filepath):
+                return {'error': 'That stored upload is no longer on disk.'}
+            with open(record.filepath, 'rb') as f:
+                raw = f.read()
+            filename = record.filename or ''
+
+        if raw is None:
+            return {'error': 'Choose a sample file first.'}
+
+        try:
+            supplied = _json.loads(maps or '{}')
+        except ValueError:
+            return {'error': 'Could not read the mapping.'}
+
+        draft = mapping.draft_template(supplied)
+
+        from uber.hotel.imports import parse_spreadsheet_with_headers
+        header_pairs, _rows, error = parse_spreadsheet_with_headers(
+            raw, filename, sheet_name=draft.sheet_name or None,
+            header_row=draft.header_row or 1)
+        if error:
+            return {'error': error}
+        fieldnames = [key for _raw_header, key in header_pairs]
+
+        rows, error = mapping.build_rows(session, raw, filename, draft,
+                                         hotel_id=hotel_id or None)
+        if error:
+            return {'error': error}
+
+        counts = mapping.counts_for(rows)
+        sample = []
+        for row in rows[:10]:
+            sample.append({
+                'status': row['status'],
+                'mapped': {mapping.TARGETS_BY_KEY[k]['label']: v
+                           for k, v in row['mapped'].items()
+                           if k in mapping.TARGETS_BY_KEY and v},
+            })
+
+        return {'ok': True, 'headers': fieldnames,
+                'header_pairs': [{'raw': raw_header, 'key': key}
+                                 for raw_header, key in header_pairs],
+                'total': len(rows), 'counts': counts, 'sample': sample}
+
+    def delete_import_template(self, session, id='', csrf_token=None):
+        from uber.models.hotel import ImportMappingTemplate
+
+        _require_post_csrf({'csrf_token': csrf_token}, redirect='import_templates')
+
+        template = session.query(ImportMappingTemplate).get(id)
+        if not template:
+            raise HTTPRedirect('import_templates?message={}', 'Format not found.')
+
+        used_by_hotel = session.query(LotteryHotel).filter_by(
+            default_import_template_id=template.id).count()
+        used_by_file = session.query(HotelImportFile).filter_by(
+            template_id=template.id).count()
+        if used_by_hotel or used_by_file:
+            # Deleting would orphan the provenance of a completed review.
+            template.active = False
+            session.add(template)
+            session.commit()
+            raise HTTPRedirect(
+                'import_templates?message={}',
+                f'{template.name} is in use, so it was deactivated rather than '
+                'deleted. It will no longer be detected automatically.')
+
+        name = template.name
+        session.delete(template)
+        session.commit()
+        raise HTTPRedirect('import_templates?message={}', f'{name} deleted.')
+
+    def review_import(self, session, id='', page='1', filter='all', message=''):
+        """Row-by-row review of one uploaded file.
+
+        Its own page rather than an extension of the changes modal: per-value
+        sync and disambiguation need CSRF-bearing posts and pagination, and a
+        review worked through over several sittings needs to be linkable.
+        """
+        from uber.hotel import mapping
+
+        record = session.query(HotelImportFile).get(id)
+        if not record:
+            raise HTTPRedirect('export_tracking?message={}', 'Upload not found.')
+
+        page_num = max(1, int(page or 1))
+        page_size = 50
+
+        rows = list(record.parsed_rows or [])
+        total_rows = ((record.matched_count or 0) + (record.ambiguous_count or 0)
+                      + (record.unmatched_count or 0))
+        # Files above the storage cap keep only a slice in JSONB; anything
+        # a filter or a later page might need comes from the file on disk.
+        if len(rows) < total_rows and (
+                filter != 'all' or page_num * page_size > len(rows)):
+            rows = mapping.full_parsed_rows(session, record)
+
+        assignment_ids = {aid for row in rows for aid in row.get('assignment_ids', [])}
+        by_id = {}
+        if assignment_ids:
+            by_id = {str(ra.id): ra for ra in session.query(RoomAssignment).filter(
+                RoomAssignment.id.in_(assignment_ids)).all()}
+
+        # The comparison is recomputed here rather than stored, so a value
+        # synced a moment ago stops showing as changed.
+        prepared = []
+        for row in rows:
+            ids = row.get('assignment_ids', [])
+            primary = by_id.get(ids[0]) if len(ids) == 1 else None
+            diff = mapping.diff_row(primary, row.get('mapped', {})) if primary else []
+            prepared.append({
+                'index': row.get('index'),
+                'status': row.get('status'),
+                'source': row.get('source', {}),
+                'mapped': row.get('mapped', {}),
+                'assignment': primary,
+                'candidates': [by_id[i] for i in ids if i in by_id],
+                'diff': diff,
+                'changed': [d for d in diff if d['changed']],
+            })
+
+        if filter == 'changed':
+            prepared = [r for r in prepared if r['changed']]
+        elif filter in ('ambiguous', 'unmatched', 'matched'):
+            prepared = [r for r in prepared if r['status'] == filter]
+
+        total = len(prepared)
+        if filter == 'all':
+            # A capped row set still paginates over the whole file.
+            total = max(total, total_rows)
+        page_count = max(1, (total + page_size - 1) // page_size)
+        page_num = min(page_num, page_count)
+        window = prepared[(page_num - 1) * page_size:page_num * page_size]
+
+        return {
+            'record': record,
+            'rows': window,
+            'total': total,
+            'page': page_num,
+            'page_count': page_count,
+            'filter': filter,
+            'counts': {
+                'matched': record.matched_count,
+                'ambiguous': record.ambiguous_count,
+                'unmatched': record.unmatched_count,
+            },
+            'message': message,
+        }
+
+    @ajax
+    def sync_import_value(self, session, file_id='', row_index='', field='',
+                          assignment_id='', csrf_token=None):
+        """Write one imported value onto its booking."""
+        from uber.hotel import mapping
+
+        if cherrypy.request.method != 'POST':
+            return {'error': 'This endpoint requires a POST.'}
+        check_csrf(csrf_token)
+
+        record = session.query(HotelImportFile).get(file_id)
+        ra = session.query(RoomAssignment).get(assignment_id) if assignment_id else None
+        if not record or not ra:
+            return {'error': 'That upload or booking no longer exists.'}
+
+        row = next((r for r in (record.parsed_rows or [])
+                    if str(r.get('index')) == str(row_index)), None)
+        if row is None:
+            # Rows past the storage cap live only in the retained file.
+            row = next((r for r in mapping.full_parsed_rows(session, record)
+                        if str(r.get('index')) == str(row_index)), None)
+        if row is None:
+            return {'error': 'That row is no longer in this upload.'}
+
+        value = (row.get('mapped') or {}).get(field, '')
+        ok, message = mapping.sync_value(session, ra, field, value)
+        if not ok:
+            session.rollback()
+            return {'error': message}
+        session.commit()
+        return {'ok': True, 'message': message,
+                'current': mapping._current_value(ra, field)}
+
+    @ajax
+    def resolve_import_row(self, session, file_id='', row_index='',
+                           assignment_id='', csrf_token=None):
+        """Point an ambiguous row at one booking.
+
+        Stamps the row's acknowledgement number onto the chosen booking, so
+        that booking matches outright on every later upload rather than
+        needing to be disambiguated again.
+        """
+        from uber.hotel import mapping
+
+        if cherrypy.request.method != 'POST':
+            return {'error': 'This endpoint requires a POST.'}
+        check_csrf(csrf_token)
+
+        record = session.query(HotelImportFile).get(file_id)
+        ra = session.query(RoomAssignment).get(assignment_id) if assignment_id else None
+        if not record or not ra:
+            return {'error': 'That upload or booking no longer exists.'}
+
+        rows = list(record.parsed_rows or [])
+        row = next((r for r in rows if str(r.get('index')) == str(row_index)), None)
+        stored = row is not None
+        if row is None:
+            # Rows past the storage cap live only in the retained file.
+            row = next((r for r in mapping.full_parsed_rows(session, record)
+                        if str(r.get('index')) == str(row_index)), None)
+        if row is None:
+            return {'error': 'That row is no longer in this upload.'}
+
+        confirmation = (row.get('mapped') or {}).get(
+            'assignment.hotel_confirmation_number', '').strip()
+        if confirmation:
+            ra.hotel_confirmation_number = confirmation
+            session.add(ra)
+
+        previous_status = row.get('status')
+        row['assignment_ids'] = [str(ra.id)]
+        row['status'] = 'matched'
+        if stored:
+            record.parsed_rows = rows
+        # Adjusted incrementally rather than recounted, because the stored
+        # rows may be only a slice of the file.
+        if previous_status != 'matched':
+            record.matched_count += 1
+            if previous_status == 'ambiguous':
+                record.ambiguous_count = max(0, record.ambiguous_count - 1)
+            elif previous_status == 'unmatched':
+                record.unmatched_count = max(0, record.unmatched_count - 1)
+        session.add(record)
+        session.commit()
+
+        return {'ok': True, 'message': f'Row matched to {ra.room_summary}.'}
+
+    def mark_import_processed(self, session, id='', status='processed',
+                              csrf_token=None):
+        _require_post_csrf({'csrf_token': csrf_token}, redirect='export_tracking')
+
+        record = session.query(HotelImportFile).get(id)
+        if not record:
+            raise HTTPRedirect('export_tracking?message={}', 'Upload not found.')
+
+        account = session.current_admin_account()
+        record.status = 'ignored' if status == 'ignored' else 'processed'
+        record.processed_at = datetime.now(UTC)
+        record.processed_by = (account.attendee.full_name
+                               if account and account.attendee else 'Admin')
+        session.add(record)
+        session.commit()
+        raise HTTPRedirect('export_tracking?message={}',
+                           f'{record.filename or "Upload"} marked {record.status}.')
 
     def download_import_file(self, session, id):
         """Download a previously uploaded hotel import file."""
@@ -1569,11 +2140,8 @@ class Root:
         # RoomAssignment rows - it must never fire on a bare GET.
         _require_post_csrf(params)
 
-        if lottery_type == "room":
-            lottery_type_val = c.ROOM_ENTRY
-        elif lottery_type == "suite":
-            lottery_type_val = c.SUITE_ENTRY
-        else:
+        lottery_type_val = LOTTERY_TYPE_VALUES.get(lottery_type)
+        if lottery_type_val is None:
             return {'error': f'Invalid lottery type: {lottery_type}'}
         cutoff = None
         if params.get('cutoff', ''):
@@ -1612,7 +2180,8 @@ class Root:
 
         assigned_per_block_night = count_assigned_per_block_night(already_assigned)
 
-        is_suite = lottery_type_val == c.SUITE_ENTRY
+        # None for a combined run, which pulls room and suite blocks together.
+        is_suite = {c.ROOM_ENTRY: False, c.SUITE_ENTRY: True}.get(lottery_type_val)
         inventory_table = HotelRoomInventory.get_inventory(session, is_suite=is_suite)
 
         # Apply filters
@@ -2587,11 +3156,113 @@ class Root:
 
         return {'reveal': reveal, 'forms': forms, 'message': message}
 
+    @ajax
+    def waitlist_reveal_recipients(self, session, id='', csrf_token=None):
+        """Who a send would reach right now, from the same query the sender
+        uses."""
+        if cherrypy.request.method != 'POST':
+            return {'error': 'This endpoint requires a POST.'}
+        check_csrf(csrf_token)
+
+        reveal = session.query(WaitlistReveal).get(id)
+        if not reveal:
+            return {'error': 'Reveal not found.'}
+
+        eligible, emailed, pending, new_ids = _waitlist_reveal_candidates(
+            session, reveal)
+        would_email = list(pending) + new_ids
+
+        sample = []
+        for attendee in session.query(Attendee).filter(
+                Attendee.id.in_(would_email[:200])).all() if would_email else []:
+            sample.append({'name': attendee.full_name, 'email': attendee.email,
+                           'badge': attendee.badge_num or ''})
+        sample.sort(key=lambda row: row['name'])
+
+        return {
+            'ok': True,
+            'eligible': len(eligible),
+            'already_emailed': len(emailed),
+            'awaiting_send': len(pending),
+            'new': len(new_ids),
+            'would_email': len(would_email),
+            'sample': sample,
+            'truncated': len(would_email) > len(sample),
+        }
+
+    @ajax
+    def preview_waitlist_reveal_email(self, session, id='', csrf_token=None):
+        """The reveal email as one recipient would receive it."""
+        if cherrypy.request.method != 'POST':
+            return {'error': 'This endpoint requires a POST.'}
+        check_csrf(csrf_token)
+
+        reveal = session.query(WaitlistReveal).get(id)
+        if not reveal:
+            return {'error': 'Reveal not found.'}
+
+        _eligible, _emailed, pending, new_ids = _waitlist_reveal_candidates(
+            session, reveal)
+        sample_ids = list(pending) + new_ids
+        attendee = (session.query(Attendee).get(sample_ids[0]) if sample_ids
+                    else session.query(Attendee).first())
+        if not attendee:
+            return {'error': 'No attendee available to preview against.'}
+
+        automated = session.query(AutomatedEmail).filter_by(
+            ident='hotel_lottery_waitlist_reveal').first()
+        if not automated:
+            return {'error': 'The reveal email is not configured yet.'}
+
+        # Unflushed: previewing must not create a link row.
+        link = WaitlistRevealLink(waitlist_reveal_id=reveal.id,
+                                  attendee_id=attendee.id,
+                                  token='PREVIEW-TOKEN')
+        data = {'reveal': reveal, 'link': link}
+        subject = automated.render_subject(attendee, data)
+        body = automated.render_body(attendee, data)
+
+        # The template only prints the ubersystem token URL today, but a later
+        # edit could start printing the destination. Catching it here turns a
+        # silent leak into a visible one.
+        leaked = bool(reveal.external_url and reveal.external_url in body)
+        if leaked:
+            body = body.replace(reveal.external_url, '[HIDDEN UNTIL REVEAL TIME]')
+
+        return {'ok': True, 'subject': subject, 'body': body,
+                'recipient': f'{attendee.full_name} <{attendee.email}>',
+                'leak_warning': leaked}
+
+    def generate_waitlist_reveal_links(self, session, id='', csrf_token=None):
+        """Create the link rows without emailing anyone, so the URLs can be
+        handed out another way."""
+        import secrets
+
+        _require_post_csrf({'csrf_token': csrf_token}, redirect='waitlist_reveals')
+
+        reveal = session.query(WaitlistReveal).get(id)
+        if not reveal:
+            raise HTTPRedirect('waitlist_reveals?message={}', 'Reveal not found.')
+
+        _eligible, _emailed, _pending, new_ids = _waitlist_reveal_candidates(
+            session, reveal)
+        if not reveal.use_unique_links and not reveal.shared_token:
+            reveal.shared_token = secrets.token_urlsafe(24)
+            session.add(reveal)
+        _mint_reveal_links(session, reveal, new_ids)
+        session.commit()
+
+        raise HTTPRedirect(
+            'waitlist_reveals?message={}',
+            f'Generated {len(new_ids)} link(s). Nothing was emailed.')
+
     def send_waitlist_reveal_emails(self, session, id, csrf_token=None):
         """Materialize one WaitlistRevealLink per eligible attendee (anyone
         hotel-lottery-eligible without an active RoomAssignment) and queue
-        the reveal email. Idempotent for already-emailed (attendee, reveal)
-        pairs - running this again only emails new candidates.
+        the reveal email.
+
+        Idempotent on emailed_at, not on the link row existing: generating
+        links without sending must not make a later send skip everyone.
         """
         import secrets
 
@@ -2604,36 +3275,18 @@ class Root:
             raise HTTPRedirect('waitlist_reveals?message={}',
                                'Reveal is missing or inactive.')
 
-        eligible_subq = session.query(Attendee.id).outerjoin(
-            RoomAssignment,
-            sa.and_(
-                RoomAssignment.attendee_id == Attendee.id,
-                RoomAssignment.is_live,
-            )
-        ).filter(
-            Attendee.hotel_lottery_eligible == True,  # noqa: E712
-            RoomAssignment.id.is_(None),
-        ).subquery()
+        _eligible, _emailed, _pending, new_ids = _waitlist_reveal_candidates(
+            session, reveal)
+        if not reveal.use_unique_links and not reveal.shared_token:
+            reveal.shared_token = secrets.token_urlsafe(24)
+            session.add(reveal)
 
-        eligible_ids = [row[0] for row in session.query(eligible_subq.c.id).all()]
-        existing_attendee_ids = {
-            row[0] for row in session.query(WaitlistRevealLink.attendee_id).filter_by(
-                waitlist_reveal_id=reveal.id).all()}
+        # Skip on emailed_at rather than on the row existing, so links
+        # generated earlier without sending still get their email.
+        unsent_links = _mint_reveal_links(session, reveal, new_ids)
 
-        new_links = []
-        for aid in eligible_ids:
-            if aid in existing_attendee_ids:
-                continue
-            link = WaitlistRevealLink(
-                waitlist_reveal_id=reveal.id,
-                attendee_id=aid,
-                token=secrets.token_urlsafe(24),
-            )
-            session.add(link)
-            new_links.append(link)
-        session.flush()
-
-        for link in new_links:
+        queued = 0
+        for link in unsent_links:
             attendee = session.query(Attendee).get(link.attendee_id)
             if not attendee:
                 continue
@@ -2643,11 +3296,12 @@ class Root:
                 data={'reveal': reveal, 'link': link})
             link.emailed_at = datetime.now(UTC)
             session.add(link)
+            queued += 1
 
         session.commit()
         raise HTTPRedirect(
             'waitlist_reveals?message={}',
-            f"Queued {len(new_links)} new waitlist email{'s' if len(new_links) != 1 else ''}.")
+            f"Queued {queued} new waitlist email{'s' if queued != 1 else ''}.")
 
     def assign_room(self, session, id=None, message='', **params):
         """Create or edit a RoomAssignment outside the lottery flow.
@@ -2657,7 +3311,7 @@ class Root:
         partition_id is locked to their grant's scope. Used by Marketplace,
         Belvedere, Panels, Accessibility to assign exhibitor/panelist rooms.
         """
-        from uber.hotel.perms import is_lottery_admin, can_edit_assignments_in
+        from uber.hotel.perms import can_edit_assignments_in
 
         assignment = None
         if id and id not in ('None', ''):
@@ -2705,10 +3359,6 @@ class Root:
                     if (not assignment.assignment_reason
                             or assignment.assignment_reason == c.MANUAL):
                         assignment.assignment_reason = reason
-                    # The billing checkbox posts nothing when unchecked; pin
-                    # an explicit value so the sparse-params contract sees it.
-                    params['require_cc'] = (
-                        'true' if params.get('require_cc') == 'true' else 'false')
                     apply_room_assignment_edits(
                         session, assignment, params,
                         audit_prefix='Assign-room page updated', fail=fail)
@@ -2721,7 +3371,7 @@ class Root:
                             inventory_id=picked_inventory,
                             partition_id=picked_partition,
                             assignment_reason=reason,
-                            require_cc=params.get('require_cc') == 'true',
+                            payment_type=params.get('payment_type'),
                             assigned_check_in_date=params.get('assigned_check_in_date', ''),
                             assigned_check_out_date=params.get('assigned_check_out_date', ''),
                             deposit_cutoff_date=params.get('deposit_cutoff_date', ''),
@@ -2833,7 +3483,7 @@ class Root:
                 grant.admin_account_id = picked_account
                 grant.partition_id = picked_partition
 
-                # Three scoped access levels are submitted as
+                # Scoped access levels are submitted as
                 # `<scope>_level` = none | view | edit. We unpack each
                 # into the underlying view/edit flag pair so the
                 # invariant "edit implies view" is enforced at the UI
@@ -2842,6 +3492,7 @@ class Root:
                 level_scopes = [
                     ('inventory_level',  'can_view_inventory',  'can_edit_inventory'),
                     ('assignments_level', 'can_view_assignments', 'can_edit_assignments'),
+                    ('room_numbers_level', 'can_view_room_numbers', 'can_edit_room_numbers'),
                 ]
                 for level_field, view_flag, edit_flag in level_scopes:
                     level = (params.get(level_field) or '').strip()
@@ -2896,6 +3547,82 @@ class Root:
             'message': message,
         }
 
+    @ajax
+    def deletion_conflicts(self, session, kind='', id='', csrf_token=None):
+        """What still points at this resource, rendered for the dialog.
+
+        Returns HTML rather than a JSON tree so the modal and the no-JS
+        interstitial page share one template.
+        """
+        if cherrypy.request.method != 'POST':
+            return {'error': 'This endpoint requires a POST.'}
+        check_csrf(csrf_token)
+        try:
+            return _deletion_conflicts_context(session, kind, id)
+        except DeletionError as e:
+            return {'error': e.message}
+
+    @ajax
+    def resolve_deletion_conflict(self, session, kind='', id='', category='',
+                                  action='', item_id='', target_id='',
+                                  csrf_token=None):
+        """Apply one resolution, then re-render so the dialog can never act on
+        a stale view."""
+        if cherrypy.request.method != 'POST':
+            return {'error': 'This endpoint requires a POST.'}
+        check_csrf(csrf_token)
+        try:
+            message = resolve_conflict(session, kind, id, category, action,
+                                       item_id=item_id, target_id=target_id)
+            session.commit()
+            result = _deletion_conflicts_context(session, kind, id)
+        except DeletionError as e:
+            session.rollback()
+            return {'error': e.message}
+
+        result['message'] = message
+        return result
+
+    def confirm_delete_resource(self, session, kind='', id='', return_to='',
+                                message=''):
+        """Full-page fallback for the same dialog, so the delete controls work
+        without JavaScript."""
+        try:
+            obj, spec, groups = inspect_conflicts(session, kind, id)
+        except DeletionError as e:
+            raise HTTPRedirect('index?message={}', e.message)
+
+        return {
+            'kind': kind,
+            'obj': obj,
+            'spec': spec,
+            'groups': groups,
+            'label': _deletion_label(obj),
+            'has_blocking': has_blocking(groups),
+            'return_to': return_to or spec['list_page'],
+            'message': message,
+        }
+
+    def delete_resource(self, session, kind='', id='', mode='soft', force='',
+                        return_to='', csrf_token=None):
+        spec = RESOURCE_SPECS.get(kind)
+        list_page = spec['list_page'] if spec else 'index'
+        _require_post_csrf({'csrf_token': csrf_token}, redirect=list_page)
+
+        # force carries the emailed-links acknowledgement checkbox; only a
+        # waitlist reveal has an acknowledgeable group.
+        acknowledged = (kind == 'waitlist_reveal'
+                        and force in ('1', 'true', 'True'))
+        try:
+            message = perform_delete(session, kind, id, mode=mode,
+                                     force=acknowledged)
+            session.commit()
+        except DeletionError as e:
+            session.rollback()
+            raise HTTPRedirect('{}?message={}', return_to or list_page, e.message)
+
+        raise HTTPRedirect('{}?message={}', return_to or list_page, message)
+
     def delete_partition_owner(self, session, id, csrf_token=None, return_to=''):
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect('partition_owners')
@@ -2929,8 +3656,11 @@ class Root:
         forms = load_forms(params, partition, ['InventoryPartitionConfig'])
 
         if cherrypy.request.method == 'POST':
+            # Not is_admin=True: bill_reference is locked for anyone who is not
+            # a full lottery admin, and that lock only applies when the form is
+            # populated as a non-admin.
             for form in forms.values():
-                form.populate_obj(partition, is_admin=True)
+                form.populate_obj(partition, is_admin=is_lottery_admin())
             session.add(partition)
             session.flush()
 
@@ -3068,7 +3798,7 @@ class Root:
                 lottery_application_id=app.id,
                 assignment_reason=c.MANUAL,
                 status=c.ASSIGNED,
-                require_cc=params.get('require_cc') == 'true',
+                payment_type=params.get('payment_type'),
                 assigned_check_in_date=params.get('assigned_check_in_date', ''),
                 assigned_check_out_date=params.get('assigned_check_out_date', ''),
                 audit_description=f"Manually added room to attendee {app.attendee_id}",
@@ -3251,7 +3981,7 @@ class Root:
         elif sort == 'status':
             order = ordered(RoomAssignment.status)
         elif sort == 'billing':
-            order = ordered(RoomAssignment.require_cc,
+            order = ordered(RoomAssignment.payment_type,
                             RoomAssignment.cc_last_four)
         elif sort == 'partition':
             part = aliased(InventoryPartition)

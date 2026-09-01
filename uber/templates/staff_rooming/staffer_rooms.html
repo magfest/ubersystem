@@ -31,6 +31,9 @@
         <option value="all" {% if billing == 'all' %}selected{% endif %}>All</option>
         <option value="self_pay" {% if billing == 'self_pay' %}selected{% endif %}>Self-pay only</option>
         <option value="master_bill" {% if billing == 'master_bill' %}selected{% endif %}>Master bill only</option>
+        {% if c.HOTEL_PAYMENT_TYPES_WITH_PARKING %}
+        <option value="parking" {% if billing == 'parking' %}selected{% endif %}>Parking covered</option>
+        {% endif %}
       </select>
     </div>
     <div class="col-md-3">

@@ -7,15 +7,28 @@
 
 <h2>Staff Hotel Eligibility</h2>
 <p class="text-muted">
-  Toggle each Staff or Contractor badge's <code>hotel_eligible</code> flag.
-  Only eligible staffers can enter the next staff hotel lottery. Use the
-  per-row switch for one-off changes or the bulk action for batches.
+  {% if shared_enabled %}
+  Each Staff or Contractor badge carries two independent eligibility flags:
+  <code>staff_lottery_eligible</code> lets a Staff badge enter the early
+  staff hotel lottery, and <code>hotel_eligible</code> lets them sign up
+  for a shared staff room. Use the per-row switches for one-off changes or
+  the bulk actions for batches.
+  {% else %}
+  Toggle each Staff or Contractor badge's <code>staff_lottery_eligible</code>
+  flag. Only Staff badges with the flag set can enter the early staff hotel
+  lottery. Use the per-row switch for one-off changes or the bulk action
+  for batches.
+  {% endif %}
 </p>
 
 <div class="d-flex gap-2 align-items-center mb-3 flex-wrap">
-  <span class="badge bg-success">Eligible: {{ total_eligible }}</span>
-  <span class="badge bg-secondary">Ineligible: {{ total_ineligible }}</span>
-  <span class="badge bg-primary">Total staff: {{ total_eligible + total_ineligible }}</span>
+  <span class="badge bg-success">Staff lottery eligible: {{ total_staff_lottery }}</span>
+  <span class="badge bg-secondary">Staff lottery ineligible: {{ total_not_staff_lottery }}</span>
+  {% if shared_enabled %}
+  <span class="badge bg-success">Shared room eligible: {{ total_eligible }}</span>
+  <span class="badge bg-secondary">Shared room ineligible: {{ total_ineligible }}</span>
+  {% endif %}
+  <span class="badge bg-primary">Total staff: {{ total_staff }}</span>
 </div>
 
 <form method="get" action="hotel_eligibility" class="card card-body mb-3">
@@ -29,8 +42,17 @@
       <label class="form-label small mb-1">Show</label>
       <select class="form-select form-select-sm" name="show">
         <option value="all" {% if show == 'all' %}selected{% endif %}>All staff</option>
-        <option value="eligible" {% if show == 'eligible' %}selected{% endif %}>Eligible only</option>
-        <option value="ineligible" {% if show == 'ineligible' %}selected{% endif %}>Ineligible only</option>
+        <option value="staff_lottery"
+                {% if show == 'staff_lottery' %}selected{% endif %}>Staff lottery eligible</option>
+        <option value="not_staff_lottery"
+                {% if show == 'not_staff_lottery' %}selected{% endif %}>Not staff lottery eligible</option>
+        {% if shared_enabled %}
+        <option value="shared"
+                {% if show in ('shared', 'eligible') %}selected{% endif %}>Shared room eligible</option>
+        <option value="not_shared"
+                {% if show in ('not_shared', 'ineligible') %}selected{% endif %}>Not shared room eligible</option>
+        <option value="neither" {% if show == 'neither' %}selected{% endif %}>Eligible for neither</option>
+        {% endif %}
       </select>
     </div>
     <div class="col-md-2">
@@ -59,20 +81,49 @@
   {{ csrf_token() }}
   <input type="hidden" name="return_url" value="{{ _return_url }}" />
   <input type="hidden" id="bulk-eligible-value" name="eligible" value="true" />
+  <input type="hidden" id="bulk-field-value" name="field" value="staff_lottery" />
   <input type="hidden" id="bulk-ids-value" name="attendee_ids" value="" />
 </form>
 
-<div class="d-flex gap-2 mb-2 align-items-center">
-  <button type="button" class="btn btn-sm btn-success" id="bulk-mark-eligible">
-    Mark selected eligible
-  </button>
-  <button type="button" class="btn btn-sm btn-outline-danger" id="bulk-mark-ineligible">
-    Mark selected ineligible
-  </button>
+{# One pair of buttons per flag: with two independent eligibilities there is
+   no single "eligible" for a bulk action to mean. #}
+<div class="d-flex gap-2 mb-2 align-items-center flex-wrap">
+  <span class="small text-muted">Staff lottery:</span>
+  <button type="button" class="btn btn-sm btn-success bulk-set"
+          data-field="staff_lottery" data-eligible="true">Grant</button>
+  <button type="button" class="btn btn-sm btn-outline-danger bulk-set"
+          data-field="staff_lottery" data-eligible="false">Revoke</button>
+  {% if shared_enabled %}
+  <span class="small text-muted ms-3">Shared room:</span>
+  <button type="button" class="btn btn-sm btn-success bulk-set"
+          data-field="shared_room" data-eligible="true">Grant</button>
+  <button type="button" class="btn btn-sm btn-outline-danger bulk-set"
+          data-field="shared_room" data-eligible="false">Revoke</button>
+  {% endif %}
   <small class="text-muted ms-auto">
     <span id="bulk-selected-count">0</span> selected
   </small>
 </div>
+
+
+{% macro eligibility_toggle(attendee, field, is_eligible) %}
+  <form method="post" action="set_hotel_eligibility" class="d-inline">
+    {{ csrf_token() }}
+    <input type="hidden" name="attendee_id" value="{{ attendee.id }}" />
+    <input type="hidden" name="field" value="{{ field }}" />
+    <input type="hidden" name="eligible" value="{{ 'false' if is_eligible else 'true' }}" />
+    <input type="hidden" name="return_url" value="{{ _return_url }}" />
+    {% if is_eligible %}
+      <button type="submit" class="btn btn-sm btn-success">
+        <i class="fa fa-check"></i> Eligible - revoke
+      </button>
+    {% else %}
+      <button type="submit" class="btn btn-sm btn-outline-secondary">
+        <i class="fa fa-times"></i> Ineligible - grant
+      </button>
+    {% endif %}
+  </form>
+{% endmacro %}
 
 <table class="table table-sm table-hover align-middle">
     <thead>
@@ -83,8 +134,10 @@
         <th>Name</th>
         <th>Email</th>
         <th>Department(s)</th>
-        <th>Has live room?</th>
-        <th style="width: 160px;">Hotel-eligible</th>
+        <th>Live room</th>
+        {% if shared_enabled %}<th>Shared room request</th>{% endif %}
+        <th style="width: 170px;">Staff lottery</th>
+        {% if shared_enabled %}<th style="width: 170px;">Shared room</th>{% endif %}
       </tr>
     </thead>
     <tbody>
@@ -113,34 +166,42 @@
           {% endif %}
         </td>
         <td>
-          {% if _has_room %}{{ hotel_macros.yes_no_chip(true) }}{% else %}<span class="text-muted">-</span>{% endif %}
+          {% set _kind = a.hotel_room_kind %}
+          {% if _kind == 'lottery' %}
+            <span class="badge bg-primary">Lottery</span>
+          {% elif _kind == 'shared' %}
+            <span class="badge bg-info text-dark">Shared</span>
+          {% elif _kind == 'mixed' %}
+            <span class="badge bg-warning text-dark" title="This staffer holds more than one kind of room.">Mixed</span>
+          {% elif _kind %}
+            <span class="badge bg-secondary">Other</span>
+          {% else %}
+            <span class="text-muted">-</span>
+          {% endif %}
         </td>
+        {% if shared_enabled %}
         <td>
-          {# Per-row toggle posts to set_hotel_eligibility. The hidden
-             eligible field flips to whatever the OPPOSITE of the
-             current state is, so clicking the button toggles. #}
-          <form method="post" action="set_hotel_eligibility" class="d-inline">
-            {{ csrf_token() }}
-            <input type="hidden" name="attendee_id" value="{{ a.id }}" />
-            <input type="hidden" name="eligible" value="{{ 'false' if a.hotel_eligible else 'true' }}" />
-            <input type="hidden" name="return_url" value="{{ _return_url }}" />
-            {% if a.hotel_eligible %}
-              <button type="submit" class="btn btn-sm btn-success">
-                <i class="fa fa-check"></i> Eligible - revoke
-              </button>
-            {% else %}
-              <button type="submit" class="btn btn-sm btn-outline-secondary">
-                <i class="fa fa-times"></i> Ineligible - grant
-              </button>
-            {% endif %}
-          </form>
+          {# Fetched by the browser straight from the staff checklist system,
+             the same way the volunteer checklist renders its checkmarks. #}
+          <img class="tuber-status" height="20" width="20" loading="lazy"
+               referrerpolicy="no-referrer"
+               alt="Shared room request status"
+               title="Shared room request status from the staff checklist"
+               src="{{ c.HOTEL_REQUESTS_URL }}/hotels/request_complete.png?id={{ a.id
+                    }}&amp;event={{ c.EVENT_NAME }}{{ c.EVENT_YEAR }}" />
         </td>
+        {% endif %}
+        <td>{{ eligibility_toggle(a, 'staff_lottery', a.staff_lottery_eligible) }}</td>
+        {% if shared_enabled %}
+        <td>{{ eligibility_toggle(a, 'shared_room', a.hotel_eligible) }}</td>
+        {% endif %}
       </tr>
       {% endfor %}
     </tbody>
   </table>
 
 {{ "js/hotel-eligibility-bulk.js"|serve_static_content }}
+{% if shared_enabled %}{{ "js/tuber-status.js"|serve_static_content }}{% endif %}
 
 {% set _qs = 'search=' ~ search|urlencode ~ '&show=' ~ show ~ '&page_size=' ~ page_size %}
 {{ hotel_macros.pagination(page, page_count, 'hotel_eligibility?' ~ _qs,

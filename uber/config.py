@@ -2096,6 +2096,35 @@ c.HOTEL_LOTTERY_PRIORITIES_OPTS = [
     if isinstance(item, dict)
 ]
 
+# How rooms are paid for, built from [hotel_lottery] [[payment_types]].
+# RoomAssignment.payment_type stores the section name, so export_name can be
+# changed freely. Look up with c.HOTEL_PAYMENT_TYPES.get() and fall back to the
+# raw key, otherwise a renamed section blanks the display instead of showing
+# that the row is orphaned.
+c.HOTEL_PAYMENT_TYPES = {
+    key: {
+        'name': item.get('name', '') or key,
+        'export_name': item.get('export_name', ''),
+        'require_cc': item.get('require_cc', True),
+        'event_pays_parking': item.get('event_pays_parking', False),
+    }
+    for key, item in c.HOTEL_LOTTERY.get('payment_types', {}).items()
+    if isinstance(item, dict)
+}
+
+c.HOTEL_PAYMENT_TYPE_OPTS = [(key, item['name']) for key, item in c.HOTEL_PAYMENT_TYPES.items()]
+
+# The payment types that oblige the guest to guarantee the room with a card.
+# Both RoomAssignment.require_cc and its SQL expression read this one list.
+c.HOTEL_PAYMENT_TYPES_REQUIRING_CC = [
+    key for key, item in c.HOTEL_PAYMENT_TYPES.items() if item['require_cc']]
+
+c.HOTEL_PAYMENT_TYPES_WITH_PARKING = [
+    key for key, item in c.HOTEL_PAYMENT_TYPES.items() if item['event_pays_parking']]
+
+c.DEFAULT_HOTEL_PAYMENT_TYPE = 'credit_card' if 'credit_card' in c.HOTEL_PAYMENT_TYPES else (
+    c.HOTEL_PAYMENT_TYPE_OPTS[0][0] if c.HOTEL_PAYMENT_TYPE_OPTS else '')
+
 c.HOTEL_LOTTERY_AWARD_STATUSES = [c.PROCESSED, c.AWARDED, c.SECURED]
 
 # RoomAssignment statuses that still hold inventory - the canonical "live

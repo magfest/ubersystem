@@ -1,4 +1,5 @@
 {% extends "base.html" %}{% set admin_area=True %}
+{% import 'hotel_lottery_admin/_macros.html' as hotel_macros with context %}
 {% block title %}Manage Room Types{% endblock %}
 {% block content %}
 
@@ -59,7 +60,10 @@
       <td>{{ rt.min_capacity }}</td>
       <td>{{ chain_cell(rt, by_id, children_by_parent) }}</td>
       <td>{{ 'Yes' if rt.active else 'No' }}</td>
-      <td><a href="edit_room_type?id={{ rt.id }}" class="btn btn-sm btn-outline-primary">Edit</a></td>
+      <td class="d-flex gap-1">
+        <a href="edit_room_type?id={{ rt.id }}" class="btn btn-sm btn-outline-primary">Edit</a>
+        {{ hotel_macros.delete_button('room_type', rt, 'manage_room_types') }}
+      </td>
     </tr>
     {% endfor %}
   </tbody>
@@ -72,5 +76,7 @@
   No room types configured. <a href="edit_room_type">Add one</a>.
 </div>
 {% endif %}
+
+{{ "js/hotel-delete-conflicts.js"|serve_static_content }}
 
 {% endblock content %}
