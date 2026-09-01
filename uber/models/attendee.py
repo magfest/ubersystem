@@ -2741,7 +2741,9 @@ class AttendeeAccount(MagModel, table=True):
     
     @property
     def hotel_eligible_staff(self):
-        return [a for a in self.hotel_eligible_attendees if a.badge_type == c.STAFF_BADGE]
+        # Since this is used to display whether the staff lottery is open, we need to include placeholder badges
+        return [a for a in self.valid_attendees if a.badge_type == c.STAFF_BADGE and not a.is_unassigned and 
+                a.badge_status not in [c.REFUNDED_STATUS, c.NOT_ATTENDING, c.DEFERRED_STATUS, c.WATCHED_STATUS]]
 
     @property
     def valid_attendees(self):

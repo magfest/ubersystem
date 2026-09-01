@@ -73,7 +73,7 @@ class BadgeExtras(MagForm):
     attendance_type = HiddenIntField('Single Day or Weekend Badge?')
     badge_type = HiddenIntField('Badge Type')
     badge_type_single = HiddenIntField('Badge Type', default=c.ATTENDEE_BADGE)
-    amount_extra = HiddenIntField('Pre-order Merch')
+    amount_extra = HiddenIntField('Pre-Order Merch')
     extra_donation = IntegerField('Extra Donation', widget=NumberInputGroup(),
                                   description=popup_link("../static_views/givingExtra.html", "Learn more"))
     shirt = SelectAvailableField('Shirt Size', coerce=int,
@@ -99,7 +99,7 @@ class BadgeExtras(MagForm):
 
 
 class AdminBadgeExtras(BadgeExtras):
-    amount_extra = SelectField('Pre-ordered Merch', coerce=int, choices=c.DONATION_TIER_OPTS)
+    amount_extra = SelectField('Pre-Ordered Merch', coerce=int, choices=c.DONATION_TIER_OPTS)
     extra_merch = StringField('Extra Merch')
     got_merch = BooleanField('This attendee has picked up their merch.')
     shirt_opt_out = SelectField('Shirt Opt In/Out', coerce=int, choices=c.SHIRT_OPT_OUT_OPTS)

@@ -343,7 +343,9 @@ def amount_extra_cost(attendee, new_attendee=None):
             old_total = amount_extra + c.get_amount_extra_tax(amount_extra)
             new_tax = c.get_amount_extra_tax(new_amount_extra)
             new_total = new_amount_extra + new_tax
-            label = c.DONATION_TIERS[amount_extra] + f" (Includes {format_currency(new_amount_extra)} base price + {format_currency(new_tax)} Sales Tax)"
+            label = c.DONATION_TIERS[new_amount_extra]
+            if diff > 0:
+                label += f" (Includes {format_currency(new_amount_extra)} base price + {format_currency(new_tax)} Sales Tax)"
             real_diff = new_total - old_total
             return (f"{prefix} to {label}", real_diff * 100, 'amount_extra')
         return

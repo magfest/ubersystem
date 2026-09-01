@@ -2047,7 +2047,7 @@ shirt_label_lookup = {val: key for key, val in c.SHIRT_OPTS}
 c.SHIRT_SIZE_STOCKS = {shirt_label_lookup[val]: key for key, val in c.SHIRT_STOCK_OPTS}
 
 from uber.custom_tags import format_currency
-if c.MERCH_TAX:
+if c.MERCH_TAX and c.INCLUDE_MERCH_TAX:
     new_opts = []
     for amt, desc in c.DONATION_TIER_OPTS:
         total = amt + c.get_amount_extra_tax(amt)
@@ -2064,7 +2064,7 @@ for _ident, _tier in c.DONATION_TIER_DESCRIPTIONS.items():
     except ValueError:
         pass
 
-    if price and c.MERCH_TAX:
+    if price and c.MERCH_TAX and c.INCLUDE_MERCH_TAX:
         total = price + c.get_amount_extra_tax(price)
         _tier['price'] = total
     else:
