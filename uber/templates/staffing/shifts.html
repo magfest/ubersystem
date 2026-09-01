@@ -251,6 +251,7 @@
               url: 'sign_up',
               dataType: 'json',
               data: {
+                id: '{{ attendee.id }}',
                 job_id: id,
                 csrf_token: csrf_token
               },
@@ -293,6 +294,7 @@
               url: 'drop',
               dataType: 'json',
               data: {
+                id: '{{ attendee.id }}',
                 job_id: id,
                 csrf_token: csrf_token
               },
