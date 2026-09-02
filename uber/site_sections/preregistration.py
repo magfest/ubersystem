@@ -2611,16 +2611,16 @@ class Root:
             elif not admin:
                 raise HTTPRedirect(f'{page}This is not your account.')
 
-        owner_id = params.get('owner_id', '')
-        if not owner_id:
-            message = "Please select a registration to be the account owner."
+        if not c.LOCAL_ACCOUNTS_DISABLED:
+            owner_id = params.get('owner_id', '')
+            if not owner_id:
+                message = "Please select a registration to be the account owner."
+            else:
+                owner_attendee = session.get(Attendee, owner_id)
+            
+            if not owner_attendee or owner_attendee not in account.valid_adults:
+                message = "Please select a valid registration over 17 years old to be the account owner."
         else:
-            owner_attendee = session.get(Attendee, owner_id)
-        
-        if not owner_attendee or owner_attendee not in account.valid_adults:
-            message = "Please select a valid registration over 17 years old to be the account owner."
-
-        if c.LOCAL_ACCOUNTS_DISABLED:
             message = message or valid_email(params.get('account_email'))
             if not message:
                 account.email = params.get('account_email')

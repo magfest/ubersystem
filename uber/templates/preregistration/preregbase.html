@@ -55,7 +55,7 @@
             {{ csrf_token() }}
             <input type="hidden" name="id" value="{{ account.id }}" />
             <input type="hidden" name="return_to" value="..{{ c.PAGE_PATH }}?{{ c.QUERY_STRING_NO_MSG }}" />
-            {% if account.is_sso_account and c.OIDC_ENABLED %}
+            {% if c.LOCAL_ACCOUNTS_DISABLED %}
             <div class="row g-3">
                 <div class="col-sm">
                     <label for="email" class="form-text">Account Notifications Email</label>
