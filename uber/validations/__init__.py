@@ -8,6 +8,10 @@ import logging
 log = logging.getLogger(__name__)
 
 
+def is_placeholder_or_unassigned(form):
+    return form.is_admin and form.model.unassigned_group_reg or form.model.placeholder or form.model.badge_status == c.NOT_ATTENDING
+
+
 def placeholder_unassigned_fields(form):
     field_list = Attendee.skip_placeholder_fields
 
