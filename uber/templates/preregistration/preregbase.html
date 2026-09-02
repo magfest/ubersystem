@@ -51,7 +51,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
     </div>
         <div class="modal-body">
-            <form method="post" action="update_account">
+            <form method="post" action="../preregistration/update_account">
             {{ csrf_token() }}
             <input type="hidden" name="id" value="{{ account.id }}" />
             <input type="hidden" name="return_to" value="..{{ c.PAGE_PATH }}?{{ c.QUERY_STRING_NO_MSG }}" />
