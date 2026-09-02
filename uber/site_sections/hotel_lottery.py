@@ -1756,7 +1756,7 @@ class Root:
     @requires_account(LotteryApplication)
     def room_group(self, session, id=None, message="", **params):
         if not c.SHOW_HOTEL_LOTTERY_GROUPS:
-            raise HTTPRedirect('index?id={}', application.id)
+            raise HTTPRedirect('index?id={}', id)
 
         application = session.lottery_application(id)
 
@@ -1790,7 +1790,7 @@ class Root:
     @requires_account(LotteryApplication)
     def save_group(self, session, id=None, **params):
         if not c.SHOW_HOTEL_LOTTERY_GROUPS:
-            raise HTTPRedirect('index?id={}', application.id)
+            raise HTTPRedirect('index?id={}', id)
 
         application = session.lottery_application(id)
         _require_post_csrf(params, f'room_group?id={application.id}')
@@ -1935,7 +1935,7 @@ class Root:
     @requires_account(LotteryApplication)
     def join_group(self, session, id=None, message="", **params):
         if not c.SHOW_HOTEL_LOTTERY_GROUPS:
-            raise HTTPRedirect('index?id={}', application.id)
+            raise HTTPRedirect('index?id={}', id)
 
         application = session.lottery_application(id)
         _require_post_csrf(params, f'room_group?id={application.id}')
