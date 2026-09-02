@@ -108,6 +108,12 @@ class GuestGroup(MagModel, table=True):
         for item in c.GUEST_CHECKLIST_ITEMS:
             if self.deadline_from_model(item['name']):
                 checklist_items.append(item)
+        
+        if self.group_type == c.MIVS:
+            steps_with_deadline = {key: val['deadline'] for key, val in c.MIVS_CHECKLIST.items()}
+            steps_with_deadline.update({val['name']: self.deadline_from_model(val['name']) for val in checklist_items})
+            checklist_item_tuples = [(val['name'], val) for val in checklist_items]
+            return sorted(checklist_item_tuples + c.MIVS_CHECKLIST.items(), key=lambda x: steps_with_deadline[x[0]])
 
         return sorted(checklist_items, key=lambda i: self.deadline_from_model(i['name']))
 

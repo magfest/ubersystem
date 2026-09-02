@@ -320,8 +320,8 @@ class Root:
     
     @get_studio_id(IndieGame)
     @requires_account(IndieStudio)
-    def show_info(self, session, message='', **params):
-        game = session.indie_game(params)
+    def show_info(self, session, id, message='', **params):
+        game = session.get(IndieGame, id)
         cherrypy.session['studio_id'] = game.studio.id
         image_form = load_forms({}, File(), ['MivsScreenshot'], field_prefix='new')
 
