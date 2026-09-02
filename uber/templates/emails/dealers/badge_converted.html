@@ -26,7 +26,9 @@ we have reserved a badge for you{% if c.PRICE_BUMPS and attendee.badge_cost and 
 
 {% include "emails/reg_workflow/reg_notes.html" %}
 
+{% if attendee.paid != c.NEED_NOT_PAY %}
 <br/><br/>
 {% include "emails/reg_workflow/refund_policy.html" %}
+{% endif %}
 </body>
 </html>

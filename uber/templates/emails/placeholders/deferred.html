@@ -14,7 +14,9 @@ The location and hours of the registration desk and merchandise booth will be em
 
 {% include "emails/reg_workflow/reg_notes.html" %}
 
+{% if attendee.paid != c.NEED_NOT_PAY %}
 <br/><br/>
 {% include "emails/reg_workflow/refund_policy.html" %}
+{% endif %}
 </body>
 </html>
