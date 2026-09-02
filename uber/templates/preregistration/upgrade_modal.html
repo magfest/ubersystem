@@ -83,7 +83,7 @@
           if (result.error) {
             showErrorMessage(result.error, 'upgrade-message-alert');
           } else {
-            costStr = result.cost > 0 ? "$" + result.cost / 100 : "-$" + result.cost * -1 / 100;
+            costStr = result.cost > 0 ? "$" + (result.cost / 100).toFixed(2) : "-$" + (result.cost * -1 / 100).toFixed(2);
             costChangeDict[colName] = result.cost;
             if (result.cost == 0) {
                 if (existing_row.length) {
@@ -124,7 +124,7 @@
                 $('#upgrade-purchase').prop('disabled', false);
                 if (upgradePreviewTotal > 0) {
                     $('#upgrade-preview-type').text("Purchase");
-                    $('#upgrade-preview-total').text(' for $' + upgradePreviewTotal / 100);
+                    $('#upgrade-preview-total').text(' for $' + (upgradePreviewTotal / 100).toFixed(2));
                 } else {
                     $('#upgrade-preview-total').text();
                     $('#upgrade-preview-type').text("Redeem Free Upgrade");
