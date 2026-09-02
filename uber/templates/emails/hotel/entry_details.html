@@ -11,7 +11,7 @@
     {% endif %}
 {% endif %}
 {% if app.entry_type != c.GROUP_ENTRY %}
-<li><strong>Check-in Name</strong>: {{ app.legal_first_name }} {{ app.legal_last_name }}</li>
+<li><strong>Check-in Name</strong>: {{ app.attendee.effective_hotel_first_name }} {{ app.attendee.effective_hotel_last_name }}</li>
 <li><strong>Contact Phone #</strong>: {{ app.cellphone }}</li>
 {% endif %}
 {% if app_or_parent.entry_type == c.SUITE_ENTRY and 'suite_dates' in c.HOTEL_LOTTERY_FORM_STEPS or 'room_dates' in c.HOTEL_LOTTERY_FORM_STEPS %}
