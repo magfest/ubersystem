@@ -16,12 +16,18 @@
     {% include 'showcase/deadlines.html' %}
 
     {% if studio.group %}
-        <h3>Your Badges</h3>
-
+        <h3>Welcome to the Indie Showcase!</h3>
+        <p>You have been accepted into the showcase and confirmed that you are coming.</p>
+        {% if studio.group.guest %}
         <p>
-            You have been accepted into the showcase and confirmed that you are coming.  You may manage the badges in your
+            Your <a href="../guests/index?id={{ studio.group.guest_id }}">checklist page</a>
+            contains information and tasks to prepare you for {{ c.EVENT_NAME }}.
+            Checklist items must be completed before their deadlines, which you will receive email reminders for.
+        </p>
+        {% endif %}
+        <p>
+            You may manage the badges on your
             <a href="../preregistration/group_members?id={{ studio.group_id }}">group management page</a>.
-            {% if False %}Please remember to fill out show info for each game below.{% endif %}
         </p>
     {% elif studio.comped_badges and (not studio.after_confirm_deadline or c.HAS_SHOWCASE_ADMIN_ACCESS) %}
         <h3>Accept or Decline</h3>

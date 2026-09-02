@@ -65,12 +65,12 @@
             {{ game.title }} has been assigned to {{ game.reviews|length }} judges, of whom {{ game.game_reviews|length }} have reviewed it.
         </p>
 
-        <form id="mark-form" method="post" action="mark_verdict" style="display:none">
+        <form id="mark-form" class="mb-3" method="post" action="mark_verdict" style="display:none" x-data="{ status: '{{ game.status|tojson }}' }">
             {{ csrf_token() }}
             <input type="hidden" name="id" value="{{ game.id }}" />
-            <div class="d-flex gap-3 mb-3">
+            <div class="d-flex gap-3 mb-1">
                 <div>
-                <select name="status" class="form-select">
+                <select name="status" class="form-select" x-model="status">
                     <option value="">Choose whether to accept this game into {{ game.showcase_type_label }}</option>
                     <option value="{{ c.ACCEPTED }}">Accept</option>
                     <option value="{{ c.DECLINED }}">Decline</option>
@@ -80,6 +80,13 @@
                 <div>
                 <button type="submit" class="btn btn-primary">Mark Verdict</button>
                 </div>
+            </div>
+            <div x-show="status == {{ c.ACCEPTED }}">
+                <label for="hotel_included" class="checkbox-label">
+                    <input type="checkbox" id="hotel_included" name="hotel_included"{% if game.hotel_included %} checked="checked"{% endif %} />
+                    This studio should have the hotel space step included on their checklist when they confirm their acceptance.
+                </label>
+                <div class="form-text">Note that the checklist item will be enabled if ANY of this studio's accepted games include hotel space.</div>
             </div>
         </form>
 

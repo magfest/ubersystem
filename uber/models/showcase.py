@@ -241,6 +241,8 @@ class IndieStudio(MagModel, table=True):
 
     @property
     def hotel_space_status(self):
+        if self.group.guest and not self.group.guest.hotel_included:
+            return "Does not receive hotel space"
         if self.needs_hotel_space is not None:
             return "Requested hotel space for {} with email {}".format(self.name_for_hotel, self.email_for_hotel)\
                 if self.needs_hotel_space else "Opted out"
@@ -429,6 +431,7 @@ class IndieGame(MagModel, ReviewMixin, table=True):
     registered: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
     waitlisted: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     accepted: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
+    hotel_included: bool = True
 
     codes: list['IndieGameCode'] = Relationship(
         back_populates="game", sa_relationship_kwargs={'lazy': 'selectin', 'cascade': 'all,delete-orphan', 'passive_deletes': True})

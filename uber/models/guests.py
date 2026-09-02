@@ -42,6 +42,7 @@ class GuestGroup(MagModel, table=True):
     estimated_performance_minutes: int = Field(default=c.DEFAULT_PERFORMANCE_MINUTES, admin_only=True)
     wants_mc: bool | None = Field(nullable=True)
     needs_rehearsal: int | None = Field(sa_column=Column(Choice(c.GUEST_REHEARSAL_OPTS), nullable=True))
+    hotel_included: bool = True
     badges_assigned: bool = False
 
     info: 'GuestInfo' = Relationship(
@@ -107,6 +108,12 @@ class GuestGroup(MagModel, table=True):
         for item in c.GUEST_CHECKLIST_ITEMS:
             if self.deadline_from_model(item['name']):
                 checklist_items.append(item)
+        
+        if self.group_type == c.MIVS:
+            steps_with_deadline = {key: val['deadline'] for key, val in c.MIVS_CHECKLIST.items()}
+            steps_with_deadline.update({val['name']: self.deadline_from_model(val['name']) for val in checklist_items})
+            checklist_item_tuples = [(val['name'], val) for val in checklist_items]
+            return sorted(checklist_item_tuples + c.MIVS_CHECKLIST.items(), key=lambda x: steps_with_deadline[x[0]])
 
         return sorted(checklist_items, key=lambda i: self.deadline_from_model(i['name']))
 
@@ -158,6 +165,10 @@ class GuestGroup(MagModel, table=True):
         if self.group.unregistered_badges:
             return str(self.group.unregistered_badges) + " Unclaimed"
         return "Yes"
+    
+    @property
+    def hospitality_status(self):
+        return "No Hotel Space" if not self.hotel_included else self.status('hospitality')
 
     @property
     def taxes_status(self):

@@ -28,28 +28,53 @@
 
   <table style="width:auto">
     {% if guest.group_type == c.MIVS %}
-      {% for key, val in c.MIVS_CHECKLIST.items()|sort(attribute='1.deadline') %}
-        {% if guest.matches_showcases(val['showcases']) %}
-        <h3>{{ val['name'] }}</h3>
-        <p>{{ val['description'] }}</p>
-        <p>
-          {% if not val['start'] or now_localized() >= val['start'] %}
-            <strong>Deadline</strong>: {{ guest.group.studio.checklist_deadline(key)|datetime_local if guest.group.studio }}</p>
-            <p>
-            {% if not guest.group.studio[key + "_status"] %}
-              <a href="mivs_{{ key }}?guest_id={{ guest.id }}">Complete this checklist step</a>.
-            {% elif val['editable'] and now_localized() <= guest.group.studio.checklist_deadline(key) %}
-              You've <strong>already completed</strong> this step but you can still <a href="mivs_{{ key }}?guest_id={{ guest.id }}">edit your response</a> until the deadline.
+      {% for key, val in guest.sorted_checklist_items %}
+        {% if val['deadline_template'] %}
+          {%- include [
+            val['deadline_template'][0] ~ guest.group_type_label|lower|replace(' ','_') ~ '_' ~ val['deadline_template'][1],
+            val['deadline_template'][0] ~ val['deadline_template'][1]
+          ] -%}
+        {% else %}
+          {% if guest.matches_showcases(val['showcases']) and (guest.hotel_included or key != 'hotel_space') %}
+          <tr>
+            {% if not val['start'] or now_localized() >= val['start'] %}
+            <td width="25">{{ macros.checklist_image(guest.group.studio[key + "_status"]) }}</td>
+            {% if not guest.group.studio[key + "_status"] or val['editable'] and now_localized() <= guest.group.studio.checklist_deadline(key) %}
+            <td><b><a href="mivs_{{ key }}?guest_id={{ guest.id }}">{{ val['name'] }}</a></b></td>
             {% else %}
-              You've <strong>already completed</strong> this step.
+            <td><b>{{ val['name'] }}</b></td>
             {% endif %}
-          {% else %}
-            This step is not available yet. We will email you when it becomes available, so keep an eye on your inbox.
+            <td><i>Deadline:</i> {{ guest.group.studio.checklist_deadline(key)|datetime_local if guest.group.studio }}</td>
+            {% else %}
+            <td colspan="2"><b>{{ val['name'] }}</b></td>
+            <td><i>Coming Soon</i></td>
+            {% endif %}
+          </tr>
+          <tr>
+            <td colspan="3">
+              {{ val['description'] }}
+              <br/>
+              {% if False %}
+              {% if not val['start'] or now_localized() >= val['start'] %}
+                {% if not guest.group.studio[key + "_status"] %}
+                  Use the link above to complete this checklist step.
+                {% elif val['editable'] and now_localized() <= guest.group.studio.checklist_deadline(key) %}
+                  You've <strong>already completed</strong> this step but you can still edit your response using hte link above until the deadline.
+                {% else %}
+                  You've <strong>already completed</strong> this step.
+                {% endif %}
+              {% else %}
+                This step is not available yet. We will email you when it becomes available, so keep an eye on your inbox.
+              {% endif %}
+              {% endif %}
+              <br/>
+            </td>
+          </tr>
           {% endif %}
-          </p>
         {% endif %}
       {% endfor %}
     {% else %}
+    hi
       {% for item in guest.sorted_checklist_items -%}
         {# Try to include the checklist template with a prefix matching the group's type, e.g. band_info_deadline.html #}
         {%- include [

@@ -39,6 +39,7 @@ class Root:
         """
         app = PanelApplication()
         is_guest = False
+        attendee = None
         readonly_fields = {}
         attrs = [key for key in PanelApplicant().to_dict().keys() if key not in [
                 'id', 'created', 'last_updated', 'external_id', 'last_synced', 'attendee_id', 'submitter', '_model']]
@@ -130,6 +131,7 @@ class Root:
 
         return {
             'app': app,
+            'attendee': attendee,
             'forms': forms,
             'panelist_forms': panelist_forms,
             'message': message,
