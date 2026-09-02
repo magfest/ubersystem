@@ -108,7 +108,7 @@ get shirtSize() { return (this.getsFreeEventShirt() && !this.eventShirtOptOut())
 <div class="row g-3 mb-3">
 {% block perk_info %}
 {% set staff_shirts_on_reg_form = not c.STAFF_SHIRTS_OPTIONAL and c.SHIRT_OPTS != c.STAFF_SHIRT_OPTS %}
-{% if (c.ADDONS_ENABLED and (not receipt or upgrade_modal)) or attendee.gets_any_kind_of_shirt or admin_area %}
+{% if not receipt or upgrade_modal or attendee.gets_any_kind_of_shirt or admin_area %}
     {% if staff_shirts_on_reg_form or admin_area %}
         <div class="col-sm-6" x-show="staffShirtSize">{{ form_macros.input(badge_extras.staff_shirt, required_if="staffShirtSize && !this.placeholder") }}</div>
     {% endif %}
