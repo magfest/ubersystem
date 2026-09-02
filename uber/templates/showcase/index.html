@@ -20,7 +20,7 @@
         <p>You have been accepted into the showcase and confirmed that you are coming.</p>
         {% if studio.group.guest %}
         <p>
-            Your <a href="../guests/index?id={{ studio.group.guest_id }}">checklist page</a>
+            Your <a href="../guests/index?id={{ studio.group.guest.id }}">checklist page</a>
             contains information and tasks to prepare you for {{ c.EVENT_NAME }}.
             Checklist items must be completed before their deadlines, which you will receive email reminders for.
         </p>
