@@ -103,7 +103,7 @@ def check_emails_for_fixture(id):
             c.REDIS_STORE.hset(c.REDIS_PREFIX + 'email_generation:' + id, 'emails_generated', email_count)
 
 
-@celery.schedule(timedelta(minutes=60))
+@celery.schedule(timedelta(minutes=60)) # TODO: optimize more?
 def generate_missing_emails():
     with Session() as session:
         fixture_objs = session.query(AutomatedEmail)

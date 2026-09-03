@@ -211,6 +211,16 @@ class Root:
     def shifts(self, session, id, **params):
         volunteer = session.volunteer_from_id(id)
 
+        # Covers the case when signups are only available for staff
+        # If the checklist isn't open at all or no one can sign up for shifts, we redirect in decorators.py/restricted
+        if not volunteer.shift_signups_start or localized_now() < volunteer.shift_signups_start:
+            message = "Shift signups are not available yet."
+            if c.VOLUNTEER_CHECKLIST_OPEN:
+                redirect = f'index?id={id}&'
+            else:
+                redirect = f'../preregistration/homepage?' if c.ATTENDEE_ACCOUNTS_ENABLED else f'../landing/index?'
+            raise HTTPRedirect(redirect + "message={}", message)
+
         total_duration = 0
         event_dates = []
         day = c.SHIFTS_EPOCH

@@ -1962,6 +1962,10 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     @property
     def takes_shifts(self):
         return bool(self.staffing and self.badge_type != c.CONTRACTOR_BADGE)
+    
+    @property
+    def shift_signups_start(self):
+        return c.SHIFTS_CREATED if self.badge_type == c.STAFF_BADGE else c.VOLUNTEER_SIGNUPS_START
 
     @property
     def handles_cash(self):
