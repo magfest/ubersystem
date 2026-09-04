@@ -60,7 +60,7 @@ get customSize() { return this.size == {{ c.CUSTOM|tojson }} },
 
 <div class="row g-3 mb-3">
 {% block checkboxes %}
-  <div class="col-12">{{ form_macros.input(bulk_printing_request_info.required) }}</div>
+  <div class="col-12">{{ form_macros.input(bulk_printing_request_info.important) }}</div>
 </div>
 <div class="row g-3 mb-3">
   <div class="col-12">{{ form_macros.input(bulk_printing_request_info.link_is_shared) }}</div>
