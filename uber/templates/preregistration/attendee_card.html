@@ -77,9 +77,9 @@
             <i class="fa fa-pencil"></i> View/Edit Registration
         </a>
         {% endif %}
-        {% if attendee.has_badge and attendee.staffing and attendee.badge_type != c.CONTRACTOR_BADGE and c.VOLUNTEER_SIGNUPS_AVAILABLE %}
+        {% if attendee.has_badge and attendee.staffing and attendee.badge_type != c.CONTRACTOR_BADGE and c.CHECKLIST_OR_SIGNUPS_OPEN %}
         <a href="../staffing/index?id={{ attendee.id }}" class="btn btn-sm btn-secondary">
-            {% if (not c.VOLUNTEER_CHECKLIST_OPEN or attendee.shift_prereqs_complete) and c.AFTER_SHIFTS_CREATED %}
+            {% if (not c.VOLUNTEER_CHECKLIST_OPEN or attendee.shift_prereqs_complete) and attendee.shift_signups_available %}
             <i class="fa fa-calendar-o"></i> View Shifts
             {% else %}
             <i class="fa fa-calendar-o"></i> Volunteer Checklist

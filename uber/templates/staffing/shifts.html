@@ -68,8 +68,8 @@
       <a href="printable?id={{ attendee.id }}" target="_blank">View Printable Schedule</a>
     </div>  
   </div>
-  {% if c.BEFORE_SHIFTS_CREATED %}
-  <p>Shifts will be available starting {{ c.SHIFTS_CREATED.astimezone(c.EVENT_TIMEZONE).strftime('%B %-e') }}.</p>
+  {% if not attendee.shift_signups_available %}
+  <p>Shifts will be available starting {{ attendee.shift_signups_start.astimezone(c.EVENT_TIMEZONE).strftime('%B %-e') }}.</p>
   {% else %}
   <div class="accordion mb-3 text-start" id="shifts-info">
     <div class="accordion-item">
@@ -203,7 +203,7 @@
   {% endif %}
 </div>
 </div>
-{% if c.AFTER_SHIFTS_CREATED %}
+{% if attendee.shift_signups_available %}
 <div class="toast position-absolute bg-light" id="shift-details" role="alert" aria-live="polite" aria-atomic="true" style="z-index: -1;">
   <div class="toast-header bg-primary text-white">
     <strong class="me-auto" id="shift-title"></strong>
@@ -230,7 +230,7 @@
 {% endblock %}
 {% block scripts %}
 {{ super() }}
-{% if c.AFTER_SHIFTS_CREATED %}
+{% if attendee.shift_signups_available %}
 {{ "event-calendar-3.10.0/event-calendar.min.css"|serve_static_content }}
 {{ "event-calendar-3.10.0/event-calendar.min.js"|serve_static_content }}
 

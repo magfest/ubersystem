@@ -890,7 +890,7 @@ if c.VOLUNTEER_CHECKLIST_OPEN:
     StopsEmailFixture(
         f'Still want to volunteer at {c.EVENT_NAME} ({c.EVENT_DATE})?',
         'shifts/volunteer_check.txt',
-        "lambda a: c.VOLUNTEER_SIGNUPS_AVAILABLE and a.badge_type != c.CONTRACTOR_BADGE and c.VOLUNTEER_RIBBON in a.ribbon_ints \
+        "lambda a: c.CHECKLIST_OR_SIGNUPS_OPEN and a.badge_type != c.CONTRACTOR_BADGE and c.VOLUNTEER_RIBBON in a.ribbon_ints \
             and a.takes_shifts and a.weighted_hours == 0",
         'volunteer_still_interested_inquiry',
         when=[days_before(28, c.FINAL_EMAIL_DEADLINE)])
@@ -907,22 +907,23 @@ if c.SHIFTS_CREATED:
     StopsEmailFixture(
         f'{c.EVENT_NAME} ({c.EVENT_DATE}) shifts are live!',
         'shifts/shifts_created.txt',
-        "lambda a: c.AFTER_SHIFTS_CREATED and a.badge_type != c.CONTRACTOR_BADGE and a.takes_shifts and a.registered_local <= c.SHIFTS_CREATED",
+        "lambda a: a.shift_signups_available and a.badge_type != c.CONTRACTOR_BADGE and \
+            a.takes_shifts and a.registered_local <= a.shift_signups_start",
         'volunteer_shift_signup_notification',
         when=[before(c.PREREG_TAKEDOWN)])
 
     StopsEmailFixture(
         f'Reminder to sign up for {c.EVENT_NAME} ({c.EVENT_DATE}) shifts',
         'shifts/reminder.txt',
-        "lambda a: c.AFTER_SHIFTS_CREATED and a.badge_type != c.CONTRACTOR_BADGE and \
-            days_after(14, max(a.registered_local, c.SHIFTS_CREATED))() and a.takes_shifts and not a.shift_minutes",
+        "lambda a: a.shift_signups_available and a.badge_type != c.CONTRACTOR_BADGE and \
+            days_after(14, max(a.registered_local, a.shift_signups_start))() and a.takes_shifts and not a.shift_minutes",
         'volunteer_shift_signup_reminder',
         when=[before(c.PREREG_TAKEDOWN)])
 
     StopsEmailFixture(
         f'Last chance to sign up for {c.EVENT_NAME} ({c.EVENT_DATE}) shifts',
         'shifts/reminder.txt',
-        "lambda a: c.AFTER_SHIFTS_CREATED and a.badge_type != c.CONTRACTOR_BADGE and \
+        "lambda a: a.shift_signups_available and a.badge_type != c.CONTRACTOR_BADGE and \
             (not c.PREREG_TAKEDOWN or c.BEFORE_PREREG_TAKEDOWN) and a.takes_shifts and not a.shift_minutes",
         'volunteer_shift_signup_reminder_last_chance',
         when=[days_before(10, c.EPOCH)])

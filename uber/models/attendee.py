@@ -1966,6 +1966,10 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     @property
     def shift_signups_start(self):
         return c.SHIFTS_CREATED if self.badge_type == c.STAFF_BADGE else c.VOLUNTEER_SIGNUPS_START
+    
+    @property
+    def shift_signups_available(self):
+        return localized_now() > self.shift_signups_start
 
     @property
     def handles_cash(self):
@@ -2375,13 +2379,13 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
             return not self.placeholder and (
                 not c.VOLUNTEER_AGREEMENT_ENABLED or self.agreed_to_volunteer_agreement) and (
                 not c.EMERGENCY_PROCEDURES_ENABLED or self.reviewed_emergency_procedures) \
-                and c.AFTER_SHIFTS_CREATED
+                and self.shift_signups_available
 
         return not self.placeholder and self.food_restrictions_filled_out and self.shirt_info_marked and (
             not c.VOLUNTEER_AGREEMENT_ENABLED or self.agreed_to_volunteer_agreement) and (
             not c.EMERGENCY_PROCEDURES_ENABLED or self.reviewed_emergency_procedures) and (
             not c.CASH_HANDLING_URL or not self.handles_cash or self.reviewed_cash_handling) \
-            and c.AFTER_SHIFTS_CREATED
+            and self.shift_signups_available
 
     @property
     def shift_compliance_violations(self):

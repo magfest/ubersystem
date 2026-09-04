@@ -442,7 +442,7 @@ class Config(_Overridable):
                 for count, desc in c.TABLE_OPTS]
     
     @property
-    def VOLUNTEER_SIGNUPS_AVAILABLE(self):
+    def CHECKLIST_OR_SIGNUPS_OPEN(self):
         return not c.VOLUNTEER_CHECKLIST_OPEN and c.AFTER_SHIFTS_CREATED or c.VOLUNTEER_CHECKLIST_OPEN and c.AFTER_VOLUNTEER_CHECKLIST_OPEN
     
     def drop_shifts_email(self, badge_type):

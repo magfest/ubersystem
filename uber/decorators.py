@@ -912,7 +912,7 @@ def restricted(func):
         if not admin_account_id and not attendee_account_id:
             ajax_or_redirect(func, '../accounts/login?message=', "You are not logged in.", True)
 
-        if '/staffing/' in c.PAGE_PATH and not c.VOLUNTEER_SIGNUPS_AVAILABLE and not c.DEV_BOX:
+        if '/staffing/' in c.PAGE_PATH and not c.CHECKLIST_OR_SIGNUPS_OPEN and not c.DEV_BOX:
             message = "The volunteer checklist is not open yet." if c.VOLUNTEER_CHECKLIST_OPEN else "Shift signups are not available yet."
             redirect = '../preregistration/homepage' if c.ATTENDEE_ACCOUNTS_ENABLED else '../landing/index'
             ajax_or_redirect(func, f'{redirect}?message=', message, True)

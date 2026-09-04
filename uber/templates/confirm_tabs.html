@@ -133,10 +133,10 @@
     </li>
   {% endif %}
   {% endif %}
-  {% if attendee.has_badge and attendee.staffing and attendee.badge_type != c.CONTRACTOR_BADGE and c.VOLUNTEER_SIGNUPS_AVAILABLE %}
+  {% if attendee.has_badge and attendee.staffing and attendee.badge_type != c.CONTRACTOR_BADGE and c.CHECKLIST_OR_SIGNUPS_OPEN %}
   <li class="nav-item">
     <a class="p-0 pe-1" href="../staffing/index?id={{ attendee.id }}" target="_blank">
-      {% if (not c.VOLUNTEER_CHECKLIST_OPEN or attendee.shift_prereqs_complete) and c.AFTER_SHIFTS_CREATED %}
+      {% if (not c.VOLUNTEER_CHECKLIST_OPEN or attendee.shift_prereqs_complete) and attendee.shift_signups_available %}
       <button type="button" class="btn btn-secondary"><i class="fa fa-external-link"></i>&nbsp; View Shifts</button>
       {% else %}
       <button type="button" class="btn btn-secondary"><i class="fa fa-external-link"></i>&nbsp; Volunteer Checklist</button>
