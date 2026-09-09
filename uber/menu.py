@@ -145,7 +145,7 @@ c.MENU = MenuItem(name='Root', submenu=[
         MenuItem(name='Checklist Groups', href='../group_admin/index?group_type=checklist',
                  visibility_check=lambda: c.HAS_GUEST_ADMIN_ACCESS or c.HAS_BAND_ADMIN_ACCESS or c.HAS_SHOWCASE_ADMIN_ACCESS),
         MenuItem(name='Staff + Contractors', href='../group_admin/index?group_type=staff', access_override='shifts_admin'),
-    ])
+    ]),
 
     MenuItem(name='Schedule', submenu=[
         MenuItem(name='Panels', href='../panels_admin/'),
