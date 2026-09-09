@@ -1566,6 +1566,10 @@ class Root:
             if existing_import:
                 already_queued += 1
             else:
+                json_data = {'badge_type': badge_type, 'admin_notes': admin_notes,
+                             'badge_status': badge_status, 'full': True}
+                if params.get('comped', False):
+                    json_data['paid'] = c.NEED_NOT_PAY
                 import_job = ApiJob(
                     admin_id=admin_id,
                     admin_name=admin_name,
@@ -1573,8 +1577,7 @@ class Root:
                     target_server=target_server,
                     api_token=api_token,
                     query=id,
-                    json_data={'badge_type': badge_type, 'admin_notes': admin_notes,
-                               'badge_status': badge_status, 'full': True}
+                    json_data=json_data,
                 )
                 if len(attendee_ids) < 25:
                     TaskUtils.attendee_import(import_job)

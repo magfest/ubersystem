@@ -2160,6 +2160,7 @@ class TaskUtils:
             errors = []
             badge_type = int(import_job.json_data.get('badge_type', c.ATTENDEE_BADGE))
             badge_status = int(import_job.json_data.get('badge_status', c.NEW_STATUS))
+            paid_status = int(import_job.json_data.get('paid', c.NOT_PAID))
             extra_admin_notes = import_job.json_data.get('admin_notes', '')
 
             if badge_type not in c.BADGES:
@@ -2192,7 +2193,7 @@ class TaskUtils:
             attendee.update({
                 'badge_type': badge_type,
                 'badge_status': badge_status,
-                'paid': c.NEED_NOT_PAY if badge_type == c.STAFF_BADGE else c.NOT_PAID,
+                'paid': c.NEED_NOT_PAY if badge_type in [c.STAFF_BADGE, c.GUEST_BADGE] else paid_status,
                 'placeholder': True,
                 'admin_notes': 'Imported {} from {}{}{}'.format(
                     badge_label, import_from_url, new_admin_notes, old_admin_notes),
