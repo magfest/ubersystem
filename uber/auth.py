@@ -72,7 +72,7 @@ class OIDC(cherrypy.Tool):
             message = f"Please verify the email on your {c.OIDC_ACCOUNT_NAME} account to claim {accounts_pluralized}."
         elif attendee_account and attendee_account.password_reset.is_expired:
             OIDC.send_claim_token(session, attendee_account, admin_account)
-            message = "This claim link has expired. You will automatically receive a new claim link in a few minutes."
+            message = f"This claim link has expired. A new one has been sent to {attendee_account.email} and can take up to 20 minutes to arrive. Check your spam folder if you do not see it."
         elif attendee_account:
             for attendee in attendee_account.attendees:
                 if attendee.admin_account and attendee.admin_account.sso_id and sso_id and attendee.admin_account.sso_id != sso_id:
