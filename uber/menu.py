@@ -165,11 +165,6 @@ if c.DEPT_CHECKLIST_OPEN or (c.DEPT_CHECKLIST_START and c.DEV_BOX):
     c.MENU['Staffing'].append_menu_item(MenuItem(name='Department Checklists', href='../dept_checklist/overview'))
 
 
-if c.ENABLED_INDIES_STR:
-    c.MENU['Groups'].append_menu_item(MenuItem(name='Indies', href='../group_admin/#mivs',
-                                               access_override='showcase_admin'), position=5)
-
-
 if c.GROUPS_ENABLED:
     c.MENU['Registration'].append_menu_item(MenuItem(name='Promo Code Groups',
                                                      href='../registration/promo_code_groups'), position=2)
