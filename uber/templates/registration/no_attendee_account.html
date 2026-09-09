@@ -24,6 +24,12 @@ Choose an option below to give them access to their badge.{% if attendee.group a
             {% if c.LOCAL_ACCOUNTS_DISABLED %}If they claim the badge using an existing account, the new account will be deleted.
             {% else %}If they already have an account, you will need to merge the new account manually.
             {% endif %}
+            {% if attendee.imported_staff %}
+            <br/><strong>Their claim email will include custom text for imported staff.</strong>
+            {% endif %}
+            {% if attendee.group and attendee.group.guest and attendee.id == attendee.group.leader_id %}
+            <br/><strong>Their claim email will include a link to their {{ attendee.group.guest.group_type_label }} checklist.</strong>
+            {% endif %}
         </div>
     </div>
     {% endif %}

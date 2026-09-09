@@ -1,7 +1,7 @@
 {% if group.guest %}
-  {% set return_to_hash = "#" ~ group.guest.group_type_label|lower|replace(' ','_') ~ ("" if group.guest.group_type == c.MIVS else "s") %}
+  {% set return_to = "?group_type=checklist#" ~ group.guest.group_type_label|lower|replace(' ','_') ~ ("" if group.guest.group_type == c.MIVS else "s") %}
 {% elif group.is_dealer %}
-  {% set return_to_hash = "#dealers" %}
+  {% set return_to = "?group_type=dealer" %}
 {% endif %}
 
 {% if group.is_new %}
@@ -9,7 +9,7 @@
   {{ macros.nav_menu(
     group, c.PAGE_PATH,
     "../group_admin/form", "Create Group", True,
-    "../group_admin/index" ~ return_to_hash, "Return to Group List", True
+    "../group_admin/index" ~ return_to, "Return to Group List", True
 ) }}
 {% else %}
     {{ macros.nav_menu(

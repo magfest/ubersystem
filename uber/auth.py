@@ -39,8 +39,19 @@ class OIDC(cherrypy.Tool):
         session.add(PasswordReset(attendee_account=attendee_account, admin_account=admin_account, token=token))
         session.commit()
 
-        EmailService.queue_email(session, 'sso_account_setup', attendee_account,
-                                 data={'admin_account': admin_account, 'token': token})
+        custom_sender = None
+        custom_subject = None
+        if len(attendee_account.valid_attendees) == 1:
+            attendee = attendee_account.valid_attendees[0]
+            if attendee.imported_staff:
+                custom_sender = c.STAFF_EMAIL
+            if attendee.group and attendee.group.guest and attendee.id == attendee.group.leader_id:
+                custom_sender = c.GUEST_GROUP_EMAILS[attendee.group.guest.group_type] or None
+        else:
+            custom_subject = f'Claim Your Badges for {c.EVENT_NAME_AND_YEAR}'
+
+        EmailService.queue_email(session, 'sso_account_setup', attendee_account, sender=custom_sender,
+                                 subject=custom_subject, data={'admin_account': admin_account, 'token': token})
 
     @classmethod
     def process_account_claim_token(cls, session, account_claim_token, sso_id=None, existing_account=None, dry_run=False):

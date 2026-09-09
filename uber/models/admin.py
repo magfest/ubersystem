@@ -156,6 +156,14 @@ class AdminAccount(MagModel, table=True):
     @classproperty
     def _extra_apply_attrs(cls):
         return set(['access_groups_ids'])
+    
+    @classproperty
+    def checklist_access_matrix(self):
+        return {
+            'guest_admin': [g_type for g_type in c.GROUP_TYPES if g_type not in ([c.BAND, c.SIDE_STAGE, c.MIVS])],
+            'band_admin': [c.BAND, c.ROCK_ISLAND, c.SIDE_STAGE],
+            'showcase_admin': [c.MIVS],
+        }
 
     @property
     def full_access_set(self):
@@ -210,10 +218,11 @@ class AdminAccount(MagModel, table=True):
 
     @property
     def viewable_guest_group_types(self):
-        if 'guest_admin' in self.read_or_write_access_set:
-            return [opt for opt in c.GROUP_TYPE_VARS if opt.lower() + "_admin"
-                    in self.read_or_write_access_set or opt.lower() + "_admin" not in c.ADMIN_PAGES]
-        return [opt for opt in c.GROUP_TYPE_VARS if opt.lower() + "_admin" in self.read_or_write_access_set]
+        group_types = []
+        for access_name in self.checklist_access_matrix.keys():
+            if access_name in self.read_or_write_access_set:
+                group_types.extend(self.checklist_access_matrix[access_name])
+        return group_types
 
     @property
     def is_super_admin(self):

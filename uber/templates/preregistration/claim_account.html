@@ -20,7 +20,7 @@ badge
       This account includes the following badges:
       <ul>
         {% for attendee in attendee_account.attendees %}
-        <li>A {{ badge_description(attendee) }} for {{ attendee.full_name }}{% if attendee.admin_account %}, which includes admin access to our system{% endif %}{% if attendee.group %}, {% if attendee.id == attendee.group.leader_id %}for{% else %}in{% endif %} the {% if attendee.group.guest_group %}{{ attendee.group.guest_group.group_type }} {% endif %}group "{{ attendee.group.name }}"{% endif %}</li>
+        <li>A {{ badge_description(attendee) }} for {{ attendee.full_name }}{% if attendee.admin_account %}, which includes admin access to our system{% endif %}{% if attendee.group %}, {% if attendee.id == attendee.group.leader_id %}for{% else %}in{% endif %} the {% if attendee.group.guest %}{{ attendee.group.guest.group_type_label }} {% endif %}group "{{ attendee.group.name }}"{% endif %}</li>
         {% endfor %}
       </ul>
       {% endif %}

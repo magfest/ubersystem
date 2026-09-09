@@ -1,0 +1,28 @@
+<table class="datatable table table-striped" data-info="false">
+    <thead>
+    <tr>
+    <th>Group</th>
+    <th>Group Leader</th>
+    <th>Department(s)</th>
+    <th>Assigned/Total Badges</th>
+    <th>Admin Notes</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for group in groups %}
+    <tr>
+        <td data-sort="{{ group.name }}">
+        <a href="form?id={{ group.id }}" target="_blank">{{ group.name }}</a>
+        </td>
+        <td data-sort="{{ group.leader.full_name if group.leader else 'ZZZZZZZ' }}">{{ group.leader|form_link if group.leader else 'None' }}</td>
+        <td>
+            {% if group.leader %}
+            {{ group.leader.assigned_depts_labels|default('None') }}
+            {% else %}N/A{% endif %}
+        </td>
+        <td>{{ group.badges - group.unregistered_badges }} / {{ group.badges }}</td>
+        <td>{{ group.admin_notes }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>

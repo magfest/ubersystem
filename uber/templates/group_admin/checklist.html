@@ -1,0 +1,230 @@
+<div role="tabpanel">
+  <ul class="nav nav-tabs" role="tablist">
+    {% if checklist_counts|length > 1 %}
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="all-tab" data-bs-toggle="tab" data-bs-target="#all" type="button" role="tab" aria-controls="all">
+        <i class="fa fa-list"></i>&nbsp;All Groups</button>
+    </a>
+    </li>
+    {% endif %}
+    {% for type, count in checklist_counts.items() %}
+    {% set html_id = c.GROUP_TYPES[type]|lower|replace(' ','_') %}
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="{{ html_id }}-tab" data-bs-toggle="tab" data-bs-target="#{{ html_id }}" type="button" role="tab" aria-controls="{{ html_id }}">
+        {{ c.GROUP_TYPES[type] }}
+      </button>
+    </li>
+    {% endfor %}
+  </ul>
+<div class="tab-content pt-3">
+  {% if checklist_counts|length > 1 %}
+  <div role="tabpanel" class="tab-pane" id="all" aria-labelledby="all-tab">
+    {% if c.HAS_GUEST_REPORTS_ACCESS %}
+      <div class="d-flex justify-content-between mb-3">
+        <div class="d-flex gap-2">
+          <a class="btn btn-secondary" href="../guest_reports/checklist_status_csv">
+            Checklist Status <i class="fa fa-download"></i>
+          </a>
+          <a class="btn btn-primary" href="../guest_reports/checklist_info_csv">
+            All Checklist Info <i class="fa fa-download"></i>
+          </a>
+        </div>
+        <div class="d-flex gap-2">
+          <a class="btn btn-success" href="../guest_reports/rock_island" target="_blank">
+            Rock Island Merch <i class="fa fa-external-link"></i>
+          </a>
+          <a class="btn btn-outline-secondary" href="../guest_reports/panel_info_csv">
+            Submitted Panels Info <i class="fa fa-download"></i>
+          </a>
+          <a class="btn btn-outline-secondary" href="../guest_reports/autograph_requests">
+            Autographs Info <i class="fa fa-download"></i>
+          </a>
+          <a class="btn btn-outline-secondary" href="../guest_reports/detailed_travel_info_csv">
+            Detailed Travel Info <i class="fa fa-download"></i>
+          </a>
+        </div>
+      </div>
+      {% endif %}
+    <table class="datatable table table-striped" data-info="false">
+      <thead>
+      <tr>
+        <th>Group</th>
+        <th>Group Leader</th>
+        <th>Checklist Type</th>
+      </tr>
+      </thead>
+      <tbody>
+        {% for group in groups %}
+        <tr>
+          <td data-sort="{{ group.name }}">
+            <a href="form?id={{ group.id }}" target="_blank">{{ group.name }}</a>
+          </td>
+          <td data-sort="{{ group.leader.full_name if group.leader else 'ZZZZZZZ' }}">{{ group.leader|form_link if group.leader else 'None' }}</td>
+          <td data-sort="{{ group.guest.group_type_label }}">
+            <a href="../guests/index?id={{ group.guest.id }}" target="_blank">
+              {{ group.guest.group_type_label }} Checklist <i class="fa fa-external-link"></i>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+  {% for type, count in checklist_counts.items() %}
+    {% set html_id = c.GROUP_TYPES[type]|lower|replace(' ','_') %}
+    <div role="tabpanel" class="tab-pane" id="{{ html_id }}" aria-labelledby="{{ html_id }}-tab">
+      <div class="mb-3">
+      <div class="d-flex justify-content-between mb-1">
+        <div>
+          {% if type != c.MIVS %}
+          <button class="btn btn-primary" onClick="openChecklist('{{ type }}', '{{ c.GROUP_TYPES[type] }}')">Open Checklist</button>
+          {% endif %}
+        </div>
+        
+        {% if c.HAS_GUEST_REPORTS_ACCESS %}
+        <div>
+          <a class="btn btn-secondary" href="../guest_reports/checklist_status_csv?group_type={{ type }}">
+            Checklist Status <i class="fa fa-download"></i>
+          </a>
+          {% if type == c.MIVS and c.HAS_MIVS_REPORTS_ACCESS %}
+          <a class="btn btn-primary" href="../mivs_reports/checklist_info_csv">
+            All Checklist Info <i class="fa fa-download"></i>
+          </a>
+          {% else %}
+          <a class="btn btn-primary" href="../guest_reports/checklist_info_csv?group_type={{ type }}">
+            All Checklist Info <i class="fa fa-download"></i>
+          </a>
+          {% endif %}
+          <a class="btn btn-info" href="../guest_reports/checklist_attendees_csv?group_type={{ type }}">
+            {{ c.GROUP_TYPES[type] }} Badge Info <i class="fa fa-download"></i>
+          </a>
+        </div>
+        {% endif %}
+      </div>
+      
+      {% if c.HAS_GUEST_REPORTS_ACCESS %}
+      <div class="d-flex justify-content-end gap-1 mb-1">
+        {% if type in c.ROCK_ISLAND_GROUPS %}
+        <a class="btn btn-success" href="../guest_reports/rock_island?group_type={{ type }}" target="_blank">
+          Rock Island Merch <i class="fa fa-external-link"></i>
+        </a>
+        {% endif %}
+        {% if type == c.MIVS and c.HAS_MIVS_REPORTS_ACCESS %}
+        <a class="btn btn-primary" href="../guest_reports/rock_island?group_type={{ type }}" target="_blank">
+          Show Info <i class="fa fa-download"></i>
+        </a>
+        {% endif %}
+        {% for item in checklist_items[type] %}
+          {% set item_type = item[1]['name'] if type == c.MIVS else item['name'] %}
+          {% if item_type == 'autograph' %}
+          <a class="btn btn-outline-secondary" href="../guest_reports/autograph_requests?group_type={{ type }}">
+            Autographs Info <i class="fa fa-download"></i>
+          </a>
+          {% elif item_type == 'panel' %}
+          <a class="btn btn-outline-secondary" href="../guest_reports/panel_info_csv?group_type={{ type }}">
+            Submitted Panels Info <i class="fa fa-download"></i>
+          </a>
+          {% elif item_type == 'travel_plans' %}
+          <a class="btn btn-outline-secondary" href="../guest_reports/detailed_travel_info_csv?group_type={{ type }}">
+            Detailed Travel Info <i class="fa fa-download"></i>
+          </a>
+          {% endif %}
+        {% endfor %}
+      </div>
+      </div>
+      {% endif %}
+      <table class="datatable table table-striped" data-info="false">
+        <thead>
+        <tr>
+          <th>Group</th>
+          <th data-orderable="false" data-searchable="false"></th>
+          <th>Group Leader</th>
+          {% for item in checklist_items[type] %}
+            {% if type == c.MIVS %}
+            {% set item = item[1] %}
+            {% endif %}
+            <th>{{ item.get('header', item.get('name'))|replace('_',' ')|title }}<br/></th>
+          {% endfor %}
+        </tr>
+        </thead>
+        <tbody>
+          {% for group in groups|selectattr('guest.group_type','equalto',type) %}
+          <tr>
+            <td data-sort="{{ group.name }}">
+              <a href="form?id={{ group.id }}" target="_blank">{{ group.name }}</a>
+            </td>
+            <td>
+              <a href="../guests/index?id={{ group.guest.id }}" target="_blank" class="btn btn-sm btn-primary">
+                View Checklist <i class="fa fa-external-link"></i>
+              </a>
+            </td>
+            <td data-sort="{{ group.leader.full_name if group.leader else 'ZZZZZZZ' }}">{{ group.leader|form_link }}</td>
+            {% for item in checklist_items[type] %}
+              {% set item_display = group.studio[item[0] ~ '_status'] if type == c.MIVS else group.guest[item.name ~ '_status'] %}
+              {% if not item_display %}
+                {% set past_deadline = group.studio.past_checklist_deadline(item[0]) if type == c.MIVS else now() >= group.guest.deadline_from_model(item.name) %}
+                <td>Not Completed {% if past_deadline %}<i class="fa fa-exclamation-circle text-danger"></i>{% endif %}</td>
+              {% else %}
+                {% if item.is_link -%}
+                  <td>
+                    {%- if item_display.startswith('../') or item_display.startswith('/') or item_display.startswith('http') -%}
+                      {{ item_display|url_to_link("Yes", "_blank") }}
+                    {%- else -%}
+                      {{ item_display }}
+                    {%- endif -%}
+                  </td>
+                {% else -%}
+                  <td>{{ item_display }}</td>
+                {% endif -%}
+              {% endif -%}
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endfor %}
+</div>
+
+<script type="text/javascript">
+  var openChecklist = function(checklistType, checklistName) {
+    bootbox.confirm({
+        backdrop: true,
+        title: "Open " + checklistName + " checklist?",
+        message: '<p>This will create accounts for all ' + checklistName + ' group leaders who do not already have an account, ' +
+          'and send them an email to claim their badge and complete their ' + checklistName + ' checklist.</p>',
+        buttons: {
+            confirm: { label: 'Open ' + checklistName + ' Checklist', className: 'btn-primary' },
+            cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+        },
+        callback: function (result) {
+            if (result) {
+                $.ajax({
+                method: 'POST',
+                url: '../guest_admin/open_checklist',
+                dataType: 'json',
+                data: {
+                    group_type: checklistType,
+                    csrf_token: csrf_token,
+                },
+                success: function (json) {
+                    hideMessageBox();
+                    var message = json.message;
+                    if (json.success) {
+                        $("#message-alert").addClass("alert-info").show().children('span').html(message);
+                        window.scrollTo(0,0); setTimeout(() => { window.scrollTo(0, 0); }, 100);
+                        $('#row-' + id).remove()
+                    } else {
+                        showErrorMessage(message);
+                    }
+                },
+                error: function () {
+                    showErrorMessage('Unable to connect to server, please try again.');
+                }
+            });
+            }
+        }
+    });
+  };
+</script>

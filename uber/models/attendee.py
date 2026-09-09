@@ -934,6 +934,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
 
     @property
     def access_sections(self):
+        from uber.models import AdminAccount
         """
         Returns what site sections an attendee 'belongs' to based on their properties.
         We use this list to determine which admins can create, edit, and view the attendee.
@@ -941,10 +942,10 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         section_list = []
         if self.staffing_or_will_be:
             section_list.append('shifts_admin')
-        if (self.group and self.group.guest and self.group.guest.group_type in [c.BAND, c.ROCK_ISLAND, c.SIDE_STAGE]) \
+        if (self.group and self.group.guest and self.group.guest.group_type in AdminAccount.checklist_access_matrix['band_admin']) \
                 or (self.badge_type == c.GUEST_BADGE and c.BAND in self.ribbon_ints):
             section_list.append('band_admin')
-        if (self.group and self.group.guest and self.group.guest.group_type not in [c.BAND, c.SIDE_STAGE, c.MIVS]) \
+        if (self.group and self.group.guest and self.group.guest.group_type in AdminAccount.checklist_access_matrix['guest_admin']) \
                 or (self.badge_type == c.GUEST_BADGE and c.BAND not in self.ribbon_ints):
             section_list.append('guest_admin')
         if c.PANELIST_RIBBON in self.ribbon_ints:
@@ -2661,7 +2662,7 @@ attendee_attendee_account = Table(
 
 class AttendeeAccount(MagModel, table=True):
     public_id: str | None = Field(sa_type=Uuid(as_uuid=False), default_factory=lambda: str(uuid4()), nullable=True)
-    owner_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
+    owner_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='SET NULL', nullable=True)
     owner: 'Attendee' = Relationship(sa_relationship=relationship('Attendee', foreign_keys='AttendeeAccount.owner_id',
                                                                    lazy='select', post_update=True))
     email: str = ''

@@ -98,8 +98,8 @@ class GuestGroup(MagModel, table=True):
         if not self.num_hotel_rooms:
             self.num_hotel_rooms = 0
 
-    def deadline_from_model(self, model):
-        name = str(self.group_type_label).upper().replace(' ', '_') + "_" + str(model).upper() + "_DEADLINE"
+    def deadline_from_model(self, item):
+        name = str(self.group_type_label).upper().replace(' ', '_') + "_" + str(item).upper() + "_DEADLINE"
         return getattr(c, name, None)
 
     @property

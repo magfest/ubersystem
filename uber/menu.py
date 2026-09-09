@@ -135,14 +135,17 @@ c.MENU = MenuItem(name='Root', submenu=[
         MenuItem(name='Departments', href='../dept_admin/'),
     ]),
 
-    MenuItem(name='People', submenu=[
+    MenuItem(name='Registration', submenu=[
         MenuItem(name='Attendees', href='../registration/'),
-        MenuItem(name='Groups', href='../group_admin/'),
-        MenuItem(name='Dealers', href='../group_admin/#dealers', access_override='dealer_admin'),
-        MenuItem(name='Guests', href='../group_admin/#guests', access_override='guest_admin'),
-        MenuItem(name='Bands', href='../group_admin/#bands', access_override='band_admin'),
-        
     ]),
+
+    MenuItem(name='Groups', submenu=[
+        MenuItem(name='All Groups', href='../group_admin/'),
+        MenuItem(name='Dealers', href='../group_admin/index?group_type=dealer', access_override='dealer_admin'),
+        MenuItem(name='Checklist Groups', href='../group_admin/index?group_type=checklist',
+                 visibility_check=lambda: c.HAS_GUEST_ADMIN_ACCESS or c.HAS_BAND_ADMIN_ACCESS or c.HAS_SHOWCASE_ADMIN_ACCESS),
+        MenuItem(name='Staff + Contractors', href='../group_admin/index?group_type=staff', access_override='shifts_admin'),
+    ])
 
     MenuItem(name='Schedule', submenu=[
         MenuItem(name='Panels', href='../panels_admin/'),
@@ -163,23 +166,23 @@ if c.DEPT_CHECKLIST_OPEN or (c.DEPT_CHECKLIST_START and c.DEV_BOX):
 
 
 if c.ENABLED_INDIES_STR:
-    c.MENU['People'].append_menu_item(MenuItem(name='Indies', href='../group_admin/#mivs',
+    c.MENU['Groups'].append_menu_item(MenuItem(name='Indies', href='../group_admin/#mivs',
                                                access_override='showcase_admin'), position=5)
 
 
 if c.GROUPS_ENABLED:
-    c.MENU['People'].append_menu_item(MenuItem(name='Promo Code Groups',
-                                               href='../registration/promo_code_groups'), position=2)
+    c.MENU['Registration'].append_menu_item(MenuItem(name='Promo Code Groups',
+                                                     href='../registration/promo_code_groups'), position=2)
 
 
 if c.ATTENDEE_ACCOUNTS_ENABLED:
-    c.MENU['People'].append_menu_item(MenuItem(name='Attendee Accounts',
-                                               href='../reg_admin/attendee_accounts'), position=1)
+    c.MENU['Registration'].append_menu_item(MenuItem(name='Attendee Accounts',
+                                                     href='../reg_admin/attendee_accounts'), position=1)
 
 
 if c.ADMIN_BADGES_NEED_APPROVAL:
-    c.MENU['People'].append_menu_item(MenuItem(name='Pending Badges',
-                                               href='../registration/pending_badges'), position=1)
+    c.MENU['Registration'].append_menu_item(MenuItem(name='Pending Badges',
+                                                     href='../registration/pending_badges'), position=1)
 
 
 if c.ATTRACTIONS_ENABLED:
@@ -191,7 +194,7 @@ if c.ATTRACTIONS_ENABLED:
 # the right landing controller per request: full admins land on the
 # main `hotel_lottery_admin` interface; partition owners land on
 # `partition_admin` (their scoped dashboard).
-c.MENU['People'].append_menu_item(MenuItem(
+c.MENU['Registration'].append_menu_item(MenuItem(
     name='Hotel',
     href=lambda: ('../hotel_lottery_admin/index'
                   if c.HAS_HOTEL_LOTTERY_ADMIN_ACCESS

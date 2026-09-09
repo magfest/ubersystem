@@ -86,7 +86,7 @@
     <div role="tabpanel" class="tab-pane" id="group-info" aria-labelledby="group-info-tab">
   {% else %}
     <div>
-      <a href="index{{ '#dealers' if group.is_dealer else '' }}" class="btn btn-info mb-3">Back to Group List</a>
+      <a href="index{{ '?group_type=dealer' if group.is_dealer else '' }}" class="btn btn-info mb-3">Back to Group List</a>
     <h3>New {{ c.DEALER_TERM|title if group.is_dealer else "Group" }} Info</h3>
   {% endif %}
   {{ form_macros.form_validation('group-form', 'validate_group') }}

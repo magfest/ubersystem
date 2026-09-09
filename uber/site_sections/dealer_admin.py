@@ -137,7 +137,7 @@ def decline_and_convert_dealer_group(session, group, status=c.DECLINED, admin_no
 @all_renderable()
 class Root:
     def index(self, session, message=''):
-        HTTPRedirect('../group_admin/index#dealers?message={}', message)
+        HTTPRedirect('../group_admin/index?group_type=dealer&message={}', message)
 
     def waitlist(self, session, decline_and_convert=False):
         query = session.query(Group).filter(
@@ -156,7 +156,7 @@ class Root:
                                                      delete_group=c.DELETE_DECLINED_GROUPS)
                 message = 'All waitlisted {}s have been declined and converted to regular attendee badges'\
                     .format(c.DEALER_TERM)
-            raise HTTPRedirect('../group_admin/index?message={}#dealers', message)
+            raise HTTPRedirect('../group_admin/index?group_type=dealer&message={}', message)
 
         return {'groups': query.all()}
     
@@ -165,7 +165,7 @@ class Root:
         for group in declined_groups:
             session.add(group)
             group.convert_badges = True
-        raise HTTPRedirect('../group_admin/index?message={}#dealers', "All declined groups marked for badge conversion.")
+        raise HTTPRedirect('../group_admin/index?group_type=dealer&message={}', "All declined groups marked for badge conversion.")
     
     def convert_example(self, session, id, **params):
         from uber.models import Email

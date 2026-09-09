@@ -8,19 +8,19 @@
     });
 </script>
 
-  <div class="card-body">
-    {{ num_dealer_groups }} {{ c.DEALER_TERM }} groups ({{ dealer_badges }} badges, {{ tables }} tables)
+  <p>
+    {{ dealer_counts['total'] }} {{ c.DEALER_TERM }} groups ({{ dealer_counts['badges'] }} badges, {{ dealer_counts['tables'] }} tables)
     <span class="pull-right">
-      <a href="index?show_all=true#dealers" class="btn btn-info">Show All {{ c.DEALER_TERM|title }}s</a>
+      <a href="index?group_type=dealer&show_all=true" class="btn btn-info">Show All {{ c.DEALER_TERM|title }}s</a>
       <a href="../dealer_admin/waitlist" class="btn btn-warning">Manage Waitlisted {{ c.DEALER_TERM|title }}s</a>
       <a href="../dealer_admin/convert_declined" class="btn btn-danger">Convert Declined {{ c.DEALER_TERM|title }}'s Badges</a>
     </span>
     <br/> <br/>
-    {{ approved_tables }} approved tables / {{ waitlisted_tables }} waitlisted tables / {{ unapproved_tables }} unapproved tables
-  </div>  
+    {{ dealer_counts['approved'] }} approved tables / {{ dealer_counts['waitlisted'] }} waitlisted tables / {{ dealer_counts['unapproved'] }} unapproved tables
+  </p>
+  <br/>
 
 
-<div class="card-body">
 {% block table %}
 <table class="table table-striped datatable" data-info="false">
   <thead>
@@ -58,4 +58,3 @@
   </tbody>
 </table>
 {% endblock %}
-</div>

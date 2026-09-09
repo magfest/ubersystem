@@ -4,93 +4,64 @@
 
 <div class="card">
   <div class="card-body">
-  <p>
-    <a class="btn btn-primary" href="form">Add a Group</a>
-    {% if c.HAS_DEALER_ADMIN_ACCESS %}<a class="btn btn-success" href="form?id=None&new_dealer=true">Add {{ c.DEALER_INDEFINITE_TERM|title }}</a>{% endif %}
-  </p>
+    <div class="d-flex justify-content-between">
+      <div class="d-flex gap-2 align-items-center mb-3">
+        <h2>{{ group_type_labels[group_type] or 'All' }} Groups</h2>
+        <a class="btn btn-primary" href="form">Add a Group</a>
+        {% if group_type == 'dealer' %}<a class="btn btn-success" href="form?id=None&new_dealer=true">Add {{ c.DEALER_INDEFINITE_TERM|title }}</a>{% endif %}
+      </div>
+      <div class="d-flex gap-2">
+          <span>Group Type:</span>
+          {% for type, label in group_type_labels.items() %}
+          {% if group_type_permissions[type] %}
+            {% if group_type == type %}
+            {{ label }}
+            {% else %}
+            <a href="index?group_type={{ type }}&{{ c.query_str_for_search('group_type') }}">{{ label }}</a>
+            {% endif %} /
+          {% endif %}
+          {% endfor %}
+          {% if group_type != 'all' %}
+          <a class="include-tab-hash" href="index?group_type={{ type }}&{{ c.query_str_for_search('group_type') }}">All</a>
+          {% else %}
+          <span>All</span>
+          {% endif %}
+      </div>
+    </div>
 
-  <div role="tabpanel">
-  <ul class="nav nav-tabs" role="tablist">
-  <li class="nav-item" role="presentation">
-    <button class="nav-link" id="all-tab" data-bs-toggle="tab" data-bs-target="#all" type="button" role="tab" aria-controls="all">
-      <i class="fa fa-list"></i>&nbsp;All Groups</button>
-  </a>
-  </li>
-  {% if c.HAS_GUEST_ADMIN_ACCESS %}
-  <li class="nav-item" role="presentation">
-    <button class="nav-link" id="guests-tab" data-bs-toggle="tab" data-bs-target="#guests" type="button" role="tab" aria-controls="guests">
-      <i class="fa fa-star"></i>&nbsp;Guests
-    </button>
-  </li>
-  {% endif %}
-  {% if c.HAS_BAND_ADMIN_ACCESS %}
-  <li class="nav-item" role="presentation">
-    <button class="nav-link" id="bands-tab" data-bs-toggle="tab" data-bs-target="#bands" type="button" role="tab" aria-controls="bands">
-      <i class="fa fa-music"></i>&nbsp;Bands
-    </button>
-  </li>
-  {% endif %}
-  {% if c.HAS_SHOWCASE_ADMIN_ACCESS %}
-  <li class="nav-item" role="presentation">
-    <button class="nav-link" id="mivs-tab" data-bs-toggle="tab" data-bs-target="#mivs" type="button" role="tab" aria-controls="mivs">
-      <i class="fa fa-floppy-disk"></i>&nbsp;MIVS
-    </button>
-  </li>
-  {% endif %}
-  {% if c.HAS_DEALER_ADMIN_ACCESS %}
-  <li class="nav-item" role="presentation">
-    <button class="nav-link" id="dealers-tab" data-bs-toggle="tab" data-bs-target="#dealers" type="button" role="tab" aria-controls="dealers">
-      <i class="fa fa-usd"></i>&nbsp;Marketplace
-    </button>
-  </li>
-  {% endif %}
-  </ul>
-  <div class="tab-content pt-3">
-  <div role="tabpanel" class="tab-pane" id="all" aria-labelledby="all-tab">
-    <table class="datatable table table-striped">
+  {% if group_type not in ['other', 'all'] %}
+  {% include '/group_admin/' ~ group_type ~ '.html' %}
+  {% else %}
+    <table class="datatable table table-striped" data-info="false">
       <thead>
       <tr>
-        <th>Name</th>
-        <th>Type</th>
-        <th>Leader</th>
+        <th>Group</th>
+        <th>Group Type</th>
+        <th>Group Leader</th>
         <th>Assigned/Total Badges</th>
         <th>Admin Notes</th>
       </tr>
       </thead>
       <tbody>
-      {% for group in all_groups -%}
-        <tr id="{{ group.id }}">
-          <td>{{ group|form_link }}</td>
-          <td>
-          {% if group.guest %}{{ group.guest.group_type_label }}
-          {% else %}{{ 'Dealer' if group.is_dealer else 'N/A' }}{% endif %}
+        {% for group in groups %}
+        <tr>
+          <td data-sort="{{ group.name }}">
+            <a href="form?id={{ group.id }}" target="_blank">{{ group.name }}</a>
           </td>
           <td>
-          {% if group.leader %}
-          <a href="#attendee_form?id={{ group.leader_id }}">{{ group.leader.full_name }}</a>
-          {% else %}None{% endif %}
+            {% if group.guest %}{{ group.guest.group_type_label }}
+            {% elif group.is_dealer %}{{ c.DEALER_TERM }}
+            {% else %}{{ group.leader.badge_type_label if group.leader and group.leader.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE] else 'N/A' }}
+            {% endif %}
           </td>
+          <td data-sort="{{ group.leader.full_name if group.leader else 'ZZZZZZZ' }}">{{ group.leader|form_link if group.leader else 'None' }}</td>
           <td>{{ group.badges - group.unregistered_badges }} / {{ group.badges }}</td>
           <td>{{ group.admin_notes }}</td>
         </tr>
-      {% endfor -%}
+        {% endfor %}
       </tbody>
     </table>
-  </div>
-  {% if c.HAS_GUEST_ADMIN_ACCESS %}
-  <div role="tabpanel" class="tab-pane" id="guests" aria-labelledby="guests-tab">{% include '/group_admin/guests.html' %}</div>
-  {% endif %}
-  {% if c.HAS_BAND_ADMIN_ACCESS %}
-  <div role="tabpanel" class="tab-pane" id="bands" aria-labelledby="bands-tab">{% with band = True %}{% include '/group_admin/guests.html' %}{% endwith %}</div>
-  {% endif %}
-  {% if c.HAS_SHOWCASE_ADMIN_ACCESS %}
-  <div role="tabpanel" class="tab-pane" id="mivs" aria-labelledby="mivs-tab">{% include '/group_admin/mivs.html' %}</div>
-  {% endif %}
-  {% if c.HAS_DEALER_ADMIN_ACCESS %}
-  <div role="tabpanel" class="tab-pane" id="dealers" aria-labelledby="dealers-tab">{% include '/group_admin/dealers.html' %}</div>
-  {% endif %}
-  </div>
-  </div>
+    {% endif %}
   </div>
 </div>
   {{ "js/window-hash-tabload.js"|serve_static_content }}

@@ -223,7 +223,7 @@ if c.ATTENDEE_ACCOUNTS_ENABLED:
     if c.OIDC_ENABLED:
         AutomatedEmailFixture(
             AttendeeAccount,
-            f'{c.EVENT_NAME_AND_YEAR} Account Setup',
+            f'Claim Your Badge for {c.EVENT_NAME_AND_YEAR}',
             'accounts/new_sso_account.html', None,
             'sso_account_setup',
             sender=c.ADMIN_EMAIL,
@@ -1380,7 +1380,7 @@ if c.INDIE_RETRO_START:
         f'{c.EVENT_NAME} Indie Retro Checklist',
         'indie_arcade/checklist_open.txt',
         "lambda mg: True",
-        'ia_checklist_open'
+        'retro_checklist_open'
     )
 
 

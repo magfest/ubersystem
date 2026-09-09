@@ -15,11 +15,17 @@ badge
         {% set attendee = account.valid_attendees[0] %}
         {% if attendee.group and attendee.id == attendee.group.leader_id %}
             <p>
-                You have been invited to manage the {% if attendee.group.guest_group %}{{ attendee.group.guest_group.group_type }} {% endif %}
+                You have been invited to manage the {% if attendee.group.guest %}{{ attendee.group.guest.group_type_label }} {% endif %}
                 group "{{ attendee.group.name }}" for {{ c.EVENT_NAME_AND_YEAR }}.
             </p>
-            {% if attendee.group.attendees|length > 1 %}
-            <p>Once you claim your badge, you will be able to manage your group members' badges{% if attendee.group.guest_group %} and complete your group's checklist{% endif %}.</p>
+            {% if attendee.group.guest %}
+            <p>
+                Once you claim your badge, you will be able to complete your group's
+                <a href="{{ c.URL_BASE }}/guests/index?id={{ attendee.group.guest.id }}" target="_blank">{{ attendee.group.guest.group_type_label|title }} Checklist</a>.
+                This checklist will walk you through all the info we need to gather for your upcoming appearance at {{ c.EVENT_NAME }}.
+            </p>
+            {% elif attendee.group.attendees|length > 1 %}
+            <p>Once you claim your badge, you will be able to manage your group members' badges.</p>
             {% endif %}
         {% else %}
             {% if attendee.imported_staff %}
@@ -40,7 +46,7 @@ badge
         You have been invited to manage the following badges for {{ c.EVENT_NAME_AND_YEAR }}:
         <ul>
             {% for attendee in account.attendees %}
-            <li>A {{ badge_description(attendee) }} for {{ attendee.full_name }}{% if attendee.admin_account %}, which includes admin access to our system{% endif %}{% if attendee.group %}, {% if attendee.id == attendee.group.leader_id %}for{% else %}in{% endif %} the {% if attendee.group.guest_group %}{{ attendee.group.guest_group.group_type }} {% endif %}group "{{ attendee.group.name }}"{% endif %}</li>
+            <li>A {{ badge_description(attendee) }} for {{ attendee.full_name }}{% if attendee.admin_account %}, which includes admin access to our system{% endif %}{% if attendee.group %}, {% if attendee.id == attendee.group.leader_id %}for{% else %}in{% endif %} the {% if attendee.group.guest %}{{ attendee.group.guest.group_type }} {% endif %}group "{{ attendee.group.name }}"{% endif %}</li>
             {% endfor %}
         </ul>
     {% endif %}

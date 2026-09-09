@@ -968,8 +968,7 @@ class UberSession(sqlalchemy.orm.Session):
             return set(staffer.assigned_depts_ids).intersection(dept_ids_with_inherent_role)
 
         def admin_can_see_guest_group(self, guest):
-            return guest.group_type_label.upper().replace(' ', '_') \
-                in self.current_admin_account().viewable_guest_group_types
+            return guest.group_type in self.current_admin_account().viewable_guest_group_types
 
         def admin_attendee_max_access(self, attendee, read_only=True):
             admin = self.current_admin_account()
@@ -998,7 +997,7 @@ class UberSession(sqlalchemy.orm.Session):
                                                    read_only=read_only) for section in group.access_sections])
 
         def viewable_groups(self):
-            from uber.models import Group, GuestGroup
+            from uber.models import Group, GuestGroup, DeptMembership
             admin = self.current_admin_account()
 
             if admin.full_registration_admin:
@@ -1013,12 +1012,12 @@ class UberSession(sqlalchemy.orm.Session):
             if 'guest_admin' in admin.read_or_write_access_set:
                 subqueries.append(self.query(Group).join(
                     GuestGroup, Group.id == GuestGroup.group_id).filter(
-                        ~GuestGroup.group_type.in_([c.BAND, c.SIDE_STAGE, c.MIVS])))
+                        GuestGroup.group_type.in_(AdminAccount.checklist_access_matrix['guest_admin'])))
 
             if 'band_admin' in admin.read_or_write_access_set:
                 subqueries.append(self.query(Group).join(
                     GuestGroup, Group.id == GuestGroup.group_id).filter(
-                        GuestGroup.group_type.in_([c.BAND, c.ROCK_ISLAND, c.SIDE_STAGE])))
+                        GuestGroup.group_type.in_(AdminAccount.checklist_access_matrix['band_admin'])))
                 subqueries.append(self.query(Group).join(Group.leader).filter(
                     Attendee.ribbon.contains(c.BAND)))
 
@@ -1028,7 +1027,7 @@ class UberSession(sqlalchemy.orm.Session):
             if 'showcase_admin' in admin.read_or_write_access_set:
                 subqueries.append(self.query(Group).join(
                     GuestGroup, Group.id == GuestGroup.group_id).filter(
-                        GuestGroup.group_type == c.MIVS))
+                        GuestGroup.group_type.in_(AdminAccount.checklist_access_matrix['showcase_admin'])))
                 subqueries.append(self.query(Group).join(Group.leader).filter(
                     Attendee.ribbon.contains(c.MIVS)))
 
@@ -1039,9 +1038,9 @@ class UberSession(sqlalchemy.orm.Session):
                 if admin.full_shifts_admin:
                     subqueries.append(staff_groups)
                 else:
-                    for dept_membership in admin.attendee.dept_memberships_with_inherent_role:
-                        subqueries.append(staff_groups.filter(
-                            Attendee.dept_memberships.any(department_id=dept_membership.department_id)))
+                    dept_ids = [membership.department_id for membership in admin.attendee.dept_memberships_with_inherent_role]
+                    subqueries.append(staff_groups.filter(
+                        Attendee.dept_memberships.any(DeptMembership.department_id.in_(dept_ids))))
 
             return subqueries[0].union(*subqueries[1:])
 
@@ -1061,7 +1060,7 @@ class UberSession(sqlalchemy.orm.Session):
                             Attendee.group_id != None,
                             Group.id == Attendee.group_id,
                             GuestGroup.group_id == Group.id,
-                            GuestGroup.group_type.in_([c.BAND, c.ROCK_ISLAND, c.SIDE_STAGE]))))
+                            GuestGroup.group_type.in_(AdminAccount.checklist_access_matrix['band_admin']))))
             
             return_dict['guest_admin'] = self.query(Attendee).outerjoin(Group, Attendee.group_id == Group.id).join(
                 GuestGroup, Group.id == GuestGroup.group_id).filter(
@@ -1071,7 +1070,7 @@ class UberSession(sqlalchemy.orm.Session):
                             Attendee.group_id != None,
                             Group.id == Attendee.group_id,
                             GuestGroup.group_id == Group.id,
-                            ~GuestGroup.group_type.in_([c.BAND, c.SIDE_STAGE, c.MIVS]))))
+                            GuestGroup.group_type.in_(AdminAccount.checklist_access_matrix['guest_admin']))))
 
             return_dict['panels_admin'] = self.query(Attendee).outerjoin(PanelApplicant).filter(
                                                  or_(Attendee.ribbon.contains(c.PANELIST_RIBBON),
@@ -1090,7 +1089,7 @@ class UberSession(sqlalchemy.orm.Session):
                             Attendee.group_id != None,
                             Group.id == Attendee.group_id,
                             GuestGroup.group_id == Group.id,
-                            GuestGroup.group_type == c.MIVS)))
+                            GuestGroup.group_type.in_(AdminAccount.checklist_access_matrix['showcase_admin']))))
             return_dict['art_show_admin'] = self.query(Attendee
                                                        ).outerjoin(
                                                            ArtShowApplication,

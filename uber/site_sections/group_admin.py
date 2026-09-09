@@ -14,11 +14,50 @@ from uber.email import EmailService
 from uber.errors import HTTPRedirect
 from uber.files import FileService
 from uber.forms import load_forms
-from uber.models import AdminAccount, Attendee, Email, Event, Group, GuestGroup, PageViewTracking, Tracking
+from uber.models import AdminAccount, Attendee, Email, DeptMembership, Group, GuestGroup, PageViewTracking, Tracking
 from uber.utils import check, validate_model, add_opt, SignNowRequest
 from uber.payments import ReceiptManager
 
 log = logging.getLogger(__name__)
+
+
+def _checklist_filters(admin):
+    filters = []
+
+    for access in AdminAccount.checklist_access_matrix.keys():
+        if access in admin.read_or_write_access_set:
+            filters.append(GuestGroup.group_type.in_(AdminAccount.checklist_access_matrix[access]))
+    
+    return filters
+
+
+def _query_from_group_type(session, admin, group_type):
+    queries = {
+        'dealer': session.query(Group).filter(Group.is_dealer),
+        'checklist': session.query(Group).join(GuestGroup, Group.id == GuestGroup.group_id),
+        'staff': session.query(Group).join(Group.leader).filter(Attendee.badge_type.in_([c.STAFF_BADGE,
+                                                                                         c.CONTRACTOR_BADGE])),
+        'other': session.query(Group).filter(
+            Group.is_dealer == False, Group.guest == None,
+            or_(Group.leader == None,
+                ~Group.attendees.any(and_(Attendee.id == Group.leader_id,
+                                          Attendee.badge_type.in_([c.STAFF_BADGE, c.CONTRACTOR_BADGE])))))
+    }
+
+    if group_type not in queries:
+        return session.viewable_groups().options(joinedload(Group.attendees))
+    elif group_type == 'staff':
+        if admin.full_shifts_admin:
+            return queries[group_type]
+        else:
+            dept_ids = [membership.department_id for membership in admin.attendee.dept_memberships_with_inherent_role]
+            return queries[group_type].filter(Attendee.dept_memberships.any(DeptMembership.department_id.in_(dept_ids)))
+    elif group_type == 'checklist':
+        filters = _checklist_filters(admin)
+        if filters:
+            return queries[group_type].filter(or_(*filters))
+        return
+    return queries.get(group_type, None)
 
 
 @all_renderable()
@@ -32,44 +71,73 @@ class Root:
                 's' if len(missing) > 1 else '')
         return ''
 
-    def index(self, session, message='', show_all=None):
-        groups = session.viewable_groups().options(joinedload(Group.attendees))
-        dealer_counts = defaultdict(int)
+    def index(self, session, message='', group_type='all', show_all=False):
+        admin = session.current_admin_account()
+        current_admin_access = admin.read_or_write_access_set
+
+        group_type_permissions = {
+            'dealer': 'dealer_admin' in current_admin_access,
+            'checklist': _checklist_filters(admin),
+            'staff': 'shifts_admin' in current_admin_access,
+            'other': True,
+            'all': True,
+        }
+
+        group_type_labels = {
+            'dealer': c.DEALER_TERM.title(),
+            'checklist': 'Checklist',
+            'staff': 'Staff + Contractor',
+            'other': 'Other',
+        }
+
+        if group_type not in group_type_permissions:
+            group_type = 'all'
+
+        if not group_type_permissions[group_type]:
+            message = f"You do not have permission to view {group_type_labels[group_type].lower()} groups."
+            raise HTTPRedirect('index?group_type=all&message={}', message)
+        
+        groups = _query_from_group_type(session, admin, group_type)
 
         if not show_all:
             groups = groups.filter(Group.status != c.IMPORTED)
 
-        dealer_groups = groups.filter(Group.is_dealer == True)  # noqa: E712
-        dealer_counts['total'] = dealer_groups.count()
-        for group in dealer_groups:
-            dealer_counts['tables'] += group.tables
-            dealer_counts['badges'] += group.badges
-            match group.status:
-                case c.UNAPPROVED:
-                    dealer_counts['unapproved'] += group.tables
-                case c.WAITLISTED:
-                    dealer_counts['waitlisted'] += group.tables
-                case c.APPROVED:
-                    dealer_counts['approved'] += group.tables
-                case c.SHARED:
-                    dealer_counts['approved'] += group.tables
-
-        guest_groups = groups.filter(Group.guest != None)
+        dealer_counts = defaultdict(int)
+        checklist_counts = {}
+        checklist_items = {}
+        if group_type == 'dealer':
+            dealer_counts['total'] = groups.count()
+            for group in groups:
+                dealer_counts['tables'] += group.tables
+                dealer_counts['badges'] += group.badges
+                match group.status:
+                    case c.UNAPPROVED:
+                        dealer_counts['unapproved'] += group.tables
+                    case c.WAITLISTED:
+                        dealer_counts['waitlisted'] += group.tables
+                    case c.APPROVED:
+                        dealer_counts['approved'] += group.tables
+                    case c.SHARED:
+                        dealer_counts['approved'] += group.tables
+            groups = groups.options(joinedload(Group.attendees), joinedload(Group.active_receipt))
+        elif group_type == 'checklist':
+            for g_type in c.GROUP_TYPES:
+                count = groups.filter(GuestGroup.group_type == g_type).count()
+                if count:
+                    checklist_counts[g_type] = count
+                    checklist_items[g_type] = GuestGroup(group_type=g_type).sorted_checklist_items
+            groups = groups.options(joinedload(Group.guest))
 
         return {
             'message': message,
             'show_all': show_all,
-            'all_groups': groups,
-            'guest_groups': guest_groups,
-            'dealer_groups': dealer_groups.options(joinedload(Group.active_receipt)),
-            'guest_checklist_items': GuestGroup(group_type=c.GUEST).sorted_checklist_items,
-            'band_checklist_items': GuestGroup(group_type=c.BAND).sorted_checklist_items,
-            'num_dealer_groups': dealer_counts['total'],
-            'dealer_badges': dealer_counts['badges'],
-            'tables': dealer_counts['tables'],
-            'unapproved_tables': dealer_counts['unapproved'],
-            'waitlisted_tables': dealer_counts['waitlisted'],
-            'approved_tables': dealer_counts['approved'],
+            'groups': groups,
+            'group_type': group_type,
+            'group_type_labels': group_type_labels,
+            'group_type_permissions': group_type_permissions,
+            'dealer_counts': dealer_counts,
+            'checklist_counts': checklist_counts,
+            'checklist_items': checklist_items,
         }
 
     def new_group_from_attendee(self, session, id):
@@ -319,7 +387,6 @@ class Root:
                                                         Email.fk_id == id).order_by(Email.generated).all(),
             'guest_emails': guest_emails,
             'leader_emails': leader_emails,
-            'depts_by_sender': EmailService.emails_from_depts(session),
         }
 
     @csrf_protected

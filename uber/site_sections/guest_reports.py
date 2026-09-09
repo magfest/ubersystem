@@ -19,11 +19,55 @@ class Root:
         HTTPRedirect('../group_admin/index')
 
     @csv_file
-    def checklist_info_csv(self, out, session):
+    def checklist_attendees_csv(self, out, session, group_type=None):
+        if group_type:
+            group_type = int(group_type)
+            guest_groups = session.query(GuestGroup).filter(GuestGroup.group_type == group_type)
+            header_row = ['ID', 'Group Name', 'Group Leader?', 'Badge Type', 'Full Name', 'Email']
+        else:
+            guest_groups = session.query(GuestGroup)
+            header_row = ['ID', 'Checklist Type', 'Group Name', 'Group Leader?', 'Badge Type', 'Full Name', 'Email']
+
+        out.writerow(header_row)
+
+        for guest in [g for g in guest_groups.all() if session.admin_can_see_guest_group(g)]:
+            if guest.group:
+                for attendee in guest.group.attendees:
+                    if not attendee.is_unassigned:
+                        row = [attendee.id]
+                        if not group_type:
+                            row.append(guest.group_type_label)
+                        row.extend([guest.group.name, attendee == guest.group.leader, attendee.badge_type_label,
+                                    attendee.full_name, attendee.email])
+                        out.writerow(row)
+
+    @csv_file
+    def checklist_status_csv(self, out, session, group_type=None):
+        if group_type:
+            group_type = int(group_type)
+            guest_groups = session.query(GuestGroup).filter(GuestGroup.group_type == group_type)
+            checklist_items = GuestGroup(group_type=group_type).sorted_checklist_items
+        else:
+            guest_groups = session.query(GuestGroup)
+            checklist_items = GuestGroup(group_type=c.GUEST).sorted_checklist_items
+
+        header_row = ['Group', 'Group Leader', 'Email']
+        for item in checklist_items:
+            checklist_item = item[1] if group_type == c.MIVS else item
+            header_row.append(checklist_item.get('header', checklist_item.get('name')).replace('_',' ').title())
+        out.writerow(header_row)
+
+        for guest in [g for g in guest_groups.all() if session.admin_can_see_guest_group(g)]:
+            row = [guest.group.name, guest.group.leader.full_name if guest.group.leader else 'None', ', '.join(guest.email)]
+            for item in checklist_items:
+                row.append((getattr(guest.group.studio, item[0] + '_status') if group_type == c.MIVS \
+                           else getattr(guest, item['name'] + '_status')) or 'Not Completed')
+            out.writerow(row)
+
+    @csv_file
+    def checklist_info_csv(self, out, session, group_type=None):
         out.writerow([
             'Guest Type', 'Group Name', 'Primary Contact Email',
-            'Payment', 'Vehicles', 'Hotel Rooms',
-            'Load-In', 'Performance Time',
             'PoC Cellphone', 'Performer Count',
             'Bringing Vehicle', 'Vehicle Info',
             'Arrival Time', 'Bio',
@@ -38,7 +82,11 @@ class Root:
             'Travel Mode(s)', 'Travel Mode(s) Text', 'Travel Details',
             'Needs Rehearsal?',
         ])
-        for guest in [guest for guest in session.query(GuestGroup).all() if session.admin_can_see_guest_group(guest)]:
+        guest_groups = session.query(GuestGroup)
+        if group_type:
+            guest_groups = guest_groups.filter(GuestGroup.group_type == int(group_type))
+
+        for guest in [g for g in guest_groups.all() if session.admin_can_see_guest_group(g)]:
             absolute_pic_url, absolute_stageplot_url = '', ''
             if guest.bio:
                 bio_pic_file = FileService.get_existing_files(session, guest.bio, and_flags=['bio_pic'])
@@ -50,9 +98,7 @@ class Root:
                 else len(guest.group.leader.submitted_panels)
 
             out.writerow([
-                guest.group_type_label, guest.group.name, guest.email,
-                guest.payment, guest.vehicles, guest.num_hotel_rooms,
-                guest.estimated_loadin_minutes, guest.estimated_performance_minutes,
+                guest.group_type_label, guest.group.name, ', '.join(guest.email),
                 getattr(guest.info, 'poc_phone', ''), getattr(guest.info, 'performer_count', ''),
                 getattr(guest.info, 'bringing_vehicle', ''), getattr(guest.info, 'vehicle_info', ''),
                 getattr(guest.info, 'arrival_time', ''), getattr(guest.bio, 'desc', ''),
@@ -73,11 +119,15 @@ class Root:
             ])
 
     @csv_file
-    def detailed_travel_info_csv(self, out, session):
+    def detailed_travel_info_csv(self, out, session, group_type=None):
         out.writerow(['Guest Type', 'Group Name', 'Travel Mode', 'Travel Mode Text', 'Traveller', 'Companions',
                       'Luggage Needs', 'Contact Email', 'Contact Phone', 'Arrival Time',
                       'Arrival Details', 'Departure Time', 'Departure Details', 'Extra Details'])
-        for travel_plan in [plan for plan in session.query(GuestTravelPlans).all() if session.admin_can_see_guest_group(plan.guest)]:
+        travel_plans = session.query(GuestTravelPlans).join(GuestTravelPlans.guest)
+        if group_type:
+            travel_plans = travel_plans.filter(GuestGroup.group_type == int(group_type))
+
+        for travel_plan in [plan for plan in travel_plans.all() if session.admin_can_see_guest_group(plan.guest)]:
             for plan in travel_plan.detailed_travel_plans:
                 content_row = [travel_plan.guest.group_type_label, travel_plan.guest.group.name]
                 content_row.extend([plan.mode_label, plan.mode_text, plan.traveller, plan.companions,
@@ -88,10 +138,14 @@ class Root:
                 out.writerow(content_row)
     
     @csv_file
-    def panel_info_csv(self, out, session):
+    def panel_info_csv(self, out, session, group_type=None):
         out.writerow(['Guest', 'App Status', 'Name', 'Description', 'Schedule Description', 'Length',
                       'Department', 'Type of Panel', 'Location', 'Date/Time'])
-        for guest in [guest for guest in session.query(GuestGroup).all() if session.admin_can_see_guest_group(guest)]:
+        guest_groups = session.query(GuestGroup)
+        if group_type:
+            guest_groups = guest_groups.filter(GuestGroup.group_type == int(group_type))
+
+        for guest in [g for g in guest_groups if session.admin_can_see_guest_group(g)]:
             if guest.group and guest.group.leader:
                 for app in guest.group.leader.submitted_panels:
                     out.writerow([
@@ -108,13 +162,15 @@ class Root:
 
 
     @site_mappable
-    def rock_island(self, session, message='', only_empty=None, id=None, **params):
+    def rock_island(self, session, message='', only_empty=None, group_type=None, id=None, **params):
         query = session.query(GuestGroup).options(
                 subqueryload(GuestGroup.group)).options(
                 subqueryload(GuestGroup.merch))
         if id:
             guest_groups = [query.get(id)]
         else:
+            if group_type:
+                guest_groups = guest_groups.filter(GuestGroup.group_type == int(group_type))
             if only_empty:
                 empty_filter = [GuestMerch.inventory == '{}']
             else:
@@ -138,7 +194,7 @@ class Root:
     
     @site_mappable(download=True)
     @xlsx_file
-    def rock_island_square_xlsx(self, out, session, id=None, **params):
+    def rock_island_square_xlsx(self, out, session, group_type=None, id=None, **params):
         header_row = [
             'Reference Handle', 'Token', 'Item Name', 'Customer-facing Name', 'Variation Name',
             'Unit and Precision', 'SKU', 'Description', 'Categories', 'Reporting Category',
@@ -157,6 +213,8 @@ class Root:
         if id:
             guest_groups = [query.get(id)]
         else:
+            if group_type:
+                guest_groups = guest_groups.filter(GuestGroup.group_type == int(group_type))
             guest_groups = query.filter(
                 GuestGroup.id == GuestMerch.guest_id,
                 GuestMerch.selling_merch == c.ROCK_ISLAND,
@@ -208,7 +266,7 @@ class Root:
 
     @site_mappable(download=True)
     @csv_file
-    def rock_island_csv(self, out, session, id=None, **params):
+    def rock_island_csv(self, out, session, group_type=None, id=None, **params):
         out.writerow([
             'Group Name', 'Inventory Type', 'Inventory Name', 'Price', 'Media', 'Quantity', 'Promo Picture URL',
         ])
@@ -218,6 +276,8 @@ class Root:
         if id:
             guest_groups = [query.get(id)]
         else:
+            if group_type:
+                guest_groups = guest_groups.filter(GuestGroup.group_type == int(group_type))
             guest_groups = query.filter(
                 GuestGroup.id == GuestMerch.guest_id,
                 GuestMerch.selling_merch == c.ROCK_ISLAND,
@@ -257,13 +317,15 @@ class Root:
                     ])
 
     @multifile_zipfile
-    def rock_island_image_zip(self, zip_file, session, id=None, **params):
+    def rock_island_image_zip(self, zip_file, session, group_type=None, id=None, **params):
         query = session.query(GuestGroup).options(
                 subqueryload(GuestGroup.group)).options(
                 subqueryload(GuestGroup.merch))
         if id:
             guest_groups = [query.get(id)]
         else:
+            if group_type:
+                guest_groups = guest_groups.filter(GuestGroup.group_type == int(group_type))
             guest_groups = query.filter(
                 GuestGroup.id == GuestMerch.guest_id,
                 GuestMerch.selling_merch == c.ROCK_ISLAND,
@@ -290,9 +352,14 @@ class Root:
                     zip_file.write(filepath, download_filename)
 
     @csv_file
-    def rock_island_info_csv(self, out, session):
-        guest_groups = session.query(GuestGroup).options(
-                subqueryload(GuestGroup.group)).options(
+    def rock_island_info_csv(self, out, session, group_type=None):
+        guest_groups = session.query(GuestGroup)
+        
+        if group_type:
+            guest_groups = guest_groups.filter(GuestGroup.group_type == int(group_type))
+        
+        guest_groups = guest_groups.options(
+            subqueryload(GuestGroup.group)).options(
                 subqueryload(GuestGroup.merch)).filter(
                     GuestGroup.id == GuestMerch.guest_id,
                     GuestMerch.selling_merch == c.ROCK_ISLAND,
@@ -341,15 +408,17 @@ class Root:
                           ])
 
     @csv_file
-    def autograph_requests(self, out, session):
+    def autograph_requests(self, out, session, group_type=None):
         out.writerow([
             'Group Name', '# of Sessions', 'Session Length (Minutes)', 'Wants RI Meet & Greet',
             'Meet & Greet Length (Minutes)'
         ])
 
-        autograph_sessions = session.query(GuestAutograph
-                                           ).filter(or_(GuestAutograph.num > 0,
-                                                        GuestAutograph.rock_island_autographs == True))  # noqa: E712
+        autograph_sessions = session.query(GuestAutograph).join(GuestTravelPlans.guest)
+        if group_type:
+            autograph_sessions = autograph_sessions.filter(GuestGroup.group_type == int(group_type))
+        autograph_sessions = autograph_sessions.filter(or_(GuestAutograph.num > 0,
+                                                           GuestAutograph.rock_island_autographs == True))  # noqa: E712
         for request in autograph_sessions:
             out.writerow([request.guest.group.name,
                           request.num,

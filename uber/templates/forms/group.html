@@ -67,7 +67,7 @@
           email_text: $.val("email_text")
         }, function(json) {
           if (json.message) {
-            window.location = "index?message="+ json.message + "#dealers";
+            window.location = "index?group_type=dealer&message="+ json.message;
           } else {
             $("#status").text("Waitlisted");
           }
