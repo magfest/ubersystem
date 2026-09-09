@@ -95,7 +95,6 @@ class Root:
             'search_text': search_text if not subject else '',
             'subject_search_text': search_text if subject else '',
             'department_id': params.get('department_id', ''),
-            'depts_by_sender': depts_by_sender,
             'email_status': status or [str(val) for val in c.EMAIL_STATUS.keys()],
             'send_after': send_after,
         }
@@ -155,7 +154,6 @@ class Root:
             'automated_emails': emails_by_sender,
             'queued_email_counts': queued_email_counts,
             'sent_email_counts': sent_email_counts,
-            'depts_by_sender': depts_by_sender,
             'department_id': department_id,
             'policy': policy,
             'checklist': department_id and checklist,

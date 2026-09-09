@@ -139,7 +139,6 @@ class Root:
         return {
             'app': app,
             'emails': session.query(Email).filter(Email.fk_id == id).order_by(Email.generated).all(),
-            'depts_by_sender': EmailService.emails_from_depts(session),
         }
 
     @xlsx_file

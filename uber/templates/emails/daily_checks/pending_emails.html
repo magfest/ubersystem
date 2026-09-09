@@ -11,7 +11,7 @@
         <br/>Setting the policy to {{ c.EMAIL_POLICYS[c.DISABLED] }} will instead remove the existing copies and prevent new copies from being generated.
         They won't appear in future reports unless re-enabled.
     </p>
-    {% if depts_by_sender[primary_sender|email_only] %}
+    {% if c.DEPTS_BY_SENDER[primary_sender|email_only] %}
     <p>
       <strong>Note</strong>: You need either full admin access to email management or admin access to one of the emails' departments
       in order to change that email's send policy.
@@ -20,7 +20,7 @@
 
       {% for sender, emails in pending_emails_by_sender.items() %}
       <br/><br/>
-          <b>{{ sender }}{% if depts_by_sender[sender|email_only] %} ({% for dept in depts_by_sender[sender|email_only] %}{{ dept|form_link(true) }}{% endfor %}){% endif %}</b>
+          <b>{{ sender }}{% if c.DEPTS_BY_SENDER[sender|email_only] %} ({% for dept in c.DEPTS_BY_SENDER[sender|email_only] %}{{ dept|form_link(true) }}{% endfor %}){% endif %}</b>
           <ul>
             {% for email, count in emails.items() %}
                 <li>

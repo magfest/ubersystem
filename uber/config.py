@@ -1318,10 +1318,11 @@ class Config(_Overridable):
             return self.EMAIL_SIGNATURES.get(signature_key, '')
         return ""
     
-    # A list of department emails and their other related configured email addresses
     @property
     def RELATED_EMAILS(self):
+        # A list of department emails and their other related configured email addresses
         from uber.custom_tags import email_only
+
         email_dict = {
             c.MARKETPLACE_EMAIL: [c.MARKETPLACE_NOTIFICATIONS_EMAIL],
             c.ART_SHOW_EMAIL: [c.ART_SHOW_NOTIFICATIONS_EMAIL, c.ART_SHOW_BCC_EMAIL],
@@ -1335,6 +1336,16 @@ class Config(_Overridable):
 
         # Run email_only on all the keys and values of email_dict and then return it
         return dict(map(lambda x: (email_only(x), list(map(email_only, email_dict[x]))), email_dict))
+    
+    @request_cached_property
+    def DEPTS_BY_SENDER(self):
+        # Helps pages display which department is associated with a particular email or fixture
+        from uber.models import Session
+        from uber.email import EmailService
+        with Session() as session:
+            depts_by_sender = EmailService.emails_from_depts(session)
+        return depts_by_sender
+
 
     # =========================
     # indie showcases (mivs, indie arcade, indie retro)

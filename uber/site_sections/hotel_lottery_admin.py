@@ -779,7 +779,6 @@ class Root:
             'application':  application,
             'emails': session.query(Email).filter(Email.fk_id == id
                                                   ).order_by(Email.generated).all(),
-            'depts_by_sender': EmailService.emails_from_depts(session),
         }
 
     def lottery_runs(self, session, message=''):

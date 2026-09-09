@@ -693,7 +693,6 @@ class Root:
             'emails': session.query(Email).filter(Email.fk_id == id).order_by(Email.generated).all(),
             'other_emails': session.query(Email).filter(Email.to == attendee.email,
                                                         Email.fk_id != id).order_by(Email.generated).all(),
-            'depts_by_sender': EmailService.emails_from_depts(session),
         }
 
     def delete(self, session, id, return_to='index?', return_msg=False, **params):

@@ -92,7 +92,6 @@ class Root:
         return {
             'message': message,
             'studio': studio,
-            'depts_by_sender': EmailService.emails_from_depts(session),
             'studio_emails': session.query(Email).filter(Email.model == 'IndieStudio',
                                                          Email.fk_id == id).order_by(Email.generated).all(),
             'game_emails': session.query(Email).filter(Email.model == 'IndieGame',
@@ -220,7 +219,6 @@ class Root:
                 and_(Tracking.model == 'IndieJudge', Tracking.fk_id == id))).order_by(Tracking.when).all(),
             'emails': session.query(Email).filter(Email.model == 'IndieJudge',
                                                   Email.fk_id == judge.id).order_by(Email.generated).all(),
-            'depts_by_sender': EmailService.emails_from_depts(session),
         }
     
     @ajax
@@ -321,7 +319,6 @@ class Root:
                 and_(Tracking.model == 'IndieGame', Tracking.fk_id == id))).order_by(Tracking.when).all(),
             'emails': session.query(Email).filter(Email.model == 'IndieGame',
                                                   Email.fk_id == game.id).order_by(Email.generated).all(),
-            'depts_by_sender': EmailService.emails_from_depts(session),
         }
     
     @ajax
