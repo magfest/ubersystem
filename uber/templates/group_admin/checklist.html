@@ -1,6 +1,7 @@
+{% set show_all_tab = checklist_counts|length > 1 or checklist_counts|length == 0 %}
 <div role="tabpanel">
   <ul class="nav nav-tabs" role="tablist">
-    {% if checklist_counts|length > 1 %}
+    {% if show_all_tab %}
     <li class="nav-item" role="presentation">
       <button class="nav-link" id="all-tab" data-bs-toggle="tab" data-bs-target="#all" type="button" role="tab" aria-controls="all">
         <i class="fa fa-list"></i>&nbsp;All Groups</button>
@@ -17,7 +18,7 @@
     {% endfor %}
   </ul>
 <div class="tab-content pt-3">
-  {% if checklist_counts|length > 1 %}
+  {% if show_all_tab %}
   <div role="tabpanel" class="tab-pane" id="all" aria-labelledby="all-tab">
     {% if c.HAS_GUEST_REPORTS_ACCESS %}
       <div class="d-flex justify-content-between mb-3">
