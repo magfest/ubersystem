@@ -50,7 +50,7 @@
           </td>
           <td>
             {% if group.guest %}{{ group.guest.group_type_label }}
-            {% elif group.is_dealer %}{{ c.DEALER_TERM }}
+            {% elif group.is_dealer %}{{ c.DEALER_TERM|title }}
             {% else %}{{ group.leader.badge_type_label if group.leader and group.leader.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE] else 'N/A' }}
             {% endif %}
           </td>
