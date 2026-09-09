@@ -389,27 +389,27 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     checklist_admin_depts: list['Department'] = Relationship(
         back_populates="checklist_admins",
         sa_relationship_kwargs={
-            'primaryjoin': 'and_(Department.id == DeptMembership.department_id, '
+            'primaryjoin': 'and_(Attendee.id == DeptMembership.attendee_id, '
                                 'DeptMembership.is_checklist_admin == True)',
             'secondary': 'dept_membership', 'viewonly': True, 'order_by': 'Department.name'})
     depts_with_inherent_role: list['Department'] = Relationship(
         back_populates="members_with_inherent_role",
         sa_relationship_kwargs={
-            'primaryjoin': 'and_(Department.id == DeptMembership.department_id, '
+            'primaryjoin': 'and_(Attendee.id == DeptMembership.attendee_id, '
                                 'DeptMembership.has_inherent_role)',
             'secondary': 'dept_membership',
             'order_by': 'Department.name', 'viewonly': True})
     can_admin_checklist_depts: list['Department'] = Relationship(
         back_populates="members_who_can_admin_checklist",
         sa_relationship_kwargs={
-            'primaryjoin': 'and_(Department.id == DeptMembership.department_id, '
+            'primaryjoin': 'and_(Attendee.id == DeptMembership.attendee_id, '
                                 'or_(DeptMembership.is_checklist_admin == True, '
                                     'DeptMembership.is_dept_head == True))',
             'secondary': 'dept_membership', 'viewonly': True, 'order_by': 'Department.name'})
     poc_depts: list['Department'] = Relationship(
         back_populates="pocs",
         sa_relationship_kwargs={
-            'primaryjoin': 'and_(Department.id == DeptMembership.department_id, '
+            'primaryjoin': 'and_(Attendee.id == DeptMembership.attendee_id, '
                                 'DeptMembership.is_poc == True)',
             'secondary': 'dept_membership', 'viewonly': True, 'order_by': 'Department.name'})
     explicitly_requested_depts: list['Department'] = Relationship(
