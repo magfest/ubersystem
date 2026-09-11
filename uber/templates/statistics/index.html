@@ -17,13 +17,6 @@
 <b>Number of remaining badges for sale (before event is sold out):</b> {{ c.REMAINING_BADGES }} <br/>
 This is calculated by taking the Attendee badge type's stock and subtracting the number of Attendee badges promised so far (see "Badge Stats by Type" below), then adding all unclaimed paid promo code group badges.</strong></p>
 
-<p>
-  {% for amount, count in counts.donation_tiers.items() %}
-  <b>Number of attendees who've donated at the {{ amount|format_currency }} level:</b> {{ count }} <br/>
-  {% endfor %}
-  The numbers above include pending badges to help prevent overselling.
-</p>
-
 <h3>Badge Stats by Type</h3>
 <p>
   This table shows stats related to our badge stocks and all <strong>valid badges that we have promised attendees</strong>,
@@ -116,25 +109,67 @@ This is calculated by taking the Attendee badge type's stock and subtracting the
     </table>
   </div>
 </div>
-
-<h4>Shirt Size Stocks</h4>
-<ul>
-    {% for desc, count in counts.shirt_stocks.items() %}
-        <li><i>{{ desc }}:</i> {{ count }}</li>
-    {% endfor %}
-</ul>
-
-<h4>Shirt Size Counts</h4>
-  The number of each shirt size that is claimed by an attendee -- these are counted against shirt size stocks, but DO NOT represent the number of shirts we need to manufacture. The algorithm matches that of our preordered merch counts to make sure we don't oversell.
-  <br/>
-  <ul>
-    {% for desc, count in counts.shirt_counts.items() %}
-      <li><i>{{ desc }}:</i> {{ count }}</li>
-    {% endfor %}
-  </ul>
-
-Of the "paid by group" badges,
+<p>
+  Of the "paid by group" badges,
 <br/> {{ counts.groups.paid }} were from groups that actually gave us money, and
 <br/>{{ counts.groups.free }} were from groups that we didn't charge.
+</p>
+
+<h3>Add-On Stats</h3>
+<p>The numbers below include pending badges to help prevent overselling.</p>
+{% if extra_addon_counts %}
+<p>
+  {% for desc, count in extra_addon_counts %}
+  <strong>{{ desc }}</strong>: {{ count }} <br/>
+  {% endfor %}
+</p>
+{% endif %}
+
+{% if counts.donation_tiers %}
+<h4>Merch Packages</h4>
+<table class="table table-hover table-bordered">
+  <thead>
+    <tr>
+      <th>Merch Tier</th>
+      <th>Stock</th>
+      <th>Purchased</th>
+      <th>Remaining</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for amount, count in counts.donation_tiers.items() %}
+    <tr>
+    <td>{{ c.DONATION_TIERS[amount] }} ({{ amount|format_currency }})</td>
+    <td>{{ c.kickin_stock_matrix[amount] or 'Unlimited' }}</td>
+    <td>{{ count }}</td>
+    <td>{% if c.kickin_stock_matrix[amount] %}{{ c.kickin_stock_matrix[amount]|int - count }}{% else %}N/A{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<h4>Shirts</h4>
+<p>The counts here DO NOT represent the number of shirts we need to manufacture, since they include pending badges to prevent overselling.</p>
+<table class="table table-hover table-bordered">
+  <thead>
+    <tr>
+      <th>Shirt Size</th>
+      <th>Stock</th>
+      <th>Purchased</th>
+      <th>Remaining</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for desc, count in counts.shirt_counts.items() %}
+    <tr>
+    <td>{{ desc }}</td>
+    <td>{{ counts.shirt_stocks[desc] or 'Unlimited' }}</td>
+    <td>{{ count }}</td>
+    <td>{% if counts.shirt_stocks[desc] %}{{ counts.shirt_stocks[desc] - count|int }}{% else %}N/A{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 </div>
 {% endblock %}

@@ -757,6 +757,19 @@ class Config(_Overridable):
             getattr(self, level + "_LEVEL"), getattr(self, level + "_AVAILABLE")]
             for level in ['SHIRT', 'SUPPORTER', 'SEASON']
         ])
+    
+    @property
+    def kickin_stock_matrix(self):
+        return dict([[
+            getattr(self, level + "_LEVEL"), getattr(self, level + "_STOCK")]
+            for level in ['SHIRT', 'SUPPORTER', 'SEASON']
+        ])
+    
+    @property
+    def EXTRA_ADDON_STATS(self):
+        # Plugins can use this to add basic line items for extra add-on purchases to the stats page
+        # Each line item should be a tuple of (desc, count) which will be displayed in a <ul> tag
+        return []
 
     @property
     def PREREG_DONATION_OPTS(self):
