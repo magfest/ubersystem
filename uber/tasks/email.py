@@ -70,8 +70,7 @@ def notify_admins_of_pending_emails():
             EmailService.queue_email(session, 'pending_emails_admin', to=sender, sender=c.REPORTS_EMAIL,
                                      subject=f'{c.EVENT_NAME} Pending Emails Report for {utils.localized_now().strftime('%Y-%m-%d')}',
                                      data={'pending_emails_by_sender': emails_by_sender, 'primary_sender': sender,
-                                           'depts_by_sender': depts_by_sender},
-                                     replace_unsent=True)
+                                           'depts_by_sender': depts_by_sender})
 
         return utils.groupify(pending_emails, 'sender', 'ident')
     
