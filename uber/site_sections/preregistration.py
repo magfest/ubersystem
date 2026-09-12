@@ -2321,7 +2321,7 @@ class Root:
                     return {"error": {'': ["We could not find the badge you're trying to update."]}}
 
         if not form_list:
-            form_list = ['PersonalInfo', 'BadgeExtras', 'BadgeFlags', 'OtherInfo', 'Consents']
+            form_list = ['PersonalInfo', 'BadgeExtras', 'BadgeFlags', 'StaffingInfo', 'OtherInfo', 'Consents']
         elif isinstance(form_list, str):
             form_list = [form_list]
 

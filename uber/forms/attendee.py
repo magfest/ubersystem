@@ -176,12 +176,6 @@ class AdminStaffingInfo(StaffingInfo):
 
 
 class PreregOtherInfo(OtherInfo, StaffingInfo):
-    dynamic_choices_fields = {'requested_depts_ids': lambda: [(v[0], v[1]) for v in c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC]}
-
-    staffing = BooleanField('I am interested in volunteering!', widget=SwitchInput(),
-                            description=popup_link(c.VOLUNTEER_PERKS_URL, "What do I get for volunteering?"))
-    requested_depts_ids = SelectMultipleField('Where do you want to help?',
-                                              widget=MultiCheckbox())  # TODO: Show attendees department descriptions
     cellphone = TelField('Phone Number', description="A cellphone number is required for volunteers.", 
         render_kw={'placeholder': 'A phone number we can use to contact you during the event'})
     no_cellphone = BooleanField('I won\'t have a phone with me during the event.')

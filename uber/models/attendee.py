@@ -2125,6 +2125,10 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         self._set_relation_ids('assigned_depts', Department, list(values))
 
     @property
+    def requestable_public_depts(self):
+        return [(v[0], v[1]) for v in c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC if v[0] not in self.assigned_depts_ids]
+
+    @property
     def requested_depts_ids(self):
         return [d.department_id or 'All' for d in self.dept_membership_requests]
 

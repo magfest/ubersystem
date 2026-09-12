@@ -1117,7 +1117,7 @@ class Config(_Overridable):
     @request_cached_property
     @dynamic
     def PUBLIC_DEPARTMENT_OPTS_WITH_DESC(self):
-        return self.get_dept_opts(public=True, include_desc=True)
+        return [('', 'Anywhere', '')] + self.get_dept_opts(public=True, include_desc=True)
 
     @request_cached_property
     @dynamic
