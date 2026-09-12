@@ -78,7 +78,12 @@ class Root:
 
         if not send_after:
             fifteen_mins = datetime.now(pytz.UTC) + timedelta(seconds=900)
-            emails = emails.filter(or_(Email.send_after == None, Email.send_after < fifteen_mins))
+            excluded_automated_emails = session.query(AutomatedEmail.id).filter(
+                AutomatedEmail.active_after != None, AutomatedEmail.active_after > fifteen_mins)
+            excluded_ids = [id for id, in excluded_automated_emails]
+            emails = emails.filter(
+                ~Email.automated_email_id.in_(excluded_ids),
+                or_(Email.send_after == None, Email.send_after < fifteen_mins))
 
         if search_text:
             if subject:

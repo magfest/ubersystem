@@ -51,9 +51,13 @@
         {% if 'recipient' not in hidden_cols %}
         <td>
           {% for email_address in email.to.split(',') %}
-            {% if index_page %}
-            <a href="../email_admin/index?search_text={{ email_address }}&{{ c.query_str_for_search('search_text') }}">{{ email_address }}</a>{% else %}
-            <a href="../email_admin/index?search_text={{ email_address }}" target="_blank">{{ email_address }} <i class="fa fa-external-link"></i></a>{% endif %}{% if not loop.last %}, {% endif %}
+            {% if index_page and search_text == email_address %}
+              {{ email_address }}
+            {% elif index_page %}
+              <a href="../email_admin/index?search_text={{ email_address }}&{{ c.query_str_for_search('search_text') }}">{{ email_address }}</a>
+            {% else %}
+              <a href="../email_admin/index?search_text={{ email_address }}" target="_blank">{{ email_address }} <i class="fa fa-external-link"></i></a>
+            {% endif %}{% if not loop.last %}, {% endif %}
           {% endfor %}
         </td>
         {% endif %}
