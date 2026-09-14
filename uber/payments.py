@@ -1977,7 +1977,7 @@ class ReceiptManager:
 
             if model and isinstance(model, Group) and model.is_dealer and not txn.receipt.open_purchase_items:
                 EmailService.queue_email(session, 'dealer_payment_admin', to=c.MARKETPLACE_NOTIFICATIONS_EMAIL,
-                                         data={'group': model})
+                                         data={'group': model, 'amount_paid': group.amount_paid})
             if model and isinstance(model, ArtShowApplication) and not txn.receipt.open_purchase_items:
                 EmailService.queue_email(session, 'art_show_payment_admin', to=c.ART_SHOW_NOTIFICATIONS_EMAIL,
                                          data={'app': model})
