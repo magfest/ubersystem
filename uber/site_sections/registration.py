@@ -375,20 +375,23 @@ class Root:
     
     @ajax
     @attendee_view
-    def add_existing_account(self, session, id, account_id, email=False, **params):
+    def add_existing_account(self, session, id, account_id, email='false', **params):
         attendee = session.attendee(id)
         account = session.attendee_account(account_id)
+        email = json.loads(email)
         if attendee.managers:
             return {'success': False, 'message': "This attendee already has an account."}
+        if attendee.admin_account and account.admin_account_id:
+            return {'success': False, 'message': "This account already has an attendee with admin access."}
         session.add_attendee_to_account(attendee, account)
         if attendee.group and attendee.id == attendee.group.leader_id:
             for group_member in attendee.group.attendees:
-                if not group_member.is_unassigned and group_member != attendee:
+                if not group_member.is_unassigned and not group_member.managers and group_member != attendee:
                     session.add_attendee_to_account(group_member, account)
-        session.commit()
         if email:
             EmailService.queue_email(session, 'attendee_account_attendee_added', account,
                                      data={'attendee': attendee})
+        session.commit()
         return {'success': True,
                 'message': f"Attendee added to account {account.email}{' and the account owner has been notified' if email else ''}!"}
             

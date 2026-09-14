@@ -165,7 +165,7 @@
   </script>
 {% else %}
 <div class="text-center">
-  <a class="btn btn-primary btn-lg" href="../accounts/login{% if original_location %}?original_location={{ original_location }}{% endif %}">Log in with {{ c.OIDC_ACCOUNT_NAME }}</a>
+  <a class="btn btn-primary btn-lg" href="{% if original_location %}../accounts/login?original_location={{ original_location }}{% else %}../preregistration/homepage{% endif %}">Log in with {{ c.OIDC_ACCOUNT_NAME }}</a>
 </div>
 {% endif %}
 {% endif %}

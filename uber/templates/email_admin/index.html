@@ -47,7 +47,7 @@
                         <input type="checkbox" id="send_after" name="send_after" value="1" onchange="emailSendAfter()"{% if send_after %} checked{% endif %}>
                         Include date-restricted emails queued for later.
                     </label>
-                    <div class="form-text">If unchecked, queued emails that are not being sent in the next 15 minutes are hidden.</div>
+                    <div class="form-text">If unchecked, emails with 'send after' times not within the next 15 minutes are hidden.</div>
                 </div>
             </div>
         </div>

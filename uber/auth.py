@@ -62,28 +62,37 @@ class OIDC(cherrypy.Tool):
         admin_account = session.query(AdminAccount).join(AdminAccount.password_reset).filter(
                 PasswordReset.token == account_claim_token).first()
         
-        accounts_pluralized = 'these accounts' if attendee_account and admin_account else 'this account'
-        
+        badges_pluralized = 'your badges' if attendee_account and len(attendee_account.valid_attendees) > 1 else 'your badge'
+        accounts_to_claim = 2 if attendee_account and admin_account else 1
+        already_claimed = 0
+
         if attendee_account and attendee_account.sso_id:
             session.delete(attendee_account.password_reset)
             if sso_id and sso_id == attendee_account.sso_id:
-                message = f"You have already claimed {accounts_pluralized}."
-            attendee_account = None
+                already_claimed += 1
+            else:
+                attendee_account = None
         if admin_account and admin_account.sso_id:
             session.delete(admin_account.password_reset)
             if sso_id and sso_id == admin_account.sso_id:
-                message = f"You have already claimed {accounts_pluralized}."
-            admin_account = None
+                already_claimed += 1
+            else:
+                admin_account = None
+        
+        if already_claimed == accounts_to_claim:
+            cherrypy.request.attendee_account = getattr(attendee_account, 'id', None)
+            cherrypy.request.admin_account = getattr(admin_account, 'id', None)
+            return attendee_account, admin_account
 
         if not attendee_account and not admin_account:
             message = "Invalid claim link. This link may have already been used."
-        elif existing_account and admin_account and any(attendee for attendee in existing_account.attendees if attendee.admin_account):
-            message = f"You cannot have more than one admin account associated with your {c.OIDC_ACCOUNT_NAME} for this event."
+        elif existing_account and admin_account and existing_account.admin_account_id:
+            message = f"You cannot have more than one admin account associated with your {c.OIDC_ACCOUNT_NAME} account for this event."
         elif (sso_id or existing_account) and not cherrypy.session.get('oidc_email_verified'):
-            message = f"Please verify the email on your {c.OIDC_ACCOUNT_NAME} account to claim {accounts_pluralized}."
+            message = f"Please verify the email on your {c.OIDC_ACCOUNT_NAME} account to claim {badges_pluralized}."
         elif attendee_account and attendee_account.password_reset.is_expired:
             OIDC.send_claim_token(session, attendee_account, admin_account)
-            message = f"This claim link has expired. A new one has been sent to {attendee_account.email} and can take up to 20 minutes to arrive. Check your spam folder if you do not see it."
+            message = f"This claim link has expired. A new one has been sent to {attendee_account.email}."
         elif attendee_account:
             for attendee in attendee_account.attendees:
                 if attendee.admin_account and attendee.admin_account.sso_id and sso_id and attendee.admin_account.sso_id != sso_id:
@@ -199,6 +208,22 @@ class OIDC(cherrypy.Tool):
         admin_account = None
 
         with Session() as session:
+            existing_account = session.query(AttendeeAccount).filter(
+                AttendeeAccount.normalized_email == normalize_email_legacy(email)).first()
+            if existing_account:
+                if cherrypy.session.get('oidc_email_verified') or c.DEV_BOX:
+                    existing_account.sso_id = sso_id
+                    session.add(existing_account)
+                    for attendee in existing_account.valid_attendees:
+                        if attendee.admin_account:
+                            admin_account = attendee.admin_account
+                            admin_account.sso_id = sso_id
+                            session.add(admin_account)
+                    session.commit()
+                    return existing_account.id, getattr(admin_account, 'id', None)
+                else:
+                    return None, None
+
             attendee_account = session.create_attendee_account(email)
             attendee_account.sso_id = sso_id
             session.add(attendee_account)
@@ -292,9 +317,12 @@ class OIDC(cherrypy.Tool):
             if account_claim_token:
                 try:
                     with Session() as session:
-                        OIDC.process_account_claim_token(session, account_claim_token, sso_id)
-                    if cherrypy.request.attendee_account or cherrypy.request.admin_account:
-                        cherrypy.request.redirect_url = '../preregistration/homepage?message=Thank you for setting up your account!'
+                        attendee_account, admin_account = OIDC.process_account_claim_token(session, account_claim_token, sso_id)
+                        log.error(attendee_account)
+                        if attendee_account:
+                            success_message = f"You have successfully claimed \
+                                {'your badges' if len(attendee_account.valid_attendees) > 1 else 'your badge'}!"
+                            cherrypy.request.redirect_url = f'../preregistration/homepage?message={success_message}'
                 except ValueError as e:
                     return e
             else:

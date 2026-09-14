@@ -1318,7 +1318,7 @@ class UberSession(sqlalchemy.orm.Session):
         def add_attendee_to_account(self, attendee, account):
             unclaimed_account = account.hashed != '' and not account.is_sso_account
 
-            if attendee.admin_account and attendee.admin_account.sso_id and attendee.admin_account.sso_id != account.sso_id:
+            if account.sso_id and attendee.admin_account and attendee.admin_account.sso_id and attendee.admin_account.sso_id != account.sso_id:
                 log.error(f"Tried to add attendee {attendee.full_name} to account {account.email}, but their admin account has already been claimed.")
                 return
 

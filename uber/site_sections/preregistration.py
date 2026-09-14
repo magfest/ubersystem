@@ -2737,11 +2737,15 @@ class Root:
             attendee_account, admin_account = OIDC.process_account_claim_token(session, sso_claim_token, sso_id,
                                                                                logged_in_account, dry_run=True)
         except ValueError as e:
-            if logged_in_account:
-                redirect_page = 'homepage'
-            else:
-                redirect_page = '../landing/index' 
-            raise HTTPRedirect('{}?message={}', redirect_page, e)
+            return {
+                'logged_in_account': logged_in_account,
+                'claim_error': e,
+                'message': message,
+            }
+        
+        success_message = f"You have successfully claimed {'your badges' if len(attendee_account.valid_attendees) > 1 else 'your badge'}!"
+        if attendee_account and attendee_account.sso_id and (not admin_account or admin_account.sso_id):
+            raise HTTPRedirect('homepage?message={}', success_message)
         
         if cherrypy.request.method == 'POST':
             if not logged_in_account:
@@ -2751,7 +2755,7 @@ class Root:
 
             if not message:
                 OIDC.process_account_claim_token(session, sso_claim_token, logged_in_account.sso_id, logged_in_account)
-                raise HTTPRedirect('homepage?message={}', "Thank you for setting up your account!")
+                raise HTTPRedirect('homepage?message={}', success_message)
 
         return {
             'logged_in_account': logged_in_account,

@@ -10,7 +10,9 @@ Choose an option below to give them access to their badge.{% if attendee.group a
 <div class="d-flex flex-wrap gap-1">
     {% if matching_account %}
     <div class="d-flex gap-3 align-items-center">
+        {% if not matching_account.admin_account_id or not attendee.admin_account %}
         <div><button class="btn btn-primary text-nowrap" onClick="addToAccount('{{ matching_account.id }}', '{{ matching_account.email }}')">Add to Existing Account</button></div>
+        {% endif %}
         <div>
             There is already an account under the email <a href="../reg_admin/attendee_account_form?id={{ matching_account.id }}" target="_blank"><strong>{{ attendee.email }}</strong></a>.
             This will add the badge to that account with the option to notify them.

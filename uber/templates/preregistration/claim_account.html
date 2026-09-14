@@ -12,9 +12,22 @@ badge
 <div class="card">
   <div class="card-body">
     <h2>{{ c.EVENT_NAME_AND_YEAR }} Badge Claim</h2>
+    {% if claim_error %}
+      <div class="alert alert-warning">
+        {{ claim_error }}
+      </div>
+      <p>
+        {% if logged_in_account and logged_in_account.valid_attendees %}
+        If the badge(s) you are trying to claim are not visible on <a href="../preregistration/homepage">your homepage</a>, and you have an invalid or expired claim link,
+        {% else %}
+        If you have an invalid or expired claim link, 
+        {% endif %}
+        please wait up to 20 minutes and check your email inbox and spam folder for a new email BEFORE contacting us at {{ c.CONTACT_EMAIL|email_only|email_to_link }}.
+      </p>
+    {% else %}
     <p>
       {% if attendee_account and attendee_account.valid_attendees|length == 1 %}
-      You have been invited to claim an {% if admin_account %}admin {% endif %}account for <strong>{{ attendee_account.valid_attendees[0].full_name }}</strong>.
+      You have been invited to claim a{% if admin_account %}n admin{% endif %} badge for <strong>{{ attendee_account.valid_attendees[0].full_name }}</strong>.
       {% else %}
       You have been invited to claim an account for {{ c.EVENT_NAME_AND_YEAR }}.
       This account includes the following badges:
@@ -34,7 +47,7 @@ badge
       Claiming {{ badge_or_badges }} requires a {{ c.OIDC_ACCOUNT_NAME }} account. If you've signed up for a {{ c.OIDC_ACCOUNT_NAME }} account previously,
       even for another {{ c.EVENT_NAME }} event, we recommend logging into that account using the button below to claim your badge so you can manage all your badges in one place.
     </p><p>
-      If you do not already have an account for {{ c.EVENT_NAME_AND_YEAR }}, the button below will link your {{ c.OIDC_ACCOUNT_NAME }} to {{ badge_or_badges }} immediately.
+      If you do not already have any badges under your account for {{ c.EVENT_NAME_AND_YEAR }}, the button below will link your {{ c.OIDC_ACCOUNT_NAME }} to {{ badge_or_badges }} immediately.
       {% endif %}
     </p>
     <div class="d-flex gap-2">
@@ -60,6 +73,7 @@ badge
       </div>
       {% endif %}
     </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}
