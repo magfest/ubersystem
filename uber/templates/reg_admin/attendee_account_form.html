@@ -85,8 +85,8 @@
             <td data-order="{{ can_refund|yesno('0,1') }}-{{ attendee.badge_status_label }}">{{ attendee.badge_status_label }}</td>
             <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
                 <div class="d-flex flex-wrap gap-2">
-                {{ attendee|form_link(true) }}
-                {% if attendee.group %}({{ attendee.group|form_link(true) }}){% endif %}
+                <span>{{ attendee|form_link(true) }}</span>
+                <span>{% if attendee.group %}({{ attendee.group|form_link(true) }}){% endif %}</span>
                 {% if attendee == account.owner %}(Owner){% else %}
                 <form class="form set_owner" method="post" action="set_owner">
                     <input type="hidden" name="id" value="{{ attendee.id }}" />
