@@ -70,7 +70,7 @@
               <form action="delete_automated_email" method="post" class="delete-form">
                 {{ csrf_token() }}
                 <input type="hidden" name="id" value="{{ email.id }}" />
-                <input type="hidden" name="department_id" value="{{ department_id }}" />
+                <input type="hidden" name="department_id" value="{{ department_id|default('', true) }}" />
                 <input type="hidden" name="policy" value="{{ policy }}" />
                 <button type="submit" class="btn btn-sm btn-danger">
                 <i class="fa fa-remove"></i> Delete

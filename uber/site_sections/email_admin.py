@@ -208,7 +208,7 @@ class Root:
                     check_emails_for_fixture.delay(email.id)
                     message += " and email generation started"
                 else:
-                    message = +". This email is not eligible for generation due to the current settings"
+                    message += ". This email is not eligible for generation due to the current settings"
             raise HTTPRedirect('automated_email?id={}&message={}', id, f'{message}.')
         
         return {
