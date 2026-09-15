@@ -46,7 +46,7 @@
     <div class="d-flex gap-1">
     {# Rooms link is shown whenever the attendee holds a room, regardless of
        whether the lottery is still open. #}
-    {% if _has_rooms and False %}
+    {% if _has_rooms %}
     <a href="../hotel_lottery/rooms?attendee_id={{ attendee.id }}" class="btn btn-sm btn-primary">
         <i class="fa fa-bed"></i>&nbsp; Hotel Rooms
         <span class="badge bg-light text-dark ms-1">{{ attendee.active_room_assignments|length }}</span>
