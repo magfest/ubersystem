@@ -93,6 +93,7 @@ class OIDC(cherrypy.Tool):
         elif attendee_account and attendee_account.password_reset.is_expired:
             OIDC.send_claim_token(session, attendee_account, admin_account)
             message = f"This claim link has expired. A new one has been sent to {attendee_account.email}."
+            session.commit()
         elif attendee_account:
             for attendee in attendee_account.attendees:
                 if attendee.admin_account and attendee.admin_account.sso_id and sso_id and attendee.admin_account.sso_id != sso_id:
@@ -318,7 +319,6 @@ class OIDC(cherrypy.Tool):
                 try:
                     with Session() as session:
                         attendee_account, admin_account = OIDC.process_account_claim_token(session, account_claim_token, sso_id)
-                        log.error(attendee_account)
                         if attendee_account:
                             success_message = f"You have successfully claimed \
                                 {'your badges' if len(attendee_account.valid_attendees) > 1 else 'your badge'}!"
