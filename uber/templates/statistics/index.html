@@ -116,11 +116,10 @@ This is calculated by taking the Attendee badge type's stock and subtracting the
 </p>
 
 <h3>Add-On Stats</h3>
-<p>The numbers below include pending badges to help prevent overselling.</p>
+<p>The numbers below include pending badges to help prevent overselling.
 {% if extra_addon_counts %}
-<p>
   {% for desc, count in extra_addon_counts %}
-  <strong>{{ desc }}</strong>: {{ count }} <br/>
+  <br/><strong>{{ desc }}</strong>: {{ count }}
   {% endfor %}
 </p>
 {% endif %}
@@ -140,9 +139,9 @@ This is calculated by taking the Attendee badge type's stock and subtracting the
     {% for amount, count in counts.donation_tiers.items() %}
     <tr>
     <td>{{ c.DONATION_TIERS[amount] }} ({{ amount|format_currency }})</td>
-    <td>{{ c.kickin_stock_matrix[amount] or 'Unlimited' }}</td>
+    <td>{% if c.kickin_stock_matrix[amount] is none %}Unlimited{% else %}{{ c.kickin_stock_matrix[amount] }}{% endif %}</td>
     <td>{{ count }}</td>
-    <td>{% if c.kickin_stock_matrix[amount] %}{{ c.kickin_stock_matrix[amount]|int - count }}{% else %}N/A{% endif %}</td>
+    <td>{% if c.kickin_stock_matrix[amount] is not none %}{{ c.kickin_stock_matrix[amount]|int - count }}{% else %}N/A{% endif %}</td>
     </tr>
     {% endfor %}
   </tbody>
