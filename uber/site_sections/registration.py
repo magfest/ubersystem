@@ -687,14 +687,14 @@ class Root:
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(attendee)
                                                                 ).order_by(PageViewTracking.when).all(),
         }
-    
+
     @log_pageview
     def emails(self, session, id):
         attendee = session.attendee(id, allow_invalid=True)
         return {
             'attendee':  attendee,
             'emails': session.query(Email).filter(Email.fk_id == id).order_by(Email.generated).all(),
-            'other_emails': session.query(Email).filter(Email.to == attendee.email,
+            'other_emails': session.query(Email).filter(Email.to.icontains(attendee.email),
                                                         Email.fk_id != id).order_by(Email.generated).all(),
         }
 
@@ -1625,7 +1625,7 @@ class Root:
             'attendee': attendee,
             'emails': session.query(Email).filter(Email.model == 'Attendee',
                                                   Email.fk_id == id).order_by(Email.generated).all(),
-            'other_emails': session.query(Email).filter(Email.to == attendee.email,
+            'other_emails': session.query(Email).filter(Email.to.icontains(attendee.email),
                                                         Email.fk_id != id).order_by(Email.generated).all(),
         }
 

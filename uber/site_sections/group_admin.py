@@ -379,7 +379,7 @@ class Root:
                                                        Email.fk_id == group.guest.id).order_by(Email.generated).all()
         if group.leader:
             leader_emails = session.query(Email).filter(Email.model == 'Attendee',
-                                                       Email.fk_id == group.leader.id).order_by(Email.generated).all()
+                                                        Email.fk_id == group.leader.id).order_by(Email.generated).all()
 
         return {
             'group': group,

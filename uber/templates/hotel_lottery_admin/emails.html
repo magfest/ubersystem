@@ -12,10 +12,11 @@
     "../hotel_lottery_admin/index", "Return to Application List", True)
 }}
 
-<h2> Email Queue for {{ application.attendee_name }}'s Lottery Application</h2>
-<hr/>
+<div class="card card-body">
+<h2 class="mb-3">Email Queue for {{ application.attendee_name }}'s Lottery Application</h2>
 {{ macros.email_table(emails, table_classes="table-hover datatable", hidden_cols=['recipient']) }}
 
 {% set email_queue = emails %}
 {% include 'email_admin/manage_email.html' with context %}
 {% endblock %}
+</div>

@@ -9,8 +9,8 @@ studio, c.PAGE_PATH,
 "studio_emails?id={id}", "Emails", True,
 "studios", "Return to Studio List", True
 ) }}
-<h2> Email Queue for Indie Studio "{{ studio.name }}"</h2>
-<hr/>
+<div class="card card-body">
+<h2 class="mb-3">Email Queue for Indie Studio "{{ studio.name }}"</h2>
 {{ macros.email_table(studio_emails, table_classes="table-hover datatable") }}
 <hr/>
 <h3>Email Queue for "{{ studio.name }}" Games</h3>
@@ -21,3 +21,4 @@ studio, c.PAGE_PATH,
 {% set email_queue = studio_emails + game_emails + dev_emails %}
 {% include 'email_admin/manage_email.html' with context %}
 {% endblock %}
+</div>
