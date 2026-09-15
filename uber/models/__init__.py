@@ -1143,7 +1143,7 @@ class UberSession(sqlalchemy.orm.Session):
             if department:
                 return {
                     'conf': conf,
-                    'relevant': attendee.can_admin_checklist_for(department),
+                    'relevant': attendee.can_admin_checklist_for(department.id),
                     'completed': department.checklist_item_for_slug(conf.slug)
                 }
             else:

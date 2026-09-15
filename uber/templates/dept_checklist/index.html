@@ -24,7 +24,7 @@
     </div>
 {% endif %}
 
-{% set is_relevant = attendee.can_admin_checklist_for(department) -%}
+{% set is_relevant = attendee.can_admin_checklist_for(department.id) -%}
 
 <h2>Department Checklist for {{ department|form_link }}</h2>
 

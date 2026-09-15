@@ -28,7 +28,7 @@
         <td valign="top" width="50%">
             <h4> Assigned </h4><br/>
             {% for attendee in assigned|sort(attribute="is_dept_head", reverse=True) %}
-            {%- set is_dept_head = attendee.is_dept_head_of(department) -%}
+            {%- set is_dept_head = attendee.is_dept_head_of(department.id) -%}
             <span {% if not is_dept_head %}class="nondepthead"{% endif %}>
             <a href="#attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a><span class="email"> | {{ attendee.email }}</span>
             {% if is_dept_head %} | Dept Head{% endif %}
