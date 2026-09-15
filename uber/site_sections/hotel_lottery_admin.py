@@ -789,40 +789,58 @@ class Root:
             **_picker_context(session),
         }
 
-    def lottery_run_detail(self, session, id, message=''):
+    def lottery_run_detail(self, session, id, message='', page='1', page_size=''):
         lottery_run = session.query(LotteryRun).get(id)
-        applications = session.query(LotteryApplication).filter(
+        if not lottery_run:
+            raise HTTPRedirect('lottery_runs?message={}', 'Run not found.')
+        applications_q = session.query(LotteryApplication).filter(
             LotteryApplication.lottery_run_id == id,
             LotteryApplication.entry_type != c.GROUP_ENTRY,
-        ).order_by(LotteryApplication.confirmation_num).all()
+        ).order_by(LotteryApplication.confirmation_num
+                   ).options(joinedload(LotteryApplication.attendee))
+        applications, total, page_num, page_count = paginate(
+            applications_q, page, page_size,
+            default_size=100, min_size=10, max_size=500)
+        ps = clamp_page_size(page_size, default_size=100, min_size=10, max_size=500)
+
         picker = _picker_context(session)
         partition_lookup = {str(p.id): p.name for p in picker['partitions']}
 
         # Filter chips: resolve the run's CSV filter-id lists to names
         # once here instead of re-splitting per badge in the template.
         hotel_filter_names, room_type_filter_names = [], []
-        if lottery_run and lottery_run.hotel_filter:
+        if lottery_run.hotel_filter:
             filter_ids = lottery_run.hotel_filter.split(',')
             hotel_filter_names = [h.name for h in picker['hotels']
                                   if str(h.id) in filter_ids]
-        if lottery_run and lottery_run.room_type_filter:
+        if lottery_run.room_type_filter:
             filter_ids = lottery_run.room_type_filter.split(',')
             room_type_filter_names = [
                 rt.name for rt in picker['room_types'] + picker['suite_types']
                 if str(rt.id) in filter_ids]
 
-        # {application_id: [that attendee's rooms from this run]} -
-        # previously a per-row selectattr over every room in the template
-        # (O(apps x rooms)).
+        # {application_id: [that attendee's rooms from this run]}
+        attendee_ids = [app.attendee_id for app in applications if app.attendee_id]
+        rooms_by_attendee = defaultdict(list)
+        if attendee_ids:
+            run_rooms = session.query(RoomAssignment).filter(
+                RoomAssignment.lottery_run_id == lottery_run.id,
+                RoomAssignment.attendee_id.in_(attendee_ids),
+            ).order_by(RoomAssignment.parent_assignment_id.asc().nullsfirst(),
+                       RoomAssignment.created.asc()).all()
+            for ra in run_rooms:
+                rooms_by_attendee[ra.attendee_id].append(ra)
         run_rooms_by_app = {
-            app.id: [ra for ra in (app.attendee.room_assignments
-                                   if app.attendee else [])
-                     if ra.lottery_run_id == lottery_run.id]
+            app.id: rooms_by_attendee.get(app.attendee_id, [])
             for app in applications}
 
         return {
             'lottery_run': lottery_run,
             'applications': applications,
+            'total': total,
+            'page': page_num,
+            'page_size': ps,
+            'page_count': page_count,
             'partition_lookup': partition_lookup,
             'hotel_filter_names': hotel_filter_names,
             'room_type_filter_names': room_type_filter_names,

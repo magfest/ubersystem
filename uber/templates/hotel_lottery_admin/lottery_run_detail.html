@@ -106,9 +106,23 @@
   </div>
 </div>
 
-<h4>Assigned Applications ({{ applications|length }})</h4>
+{% set _base_url = 'lottery_run_detail?id=' ~ lottery_run.id ~ '&page_size=' ~ page_size %}
+
+<div class="d-flex justify-content-between align-items-end mb-2">
+  <h4 class="mb-0">Assigned Applications ({{ total }})</h4>
+  {% if total %}
+  <form method="get" action="lottery_run_detail" class="d-flex align-items-end gap-2">
+    <input type="hidden" name="id" value="{{ lottery_run.id }}" />
+    <div>{{ hotel_macros.page_size_select(page_size, sizes=[25, 50, 100, 200, 500]) }}</div>
+    <button type="submit" class="btn btn-outline-secondary btn-sm">Apply</button>
+  </form>
+  {% endif %}
+</div>
+
 {% if applications %}
-<table class="table table-hover table-sm">
+{{ hotel_macros.pagination(page, page_count, _base_url, total=total, page_size=page_size,
+                           current_count=applications|length, label='application') }}
+<table class="table table-hover table-sm mt-2">
   <thead>
     <tr>
       <th>Confirmation #</th>
@@ -156,6 +170,7 @@
     {% endfor %}
   </tbody>
 </table>
+{{ hotel_macros.pagination(page, page_count, _base_url, show_summary=False) }}
 {% else %}
 <div class="card card-body text-center text-muted">No applications assigned in this run.</div>
 {% endif %}
