@@ -1094,7 +1094,8 @@ class Config(_Overridable):
                 query = query.filter(Department.solicits_volunteers == True)
 
             if admin_access and not self.has_section_or_page_access(full=True):
-                admin_memberships = [str(d.id) for d in session.current_admin_account().attendee.dept_memberships_with_inherent_role]
+                admin_memberships = [str(d.department_id) for d in 
+                                     session.current_admin_account().attendee.dept_memberships_with_inherent_role]
                 query = query.filter(Department.id.in_(admin_memberships))
 
             return [tuple(info) for info in query.order_by(Department.name)]
