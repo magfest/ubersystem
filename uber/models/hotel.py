@@ -881,6 +881,8 @@ class LotteryRun(MagModel, table=True):
     entries_considered: int = 0
     rooms_assigned: int = 0
     rooms_available_before: int = 0
+    considered_application_ids: list = Field(
+        sa_type=MutableList.as_mutable(JSONB), default_factory=list)
 
     applications: list['LotteryApplication'] = Relationship(
         sa_relationship_kwargs={'backref': 'lottery_run'})

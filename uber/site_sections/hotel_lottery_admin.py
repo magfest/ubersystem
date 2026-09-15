@@ -60,6 +60,7 @@ from uber.hotel.audit import (annotate_issues, collect_issues,
 from uber.hotel.queries import (attendee_search_results, block_availability,
                                 build_room_assignment_query,
                                 clamp_page_size, paginate)
+from uber.hotel.run_stats import lottery_run_stats
 from uber.hotel.waitlist import (WaitlistError, accept_waitlist_entry,
                                  sweep_eligible, fulfill_waitlist)
 from uber.utils import (Order, check_csrf, get_page, localized_now,
@@ -845,6 +846,7 @@ class Root:
         return {
             'lottery_run': lottery_run,
             'applications': applications,
+            'stats': lottery_run_stats(session, lottery_run),
             'total': total,
             'page': page_num,
             'page_size': ps,
@@ -2207,6 +2209,7 @@ class Root:
             inventory_filter=inventory_filter or None,
             partition_filter=partition_filter or None,
             entries_considered=len([x for x in applications if x.entry_type != c.GROUP_ENTRY]),
+            considered_application_ids=[x.id for x in applications if x.entry_type != c.GROUP_ENTRY],
             rooms_available_before=rooms_available_before,
         )
         session.add(lottery_run)

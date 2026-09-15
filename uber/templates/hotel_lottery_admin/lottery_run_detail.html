@@ -106,6 +106,104 @@
   </div>
 </div>
 
+<h4>Award Statistics</h4>
+<div class="row g-3 mb-3">
+  <div class="col-lg-4">
+    <div class="card card-body h-100">
+      <h6>Preference rank of awarded rooms</h6>
+      <p class="text-muted small mb-2">
+        Where the awarded hotel and room/suite type sat in each winner's ranked
+        choices, over {{ stats.award_count }} awarded room{{ 's' if stats.award_count != 1 else '' }}.
+        Connector rooms are not counted.
+      </p>
+      {% if stats.award_count %}
+      <table class="table table-sm mb-0">
+        <thead><tr><th>Rank</th><th class="text-end">Hotel</th><th class="text-end">Room / Suite Type</th></tr></thead>
+        <tbody>
+          {% set _type_rows = {} %}
+          {% for row in stats.type_ranks %}{% set _ = _type_rows.update({row.label: row}) %}{% endfor %}
+          {% set _labels = [] %}
+          {% for row in stats.hotel_ranks %}{% set _ = _labels.append(row.label) %}{% endfor %}
+          {% for row in stats.type_ranks %}{% if row.label not in _labels %}{% set _ = _labels.append(row.label) %}{% endif %}{% endfor %}
+          {% set _hotel_rows = {} %}
+          {% for row in stats.hotel_ranks %}{% set _ = _hotel_rows.update({row.label: row}) %}{% endfor %}
+          {% for label in _labels %}
+            {% set h = _hotel_rows.get(label) %}{% set t = _type_rows.get(label) %}
+            <tr>
+              <td>{{ label }}</td>
+              <td class="text-end">{% if h %}{{ h.count }} <span class="text-muted">({{ h.pct }}%)</span>{% else %}0{% endif %}</td>
+              <td class="text-end">{% if t %}{{ t.count }} <span class="text-muted">({{ t.pct }}%)</span>{% else %}0{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="text-muted">No rooms awarded.</div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card card-body h-100">
+      <h6>Group size</h6>
+      <p class="text-muted small mb-2">
+        Share of awarded rooms that went to groups of each size, against the
+        {{ stats.considered_count }} entr{{ 'y' if stats.considered_count == 1 else 'ies' }} this run considered.
+        Group size counts the leader plus their current valid {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} members.
+      </p>
+      {% if not stats.considered_recorded %}
+      <div class="alert alert-secondary py-1 small mb-2">
+        This run predates the considered-entries snapshot, so only the awarded side is shown.
+      </div>
+      {% endif %}
+      {% if stats.group_sizes %}
+      <table class="table table-sm mb-0">
+        <thead><tr><th>Group size</th><th class="text-end">Awarded rooms</th><th class="text-end">Entries considered</th></tr></thead>
+        <tbody>
+          {% for row in stats.group_sizes %}
+          <tr>
+            <td>{{ row.size }} {{ 'person' if row.size == 1 else 'people' }}</td>
+            <td class="text-end">{{ row.awarded }} <span class="text-muted">({{ row.awarded_pct }}%)</span></td>
+            <td class="text-end">{% if stats.considered_recorded %}{{ row.considered }} <span class="text-muted">({{ row.considered_pct }}%)</span>{% else %}&mdash;{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="text-muted">Nothing to compare yet.</div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card card-body h-100">
+      <h6>Demand vs. awards</h6>
+      <p class="text-muted small mb-2">
+        How many considered entries ranked each hotel and type first (or listed
+        it anywhere), against how many rooms this run awarded there.
+      </p>
+      {% for title, rows in [('Hotel', stats.hotel_demand), ('Room / Suite Type', stats.type_demand)] %}
+        {% if rows %}
+        <table class="table table-sm mb-2">
+          <thead><tr><th>{{ title }}</th><th class="text-end">1st choice</th><th class="text-end">Listed</th><th class="text-end">Awarded</th></tr></thead>
+          <tbody>
+            {% for row in rows %}
+            <tr>
+              <td>{{ row.name }}</td>
+              <td class="text-end">{{ row.first_choice }}{% if stats.considered_recorded %} <span class="text-muted">({{ row.first_choice_pct }}%)</span>{% endif %}</td>
+              <td class="text-end">{{ row.any_choice }}</td>
+              <td class="text-end">{{ row.awarded }} <span class="text-muted">({{ row.awarded_pct }}%)</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% endif %}
+      {% endfor %}
+      {% if not stats.hotel_demand and not stats.type_demand %}
+      <div class="text-muted">Nothing to compare yet.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
 {% set _base_url = 'lottery_run_detail?id=' ~ lottery_run.id ~ '&page_size=' ~ page_size %}
 
 <div class="d-flex justify-content-between align-items-end mb-2">
