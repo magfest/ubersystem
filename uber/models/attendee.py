@@ -1549,7 +1549,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         if self.managers:
             return self.managers[0].id
         if c.ATTENDEE_ACCOUNTS_ENABLED:
-            log.error(f"Tried to find a purchaser ID for {self.id}, but there is no account ID available. Attendee ID used as fallback.")
+            log.info(f"Tried to find a purchaser ID for {self.id}, but there is no account ID available. Attendee ID used as fallback.")
         return self.id
 
     @hybrid_property

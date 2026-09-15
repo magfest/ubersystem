@@ -15,6 +15,7 @@ from uber.config import c
 from uber.custom_tags import email_only, readable_join
 from uber.decorators import reconcile_fixtures
 from uber.models import AutomatedEmail, Email
+from uber.serializer import serializer
 from uber.utils import listify, localized_now
 
 log = logging.getLogger(__name__)
@@ -44,9 +45,9 @@ class EmailHandler:
         render_data = kwargs.get('data', {})
         for key, val in render_data.items():
             try:
-                json.dumps(val)
-            except TypeError:
-                render_data[key] = val.to_dict()
+                render_data[key] = json.dumps(val, cls=serializer)
+            except TypeError as e:
+                render_data[key] = json.dumps(val.to_dict(), cls=serializer)
 
         email_obj.render_data = render_data or email_obj.render_data
         email_obj.fk_id = to_model.id if to_model else None

@@ -9,7 +9,6 @@ from urllib.parse import parse_qsl
 
 import cherrypy
 from pytz import UTC
-from sqlalchemy.ext import associationproxy
 
 from sqlalchemy import Sequence
 from sqlalchemy.types import Boolean, Integer, DateTime, String, Uuid
@@ -29,8 +28,6 @@ from uber.models.types import Choice, DefaultColumn as Column, MultiChoice, utcn
 log = logging.getLogger(__name__)
 
 __all__ = ['PageViewTracking', 'ReportTracking', 'Tracking', 'TxnRequestTracking']
-
-serializer.register(associationproxy._AssociationList, list)
 
 
 class ReportTracking(MagModel, table=True):

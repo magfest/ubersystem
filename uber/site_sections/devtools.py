@@ -22,6 +22,7 @@ from sqlalchemy import text
 from uber.config import c
 from uber.decorators import all_renderable, csv_file, public, site_mappable
 from uber.models import Choice, UniqueList, MultiChoice, Session
+from uber.serializer import serializer
 from uber.tasks.health import ping
 
 log = logging.getLogger(__name__)
@@ -71,7 +72,7 @@ def prepare_model_export(model, filtered_models=None):
                 val = getattr(model, col.name)
                 row.append(val.strftime('%Y-%m-%d %H:%M:%S') if val else '')
             elif isinstance(col.type, JSONB):
-                row.append(json.dumps(getattr(model, col.name)))
+                row.append(json.dumps(getattr(model, col.name)), cls=serializer)
             else:
                 # For everything else we'll just dump the value, although we might
                 # consider adding more special cases for things like foreign keys.

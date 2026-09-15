@@ -1,5 +1,4 @@
 import os
-from decimal import Decimal
 import cherrypy
 
 import logging
@@ -26,9 +25,6 @@ from uber import tasks  # noqa: F401
 from uber import validations  # noqa: F401
 from uber import files  # noqa: F401
 from uber.serializer import serializer # noqa: F401
-
-# NOTE: this will decrease the precision of some serialized decimal.Decimals
-serializer.register(Decimal, lambda n: float(n))
 
 
 def create_data_dirs():
