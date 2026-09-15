@@ -85,7 +85,7 @@ class OIDC(cherrypy.Tool):
             return attendee_account, admin_account
 
         if not attendee_account and not admin_account:
-            message = f"Invalid claim link. This link may have already been used OR a new link is already on its way to {attendee_account.email}."
+            message = f"Invalid claim link. This link may have already been used OR a new link is already on its way."
         elif existing_account and admin_account and existing_account.admin_account_id:
             message = f"You cannot have more than one admin account associated with your {c.OIDC_ACCOUNT_NAME} account for this event."
         elif (sso_id or existing_account) and not cherrypy.session.get('oidc_email_verified'):
