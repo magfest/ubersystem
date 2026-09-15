@@ -129,8 +129,8 @@ class Root:
 
         overview = []
         for dept in departments:
-            is_checklist_admin = attendee.is_checklist_admin_of(dept)
-            can_admin_checklist = attendee.can_admin_checklist_for(dept)
+            is_checklist_admin = attendee.is_checklist_admin_of(dept.id)
+            can_admin_checklist = attendee.can_admin_checklist_for(dept.id)
             statuses = []
             for item in checklist:
                 status = {'conf': item, 'name': item.name}
