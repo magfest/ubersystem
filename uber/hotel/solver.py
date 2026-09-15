@@ -15,7 +15,10 @@ recording the LotteryRun; this module is the portable computation
 underneath it.
 """
 import logging
+import os
 import random
+import time
+import uuid
 from copy import deepcopy
 from datetime import date, timedelta
 
@@ -37,6 +40,11 @@ LOTTERY_TYPE_BOTH = 'both'
 # that suite entries are prioritized. It is uniform across suite entrants and
 # absent from room entries, so it does not disturb competition between them.
 SUITE_TIER_BONUS = 30
+
+# Limit how much time the solver spends searching for a solution
+# Allows slightly unoptimized solutions that finish much sooner
+SOLVER_TIME_LIMIT_SECONDS = 60
+SOLVER_RELATIVE_GAP_LIMIT = 0.01
 
 # Preference ranks run 10, 9, 8 ... and clamp at 0 rather than going negative,
 # so an entrant who ranks more than ten options still scores sanely.
@@ -99,6 +107,23 @@ def weight_entry(entry, hotel_room, base_weight):
     weight += entry["type_ranks"][hotel_room["room_type"]]
     return weight + base_weight
 
+
+def _export_model(solver, lottery_type):
+    """Write the built model as MPS under UPLOADED_FILES_DIR so a slow run
+    can be benchmarked offline against other solver backends"""
+    try:
+        os.makedirs(c.UPLOADED_FILES_DIR, exist_ok=True)
+        label = str(c.HOTEL_LOTTERY_ENTRY_TYPES.get(lottery_type, lottery_type)).lower()
+        stamp = time.strftime('%Y%m%d_%H%M%S')
+        filepath = os.path.join(
+            c.UPLOADED_FILES_DIR, f'lottery_model_{stamp}_{label}_{uuid.uuid4().hex[:8]}.mps')
+        with open(filepath, 'w') as f:
+            f.write(solver.ExportModelAsMpsFormat(False, False))
+        log.info(f"Lottery model exported to {filepath}")
+    except Exception:
+        log.exception("Could not export the lottery model")
+
+
 def solve_lottery(applications, hotel_rooms, lottery_type=c.ROOM_ENTRY,
                   connector_map=None):
     """Takes a set of hotel_rooms and applications and assigns the
@@ -143,7 +168,9 @@ def solve_lottery(applications, hotel_rooms, lottery_type=c.ROOM_ENTRY,
 
     random.shuffle(applications)
     solver = pywraplp.Solver.CreateSolver("SAT")
-    solver.SetSolverSpecificParametersAsString("log_search_progress: true")
+    solver.SetTimeLimit(SOLVER_TIME_LIMIT_SECONDS * 1000)
+    solver.SetSolverSpecificParametersAsString(
+        f"log_search_progress: true relative_gap_limit: {SOLVER_RELATIVE_GAP_LIMIT}")
 
     # Collect all nights across all inventory blocks.
     all_nights = set()
@@ -322,10 +349,17 @@ def solve_lottery(applications, hotel_rooms, lottery_type=c.ROOM_ENTRY,
             objective.SetCoefficient(pvar, weight)
     objective.SetMaximization()
 
+    _export_model(solver, lottery_type)
+
+    started = time.monotonic()
     status = solver.Solve()
+    elapsed = time.monotonic() - started
     if status not in (pywraplp.Solver.OPTIMAL, pywraplp.Solver.FEASIBLE):
-        log.error(f"Error solving room lottery: {status}")
+        log.error(f"Error solving room lottery: status {status} after {elapsed:.1f}s")
         return None
+    log.info(f"Lottery solve {'optimal' if status == pywraplp.Solver.OPTIMAL else 'stopped at limit'} "
+             f"after {elapsed:.1f}s: objective {objective.Value():.0f}, "
+             f"bound {objective.BestBound():.0f}, {solver.NumVariables()} variables")
 
     # Output: list of (leader_application_id, inventory_id, role). Group
     # members do NOT appear separately - they get added as occupants on
