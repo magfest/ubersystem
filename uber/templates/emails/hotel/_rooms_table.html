@@ -15,7 +15,16 @@
    just-cancelled or just-expired room with its status, so CANCELLED and
    EXPIRED rows are included and only never-materialized rows are
    dropped. Kept in the template because emails render `app` from
-   fixtures with no controller to precompute it. #}
+   fixtures with no controller to precompute it.
+
+   Attendee-scale boundary: every lottery email includes this block, so a
+   change here reaches every entrant. The card deadline and the secure
+   link are per-room because each lottery run stamps its own
+   `deposit_cutoff_date`; `LotteryApplication.guarantee_deadline` is the
+   earliest across the entry and would understate the later room. Both
+   are gated on `RoomAssignment.needs_card`, which is false for secured,
+   cancelled, and master-bill rooms; that is what keeps this block
+   correct in the cancel and secured emails. #}
 {% set _rooms = (app.attendee.room_assignments if app.attendee else [])
                 |selectattr('status', 'in', [c.ASSIGNED, c.SECURED, c.CANCELLED, c.EXPIRED])|list %}
 {% if _rooms %}
@@ -38,6 +47,19 @@
         <br/><small><em>This is a connector room. It is physically
         attached to another room you have been assigned, and the two
         are awarded as a block.</em></small>
+      {% endif %}
+      {% if ra.needs_card %}
+        <br/>
+        {% if ra.card_deadline %}
+          <strong class="text-danger">Put a card down by
+          {{ ra.card_deadline|date("%A, %B %-d") }}</strong>
+          or this room will be released.
+        {% else %}
+          <strong class="text-danger">This room is not secured.</strong>
+          A credit card is required.
+        {% endif %}
+        <br/>
+        <a href="{{ c.URL_BASE }}/hotel_lottery/secure_room?assignment_id={{ ra.id }}">Add a credit card for this room</a>
       {% endif %}
     </li>
   {% endfor %}
