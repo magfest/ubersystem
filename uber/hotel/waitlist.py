@@ -22,7 +22,7 @@ at plan review):
    (WaitlistError).
 2. `resize_assignment`'s FIFO queue gate is scoped like the sweep's: an
    extension night is queue-blocked only when some OTHER assignment is
-   cron-eligible (see `cron_eligible`), sits in the SAME partition
+   sweep-eligible (see `sweep_eligible`), sits in the SAME partition
    scope of the same block, and actually wants that night (its
    `waitlisted_gap_nights` contains it). Previously ANY waitlister on
    the inventory blocked every extension - attendees are no longer
@@ -45,13 +45,13 @@ at plan review):
    no-op: the confirmed range only ever widens (extend-or-keep).
 6. Waitlist DEMAND counting (the admin Waitlist dashboard's per-block
    rows and the inventory overview's waitlist tally) counts exactly the
-   cron-eligible rows. The two used to disagree - one counted every
+   sweep-eligible rows. The two used to disagree - one counted every
    waitlisted row, the other only SECURED ones. Both controllers now
-   call `cron_eligible`; the counting itself stays with them (it's
+   call `sweep_eligible`; the counting itself stays with them (it's
    presentation shaping).
 
 Transaction convention (see uber.hotel.__init__): functions here flush
-but never commit. Route handlers / crons own the transaction and queue
+but never commit. Route handlers own the transaction and queue
 notification emails only after their commit succeeds.
 """
 
@@ -98,7 +98,7 @@ AcceptResult = namedtuple(
     'AcceptResult', 'nights_front nights_back still_waiting')
 
 
-def cron_eligible(ra):
+def sweep_eligible(ra):
     """True iff the sweep may serve this assignment: SECURED, bound to
     an inventory block, not export-locked, not a group-entry sub-app row
     (those don't hold their own room - the leader's row covers the
@@ -148,7 +148,7 @@ def resize_assignment(session, ra, new_ci, new_co, *, respect_queue=True):
     Only EXTENSION nights - nights outside the currently-assigned range
     - are evaluated; held nights are always kept and a shrink is a no-op
     (reconciliation 5: extend-or-keep). With `respect_queue`, an
-    extension night is also refused when another cron-eligible row in
+    extension night is also refused when another sweep-eligible row in
     the same partition scope is already queued for it (reconciliation
     2) - FIFO fairness, the sweep serves the earlier entrant first.
 
@@ -171,7 +171,7 @@ def resize_assignment(session, ra, new_ci, new_co, *, respect_queue=True):
         raise WaitlistError('This room has no confirmed dates to adjust.')
 
     # Nights already claimed by someone else's queue position
-    # (reconciliation 2): other cron-eligible rows in the same
+    # (reconciliation 2): other sweep-eligible rows in the same
     # (inventory, partition) scope, on the specific nights they want.
     queued_nights = set()
     if respect_queue:
@@ -186,7 +186,7 @@ def resize_assignment(session, ra, new_ci, new_co, *, respect_queue=True):
                    RoomAssignment.waitlisted_check_out_date.isnot(None)),
         ).all()
         for other in others:
-            if cron_eligible(other):
+            if sweep_eligible(other):
                 queued_nights.update(other.waitlisted_gap_nights)
 
     # Evaluate each requested EXTENSION night: open capacity (as if this
@@ -265,8 +265,9 @@ def _extendable_direction(ra, night):
 
 
 def fulfill_waitlist(session, inventory_id=None, night_date=None):
-    """The sweep (cron / Process Waitlist button / inventory-save hook):
-    extend cron-eligible rows into open capacity, FIFO per night.
+    """The sweep: extend sweep-eligible rows into open capacity, FIFO
+    per night. Nothing schedules it - it runs on demand from the admin
+    Process Waitlist button and after an inventory block is saved.
 
     Per (inventory, partition) scope, front-gap nights are processed
     DESCENDING - closest to the current check-in first - so a
@@ -295,7 +296,7 @@ def fulfill_waitlist(session, inventory_id=None, night_date=None):
                       # entry_type can be NULL (the unset_entry_type
                       # presave nulls a 0), and SQL three-valued logic
                       # would silently drop those rows from `!=` alone -
-                      # cron_eligible's python side serves them, so the
+                      # sweep_eligible's python side serves them, so the
                       # SQL prefilter must too.
                       sa.or_(LotteryApplication.id.is_(None),
                              LotteryApplication.entry_type.is_(None),
@@ -314,7 +315,7 @@ def fulfill_waitlist(session, inventory_id=None, night_date=None):
 
     by_block = defaultdict(list)
     for ra in rows:
-        if cron_eligible(ra):
+        if sweep_eligible(ra):
             by_block[str(ra.inventory_id)].append(ra)
 
     for block_id in sorted(by_block):
@@ -356,7 +357,7 @@ def fulfill_waitlist(session, inventory_id=None, night_date=None):
                         break
                     eligible = [
                         ra for ra in part_rows
-                        if cron_eligible(ra)
+                        if sweep_eligible(ra)
                         and _extendable_direction(ra, night) == direction]
                     if not eligible:
                         break

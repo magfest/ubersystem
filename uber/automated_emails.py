@@ -12,7 +12,8 @@ from uber import decorators
 from uber.jinja import JinjaEnv
 from uber.models import (AdminAccount, Attendee, AttendeeAccount, ArtShowApplication, ArtShowBidder, AutomatedEmail, AttractionSignup, Department,
                          Email, Group, GuestGroup, IndieGame, IndieJudge, IndieStudio, ArtistMarketplaceApplication, MITSTeam,
-                         MITSApplicant, ReceiptInfo, PanelApplication, PanelApplicant, PromoCode, PromoCodeGroup, LotteryApplication, Shift)
+                         MITSApplicant, ReceiptInfo, PanelApplication, PanelApplicant, PromoCode, PromoCodeGroup, LotteryApplication,
+                         RoomAssignment, Shift)
 from uber.utils import after, before, days_after, days_before, days_between, localized_now, DeptChecklistConf
 
 log = logging.getLogger(__name__)
@@ -1105,22 +1106,19 @@ if c.HOTEL_LOTTERY_STAFF_START or c.HOTEL_LOTTERY_FORM_START:
         'hotel_lottery_award_cancelled'
     )
 
-    HotelLotteryEmailFixture(
-        f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Award Confirmed!',
-        'hotel/secure_notification.html',
-        "lambda a: a.status == c.SECURED",
-        'hotel_lottery_secured'
-    )
-
-# Transactional lottery/room emails, queued directly via
-# EmailService.queue_email (filter=None: the automated sweep never sends
-# them). Registered unconditionally - manually-granted and partition rooms
-# exist even when the lottery date settings are blank, and a fixture that
-# isn't registered makes queue_email silently drop the send.
+# Transactional lottery/room emails
 HotelLotteryEmailFixture(
     f'{c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM} Disbanded',
     'hotel/removed_from_group.html', None,
     'hotel_lottery_group_removed'
+)
+
+AutomatedEmailFixture(
+    RoomAssignment,
+    f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Award Confirmed!',
+    'hotel/secure_notification.html', None,
+    'hotel_lottery_secured',
+    sender=c.HOTEL_LOTTERY_EMAIL,
 )
 
 HotelLotteryEmailFixture(

@@ -895,6 +895,12 @@ class RoomAssignment(MagModel, table=True):
         sa_relationship_kwargs={'lazy': 'joined',
                                 'foreign_keys': 'RoomAssignment.attendee_id'})
 
+    email_model_name: ClassVar = 'assignment'
+
+    @property
+    def email_to_address(self):
+        return self.attendee.email if self.attendee else ''
+
     inventory_id: str | None = Field(
         sa_type=Uuid(as_uuid=False), foreign_key='hotel_room_inventory.id', nullable=True)
     inventory: 'HotelRoomInventory' = Relationship(
@@ -947,12 +953,13 @@ class RoomAssignment(MagModel, table=True):
     # they edited their dates. If today the room only has availability
     # for nights N..M but the attendee wants N-2..M+1, we keep the
     # confirmed nights on `assigned_check_in_date` / `assigned_check_out_date`
-    # and stash the requested range here. The waitlist cron compares
+    # and stash the requested range here. The waitlist sweep (run on
+    # demand from the admin Process Waitlist button) compares
     # waitlisted_* to assigned_* per RoomAssignment to figure out which
     # rooms are waiting on which nights.
     #
     # Both NULL = no waitlist (the attendee got exactly what they asked
-    # for, or never requested a wider window). When the cron narrows the
+    # for, or never requested a wider window). When the sweep narrows the
     # gap to zero (assigned_* fully covers waitlisted_*) it clears these
     # back to NULL so the row drops out of future waitlist scans.
     waitlisted_check_in_date: date | None = Field(sa_type=Date, nullable=True)
@@ -962,7 +969,7 @@ class RoomAssignment(MagModel, table=True):
     # the moment `waitlisted_*` transitions from both-NULL to either
     # non-NULL; cleared back to NULL when the queue exits (the model
     # presave below keeps these three columns in sync). The waitlist
-    # cron sorts FIFO on this field so earlier entrants get first crack
+    # sweep sorts FIFO on this field so earlier entrants get first crack
     # at newly-freed nights, and the attendee-side editor uses it to
     # tell whether a given block already has *someone else* queued
     # ahead (in which case any extension nights the attendee adds also
@@ -1216,8 +1223,8 @@ class RoomAssignment(MagModel, table=True):
     def is_waitlisted(self):
         """True iff the attendee asked for a wider window than they
         currently hold confirmed - i.e. the waitlisted_* range strictly
-        extends the assigned_* range on at least one end. The cron uses
-        this to scope its work; templates use it to surface a
+        extends the assigned_* range on at least one end. The waitlist
+        sweep uses this to scope its work; templates use it to surface a
         "waitlisted for N more night(s)" chip."""
         return bool(self.waitlisted_gap_nights)
 
@@ -1264,11 +1271,11 @@ class RoomAssignment(MagModel, table=True):
 
     @presave_adjustment
     def clear_waitlist_when_satisfied(self):
-        """When the cron extends assigned_* to fully cover waitlisted_*,
+        """When the waitlist sweep extends assigned_* to fully cover waitlisted_*,
         zero the waitlist columns AND `waitlist_started_at` so the row
         drops out of future scans and a later re-entry starts a fresh
         FIFO position. Doing this at the model layer means every code
-        path that updates assigned_* (waitlist cron, manual admin
+        path that updates assigned_* (waitlist sweep, manual admin
         accept, attendee edit, solver re-runs) gets the cleanup for
         free."""
         if not (self.waitlisted_check_in_date or self.waitlisted_check_out_date):
@@ -1292,7 +1299,7 @@ class RoomAssignment(MagModel, table=True):
     def stamp_waitlist_start(self):
         """Stamp `waitlist_started_at` the first time this row gets a
         non-NULL waitlisted_* range. Idempotent - if the timestamp is
-        already set we leave it alone (the cron uses it as the FIFO
+        already set we leave it alone (the sweep uses it as the FIFO
         sort key, and we don't want a same-row edit to bump someone
         back to the front of the queue).
 

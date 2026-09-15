@@ -55,7 +55,8 @@
     {# Per-room waitlist banner. `assignment.is_waitlisted` is true
        iff the attendee asked for a wider window than they currently
        hold confirmed; the diff between waitlisted_* and assigned_*
-       drives the cron in hotel_lottery_admin._fulfill_waitlist. #}
+       drives the admin-triggered sweep (Process Waitlist button ->
+       uber.hotel.waitlist.fulfill_waitlist). #}
     {% if ra.is_waitlisted %}
     <div class="alert alert-info py-2 mb-2 small">
       <strong>Waitlisted nights:</strong>

@@ -60,7 +60,7 @@ from uber.hotel.queries import (attendee_search_results, block_availability,
                                 build_room_assignment_query,
                                 clamp_page_size, paginate)
 from uber.hotel.waitlist import (WaitlistError, accept_waitlist_entry,
-                                 cron_eligible, fulfill_waitlist)
+                                 sweep_eligible, fulfill_waitlist)
 from uber.utils import (Order, check_csrf, get_page, localized_now,
                         redirect_with_params, validate_model)
 
@@ -375,7 +375,7 @@ def _count_inventory_usage(assigned_ras):
 
     Builds per-block per-night assignment counts + per-block status
     counts, plus per-block per-night waitlist demand. Demand counts
-    exactly the rows the waitlist sweep would serve (`cron_eligible`),
+    exactly the rows the waitlist sweep would serve (`sweep_eligible`),
     iterating each row's `waitlisted_gap_nights`, so this tally and the
     Waitlist dashboard's per-block rows agree.
 
@@ -391,7 +391,7 @@ def _count_inventory_usage(assigned_ras):
 
     waitlist_per_block_night = defaultdict(lambda: defaultdict(int))
     for ra in assigned_ras:
-        if not cron_eligible(ra):
+        if not sweep_eligible(ra):
             continue
         block_id = str(ra.inventory_id)
         for night in ra.waitlisted_gap_nights:
@@ -404,13 +404,13 @@ def _waitlist_block_rows(session, filtered):
     """Per-block per-night waitlist demand rows for the admin Waitlist
     dashboard, derived from the (possibly search-filtered) set of
     waitlisted assignments. Demand counts exactly the rows the sweep
-    would serve (`cron_eligible`), iterating each row's
+    would serve (`sweep_eligible`), iterating each row's
     `waitlisted_gap_nights`. One row per inventory block, with the
     per-night queue depth and total demand, sorted by hotel then block
     name."""
     demand_by_block = defaultdict(lambda: defaultdict(list))
     for ra in filtered:
-        if not cron_eligible(ra):
+        if not sweep_eligible(ra):
             continue
         block_id = str(ra.inventory_id)
         for night in ra.waitlisted_gap_nights:
@@ -4036,7 +4036,7 @@ class Root:
              no capacity check - the admin is explicitly choosing to
              accept this person off the queue).
 
-        Process Waitlist (the cron-style fulfillment that respects
+        Process Waitlist (the on-demand FIFO sweep that respects
         capacity) also lives here now; the old button on the inventory
         overview was redundant once this page existed.
 
@@ -4195,8 +4195,8 @@ class Root:
         also handing them nights that don't actually exist.
 
         Per-night capacity uses `capacity_for` (same helper the
-        cron uses) so a partition-bound row only competes with other
-        rows in the same partition, and the cron and this endpoint
+        sweep uses) so a partition-bound row only competes with other
+        rows in the same partition, and the sweep and this endpoint
         agree on what "full" means.
 
         If the row's full waitlisted range is satisfied, the model's
@@ -4229,11 +4229,11 @@ class Root:
             return {
                 'error': 'No capacity available on any of the requested '
                          'nights for this block. The row remains on the '
-                         'waitlist for the cron to retry.',
+                         'waitlist for the next Process Waitlist run.',
             }
 
         # Notify the attendee that some/all of their requested nights
-        # came through. Same template the cron uses.
+        # came through. Same template the sweep uses.
         if ra.attendee and ra.lottery_application:
             try:
                 EmailService.queue_email(

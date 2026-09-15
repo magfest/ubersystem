@@ -15,6 +15,6 @@ Modules:
 
 Transaction convention: modules in this package may session.flush() but
 never session.commit() or rollback(). Route handlers, API methods, and
-cron tasks own the transaction, and queue notification emails only after
+background tasks own the transaction, and queue notification emails only after
 their commit succeeds.
 """

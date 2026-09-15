@@ -8,7 +8,7 @@ user-facing message; each route handler maps that onto its own
 redirect/re-render contract.
 
 Transaction convention (see uber.hotel.__init__): helpers here flush and
-never commit - the calling route handler / API method / cron owns the
+never commit - the calling route handler / API method / background task owns the
 transaction.
 """
 

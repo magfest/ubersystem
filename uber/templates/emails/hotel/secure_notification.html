@@ -1,29 +1,94 @@
-{% set _award_rooms = (app.attendee.room_assignments if app.attendee else [])
-                      |selectattr('is_live')|list %}
-{% set _has_suite = _award_rooms|selectattr('inventory.is_suite')|list|length > 0 %}
-{% set room_type = 'suite' if _has_suite else 'room' %}
+{# Per-room "award confirmed" email. The to_model is the RoomAssignment
+   the attendee just secured, exposed here as `assignment`; one email is
+   queued per room confirmed (hotel_lottery._queue_room_secured_email,
+   from the secure-room wizard and the reuse-card action). Everything
+   derives from the live model - nothing arrives via `data`, whose
+   values reach the template as JSON strings.
+
+   A multi-room winner confirms each room separately, so the body also
+   lists every other room of theirs that still needs a card, with the
+   per-room deadline and secure link, or says all rooms are confirmed. #}
+{% set attendee = assignment.attendee %}
+{% set app = assignment.lottery_application %}
+{% set inv = assignment.inventory %}
+{% set room_type = 'suite' if inv and inv.is_suite else 'room' %}
+{% set _others = (attendee.room_assignments if attendee else [])
+                 |rejectattr('id', 'equalto', assignment.id)|list %}
+{% set pending = _others|selectattr('needs_card')|list %}
+{% set other_confirmed = _others|selectattr('status', 'equalto', c.SECURED)|list %}
 <html>
 <head></head>
 <body>
 <p>
-    {{ app.attendee.full_name }},<br/>
-    <strong><span class="text-success">Congratulations! You{% if app.parent_application %}r {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} leader has{% else %} have{% endif %} successfully confirmed your hotel reservation{{ 's' if _award_rooms|length > 1 else '' }} for {{ c.EVENT_NAME_AND_YEAR }}!</span></strong>
+    {{ attendee.full_name }},<br/>
+    <strong><span class="text-success">Congratulations! You have successfully confirmed your hotel {{ room_type }} reservation for {{ c.EVENT_NAME_AND_YEAR }}!</span></strong>
 </p>
-{% if not app.parent_application %}
 <p>
-    You can <a href="{{ c.URL_BASE }}/hotel_lottery/rooms?attendee_id={{ app.attendee.id }}" target="_blank">view and update your reservation{{ 's' if _award_rooms|length > 1 else '' }} here</a>.
+    You can <a href="{{ c.URL_BASE }}/hotel_lottery/rooms?attendee_id={{ attendee.id }}" target="_blank">view and update your reservation{{ 's' if _others else '' }} here</a>.
     If you have any questions about your {{ room_type }} amenities or hotel services, please contact your hotel.
 </p>
-{% endif %}
 
 <strong>Reservation Details</strong>
-{% include 'emails/hotel/_rooms_table.html' with context %}
 <ul>
-    {% if not app.parent_application and app.wants_ada %}<li><strong>Requested Accommodations</strong>: {{ app.ada_requests }}</li>{% endif %}
-    {% if not app.parent_application %}
-        <li><em>Primary Guest</em>: {{ app.attendee.effective_hotel_first_name }} {{ app.attendee.effective_hotel_last_name }}</li>
-        {% if app.valid_group_members %}<li><em>Other Guests</em>: {{ app.group_member_names|readable_join }}</li>{% endif %}
+    <li>
+      <strong>{{ inv.hotel.name if inv and inv.hotel else 'TBD' }}</strong>
+      -
+      {% if inv %}{{ inv.display_name }}{% endif %}
+      <br/>
+      {% if assignment.assigned_check_in_date and assignment.assigned_check_out_date %}
+        {{ assignment.assigned_check_in_date.strftime("%B %-d") }} to {{ assignment.assigned_check_out_date.strftime("%B %-d") }}
+      {% endif %}
+      - <em>{{ assignment.status_label }}</em>
+      {% if assignment.cc_last_four %}
+        <br/>Card on file ending in {{ assignment.cc_last_four }}
+      {% endif %}
+      {% if assignment.hotel_confirmation_number %}
+        <br/>Hotel confirmation: <code>{{ assignment.hotel_confirmation_number }}</code>
+      {% endif %}
+      {% if assignment.is_connector %}
+        <br/><small><em>This is a connector room. It is physically
+        attached to another room you have been assigned, and the two
+        are awarded as a block.</em></small>
+      {% endif %}
+    </li>
+    <li><em>Primary Guest</em>: {{ attendee.effective_hotel_first_name }} {{ attendee.effective_hotel_last_name }}</li>
+    {% if app and not app.parent_application %}
+      {% if app.wants_ada %}<li><strong>Requested Accommodations</strong>: {{ app.ada_requests }}</li>{% endif %}
+      {% if app.valid_group_members %}<li><em>Other Guests</em>: {{ app.group_member_names|readable_join }}</li>{% endif %}
     {% endif %}
 </ul>
+
+{% if pending %}
+<p>
+    <strong class="text-danger">You still have {{ pending|length }} other room{{ 's' if pending|length > 1 else '' }} that need{{ '' if pending|length > 1 else 's' }} a credit card guarantee.</strong>
+    Each room is a separate reservation and must be confirmed on its own, or it will be released.
+</p>
+<ul>
+  {% for ra in pending %}
+    {% set pinv = ra.inventory %}
+    <li>
+      <strong>{{ pinv.hotel.name if pinv and pinv.hotel else 'TBD' }}</strong>
+      -
+      {% if pinv %}{{ pinv.display_name }}{% endif %}
+      {% if ra.assigned_check_in_date and ra.assigned_check_out_date %}
+        <br/>{{ ra.assigned_check_in_date.strftime("%B %-d") }} to {{ ra.assigned_check_out_date.strftime("%B %-d") }}
+      {% endif %}
+      <br/>
+      {% if ra.card_deadline %}
+        <strong class="text-danger">Put a card down by
+        {{ ra.card_deadline|date("%A, %B %-d") }}</strong>
+        or this room will be released.
+      {% else %}
+        <strong class="text-danger">This room is not secured.</strong>
+        See your Hotel Rooms page for information about the deadline.
+      {% endif %}
+      <br/>
+      <a href="{{ c.URL_BASE }}/hotel_lottery/secure_room?assignment_id={{ ra.id }}">Add a credit card for this room</a>
+    </li>
+  {% endfor %}
+</ul>
+{% elif other_confirmed %}
+<p>All {{ other_confirmed|length + 1 }} of your rooms are now confirmed.</p>
+{% endif %}
 </body>
 </html>

@@ -587,6 +587,12 @@ def _queue_entry_confirmation(session, application, action_str):
         })
 
 
+def _queue_room_secured_email(session, ra):
+    """Queue the per-room "Hotel Lottery Award Confirmed!" email for a
+    room the attendee just secured."""
+    EmailService.queue_email(session, 'hotel_lottery_secured', ra)
+
+
 def _return_link(attendee_id):
     if c.ATTENDEE_ACCOUNTS_ENABLED:
         return "../preregistration/homepage?"
@@ -801,9 +807,13 @@ class Root:
             _fail("That room's card can't be reused here - it belongs to a "
                   "different hotel's payment system.")
 
+        was_secured = target.status == c.SECURED
         target.copy_card_from(source)
         session.add(target)
         session.commit()
+        if target.status == c.SECURED and not was_secured:
+            _queue_room_secured_email(session, target)
+            session.commit()
 
         msg = 'Card reused from your other room.'
         if return_to_room:
@@ -2361,6 +2371,11 @@ class Root:
         # independently from its own row in the attendee rooms view, so each
         # is a separate booking end to end.
         session.add(ra)
+        session.commit()
+
+        # One confirmation email per room, queued only once the secure
+        # has committed; it lists any other rooms still awaiting a card.
+        _queue_room_secured_email(session, ra)
         session.commit()
         return {'success': True}
 
