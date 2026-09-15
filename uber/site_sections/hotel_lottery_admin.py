@@ -13,6 +13,7 @@ import sqlalchemy as sa
 from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.types import String
+from urllib.parse import urlencode
 
 from uber.config import c
 from uber.decorators import (all_renderable, log_pageview, ajax, ajax_gettable, xlsx_file, csv_file,
@@ -587,8 +588,11 @@ def _index_stats(session):
 
 @all_renderable()
 class Root:
-    def index(self, session, message='', page='0', search_text='', order='status', **params):
-        if c.DEV_BOX and not int(page):
+    def index(self, session, message='', page='1', search_text='', order='status', **params):
+        # Always land on a page: no/invalid/zero page means the first one.
+        try:
+            page = max(1, int(page))
+        except (TypeError, ValueError):
             page = 1
 
         stats = _index_stats(session)
@@ -633,17 +637,21 @@ class Root:
 
         applications = applications.order(order).options(joinedload(LotteryApplication.attendee))
 
-        page = int(page)
-        if search_text:
-            page = page or 1
-
         pages = range(1, int(math.ceil(count / 100)) + 1)
-        applications = applications[-100 + 100*page: 100*page] if page else []
+        applications = applications[-100 + 100*page: 100*page]
+
+        # Query string for every link that moves within this view (page
+        # links, sort headers): the search text plus the active advanced
+        # filters, so neither is dropped. Built here rather than in the
+        # template because the table lives in a nested Jinja block, which
+        # can't see variables set in the enclosing block.
+        list_qs = urlencode([('search_text', search_text)] + sorted(advanced_filters.items()))
 
         return {
             'message':        message if isinstance(message, str) else message[-1],
             'page':           page,
             'pages':          pages,
+            'list_qs':        list_qs,
             'search_text':    search_text,
             'search_results': bool(search_text) or bool(advanced_filters),
             'applications':   applications,
