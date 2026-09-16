@@ -1153,21 +1153,22 @@ class Root:
             for key in [key for key in PreregCart.session_keys if key != 'paid_preregs']:
                 cherrypy.session.pop(key)
 
-            # We do NOT want to merge the old data into the new attendee
             preregs = []
-            for prereg in PreregCart.paid_preregs:
-                model = session.get(Attendee, prereg['id'])
-                if not model:
-                    model = session.get(Group, prereg['id'])
+            if not c.ATTENDEE_ACCOUNTS_ENABLED:
+                # We do NOT want to merge the old data into the new attendee
+                for prereg in PreregCart.paid_preregs:
+                    model = session.get(Attendee, prereg['id'])
+                    if not model:
+                        model = session.get(Group, prereg['id'])
 
-                if model:
-                    preregs.append(model)
+                    if model:
+                        preregs.append(model)
 
-            for prereg in preregs:
-                receipt = session.get_receipt_by_model(prereg)
-                if isinstance(prereg, Attendee) and receipt:
-                    session.refresh_receipt_and_model(prereg, is_prereg=True)
-                    session.update_paid_from_receipt(prereg, receipt)
+                for prereg in preregs:
+                    receipt = session.get_receipt_by_model(prereg)
+                    if isinstance(prereg, Attendee) and receipt:
+                        session.refresh_receipt_and_model(prereg, is_prereg=True)
+                        session.update_paid_from_receipt(prereg, receipt)
 
             session.commit()
             return {
