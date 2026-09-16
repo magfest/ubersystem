@@ -213,8 +213,7 @@ wants_ada: {{ room_or_suite_lottery.wants_ada.data|tojson }},
             <div class="mb-3" x-data="hotelPricing()">
               <h5>Room Pricing</h5>
               <p class="form-text">
-                Nightly room rates for the dates above, before taxes and fees. Rates
-                are not guaranteed until a room is awarded and booked.
+                There are two sets of room pricing below. Rates are not guaranteed until a room is awarded and booked.
               </p>
 
               <div class="row g-3 mb-3">
@@ -238,6 +237,8 @@ wants_ada: {{ room_or_suite_lottery.wants_ada.data|tojson }},
 
               <template x-if="hasDates()">
                 <div>
+                  <p class="form-text">This information lets you see the applicable rate at a hotel based on your planned number of occupants 
+                     multiplied by the number of days you have selected above.</p>
                   <p class="form-text"
                      x-text="nightCount() + (nightCount() === 1 ? ' night' : ' nights') + ' selected.'"></p>
                   <ul class="list-group mb-2">
@@ -265,6 +266,8 @@ wants_ada: {{ room_or_suite_lottery.wants_ada.data|tojson }},
                   </ul>
 
                   <div class="accordion" id="pricing-accordion">
+                    <p class="form-text">Below is the per-night cost for each room type at each hotel, based on the number of 
+                       people in the room. Click a hotel name to see its rates.</p>
                     <template x-for="hotel in config.hotels" :key="hotel.id">
                       <div class="accordion-item">
                         <h2 class="accordion-header">
