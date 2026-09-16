@@ -631,7 +631,7 @@ class Config(_Overridable):
     def PREREG_BADGE_TYPES(self):
         types = [self.ATTENDEE_BADGE, self.PSEUDO_DEALER_BADGE]
         if c.UNDER_13 in c.AGE_GROUP_CONFIGS and c.AGE_GROUP_CONFIGS[c.UNDER_13]['can_register']:
-            types.append(self.CHILD_BADGE)
+            types.append(self.PSEUDO_UNDER_13_BADGE)
         for reg_open, badge_type in [(self.BEFORE_GROUP_PREREG_TAKEDOWN, self.PSEUDO_GROUP_BADGE)]:
             if reg_open:
                 types.append(badge_type)
@@ -795,8 +795,8 @@ class Config(_Overridable):
         if c.GROUPS_ENABLED and c.AFTER_GROUP_PREREG_TAKEDOWN:
             unavailable_types.append(c.PSEUDO_GROUP_BADGE)
 
-        if c.CHILD_BADGE in c.PREREG_BADGE_TYPES and not c.CHILD_BADGE_AVAILABLE:
-            unavailable_types.append(c.CHILD_BADGE)
+        if c.PSEUDO_UNDER_13_BADGE in c.PREREG_BADGE_TYPES and not c.CHILD_BADGE_AVAILABLE:
+            unavailable_types.append(c.PSEUDO_UNDER_13_BADGE)
 
         return unavailable_types
 
@@ -823,14 +823,14 @@ class Config(_Overridable):
                 'price': c.GROUP_PRICE,
             })
 
-        if c.CHILD_BADGE in c.PREREG_BADGE_TYPES:
+        if c.PSEUDO_UNDER_13_BADGE in c.PREREG_BADGE_TYPES:
             reg_type_opts.append({
                 'name': "12 and Under",
                 'desc': Markup(f"Attendees 12 and younger at the start of {c.EVENT_NAME} must be accompanied "
                                "by an adult with a valid Attendee badge. <br/><br/>"
                                "<span class='form-text text-danger'>Price is always half that of the Single "
                                "Attendee badge price. Badges for attendees 5 and younger are free.</span>"),
-                'value': c.CHILD_BADGE,
+                'value': c.PSEUDO_UNDER_13_BADGE,
                 'price': str(c.BADGE_PRICE - math.ceil(c.BADGE_PRICE / 2)),
             })
 

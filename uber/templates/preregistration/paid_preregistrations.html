@@ -24,6 +24,7 @@
         </p>
     {% endif %}
 
+    {% if not c.ATTENDEE_ACCOUNTS_ENABLED %}
     <p>You can view your registrations below:</p>
     <table class="table">
       <thead>
@@ -55,8 +56,6 @@
         {% endif %}
       {% endfor %}
     </table>
-
-    {% if not c.ATTENDEE_ACCOUNTS_ENABLED %}
     <p>
       <strong>If you are on a shared computer, we strongly recommend logging out using the button below.</strong>
       This will remove the record (browser cookie) that stores the above registrations, protecting your personal 
@@ -67,6 +66,7 @@
     <a href="../landing/index?clear_cookies=true" class="btn btn-danger">Log Out</a>
     {% else %}
     <a href="../preregistration/form" class="btn btn-primary">Add Another Registration</a>
+    <a href="../preregistration/homepage" class="btn btn-info">Manage Your Registrations</a>
     {% endif %}
   </div>
 </div>

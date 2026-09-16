@@ -711,6 +711,10 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
 
         if self.badge_type == c.PSEUDO_DEALER_BADGE:
             self.ribbon = add_opt(self.ribbon_ints, c.DEALER_RIBBON)
+        
+        if self.badge_type == c.PSEUDO_UNDER_13_BADGE:
+            self.badge_type = c.CHILD_BADGE
+            self.ribbon = add_opt(self.ribbon_ints, c.UNDER_13)
 
         self.badge_type = self.badge_type_real
 
@@ -882,17 +886,16 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
 
     @presave_adjustment
     def child_badge(self):
-        if c.CHILD_BADGE in c.PREREG_BADGE_TYPES:
-            if self.age_now_or_at_con is not None and self.age_now_or_at_con < 18 \
-                    and self.badge_type == c.ATTENDEE_BADGE:
-                self.badge_type = c.CHILD_BADGE
-                self.session.update_badge(self)
-                if self.age_now_or_at_con < 13:
-                    self.ribbon = add_opt(self.ribbon_ints, c.UNDER_13)
+        if self.age_now_or_at_con is not None and self.age_now_or_at_con < 18 \
+                and self.badge_type == c.ATTENDEE_BADGE:
+            self.badge_type = c.CHILD_BADGE
+            self.session.update_badge(self)
+            if self.age_now_or_at_con < 13:
+                self.ribbon = add_opt(self.ribbon_ints, c.UNDER_13)
 
     @presave_adjustment
     def child_ribbon_or_not(self):
-        if c.CHILD_BADGE in c.PREREG_BADGE_TYPES:
+        if c.PSEUDO_UNDER_13_BADGE in c.PREREG_BADGE_TYPES:
             if self.age_now_or_at_con is not None and self.age_now_or_at_con < 13:
                 self.ribbon = add_opt(self.ribbon_ints, c.UNDER_13)
             elif c.UNDER_13 in self.ribbon_ints and self.age_now_or_at_con and self.age_now_or_at_con >= 13:
@@ -900,11 +903,10 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
 
     @presave_adjustment
     def child_to_attendee(self):
-        if c.CHILD_BADGE in c.PREREG_BADGE_TYPES:
-            if self.badge_type == c.CHILD_BADGE and self.age_now_or_at_con is not None and self.age_now_or_at_con >= 18:
-                self.badge_type = c.ATTENDEE_BADGE
-                self.session.update_badge(self)
-                self.ribbon = remove_opt(self.ribbon_ints, c.UNDER_13)
+        if self.badge_type == c.CHILD_BADGE and self.age_now_or_at_con is not None and self.age_now_or_at_con >= 18:
+            self.badge_type = c.ATTENDEE_BADGE
+            self.session.update_badge(self)
+            self.ribbon = remove_opt(self.ribbon_ints, c.UNDER_13)
 
     @property
     def art_show_receipt(self):

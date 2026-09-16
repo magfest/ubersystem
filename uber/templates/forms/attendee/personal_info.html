@@ -36,6 +36,7 @@
           get zipCodeRequired(){ return !this.international && !this.copy_address && !this.unassignedOrPlaceholder },
           get disableCellphone() { return this.no_cellphone || this.copy_cellphone},
           get cellphoneRequired() { return (this.staffing || this.dealer) && !this.no_cellphone && !this.copy_cellphone && !this.unassignedOrPlaceholder },
+          get showNoCellphone() { return this.cellphoneRequired || this.no_cellphone },
         {% endblock %}
       }
     }
@@ -107,7 +108,7 @@
       {% if is_prereg_dealer %}
         {{ form_macros.input(personal_info.copy_phone, **{'x-model.boolean':'copy_cellphone'}) }}
       {% else %}
-        <div x-show="cellphoneRequired || no_cellphone">
+        <div x-show="showNoCellphone">
         {{ form_macros.input(personal_info.no_cellphone, **{'x-model.boolean':'no_cellphone'}) }}
         </div>
       {% endif %}

@@ -6,7 +6,7 @@
   <div class="row g-sm-2 row-cols-auto">
     <div class="col"><a href="#attendee_form?id=None" class="btn btn-primary">Add new attendee</a></div>
     {% if c.HAS_SHIFTS_ADMIN_ACCESS %}
-    <div class="col"><a class="btn btn-info" href="../shifts_admin/staffers?department=All">View volunteers in your department(s)</a></div>
+    <div class="col"><a class="btn btn-info" href="../shifts_admin/staffers?department_id=All">View volunteers in your department(s)</a></div>
     {% endif %}
     {% if c.HAS_REGISTRATION_ACCESS %}
     <div class="col"><a class="btn btn-success" href="../registration/">View all attendees</a></div>

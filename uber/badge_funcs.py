@@ -3,6 +3,8 @@ from uber.config import c
 
 
 def get_real_badge_type(badge_type):
+    if badge_type == c.PSEUDO_UNDER_13_BADGE:
+        return c.CHILD_BADGE
     return c.ATTENDEE_BADGE if badge_type in [c.PSEUDO_DEALER_BADGE, c.PSEUDO_GROUP_BADGE] else badge_type
 
 
