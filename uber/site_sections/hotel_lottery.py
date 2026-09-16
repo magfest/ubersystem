@@ -1286,6 +1286,12 @@ class Root:
         attendee = session.attendee(attendee_id)
         if attendee.lottery_application and not attendee.lottery_application.can_reenter:
             raise HTTPRedirect('index?attendee_id={}', attendee.id)
+        else:
+            redirect = '../preregistration/homepage' if c.ATTENDEE_ACCOUNTS_ENABLED else '../landing/index'
+            if not attendee.hotel_lottery_eligible:
+                raise HTTPRedirect(redirect + '?message={}', attendee.hotel_lottery_ineligible_reason)
+            elif not c.HOTEL_LOTTERY_OPEN and (not c.STAFF_HOTEL_LOTTERY_OPEN or not attendee.staff_hotel_lottery_eligible):
+                raise HTTPRedirect(redirect + '?message={}', "The hotel lottery is not currently open.")
 
         return {
             'attendee': attendee,
@@ -1302,6 +1308,12 @@ class Root:
             if not attendee.lottery_application.can_reenter:
                 raise HTTPRedirect('index?attendee_id={}', attendee.id)
         else:
+            redirect = '../preregistration/homepage' if c.ATTENDEE_ACCOUNTS_ENABLED else '../landing/index'
+            if not attendee.hotel_lottery_eligible:
+                raise HTTPRedirect(redirect + '?message={}', attendee.hotel_lottery_ineligible_reason)
+            elif not c.HOTEL_LOTTERY_OPEN and (not c.STAFF_HOTEL_LOTTERY_OPEN or not attendee.staff_hotel_lottery_eligible):
+                raise HTTPRedirect(redirect + '?message={}', "The hotel lottery is not currently open.")
+
             application = LotteryApplication()
             application.attendee = attendee
 

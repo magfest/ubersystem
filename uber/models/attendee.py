@@ -2441,7 +2441,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     def staff_hotel_lottery_eligible(self):
         """The single gate on entering the staff lottery: every entry path,
         room-group ownership, and staff pricing reads this."""
-        return self.badge_type == c.STAFF_BADGE and self.staff_lottery_eligible
+        return self.badge_type == c.STAFF_BADGE and self.staff_lottery_eligible and self.hotel_lottery_eligible
 
     @property
     def hotel_room_kind(self):
