@@ -35,6 +35,22 @@ from uber.models.hotel import (HotelRoomInventory, InventoryPartitionBlock,
                                LotteryApplication, PhysicalRoom, RoomAssignment)
 
 
+def attendee_name_filter(term):
+    """OR clause matching `term` against an attendee's first, last, and
+    full name (badge and hotel variants) and email. The query must
+    already include Attendee."""
+    like = f'%{term}%'
+    return or_(
+        Attendee.first_name.ilike(like),
+        Attendee.last_name.ilike(like),
+        func.concat(Attendee.first_name, ' ', Attendee.last_name).ilike(like),
+        Attendee.hotel_first_name.ilike(like),
+        Attendee.hotel_last_name.ilike(like),
+        func.concat(Attendee.hotel_first_name, ' ', Attendee.hotel_last_name).ilike(like),
+        Attendee.email.ilike(like),
+    )
+
+
 def build_room_assignment_query(session, *, status='live', hotel_id='',
                                 partition_id='', search='', attendee_id='',
                                 badge_types=None):
@@ -122,9 +138,7 @@ def build_room_assignment_query(session, *, status='live', hotel_id='',
         q = q.filter(or_(
             LotteryApplication.confirmation_num.ilike(like),
             RoomAssignment.hotel_confirmation_number.ilike(like),
-            Attendee.email.ilike(like),
-            Attendee.first_name.ilike(like),
-            Attendee.last_name.ilike(like),
+            attendee_name_filter(search_term),
         ))
 
     return q

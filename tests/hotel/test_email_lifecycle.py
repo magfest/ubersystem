@@ -120,7 +120,8 @@ def test_lottery_email_lifecycles(session, no_cherrypy_session, email_world):
     must get the rejection (their entry genuinely lost) and then nothing
     else, so the safe room is never contradicted by lottery mail.
     """
-    from uber.site_sections.hotel_lottery import _queue_entry_confirmation
+    from uber.site_sections.hotel_lottery import (_queue_entry_confirmation,
+                                                  _queue_room_secured_email)
 
     world = email_world
     world.set_day(-10)
@@ -159,13 +160,14 @@ def test_lottery_email_lifecycles(session, no_cherrypy_session, email_world):
                                   'entering the room lottery')
         session.flush()
         winner_app.status = c.AWARDED
-        make_assignment(session, winner, inv, status=c.ASSIGNED,
-                        assignment_reason=c.LOTTERY_AWARD,
-                        payment_type='credit_card',
-                        booking_url='https://example.com/book',
-                        deposit_cutoff_date=(DEADLINE + timedelta(days=6)).date(),
-                        check_in=N[1], check_out=N[3],
-                        lottery_application_id=winner_app.id)
+        winner_rooms.append(make_assignment(
+            session, winner, inv, status=c.ASSIGNED,
+            assignment_reason=c.LOTTERY_AWARD,
+            payment_type='credit_card',
+            booking_url='https://example.com/book',
+            deposit_cutoff_date=(DEADLINE + timedelta(days=6)).date(),
+            check_in=N[1], check_out=N[3],
+            lottery_application_id=winner_app.id))
         loser_app.status = c.REJECTED
 
     def loser_safe_room():
@@ -174,10 +176,16 @@ def test_lottery_email_lifecycles(session, no_cherrypy_session, email_world):
                         check_in=N[1], check_out=N[3])
 
     def winner_secures():
-        winner_app.status = c.SECURED
+        # Securing is per room: the application's own status never
+        # becomes SECURED, and the confirmation email is queued by the
+        # secure flow for each room rather than found by the sweep.
         for ra in winner_app.lottery_room_assignments:
+            ra.cc_token = 'tok'
             ra.status = c.SECURED
+            session.flush()
+            _queue_room_secured_email(session, ra)
 
+    winner_rooms = []
     events = {
         -9: winner_completes,
         -1: lottery_runs,
@@ -187,7 +195,8 @@ def test_lottery_email_lifecycles(session, no_cherrypy_session, email_world):
     for offset in range(-10, 4):
         world.run_day(offset, events.get(offset, lambda: None))
 
-    assert world.received(winner.id, winner_app.id) == {
+    winner_ids = (winner.id, winner_app.id, *[ra.id for ra in winner_rooms])
+    assert world.received(*winner_ids) == {
         -9: {'hotel_lottery_confirmation'},
         -1: {'hotel_lottery_awarded'},
         0: {'hotel_lottery_guarantee_reminder'},
@@ -201,7 +210,7 @@ def test_lottery_email_lifecycles(session, no_cherrypy_session, email_world):
     assert world.received(guest.id) == {}
 
     # Nobody is ever told they both won and lost.
-    for ids in [(winner.id, winner_app.id), (loser.id, loser_app.id),
+    for ids in [winner_ids, (loser.id, loser_app.id),
                 (staffer.id,), (guest.id,)]:
         idents = set().union(*world.received(*ids).values()) \
             if world.received(*ids) else set()

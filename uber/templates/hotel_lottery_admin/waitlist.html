@@ -19,7 +19,7 @@
   </h2>
   <div class="d-flex gap-2">
     {# Export-first so admins can pull a snapshot before they start
-       running the cron / accepting people off the queue. Direct
+       running the sweep / accepting people off the queue. Direct
        <a> link (not AJAX) so the browser handles the download. #}
     <a class="btn btn-outline-secondary" href="export_waitlist_xlsx"
        title="One sheet per hotel; rows are room types, columns are nights.">
@@ -249,7 +249,7 @@ function processWaitlist() {
 
 // Per-row FIFO-bypass accept. Pulls one row out of order but still
 // honours the per-night capacity check - same partition-aware capacity
-// helper the cron uses. If some requested nights have capacity and
+// helper the Process Waitlist sweep uses. If some requested nights have capacity and
 // some don't, the row gets partial fulfillment and stays on the queue
 // for the rest (the server returns `still_waiting: true`).
 function acceptWaitlist(assignmentId) {

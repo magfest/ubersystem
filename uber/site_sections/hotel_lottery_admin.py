@@ -13,6 +13,8 @@ import sqlalchemy as sa
 from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.types import String
+from sqlmodel import AutoString
+from urllib.parse import urlencode
 
 from uber.config import c
 from uber.decorators import (all_renderable, log_pageview, ajax, ajax_gettable, xlsx_file, csv_file,
@@ -56,11 +58,12 @@ from uber.hotel.audit import (annotate_issues, collect_issues,
                                    filter_issues, get_or_make_issue_note,
                                    group_inventory_issues, group_room_issues,
                                    load_issue_notes)
-from uber.hotel.queries import (attendee_search_results, block_availability,
-                                build_room_assignment_query,
+from uber.hotel.queries import (attendee_name_filter, attendee_search_results,
+                                block_availability, build_room_assignment_query,
                                 clamp_page_size, paginate)
+from uber.hotel.run_stats import lottery_run_stats
 from uber.hotel.waitlist import (WaitlistError, accept_waitlist_entry,
-                                 cron_eligible, fulfill_waitlist)
+                                 sweep_eligible, fulfill_waitlist)
 from uber.utils import (Order, check_csrf, get_page, localized_now,
                         redirect_with_params, validate_model)
 
@@ -313,9 +316,13 @@ def _search(session, text):
     # Skip columns that will raise unexpected applications
     skip_columns = {'id', 'parent_application_id',
                     'lottery_run_id', 'former_parent_id'}
-    for attr in [col for col in LotteryApplication.__table__.columns if isinstance(col.type, String)]:
+    for attr in [col for col in LotteryApplication.__table__.columns
+                 if isinstance(col.type, (String, AutoString))]:
         if attr.name not in skip_columns:
             check_list.append(attr.ilike('%' + text + '%'))
+
+    check_list.append(LotteryApplication.attendee_id.in_(
+        session.query(Attendee.id).filter(attendee_name_filter(text))))
 
     # Search by hotel / room-type name through inventory. Room assignments
     # live on RoomAssignment, so the inventory match goes through the
@@ -375,7 +382,7 @@ def _count_inventory_usage(assigned_ras):
 
     Builds per-block per-night assignment counts + per-block status
     counts, plus per-block per-night waitlist demand. Demand counts
-    exactly the rows the waitlist sweep would serve (`cron_eligible`),
+    exactly the rows the waitlist sweep would serve (`sweep_eligible`),
     iterating each row's `waitlisted_gap_nights`, so this tally and the
     Waitlist dashboard's per-block rows agree.
 
@@ -391,7 +398,7 @@ def _count_inventory_usage(assigned_ras):
 
     waitlist_per_block_night = defaultdict(lambda: defaultdict(int))
     for ra in assigned_ras:
-        if not cron_eligible(ra):
+        if not sweep_eligible(ra):
             continue
         block_id = str(ra.inventory_id)
         for night in ra.waitlisted_gap_nights:
@@ -404,13 +411,13 @@ def _waitlist_block_rows(session, filtered):
     """Per-block per-night waitlist demand rows for the admin Waitlist
     dashboard, derived from the (possibly search-filtered) set of
     waitlisted assignments. Demand counts exactly the rows the sweep
-    would serve (`cron_eligible`), iterating each row's
+    would serve (`sweep_eligible`), iterating each row's
     `waitlisted_gap_nights`. One row per inventory block, with the
     per-night queue depth and total demand, sorted by hotel then block
     name."""
     demand_by_block = defaultdict(lambda: defaultdict(list))
     for ra in filtered:
-        if not cron_eligible(ra):
+        if not sweep_eligible(ra):
             continue
         block_id = str(ra.inventory_id)
         for night in ra.waitlisted_gap_nights:
@@ -587,8 +594,11 @@ def _index_stats(session):
 
 @all_renderable()
 class Root:
-    def index(self, session, message='', page='0', search_text='', order='status', **params):
-        if c.DEV_BOX and not int(page):
+    def index(self, session, message='', page='1', search_text='', order='status', **params):
+        # Always land on a page: no/invalid/zero page means the first one.
+        try:
+            page = max(1, int(page))
+        except (TypeError, ValueError):
             page = 1
 
         stats = _index_stats(session)
@@ -633,17 +643,21 @@ class Root:
 
         applications = applications.order(order).options(joinedload(LotteryApplication.attendee))
 
-        page = int(page)
-        if search_text:
-            page = page or 1
-
         pages = range(1, int(math.ceil(count / 100)) + 1)
-        applications = applications[-100 + 100*page: 100*page] if page else []
+        applications = applications[-100 + 100*page: 100*page]
+
+        # Query string for every link that moves within this view (page
+        # links, sort headers): the search text plus the active advanced
+        # filters, so neither is dropped. Built here rather than in the
+        # template because the table lives in a nested Jinja block, which
+        # can't see variables set in the enclosing block.
+        list_qs = urlencode([('search_text', search_text)] + sorted(advanced_filters.items()))
 
         return {
             'message':        message if isinstance(message, str) else message[-1],
             'page':           page,
             'pages':          pages,
+            'list_qs':        list_qs,
             'search_text':    search_text,
             'search_results': bool(search_text) or bool(advanced_filters),
             'applications':   applications,
@@ -789,40 +803,59 @@ class Root:
             **_picker_context(session),
         }
 
-    def lottery_run_detail(self, session, id, message=''):
+    def lottery_run_detail(self, session, id, message='', page='1', page_size=''):
         lottery_run = session.query(LotteryRun).get(id)
-        applications = session.query(LotteryApplication).filter(
+        if not lottery_run:
+            raise HTTPRedirect('lottery_runs?message={}', 'Run not found.')
+        applications_q = session.query(LotteryApplication).filter(
             LotteryApplication.lottery_run_id == id,
             LotteryApplication.entry_type != c.GROUP_ENTRY,
-        ).order_by(LotteryApplication.confirmation_num).all()
+        ).order_by(LotteryApplication.confirmation_num
+                   ).options(joinedload(LotteryApplication.attendee))
+        applications, total, page_num, page_count = paginate(
+            applications_q, page, page_size,
+            default_size=100, min_size=10, max_size=500)
+        ps = clamp_page_size(page_size, default_size=100, min_size=10, max_size=500)
+
         picker = _picker_context(session)
         partition_lookup = {str(p.id): p.name for p in picker['partitions']}
 
         # Filter chips: resolve the run's CSV filter-id lists to names
         # once here instead of re-splitting per badge in the template.
         hotel_filter_names, room_type_filter_names = [], []
-        if lottery_run and lottery_run.hotel_filter:
+        if lottery_run.hotel_filter:
             filter_ids = lottery_run.hotel_filter.split(',')
             hotel_filter_names = [h.name for h in picker['hotels']
                                   if str(h.id) in filter_ids]
-        if lottery_run and lottery_run.room_type_filter:
+        if lottery_run.room_type_filter:
             filter_ids = lottery_run.room_type_filter.split(',')
             room_type_filter_names = [
                 rt.name for rt in picker['room_types'] + picker['suite_types']
                 if str(rt.id) in filter_ids]
 
-        # {application_id: [that attendee's rooms from this run]} -
-        # previously a per-row selectattr over every room in the template
-        # (O(apps x rooms)).
+        # {application_id: [that attendee's rooms from this run]}
+        attendee_ids = [app.attendee_id for app in applications if app.attendee_id]
+        rooms_by_attendee = defaultdict(list)
+        if attendee_ids:
+            run_rooms = session.query(RoomAssignment).filter(
+                RoomAssignment.lottery_run_id == lottery_run.id,
+                RoomAssignment.attendee_id.in_(attendee_ids),
+            ).order_by(RoomAssignment.parent_assignment_id.asc().nullsfirst(),
+                       RoomAssignment.created.asc()).all()
+            for ra in run_rooms:
+                rooms_by_attendee[ra.attendee_id].append(ra)
         run_rooms_by_app = {
-            app.id: [ra for ra in (app.attendee.room_assignments
-                                   if app.attendee else [])
-                     if ra.lottery_run_id == lottery_run.id]
+            app.id: rooms_by_attendee.get(app.attendee_id, [])
             for app in applications}
 
         return {
             'lottery_run': lottery_run,
             'applications': applications,
+            'stats': lottery_run_stats(session, lottery_run),
+            'total': total,
+            'page': page_num,
+            'page_size': ps,
+            'page_count': page_count,
             'partition_lookup': partition_lookup,
             'hotel_filter_names': hotel_filter_names,
             'room_type_filter_names': room_type_filter_names,
@@ -2181,6 +2214,7 @@ class Root:
             inventory_filter=inventory_filter or None,
             partition_filter=partition_filter or None,
             entries_considered=len([x for x in applications if x.entry_type != c.GROUP_ENTRY]),
+            considered_application_ids=[x.id for x in applications if x.entry_type != c.GROUP_ENTRY],
             rooms_available_before=rooms_available_before,
         )
         session.add(lottery_run)
@@ -4018,7 +4052,7 @@ class Root:
              no capacity check - the admin is explicitly choosing to
              accept this person off the queue).
 
-        Process Waitlist (the cron-style fulfillment that respects
+        Process Waitlist (the on-demand FIFO sweep that respects
         capacity) also lives here now; the old button on the inventory
         overview was redundant once this page existed.
 
@@ -4177,8 +4211,8 @@ class Root:
         also handing them nights that don't actually exist.
 
         Per-night capacity uses `capacity_for` (same helper the
-        cron uses) so a partition-bound row only competes with other
-        rows in the same partition, and the cron and this endpoint
+        sweep uses) so a partition-bound row only competes with other
+        rows in the same partition, and the sweep and this endpoint
         agree on what "full" means.
 
         If the row's full waitlisted range is satisfied, the model's
@@ -4211,11 +4245,11 @@ class Root:
             return {
                 'error': 'No capacity available on any of the requested '
                          'nights for this block. The row remains on the '
-                         'waitlist for the cron to retry.',
+                         'waitlist for the next Process Waitlist run.',
             }
 
         # Notify the attendee that some/all of their requested nights
-        # came through. Same template the cron uses.
+        # came through. Same template the sweep uses.
         if ra.attendee and ra.lottery_application:
             try:
                 EmailService.queue_email(

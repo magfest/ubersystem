@@ -191,7 +191,7 @@ def test_fulfill_skips_export_locked_rows(session):
     attendee = make_attendee(session)
     # entry_type must be non-NULL: the sweep's SQL prefilter
     # (`entry_type != GROUP_ENTRY`) silently drops NULL-entry_type apps
-    # (SQL NULL semantics), unlike the python-side cron_eligible.
+    # (SQL NULL semantics), unlike the python-side sweep_eligible.
     app = make_application(session, attendee, export_locked=True,
                            entry_type=c.ROOM_ENTRY)
     ra = make_assignment(session, attendee, inv,

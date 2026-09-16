@@ -9,6 +9,7 @@
   <div class="col-sm">
     <form role="form" method="get" action="index">
     <input type="hidden" name="order" value="{{ order }}" />
+    {% for k, v in advanced_filters.items() %}<input type="hidden" name="{{ k }}" value="{{ v }}" />{% endfor %}
     <div class="input-group">
         <input class="focus form-control" id="search_bar" placeholder="Search applications..." type="text" name="search_text" value="{{ search_text }}" />
         <button class="btn btn-outline-secondary" type="submit">
@@ -45,6 +46,7 @@
 <div class="collapse{% if advanced_filters %} show{% endif %}" id="advancedSearch">
   <form method="get" action="index" class="card card-body mb-3">
     <input type="hidden" name="order" value="{{ order }}" />
+    <input type="hidden" name="search_text" value="{{ search_text }}" />
     <div class="row g-2">
       <div class="col-md-2">
         <label class="form-label small">Status</label>
@@ -124,26 +126,23 @@
 {% endif %}
 
 {% block table %}
-{% set page_count = pages[-1] if pages else 1 %}
 <div class="card card-body">
-{{ hotel_macros.pagination(page, pages|length,
-    'index?order=' ~ order ~ '&search_text=' ~ search_text|urlencode,
-    show_summary=False) }}
-    {% if page %}
+{{ hotel_macros.pagination(page, pages|length, 'index?order=' ~ order ~ '&' ~ list_qs, show_summary=False) }}
+    {% if applications %}
       <table class="table table-hover" data-page-size="9999999">
         <thead>
           <tr>
             {% block tableheadings %}
-            <th><a href="index?order={{ order.status }}&page={{ page }}&search_text={{ search_text|urlencode }}">Entry Status</a></th>
-            <th><a href="index?order={{ order.entry_type }}&page={{ page }}&search_text={{ search_text|urlencode }}">Entry Type</a></th>
-            <th><a href="index?order={{ order.confirmation_num }}&page={{ page }}&search_text={{ search_text|urlencode }}">Confirmation #</a></th>
-            <th><a href="index?order={{ order.room_group_name }}&page={{ page }}&search_text={{ search_text|urlencode }}">{{ c.HOTEL_LOTTERY_GROUP_TERM }} Name</a></th>
+            <th><a href="index?order={{ order.status }}&page={{ page }}&{{ list_qs }}">Entry Status</a></th>
+            <th><a href="index?order={{ order.entry_type }}&page={{ page }}&{{ list_qs }}">Entry Type</a></th>
+            <th><a href="index?order={{ order.confirmation_num }}&page={{ page }}&{{ list_qs }}">Confirmation #</a></th>
+            <th><a href="index?order={{ order.room_group_name }}&page={{ page }}&{{ list_qs }}">{{ c.HOTEL_LOTTERY_GROUP_TERM }} Name</a></th>
             <th>Attendee</th>
             <th># Group Members</th>
             <th>Admin Notes</th>
-            <th><a href="index?order={{ order.is_staff_entry }}&page={{ page }}&search_text={{ search_text|urlencode }}">Staff Entry</a></th>
-            <th><a href="index?order={{ order.assigned_inventory_id }}&page={{ page }}&search_text={{ search_text|urlencode }}">Assigned Room</a></th>
-            <th><a href="index?order={{ order.last_modified_at }}&page={{ page }}&search_text={{ search_text|urlencode }}">Last Modified</a></th>
+            <th><a href="index?order={{ order.is_staff_entry }}&page={{ page }}&{{ list_qs }}">Staff Entry</a></th>
+            <th><a href="index?order={{ order.assigned_inventory_id }}&page={{ page }}&{{ list_qs }}">Assigned Room</a></th>
+            <th><a href="index?order={{ order.last_modified_at }}&page={{ page }}&{{ list_qs }}">Last Modified</a></th>
             {% endblock tableheadings %}
           </tr>
         </thead>
@@ -200,7 +199,7 @@
       </table>
     {% else %}
       <div class="lead text-center">
-        <em>Use the search box above to filter applications or select a page to browse all applications.</em>
+        <em>No applications to show.</em>
         <br/><br/>You can search by confirmation number, check-in name, or admin notes.
       </div>
     {% endif %}
@@ -209,9 +208,7 @@
 <div>Showing {{ start_app_num }} to {{ start_app_num + applications|length - 1 }} out of {{ search_count }} applications</div>
 {% endif %}
 {% if applications|length > 15 %}
-{{ hotel_macros.pagination(page, pages|length,
-    'index?order=' ~ order ~ '&search_text=' ~ search_text|urlencode,
-    show_summary=False) }}
+{{ hotel_macros.pagination(page, pages|length, 'index?order=' ~ order ~ '&' ~ list_qs, show_summary=False) }}
 {% endif %}
 </div>
 
