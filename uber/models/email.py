@@ -2,6 +2,7 @@ import re
 import traceback
 import logging
 import pytz
+import json
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from dateutil import parser as dateparser
@@ -255,7 +256,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
         if self.fixture:
             data.update(self.fixture.extra_data)
         
-        for key, val in render_data:
+        for key, val in render_data.items():
             data[key] = json.loads(val)
 
         return renderable_data(data)
