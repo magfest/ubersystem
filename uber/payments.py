@@ -182,6 +182,7 @@ class PreregCart:
         a = uber.models.Attendee(**d)
         for attr, val in extra_attrs.items():
             setattr(a, attr, val)
+            d[attr] = val
         a.name = d['name'] = name
         a.badges = d['badges'] = badges
 
