@@ -176,7 +176,13 @@ class PreregCart:
         # These aren't valid properties on the model, so they're removed and re-added
         name = d.pop('name', '')
         badges = d.pop('badges', 0)
+        # SQLModel only applies columns and relationships in the constructor. extra_attrs will 
+        # capture any other properties that need to be carried over as well
+        extra_attrs = {attr: d.pop(attr) for attr in uber.models.Attendee._extra_apply_attrs_restricted if attr in d}
         a = uber.models.Attendee(**d)
+        for attr, val in extra_attrs.items():
+            setattr(a, attr, val)
+            d[attr] = val
         a.name = d['name'] = name
         a.badges = d['badges'] = badges
 
