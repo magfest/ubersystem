@@ -13,6 +13,7 @@ import sqlalchemy as sa
 from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.types import String
+from sqlmodel import AutoString
 from urllib.parse import urlencode
 
 from uber.config import c
@@ -57,8 +58,8 @@ from uber.hotel.audit import (annotate_issues, collect_issues,
                                    filter_issues, get_or_make_issue_note,
                                    group_inventory_issues, group_room_issues,
                                    load_issue_notes)
-from uber.hotel.queries import (attendee_search_results, block_availability,
-                                build_room_assignment_query,
+from uber.hotel.queries import (attendee_name_filter, attendee_search_results,
+                                block_availability, build_room_assignment_query,
                                 clamp_page_size, paginate)
 from uber.hotel.run_stats import lottery_run_stats
 from uber.hotel.waitlist import (WaitlistError, accept_waitlist_entry,
@@ -315,9 +316,13 @@ def _search(session, text):
     # Skip columns that will raise unexpected applications
     skip_columns = {'id', 'parent_application_id',
                     'lottery_run_id', 'former_parent_id'}
-    for attr in [col for col in LotteryApplication.__table__.columns if isinstance(col.type, String)]:
+    for attr in [col for col in LotteryApplication.__table__.columns
+                 if isinstance(col.type, (String, AutoString))]:
         if attr.name not in skip_columns:
             check_list.append(attr.ilike('%' + text + '%'))
+
+    check_list.append(LotteryApplication.attendee_id.in_(
+        session.query(Attendee.id).filter(attendee_name_filter(text))))
 
     # Search by hotel / room-type name through inventory. Room assignments
     # live on RoomAssignment, so the inventory match goes through the
