@@ -131,7 +131,10 @@ class Tracking(MagModel, table=True):
         return ', '.join('{}={}'.format(k, v) for k, v in values.items())
 
     @classmethod
-    def repr(cls, column, value):
+    def repr(cls, value, column=None):
+        if column is None:
+            return value
+
         try:
             if column.name == 'hashed':
                 return '<bcrypted>'
@@ -188,13 +191,13 @@ class Tracking(MagModel, table=True):
                     continue
 
                 try:
-                    old_val_repr = cls.repr(column, old_val)
+                    old_val_repr = cls.repr(old_val, column)
                 except Exception:
                     log.error('Tracking repr({}) failed on old value'.format(attr), exc_info=True)
                     old_val_repr = '<ERROR>'
 
                 try:
-                    new_val_repr = cls.repr(column, new_val)
+                    new_val_repr = cls.repr(new_val, column)
                 except Exception:
                     log.error('Tracking repr({}) failed on new value'.format(attr), exc_info=True)
                     new_val_repr = '<ERROR>'
@@ -225,10 +228,18 @@ class Tracking(MagModel, table=True):
     @classmethod
     def track(cls, session, action, instance):
         from uber.models import ApiJob
+        from uber.payments import PreregCart
 
-        if action in [c.CREATED, c.UNPAID_PREREG, c.EDITED_PREREG]:
+        if action in [c.UNPAID_PREREG, c.EDITED_PREREG]:
+            attrs = PreregCart.prereg_attrs(instance) or instance.__table__.columns
             vals = {
-                attr: cls.repr(column, getattr(instance, attr))
+                attr: cls.repr(getattr(instance, attr), instance.__table__.columns.get(attr, None))
+                for attr in attrs
+            }
+            data = cls.format(vals)
+        elif action == c.CREATED:
+            vals = {
+                attr: cls.repr(getattr(instance, attr), column)
                 for attr, column in instance.__table__.columns.items()}
             data = cls.format(vals)
         elif action == c.UPDATED:
