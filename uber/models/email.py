@@ -254,8 +254,10 @@ class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
 
         if self.fixture:
             data.update(self.fixture.extra_data)
+        
+        for key, val in render_data:
+            data[key] = json.loads(val)
 
-        data.update(render_data)
         return renderable_data(data)
 
     def render_body(self, model_instance=None, render_data={}):

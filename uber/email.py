@@ -47,13 +47,7 @@ class EmailHandler:
             try:
                 render_data[key] = json.dumps(val, cls=serializer)
             except TypeError as e:
-                if isinstance(val, (list, tuple, set)):
-                    val_list = []
-                    for val_item in val:
-                        val_list.append(json.dumps(val_item.to_dict(), cls=serializer))
-                    render_data[key] = val_list
-                else:
-                    render_data[key] = json.dumps(val.to_dict(), cls=serializer)
+                log.error(f"Could not save render data for email {email_obj.__repr__()}: {e}")
 
         email_obj.render_data = render_data or email_obj.render_data
         email_obj.fk_id = to_model.id if to_model else None
