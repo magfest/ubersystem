@@ -2653,7 +2653,7 @@ class Root:
                     Attendee.normalized_email == normalized
                 ).first()
 
-                if not guest_attendee:
+                if (not guest_attendee) or guest_app.parent_application_id or guest_app.invite_status == c.INVITE_PENDING:
                     message = "If that email address is in our database they will receive an invite."
                 else:
                     guest_app = getattr(guest_attendee, 'lottery_application', None)
