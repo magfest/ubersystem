@@ -142,10 +142,10 @@ class OIDC(cherrypy.Tool):
                 elif time.time() - self.key_fetch_time < 60:
                     return None
                 self.key_fetch_time = time.time()
-                oidc_config = requests.get(c.OIDC_METADATA_URL).json()
+                oidc_config = requests.get(c.OIDC_METADATA_URL, timeout=c.OIDC_HTTP_TIMEOUT).json()
                 jwks_uri = oidc_config['jwks_uri']
                 
-                keys = requests.get(jwks_uri).json()['keys']
+                keys = requests.get(jwks_uri, timeout=c.OIDC_HTTP_TIMEOUT).json()['keys']
                 self.jwks_keys = {key['kid']: key for key in keys}
                 log.info(f"Loaded {len(self.jwks_keys)} public keys from {c.OIDC_METADATA_URL}")
                 return self.jwks_keys.get(kid, None)
@@ -275,7 +275,7 @@ class OIDC(cherrypy.Tool):
                 'redirect_uri': redirect_uri
             }
 
-            response = requests.post(c.OIDC_TOKEN_ENDPOINT, data=payload)
+            response = requests.post(c.OIDC_TOKEN_ENDPOINT, data=payload, timeout=c.OIDC_HTTP_TIMEOUT)
             response.raise_for_status()
             return response.json()
         except:
@@ -295,7 +295,7 @@ class OIDC(cherrypy.Tool):
                 'refresh_token': code
             }
 
-            response = requests.post(c.OIDC_TOKEN_ENDPOINT, data=payload)
+            response = requests.post(c.OIDC_TOKEN_ENDPOINT, data=payload, timeout=c.OIDC_HTTP_TIMEOUT)
             response.raise_for_status()
             return response.json()
         except:
