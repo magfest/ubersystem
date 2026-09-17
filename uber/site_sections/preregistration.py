@@ -982,7 +982,7 @@ class Root:
                     session.add(charge_receipt)
                     for item in charge_receipt_items:
                         session.add(item)
-                    session.commit()
+                    session.flush()
                     receipts.append(charge_receipt)
 
             receipt_email = account.email if c.ATTENDEE_ACCOUNTS_ENABLED else cart.receipt_email
@@ -1006,8 +1006,11 @@ class Root:
             pending_attendee = session.get(Attendee, attendee.id)
             if pending_attendee:
                 for key, val in PreregCart.to_sessionized(attendee).items():
+                    if key in ('created', 'registered', 'badge_status', 'paid', 'badge_pickup_group_id'):
+                        continue
                     with contextlib.suppress(AttributeError):
                         setattr(pending_attendee, key, val)
+                pending_attendee.badge_pickup_group_id = pickup_group.id
                 if attendee.badges and pending_attendee.promo_code_groups:
                     pc_group = pending_attendee.promo_code_groups[0]
                     pc_group.name = attendee.name

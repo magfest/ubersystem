@@ -25,7 +25,7 @@ from sqlalchemy.event import listen
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.ext.hybrid import hybrid_method, hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import Query, joinedload, selectinload, subqueryload, contains_eager, declared_attr, sessionmaker, scoped_session
+from sqlalchemy.orm import Query, joinedload, lazyload, selectinload, subqueryload, contains_eager, declared_attr, sessionmaker, scoped_session
 import sqlalchemy.orm
 from sqlalchemy.orm.attributes import get_history, instance_state
 from sqlalchemy.orm.collections import InstrumentedList
@@ -1723,11 +1723,10 @@ class UberSession(sqlalchemy.orm.Session):
             """
             lower_bound, upper_bound = c.BADGE_RANGES[badge_type]
 
-            return self.query(BadgeInfo).filter(BadgeInfo.attendee_id == None,
-                                                BadgeInfo.ident >= lower_bound,
-                                                BadgeInfo.ident <= upper_bound
-                                                ).order_by(BadgeInfo.attendee_id).order_by(
-                                                    BadgeInfo.ident).limit(1).first()
+            return self.query(BadgeInfo).options(lazyload(BadgeInfo.attendee)).filter(
+                BadgeInfo.attendee_id == None,  # noqa: E711
+                BadgeInfo.ident >= lower_bound,
+                BadgeInfo.ident <= upper_bound).order_by(BadgeInfo.ident).limit(1).first()
 
         def update_badge(self, attendee):
             """

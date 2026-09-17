@@ -588,6 +588,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     _attendee_table_args: ClassVar = [
         Index('ix_attendee_paid_group_id', 'paid', 'group_id'),
         Index('ix_attendee_badge_status_badge_type', 'badge_status', 'badge_type'),
+        Index('ix_attendee_amount_extra_badge_status', 'amount_extra', 'badge_status'),
     ]
 
     __table_args__: ClassVar = tuple(_attendee_table_args)

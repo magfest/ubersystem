@@ -526,9 +526,10 @@ class Config(_Overridable):
     
     def get_stock_count(self, item_check, stock_setting):
         """
-        Returns <item_check>_COUNT for an _AVAILABLE check. Every prereg page checks stock, so while the
-        count is comfortably below the stock (more than stock_count_cache_margin away) we share one
-        count across all processes for stock_count_cache_seconds. Near the cap we always count exactly.
+        Returns <item_check>_COUNT for an _AVAILABLE check. Every prereg page checks stock, so all
+        processes share one cached count: for stock_count_cache_seconds while the count is comfortably
+        below the stock (more than stock_count_cache_margin away) or already sold out, and for
+        stock_count_near_cap_cache_seconds when it's close to selling out.
         """
         ttl = self.STOCK_COUNT_CACHE_SECONDS
         if not ttl:
@@ -540,11 +541,16 @@ class Config(_Overridable):
         except Exception:
             log.warning(f'Could not read cached {item_check} count from Redis', exc_info=True)
             cached = None
-        if cached is not None and int(cached) < int(stock_setting) - self.STOCK_COUNT_CACHE_MARGIN:
+        if cached is not None:
             return int(cached)
 
         count = getattr(self, item_check + '_COUNT', None)
         if count is not None:
+            stock = int(stock_setting)
+            if stock - self.STOCK_COUNT_CACHE_MARGIN <= int(count) < stock:
+                ttl = self.STOCK_COUNT_NEAR_CAP_CACHE_SECONDS
+            if not ttl:
+                return count
             try:
                 self.REDIS_STORE.set(key, int(count), ex=ttl)
             except Exception:
