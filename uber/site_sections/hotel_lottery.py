@@ -2639,7 +2639,7 @@ class Root:
     # `copy_occupants` handlers). The handlers below manage the
     # LotteryApplication-level room *group*, which is a separate thing.
 
-    @requires_account(Attendee)
+    @requires_account(LotteryApplication)
     def send_room_invite(self, session, id, email='', **params):
         application = session.lottery_application(id)
         _require_post_csrf(params, f'room_group?id={application.id}')
@@ -2771,7 +2771,7 @@ class Root:
         raise HTTPRedirect('../preregistration/homepage?message={}',
                            'You have declined the invitation.')
 
-    @requires_account(Attendee)
+    @requires_account(LotteryApplication)
     def cancel_invite(self, session, id, invite_app_id, **params):
         application = session.lottery_application(id)
         _require_post_csrf(params, f'room_group?id={application.id}')
