@@ -5,6 +5,7 @@ import uuid
 import cherrypy
 import logging
 from datetime import datetime, timedelta
+from pytz import UTC
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
@@ -2267,7 +2268,6 @@ class Root:
     def save_card_token(self, session, token, assignment_id=None, id=None,
                         last_four='', card_type='', **params):
         """Save just the card token without requiring address or changing status."""
-        from pytz import UTC
         ra, error = _secure_flow_assignment(session, assignment_id,
                                             token=token, require_token=True)
         if error:
@@ -2307,7 +2307,6 @@ class Root:
     @ajax
     def secure_room_callback(self, session, token, assignment_id=None, id=None,
                              last_four='', card_type='', **params):
-        from pytz import UTC
         ra, error = _secure_flow_assignment(session, assignment_id,
                                             token=token, require_token=True)
         if error:
@@ -2440,7 +2439,6 @@ class Root:
         if not ra.cc_token:
             log.info("vault_webhook: bootstrapping card token onto assignment %s "
                      "(browser postMessage never saved one)", assignment_id)
-            from pytz import UTC
             ra.cc_token = token
             ra.cc_captured_at = datetime.now(UTC)
         elif ra.cc_token != token:
@@ -2719,7 +2717,7 @@ class Root:
             raise HTTPRedirect('../preregistration/homepage?message={}',
                                f'This invite has been {guest_app.invite_status_label.lower()}.')
 
-        if guest_app.invite_expires_at and guest_app.invite_expires_at < datetime.now():
+        if guest_app.invite_expires_at and guest_app.invite_expires_at < datetime.now(UTC):
             guest_app.invite_status = c.INVITE_EXPIRED
             session.add(guest_app)
             session.commit()
