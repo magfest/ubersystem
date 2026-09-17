@@ -15,11 +15,13 @@ import sentry_sdk
 import jinja2
 import logging
 from cherrypy import HTTPError
+from sqlalchemy import text
 
 from uber.config import c, Config
 from uber.decorators import all_renderable, render
 from uber.errors import HTTPRedirect
-from uber.utils import mount_site_sections, static_overrides
+from uber.utils import get_static_file_path, mount_site_sections, static_overrides
+from uber.models import Session
 from uber.redis_session import RedisSession
 
 log = logging.getLogger(__name__)
@@ -229,6 +231,39 @@ class Root:
             path += '?' + cherrypy.request.query_string
         raise HTTPRedirect(path)
 
+    def favicon_ico(self):
+        """Serve the event icon at /favicon.ico with a week-long cache lifetime.
+
+        Browsers request this path on their own, most of all from error pages that
+        carry no icon link. Defining it here also stops CherryPy from mounting its own
+        logo at the root. The file is resolved per request so a plugin's static
+        override of images/favicon.png wins.
+        """
+        cherrypy.response.headers['Cache-Control'] = 'public, max-age=604800'
+        return cherrypy.lib.static.serve_file(get_static_file_path('images/favicon.png'), content_type='image/png')
+
+    def alive(self):
+        """Liveness target for kubelet. Session, OIDC and thread-local tools are off for this path.
+
+        With liveness_checks_dependencies on, a Redis ping and SELECT 1 run first, so a pod stuck
+        behind a dead database is restarted. Off, only a thread pool with no free thread fails the
+        probe; launch events use that mode so one slow dependency cannot restart every pod at once.
+        """
+        cherrypy.response.headers['Content-Type'] = 'text/plain'
+        if c.LIVENESS_CHECKS_DEPENDENCIES:
+            try:
+                # The session tool creates the Redis client on its first request; the startup probe
+                # runs with sessions on, so by liveness time it exists. Skip rather than fail before then.
+                cache = getattr(RedisSession, 'cache', None)
+                if cache is not None:
+                    cache.ping()
+                with Session.engine.connect() as connection:
+                    connection.execute(text('SELECT 1'))
+            except Exception as e:
+                log.warning('liveness dependency check failed: %s', e)
+                raise HTTPError(503, 'liveness dependency check failed')
+        return b'ok'
+
     static_views = StaticViews()
 
 
@@ -243,13 +278,6 @@ c.APPCONF['/']['error_page.404'] = error_page_404
 
 cherrypy.tree.mount(Root(), c.CHERRYPY_MOUNT_PATH, c.APPCONF)
 static_overrides(os.path.join(c.MODULE_ROOT, 'static'))
-
-# Static files don't need a session
-for _path in ('/favicon.ico', '/static'):
-    cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].config.setdefault(_path, {}).update({
-        'tools.sessions.on': False,
-        'tools.reset_threadlocal.on': False,
-    })
 
 cherrypy_config = {}
 for setting, value in c.CHERRYPY.items():
