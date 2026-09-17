@@ -1027,10 +1027,11 @@ class Config(_Overridable):
     @request_cached_property
     @dynamic
     def CURRENT_ADMIN(self):
-        admin_account_id = cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))
-        if not admin_account_id:
-            return {}
         try:
+            admin_account_id = cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))
+            if not admin_account_id:
+                return {}  # not an admin; skip the query that could only raise NoResultFound
+
             from uber.models import Session, AdminAccount, Attendee
             with Session() as session:
                 attrs = Attendee.to_dict_default_attrs + ['admin_account', 'assigned_depts', 'logged_in_name']

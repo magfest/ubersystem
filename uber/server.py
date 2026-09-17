@@ -21,7 +21,6 @@ from uber.decorators import all_renderable, render
 from uber.errors import HTTPRedirect
 from uber.utils import mount_site_sections, static_overrides
 from uber.redis_session import RedisSession
-from uber import perf
 
 log = logging.getLogger(__name__)
 
