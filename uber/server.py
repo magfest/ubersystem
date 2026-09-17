@@ -255,13 +255,6 @@ c.APPCONF['/']['error_page.404'] = error_page_404
 cherrypy.tree.mount(Root(), c.CHERRYPY_MOUNT_PATH, c.APPCONF)
 static_overrides(os.path.join(c.MODULE_ROOT, 'static'))
 
-# Static files don't need a session
-for _path in ('/favicon.ico', '/static'):
-    cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].config.setdefault(_path, {}).update({
-        'tools.sessions.on': False,
-        'tools.reset_threadlocal.on': False,
-    })
-
 cherrypy_config = {}
 for setting, value in c.CHERRYPY.items():
     if isinstance(value, str):
