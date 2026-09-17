@@ -49,7 +49,14 @@ class Root:
         params = dict(parse_qsl(urlparse(post_login_url).query))
         error = cherrypy.tools.oidc.handle_login(code, redirect_uri=orig_redirect_uri,
                                                  account_claim_token=params.get('sso_claim_token'))
-        
+
+        if error and getattr(cherrypy.request, 'oidc_code_rejected', False) and (
+                getattr(cherrypy.request, 'attendee_account', None) or getattr(cherrypy.request, 'admin_account', None)):
+            # The code was already spent, but they already have a valid session. Most likely hit refresh on their first
+            # request post-login. Don't give them an error since their session is already good.
+            log.info("OIDC code rejected, likely due to reuse. Session is valid, continuing.")
+            error = None
+
         if error:
             raise HTTPRedirect('../landing/index?message={}', error)
         

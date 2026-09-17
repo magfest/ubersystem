@@ -7,6 +7,7 @@ import traceback
 import logging
 import secrets
 from jose import jwt, jwk
+from jose.exceptions import ExpiredSignatureError
 from sqlalchemy.orm.exc import NoResultFound
 from urllib.parse import urlparse, parse_qsl
 
@@ -182,6 +183,9 @@ class OIDC(cherrypy.Tool):
                 options={"verify_at_hash": False}
             )
             return payload
+        except ExpiredSignatureError:
+            # Routine: the browser sent a token past its lifetime and the caller refreshes it.
+            return None
         except:
             traceback.print_exc()
             return None
@@ -299,8 +303,12 @@ class OIDC(cherrypy.Tool):
             return None
 
     def handle_login(self, code=None, refresh_token=None, redirect_uri=c.OIDC_REDIRECT_URL, account_claim_token=None):
-        tokens = self._exchange_code_for_tokens(code, redirect_uri=redirect_uri)
-        if not tokens:
+        tokens = self._exchange_code_for_tokens(code, redirect_uri=redirect_uri) if code else None
+        if code and not tokens:
+            # Keycloak refused the authorization code: already used, expired, or its login
+            # session is gone. The callback handler uses this to recognize a replayed callback.
+            cherrypy.request.oidc_code_rejected = True
+        if not tokens and refresh_token:
             tokens = self._refresh_token(refresh_token)
         if not tokens:
             return "Login failed."
