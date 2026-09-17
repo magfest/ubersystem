@@ -15,11 +15,13 @@ import sentry_sdk
 import jinja2
 import logging
 from cherrypy import HTTPError
+from sqlalchemy import text
 
 from uber.config import c, Config
 from uber.decorators import all_renderable, render
 from uber.errors import HTTPRedirect
 from uber.utils import get_static_file_path, mount_site_sections, static_overrides
+from uber.models import Session
 from uber.redis_session import RedisSession
 
 log = logging.getLogger(__name__)
@@ -241,13 +243,25 @@ class Root:
         return cherrypy.lib.static.serve_file(get_static_file_path('images/favicon.png'), content_type='image/png')
 
     def alive(self):
-        """Liveness target for kubelet; touches no session, database or Redis.
+        """Liveness target for kubelet. Session, OIDC and thread-local tools are off for this path.
 
-        A failure here means CherryPy has no free thread, which a restart can
-        fix. Dependency health belongs in the startup probe, not here: a
-        restart cannot fix a slow database and only drops in-flight requests.
+        With liveness_checks_dependencies on, a Redis ping and SELECT 1 run first, so a pod stuck
+        behind a dead database is restarted. Off, only a thread pool with no free thread fails the
+        probe; launch events use that mode so one slow dependency cannot restart every pod at once.
         """
         cherrypy.response.headers['Content-Type'] = 'text/plain'
+        if c.LIVENESS_CHECKS_DEPENDENCIES:
+            try:
+                # The session tool creates the Redis client on its first request; the startup probe
+                # runs with sessions on, so by liveness time it exists. Skip rather than fail before then.
+                cache = getattr(RedisSession, 'cache', None)
+                if cache is not None:
+                    cache.ping()
+                with Session.engine.connect() as connection:
+                    connection.execute(text('SELECT 1'))
+            except Exception as e:
+                log.warning('liveness dependency check failed: %s', e)
+                raise HTTPError(503, 'liveness dependency check failed')
         return b'ok'
 
     static_views = StaticViews()
