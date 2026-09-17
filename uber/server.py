@@ -240,6 +240,16 @@ class Root:
         cherrypy.response.headers['Cache-Control'] = 'public, max-age=604800'
         return cherrypy.lib.static.serve_file(get_static_file_path('images/favicon.png'), content_type='image/png')
 
+    def alive(self):
+        """Liveness target for kubelet; touches no session, database or Redis.
+
+        A failure here means CherryPy has no free thread, which a restart can
+        fix. Dependency health belongs in the startup probe, not here: a
+        restart cannot fix a slow database and only drops in-flight requests.
+        """
+        cherrypy.response.headers['Content-Type'] = 'text/plain'
+        return b'ok'
+
     static_views = StaticViews()
 
 
