@@ -75,7 +75,7 @@ engine = create_engine(
     c.SQLALCHEMY_URL,
     pool_size=c.SQLALCHEMY_POOL_SIZE,
     max_overflow=c.SQLALCHEMY_MAX_OVERFLOW,
-    pool_pre_ping=True,
+    pool_pre_ping=c.SQLALCHEMY_POOL_PRE_PING,
     pool_recycle=c.SQLALCHEMY_POOL_RECYCLE
 )
 
@@ -838,12 +838,25 @@ class UberSession(sqlalchemy.orm.Session):
     engine = engine
     BaseClass = SQLModel
 
+    _checked_mixin_names = frozenset()
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for name, val in self.SessionMixin.__dict__.items():
-            if not name.startswith('__'):
-                assert not hasattr(self, name) and hasattr(val, '__call__')
-                setattr(self, name, MethodType(val, self))
+        # SessionMixin methods are bound lazily in __getattr__
+        mixin_names = frozenset(name for name in self.SessionMixin.__dict__ if not name.startswith('__'))
+        if mixin_names != UberSession._checked_mixin_names:
+            for name in mixin_names:
+                assert not hasattr(sqlalchemy.orm.Session, name) and name not in UberSession.__dict__ \
+                    and hasattr(self.SessionMixin.__dict__[name], '__call__'), name
+            UberSession._checked_mixin_names = mixin_names
+
+    def __getattr__(self, name):
+        val = self.SessionMixin.__dict__.get(name) if not name.startswith('__') else None
+        if val is None or not hasattr(val, '__call__'):
+            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+        method = MethodType(val, self)
+        self.__dict__[name] = method
+        return method
 
     class QuerySubclass(Query):
         @property
@@ -934,11 +947,17 @@ class UberSession(sqlalchemy.orm.Session):
         def current_attendee_account(self):
             if c.ATTENDEE_ACCOUNTS_ENABLED and getattr(cherrypy, 'session', {}).get('attendee_account_id', getattr(cherrypy.request, 'attendee_account', None)):
                 account_id = cherrypy.session.get('attendee_account_id', getattr(cherrypy.request, 'attendee_account', None))
+                # Handlers ask for this several times per request; reuse the copy already in this session
+                cached = self.info.get('current_attendee_account')
+                if cached is not None and str(cached.id) == str(account_id) and cached in self:
+                    return cached
+
                 account = self.query(AttendeeAccount).filter(AttendeeAccount.id == account_id).options(selectinload(AttendeeAccount.attendees)).first()
 
                 if not account:
                     cherrypy.session['attendee_account_id'] = ''
                 else:
+                    self.info['current_attendee_account'] = account
                     return account
 
         def get_attendee_account_by_attendee(self, attendee):

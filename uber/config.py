@@ -522,17 +522,35 @@ class Config(_Overridable):
         Adds free promo codes to the badge count, since these are promised badges and this property is used for our
         badge sales cap. Free codes in PC groups are excluded as they often have far more badges than will ever be claimed.
         """
-        from uber.models import Session, PromoCode
-        base_count = self.get_badge_count_by_type(c.ATTENDEE_BADGE)
-        with Session() as session:
-            pc_code_sum = session.query(func.sum(PromoCode.uses_remaining)).filter(
-                or_(PromoCode.cost > 0, PromoCode.group_id == None),
-                PromoCode.discount == None, PromoCode.uses_remaining > 0,
-                or_(PromoCode.discount_on.contains(c.EVERYTHING),
-                    PromoCode.discount_on.contains(c.BASE_BADGE))).all()
-            code_count = pc_code_sum[0][0]
-        return base_count + self.get_badge_promo_codes()
+        return self.get_badge_count_by_type(c.ATTENDEE_BADGE) + self.get_badge_promo_codes()
     
+    def get_stock_count(self, item_check, stock_setting):
+        """
+        Returns <item_check>_COUNT for an _AVAILABLE check. Every prereg page checks stock, so while the
+        count is comfortably below the stock (more than stock_count_cache_margin away) we share one
+        count across all processes for stock_count_cache_seconds. Near the cap we always count exactly.
+        """
+        ttl = self.STOCK_COUNT_CACHE_SECONDS
+        if not ttl:
+            return getattr(self, item_check + '_COUNT', None)
+
+        key = f'{self.REDIS_PREFIX}stock_count:{item_check}'
+        try:
+            cached = self.REDIS_STORE.get(key)
+        except Exception:
+            log.warning(f'Could not read cached {item_check} count from Redis', exc_info=True)
+            cached = None
+        if cached is not None and int(cached) < int(stock_setting) - self.STOCK_COUNT_CACHE_MARGIN:
+            return int(cached)
+
+        count = getattr(self, item_check + '_COUNT', None)
+        if count is not None:
+            try:
+                self.REDIS_STORE.set(key, int(count), ex=ttl)
+            except Exception:
+                log.warning(f'Could not cache {item_check} count in Redis', exc_info=True)
+        return count
+
     def get_badge_promo_codes(self):
         # We need a slightly different calculation than normal for base badge promo codes
         from uber.models import Session, PromoCode
@@ -1010,11 +1028,15 @@ class Config(_Overridable):
     @dynamic
     def CURRENT_ADMIN(self):
         try:
+            admin_account_id = cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))
+            if not admin_account_id:
+                return {}  # not an admin; skip the query that could only raise NoResultFound
+
             from uber.models import Session, AdminAccount, Attendee
             with Session() as session:
                 attrs = Attendee.to_dict_default_attrs + ['admin_account', 'assigned_depts', 'logged_in_name']
                 admin_attendee = session.query(Attendee).join(Attendee.admin_account) \
-                    .filter(AdminAccount.id == cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))) \
+                    .filter(AdminAccount.id == admin_account_id) \
                     .options(
                         joinedload(Attendee.admin_account),
                         selectinload(Attendee.assigned_depts)).one()
@@ -1196,7 +1218,7 @@ class Config(_Overridable):
     @property
     @dynamic
     def REMAINING_BADGES(self):
-        return max(0, self.ATTENDEE_BADGE_STOCK - self.ATTENDEE_BADGE_COUNT)
+        return max(0, self.ATTENDEE_BADGE_STOCK - self.get_stock_count('ATTENDEE_BADGE', self.ATTENDEE_BADGE_STOCK))
 
     @request_cached_property
     @dynamic
@@ -1602,7 +1624,7 @@ class Config(_Overridable):
                 return True
 
             # Only poll the DB if stock is configured
-            count_check = getattr(self, item_check + '_COUNT', None)
+            count_check = self.get_stock_count(item_check, stock_setting)
             if count_check is None:
                 # Things with no count are never considered available
                 return False

@@ -354,7 +354,7 @@ class ReceiptTransaction(MagModel, table=True):
         plus it allows admins to refund Stripe payments per item.
     """
 
-    receipt_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='model_receipt.id', ondelete='CASCADE')
+    receipt_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='model_receipt.id', ondelete='CASCADE', index=True)
     receipt: 'ModelReceipt' = Relationship(back_populates="receipt_txns", sa_relationship_kwargs={'lazy': 'joined'})
     
     receipt_info_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='receipt_info.id', nullable=True)
@@ -369,7 +369,7 @@ class ReceiptTransaction(MagModel, table=True):
         sa_relationship_kwargs={'order_by': 'ReceiptTransaction.added'})
     
     refunded: int = 0
-    intent_id: str = ''
+    intent_id: str = Field(default='', index=True)
     charge_id: str = ''
     refund_id: str = ''
     method: int = Field(sa_column=Column(Choice(c.PAYMENT_METHOD_OPTS)), default=c.STRIPE)
@@ -568,7 +568,7 @@ class ReceiptDiscount(MagModel, table=True):
     # Prevents cases where a discount (especially a percentage discount) becomes incorrect due to changes on the attendee,
     # e.g., getting a $50 age discount on a $100 badge, then downgrading to a $60 badge but still receiving the $50 discount
 
-    receipt_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='model_receipt.id', ondelete='CASCADE')
+    receipt_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='model_receipt.id', ondelete='CASCADE', index=True)
     receipt: 'ModelReceipt' = Relationship(back_populates="receipt_discounts", sa_relationship_kwargs={'lazy': 'joined'})
 
     promo_code_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='promo_code.id', nullable=True, index=True)
@@ -720,10 +720,10 @@ class ReceiptDiscount(MagModel, table=True):
 
 
 class ReceiptItem(MagModel, table=True):
-    receipt_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='model_receipt.id', ondelete='CASCADE')
+    receipt_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='model_receipt.id', ondelete='CASCADE', index=True)
     receipt: 'ModelReceipt' = Relationship(back_populates="receipt_items", sa_relationship_kwargs={'lazy': 'joined'})
 
-    txn_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='receipt_transaction.id', nullable=True)
+    txn_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='receipt_transaction.id', nullable=True, index=True)
     receipt_txn: 'ReceiptTransaction' = Relationship(back_populates="receipt_items", sa_relationship_kwargs={'lazy': 'joined'})
     
     purchaser_id: str | None = Field(sa_type=Uuid(as_uuid=False), index=True, nullable=True)

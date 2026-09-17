@@ -1,4 +1,5 @@
 import json
+import time
 import mimetypes
 import os
 import sys
@@ -38,6 +39,33 @@ if c.SENTRY['enabled']:
         # We recommend adjusting this value in production.
         traces_sample_rate=c.SENTRY['sample_rate'] / 100
     )
+
+def shed_stale_requests():
+    """
+    Reject requests that already waited longer than request_queue_timeout seconds to reach a server thread.
+    Needs the proxy to set X-Request-Start.
+    """
+    header = cherrypy.request.headers.get('X-Request-Start', '')
+    if not header or not c.REQUEST_QUEUE_TIMEOUT:
+        return
+    try:
+        started = float(header.split('=', 1)[-1])
+    except ValueError:
+        return
+    if started > 1e14:
+        started /= 1e6  # microseconds
+    elif started > 1e11:
+        started /= 1e3  # milliseconds
+    waited = time.time() - started
+    if waited > c.REQUEST_QUEUE_TIMEOUT:
+        cherrypy.request.shed = True
+        cherrypy.response.headers['Retry-After'] = '5'
+        raise HTTPError(503, f'The server is very busy right now; please try again in a few seconds.')
+
+
+cherrypy.tools.shed_stale_requests = cherrypy.Tool('on_start_resource', shed_stale_requests, priority=5)
+cherrypy.config.update({'tools.shed_stale_requests.on': True})
+
 
 def sentry_start_transaction():
     cherrypy.request.sentry_transaction = sentry_sdk.start_transaction(
@@ -127,6 +155,8 @@ def log_exception_with_verbose_context(debug=False, msg=''):
 
     Debug param is there to play nice with the cherrypy logger
     """
+    if getattr(cherrypy.request, 'shed', False):
+        return  # load shedding; logging the full context would load the session and query the DB
     log_with_verbose_context('\n'.join([msg, 'Exception encountered']), exc_info=True)
 
 
@@ -213,6 +243,13 @@ c.APPCONF['/']['error_page.404'] = error_page_404
 
 cherrypy.tree.mount(Root(), c.CHERRYPY_MOUNT_PATH, c.APPCONF)
 static_overrides(os.path.join(c.MODULE_ROOT, 'static'))
+
+# Static files don't need a session
+for _path in ('/favicon.ico', '/static'):
+    cherrypy.tree.apps[c.CHERRYPY_MOUNT_PATH].config.setdefault(_path, {}).update({
+        'tools.sessions.on': False,
+        'tools.reset_threadlocal.on': False,
+    })
 
 cherrypy_config = {}
 for setting, value in c.CHERRYPY.items():

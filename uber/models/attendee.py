@@ -200,6 +200,9 @@ class BadgeInfo(MagModel, table=True):
 
 
 Index('ix_badge_info_attendee_id', BadgeInfo.attendee_id.desc())
+# Free badge numbers only; get_next_badge_num scans this instead of the whole table.
+Index('ix_badge_info_free_ident', BadgeInfo.ident,
+      postgresql_where=BadgeInfo.attendee_id == None, sqlite_where=BadgeInfo.attendee_id == None)  # noqa: E711
 
 
 class Attendee(MagModel, TakesPaymentMixin, table=True):
@@ -209,7 +212,8 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     group_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='group.id', nullable=True)
     group: 'Group' = Relationship(back_populates="attendees", sa_relationship_kwargs={'foreign_keys': 'Attendee.group_id', 'lazy': 'select'})
     
-    badge_pickup_group_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='badge_pickup_group.id', nullable=True)
+    badge_pickup_group_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='badge_pickup_group.id', nullable=True,
+                                              index=True)
     badge_pickup_group: 'BadgePickupGroup' = Relationship(back_populates="attendees", sa_relationship_kwargs={'lazy': 'select'})
 
     creator_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
@@ -257,7 +261,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     first_name: str = ''
     last_name: str = ''
     legal_name: str = ''
-    email: str = ''
+    email: str = Field(default='', index=True)
     birthdate: date | None = None
     age_group: int | None = Field(sa_column=Column(Choice(c.AGE_GROUPS), nullable=True), default=c.AGE_UNKNOWN)
 
@@ -2862,6 +2866,11 @@ class AttendeeAccount(MagModel, table=True):
         return [attendee for attendee in self.attendees
                 if attendee.badge_status in [c.REFUNDED_STATUS, c.DEFERRED_STATUS]
                 and not attendee.current_attendee]
+
+
+# Index normalized_email for basic search performance gains
+Index('ix_attendee_account_normalized_email', func.replace(func.lower(func.trim(AttendeeAccount.email)), '.', ''))
+Index('ix_attendee_account_sso_id', AttendeeAccount.sso_id)
 
 
 class BadgePickupGroup(MagModel, table=True):
