@@ -19,7 +19,7 @@ from cherrypy import HTTPError
 from uber.config import c, Config
 from uber.decorators import all_renderable, render
 from uber.errors import HTTPRedirect
-from uber.utils import mount_site_sections, static_overrides
+from uber.utils import get_static_file_path, mount_site_sections, static_overrides
 from uber.redis_session import RedisSession
 
 log = logging.getLogger(__name__)
@@ -228,6 +228,17 @@ class Root:
         if cherrypy.request.query_string:
             path += '?' + cherrypy.request.query_string
         raise HTTPRedirect(path)
+
+    def favicon_ico(self):
+        """Serve the event icon at /favicon.ico with a week-long cache lifetime.
+
+        Browsers request this path on their own, most of all from error pages that
+        carry no icon link. Defining it here also stops CherryPy from mounting its own
+        logo at the root. The file is resolved per request so a plugin's static
+        override of images/favicon.png wins.
+        """
+        cherrypy.response.headers['Cache-Control'] = 'public, max-age=604800'
+        return cherrypy.lib.static.serve_file(get_static_file_path('images/favicon.png'), content_type='image/png')
 
     static_views = StaticViews()
 
