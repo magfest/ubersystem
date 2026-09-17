@@ -243,6 +243,14 @@ def must_select_type(form, field):
 
 
 @BadgeExtras.new_or_changed('badge_type')
+def out_of_badge_type(form, field):
+    badge_type = get_real_badge_type(field.data)
+    for (value, _), badge_var in zip(c.BADGE_OPTS, c.BADGE_VARS):
+        if value == badge_type and getattr(c, badge_var + '_AVAILABLE', True) is False:
+            raise ValidationError('We are sold out of {} badges.'.format(c.BADGES[badge_type]))
+
+
+@BadgeExtras.new_or_changed('badge_type')
 def no_more_custom_badges(form, field):
     if field.data in c.PREASSIGNED_BADGE_TYPES and c.AFTER_PRINTED_BADGE_DEADLINE:
         with Session() as session:
