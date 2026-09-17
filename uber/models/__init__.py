@@ -75,7 +75,7 @@ engine = create_engine(
     c.SQLALCHEMY_URL,
     pool_size=c.SQLALCHEMY_POOL_SIZE,
     max_overflow=c.SQLALCHEMY_MAX_OVERFLOW,
-    pool_pre_ping=True,
+    pool_pre_ping=False,
     pool_recycle=c.SQLALCHEMY_POOL_RECYCLE
 )
 
