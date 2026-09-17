@@ -27,4 +27,4 @@ and your room dates have been updated.</p>
 <p>You can review your room details at any time by visiting your
 <a href="{{ c.URL_BASE }}/hotel_lottery/rooms?attendee_id={{ _to.id }}">rooms page</a>.</p>
 
-<p>If you have any questions, please contact us at {{ c.HOTEL_LOTTERY_EMAIL }}.</p>
+<p>If you have any questions, please contact us at {{ c.HOTEL_LOTTERY_EMAIL|email_only|email_to_link }}.</p>

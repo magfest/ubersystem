@@ -37,4 +37,4 @@
 </p>
 {% endif %}
 
-<p>If you believe this is in error, please contact us at {{ c.HOTEL_LOTTERY_EMAIL }} right away.</p>
+<p>If you believe this is in error, please contact us at {{ c.HOTEL_LOTTERY_EMAIL|email_only|email_to_link }} right away.</p>

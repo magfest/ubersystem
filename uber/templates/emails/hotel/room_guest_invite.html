@@ -13,4 +13,4 @@
 
 <p>This invite will expire in 7 days. If you do not wish to join this group, you can simply ignore this email.</p>
 
-<p>If you have any questions, please contact us at {{ c.HOTEL_LOTTERY_EMAIL }}.</p>
+<p>If you have any questions, please contact us at {{ c.HOTEL_LOTTERY_EMAIL|email_only|email_to_link }}.</p>
