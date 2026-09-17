@@ -1306,7 +1306,7 @@ class Root:
         attendee = session.attendee(attendee_id)
         if attendee.lottery_application:
             application = attendee.lottery_application
-            if not attendee.lottery_application.can_reenter:
+            if application.terms_accepted and not application.can_reenter:
                 raise HTTPRedirect('index?attendee_id={}', attendee.id)
         else:
             redirect = '../preregistration/homepage' if c.ATTENDEE_ACCOUNTS_ENABLED else '../landing/index'
@@ -2631,12 +2631,6 @@ class Root:
             attendee_id or application.attendee.id,
             message=message))
 
-    # Per-room occupants live on `room_assignment_occupant` and are managed
-    # via the RoomAssignmentInvite flow (the `invite_email` / `invite_code` /
-    # `invite` / `redeem_code` / `remove_occupant` / `leave_room` /
-    # `copy_occupants` handlers). The handlers below manage the
-    # LotteryApplication-level room *group*, which is a separate thing.
-
     @requires_account(LotteryApplication)
     def send_room_invite(self, session, id, email='', **params):
         application = session.lottery_application(id)
@@ -2660,16 +2654,13 @@ class Root:
                 ).first()
 
                 if not guest_attendee:
-                    message = "No attendee found with that email address. Please check the address and try again."
+                    message = "If that email address is in our database they will receive an invite."
                 else:
                     guest_app = getattr(guest_attendee, 'lottery_application', None)
                     if not guest_app:
-                        # Legal names live on the attendee
-                        # (hotel_first_name / hotel_last_name), not on the
-                        # LotteryApplication.
                         guest_app = LotteryApplication(
                             attendee_id=guest_attendee.id,
-                            status=c.COMPLETE,
+                            status=c.PARTIAL,
                             entry_type=c.GROUP_ENTRY,
                             cellphone=guest_attendee.cellphone,
                         )
@@ -2677,10 +2668,6 @@ class Root:
                         session.flush()
                     if guest_app.id == application.id:
                         message = "You cannot invite yourself."
-                    elif guest_app.parent_application_id:
-                        message = f"That attendee is already in a {c.HOTEL_LOTTERY_GROUP_TERM.lower()}."
-                    elif guest_app.invite_status == c.INVITE_PENDING:
-                        message = "That attendee already has a pending invite."
                     else:
                         token = str(uuid.uuid4())
                         guest_app.invite_token = token
@@ -2700,7 +2687,7 @@ class Root:
                         })
 
                         raise HTTPRedirect('room_group?id={}&message={}', id,
-                                           f'Invite sent to {email}.')
+                                           'If that email address is in our database they will receive an invite.')
 
         raise HTTPRedirect('room_group?id={}&message={}', id, message)
 
