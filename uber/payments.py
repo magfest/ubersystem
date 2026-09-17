@@ -851,8 +851,7 @@ class RefundRequest(TransactionRequest):
     def __init__(self, session, txns, amount=0, skip_errors=False, who='', **kwargs):
         super().__init__(session, **kwargs)
 
-        if not isinstance(txns, Iterable):
-            txns = [txns]
+        txns = listify(txns)
 
         self.txns = []
         self.items_to_add = set()
