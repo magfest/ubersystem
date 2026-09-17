@@ -279,7 +279,7 @@ class Email(MagModel, BaseEmailMixin, table=True):
     automated_email_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='automated_email.id', nullable=True, index=True)
     automated_email: 'AutomatedEmail' = Relationship(back_populates="emails", sa_relationship_kwargs={'lazy': 'joined'})
 
-    fk_id: str | None = Field(sa_type=Uuid(as_uuid=False), nullable=True)
+    fk_id: str | None = Field(sa_type=Uuid(as_uuid=False), nullable=True, index=True)
     ident: str = ''
     to: str = ''
     render_data: dict[str, Any] = Field(sa_type=JSON, default_factory=dict)

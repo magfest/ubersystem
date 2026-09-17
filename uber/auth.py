@@ -1,5 +1,7 @@
 import time
+import json
 import base64
+import hashlib
 import cherrypy
 import threading
 import requests
@@ -20,6 +22,21 @@ from uber.models import Attendee, AdminAccount, AttendeeAccount, AccessGroup, Se
 from uber.utils import normalize_email_legacy
 
 log = logging.getLogger(__name__)
+
+OIDC_TIMEOUT = 10
+
+# How long a refresh result is remembered for a given refresh token. A browser whose response (and new
+# cookies) was lost, e.g. to a CloudFront timeout, keeps sending the same refresh token; reuse the result
+# instead of asking Keycloak again on every request.
+REFRESH_RESULT_TTL = 60
+
+# Requests that never need a login check
+NO_LOGIN_PATHS = ('/static/', '/static_views/')
+NO_LOGIN_FILES = ('/favicon.ico', '/robots.txt')
+
+def request_cookie_value(name):
+    return cherrypy.request.cookie[name].value if name in cherrypy.request.cookie else None
+
 
 class OIDC(cherrypy.Tool):
     def __init__(self):
@@ -142,10 +159,10 @@ class OIDC(cherrypy.Tool):
                 elif time.time() - self.key_fetch_time < 60:
                     return None
                 self.key_fetch_time = time.time()
-                oidc_config = requests.get(c.OIDC_METADATA_URL).json()
+                oidc_config = requests.get(c.OIDC_METADATA_URL, timeout=OIDC_TIMEOUT).json()
                 jwks_uri = oidc_config['jwks_uri']
                 
-                keys = requests.get(jwks_uri).json()['keys']
+                keys = requests.get(jwks_uri, timeout=OIDC_TIMEOUT).json()['keys']
                 self.jwks_keys = {key['kid']: key for key in keys}
                 log.info(f"Loaded {len(self.jwks_keys)} public keys from {c.OIDC_METADATA_URL}")
                 return self.jwks_keys.get(kid, None)
@@ -266,6 +283,20 @@ class OIDC(cherrypy.Tool):
         Take the code received on our callback and exchange it for a JWT
         DOES NOT VERIFY THE JWT!
         """
+        # An authorization code can only be exchanged once, but the callback URL can arrive more than once: CloudFront
+        # retries a GET that timed out at the origin, and people hit refresh. Reuse the first exchange's tokens, but
+        # only for the same browser session, so a leaked code can't be replayed from somewhere else.
+        cache_key = None
+        session_id = request_cookie_value('session_id')
+        if session_id:
+            cache_key = f'{c.REDIS_PREFIX}oidc_code:{hashlib.sha256(f"{session_id}:{code}".encode()).hexdigest()}'
+            try:
+                cached = c.REDIS_STORE.get(cache_key)
+                if cached:
+                    return json.loads(cached)
+            except Exception:
+                log.warning('Could not read cached OIDC code exchange', exc_info=True)
+
         try:
             payload = {
                 'grant_type': 'authorization_code',
@@ -275,18 +306,33 @@ class OIDC(cherrypy.Tool):
                 'redirect_uri': redirect_uri
             }
 
-            response = requests.post(c.OIDC_TOKEN_ENDPOINT, data=payload)
+            response = requests.post(c.OIDC_TOKEN_ENDPOINT, data=payload, timeout=OIDC_TIMEOUT)
             response.raise_for_status()
-            return response.json()
+            tokens = response.json()
         except:
             traceback.print_exc()
             return None
+
+        if cache_key:
+            try:
+                c.REDIS_STORE.set(cache_key, json.dumps(tokens), ex=REFRESH_RESULT_TTL)
+            except Exception:
+                log.warning('Could not cache OIDC code exchange', exc_info=True)
+        return tokens
     
     def _refresh_token(self, code):
         """
         Get a new token by using a refresh_token
         DOES NOT VERIFY THE JWT!
         """
+        cache_key = f'{c.REDIS_PREFIX}oidc_refresh:{hashlib.sha256(code.encode()).hexdigest()}'
+        try:
+            cached = c.REDIS_STORE.get(cache_key)
+            if cached is not None:
+                return json.loads(cached) or None
+        except Exception:
+            log.warning('Could not read cached OIDC refresh result', exc_info=True)
+
         try:
             payload = {
                 'grant_type': 'refresh_token',
@@ -295,12 +341,20 @@ class OIDC(cherrypy.Tool):
                 'refresh_token': code
             }
 
-            response = requests.post(c.OIDC_TOKEN_ENDPOINT, data=payload)
-            response.raise_for_status()
-            return response.json()
-        except:
+            response = requests.post(c.OIDC_TOKEN_ENDPOINT, data=payload, timeout=OIDC_TIMEOUT)
+        except requests.RequestException:
             traceback.print_exc()
             return None
+
+        tokens = response.json() if response.ok else None
+        if not response.ok:
+            log.info(f'Keycloak refused a token refresh: {response.status_code} {response.text[:200]}')
+        if response.status_code < 500:
+            try:
+                c.REDIS_STORE.set(cache_key, json.dumps(tokens or {}), ex=REFRESH_RESULT_TTL)
+            except Exception:
+                log.warning('Could not cache OIDC refresh result', exc_info=True)
+        return tokens
 
     def handle_login(self, code=None, refresh_token=None, redirect_uri=c.OIDC_REDIRECT_URL, account_claim_token=None):
         tokens = self._exchange_code_for_tokens(code, redirect_uri=redirect_uri) if code else None
@@ -381,8 +435,19 @@ class OIDC(cherrypy.Tool):
 
         raise HTTPRedirect(c.OIDC_AUTH_ENDPOINT + params)
 
+    def clear_login_cookies(self):
+        for name in ('session_token', 'refresh_token'):
+            cherrypy.response.cookie[name] = ''
+            cherrypy.response.cookie[name]['path'] = '/'
+            cherrypy.response.cookie[name]['max-age'] = 0
+            cherrypy.response.cookie[name]['expires'] = 0
+
     def do_before_request(self):
         if not c.OIDC_ENABLED:
+            return
+
+        path = cherrypy.request.path_info
+        if path.startswith(NO_LOGIN_PATHS) or path in NO_LOGIN_FILES:
             return
         
         if 'state' in cherrypy.request.params:
@@ -399,7 +464,9 @@ class OIDC(cherrypy.Tool):
             return
         claims = self._verify_token(token)
         if refresh_token and not claims:
-            self.handle_login(refresh_token=refresh_token)
+            if self.handle_login(refresh_token=refresh_token):
+                # The refresh token is no good, drop it
+                self.clear_login_cookies()
         else:
             cherrypy.request.attendee_account = self._get_attendee_account_for_claims(claims)
             cherrypy.request.admin_account = self._get_admin_account_for_claims(claims)
