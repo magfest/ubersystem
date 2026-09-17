@@ -252,6 +252,14 @@ def no_more_custom_badges(form, field):
         raise ValidationError('Custom badges have already been ordered, please choose a different badge type.')
 
 
+@BadgeExtras.new_or_changed('badge_type')
+def out_of_badge_type(form, field):
+    badge_type = get_real_badge_type(field.data)
+    badge_var = c.BADGE_VARS_BY_TYPE.get(badge_type)
+    if badge_var and getattr(c, badge_var + '_AVAILABLE', True) is False:
+        raise ValidationError('We are sold out of {} badges.'.format(c.BADGES[badge_type]))
+
+
 # =============================
 # OtherInfo
 # =============================
