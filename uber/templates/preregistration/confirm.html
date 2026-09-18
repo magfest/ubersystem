@@ -38,7 +38,12 @@
       {% elif not attendee.is_valid %}
       <div class="alert alert-danger" role="alert">
         Your registration is currently marked as <strong>{{ attendee.badge_status_label }}</strong>
-        and is not considered a valid registration. Please contact us at {{ c.REGDESK_EMAIL|email_only|email_to_link }} if you have any questions.
+        and is not considered a valid registration. Please contact us at {{ c.CONTACT_EMAIL|email_only|email_to_link }} if you have any questions.
+      </div>
+      {% elif attendee.badge_status == c.NOT_ATTENDING %}
+      <div class="alert alert-info" role="alert">
+        This registration does not include attendance to the event.
+        Please contact us at {{ c.CONTACT_EMAIL|email_only|email_to_link }} if you have any questions.
       </div>
       {% else %}
         {% if not attendee.placeholder and receipt and receipt.current_amount_owed %}

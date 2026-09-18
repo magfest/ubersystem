@@ -2254,7 +2254,7 @@ class Root:
         session.commit()
 
         attendee.placeholder = placeholder
-        if not message and attendee.placeholder:
+        if not message and attendee.placeholder and (attendee.has_or_will_have_badge or attendee.badge_status == c.UNAPPROVED_DEALER_STATUS):
             message = 'You are not yet registered! Please fill out this form to complete your registration.'
         elif not message and not c.ATTENDEE_ACCOUNTS_ENABLED and attendee.badge_status == c.COMPLETED_STATUS:
             message = 'You are already registered but you may update your information with this form.'
