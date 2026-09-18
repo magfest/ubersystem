@@ -279,8 +279,8 @@ class Root:
                             group.attendees.append(dev.matching_attendee)
                             if dev.leader:
                                 group.leader_id = dev.matching_attendee.id
-                                if c.ATTENDEE_ACCOUNTS_ENABLED and dev.managers and len(dev.managers) == 1:
-                                    leader_account = dev.managers[0]
+                                if c.ATTENDEE_ACCOUNTS_ENABLED and dev.matching_attendee.managers and len(dev.matching_attendee.managers) == 1:
+                                    leader_account = dev.matching_attendee.managers[0]
                         dev.matching_attendee.indie_developer = dev
                     else:
                         attendee = Attendee(

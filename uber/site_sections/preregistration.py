@@ -1693,6 +1693,9 @@ class Root:
                 attendee.transfer_code = RegistrationCode.generate_random_code(Attendee.transfer_code)
                 session.commit()
 
+                if c.ATTENDEE_ACCOUNTS_ENABLED:
+                    session.add_attendee_to_account(attendee, session.current_attendee_account())
+
                 EmailService.queue_email(session, 'badge_transfer_code', attendee)
 
                 raise HTTPRedirect('confirm?id={}&message={}', attendee.id,
@@ -1764,8 +1767,6 @@ class Root:
             receipt.owner_id = transfer_badge.id
             session.commit()
         
-        if c.ATTENDEE_ACCOUNTS_ENABLED:
-            session.add_attendee_to_account(transfer_badge, session.current_attendee_account())
             raise HTTPRedirect('../preregistration/homepage?message={}', "Badge transferred.")
         else:
             raise HTTPRedirect('../landing/index?message={}', "Badge transferred.")
@@ -1773,7 +1774,6 @@ class Root:
     @requires_account(Attendee)
     @log_pageview
     def transfer_badge(self, session, message='', **params):
-        # TODO: You cannot use this to transfer between accounts, is that okay?
         old = session.attendee(params.get('id', params.get('old_id')))
 
         if not old.is_transferable:

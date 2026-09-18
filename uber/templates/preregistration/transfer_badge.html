@@ -7,7 +7,7 @@
 <div class="card">
   <div class="card-body">
     <div class="alert alert-info">
-      <p><em><strong>Want to transfer your badge without exchanging personal information?</strong></em></p>
+      <p><em><strong>Want to transfer your badge{% if c.ATTENDEE_ACCOUNTS_ENABLED %} to another account or{% endif %} without exchanging personal information?</strong></em></p>
       <p>
         Send the recipient your badge transfer code (<strong>{{ old.transfer_code }}</strong>) or this URL:
         <code style="user-select: all;">{{ c.URL_BASE }}/preregistration/start_badge_transfer?code={{ old.transfer_code }}</code>
