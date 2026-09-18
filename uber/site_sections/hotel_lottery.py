@@ -2653,9 +2653,8 @@ class Root:
                     Attendee.normalized_email == normalized
                 ).first()
 
-                if (not guest_attendee) or guest_app.parent_application_id or guest_app.invite_status == c.INVITE_PENDING:
-                    message = "If that email address is in our database they will receive an invite."
-                else:
+                message = "If that email address is in our database they will receive an invite."
+                if guest_attendee:
                     guest_app = getattr(guest_attendee, 'lottery_application', None)
                     if not guest_app:
                         guest_app = LotteryApplication(
@@ -2668,7 +2667,7 @@ class Root:
                         session.flush()
                     if guest_app.id == application.id:
                         message = "You cannot invite yourself."
-                    else:
+                    elif not guest_app.parent_application_id and guest_app.invite_status != c.INVITE_PENDING:
                         token = str(uuid.uuid4())
                         guest_app.invite_token = token
                         guest_app.invited_by_id = application.id
@@ -2686,8 +2685,7 @@ class Root:
                             'token': token,
                         })
 
-                        raise HTTPRedirect('room_group?id={}&message={}', id,
-                                           'If that email address is in our database they will receive an invite.')
+                        raise HTTPRedirect('room_group?id={}&message={}', id, message)
 
         raise HTTPRedirect('room_group?id={}&message={}', id, message)
 
