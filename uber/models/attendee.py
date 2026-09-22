@@ -1694,7 +1694,8 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
             and not self.dept_memberships_with_inherent_role \
             and (not self.art_show_application or not self.art_show_application.is_valid) \
             and (not self.art_agent_apps or not any(app.is_valid for app in self.art_agent_apps)) \
-            and (not self.lottery_application or self.lottery_application.status not in self.dq_lottery_statuses)
+            and (not self.lottery_application or self.lottery_application.status not in self.dq_lottery_statuses) \
+            and not self.room_assignments
 
     @property
     def transferable_actions(self):
@@ -1703,6 +1704,8 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
 
         if self.lottery_application and self.lottery_application.status == c.COMPLETE:
             can_do.append("withdraw your hotel lottery entry")
+        if self.room_assignments:
+            can_do.append("cancel or leave your hotel room")
         if self.art_show_application and self.art_show_application.is_valid:
             can_do.append(f"contact {email_only(c.ART_SHOW_EMAIL)} to cancel your art show application")
         if self.art_agent_apps and any(app.is_valid for app in self.art_agent_apps):
@@ -1729,6 +1732,8 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
                                readable_join(self.get_labels_for_memberships('dept_memberships_with_role'))))
         if self.lottery_application and self.lottery_application.status in self.dq_lottery_statuses:
             reasons.append(f"they have a {self.lottery_application.status_label.lower()} hotel lottery application")
+        if self.room_assignments:
+            reasons.append("they have a hotel room assignment")
         return reasons
 
     @presave_adjustment
