@@ -153,6 +153,9 @@ def normalize_newlines(text):
 
 def normalize_email(email, split_address=False):
     from email_validator import validate_email
+    if not email:
+        return '', '' if split_address else ''
+    
     response = validate_email(email, check_deliverability=False)
     if split_address:
         return response.local_part, response.domain

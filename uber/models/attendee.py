@@ -445,6 +445,9 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     managers: list['AttendeeAccount'] = Relationship(
         back_populates="attendees",
         sa_relationship_kwargs={'secondary': 'attendee_attendee_account'})
+    owned_accounts: list['AttendeeAccount'] = Relationship(
+        back_populates="owner",
+        sa_relationship_kwargs={'primaryjoin': 'Attendee.id == AttendeeAccount.owner_id'})
 
     agent_codes: list['ArtShowAgentCode'] = Relationship(back_populates="attendee")
     art_show_application: 'ArtShowApplication' = Relationship(
