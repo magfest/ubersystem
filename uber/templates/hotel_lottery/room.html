@@ -102,12 +102,16 @@
           <div class="col-md-4">
             <label class="form-label">Check-in</label>
             <input type="date" class="form-control" name="assigned_check_in_date"
-                   value="{{ ra.assigned_check_in_date or '' }}" required />
+                   value="{{ ra.assigned_check_in_date or '' }}" required
+                   min="{{ c.HOTEL_LOTTERY_CHECKIN_START.strftime('%Y-%m-%d') }}"
+                   max="{{ c.HOTEL_LOTTERY_CHECKOUT_END.strftime('%Y-%m-%d') }}" />
           </div>
           <div class="col-md-4">
             <label class="form-label">Check-out</label>
             <input type="date" class="form-control" name="assigned_check_out_date"
-                   value="{{ ra.assigned_check_out_date or '' }}" required />
+                   value="{{ ra.assigned_check_out_date or '' }}" required
+                   min="{{ c.HOTEL_LOTTERY_CHECKIN_START.strftime('%Y-%m-%d') }}"
+                   max="{{ c.HOTEL_LOTTERY_CHECKOUT_END.strftime('%Y-%m-%d') }}" />
           </div>
           <div class="col-md-4 d-flex align-items-end">
             <button type="submit" class="btn btn-primary">Save dates</button>

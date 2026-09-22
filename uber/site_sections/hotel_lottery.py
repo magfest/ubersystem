@@ -104,6 +104,24 @@ def room_action(func=None, *, allow='leader'):
     return decorate
 
 
+def _check_stay_window(new_ci, new_co):
+    """Attendee-entered stay dates must be at least one night and sit
+    inside the lottery's check-in / check-out window (the same bounds
+    the lottery entry form and secure_room enforce). Returns an error
+    message, or None when the dates are acceptable.
+    """
+    if new_co <= new_ci:
+        return 'Check-out must be at least one night after check-in.'
+    ci_start = c.HOTEL_LOTTERY_CHECKIN_START.date() if c.HOTEL_LOTTERY_CHECKIN_START else None
+    co_end = c.HOTEL_LOTTERY_CHECKOUT_END.date() if c.HOTEL_LOTTERY_CHECKOUT_END else None
+    if (ci_start and new_ci < ci_start) or (co_end and new_co > co_end):
+        return ('Rooms are available from {} to {}. Please choose dates '
+                'within that range.'.format(
+                    ci_start.strftime('%a %b %-d') if ci_start else 'the event start',
+                    co_end.strftime('%a %b %-d') if co_end else 'the event end'))
+    return None
+
+
 def _require_room_access(session, ra, attendee_id='', allow_occupant=False):
     """Ownership gate for per-room mutations: the acting viewer must be
     the room's leader (booker), or with allow_occupant=True a current
@@ -2575,9 +2593,24 @@ class Root:
             # stashes the wider request on the row's waitlisted_* columns
             # otherwise, and cascades everything to connector children.
             if new_check_in and new_check_out and inv:
-                new_ci = dateparser.parse(new_check_in).date()
-                new_co = dateparser.parse(new_check_out).date()
+                try:
+                    new_ci = dateparser.parse(new_check_in).date()
+                    new_co = dateparser.parse(new_check_out).date()
+                except (ValueError, OverflowError):
+                    raise HTTPRedirect(_room_url(
+                        ra.id, attendee_id or application.attendee.id,
+                        message='Please enter valid check-in and check-out dates.'))
 
+                date_error = _check_stay_window(new_ci, new_co)
+                if date_error:
+                    raise HTTPRedirect(_room_url(
+                        ra.id, attendee_id or application.attendee.id,
+                        message=date_error))
+
+                # Extension nights someone else is already queued for
+                # are waitlisted behind them even when the block shows
+                # open slots - the queue is served in FIFO order by the
+                # admin Process Waitlist sweep, never from here.
                 try:
                     result = resize_assignment(session, ra, new_ci, new_co)
                 except WaitlistError as e:
@@ -2585,6 +2618,7 @@ class Root:
                         ra.id, attendee_id or application.attendee.id,
                         message=e.message))
 
+                released_nights = result.released_nights
                 if result.waitlisted_nights:
                     wl_strs = [d.strftime('%a %-m/%-d')
                                for d in result.waitlisted_nights]
@@ -2593,6 +2627,13 @@ class Root:
                         f"{result.confirmed_co.strftime('%a %-m/%-d')}. "
                         f"Waitlisted: {', '.join(wl_strs)}. "
                         f"You'll be notified if availability opens up.")
+                elif released_nights:
+                    rel_strs = [d.strftime('%a %-m/%-d') for d in released_nights]
+                    message = (
+                        f"Room dates updated: "
+                        f"{result.confirmed_ci.strftime('%a %-m/%-d')} - "
+                        f"{result.confirmed_co.strftime('%a %-m/%-d')}. "
+                        f"Released: {', '.join(rel_strs)}.")
                 else:
                     message = 'Room details updated.'
             else:
