@@ -122,8 +122,8 @@
 {% endif %}
 {% if not account.valid_attendees and (not c.AT_THE_CON or not account.at_door_pending_attendees) %}
     <div class="text-center">
-        <span class="h2 text-uppercase">You have no current registrations</span>
-        <p>{{ prereg_message }}</p>
+        <span class="h2 text-uppercase{% if c.THEMED_BG_DARK %} text-white{% endif %}">You have no current registrations</span>
+        <h4 class="text-center"><span class="fw-normal fst-italic mb-2 badge bg-secondary">{{ prereg_message }}</span></h4>
         <p>
         {% if account.imported_single_badges and not prereg_message %}
             {% if account.imported_attendees|length == 1 %}

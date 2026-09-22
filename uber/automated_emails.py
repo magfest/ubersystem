@@ -279,7 +279,7 @@ if c.TRANSFERABLE_BADGE_TYPES:
         f'{c.EVENT_NAME} Pending Badge Code',
         'reg_workflow/pending_code.txt', None,
         'badge_transfer_code',
-        sender=c.REGDESK_EMAIL,
+        sender=c.BADGE_TRANSFERS_EMAIL,
         send_filter='lambda a: a.badge_status == c.PENDING_STATUS and a.paid == c.PENDING'
     )
 
@@ -287,21 +287,21 @@ if c.TRANSFERABLE_BADGE_TYPES:
         None, f'{c.EVENT_NAME} Registration Transferred',
         'reg_workflow/badge_transferee.txt', None,
         'code_badge_transfer_new_badge',
-        sender=c.REGDESK_EMAIL
+        sender=c.BADGE_TRANSFERS_EMAIL
     )
 
     AutomatedEmailFixture(
         None, f'{c.EVENT_NAME} Registration Transferred',
         'reg_workflow/badge_transferer.txt', None,
         'code_badge_transfer_old_badge',
-        sender=c.REGDESK_EMAIL
+        sender=c.BADGE_TRANSFERS_EMAIL
     )
 
     AutomatedEmailFixture(
         None, f'{c.EVENT_NAME} Registration Transferred',
         'reg_workflow/badge_transfer.txt', None,
         'link_badge_transfer',
-        sender=c.REGDESK_EMAIL
+        sender=c.BADGE_TRANSFERS_EMAIL
     )
 
 

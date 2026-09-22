@@ -223,6 +223,24 @@ class Tracking(MagModel, table=True):
             ))
 
     @classmethod
+    def track_transfer_code(cls, session, code, instance=None):
+        if sys.argv == ['']:
+            who = 'server admin'
+        else:
+            who = AdminAccount.acting_name() or (current_thread().name if current_thread().daemon else 'non-admin')
+
+        session.add(Tracking(
+            model=instance.__class__.__name__ if instance else 'N/A',
+            fk_id=instance.id if instance else 'N/A',
+            which=repr(instance) if instance else 'None',
+            who=who,
+            supervisor=AdminAccount.supervisor_name() or '',
+            page=c.PAGE_PATH,
+            action=c.TRANSFER_CODE,
+            data=code,
+        ))
+
+    @classmethod
     def track(cls, session, action, instance):
         from uber.models import ApiJob
 
@@ -249,6 +267,10 @@ class Tracking(MagModel, table=True):
             who = 'server admin'
         else:
             who = AdminAccount.acting_name() or (current_thread().name if current_thread().daemon else 'non-admin')
+            if who == 'non-admin' and c.ATTENDEE_ACCOUNTS_ENABLED:
+                logged_in_account = session.current_attendee_account()
+                if logged_in_account:
+                    who = f"{logged_in_account.email}"
 
         if isinstance(instance, ApiJob) and who == 'non-admin':
             # Automated processing of API jobs is tracked in the jobs themselves

@@ -71,8 +71,13 @@
         </div>
         {% else %}
             {% set badge_details %}
-            The original badge cost was {{ transfer_badge.badge_cost|format_currency }}.
-            {% if transfer_badge.amount_extra %}This badge includes a {{ c.DONATION_TIERS[transfer_badge.amount_extra] }} merch package ({{ transfer_badge.amount_extra|format_currency }}).{% endif %}
+            {% block badge_details %}
+            {% set merch_tax = 0 %}
+            The original purchaser paid {{ transfer_badge.badge_cost|format_currency }} for this badge.
+            {% if transfer_badge.amount_extra %}{% set merch_tax = c.get_amount_extra_tax(transfer_badge.amount_extra) %}
+            This badge also includes a {{ c.DONATION_TIERS[transfer_badge.amount_extra] }} merch package ({{ transfer_badge.amount_extra|format_currency }}).{% endif %}
+            {% if c.MERCH_TAX and merch_tax %} The total sales tax paid for merch was {{ merch_tax|format_currency }}.{% endif %}
+            {% endblock %}
             {% endset %}
             {% if transfer_badge.active_receipt and transfer_badge.active_receipt.current_amount_owed %}
             <div class="alert alert-warning" role="alert">

@@ -1649,6 +1649,8 @@ class Root:
             elif transfer_badges.count() > 1:
                 log.error(f"ERROR: {transfer_badges.count()} attendees have transfer code {transfer_code}!")
                 transfer_badge = transfer_badges.filter(Attendee.has_badge == True).first()
+            Tracking.track_transfer_code(session, transfer_code, transfer_badge)
+            session.commit()
                 
         attendee = Attendee()
         form_list = ['PersonalInfo', 'OtherInfo', 'StaffingInfo', 'Consents']
@@ -1709,7 +1711,7 @@ class Root:
             'code': transfer_code,
         }
     
-    @requires_account()
+    @requires_account(Attendee)
     def complete_badge_transfer(self, session, id, code, message='', **params):
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect('transfer_badge?id={}&message={}', id, "Please submit the form to transfer your badge.")
@@ -1737,7 +1739,8 @@ class Root:
         if not transfer_badge or transfer_badge.badge_status != c.PENDING_STATUS:
             raise HTTPRedirect('transfer_badge?id={}&message={}', id,
                                f"Could not find a badge to transfer to with transfer code {code}.")
-        
+
+        old.unset_volunteering()
         old_attendee_dict = old.to_dict()
         del old_attendee_dict['id']
         for attr in old_attendee_dict:
@@ -1754,19 +1757,23 @@ class Root:
 
         EmailService.queue_email(session, 'code_badge_transfer_new_badge',
                                  to=[transfer_badge.email_to_address, c.REGDESK_EMAIL],
-                                 data={'transferee_code': transfer_badge.transfer_code, 'transferer_code': old.transfer_code})
+                                 data={'transferee_code': transfer_badge.transfer_code, 'transferer_code': old.transfer_code,
+                                       'attendee': transfer_badge, 'consent_form': transfer_badge.age_group_conf['consent_form']})
         
         EmailService.queue_email(session, 'code_badge_transfer_old_badge', to=old.email_to_address,
-                                 data={'transferee_code': transfer_badge.transfer_code, 'transferer_code': old.transfer_code})
+                                 data={'transferee_code': transfer_badge.transfer_code, 'transferer_code': old.transfer_code,
+                                       'attendee': old, 'attendee_badge_type': old.badge_type_label})
 
         session.add(transfer_badge)
         transfer_badge.transfer_code = ''
         session.commit()
+        session.close()
+
         if receipt:
             session.add(receipt)
             receipt.owner_id = transfer_badge.id
             session.commit()
-        
+
             raise HTTPRedirect('../preregistration/homepage?message={}', "Badge transferred.")
         else:
             raise HTTPRedirect('../landing/index?message={}', "Badge transferred.")
@@ -1836,6 +1843,8 @@ class Root:
             if not message:
                 old.badge_status = c.INVALID_STATUS
                 old.append_admin_note(f"Automatic transfer to attendee {attendee.id}")
+                old.unset_volunteering()
+
                 attendee.badge_status = c.NEW_STATUS
                 attendee.admin_notes = f"Automatic transfer from attendee {old.id}"
 
@@ -1844,13 +1853,19 @@ class Root:
 
                 EmailService.queue_email(session, 'link_badge_transfer',
                                          to=[attendee.email_to_address, c.REGDESK_EMAIL],
-                                         data={'new': attendee, 'old': old, 'include_link': True})
+                                         data={'new': attendee, 'old': old, 'include_link': True,
+                                               'old_badge_type': old.badge_type_label,
+                                               'new_consent_form': attendee.age_group_conf['consent_form']})
         
                 EmailService.queue_email(session, 'link_badge_transfer', to=old.email_to_address,
-                                         data={'new': attendee, 'old': old, 'include_link': False})
+                                         data={'new': attendee, 'old': old, 'include_link': False,
+                                               'old_badge_type': old.badge_type_label,
+                                               'new_consent_form': attendee.age_group_conf['consent_form']})
 
                 session.add(attendee)
                 session.commit()
+                session.close()
+
                 if receipt:
                     session.add(receipt)
                     receipt.owner_id = attendee.id
@@ -1858,6 +1873,11 @@ class Root:
                     session.commit()
                 else:
                     amount_unpaid = attendee.amount_unpaid
+
+                session.add(attendee)
+                if c.ATTENDEE_ACCOUNTS_ENABLED:
+                    session.add_attendee_to_account(attendee, session.current_attendee_account())
+
                 session.refresh_receipt_and_model(attendee)
                 if amount_unpaid:
                     raise HTTPRedirect('new_badge_payment?id={}&return_to=confirm', attendee.id)
