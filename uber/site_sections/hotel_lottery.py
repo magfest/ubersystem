@@ -5,6 +5,7 @@ import uuid
 import cherrypy
 import logging
 from datetime import datetime, timedelta
+from dateutil import parser as dateparser
 from pytz import UTC
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -2273,7 +2274,8 @@ class Root:
         from uber.vault import create_capture_session, get_capture_iframe_url
         capture = create_capture_session(
             reference=vault_reference,
-            webhook_metadata={'assignment_id': ra.id},
+            webhook_metadata={'assignment_id': ra.id,
+                              'capture_started_at': datetime.now(UTC).isoformat()},
         )
         iframe_url = get_capture_iframe_url(
             endpoint_id=capture['unique_id'],
@@ -2340,6 +2342,12 @@ class Root:
         if not all([address1, city, region, zip_code, country]):
             return {'error': 'Please fill in all required billing address fields.'}
 
+        was_secured = ra.status == c.SECURED
+        if ra.cc_token != token:
+            # A changed card: drop the old card's metadata so the webhook
+            # for the new one starts from a clean slate.
+            for field in RoomAssignment.CC_FIELDS:
+                setattr(ra, field, None)
         ra.cc_token = token
         # Only overwrite metadata when actually provided: the browser
         # sends none, and clobbering here is how webhook-delivered last
@@ -2397,10 +2405,11 @@ class Root:
         session.add(ra)
         session.commit()
 
-        # One confirmation email per room, queued only once the secure
-        # has committed; it lists any other rooms still awaiting a card.
-        _queue_room_secured_email(session, ra)
-        session.commit()
+        # Only send the confirmation email when the room is initially secured.
+        # If the card is being changed we don't need to send it again.
+        if not was_secured:
+            _queue_room_secured_email(session, ra)
+            session.commit()
         return {'success': True}
 
     @ajax_gettable
@@ -2451,18 +2460,36 @@ class Root:
 
         # A webhook for an assignment with no stored token bootstraps the
         # card (the capture iframe's postMessage to the parent page can be
-        # lost, e.g. blocked or unparsed - the wizard polls card_status to
-        # recover). A webhook for a *different* stored token is stale and
-        # must not clobber the newer card.
+        # lost - the wizard polls card_status to recover). A different
+        # token from a capture session opened AFTER the stored card was
+        # captured means the attendee changed their card: adopt it and
+        # drop the old card's metadata. A different token from an older
+        # (or undated) session is a late retry for a card that has since
+        # been replaced, and must not clobber the newer one.
         if not ra.cc_token:
             log.info("vault_webhook: bootstrapping card token onto assignment %s "
                      "(browser postMessage never saved one)", assignment_id)
             ra.cc_token = token
             ra.cc_captured_at = datetime.now(UTC)
         elif ra.cc_token != token:
-            log.info("vault_webhook: ignoring stale token for assignment %s "
-                     "(a different token is already stored)", assignment_id)
-            return {'success': True}
+            started = None
+            if metadata.get('capture_started_at'):
+                try:
+                    started = dateparser.parse(metadata['capture_started_at'])
+                except (ValueError, OverflowError, TypeError):
+                    started = None
+                if started is not None and started.tzinfo is None:
+                    started = started.replace(tzinfo=UTC)
+            if started is None or (ra.cc_captured_at and started <= ra.cc_captured_at):
+                log.info("vault_webhook: ignoring stale token for assignment %s "
+                         "(a different token is already stored)", assignment_id)
+                return {'success': True}
+            log.info("vault_webhook: replacing card token on assignment %s "
+                     "(newer capture session)", assignment_id)
+            for field in RoomAssignment.CC_FIELDS:
+                setattr(ra, field, None)
+            ra.cc_token = token
+            ra.cc_captured_at = datetime.now(UTC)
 
         # Parse safe_data - documented as a JSON string with the card
         # holder, last four, etc., but tolerate it arriving as a plain
