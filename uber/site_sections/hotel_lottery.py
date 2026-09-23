@@ -360,34 +360,19 @@ def _render_room_detail(session, assignment_id, attendee_id, message):
 
 def _viewer_attendee(session):
     """Resolve the currently-logged-in viewer to their Attendee record.
-
-    Tries the attendee-account session key first (the normal
-    attendee-facing login); falls back to the admin `account_id`'s
-    linked attendee so support admins can view attendee pages too.
-    Returns None if nothing matches.
     """
-    from uber.models import AttendeeAccount
-    aa_id = (cherrypy.session.get('attendee_account_id')
-             if cherrypy.session else None)
-    if aa_id:
-        aa = session.query(AttendeeAccount).get(aa_id)
-        if aa and aa.attendees:
-            # Multi-badge accounts: prefer the badge with actual hotel
-            # involvement (booked or occupied rooms) over an arbitrary
-            # first badge. Handlers acting on a specific room should
-            # still pass attendee_id explicitly.
-            with_rooms = [a for a in aa.attendees
-                          if a.active_room_assignments or a.occupied_rooms]
-            return with_rooms[0] if with_rooms else aa.attendees[0]
-    # Admin fallback - for support flows where a lottery admin opens
-    # an attendee's page directly.
-    admin_id = (cherrypy.session.get('account_id')
-                if cherrypy.session else None)
-    if admin_id:
-        from uber.models import AdminAccount
-        admin = session.query(AdminAccount).get(admin_id)
-        if admin and admin.attendee:
-            return admin.attendee
+    aa = session.current_attendee_account()
+    if aa and aa.attendees:
+        # Multi-badge accounts: prefer the badge with actual hotel
+        # involvement (booked or occupied rooms) over an arbitrary
+        # first badge. Handlers acting on a specific room should
+        # still pass attendee_id explicitly.
+        with_rooms = [a for a in aa.attendees
+                      if a.active_room_assignments or a.occupied_rooms]
+        return with_rooms[0] if with_rooms else aa.attendees[0]
+    admin = session.current_admin_account()
+    if admin and admin.attendee:
+        return admin.attendee
     return None
 
 
@@ -397,26 +382,37 @@ def _attendee_account_owns(session, attendee_id):
     branch of the view-as-attendee access gate."""
     if not attendee_id:
         return False
-    from uber.models import AttendeeAccount
-    aa_id = cherrypy.session.get('attendee_account_id', getattr(cherrypy.request, 'attendee_account', None))
-    if not aa_id:
-        return False
-    aa = session.query(AttendeeAccount).get(aa_id)
+    aa = session.current_attendee_account()
     if not aa:
         return False
     return any(str(a.id) == str(attendee_id) for a in (aa.attendees or []))
+
+
+def _admin_account_is(session, attendee_id):
+    """True if the logged-in admin account is linked to this attendee,
+    i.e. a staffer viewing their own badge. Staff who log in with their
+    admin (e.g. Google Workspace) identity may have no attendee account
+    on the request at all; requires_account already lets them through
+    for their own badge, so the hotel gate must too."""
+    if not attendee_id:
+        return False
+    admin = session.current_admin_account()
+    return bool(admin and admin.attendee_id
+                and str(admin.attendee_id) == str(attendee_id))
 
 
 def _can_view_as_attendee(session, attendee_id):
     """Authorization for the attendee-facing hotel pages when an
     explicit `?attendee_id=X` is supplied.
 
-    Two paths are permitted:
+    Three paths are permitted:
       1. The requester is a global Hotel Lottery Admin (lottery
          support staff viewing/editing any attendee's records).
       2. The requester is logged into the AttendeeAccount that owns
          the target attendee (the normal multi-attendee household
          case - one account, multiple attendees).
+      3. The requester's admin account is linked to the target
+         attendee - the same person, logged in as staff.
 
     Anything else - including admins without hotel_lottery_admin
     access, or attendees trying to pry at someone else's URL - is
@@ -428,7 +424,8 @@ def _can_view_as_attendee(session, attendee_id):
     from uber.hotel.perms import is_lottery_admin
     if is_lottery_admin():
         return True
-    return _attendee_account_owns(session, attendee_id)
+    return (_attendee_account_owns(session, attendee_id)
+            or _admin_account_is(session, attendee_id))
 
 
 def _require_view_as_attendee(session, attendee_id, redirect='rooms'):
