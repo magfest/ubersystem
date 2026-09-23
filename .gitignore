@@ -42,3 +42,4 @@ ssl-key.pem
 celerybeat-schedule
 celerybeat-schedule-shm
 celerybeat-schedule-wal
+.idea/
