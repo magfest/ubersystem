@@ -776,18 +776,20 @@ class Config(_Overridable):
         return []
 
     @property
+    def KICKIN_LEVELS(self):
+        # A level of 0 means "not configured". Its matrix key would be 0, the "No thanks" price, and a stock set
+        # on it would count everyone without merch and mark "No thanks" sold out.
+        return [level for level in ['SHIRT', 'SUPPORTER', 'SEASON', 'BONUS'] if getattr(self, level + "_LEVEL", 0) != 0]
+
+    @property
     def kickin_availability_matrix(self):
-        return dict([[
-            getattr(self, level + "_LEVEL"), getattr(self, level + "_AVAILABLE")]
-            for level in ['SHIRT', 'SUPPORTER', 'SEASON']
-        ])
+        return {getattr(self, level + "_LEVEL"): getattr(self, level + "_AVAILABLE")
+                for level in self.KICKIN_LEVELS}
     
     @property
     def kickin_stock_matrix(self):
-        return dict([[
-            getattr(self, level + "_LEVEL"), getattr(self, level + "_STOCK")]
-            for level in ['SHIRT', 'SUPPORTER', 'SEASON']
-        ])
+        return {getattr(self, level + "_LEVEL"): getattr(self, level + "_STOCK", None)
+                for level in self.KICKIN_LEVELS}
     
     @property
     def EXTRA_ADDON_STATS(self):
@@ -1220,6 +1222,11 @@ class Config(_Overridable):
     @dynamic
     def SHIRT_COUNT(self):
         return self.get_kickin_count(self.SHIRT_LEVEL) + self.get_comped_promo_codes(self.SHIRT_LEVEL)
+
+    @request_cached_property
+    @dynamic
+    def BONUS_COUNT(self):
+        return self.get_kickin_count(self.BONUS_LEVEL) + self.get_comped_promo_codes(self.BONUS_LEVEL)
 
     @property
     @dynamic
@@ -2110,12 +2117,18 @@ else:
     c.DONATION_TIER_OPTS = [(amt, '+ ${}: {}'.format(amt, desc) if amt else desc) for amt, desc in c.DONATION_TIER_OPTS]
 
 c.DONATION_TIER_ITEMS = {}
+c.STANDALONE_DONATION_TIERS = set()
 c.DONATION_TIER_DESCRIPTIONS = _config.get('donation_tier_descriptions', {})
-for _ident, _tier in c.DONATION_TIER_DESCRIPTIONS.items():
-    try:
-        [price] = [amt for amt, name in c.DONATION_TIERS.items() if name == _tier['name']]
-    except ValueError:
-        pass
+for _ident, _tier in list(c.DONATION_TIER_DESCRIPTIONS.items()):
+    _matches = [amt for amt, name in c.DONATION_TIERS.items() if name == _tier['name']]
+    if len(_matches) != 1:
+        # Skipping this used to leave `price` from the previous entry, or from the DISCOUNT_ON_OPTS loop above,
+        # which attached this entry's items, card and standalone flag to the wrong tier.
+        log.warning(f"Ignoring [donation_tier_descriptions] entry '{_ident}': name '{_tier['name']}' "
+                    f"matches {len(_matches)} [[donation_tier]] labels, expected exactly 1")
+        del c.DONATION_TIER_DESCRIPTIONS[_ident]
+        continue
+    [price] = _matches
 
     if price and c.MERCH_TAX and c.INCLUDE_MERCH_TAX:
         total = price + c.get_amount_extra_tax(price)
@@ -2126,6 +2139,8 @@ for _ident, _tier in c.DONATION_TIER_DESCRIPTIONS.items():
     _tier['value'] = price
     if price:  # ignore the $0 kickin level
         c.DONATION_TIER_ITEMS[price] = _tier['merch_items'] or _tier['description'].split('|')
+        if _tier.get('standalone'):
+            c.STANDALONE_DONATION_TIERS.add(price)
 
 c.STORE_ITEM_NAMES = [desc for val, desc in c.STORE_PRICE_OPTS]
 c.FEE_ITEM_NAMES = [desc for val, desc in c.FEE_PRICE_OPTS]

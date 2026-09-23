@@ -1826,21 +1826,34 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         donation_items = []
         highest_tier_listed = False
 
-        for amount, desc in sorted(c.DONATION_TIERS.items(), reverse=True):
-            if amount and self.amount_extra >= amount:
-                if not highest_tier_listed:
-                    if c.MERCH_TAX:
-                        tax = c.get_amount_extra_tax(self.amount_extra)
-                        donation_items.append(f'{format_currency(self.amount_extra + tax)} {c.DONATION_TIERS[self.amount_extra]} \
-                                              (Includes {format_currency(self.amount_extra)} base price + {format_currency(tax)} Sales Tax)')
-                    else:
-                        donation_items.append(f"${amount} {desc}")
-                    highest_tier_listed = True
+        for amount in reversed(self.held_donation_tiers):
+            desc = c.DONATION_TIERS[amount]
+            if not highest_tier_listed:
+                if c.MERCH_TAX:
+                    tax = c.get_amount_extra_tax(self.amount_extra)
+                    donation_items.append(f'{format_currency(self.amount_extra + tax)} {c.DONATION_TIERS[self.amount_extra]} \
+                                          (Includes {format_currency(self.amount_extra)} base price + {format_currency(tax)} Sales Tax)')
                 else:
-                    donation_items.append(f"{desc} (Included)")
+                    donation_items.append(f"${amount} {desc}")
+                highest_tier_listed = True
+            else:
+                donation_items.append(f"{desc} (Included)")
 
         extra_donations = ['Extra donation of ${}'.format(self.extra_donation)] if self.extra_donation else []
         return donation_items + extra_donations
+
+    @property
+    def held_donation_tiers(self):
+        """Return the price of every merch tier this attendee receives, lowest first.
+
+        Tiers nest, so an attendee receives every tier priced at or below their amount_extra. A tier listed in
+        c.STANDALONE_DONATION_TIERS is the exception; only its own buyers receive it, and it grants no other tier.
+        """
+        amount_extra = self.amount_extra or 0
+        if amount_extra in c.STANDALONE_DONATION_TIERS:
+            return [amount_extra]
+        return [amount for amount in sorted(c.DONATION_TIERS)
+                if amount != 0 and amount <= amount_extra and amount not in c.STANDALONE_DONATION_TIERS]
 
     @property
     def donation_tier(self):
@@ -1878,14 +1891,13 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
             ]
         """
         merch = []
-        for amount, desc in sorted(c.DONATION_TIERS.items()):
-            if amount and (self.amount_extra or 0) >= amount:
-                merch.append(desc)
-                items = c.DONATION_TIER_ITEMS.get(amount, [])
-                if len(items) == 1:
-                    merch[-1] = items[0]
-                elif len(items) > 1:
-                    merch.append(items)
+        for amount in self.held_donation_tiers:
+            merch.append(c.DONATION_TIERS[amount])
+            items = c.DONATION_TIER_ITEMS.get(amount, [])
+            if len(items) == 1:
+                merch[-1] = items[0]
+            elif len(items) > 1:
+                merch.append(items)
 
         if self.num_event_shirts_owed == 1 and not self.paid_for_a_shirt:
             merch.append('A T-shirt')

@@ -4,7 +4,7 @@ import logging
 import pytz
 import traceback
 
-from sqlalchemy import func, or_, any_
+from sqlalchemy import func, or_, any_, and_
 
 from uber.automated_emails import AutomatedEmailFixture
 from uber.config import c
@@ -458,17 +458,25 @@ class Root:
     @csv_file
     def emails_by_kickin_csv(self, out, session, **params):
         """
-        Generate a list of attendee emails by what kick-in level they've donated at.
-        We also select attendees with kick-in levels above the selected level.
+        Generate a list of attendee emails for everyone who receives the selected kick-in level.
+
+        Matches Attendee.held_donation_tiers: higher levels include lower ones, except standalone levels, which
+        only their own buyers receive.
         """
         if 'amount_extra' not in params:
             raise HTTPRedirect('emails_by_kickin?message={}', 'You must select a kick-in level')
 
-        amount_extra = params['amount_extra']
+        amount_extra = int(params['amount_extra'])
 
         base_filter = Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS])
         email_filter = [Attendee.can_spam == True] if 'only_can_spam' in params else []  # noqa: E712
-        attendee_filter = Attendee.amount_extra >= amount_extra
+        if amount_extra in c.STANDALONE_DONATION_TIERS:
+            attendee_filter = Attendee.amount_extra == amount_extra
+        elif c.STANDALONE_DONATION_TIERS:
+            attendee_filter = and_(Attendee.amount_extra >= amount_extra,
+                                   Attendee.amount_extra.notin_(sorted(c.STANDALONE_DONATION_TIERS)))
+        else:
+            attendee_filter = Attendee.amount_extra >= amount_extra
         if 'include_staff' in params:
             attendee_filter = or_(attendee_filter, Attendee.badge_type == c.STAFF_BADGE)
 
