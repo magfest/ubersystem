@@ -23,26 +23,16 @@ or resolve from the current cherrypy session.
 import functools
 import inspect
 
-import cherrypy
-
 from uber.config import c
 
 
 def _current_admin_account(session, admin_account=None):
     if admin_account is not None:
         return admin_account
-    from uber.models import AdminAccount
     try:
-        # Outside a web request (cron tasks, scripts, tests) cherrypy
-        # has no session tool bound and touching cherrypy.session raises
-        # AttributeError - callers with no explicit actor get None, the
-        # same as an unauthenticated request.
-        account_id = cherrypy.session.get('account_id') if cherrypy.session else None
+        return session.current_admin_account()
     except AttributeError:
         return None
-    if not account_id:
-        return None
-    return session.query(AdminAccount).get(account_id)
 
 
 def is_lottery_admin(admin_account=None):

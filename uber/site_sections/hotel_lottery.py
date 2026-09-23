@@ -5,6 +5,7 @@ import uuid
 import cherrypy
 import logging
 from datetime import datetime, timedelta
+from dateutil import parser as dateparser
 from pytz import UTC
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -102,6 +103,24 @@ def room_action(func=None, *, allow='leader'):
     if func is not None:
         return decorate(func)
     return decorate
+
+
+def _check_stay_window(new_ci, new_co):
+    """Attendee-entered stay dates must be at least one night and sit
+    inside the lottery's check-in / check-out window (the same bounds
+    the lottery entry form and secure_room enforce). Returns an error
+    message, or None when the dates are acceptable.
+    """
+    if new_co <= new_ci:
+        return 'Check-out must be at least one night after check-in.'
+    ci_start = c.HOTEL_LOTTERY_CHECKIN_START.date() if c.HOTEL_LOTTERY_CHECKIN_START else None
+    co_end = c.HOTEL_LOTTERY_CHECKOUT_END.date() if c.HOTEL_LOTTERY_CHECKOUT_END else None
+    if (ci_start and new_ci < ci_start) or (co_end and new_co > co_end):
+        return ('Rooms are available from {} to {}. Please choose dates '
+                'within that range.'.format(
+                    ci_start.strftime('%a %b %-d') if ci_start else 'the event start',
+                    co_end.strftime('%a %b %-d') if co_end else 'the event end'))
+    return None
 
 
 def _require_room_access(session, ra, attendee_id='', allow_occupant=False):
@@ -341,34 +360,19 @@ def _render_room_detail(session, assignment_id, attendee_id, message):
 
 def _viewer_attendee(session):
     """Resolve the currently-logged-in viewer to their Attendee record.
-
-    Tries the attendee-account session key first (the normal
-    attendee-facing login); falls back to the admin `account_id`'s
-    linked attendee so support admins can view attendee pages too.
-    Returns None if nothing matches.
     """
-    from uber.models import AttendeeAccount
-    aa_id = (cherrypy.session.get('attendee_account_id')
-             if cherrypy.session else None)
-    if aa_id:
-        aa = session.query(AttendeeAccount).get(aa_id)
-        if aa and aa.attendees:
-            # Multi-badge accounts: prefer the badge with actual hotel
-            # involvement (booked or occupied rooms) over an arbitrary
-            # first badge. Handlers acting on a specific room should
-            # still pass attendee_id explicitly.
-            with_rooms = [a for a in aa.attendees
-                          if a.active_room_assignments or a.occupied_rooms]
-            return with_rooms[0] if with_rooms else aa.attendees[0]
-    # Admin fallback - for support flows where a lottery admin opens
-    # an attendee's page directly.
-    admin_id = (cherrypy.session.get('account_id')
-                if cherrypy.session else None)
-    if admin_id:
-        from uber.models import AdminAccount
-        admin = session.query(AdminAccount).get(admin_id)
-        if admin and admin.attendee:
-            return admin.attendee
+    aa = session.current_attendee_account()
+    if aa and aa.attendees:
+        # Multi-badge accounts: prefer the badge with actual hotel
+        # involvement (booked or occupied rooms) over an arbitrary
+        # first badge. Handlers acting on a specific room should
+        # still pass attendee_id explicitly.
+        with_rooms = [a for a in aa.attendees
+                      if a.active_room_assignments or a.occupied_rooms]
+        return with_rooms[0] if with_rooms else aa.attendees[0]
+    admin = session.current_admin_account()
+    if admin and admin.attendee:
+        return admin.attendee
     return None
 
 
@@ -378,26 +382,37 @@ def _attendee_account_owns(session, attendee_id):
     branch of the view-as-attendee access gate."""
     if not attendee_id:
         return False
-    from uber.models import AttendeeAccount
-    aa_id = cherrypy.session.get('attendee_account_id', getattr(cherrypy.request, 'attendee_account', None))
-    if not aa_id:
-        return False
-    aa = session.query(AttendeeAccount).get(aa_id)
+    aa = session.current_attendee_account()
     if not aa:
         return False
     return any(str(a.id) == str(attendee_id) for a in (aa.attendees or []))
+
+
+def _admin_account_is(session, attendee_id):
+    """True if the logged-in admin account is linked to this attendee,
+    i.e. a staffer viewing their own badge. Staff who log in with their
+    admin (e.g. Google Workspace) identity may have no attendee account
+    on the request at all; requires_account already lets them through
+    for their own badge, so the hotel gate must too."""
+    if not attendee_id:
+        return False
+    admin = session.current_admin_account()
+    return bool(admin and admin.attendee_id
+                and str(admin.attendee_id) == str(attendee_id))
 
 
 def _can_view_as_attendee(session, attendee_id):
     """Authorization for the attendee-facing hotel pages when an
     explicit `?attendee_id=X` is supplied.
 
-    Two paths are permitted:
+    Three paths are permitted:
       1. The requester is a global Hotel Lottery Admin (lottery
          support staff viewing/editing any attendee's records).
       2. The requester is logged into the AttendeeAccount that owns
          the target attendee (the normal multi-attendee household
          case - one account, multiple attendees).
+      3. The requester's admin account is linked to the target
+         attendee - the same person, logged in as staff.
 
     Anything else - including admins without hotel_lottery_admin
     access, or attendees trying to pry at someone else's URL - is
@@ -409,7 +424,8 @@ def _can_view_as_attendee(session, attendee_id):
     from uber.hotel.perms import is_lottery_admin
     if is_lottery_admin():
         return True
-    return _attendee_account_owns(session, attendee_id)
+    return (_attendee_account_owns(session, attendee_id)
+            or _admin_account_is(session, attendee_id))
 
 
 def _require_view_as_attendee(session, attendee_id, redirect='rooms'):
@@ -2255,7 +2271,8 @@ class Root:
         from uber.vault import create_capture_session, get_capture_iframe_url
         capture = create_capture_session(
             reference=vault_reference,
-            webhook_metadata={'assignment_id': ra.id},
+            webhook_metadata={'assignment_id': ra.id,
+                              'capture_started_at': datetime.now(UTC).isoformat()},
         )
         iframe_url = get_capture_iframe_url(
             endpoint_id=capture['unique_id'],
@@ -2322,6 +2339,12 @@ class Root:
         if not all([address1, city, region, zip_code, country]):
             return {'error': 'Please fill in all required billing address fields.'}
 
+        was_secured = ra.status == c.SECURED
+        if ra.cc_token != token:
+            # A changed card: drop the old card's metadata so the webhook
+            # for the new one starts from a clean slate.
+            for field in RoomAssignment.CC_FIELDS:
+                setattr(ra, field, None)
         ra.cc_token = token
         # Only overwrite metadata when actually provided: the browser
         # sends none, and clobbering here is how webhook-delivered last
@@ -2379,10 +2402,11 @@ class Root:
         session.add(ra)
         session.commit()
 
-        # One confirmation email per room, queued only once the secure
-        # has committed; it lists any other rooms still awaiting a card.
-        _queue_room_secured_email(session, ra)
-        session.commit()
+        # Only send the confirmation email when the room is initially secured.
+        # If the card is being changed we don't need to send it again.
+        if not was_secured:
+            _queue_room_secured_email(session, ra)
+            session.commit()
         return {'success': True}
 
     @ajax_gettable
@@ -2433,18 +2457,36 @@ class Root:
 
         # A webhook for an assignment with no stored token bootstraps the
         # card (the capture iframe's postMessage to the parent page can be
-        # lost, e.g. blocked or unparsed - the wizard polls card_status to
-        # recover). A webhook for a *different* stored token is stale and
-        # must not clobber the newer card.
+        # lost - the wizard polls card_status to recover). A different
+        # token from a capture session opened AFTER the stored card was
+        # captured means the attendee changed their card: adopt it and
+        # drop the old card's metadata. A different token from an older
+        # (or undated) session is a late retry for a card that has since
+        # been replaced, and must not clobber the newer one.
         if not ra.cc_token:
             log.info("vault_webhook: bootstrapping card token onto assignment %s "
                      "(browser postMessage never saved one)", assignment_id)
             ra.cc_token = token
             ra.cc_captured_at = datetime.now(UTC)
         elif ra.cc_token != token:
-            log.info("vault_webhook: ignoring stale token for assignment %s "
-                     "(a different token is already stored)", assignment_id)
-            return {'success': True}
+            started = None
+            if metadata.get('capture_started_at'):
+                try:
+                    started = dateparser.parse(metadata['capture_started_at'])
+                except (ValueError, OverflowError, TypeError):
+                    started = None
+                if started is not None and started.tzinfo is None:
+                    started = started.replace(tzinfo=UTC)
+            if started is None or (ra.cc_captured_at and started <= ra.cc_captured_at):
+                log.info("vault_webhook: ignoring stale token for assignment %s "
+                         "(a different token is already stored)", assignment_id)
+                return {'success': True}
+            log.info("vault_webhook: replacing card token on assignment %s "
+                     "(newer capture session)", assignment_id)
+            for field in RoomAssignment.CC_FIELDS:
+                setattr(ra, field, None)
+            ra.cc_token = token
+            ra.cc_captured_at = datetime.now(UTC)
 
         # Parse safe_data - documented as a JSON string with the card
         # holder, last four, etc., but tolerate it arriving as a plain
@@ -2575,9 +2617,24 @@ class Root:
             # stashes the wider request on the row's waitlisted_* columns
             # otherwise, and cascades everything to connector children.
             if new_check_in and new_check_out and inv:
-                new_ci = dateparser.parse(new_check_in).date()
-                new_co = dateparser.parse(new_check_out).date()
+                try:
+                    new_ci = dateparser.parse(new_check_in).date()
+                    new_co = dateparser.parse(new_check_out).date()
+                except (ValueError, OverflowError):
+                    raise HTTPRedirect(_room_url(
+                        ra.id, attendee_id or application.attendee.id,
+                        message='Please enter valid check-in and check-out dates.'))
 
+                date_error = _check_stay_window(new_ci, new_co)
+                if date_error:
+                    raise HTTPRedirect(_room_url(
+                        ra.id, attendee_id or application.attendee.id,
+                        message=date_error))
+
+                # Extension nights someone else is already queued for
+                # are waitlisted behind them even when the block shows
+                # open slots - the queue is served in FIFO order by the
+                # admin Process Waitlist sweep, never from here.
                 try:
                     result = resize_assignment(session, ra, new_ci, new_co)
                 except WaitlistError as e:
@@ -2585,6 +2642,7 @@ class Root:
                         ra.id, attendee_id or application.attendee.id,
                         message=e.message))
 
+                released_nights = result.released_nights
                 if result.waitlisted_nights:
                     wl_strs = [d.strftime('%a %-m/%-d')
                                for d in result.waitlisted_nights]
@@ -2593,6 +2651,13 @@ class Root:
                         f"{result.confirmed_co.strftime('%a %-m/%-d')}. "
                         f"Waitlisted: {', '.join(wl_strs)}. "
                         f"You'll be notified if availability opens up.")
+                elif released_nights:
+                    rel_strs = [d.strftime('%a %-m/%-d') for d in released_nights]
+                    message = (
+                        f"Room dates updated: "
+                        f"{result.confirmed_ci.strftime('%a %-m/%-d')} - "
+                        f"{result.confirmed_co.strftime('%a %-m/%-d')}. "
+                        f"Released: {', '.join(rel_strs)}.")
                 else:
                     message = 'Room details updated.'
             else:

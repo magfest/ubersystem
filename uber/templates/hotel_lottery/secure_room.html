@@ -22,11 +22,25 @@
   </a>
 </div>
 
-{# Secure-deadline reminder. Only render when this specific room has to
-   put down a card; master-bill payment types skip it. The
-   deadline lives on the RoomAssignment row, so each room can have its
-   own override. #}
-{% if assignment.require_cc and assignment.deposit_cutoff_date %}
+{% if assignment.status == c.SECURED %}
+<div class="alert alert-success d-flex align-items-start gap-2 mb-4" role="alert">
+  <i class="fa fa-check-circle fa-lg mt-1"></i>
+  <div>
+    <strong>This room is already secured.</strong>
+    {% if assignment.cc_token %}
+      {% if assignment.cc_last_four %}The card ending in {{ assignment.cc_last_four }}{% if assignment.cc_card_type %} ({{ assignment.cc_card_type }}){% endif %} is on file.{% else %}A credit card is on file.{% endif %}
+    {% endif %}
+    You don't need to do anything else.
+    <div class="mt-2">
+      <a href="room?id={{ assignment.id }}{% if attendee_id %}&attendee_id={{ attendee_id }}{% endif %}"
+         class="btn btn-success btn-sm">View your room</a>
+      <span class="small ms-2">To use a different card, continue through the steps below.</span>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if assignment.require_cc and assignment.deposit_cutoff_date and assignment.status != c.SECURED %}
 <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
   <i class="fa fa-exclamation-triangle me-2"></i>
   <div>
