@@ -164,7 +164,11 @@
             {% for item in checklist_items[type] %}
               {% set item_display = group.studio[item[0] ~ '_status'] if type == c.MIVS else group.guest[item.name ~ '_status'] %}
               {% if not item_display %}
-                {% set past_deadline = group.studio.past_checklist_deadline(item[0]) if type == c.MIVS else now() >= group.guest.deadline_from_model(item.name) %}
+                {% if type == c.MIVS %}
+                  {% set past_deadline = now() >= group.studio.checklist_deadline(item[0]) if group.studio.checklist_deadline(item[0]) else False %}
+                {% else %}
+                  {% set past_deadline = now() >= group.guest.deadline_from_model(item.name) %}
+                {% endif %}
                 <td>Not Completed {% if past_deadline %}<i class="fa fa-exclamation-circle text-danger"></i>{% endif %}</td>
               {% else %}
                 {% if item.is_link -%}

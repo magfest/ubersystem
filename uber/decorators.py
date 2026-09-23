@@ -104,9 +104,10 @@ def file_to_fk_id(id_name='fk_id'):
         def with_check(*args, **kwargs):
             from uber.files import FileService
             if kwargs.get('id', None) and not kwargs.get(id_name):
-                file_handler = FileService.from_db_id(kwargs.get('id'))
-                if file_handler.file_obj:
-                    kwargs[id_name] = file_handler.file_obj.fk_id
+                with uber.models.Session() as session:
+                    file_handler = FileService.from_db_id(session, kwargs.get('id'))
+                    if file_handler.file_obj:
+                        kwargs[id_name] = file_handler.file_obj.fk_id
             return func(*args, **kwargs)
         return with_check
     return file_fk_id
@@ -219,7 +220,7 @@ def check_dept_admin(session, department_id=None, inherent_role=None):
 
 
 def requires_account(models=None):
-    from uber.models import Attendee, AttendeeAccount, Group, GuestGroup, PanelApplication, IndieStudio, MITSTeam, PromoCodeGroup
+    from uber.models import Attendee, AttendeeAccount, Group, GuestGroup, PanelApplication, IndieGame, IndieStudio, MITSTeam, PromoCodeGroup
 
     def model_requires_account(func):
         @wraps(func)
@@ -260,9 +261,11 @@ def requires_account(models=None):
                                 group = session.get(model, model_id).group
                                 if group:
                                     attendee = group.leader
-                        elif model in [PanelApplication, IndieStudio, MITSTeam]:
+                        elif model in [PanelApplication, IndieGame, IndieStudio, MITSTeam]:
                             if model == PanelApplication:
                                 alt_id = 'application_id'
+                            elif model == IndieGame:
+                                alt_id = 'game_id'
                             else:
                                 alt_id = 'studio_id' if model == IndieStudio else 'team_id'
                             error, model_id = check_id_for_model(model, alt_id=alt_id, **kwargs)
@@ -287,7 +290,7 @@ def requires_account(models=None):
                         if session.current_admin_account():
                             if isinstance(other_account_model, PanelApplication) and c.HAS_PANELS_ADMIN_ACCESS:
                                 return func(*args, **kwargs)
-                            elif isinstance(other_account_model, IndieStudio) and c.HAS_SHOWCASE_ADMIN_ACCESS:
+                            elif isinstance(other_account_model, (IndieGame, IndieStudio)) and c.HAS_SHOWCASE_ADMIN_ACCESS:
                                 return func(*args, **kwargs)
                             elif isinstance(other_account_model, MITSTeam) and c.HAS_MITS_ADMIN_ACCESS:
                                 return func(*args, **kwargs)

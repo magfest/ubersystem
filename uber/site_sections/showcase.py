@@ -2,6 +2,7 @@ import shutil
 
 import bcrypt
 import cherrypy
+import logging
 from cherrypy.lib.static import serve_file
 
 from uber.config import c
@@ -12,6 +13,8 @@ from uber.files import FileService
 from uber.forms import load_forms
 from uber.models import Attendee, File, Group, GuestGroup, IndieGameCode, IndieStudio, IndieDeveloper, IndieGame
 from uber.utils import add_opt, check, check_csrf, GuidebookUtils, validate_model
+
+log = logging.getLogger(__name__)
 
 
 @all_renderable(public=True)
@@ -340,6 +343,7 @@ class Root:
             else:
                 game.studio.contact_phone = params.get('contact_phone', '')
 
+            game.apply(params, restricted=False)
             message = check(game)
 
             if not message:
@@ -391,8 +395,8 @@ class Root:
             'game_guidebook_thumbnail': FileService.get_existing_files(session, game, and_flags=['guidebook_thumbnail']),
         }
 
-    @file_to_fk_id('studio_id')
-    @requires_account(IndieStudio)
+    @file_to_fk_id('game_id')
+    @requires_account(IndieGame)
     @csrf_protected
     def mark_image(self, session, id, **params):
         image = FileService.from_db_id(session, id).file_obj
@@ -406,8 +410,8 @@ class Root:
         raise HTTPRedirect('show_info?id={}&message={}', game.id,
                            'Screenshot marked as one of your "best" images.')
 
-    @file_to_fk_id('studio_id')
-    @requires_account(IndieStudio)
+    @file_to_fk_id('game_id')
+    @requires_account(IndieGame)
     @csrf_protected
     def unmark_image(self, session, id, **params):
         image = FileService.from_db_id(session, id).file_obj
