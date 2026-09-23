@@ -136,7 +136,7 @@ class ModelReceipt(MagModel, table=True):
     @property
     def all_sorted_items_and_txns(self):
         return sorted(self.receipt_items + self.receipt_txns, key=lambda x: x.added)
-    
+
     @property
     def sorted_txns(self):
         return sorted([txn for txn in self.receipt_txns], key=lambda x: x.added)
@@ -144,6 +144,10 @@ class ModelReceipt(MagModel, table=True):
     @property
     def sorted_items(self):
         return sorted([item for item in self.receipt_items], key=lambda x: x.added)
+    
+    @property
+    def applicable_discounts(self):
+        return sorted([discount for discount in self.receipt_discounts if discount.applicable_discount], key=lambda x: x.added)
 
     @property
     def total_processing_fees(self):
