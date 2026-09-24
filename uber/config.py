@@ -1624,6 +1624,9 @@ class Config(_Overridable):
             return self.get_badge_count_by_type(badge_type) if badge_type else None
         elif name.endswith('_AVAILABLE'):
             item_check = name.rsplit('_', 1)[0]
+            if item_check.lower() in c.UNAVAILABLE_ITEMS:
+                return False
+
             stock_setting = getattr(self, item_check + '_STOCK', None)
             if stock_setting is None:
                 # Defaults to unlimited stock for any stock not configured
