@@ -72,7 +72,7 @@ def prepare_model_export(model, filtered_models=None):
                 val = getattr(model, col.name)
                 row.append(val.strftime('%Y-%m-%d %H:%M:%S') if val else '')
             elif isinstance(col.type, JSONB):
-                row.append(json.dumps(getattr(model, col.name)), cls=serializer)
+                row.append(json.dumps(getattr(model, col.name), cls=serializer))
             else:
                 # For everything else we'll just dump the value, although we might
                 # consider adding more special cases for things like foreign keys.

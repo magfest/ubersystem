@@ -49,15 +49,17 @@ def notify_admins_of_pending_emails():
         return
 
     with Session() as session:
-        pending_emails = session.query(Email.automated_email_id, func.count(Email.id)).filter(Email.status == c.UNAPPROVED
-                                                                                              ).group_by(Email.automated_email_id)
+        pending_emails = session.query(Email.automated_email_id, func.count(Email.id)).filter(
+            Email.status == c.UNAPPROVED).group_by(Email.automated_email_id)
         pending_count_by_id = {id: count for id, count in pending_emails}
         pending_automated_emails = session.query(AutomatedEmail).filter(AutomatedEmail.id.in_(pending_count_by_id.keys()))
         pending_emails_by_sender = defaultdict(list)
         depts_by_sender = EmailService.emails_from_depts(session)
+        subjects_by_id = {}
 
         for email in pending_automated_emails:
-            pending_emails_by_sender[email.sender].append({email: pending_count_by_id[email.id]})
+            pending_emails_by_sender[email.sender].append((email.id, pending_count_by_id[email.id]))
+            subjects_by_id[email.id] = email.subject
 
         for sender, automated_emails in pending_emails_by_sender.items():
             if sender == c.REPORTS_CC_EMAIL:
@@ -70,9 +72,10 @@ def notify_admins_of_pending_emails():
             EmailService.queue_email(session, 'pending_emails_admin', to=sender, sender=c.REPORTS_EMAIL,
                                      subject=f'{c.EVENT_NAME} Pending Emails Report for {utils.localized_now().strftime('%Y-%m-%d')}',
                                      data={'pending_emails_by_sender': emails_by_sender, 'primary_sender': sender,
-                                           'depts_by_sender': depts_by_sender})
-
-        return utils.groupify(pending_emails, 'sender', 'ident')
+                                           'subjects_by_id': subjects_by_id})
+        
+        session.commit()
+        return pending_emails_by_sender
     
 
 @celery.task
