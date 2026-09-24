@@ -869,7 +869,7 @@
       <input type="hidden" name="id" value="{{ receipt.id }}" />
       <input type="hidden" name="txn_type" value="{{ type }}" />
       <div class="row g-3 justify-content-end">
-        <label for="amount" class="col-auto col-form-label">{{ type|title }} Method</label>
+        <label for="method" class="col-auto col-form-label">{{ type|title }} Method</label>
         <div class="col-auto">
           <select name="method" class="form-select">
             <option value="">Select a Method</option>
@@ -884,12 +884,11 @@
             {% endfor %}
           </select>
         </div>
-        <label for="count" class="col-auto col-form-label">Amount</label>
+        <label for="amount" class="col-auto col-form-label">Amount</label>
         <div class="col-auto">
           <div class="input-group">
             <span class="input-group-text">$</span>
-            <input type="number" name="amount" class="form-control" placeholder="0" required>
-            <span class="input-group-text">.00</span>
+            <input type="number" name="amount" class="form-control" placeholder="0" step=".01" required>
           </div>
         </div>
         <label for="desc" class="col-auto col-form-label">Description</label>
