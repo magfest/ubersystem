@@ -1586,7 +1586,7 @@ class ReceiptManager:
                     except ValueError:
                         log.exception(f"The price for {desc} ({price}) isn't a number!")
                     else:
-                        if receipt:
+                        if receipt and price:
                             receipt_items.append(ReceiptItem(purchaser_id=purchaser_id if price > 0 else None,
                                                              receipt_id=receipt.id,
                                                              department=department,
@@ -1596,9 +1596,9 @@ class ReceiptManager:
                                                              count=cost[price],
                                                              revert_change=revert_change,
                                                              ))
-                        else:
+                        elif price:
                             receipt_items.append((desc, price, cost[price]))
-            elif receipt:
+            elif receipt and cost:
                 receipt_items.append(ReceiptItem(purchaser_id=purchaser_id if cost > 0 else None,
                                                  receipt_id=receipt.id,
                                                  department=department,
@@ -1609,7 +1609,7 @@ class ReceiptManager:
                                                  who=who or AdminAccount.admin_name() or 'non-admin',
                                                  revert_change=revert_change,
                                                  ))
-            else:
+            elif cost:
                 receipt_items.append((desc, cost, count))
 
         if isinstance(model, Attendee) and include_discounts:
@@ -1778,14 +1778,16 @@ class ReceiptManager:
 
         if not params.get('no_override') and params.get('overridden_price', None) not in [None, '']:
             new_model.overridden_price = int(params.get('overridden_price') or 0)
-            items = self.process_receipt_change(model, 'overridden_price', new_model, receipt, who=who)
-            return items if items else []
+            items = self.process_receipt_change(model, 'overridden_price', new_model, receipt, who=who) or []
+            session.add_all(items)
+            return items
 
         if not params.get('auto_recalc') and isinstance(model, Group):
             new_model.cost = int(params.get('cost') or 0)
             new_model.auto_recalc = False
-            items = self.process_receipt_change(model, 'cost', new_model, receipt, who=who)
-            return items if items else []
+            items = self.process_receipt_change(model, 'cost', new_model, receipt, who=who) or []
+            session.add_all(items)
+            return items
 
         old_promo_code = getattr(model, 'promo_code_code', None)
         new_promo_code = params.get('promo_code_code', None)
@@ -1832,7 +1834,6 @@ class ReceiptManager:
                 session.delete(existing_discount)
 
             promo_code_discounts = ReceiptManager.check_promo_code_discounts(new_attendee or attendee, receipt, who)
-            log.error(promo_code_discounts)
             if promo_code_discounts:
                 session.add_all(promo_code_discounts)
 

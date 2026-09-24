@@ -320,7 +320,7 @@ class Root:
                             message,
                             '{} {}'.format(attendee.first_name, attendee.last_name
                                            ) if c.AT_THE_CON or c.BADGE_PICKUP_ENABLED else '')
-        receipt = session.refresh_receipt_and_model(attendee)
+        receipt = session.get_receipt_by_model(attendee)
         session.commit()
         forms = load_forms(params, attendee, ['PersonalInfo', 'AdminBadgeExtras', 'AdminConsents', 'AdminStaffingInfo',
                                               'AdminBadgeFlags', 'BadgeAdminNotes', 'OtherInfo'])

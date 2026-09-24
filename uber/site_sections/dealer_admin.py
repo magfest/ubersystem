@@ -25,7 +25,6 @@ def convert_dealer_badge(session, attendee, admin_note=''):
     """
 
     receipt = session.get_receipt_by_model(attendee)
-    receipt_items = []
     params = {
         'ribbon': remove_opt(attendee.ribbon_ints, c.DEALER_RIBBON),
         'badge_cost': None,
