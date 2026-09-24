@@ -92,7 +92,7 @@ class Event(MagModel, table=True):
 
     start_time: datetime = Field(sa_type=DateTime(timezone=True))
     duration: int = 60
-    name: str = False
+    name: str = ''
     description: str = ''
     public_description: str = ''
     tracks: str = Field(sa_column=Column(MultiChoice(c.EVENT_TRACK_OPTS)), default='')

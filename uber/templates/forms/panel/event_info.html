@@ -26,8 +26,8 @@
 
 <div class="row g-3 mb-3">
 {% block name_description %}
-<div class="col-sm">{{ form_macros.input(event_info.name) }}</div>
-<div class="col-sm">{{ form_macros.input(event_info.description) }}</div>
+<div class="col-sm">{{ form_macros.input(event_info.name, required_if="panel_id != ''") }}</div>
+<div class="col-sm">{{ form_macros.input(event_info.description, required_if="panel_id != ''") }}</div>
 <div class="col-sm">{{ form_macros.input(event_info.public_description) }}</div>
 {% endblock %}
 </div>

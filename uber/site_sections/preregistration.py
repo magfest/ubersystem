@@ -1677,7 +1677,7 @@ class Root:
                 duplicate = session.attendees_with_badges().filter_by(first_name=attendee.first_name,
                                                                       last_name=attendee.last_name,
                                                                       email=attendee.email).first()
-                if duplicate:
+                if duplicate and duplicate.transfer_code != transfer_code:
                     return {
                         'message': message,
                         'transfer_badge': transfer_badge,

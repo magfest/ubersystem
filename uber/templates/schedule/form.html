@@ -4,7 +4,7 @@
 {% block content %}
 <h2>{% if event.is_new %}Add{% else %}Edit{% endif %} Event</h2>
 {{ form_macros.form_validation('event-form', 'validate_event') }}
-  <form novalidate method="post" action="form" id="event-form">
+  <form novalidate method="post" action="form" id="event-form" x-data="panel_id: ''">
     <input type="hidden" name="id" value="{{ event.db_id }}" />
 
     {{ csrf_token() }}
@@ -29,7 +29,7 @@
     {% endif %}
     <div class="col-sm">
         <label for="panel_id" class="form-text">Panel Applications</label>
-        <select name="panel_id" id="panel_id" class="form-select">
+        <select name="panel_id" id="panel_id" class="form-select" x-model="panel_id">
             <option selected="true" value="">Associate a panel application with this event</option>
             {% for panel in approved_panel_apps %}
               <option value="{{ panel.id }}">{{ panel.name }} ({{ panel.length_text if panel.length_text else panel.length_label }})</option>
