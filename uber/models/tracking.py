@@ -228,6 +228,10 @@ class Tracking(MagModel, table=True):
             who = 'server admin'
         else:
             who = AdminAccount.acting_name() or (current_thread().name if current_thread().daemon else 'non-admin')
+            if who == 'non-admin' and c.ATTENDEE_ACCOUNTS_ENABLED:
+                logged_in_account = session.current_attendee_account()
+                if logged_in_account:
+                    who = f"{logged_in_account.email}"
 
         session.add(Tracking(
             model=instance.__class__.__name__ if instance else 'N/A',

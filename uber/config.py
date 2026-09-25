@@ -776,6 +776,21 @@ class Config(_Overridable):
         return []
 
     @property
+    def LOCKED_ITEMS(self):
+        # Return a list of items configured in `unavailable_items` based on their value
+        # Mainly for use on the statistics summary page
+        locked = []
+        for badge_var in self.BADGE_VARS:
+            if badge_var.lower() in c.UNAVAILABLE_ITEMS:
+                locked.append(getattr(self, badge_var))
+
+        for level in ['SHIRT', 'SUPPORTER', 'SEASON']:
+            if level.lower() in c.UNAVAILABLE_ITEMS:
+                locked.append(getattr(self, level + "_LEVEL"))
+
+        return locked
+
+    @property
     def kickin_availability_matrix(self):
         return dict([[
             getattr(self, level + "_LEVEL"), getattr(self, level + "_AVAILABLE")]
@@ -1224,6 +1239,8 @@ class Config(_Overridable):
     @property
     @dynamic
     def REMAINING_BADGES(self):
+        if not c.ATTENDEE_BADGE_AVAILABLE:
+            return 0
         return max(0, self.ATTENDEE_BADGE_STOCK - self.get_stock_count('ATTENDEE_BADGE', self.ATTENDEE_BADGE_STOCK))
 
     @request_cached_property

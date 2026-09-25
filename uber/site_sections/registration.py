@@ -1,4 +1,5 @@
 import json
+import logging
 import math
 import os
 import secrets
@@ -33,6 +34,8 @@ from uber.site_sections.preregistration import check_if_can_reg
 from uber.utils import add_opt, check, check_pii_consent, get_page, hour_day_format, \
     localized_now, Order, validate_model, normalize_email_legacy
 from uber.payments import TransactionRequest, ReceiptManager, SpinTerminalRequest
+
+log = logging.getLogger(__name__)
 
 
 def check_atd(func):
@@ -1445,7 +1448,7 @@ class Root:
         attendee.checked_in = attendee.group = None
         raise HTTPRedirect('new?message={}', 'Attendee un-checked-in')
 
-    def feed(self, session, tracking_type='action', message='', page='1', who='', what='', action=''):
+    def feed(self, session, tracking_type='action', message='', page='1', what='', action='', **params):
         filters = []
         if tracking_type == 'report':
             model = ReportTracking
@@ -1456,6 +1459,7 @@ class Root:
 
         feed = session.query(model).filter(*filters).order_by(model.when.desc())
         what = what.strip()
+        who = params.get('admin_who', '') or params.get('nonadmin_who', '')
         if who:
             feed = feed.filter_by(who=who)
         if what:
@@ -1468,6 +1472,9 @@ class Root:
             feed = feed.filter(or_(*or_filters))
         if action:
             feed = feed.filter_by(action=action)
+
+        nonadmin_who_opts = [who for [who] in session.query(model.who).filter(model.who.contains('@')).distinct()] + ['non-admin']
+
         return {
             'message': message,
             'tracking_type': tracking_type,
@@ -1478,8 +1485,8 @@ class Root:
             'count': feed.limit(10000).count(),
             'feed': get_page(page, feed),
             'action_opts': c.TRACKING_OPTS,
-            'who_opts': [
-                who for [who] in session.query(model).distinct().order_by(model.who).values(model.who)]
+            'nonadmin_who_opts': nonadmin_who_opts,
+            'admin_who_opts': [who for [who] in session.query(model.who).filter(~model.who.in_(nonadmin_who_opts)).distinct()],
         }
 
     @csrf_protected

@@ -14,12 +14,17 @@
 <form method="get" action="feed" style="text-align:center">
   <input type="hidden" name="tracking_type" value="{{ tracking_type }}" />
     Search by who did it:
-    <select name="who" onChange="$(this).parents('form').submit()">
+    <select name="admin_who" onChange="$(this).parents('form').submit()">
         <option value="">{% if who %}Show all{% else %}Choose an admin{% endif %}</option>
-        {{ options(who_opts,who) }}
+        {{ options(admin_who_opts,who) }}
+    </select>
+    /
+    <select name="nonadmin_who" onChange="$(this).parents('form').submit()">
+        <option value="">{% if who %}Show all{% else %}Choose an attendee account{% endif %}</option>
+        {{ options(nonadmin_who_opts,who) }}
     </select>
 
-    &nbsp;&nbsp;&nbsp;&nbsp;
+    <br/>
     <i>and/or</i>
     &nbsp;&nbsp;&nbsp;&nbsp;
 
