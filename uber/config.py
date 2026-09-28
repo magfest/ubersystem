@@ -1290,7 +1290,7 @@ class Config(_Overridable):
         if self.HAS_HOTEL_LOTTERY_ADMIN_ACCESS:
             return True
         try:
-            # Keycloak logins put the id on the request, not the session.
+            # OIDC logins put the id on the request, not the session.
             account_id = cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))
             if not account_id:
                 return False
