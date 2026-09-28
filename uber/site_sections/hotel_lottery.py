@@ -65,16 +65,28 @@ def _require_unlocked(ra, attendee_id=''):
                     'and can no longer be edited from here.'))
 
 
-def room_action(func=None, *, allow='leader'):
+def _require_live(ra, attendee_id=''):
+    """Raise HTTPRedirect back to the room page if the assignment no longer
+    holds inventory. Expired and cancelled rows stay on file as a record, and
+    their inventory may already belong to someone else."""
+    if not ra.is_live:
+        raise HTTPRedirect(_room_url(
+            ra.id, attendee_id,
+            message="This room is no longer active and can't be changed."))
+
+
+def room_action(func=None, *, allow='leader', allow_inactive=False):
     """Boilerplate wrapper for POST-only per-room mutations.
 
     Handles what every such handler repeats by hand: bounce GETs back to
     the room page, check CSRF, resolve `assignment_id` to a RoomAssignment
     (consistent "Room not found." redirect), refuse export-locked rooms,
-    and verify the acting viewer may touch the room at all. By default
-    only the room leader (booker) or a Hotel Lottery Admin passes;
-    `allow='occupant'` also admits current occupants (e.g. leaving a
-    room). The wrapped handler receives the resolved row as `ra`:
+    refuse rooms that are no longer live, and verify the acting viewer may
+    touch the room at all. By default only the room leader (booker) or a
+    Hotel Lottery Admin passes; `allow='occupant'` also admits current
+    occupants (e.g. leaving a room). `allow_inactive=True` admits expired
+    and cancelled rooms, for actions that stay meaningful after the room
+    is released. The wrapped handler receives the resolved row as `ra`:
 
         @requires_account(Attendee)
         @room_action
@@ -96,6 +108,8 @@ def room_action(func=None, *, allow='leader'):
             _require_unlocked(ra, attendee_id)
             _require_room_access(session, ra, attendee_id,
                                  allow_occupant=(allow == 'occupant'))
+            if not allow_inactive:
+                _require_live(ra, attendee_id)
             return fn(self, session, ra=ra, attendee_id=attendee_id, **params)
         return wrapper
 
@@ -860,24 +874,26 @@ class Root:
 
         # Also include rooms where this attendee is an occupant but
         # not the booker (so guests see the rooms they're part of).
-        guest_in = [ra for ra in attendee.occupied_rooms
-                    if ra.attendee_id != attendee.id]
+        guest_rooms = [ra for ra in attendee.occupied_rooms
+                       if ra.attendee_id != attendee.id]
 
-        # Connector children render under their parent suite via the
-        # child_assignments relationship. A child whose parent isn't in
-        # this attendee's own list (e.g. the suite is booked by someone
-        # else) is appended as its own top-level "orphan" card - the
-        # template detects that case via parent_assignment_id.
-        primaries = [ra for ra in assignments if not ra.parent_assignment_id]
-        primary_ids = {p.id for p in primaries}
-        primaries.extend(
-            ra for ra in assignments
-            if ra.parent_assignment_id and ra.parent_assignment_id not in primary_ids)
+        # Connector children render under their live parent suite via the
+        # child_assignments relationship. Any other child (the suite is
+        # booked by someone else, or is no longer live) gets its own
+        # top-level card; the template flags it via is_orphan_connector.
+        live_parent_ids = {ra.id for ra in assignments
+                           if ra.is_live and not ra.parent_assignment_id}
+        top_level = [ra for ra in assignments
+                     if ra.parent_assignment_id not in live_parent_ids]
 
+        # Expired and cancelled rooms stay on file as a record but no longer
+        # hold inventory, so they get their own read-only section.
         return {
             'attendee': attendee,
-            'primaries': primaries,
-            'guest_in': guest_in,
+            'primaries': [ra for ra in top_level if ra.is_live],
+            'guest_in': [ra for ra in guest_rooms if ra.is_live],
+            'inactive_rooms': ([ra for ra in top_level if not ra.is_live]
+                               + [ra for ra in guest_rooms if not ra.is_live]),
             'message': message,
         }
 
@@ -996,6 +1012,10 @@ class Root:
         """
         invite = (session.query(RoomAssignmentInvite)
                   .filter_by(invite_token=(token or '').strip()).first()) if token else None
+        # An invite to a released room reads as expired: the room it offers
+        # no longer exists, and its inventory may belong to someone else.
+        if invite and not invite.room_assignment.is_live:
+            invite = None
 
         if cherrypy.request.method == 'POST' and invite and action:
             check_csrf(csrf_token)
@@ -1045,7 +1065,7 @@ class Root:
         code = (code or '').strip()
         invite = (session.query(RoomAssignmentInvite)
                   .filter_by(invite_token=code).first()) if code else None
-        if not invite:
+        if not invite or not invite.room_assignment.is_live:
             if attendee_id:
                 raise HTTPRedirect(
                     'rooms?attendee_id={}&message={}', attendee_id,
@@ -1131,7 +1151,7 @@ class Root:
             message='Occupant removed.'))
 
     @requires_account(Attendee)
-    @room_action(allow='occupant')
+    @room_action(allow='occupant', allow_inactive=True)
     def leave_room(self, session, ra, attendee_id='', **params):
         # Whoever's logged in removes themselves; refuse for the booker.
         viewer = _viewer_attendee(session)
@@ -1242,6 +1262,7 @@ class Root:
             raise HTTPRedirect('rooms?message={}', 'Room not found.')
         _require_unlocked(ra, attendee_id)
         _require_room_access(session, ra, attendee_id)
+        _require_live(ra, attendee_id)
 
         ids = [i.strip() for i in (source_attendee_ids or '').split(',') if i.strip()]
         if not ids:
@@ -2552,6 +2573,10 @@ class Root:
                 ra.parent_assignment_id,
                 attendee_id or application.attendee.id,
                 message="Connector rooms inherit their dates from the parent room."))
+
+        # _resolve_assignment applies `statuses` only when it falls back to
+        # the application's first room; an explicit assignment_id skips it.
+        _require_live(ra, attendee_id or application.attendee.id)
 
         if cherrypy.request.method == "POST":
             check_csrf(params.get('csrf_token'))

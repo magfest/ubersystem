@@ -209,6 +209,25 @@
   {% endif %}
 {% endmacro %}
 
+{# Inactive room reason
+
+   `inactive_room_reason` renders one sentence explaining why a room that
+   is no longer live (EXPIRED, CANCELLED) is still listed. The row stays on
+   file as a record; its inventory may already belong to someone else.
+
+   Arguments:
+     ra - RoomAssignment with is_live False
+#}
+{% macro inactive_room_reason(ra) -%}
+  {% if ra.status == c.EXPIRED -%}
+    This room was released because no card was on file by {% if ra.deposit_cutoff_date %}{{ ra.deposit_cutoff_date.strftime('%A, %B %-d') }}{% else %}the deadline{% endif %}.
+  {%- elif ra.status == c.CANCELLED -%}
+    This reservation was cancelled.
+  {%- else -%}
+    This room is no longer active ({{ ra.status_label }}).
+  {%- endif %}
+{%- endmacro %}
+
 {# Room summary table
 
    `room_summary_table` renders the compact Hotel / Room Type /
