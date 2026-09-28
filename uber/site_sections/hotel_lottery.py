@@ -1445,7 +1445,9 @@ class Root:
             'any_pending': any(ra.status == c.ASSIGNED for ra in live_rooms),
             'unsecured_count': len(unsecured),
             'earliest_card_deadline': min(deadlines) if deadlines else None,
-            'room_count': len(own_rooms),
+            # Expired and cancelled rows stay on file, but the CTA promises
+            # rooms the attendee can still manage.
+            'room_count': sum(1 for ra in own_rooms if ra.is_live),
         }
 
         return {
