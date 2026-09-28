@@ -1290,7 +1290,8 @@ class Config(_Overridable):
         if self.HAS_HOTEL_LOTTERY_ADMIN_ACCESS:
             return True
         try:
-            account_id = cherrypy.session.get('account_id')
+            # OIDC logins put the id on the request, not the session.
+            account_id = cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))
             if not account_id:
                 return False
             from uber.hotel.perms import has_any_lottery_access

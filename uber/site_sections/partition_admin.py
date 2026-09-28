@@ -57,7 +57,8 @@ def _partitions_for_current_admin(session):
     if is_lottery_admin():
         return session.query(InventoryPartition).filter_by(active=True).order_by(
             InventoryPartition.name).all()
-    account_id = cherrypy.session.get('account_id') if cherrypy.session else None
+    # OIDC logins put the id on the request, not the session.
+    account_id = cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))
     if not account_id:
         return []
     grants = session.query(PartitionOwner).filter_by(
