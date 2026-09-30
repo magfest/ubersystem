@@ -1,6 +1,6 @@
 {% extends "./preregistration/preregbase.html" %}
 {% import 'hotel_lottery/_macros.html' as room_macros with context %}
-{% set title_text = "Edit Room" if is_leader else "Your Room" %}
+{% set title_text = "Edit Room" if is_leader and assignment.is_live else "Your Room" %}
 {% block content %}
 
 {# Outer card wrapper matches /hotel_lottery/index and /hotel_lottery/rooms
@@ -17,6 +17,10 @@
 
 {% set ra = assignment %}
 {% set locked = ra.export_locked %}
+{# Expired and cancelled rooms no longer hold inventory. The page shows them
+   as a record only; the room_action guard refuses their writes as well. #}
+{% set inactive = not ra.is_live %}
+{% set read_only = locked or inactive %}
 {% set is_connector = ra.is_connector %}
 
 <div class="d-flex justify-content-between align-items-start mb-3">
@@ -47,6 +51,15 @@
     your reservation. For changes, please contact the hotel directly.
   </div>
 </div>
+{% elif inactive %}
+<div class="alert alert-secondary d-flex align-items-start gap-2">
+  <i class="fa fa-ban fa-lg mt-1"></i>
+  <div>
+    <strong>{{ room_macros.inactive_room_reason(ra) }}</strong>
+    This room is no longer held for you, and its details can't be changed.
+    Questions? Contact {{ c.HOTEL_LOTTERY_EMAIL|email_only|email_to_link }}.
+  </div>
+</div>
 {% endif %}
 
 <div class="card mb-3">
@@ -57,7 +70,7 @@
        hold confirmed; the diff between waitlisted_* and assigned_*
        drives the admin-triggered sweep (Process Waitlist button ->
        uber.hotel.waitlist.fulfill_waitlist). #}
-    {% if ra.is_waitlisted %}
+    {% if ra.is_waitlisted and not inactive %}
     <div class="alert alert-info py-2 mb-2 small">
       <strong>Waitlisted nights:</strong>
       You're on the waitlist for additional nights on this room.
@@ -92,7 +105,7 @@
           </div>
         </div>
       </div>
-    {% elif is_leader and not locked %}
+    {% elif is_leader and not read_only %}
       <form method="post" action="edit_room">
         {{ csrf_token() }}
         {% if application %}<input type="hidden" name="id" value="{{ application.id }}" />{% endif %}
@@ -143,7 +156,7 @@
       This is set on your attendee profile and applies to every room
       you book or occupy.
     </p>
-    {% if not locked %}
+    {% if not read_only %}
     <form method="post" action="save_hotel_name">
       {{ csrf_token() }}
       <input type="hidden" name="attendee_id" value="{{ viewer.id }}" />
@@ -183,7 +196,7 @@
 
     {% if is_leader %}
     <hr class="my-3"/>
-    {% if not locked %}
+    {% if not read_only %}
     <form method="post" action="save_rewards_number">
       {{ csrf_token() }}
       <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
@@ -219,7 +232,7 @@
 <div class="card mb-3">
   <div class="card-header py-2"><strong>Special requests</strong></div>
   <div class="card-body py-2">
-    {% if not locked %}
+    {% if not read_only %}
     <form method="post" action="save_special_requests">
       {{ csrf_token() }}
       <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
@@ -235,7 +248,8 @@
 </div>
 {% endif %}
 
-{% if is_leader and ra.require_cc %}
+{# A released room takes no card, so its past-due deadline is not shown. #}
+{% if is_leader and ra.require_cc and not inactive %}
 <div class="card mb-3">
   <div class="card-header py-2"><strong>Card on file</strong></div>
   <div class="card-body py-2">
@@ -327,8 +341,11 @@
           </td>
           <td><small class="text-muted">{{ occ.email }}</small></td>
           <td class="text-end">
+            {# Leaving stays available on an inactive room so occupants can
+               take themselves off it; leader actions do not. #}
             {% if not locked and occ.id != ra.attendee_id %}
               {% if is_leader %}
+              {% if not inactive %}
                 {# Warn about the card only when one is actually on file
                    (on this room or a connector child) - the transfer
                    removes it and un-secures the room. #}
@@ -349,6 +366,7 @@
                   <input type="hidden" name="occupant_attendee_id" value="{{ occ.id }}" />
                   <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
                 </form>
+              {% endif %}
               {% elif occ.id == viewer.id %}
                 <form method="post" action="leave_room" class="d-inline"
                       onsubmit="return confirm('Leave this room?');">
@@ -365,7 +383,7 @@
       </tbody>
     </table>
 
-    {% if is_leader and not locked %}
+    {% if is_leader and not read_only %}
       {# Pending invites #}
       {% if pending_invites %}
       <h3 class="h6 mt-3">Pending invites</h3>
