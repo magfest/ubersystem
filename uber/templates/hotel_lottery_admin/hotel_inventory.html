@@ -58,7 +58,7 @@
 </div>
 
 <p class="text-muted small mb-2">
-  Each row is one sellable block. Night cells read
+  Night cells read
   <strong>assigned&nbsp;/&nbsp;available</strong>:
   <span class="badge table-danger text-dark border">red</span> = overbooked,
   <span class="badge table-secondary text-dark border">gray</span> = not offered that night,
@@ -118,8 +118,8 @@
     <th rowspan="2" class="align-bottom">Hotel</th>
     <th rowspan="2" class="align-bottom">Room / Suite Type</th>
     <th rowspan="2" class="align-bottom text-center"
-        title="Rooms offered per night (default; per-night overrides apply in the night columns)">
-      Rooms<br/><small class="fw-normal text-muted">per night</small>
+        title="The block's default quantity: rooms of this type offered on a typical night. A night with its own quantity shows it in that night's cell.">
+      Block size
     </th>
     <th colspan="3" class="text-center border-bottom-0">Bookings by status</th>
     <th colspan="{{ event_nights|length }}" class="text-center border-bottom-0">
