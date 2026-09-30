@@ -59,14 +59,16 @@ def sweep_eligible(ra):
     (reconciliation 2) blocks on exactly these rows, and the admin
     demand counts (reconciliation 6) count exactly these rows.
     """
+    # Cheapest check first: most rows aren't waitlisted, and the later
+    # checks load related rows.
+    if not ra.waitlisted_gap_nights:
+        return False
     if ra.status != c.SECURED or not ra.inventory_id:
         return False
     app = ra.lottery_application
     if app is not None and app.entry_type == c.GROUP_ENTRY:
         return False
-    if ra.is_locked:
-        return False
-    return bool(ra.waitlisted_gap_nights)
+    return not ra.is_locked
 
 
 def _fifo_key(ra):

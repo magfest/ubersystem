@@ -11,7 +11,7 @@ from pytz import UTC
 from dateutil import parser as dateparser
 import sqlalchemy as sa
 from sqlalchemy import and_, func, or_
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.types import String
 from sqlmodel import AutoString
 from urllib.parse import urlencode
@@ -2313,7 +2313,10 @@ class Root:
         # per-room request rather than the original lottery entry.
         ra_query = (session.query(RoomAssignment)
                     .filter(RoomAssignment.is_live,
-                            RoomAssignment.inventory_id.isnot(None)))
+                            RoomAssignment.inventory_id.isnot(None))
+                    # sweep_eligible reads these for waitlisted rows.
+                    .options(selectinload(RoomAssignment.lottery_application),
+                             selectinload(RoomAssignment.parent_assignment)))
         if filter_partition_id:
             ra_query = ra_query.filter(RoomAssignment.partition_id == filter_partition_id)
         elif filtering_default:
@@ -2346,13 +2349,17 @@ class Root:
             inventory = defaultdict(list)
             # Inactive blocks are listed too (marked in the template) since
             # they can still hold bookings.
-            for inv in session.query(HotelRoomInventory).filter_by(is_suite=is_suite).all():
+            blocks = (session.query(HotelRoomInventory).filter_by(is_suite=is_suite)
+                      .options(selectinload(HotelRoomInventory.night_quantities)).all())
+            for inv in blocks:
                 hotel_obj = hotel_lookup.get(str(inv.hotel_id))
                 block_id = str(inv.id)
+                night_quantity = inv.night_quantity_map
 
                 night_data = []
                 for night in event_nights:
-                    available = effective_capacity(block_id, inv.quantity_for_night(night))
+                    available = effective_capacity(
+                        block_id, night_quantity.get(night, inv.quantity))
                     assigned = assigned_per_block_night.get(block_id, {}).get(night, 0)
                     waitlisted = waitlist_per_block_night.get(block_id, {}).get(night, 0)
                     night_data.append({
