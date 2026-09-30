@@ -1,0 +1,56 @@
+---
+name: Lint & Type Check
+
+on:
+  push:
+    branches: [touhoufest*, main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: PR Code Quality & Type Check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Reviewdog
+        uses: reviewdog/action-setup@v1
+        with:
+          reviewdog_version: latest
+
+      - name: Install Linters
+        run: |
+          pip install ruff mypy
+
+      - name: Ruff Lint (PR Diff)
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ruff check --output-format=rdjson . | reviewdog -f=rdjson -name="ruff-lint" -reporter=github-pr-review -filter-mode=diff_context -fail-on-error
+
+      - name: Ruff Format Check (PR Diff)
+        if: always()
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ruff format --diff . | reviewdog -f=diff -name="ruff-format" -reporter=github-pr-review -filter-mode=diff_context -fail-on-error
+
+      - name: Mypy Type Check (PR Diff)
+        if: always()
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mypy --ignore-missing-imports . | reviewdog -f=mypy -name="mypy" -reporter=github-pr-review -filter-mode=diff_context -fail-on-error
