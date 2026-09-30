@@ -54,8 +54,10 @@ def _setup(session):
 
 
 def _room(session, inv, **kw):
-    return make_assignment(session, make_attendee(session), inv,
-                           check_in=N[1], check_out=N[3], **kw)
+    """A secured room: exports carry live rooms once they hold a card."""
+    params = dict(check_in=N[1], check_out=N[3], status=c.SECURED, cc_token='tok')
+    params.update(kw)
+    return make_assignment(session, make_attendee(session), inv, **params)
 
 
 # ---------------------------------------------------------------------------
@@ -90,6 +92,45 @@ def test_export_omits_cancellations_the_hotel_never_saw(session):
 
     assert new_then_cancelled.exported_at is None
     assert new_then_cancelled.id not in ids
+
+
+def test_export_omits_rooms_still_needing_a_card(session):
+    hotel, inv = _setup(session)
+    unsecured = _room(session, inv, status=c.ASSIGNED, cc_token=None, payment_type='credit_card')
+    secured = _room(session, inv, payment_type='credit_card')
+    master_bill = _room(session, inv, status=c.ASSIGNED, cc_token=None, payment_type='masterbill')
+
+    ids = {ra.id for ra in exportable_assignments(session, hotel_id=hotel.id)}
+
+    assert unsecured.id not in ids
+    assert secured.id in ids
+    assert master_bill.id in ids
+    _export(session, hotel)
+    assert unsecured.exported_at is None, 'a room left out of the file is not stamped'
+
+
+def test_export_omits_rooms_of_invalid_attendees(session):
+    hotel, inv = _setup(session)
+    valid = _room(session, inv)
+    invalid = make_assignment(session, make_attendee(session, badge_status=c.INVALID_STATUS),
+                              inv, check_in=N[1], check_out=N[3], status=c.SECURED, cc_token='tok')
+
+    ids = {ra.id for ra in exportable_assignments(session, hotel_id=hotel.id)}
+
+    assert valid.id in ids
+    assert invalid.id not in ids
+
+
+def test_sent_cancellation_is_reported_even_for_an_invalid_attendee(session):
+    """The hotel already holds the booking, so it must still hear it was
+    cancelled."""
+    hotel, inv = _setup(session)
+    ra = _room(session, inv, status=c.SECURED)
+    _export(session, hotel)
+    ra.attendee.badge_status = c.INVALID_STATUS
+    _cancel(session, ra)
+
+    assert ra.id in {r.id for r in exportable_assignments(session, hotel_id=hotel.id)}
 
 
 def test_first_export_time_is_kept(session):

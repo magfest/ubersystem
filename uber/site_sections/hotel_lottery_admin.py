@@ -10,7 +10,7 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pytz import UTC
 from dateutil import parser as dateparser
 import sqlalchemy as sa
-from sqlalchemy import func, or_
+from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.types import String
 from sqlmodel import AutoString
@@ -34,13 +34,11 @@ from uber.models.hotel import (HotelRoomInventory, InventoryNightQuantity, Inven
                                WaitlistReveal, WaitlistRevealLink, HotelRoomIssueNote,
                                HotelImportFile)
 from uber.email import EmailService
-from uber.hotel.exports import (booking_columns, booking_export_data,
-                                build_waitlist_xlsx, changed_rooms_between,
-                                compute_export_tracking, derive_sync_status,
-                                hotel_activity_timeline, import_changes,
-                                read_stored_file, render_booking_export,
-                                store_export_file, write_hotel_inventory_xlsx,
-                                write_interchange_export)
+from uber.hotel.exports import (booking_columns, booking_export_data, build_waitlist_xlsx,
+                                changed_rooms_between, compute_export_tracking, derive_sync_status,
+                                hotel_activity_timeline, import_changes, read_stored_file,
+                                record_hotel_transfer, render_booking_export, store_export_file,
+                                write_hotel_inventory_xlsx, write_interchange_export)
 from uber.hotel.imports import (apply_cancellation_rows, apply_confirmation_rows,
                                 match_assignments, parse_confirmation_rows,
                                 parse_iso_date, parse_spreadsheet)
@@ -779,10 +777,20 @@ class Root:
 
     def history(self, session, id):
         application = session.lottery_application(id)
+        # The application's own changes plus its rooms' (edits, and the
+        # hotel exports and imports that included them), in one timeline.
+        rooms = {ra.id: ra for ra in session.query(RoomAssignment)
+                 .filter_by(lottery_application_id=id)}
+        changes = session.query(Tracking).filter(
+            or_(and_(Tracking.model == 'LotteryApplication', Tracking.fk_id == id),
+                and_(Tracking.model == 'RoomAssignment', Tracking.fk_id.in_(list(rooms))))
+        ).order_by(Tracking.when).all() if rooms else session.query(Tracking).filter(
+            Tracking.model == 'LotteryApplication', Tracking.fk_id == id
+        ).order_by(Tracking.when).all()
         return {
             'application':  application,
-            'changes': session.query(Tracking).filter(Tracking.model == 'LotteryApplication', Tracking.fk_id == id
-                                                      ).order_by(Tracking.when).all(),
+            'rooms': rooms,
+            'changes': changes,
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(application)
                                                                 ).order_by(PageViewTracking.when).all(),
         }
@@ -1428,7 +1436,8 @@ class Root:
         store_export_file(
             session, hotel, data, filename, content_type,
             source='admin', record_count=len(rows),
-            exported_by=AdminAccount.admin_name() or '')
+            exported_by=AdminAccount.admin_name() or '',
+            assignment_ids=[row[0] for row in rows])
         session.commit()
         cherrypy.response.headers['Content-Type'] = content_type
         cherrypy.response.headers['Content-Disposition'] = \
@@ -1563,7 +1572,8 @@ class Root:
         # applied count per assignment touched. Email behavior stays here.
         conf_preview = apply_confirmation_rows(
             session, rows, apply_changes=True,
-            on_update=lambda ra: _send_confirmation_updated_email(session, ra))
+            on_update=lambda ra: _send_confirmation_updated_email(session, ra),
+            filename=filename)
         updated = conf_preview['applied']
 
         # Unlike the cancellations import page - where a row's presence
@@ -1573,7 +1583,7 @@ class Root:
             row for row in rows
             if (row.get('cancellation_confirmation_number') or '').strip()]
         cancel_preview = apply_cancellation_rows(
-            session, cancel_rows, apply_changes=True)
+            session, cancel_rows, apply_changes=True, filename=filename)
         cancelled = cancel_preview['applied']
 
         date_updates = 0
@@ -2466,6 +2476,8 @@ class Root:
             # have many rooms).
             exported = assignments.all()
             mark_exported(exported)
+            record_hotel_transfer(session, c.HOTEL_EXPORT, [ra.id for ra in exported],
+                                  'Sent to hotel: Passkey export')
             app_ids_to_lock = {ra.lottery_application_id for ra in exported
                                if ra.lottery_application_id}
             if app_ids_to_lock:
@@ -3091,14 +3103,17 @@ class Root:
             if parse_error:
                 return {'kind': kind, 'preview': None, 'message': parse_error}
 
+            upload_name = getattr(upload, 'filename', '')
             if kind == 'cancellation':
-                preview = apply_cancellation_rows(session, rows, apply_changes)
+                preview = apply_cancellation_rows(session, rows, apply_changes,
+                                                  filename=upload_name)
             else:
                 # Email behavior stays with this controller: the admin
                 # confirmation import notifies the attendee per change.
                 preview = apply_confirmation_rows(
                     session, rows, apply_changes,
-                    on_update=lambda ra: _send_confirmation_updated_email(session, ra))
+                    on_update=lambda ra: _send_confirmation_updated_email(session, ra),
+                    filename=upload_name)
 
             if apply_changes and preview['applied']:
                 session.commit()

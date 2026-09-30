@@ -449,13 +449,18 @@ def mark_exported(assignments, when=None):
 
 def exportable_assignments(session, hotel_id=None, inventory_ids=None):
     """Rows a booking export carries for one hotel or a set of inventory
-    blocks: every live assignment, plus cancelled ones the hotel was
-    already sent (reported with status "Cancelled"). Ordering is the
-    caller's job."""
+    blocks: live assignments whose attendee is valid and that don't
+    still need a credit card, plus cancelled ones the hotel was already
+    sent (reported with status "Cancelled"). Ordering is the caller's
+    job."""
+    ready = and_(RoomAssignment.is_live,
+                 ~RoomAssignment.needs_card,
+                 Attendee.hotel_lottery_eligible == True)  # noqa: E712
     q = (session.query(RoomAssignment)
          .join(HotelRoomInventory,
                HotelRoomInventory.id == RoomAssignment.inventory_id)
-         .filter(or_(RoomAssignment.is_live, cancelled_after_export())))
+         .join(Attendee, Attendee.id == RoomAssignment.attendee_id)
+         .filter(or_(ready, cancelled_after_export())))
     if inventory_ids is not None:
         q = q.filter(RoomAssignment.inventory_id.in_(list(inventory_ids)))
     if hotel_id is not None:

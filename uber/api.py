@@ -1781,7 +1781,8 @@ class HotelLookup:
                                default=str).encode('utf-8'),
                     f'{name}_bookings_{stamp}.json', 'application/json',
                     source='api', record_count=len(rows),
-                    exported_by=who)
+                    exported_by=who,
+                    assignment_ids=[b['assignment_id'] for b in rows])
             session.commit()
 
             return {'last_export_time': last_export_time, 'bookings': bookings}
