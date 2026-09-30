@@ -2344,7 +2344,9 @@ class Root:
 
         def build_inventory_data(is_suite):
             inventory = defaultdict(list)
-            for inv in session.query(HotelRoomInventory).filter_by(is_suite=is_suite, active=True).all():
+            # Inactive blocks are listed too (marked in the template) since
+            # they can still hold bookings.
+            for inv in session.query(HotelRoomInventory).filter_by(is_suite=is_suite).all():
                 hotel_obj = hotel_lookup.get(str(inv.hotel_id))
                 block_id = str(inv.id)
 
@@ -2388,12 +2390,14 @@ class Root:
         infos = [info for inventory in (room_inventory, suite_inventory)
                  for block_list in inventory.values()
                  for info in block_list]
+        # Inactive blocks aren't offered, so only their bookings count.
         nights = [nd for i in infos for nd in i['nights']]
+        offered_nights = [nd for i in infos if i['inventory'].active for nd in i['nights']]
         summary = {
-            'blocks': len(infos),
-            'offered': sum(nd['available'] for nd in nights),
+            'blocks': sum(1 for i in infos if i['inventory'].active),
+            'offered': sum(nd['available'] for nd in offered_nights),
             'assigned': sum(nd['assigned'] for nd in nights),
-            'remaining': sum(nd['remaining'] for nd in nights),
+            'remaining': sum(nd['remaining'] for nd in offered_nights),
             'waitlisted': sum(nd['waitlisted'] for nd in nights),
         }
 
@@ -2405,7 +2409,8 @@ class Root:
                 for info in block_list:
                     for nd in info['nights']:
                         hotel_totals[key]['assigned'] += nd['assigned']
-                        hotel_totals[key]['remaining'] += nd['remaining']
+                        if info['inventory'].active:
+                            hotel_totals[key]['remaining'] += nd['remaining']
 
         return {
             'room_inventory': room_inventory,

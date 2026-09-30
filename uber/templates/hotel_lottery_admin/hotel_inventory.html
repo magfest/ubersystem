@@ -69,7 +69,7 @@
 {% macro inventory_table(inventory, is_suite=False) %}
 {% for hotel, room_list in inventory.items() %}
   {% for room in room_list %}
-  <tr>
+  <tr{% if not room.inventory.active %} class="text-muted"{% endif %}>
     {% if loop.first %}
     {% set totals = hotel_totals.get(hotel.id|string if hotel else '') %}
     <td rowspan="{{ room_list|length }}" class="align-middle fw-bold">
@@ -87,6 +87,7 @@
       <a href="edit_inventory_item?id={{ room.inventory.id }}">
         {{- room.room_type.name if room.room_type else room.inventory.display_name -}}
       </a>
+      {% if not room.inventory.active %} <small>(inactive)</small>{% endif %}
     </td>
     <td class="text-center">{{ room.quantity }}</td>
     <td class="text-center">
