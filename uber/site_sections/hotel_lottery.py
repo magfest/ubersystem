@@ -54,16 +54,17 @@ def _require_post_csrf(params, redirect):
     check_csrf(params.get('csrf_token'))
 
 
+LOCKED_MESSAGE = ("This room is locked, so it can't be changed here. "
+                  "Please contact the hotel if you need to change it.")
+
+
 def _require_unlocked(ra, attendee_id=''):
-    """Raise HTTPRedirect back to the room editor if the assignment has
-    been exported to the hotel. Once `ra.export_locked` is True the
-    booking has been transferred and nothing changes locally any more.
+    """Raise HTTPRedirect back to the room editor if the room is locked
+    (RoomAssignment.is_locked). Exported rooms are not locked;
+    `_require_live` handles inactive rooms.
     """
-    if ra.export_locked:
-        raise HTTPRedirect(_room_url(
-            ra.id, attendee_id,
-            message='This booking has been transferred to the hotel '
-                    'and can no longer be edited from here.'))
+    if ra.is_locked:
+        raise HTTPRedirect(_room_url(ra.id, attendee_id, message=LOCKED_MESSAGE))
 
 
 def _require_live(ra, attendee_id=''):
@@ -81,7 +82,7 @@ def room_action(func=None, *, allow='leader', allow_inactive=False):
 
     Handles what every such handler repeats by hand: bounce GETs back to
     the room page, check CSRF, resolve `assignment_id` to a RoomAssignment
-    (consistent "Room not found." redirect), refuse export-locked rooms,
+    (consistent "Room not found." redirect), refuse locked rooms,
     refuse rooms that are no longer live, and verify the acting viewer may
     touch the room at all. By default only the room leader (booker) or a
     Hotel Lottery Admin passes; `allow='occupant'` also admits current
@@ -266,7 +267,7 @@ def _secure_flow_assignment(session, assignment_id, *, token=None,
                             require_token=False):
     """Shared guard chain for the ajax card-capture endpoints
     (create_vault_session / save_card_token / secure_room_callback):
-    resolve the assignment, refuse export-locked and non-live rooms,
+    resolve the assignment, refuse locked and non-live rooms,
     and (optionally) require a card token.
 
     Returns (assignment, error) where exactly one is None. The error is
@@ -277,9 +278,8 @@ def _secure_flow_assignment(session, assignment_id, *, token=None,
           if assignment_id else None)
     if not ra:
         return None, {'error': 'Assignment not found.'}
-    if ra.export_locked:
-        return None, {'error': 'This booking has been transferred to the hotel '
-                               'and the card on file cannot be changed here.'}
+    if ra.is_locked:
+        return None, {'error': LOCKED_MESSAGE}
     if not ra.is_live:
         return None, {'error': 'This room is not in a state that can be secured.'}
     if require_token and not token:
@@ -353,7 +353,7 @@ def _render_room_detail(session, assignment_id, attendee_id, message):
         # already have a card on file AND share this room's vault scope
         # (so the token is actually valid here). Only offered when this
         # room still needs a card and isn't locked.
-        if ra.require_cc and not ra.export_locked:
+        if ra.require_cc and not ra.is_locked:
             card_source_rooms = [
                 other for other in _card_reuse_sources(session, ra)
                 if other.is_live]
@@ -827,9 +827,8 @@ class Root:
                 or target.attendee_id != attendee.id:
             _fail('Assignment not found.')
 
-        if target.export_locked:
-            _fail('This booking has been transferred to the hotel and the '
-                  'card on file cannot be changed here.')
+        if target.is_locked:
+            _fail(LOCKED_MESSAGE)
         if not source.cc_token:
             _fail('That room has no card on file to reuse.')
         # A vaulted token is only valid within its own vault scope, so
@@ -1187,7 +1186,7 @@ class Root:
 
     # Each section of the room editor (hotel name, rewards #, special
     # requests) submits to its own POST so the editor doesn't need a
-    # single mega-form. All gate on `export_locked` first.
+    # single mega-form. All gate on `is_locked` first.
 
     @requires_account(Attendee)
     def save_hotel_name(self, session, attendee_id,
@@ -2115,96 +2114,102 @@ class Root:
         raise HTTPRedirect(booking_url)
 
     @requires_account(LotteryApplication)
-    def decline(self, session, id, assignment_id=None, message='', **params):
-        """Cancel one of the attendee's awarded RoomAssignments.
+    def decline(self, session, id=None, assignment_id=None, attendee_id='',
+                message='', **params):
+        """Cancel one of the attendee's rooms.
 
-        If a connector primary is cancelled, its connector children cascade.
-        If the cancelled assignment is the attendee's last live one, the
-        LotteryApplication.status flips back to COMPLETE via the model
-        listener.
+        Any live room can be cancelled, secured or exported included; the
+        next hotel export reports it as Cancelled and the card on file is
+        kept. Only the booker (the leader, for group entries) may cancel,
+        and cancelling a suite cancels its connector rooms. `id` is the
+        LotteryApplication; when `assignment_id` is absent (the award
+        email's link) it picks the earliest live room.
         """
-        application = session.lottery_application(id)
-        if application.parent_application or application.valid_group_members:
+        application = session.lottery_application(id) if id else None
+        ra = _resolve_assignment(session, assignment_id, application,
+                                 statuses='live')
+        if ra and application is None:
+            application = ra.lottery_application
+        viewer_id = attendee_id or (ra.attendee_id if ra else '')
+
+        if application and (application.parent_application
+                            or application.valid_group_members):
             you_str = f"Your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}'s"
         else:
             you_str = "Your"
 
-        if application.parent_application:
+        if not ra or (application and ra.lottery_application_id
+                      and ra.lottery_application_id != application.id):
+            raise HTTPRedirect('rooms?message={}', 'There is no room to cancel.')
+
+        # Only the booker's account (or a lottery admin) may cancel.
+        _require_view_as_attendee(session, ra.attendee_id)
+
+        if application and application.parent_application:
             raise HTTPRedirect(
-                'index?id={}&message={}', id,
+                'index?id={}&message={}', application.id,
                 f"Only the leader of your {c.HOTEL_LOTTERY_GROUP_TERM.lower()} "
-                "may decline your room or suite award.")
+                "may cancel your room or suite.")
 
-        ra = _resolve_assignment(session, assignment_id, application,
-                                 statuses=[c.ASSIGNED])
-        if not ra or ra.lottery_application_id != application.id:
-            raise HTTPRedirect('index?id={}&message={}', id,
-                               f"{you_str} entry does not have a room or suite award.")
-
-        # Connector rooms can't be declined on their own - they're a
+        # Connector rooms can't be cancelled on their own - they're a
         # mandatory part of the parent suite. Send the attendee to the
-        # parent's editor, where declining the suite cancels the
+        # parent's editor, where cancelling the suite cancels the
         # connectors along with it.
         if ra.parent_assignment_id:
-            raise HTTPRedirect(
-                'room?id={}&message={}', ra.parent_assignment_id,
-                "Connector rooms are included with your suite and can't be "
-                "declined separately. Decline the suite to give up the whole "
-                "block.")
+            raise HTTPRedirect(_room_url(
+                ra.parent_assignment_id, viewer_id,
+                message="Connector rooms are included with your suite and "
+                        "can't be cancelled separately. Cancel the suite to "
+                        "give up the whole block."))
 
-        if ra.status == c.SECURED:
-            raise HTTPRedirect(
-                'index?id={}&message={}', id,
-                "You cannot cancel a reservation that has already been "
-                "confirmed with a credit card guarantee.")
         if ra.status == c.CANCELLED:
-            raise HTTPRedirect(
-                'index?id={}&message={}', id,
-                "This reservation has already been cancelled.")
-        if ra.status != c.ASSIGNED:
-            raise HTTPRedirect(
-                'index?id={}&message={}', id,
-                f"{you_str} entry does not have a room or suite award.")
+            raise HTTPRedirect(_room_url(
+                ra.id, viewer_id, message='This room has already been cancelled.'))
+        if not ra.is_live:
+            raise HTTPRedirect(_room_url(
+                ra.id, viewer_id, message='This room can no longer be cancelled.'))
 
         room_type = ('suite' if ra.inventory and ra.inventory.is_suite else 'room')
+        context = {
+            'application': application,
+            'assignment': ra,
+            'attendee_id': viewer_id,
+            'you_str': you_str,
+            'room_type': room_type,
+            'message': message,
+        }
 
         if cherrypy.request.method == "POST":
             check_csrf(params.get('csrf_token'))
             if 'confirm' not in params:
-                message = (f"Please check the box confirming that you want to "
-                           f"give up {you_str.lower()} {room_type} award.")
-                return {'application': application,
-                        'assignment': ra,
-                        'message': message}
+                context['message'] = (
+                    f"Please check the box confirming that you want to "
+                    f"cancel {you_str.lower()} {room_type}.")
+                return context
 
-            children = (session.query(RoomAssignment)
-                        .filter_by(parent_assignment_id=ra.id).all())
-            for child in children:
-                child.status = c.CANCELLED
-                session.add(child)
+            for child in ra.child_assignments:
+                if child.is_live:
+                    child.status = c.CANCELLED
+                    session.add(child)
             ra.status = c.CANCELLED
             session.add(ra)
             session.commit()
 
-            still_live = (session.query(RoomAssignment)
-                          .filter(RoomAssignment.lottery_application_id == application.id,
-                                  RoomAssignment.is_live)
-                          .count())
-            if still_live == 0:
-                message = (f"You have declined your {room_type} award and your "
-                           "lottery entry has been cancelled.")
-                raise HTTPRedirect('{}message={}'.format(
-                    _return_link(application.attendee.id), message))
+            if application:
+                still_live = (session.query(RoomAssignment)
+                              .filter(RoomAssignment.lottery_application_id == application.id,
+                                      RoomAssignment.is_live)
+                              .count())
+                if still_live == 0:
+                    message = (f"You have cancelled your {room_type} and your "
+                               "lottery entry has been cancelled.")
+                    raise HTTPRedirect('{}message={}'.format(
+                        _return_link(application.attendee.id), message))
             raise HTTPRedirect(
-                'rooms?attendee_id={}&message={}',
-                application.attendee.id,
-                f"You have declined your {room_type} award.")
+                'rooms?attendee_id={}&message={}', viewer_id,
+                f"You have cancelled your {room_type}.")
 
-        return {
-            'application': application,
-            'assignment': ra,
-            'message': message,
-        }
+        return context
 
     @requires_account()
     def secure_room(self, session, id=None, assignment_id=None, attendee_id='',
@@ -2624,11 +2629,10 @@ class Root:
 
         if cherrypy.request.method == "POST":
             check_csrf(params.get('csrf_token'))
-            if ra.export_locked:
+            if ra.is_locked:
                 raise HTTPRedirect(_room_url(
                     ra.id, attendee_id or application.attendee.id,
-                    message='Your room details have been exported to the hotel and '
-                            'cannot be changed. Please contact us for assistance.'))
+                    message=LOCKED_MESSAGE))
 
             from dateutil import parser as dateparser
 

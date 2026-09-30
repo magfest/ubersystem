@@ -26,10 +26,11 @@ writes live in uber.hotel.service / uber.hotel.waitlist.
 """
 
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import func, or_
+from sqlalchemy import and_, func, or_
 
+from uber.config import c
 from uber.models import Attendee
 from uber.models.hotel import (HotelRoomInventory, InventoryPartitionBlock,
                                LotteryApplication, PhysicalRoom, RoomAssignment)
@@ -427,6 +428,39 @@ def live_assignments_for_hotel(session, hotel_id):
                   HotelRoomInventory.id == RoomAssignment.inventory_id)
             .filter(HotelRoomInventory.hotel_id == str(hotel_id),
                     RoomAssignment.is_live))
+
+
+def cancelled_after_export():
+    """SQL clause: a CANCELLED assignment the hotel was already sent
+    (`exported_at` set), which the next export must report."""
+    return and_(RoomAssignment.status == c.CANCELLED,
+                RoomAssignment.exported_at.isnot(None))
+
+
+def mark_exported(assignments, when=None):
+    """Stamp `exported_at` on rows a hotel export included; the first
+    export wins. Call only from real export paths, never previews.
+    Doesn't flush."""
+    when = when or datetime.now(timezone.utc)
+    for ra in assignments:
+        if ra.exported_at is None:
+            ra.exported_at = when
+
+
+def exportable_assignments(session, hotel_id=None, inventory_ids=None):
+    """Rows a booking export carries for one hotel or a set of inventory
+    blocks: every live assignment, plus cancelled ones the hotel was
+    already sent (reported with status "Cancelled"). Ordering is the
+    caller's job."""
+    q = (session.query(RoomAssignment)
+         .join(HotelRoomInventory,
+               HotelRoomInventory.id == RoomAssignment.inventory_id)
+         .filter(or_(RoomAssignment.is_live, cancelled_after_export())))
+    if inventory_ids is not None:
+        q = q.filter(RoomAssignment.inventory_id.in_(list(inventory_ids)))
+    if hotel_id is not None:
+        q = q.filter(HotelRoomInventory.hotel_id == str(hotel_id))
+    return q
 
 
 def physical_room_conflicts(session, physical_room_id, check_in, check_out,

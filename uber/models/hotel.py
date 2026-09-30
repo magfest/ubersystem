@@ -114,6 +114,8 @@ class LotteryApplication(MagModel, table=True):
     partition_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='inventory_partition.id', nullable=True)
     partition: 'InventoryPartition' = Relationship(
         sa_relationship_kwargs={'foreign_keys': 'LotteryApplication.partition_id', 'lazy': 'joined'})
+    # Set by the Passkey export: this entry's rooms were sent to the hotel.
+    # Feeds RoomAssignment.is_exported; it does not lock anything.
     export_locked: bool = False
 
     # Email-based room guest invite fields
@@ -1005,6 +1007,11 @@ class RoomAssignment(MagModel, table=True):
     special_requests: str = ''
     hotel_rewards_number: str = ''
 
+    # Admin lock; see is_locked.
+    locked: bool = False
+    # When a hotel export first included this row; see is_exported.
+    exported_at: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
+
     # Credit card vaulting (PCI Vault tokens, NOT card data)
     cc_token: str | None = Field(nullable=True)
     cc_last_four: str | None = Field(nullable=True)
@@ -1052,13 +1059,31 @@ class RoomAssignment(MagModel, table=True):
         return cls.status.in_(c.HOTEL_LIVE_ASSIGNMENT_STATUSES)
 
     @property
-    def export_locked(self):
-        # Locking is currently per-application - once any of an app's rooms
-        # are exported the whole app gets the flag, so all of its
-        # RoomAssignments inherit it. If we ever need per-row locking we
-        # can promote this to a real column without breaking the
-        # template/API contract (everything reads through this property).
-        return bool(self.lottery_application and self.lottery_application.export_locked)
+    def lock_source(self):
+        """'room' when this room is locked, 'suite' when its parent suite
+        is, else None."""
+        if self.locked:
+            return 'room'
+        if self.parent_assignment and self.parent_assignment.is_locked:
+            return 'suite'
+        return None
+
+    @property
+    def is_locked(self):
+        """True when an admin locked this room or its parent suite. The
+        attendee pages can't change a locked room (cancelling is still
+        allowed) and the waitlist skips it."""
+        return self.lock_source is not None
+
+    @property
+    def is_exported(self):
+        """True once the hotel has this booking: an export stamped it, the
+        hotel confirmed it, or the Passkey export flagged its lottery
+        entry. Exported rooms stay editable."""
+        return bool(self.exported_at
+                    or (self.hotel_confirmation_number or '').strip()
+                    or (self.lottery_application
+                        and self.lottery_application.export_locked))
 
     @property
     def effective_occupants(self):

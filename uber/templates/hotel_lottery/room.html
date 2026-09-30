@@ -16,7 +16,8 @@
 {% endif %}
 
 {% set ra = assignment %}
-{% set locked = ra.export_locked %}
+{# Admin lock; see RoomAssignment.is_locked. Exported rooms are not locked. #}
+{% set locked = ra.is_locked %}
 {# Expired and cancelled rooms no longer hold inventory. The page shows them
    as a record only; the room_action guard refuses their writes as well. #}
 {% set inactive = not ra.is_live %}
@@ -35,6 +36,17 @@
       {{ room_macros.room_dates(ra, fallback='') }}
       - <span class="text-capitalize">{{ ra.status_label }}</span>
     </p>
+    {# The hotel's own reference numbers, once they've sent them back. #}
+    {% if ra.hotel_confirmation_number or ra.cancellation_confirmation_number %}
+    <p class="mb-0 mt-1">
+      {% if ra.hotel_confirmation_number %}
+        <span class="me-3">Hotel confirmation #: <strong class="user-select-all">{{ ra.hotel_confirmation_number }}</strong></span>
+      {% endif %}
+      {% if ra.cancellation_confirmation_number %}
+        <span>Cancellation #: <strong class="user-select-all">{{ ra.cancellation_confirmation_number }}</strong></span>
+      {% endif %}
+    </p>
+    {% endif %}
   </div>
   <a href="rooms?attendee_id={{ viewer.id }}" class="btn btn-outline-secondary">All rooms</a>
 </div>
@@ -42,22 +54,35 @@
 {# `message` is rendered by base.html into the global `#message-alert`
    element via JS; do NOT re-render it inline here or it shows up twice. #}
 
-{% if locked %}
-<div class="alert alert-warning d-flex align-items-start gap-2">
-  <i class="fa fa-lock fa-lg mt-1"></i>
-  <div>
-    <strong>This booking has been transferred to the hotel's system.</strong>
-    The information shown here may not reflect the realtime state of
-    your reservation. For changes, please contact the hotel directly.
-  </div>
-</div>
-{% elif inactive %}
+{% if inactive %}
 <div class="alert alert-secondary d-flex align-items-start gap-2">
   <i class="fa fa-ban fa-lg mt-1"></i>
   <div>
     <strong>{{ room_macros.inactive_room_reason(ra) }}</strong>
     This room is no longer held for you, and its details can't be changed.
-    Questions? Contact {{ c.HOTEL_LOTTERY_EMAIL|email_only|email_to_link }}.
+    Questions? Please contact
+    {{ ra.inventory.hotel.name if ra.inventory and ra.inventory.hotel else 'the hotel' }}
+    directly.
+  </div>
+</div>
+{% elif locked %}
+<div class="alert alert-secondary d-flex align-items-start gap-2">
+  <i class="fa fa-lock fa-lg mt-1"></i>
+  <div>
+    <strong>This room is locked.</strong>
+    {% if ra.lock_source == 'suite' %}It follows its suite, which is locked.{% endif %}
+    Its details can't be changed here. Please contact
+    {{ ra.inventory.hotel.name if ra.inventory and ra.inventory.hotel else 'the hotel' }}
+    directly if you need to change something.
+  </div>
+</div>
+{% elif ra.is_exported %}
+<div class="alert alert-warning d-flex align-items-start gap-2">
+  <i class="fa fa-paper-plane fa-lg mt-1"></i>
+  <div>
+    <strong>This booking has been sent to the hotel.</strong>
+    You can still make changes here, but they may be delayed before they
+    reach the hotel. Please confirm any change with the hotel directly.
   </div>
 </div>
 {% endif %}
@@ -265,7 +290,7 @@
         {% else %}
           No card on file.
         {% endif %}
-        Contact the hotel to update the card on this reservation.
+        This room is locked; please contact the hotel to update the card.
       </p>
     {% else %}
       {# Big red warning + deadline when this room still needs a card. #}
@@ -487,11 +512,10 @@
   </div>
 </div>
 
-{% if is_leader and not locked and ra.status == c.ASSIGNED %}
+{# Any live room can be cancelled by its booker. #}
+{% if is_leader and ra.is_live %}
   {% if is_connector %}
-  {# Connectors are part of the suite; they can't be declined on their
-     own. Point back to the parent suite, where Decline cancels the
-     whole block. #}
+  {# Connectors are cancelled with their suite. #}
   <div class="d-flex justify-content-end">
     <span class="text-muted small me-2 align-self-center">
       This connector room is included with your suite.
@@ -501,8 +525,8 @@
   </div>
   {% else %}
   <div class="d-flex justify-content-end">
-    <a href="decline?id={{ application.id if application else '' }}&assignment_id={{ ra.id }}"
-       class="btn btn-outline-danger">Decline this room</a>
+    <a href="decline?id={{ application.id if application else '' }}&assignment_id={{ ra.id }}&attendee_id={{ viewer.id }}"
+       class="btn btn-outline-danger">Cancel this {{ 'suite' if ra.inventory and ra.inventory.is_suite else 'room' }}</a>
   </div>
   {% endif %}
 {% endif %}

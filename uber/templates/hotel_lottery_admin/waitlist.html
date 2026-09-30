@@ -196,8 +196,8 @@
             {% else %}-{% endif %}
           </td>
           <td class="text-end">
-            {% if ra.export_locked %}
-              <span class="badge bg-warning" title="Exported to hotel - cannot accept locally.">
+            {% if ra.is_locked %}
+              <span class="badge bg-secondary" title="Locked - unlock the room or its inventory block to accept.">
                 <i class="fa fa-lock"></i> Locked
               </span>
             {% else %}

@@ -94,7 +94,7 @@
         </select>
       </div>
       <div class="col-md-1">
-        <label class="form-label small">Locked</label>
+        <label class="form-label small" title="Entries flagged by the Passkey export">Exported</label>
         <select class="form-select form-select-sm" name="filter_export_locked">
           <option value="">All</option>
           <option value="true" {% if advanced_filters.get('filter_export_locked') == 'true' %}selected{% endif %}>Yes</option>
@@ -175,7 +175,8 @@
                         {% for ra in _rooms %}
                           {% set inv = ra.inventory %}
                           <div class="small">
-                            {% if ra.export_locked %}<i class="fa fa-lock text-warning" title="Export Locked"></i> {% endif %}
+                            {% if ra.is_locked %}<i class="fa fa-lock text-secondary" title="Locked"></i> {% endif %}
+                            {% if ra.is_exported %}<i class="fa fa-paper-plane text-muted" title="Sent to hotel"></i> {% endif %}
                             {{ inv.hotel.name if inv and inv.hotel else '' }} -
                             {% if inv %}{{ inv.display_name }}{% endif %}
                             {% if ra.is_connector %}{{ hotel_macros.connector_chip() }}{% endif %}

@@ -26,6 +26,7 @@ from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, Attr
                          ArtShowApplication, ArtistMarketplaceApplication, BadgeInfo, Department, DeptMembership,
                          DeptRole, Event, IndieJudge, IndieStudio, Job, Session, Shift, Group,
                          GuestGroup, LotteryApplication)
+from uber.hotel.queries import exportable_assignments, mark_exported
 from uber.models.hotel import (HotelExportLog, HotelRoomInventory, LotteryHotel,
                                RoomAssignment)
 from uber.models.badge_printing import PrintJob
@@ -1691,6 +1692,9 @@ class HotelLookup:
         `parent_assignment_id` pointing at the suite assignment so the
         receiver can group them. Creates an export log entry for tracking.
 
+        Cancelled rooms the hotel was already sent are included with
+        `status` "Cancelled".
+
         Identify the hotel by `hotel_name` (its export name or display name) or
         by `hotel` (the LotteryHotel UUID, a name, or the PCI Vault reference
         stored on its inventory blocks).
@@ -1712,7 +1716,6 @@ class HotelLookup:
         """
         who = str(exported_by or '').strip()[:255] or 'api'
         from uber.hotel.exports import booking_dict, resolve_lottery_hotel
-        from uber.hotel.queries import live_assignments_for_hotel
 
         with Session() as session:
             ident = hotel_name or hotel
@@ -1727,17 +1730,16 @@ class HotelLookup:
 
             order = (RoomAssignment.parent_assignment_id.asc().nullsfirst(),
                      RoomAssignment.created.asc())
+            # Live rooms, plus cancelled rooms the hotel was already sent.
             if inv_ids:
-                assignments = (session.query(RoomAssignment)
-                               .filter(RoomAssignment.is_live,
-                                       RoomAssignment.inventory_id.in_(inv_ids))
+                assignments = (exportable_assignments(session, inventory_ids=inv_ids)
                                .order_by(*order).all())
                 export_hotel_ids = {
                     row[0] for row in session.query(HotelRoomInventory.hotel_id)
                     .filter(HotelRoomInventory.id.in_(inv_ids)).distinct().all()
                     if row[0]}
             elif hotel_obj:
-                assignments = (live_assignments_for_hotel(session, hotel_obj.id)
+                assignments = (exportable_assignments(session, hotel_id=hotel_obj.id)
                                .order_by(*order).all())
                 export_hotel_ids = {str(hotel_obj.id)}
             else:
@@ -1755,6 +1757,7 @@ class HotelLookup:
                 if prev and prev[0]:
                     last_export_time = prev[0].isoformat()
 
+            mark_exported(assignments)
             bookings = []
             hotels_exported = set()
             for ra in assignments:

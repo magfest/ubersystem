@@ -58,9 +58,9 @@ from uber.hotel.audit import (annotate_issues, collect_issues,
                                    filter_issues, get_or_make_issue_note,
                                    group_inventory_issues, group_room_issues,
                                    load_issue_notes)
-from uber.hotel.queries import (attendee_name_filter, attendee_search_results,
-                                block_availability, build_room_assignment_query,
-                                clamp_page_size, paginate)
+from uber.hotel.queries import (attendee_name_filter, attendee_search_results, block_availability,
+                                build_room_assignment_query, clamp_page_size, mark_exported,
+                                paginate)
 from uber.hotel.run_stats import lottery_run_stats
 from uber.hotel.waitlist import (WaitlistError, accept_waitlist_entry,
                                  sweep_eligible, fulfill_waitlist)
@@ -759,6 +759,9 @@ class Root:
             inventory_partitions_map.setdefault(
                 str(pb.inventory_id), []).append(str(pb.partition_id))
 
+        _live_rooms = [ra for ra in (application.attendee.room_assignments
+                                     if application.attendee else [])
+                       if ra.is_live]
         return {
             'message':    message,
             'application':   application,
@@ -767,12 +770,11 @@ class Root:
             'partitions': picker['partitions'],
             'inventory_blocks': picker['inventory_blocks'],
             'inventory_partitions_map': inventory_partitions_map,
-            # Export-lock chip on the Rooms section header (previously a
-            # namespace() loop in the template).
-            'any_export_locked': any(
-                ra.export_locked for ra in
-                (application.attendee.room_assignments
-                 if application.attendee else [])),
+            # Sent-to-hotel / locked chips on the Rooms section header.
+            'rooms_exported': sum(
+                1 for ra in _live_rooms if ra.is_exported),
+            'rooms_locked': sum(
+                1 for ra in _live_rooms if ra.is_locked),
         }
 
     def history(self, session, id):
@@ -848,9 +850,15 @@ class Root:
             app.id: rooms_by_attendee.get(app.attendee_id, [])
             for app in applications}
 
+        # Lock / unlock-all button counts: the run's live awarded rooms.
+        live_run_rooms = session.query(RoomAssignment).filter(
+            RoomAssignment.lottery_run_id == lottery_run.id,
+            RoomAssignment.is_live)
         return {
             'lottery_run': lottery_run,
             'applications': applications,
+            'run_rooms_live': live_run_rooms.count(),
+            'run_rooms_locked': live_run_rooms.filter(RoomAssignment.locked).count(),
             'stats': lottery_run_stats(session, lottery_run),
             'total': total,
             'page': page_num,
@@ -863,6 +871,30 @@ class Root:
             'message': message,
             **picker,
         }
+
+    def lock_run_rooms(self, session, id, lock='', **params):
+        """Lock (lock=1) or unlock every live room this run awarded.
+        Unlocking also clears locks set on those rooms individually."""
+        _require_post_csrf(params, redirect=f'lottery_run_detail?id={id}')
+        lottery_run = session.query(LotteryRun).get(id)
+        if not lottery_run:
+            raise HTTPRedirect('lottery_runs?message={}', 'Run not found.')
+        if lottery_run.status != c.LOTTERY_AWARDED:
+            raise HTTPRedirect('lottery_run_detail?id={}&message={}', id,
+                               'Only an awarded run has rooms to lock.')
+        new_locked = lock in ('1', 'true', 'yes')
+        changed = 0
+        for ra in session.query(RoomAssignment).filter(
+                RoomAssignment.lottery_run_id == lottery_run.id,
+                RoomAssignment.is_live).all():
+            if bool(ra.locked) != new_locked:
+                ra.locked = new_locked
+                session.add(ra)
+                changed += 1
+        session.commit()
+        verb = 'Locked' if new_locked else 'Unlocked'
+        raise HTTPRedirect('lottery_run_detail?id={}&message={}', id,
+                           f"{verb} {changed} awarded room{'' if changed == 1 else 's'}.")
 
     def update_lottery_run(self, session, id, name, **params):
         _require_post_csrf(params, redirect=f'lottery_run_detail?id={id}')
@@ -2429,8 +2461,12 @@ class Root:
                        .order_by(RoomAssignment.inventory_id, RoomAssignment.created))
 
         if lock_entries:
-            # Lock the SOURCE applications (one app may produce many rooms).
-            app_ids_to_lock = {ra.lottery_application_id for ra in assignments
+            # `lock_entries` marks this export as sent to the hotel: stamp
+            # the rooms and flag their source applications (one app may
+            # have many rooms).
+            exported = assignments.all()
+            mark_exported(exported)
+            app_ids_to_lock = {ra.lottery_application_id for ra in exported
                                if ra.lottery_application_id}
             if app_ids_to_lock:
                 for app in session.query(LotteryApplication).filter(
@@ -2438,7 +2474,7 @@ class Root:
                     if not app.export_locked:
                         app.export_locked = True
                         session.add(app)
-                session.commit()
+            session.commit()
 
         for ra in assignments:
             app = ra.lottery_application
@@ -3742,14 +3778,6 @@ class Root:
             'ungranted_admins': ungranted_admins,
             'message': message,
         }
-
-    @ajax
-    def unlock_application(self, session, id):
-        app = session.lottery_application(id)
-        app.export_locked = False
-        session.add(app)
-        session.commit()
-        return {"success": True}
 
     # Wrappers around the underlying RoomAssignment CRUD that live in
     # partition_admin. Each redirects back to the application edit form

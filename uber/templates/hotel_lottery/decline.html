@@ -1,33 +1,53 @@
 {% extends "./preregistration/preregbase.html" %}
-{% set title_text = "Decline Award for " ~ application.attendee.full_name %}
-{# `assignment` is the specific RoomAssignment being declined (set by the
-   handler). Fall back to a generic noun if absent. #}
-{% set _inv = assignment.inventory if assignment else None %}
-{% set room_type = 'suite' if (_inv and _inv.is_suite) else 'room' %}
+{% import 'hotel_lottery/_macros.html' as room_macros with context %}
+{% set _booker = application.attendee if application else assignment.attendee %}
+{% set title_text = "Cancel " ~ room_type|title ~ " for " ~ _booker.full_name %}
+{# `assignment` is the room being cancelled and `room_type` is 'room' or
+   'suite'; `application` is None for non-lottery rooms. #}
 
 {% block content %}
 <div class="card card-body">
-    <h1>{{ c.EVENT_NAME }}{% if c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery %} Staff{% endif %} Hotel Lottery <span class="text-muted h4">for {{ application.attendee.full_name }}</span></h1>
+    <h1>{{ c.EVENT_NAME }} Hotel Rooms <span class="text-muted h4">for {{ _booker.full_name }}</span></h1>
     <hr/>
-    <h2>Decline {{ room_type|title }} Award?</h2>
+    <h2>Cancel {{ room_type|title }}?</h2>
     <p>
-        This will <strong>permanently</strong> decline your{% if application.valid_group_members %} and your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} members'{% endif %} {{ room_type }} award in the {{ c.EVENT_NAME_AND_YEAR }} hotel lottery.
+        This will <strong>permanently</strong> cancel {{ you_str|lower }} {{ room_type }}
+        {%- if assignment.assigned_check_in_date %} for
+        {{ assignment.assigned_check_in_date|date("%a %b %-d") }} -
+        {{ assignment.assigned_check_out_date|date("%a %b %-d") }}{% endif %}.
+        {% if assignment.child_assignments|selectattr('is_live')|list %}
+        The connector rooms included with this suite will be cancelled too.
+        {% endif %}
+        Cancelled rooms cannot be restored.
+    </p>
+    {% if assignment.is_exported %}
+    <div class="alert alert-warning">
+        This booking has already been sent to the hotel. We will pass the
+        cancellation on to them.
+    </div>
+    {% endif %}
+    {% if application and not application.parent_application %}
+    <p>
         {% if c.HOTEL_LOTTERY_OPEN %}
-        Your lottery {% if application.valid_group_members %}entries{% else %}entry{% endif %} will also be cancelled and will not be considered when assigning cancelled rooms.
+        If this is your last room, your lottery {% if application.valid_group_members %}entries{% else %}entry{% endif %} will also be cancelled and will not be considered when assigning cancelled rooms.
         {% else %}
-        Since the hotel lottery is closed, this award is your{% if application.valid_group_members %} {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}'s{% endif %}
-        ONLY chance for a room or suite award.
+        Since the hotel lottery is closed, you{% if application.valid_group_members %}r {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}{% endif %} will not be offered another room.
         {% endif %}
     </p>
+    {% endif %}
     <form method="post" action="decline" class="mb-3">
         {{ csrf_token() }}
-        <input type="hidden" name="id" value="{{ application.id }}" />
-        {% if assignment %}<input type="hidden" name="assignment_id" value="{{ assignment.id }}" />{% endif %}
-        <label class="checkbox-label mb-3"><input type="checkbox" name="confirm" value="1" class="form-check-input" /> <strong>Yes</strong>, I'm sure that I want to decline the {{ room_type }} award detailed below{% if application.valid_group_members %} for both myself and my {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}'s members{% endif %}.</label>
-        <br/><button type="submit" class="btn btn-danger">Decline {{ room_type|title }} Award</button>
+        <input type="hidden" name="id" value="{{ application.id if application else '' }}" />
+        <input type="hidden" name="assignment_id" value="{{ assignment.id }}" />
+        <input type="hidden" name="attendee_id" value="{{ attendee_id }}" />
+        <label class="checkbox-label mb-3"><input type="checkbox" name="confirm" value="1" class="form-check-input" /> <strong>Yes</strong>, I'm sure that I want to cancel the {{ room_type }} detailed below{% if application and application.valid_group_members %} for both myself and my {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}'s members{% endif %}.</label>
+        <br/>
+        <button type="submit" class="btn btn-danger">Cancel {{ room_type|title }}</button>
+        <a href="room?id={{ assignment.id }}&attendee_id={{ attendee_id }}" class="btn btn-outline-secondary ms-2">Keep {{ room_type }}</a>
     </form>
-    {% if application.valid_group_members %}<p>Your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} members will be notified.</p>{% endif %}
-    {% set app_or_parent = application.app_or_parent %}
-    {% include 'hotel_lottery/award_info.html' with context %}
+    {% if application and application.valid_group_members %}<p>Your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} members will be notified.</p>{% endif %}
+    <div class="card card-body">
+        {{ room_macros.room_summary_table(assignment) }}
+    </div>
 </div>
 {% endblock %}

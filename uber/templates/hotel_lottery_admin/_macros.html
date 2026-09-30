@@ -146,6 +146,13 @@
   <span class="badge bg-{% if ra.status == c.SECURED %}success{% elif ra.status == c.ASSIGNED %}warning text-dark{% elif ra.status in (c.CANCELLED, c.EXPIRED) %}danger{% else %}secondary{% endif %}">
     {{ ra.status_label }}
   </span>
+  {%- if ra.is_locked %}
+  <i class="fa fa-lock text-secondary ms-1"
+     title="Locked{% if ra.lock_source == 'suite' %} (its parent suite){% endif %}"></i>
+  {%- endif %}
+  {%- if ra.is_exported %}
+  <i class="fa fa-paper-plane text-muted ms-1" title="Sent to hotel"></i>
+  {%- endif %}
 {% endmacro %}
 
 {# LotteryApplication status cell. Distinct enum from RoomAssignment;

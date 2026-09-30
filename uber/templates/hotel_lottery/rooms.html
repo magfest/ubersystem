@@ -98,18 +98,18 @@
 
     <div class="d-flex gap-2 mt-2">
       <a href="room?id={{ room.id }}&attendee_id={{ attendee.id }}" class="btn btn-sm btn-outline-primary">
-        {% if room.export_locked %}View{% else %}Edit{% endif %}
+        {% if room.is_locked or not room.is_live %}View{% else %}Edit{% endif %}
       </a>
-      {% if not room.export_locked and room.require_cc and room.status == c.ASSIGNED %}
+      {% if not room.is_locked and room.require_cc and room.status == c.ASSIGNED %}
         <a href="secure_room?assignment_id={{ room.id }}&attendee_id={{ attendee.id }}" class="btn btn-sm btn-success">
           Secure
         </a>
       {% endif %}
-      {# Declining the suite cancels its connector rooms too, so the
-         Decline action lives only on the parent. #}
-      {% if not room.export_locked and room.status == c.ASSIGNED %}
-        <a href="decline?id={{ attendee.lottery_application.id if attendee.lottery_application else '' }}&assignment_id={{ room.id }}"
-           class="btn btn-sm btn-outline-danger">Decline</a>
+      {# Cancel lives on the parent only; cancelling a suite cancels its
+         connectors. #}
+      {% if room.is_live and not room.parent_assignment_id %}
+        <a href="decline?id={{ room.lottery_application_id or '' }}&assignment_id={{ room.id }}&attendee_id={{ attendee.id }}"
+           class="btn btn-sm btn-outline-danger">Cancel</a>
       {% endif %}
     </div>
 
@@ -143,9 +143,9 @@
         </div>
         <div class="d-flex gap-2 mt-2">
           <a href="room?id={{ child.id }}&attendee_id={{ attendee.id }}" class="btn btn-sm btn-outline-primary">
-            {% if child.export_locked or not child.is_live %}View{% else %}Edit{% endif %}
+            {% if child.is_locked or not child.is_live %}View{% else %}Edit{% endif %}
           </a>
-          {% if not child.export_locked and child.require_cc and child.status == c.ASSIGNED %}
+          {% if not child.is_locked and child.require_cc and child.status == c.ASSIGNED %}
             <a href="secure_room?assignment_id={{ child.id }}&attendee_id={{ attendee.id }}" class="btn btn-sm btn-success">
               Secure
             </a>
@@ -187,7 +187,7 @@
 
     <div class="d-flex gap-2 mt-2">
       <a href="room?id={{ room.id }}&attendee_id={{ attendee.id }}" class="btn btn-sm btn-outline-primary">View</a>
-      {% if not room.export_locked %}
+      {% if not room.is_locked %}
         <form method="post" action="leave_room" class="d-inline">
           {{ csrf_token() }}
           <input type="hidden" name="assignment_id" value="{{ room.id }}" />

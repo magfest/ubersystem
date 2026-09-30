@@ -35,6 +35,7 @@ from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.custom_tags import datetime_local_filter
+from uber.hotel.queries import exportable_assignments, mark_exported
 from uber.models import Attendee, LotteryApplication
 from uber.models.hotel import (HotelExportLog, HotelRoomInventory,
                                LotteryHotel, LotteryRoomType, RoomAssignment)
@@ -270,14 +271,15 @@ def booking_export_data(session, hotel_id):
     Source is now RoomAssignment - one row per assigned room.
     Connectors get their own line; their `parent_assignment_id`
     column points at the parent (suite) assignment's id so the hotel
-    can group them.
+    can group them. Cancelled rooms the hotel was already sent stay in
+    the file with status "Cancelled".
     """
     hotel = session.query(LotteryHotel).filter_by(id=hotel_id).first()
     if not hotel:
         return None, []
 
-    from uber.hotel.queries import live_assignments_for_hotel
-    assignments = (live_assignments_for_hotel(session, hotel.id)
+    # Live rooms, plus cancelled rooms the hotel was already sent.
+    assignments = (exportable_assignments(session, hotel_id=hotel.id)
                    .options(joinedload(RoomAssignment.partition))
                    .order_by(RoomAssignment.parent_assignment_id.asc().nullsfirst(),
                              RoomAssignment.created.asc())
@@ -291,6 +293,9 @@ def booking_export_data(session, hotel_id):
         for app in session.query(LotteryApplication).filter(
                 LotteryApplication.id.in_(app_ids)).all():
             apps_by_id[app.id] = app
+
+    # This file goes to the hotel, so stamp its rows as exported.
+    mark_exported(assignments)
 
     rows = []
     for ra in assignments:
@@ -723,7 +728,8 @@ def compute_export_tracking(session):
 
         dirty_count = 0
         if last_export:
-            dirty_count = bookings.filter(
+            # Cancelled rooms the hotel was sent count as changes too.
+            dirty_count = exportable_assignments(session, hotel_id=hotel.id).filter(
                 RoomAssignment.last_modified_at > last_export.exported_at
             ).count()
 

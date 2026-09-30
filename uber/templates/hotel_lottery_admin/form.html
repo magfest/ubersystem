@@ -63,20 +63,18 @@
   <div class="card-header py-2 d-flex justify-content-between align-items-center">
     <strong>Room Assignments</strong>
     <div>
-      {# Export-lock chip - visible at the section header so the admin
-         knows immediately whether changes will reach the hotel. The
-         handler precomputes `any_export_locked` across the attendee's
-         rooms. #}
-      {% if any_export_locked %}
-        <span class="badge bg-warning" title="At least one room has been exported to the hotel and is locked.">
-          <i class="fa fa-lock"></i> Export-locked
+      {# Counts of the attendee's live rooms sent to the hotel and locked. #}
+      {% if rooms_exported %}
+        <span class="badge bg-light text-dark border" title="Rooms the hotel has been sent. Attendees can still edit them; changes may be delayed.">
+          <i class="fa fa-paper-plane"></i> {{ rooms_exported }} sent to hotel
         </span>
-        <button type="button" class="btn btn-sm btn-outline-danger ms-1"
-                onclick="$.post('unlock_application', {id: '{{ application.id }}', csrf_token: csrf_token}, function() { location.reload(); })">
-          Unlock all
-        </button>
       {% else %}
-        <span class="badge bg-secondary">Not export-locked</span>
+        <span class="badge bg-secondary">Not sent to hotel</span>
+      {% endif %}
+      {% if rooms_locked %}
+        <span class="badge bg-secondary ms-1" title="Rooms locked by an admin (room or inventory block). Attendees can't edit them.">
+          <i class="fa fa-lock"></i> {{ rooms_locked }} locked
+        </span>
       {% endif %}
       <button type="button" class="btn btn-sm btn-outline-primary ms-2"
               data-bs-toggle="modal" data-bs-target="#add-room-modal">

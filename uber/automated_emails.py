@@ -1094,8 +1094,9 @@ if c.HOTEL_LOTTERY_STAFF_START or c.HOTEL_LOTTERY_FORM_START:
     HotelLotteryEmailFixture(
         f'Reminder to confirm your {c.EVENT_NAME_AND_YEAR} hotel reservation',
         'hotel/guarantee_reminder.html',
-        "lambda a: a.status == c.AWARDED and a.booking_url_ready and \
-            days_before(7, a.guarantee_deadline)() and not a.parent_application",
+        "lambda a: a.status == c.AWARDED and not a.parent_application and \
+            days_before(7, a.guarantee_deadline)() and \
+            any(ra.needs_card and not ra.is_locked for ra in a.lottery_room_assignments)",
         'hotel_lottery_guarantee_reminder'
     )
     

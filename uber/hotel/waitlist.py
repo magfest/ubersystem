@@ -37,7 +37,7 @@ ResizeResult = namedtuple(
 
 #: Result of `fulfill_waitlist`: the set of RoomAssignments that gained
 #: at least one night, the total night-extensions granted, and how many
-#: export-locked rows were skipped.
+#: locked rows were skipped.
 FulfillResult = namedtuple(
     'FulfillResult', 'fulfilled_assignments fulfilled skipped_locked')
 
@@ -49,7 +49,8 @@ AcceptResult = namedtuple(
 
 def sweep_eligible(ra):
     """True iff the sweep may serve this assignment: SECURED, bound to
-    an inventory block, not export-locked, not a group-entry sub-app row
+    an inventory block, not locked (RoomAssignment.is_locked), not a
+    group-entry sub-app row
     (those don't hold their own room - the leader's row covers the
     group), and actually waiting on at least one night.
 
@@ -63,7 +64,7 @@ def sweep_eligible(ra):
     app = ra.lottery_application
     if app is not None and app.entry_type == c.GROUP_ENTRY:
         return False
-    if ra.export_locked:
+    if ra.is_locked:
         return False
     return bool(ra.waitlisted_gap_nights)
 
@@ -247,7 +248,7 @@ def fulfill_waitlist(session, inventory_id=None, night_date=None):
 
     Returns FulfillResult. `fulfilled` counts night-extensions (one row
     gaining two nights counts twice); `skipped_locked` counts the
-    export-locked rows with waitlist columns set that the sweep refused
+    locked rows with waitlist columns set that the sweep refused
     to touch. Flushes only - the caller commits and queues the
     "waitlist fulfilled" emails for `fulfilled_assignments`.
     """
@@ -271,7 +272,7 @@ def fulfill_waitlist(session, inventory_id=None, night_date=None):
             RoomAssignment.inventory_id == str(inventory_id))
 
     rows = base_q.all()
-    skipped_locked = sum(1 for ra in rows if ra.export_locked)
+    skipped_locked = sum(1 for ra in rows if ra.is_locked)
 
     total_fulfilled = 0
     fulfilled_assignments = set()
@@ -359,7 +360,7 @@ def accept_waitlist_entry(session, ra, *, require_secured=False):
 
     Looser gate than the sweep (reconciliation 1): by default this does
     NOT require SECURED status or a non-group entry - a documented
-    admin override. It still refuses export-locked rows and rows with
+    admin override. It still refuses locked rows and rows with
     no inventory block. Pass require_secured=True to enforce the
     sweep's status gate as well.
 
@@ -374,9 +375,9 @@ def accept_waitlist_entry(session, ra, *, require_secured=False):
     """
     if not (ra.waitlisted_check_in_date or ra.waitlisted_check_out_date):
         raise WaitlistError('That assignment is not currently on the waitlist.')
-    if ra.export_locked:
-        raise WaitlistError('That assignment has been exported to the hotel '
-                            'and cannot be edited from here.')
+    if ra.is_locked:
+        raise WaitlistError('That room is locked. Unlock it before accepting '
+                            'its waitlist request.')
     if not ra.inventory:
         raise WaitlistError('Assignment has no inventory block; cannot run '
                             'the capacity check.')
