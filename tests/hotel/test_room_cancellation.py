@@ -268,6 +268,8 @@ def test_award_email_link_with_only_the_application_id(session, owner_login):
         _decline(session, id=app.id, confirm='1')
 
     assert ra.status == c.CANCELLED
+    session.expire(app)
+    assert app.status == c.COMPLETE, 'cancelling the last room re-enters the lottery'
 
 
 def test_non_lottery_room_can_be_cancelled(session, owner_login):
