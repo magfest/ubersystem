@@ -87,7 +87,6 @@
       <a href="edit_inventory_item?id={{ room.inventory.id }}">
         {{- room.room_type.name if room.room_type else room.inventory.display_name -}}
       </a>
-      {% if room.inventory.name %} <small class="text-muted">({{ room.inventory.name }})</small>{% endif %}
     </td>
     <td class="text-center">{{ room.quantity }}</td>
     <td class="text-center">
