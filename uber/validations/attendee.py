@@ -277,7 +277,7 @@ StaffingInfo.field_validation.required_fields = {
     'requested_depts_ids': (
         'Please select at least one department to volunteer for, or check "Anywhere".',
         'requested_depts_ids',
-        lambda x: not x.form.is_admin and x.form.model.staffing_or_will_be and \
+        lambda x: not x.form.is_admin and x.form.model.staffing_or_will_be and x.form.model.badge_type != c.CONTRACTOR_BADGE and \
             len(c.PUBLIC_DEPARTMENT_OPTS_WITH_DESC) > 1 and not x.form.model.assigned_depts_ids)
     }
 

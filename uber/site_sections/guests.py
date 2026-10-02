@@ -676,7 +676,9 @@ class Root:
 
                 if not message:
                     for game in guest.group.studio.confirmed_games:
-                        if not game.guidebook_header or not game.guidebook_thumbnail:
+                        guidebook_header = FileService.get_existing_files(session, game, and_flags=['guidebook_header'], uselist=False)
+                        guidebook_thumbnail = FileService.get_existing_files(session, game, and_flags=['guidebook_thumbnail'], uselist=False)
+                        if not guidebook_header or not guidebook_thumbnail:
                             message = "Please upload a Guidebook header and thumbnail."
                         else:
                             message = mivs_show_info_required_fields(game)

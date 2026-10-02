@@ -447,7 +447,7 @@ class LotteryApplication(MagModel, table=True):
             and not self._late_run_open('attendee')
 
     def _late_run_open(self, lottery_group):
-        """True iff there's a pending LotteryRun for this group with
+        """True if there's a pending LotteryRun for this group with
         apply_cutoff=False - i.e. the admin has explicitly opened a late
         round that accepts new entries past the global form deadline.
         Post-cutoff entries get the late-round confirmation email.

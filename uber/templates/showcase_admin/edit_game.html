@@ -476,5 +476,8 @@
     });
 </script>
 
+{% set email_queue = emails %}
+{% include 'email_admin/manage_email.html' with context %}
+
 {{ "js/window-hash-tabload.js"|serve_static_content }}
 {% endblock %}

@@ -165,7 +165,7 @@
               {% set item_display = group.studio[item[0] ~ '_status'] if type == c.MIVS else group.guest[item.name ~ '_status'] %}
               {% if not item_display %}
                 {% if type == c.MIVS %}
-                  {% set past_deadline = now() >= group.studio.checklist_deadline(item[0]) if group.studio.checklist_deadline(item[0]) else False %}
+                  {% set past_deadline = now() >= group.studio.checklist_deadline(item[0]) if group.studio and group.studio.checklist_deadline(item[0]) else False %}
                 {% else %}
                   {% set past_deadline = now() >= group.guest.deadline_from_model(item.name) %}
                 {% endif %}

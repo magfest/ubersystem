@@ -304,6 +304,7 @@ class Root:
             attendee = session.attendee(attendee_id)
             if attendee.badge_type != c.GUEST_BADGE:
                 attendee.ribbon = add_opt(attendee.ribbon_ints, c.PANELIST_RIBBON)
+            attendee.can_transfer = False
 
             pa = session.panel_applicant(applicant_id)
             applicants = session.query(PanelApplicant).filter_by(

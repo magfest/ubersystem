@@ -7,7 +7,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
 from uber.custom_tags import safe_string
-from uber.decorators import ajax, ajax_gettable, all_renderable, check_shutdown, csrf_protected, render, requires_account
+from uber.decorators import ajax, ajax_gettable, all_renderable, check_shutdown, csrf_protected, id_required, render, requires_account
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, Job, FoodRestrictions
@@ -31,7 +31,7 @@ def _convert_urls(desc):
 
 @all_renderable(public=True)
 class Root:
-    @requires_account()
+    @requires_account(Attendee)
     def index(self, session, id, message=''):
         attendee = session.volunteer_from_id(id)
         if c.UBER_SHUT_DOWN:
@@ -41,7 +41,7 @@ class Root:
                 raise HTTPRedirect('shifts?id={}&message={}', attendee.id, message)
             raise HTTPRedirect('checklist?id={}&message={}', attendee.id, message)
 
-    @requires_account()
+    @requires_account(Attendee)
     def checklist(self, session, id, message=''):
         attendee = session.volunteer_from_id(id)
         if c.UBER_SHUT_DOWN:
@@ -54,11 +54,11 @@ class Root:
                 'attendee': attendee
             }
 
-    @requires_account()
+    @requires_account(Attendee)
     def printable(self, id, session):
         return {'attendee': session.volunteer_from_id(id)}
 
-    @requires_account()
+    @requires_account(Attendee)
     def food_restrictions(self, session, id, message='', **params):
         attendee = session.volunteer_from_id(params.get('attendee_id', id))
         restrictions = attendee.food_restrictions or FoodRestrictions(attendee_id=attendee.id)
@@ -83,7 +83,6 @@ class Root:
             'attendee': attendee
         }
 
-    @requires_account()
     @ajax
     def validate_food_restrictions(self, session, form_list=[], **params):
         all_errors = {}
@@ -104,7 +103,7 @@ class Root:
 
         return {"success": True}
 
-    @requires_account()
+    @requires_account(Attendee)
     @check_shutdown
     def shirt_size(self, session, id, message='', **params):
         attendee = session.volunteer_from_id(id)
@@ -130,7 +129,7 @@ class Root:
             'opts': [('', 'Enter your shirt size')] + c.SHIRT_OPTS[1:]
         }
 
-    @requires_account()
+    @requires_account(Attendee)
     @check_shutdown
     def volunteer_agreement(self, session, id, message='', agreed_to_terms=None, agreed_to_terms_1=None,
                             agreed_to_terms_2=None, csrf_token=None):
@@ -154,7 +153,7 @@ class Root:
             'agreement_end_date': c.ESCHATON.date() + timedelta(days=31),
         }
 
-    @requires_account()
+    @requires_account(Attendee)
     @check_shutdown
     def emergency_procedures(self, session, id, message='', reviewed_procedures=None, csrf_token=None):
         attendee = session.volunteer_from_id(id)
@@ -172,7 +171,7 @@ class Root:
             'attendee': attendee,
         }
 
-    @requires_account()
+    @requires_account(Attendee)
     @check_shutdown
     def cash_handling(self, session, id, message='', reviewed_cash_handling=None, csrf_token=None):
         attendee = session.volunteer_from_id(id)
@@ -190,7 +189,7 @@ class Root:
             'attendee': attendee,
         }
 
-    @requires_account()
+    @requires_account(Attendee)
     @check_shutdown
     def credits(self, session, id, message='', name_in_credits='', csrf_token=None):
         attendee = session.volunteer_from_id(id)
@@ -206,7 +205,8 @@ class Root:
             'attendee': attendee,
         }
 
-    @requires_account()
+    @id_required(Attendee)
+    @requires_account(Attendee)
     @check_shutdown
     def shifts(self, session, id, **params):
         volunteer = session.volunteer_from_id(id)
@@ -256,7 +256,7 @@ class Root:
             'teardown_duration': (c.SHIFTS_ESCHATON - c.ESCHATON).days,
         }
 
-    @requires_account()
+    @requires_account(Attendee)
     @ajax_gettable
     def get_available_jobs(self, session, id, all=False, highlight=False, **params):
         joblist = session.jobs_for_signups(id=id, all=all)
@@ -295,7 +295,7 @@ class Root:
         session.close()
         return event_list
 
-    @requires_account()
+    @requires_account(Attendee)
     @ajax_gettable
     def get_assigned_jobs(self, session, id, **params):
         volunteer = session.volunteer_from_id(id)
@@ -331,7 +331,7 @@ class Root:
         session.close()
         return event_list
 
-    @requires_account()
+    @requires_account(Attendee)
     def shifts_ical(self, session, id, **params):
         attendee = session.volunteer_from_id(id)
         icalendar = ics.Calendar()
@@ -358,7 +358,7 @@ class Root:
     def jobs(self, id, session, all=False):
         return {'jobs': session.jobs_for_signups(id=id, all=all)}
 
-    @requires_account()
+    @requires_account(Attendee)
     @check_shutdown
     @ajax
     def sign_up(self, session, id, job_id, **params):
@@ -368,7 +368,7 @@ class Root:
             return {'success': False, 'message': message}
         return {'success': True, 'message': "Signup complete!", 'hours': volunteer.weighted_hours}
 
-    @requires_account()
+    @requires_account(Attendee)
     @check_shutdown
     @ajax
     def drop(self, session, id, job_id, all=False):
@@ -391,7 +391,7 @@ class Root:
         finally:
             return {'success': True, 'message': "Shift dropped.", 'hours': volunteer.weighted_hours}
 
-    @requires_account()
+    @requires_account(Attendee)
     def onsite_jobs(self, session, id, message=''):
         attendee = session.volunteer_from_id(id)
         return {
@@ -401,7 +401,7 @@ class Root:
                      if getattr(job, 'taken', False) or job.start_time > localized_now()]
         }
 
-    @requires_account()
+    @requires_account(Attendee)
     @csrf_protected
     def onsite_sign_up(self, session, id, job_id):
         message = session.assign(id, job_id)
