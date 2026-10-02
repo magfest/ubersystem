@@ -114,6 +114,8 @@ class LotteryApplication(MagModel, table=True):
     partition_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='inventory_partition.id', nullable=True)
     partition: 'InventoryPartition' = Relationship(
         sa_relationship_kwargs={'foreign_keys': 'LotteryApplication.partition_id', 'lazy': 'joined'})
+    # Set by the Passkey export: this entry's rooms were sent to the hotel.
+    # Feeds RoomAssignment.is_exported; it does not lock anything.
     export_locked: bool = False
 
     # Email-based room guest invite fields
@@ -347,11 +349,12 @@ class LotteryApplication(MagModel, table=True):
         drops its lottery_run_id) so it re-enters future runs. Terminal app
         states (WITHDRAWN, DISQUALIFIED, ...) are never overridden.
 
-        The RoomAssignment after_insert/after_delete listeners at the
-        bottom of this module apply the same rule at the SQL layer during
-        flush; call this from ORM code paths (the expiry cron, admin status
-        changes) that flip assignment status without inserting or deleting
-        rows."""
+        The RoomAssignment insert/update/delete listeners at the bottom of
+        this module apply the same rule at the SQL layer during flush, so
+        most callers need nothing more; this is for code that wants the
+        application row current in the same session. Flushes first so
+        pending assignment changes are counted."""
+        session.flush()
         live = session.query(RoomAssignment).filter(
             RoomAssignment.lottery_application_id == self.id,
             RoomAssignment.is_live).count()
@@ -1005,6 +1008,11 @@ class RoomAssignment(MagModel, table=True):
     special_requests: str = ''
     hotel_rewards_number: str = ''
 
+    # Admin lock; see is_locked.
+    locked: bool = False
+    # When a hotel export first included this row; see is_exported.
+    exported_at: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
+
     # Credit card vaulting (PCI Vault tokens, NOT card data)
     cc_token: str | None = Field(nullable=True)
     cc_last_four: str | None = Field(nullable=True)
@@ -1052,13 +1060,31 @@ class RoomAssignment(MagModel, table=True):
         return cls.status.in_(c.HOTEL_LIVE_ASSIGNMENT_STATUSES)
 
     @property
-    def export_locked(self):
-        # Locking is currently per-application - once any of an app's rooms
-        # are exported the whole app gets the flag, so all of its
-        # RoomAssignments inherit it. If we ever need per-row locking we
-        # can promote this to a real column without breaking the
-        # template/API contract (everything reads through this property).
-        return bool(self.lottery_application and self.lottery_application.export_locked)
+    def lock_source(self):
+        """'room' when this room is locked, 'suite' when its parent suite
+        is, else None."""
+        if self.locked:
+            return 'room'
+        if self.parent_assignment and self.parent_assignment.is_locked:
+            return 'suite'
+        return None
+
+    @property
+    def is_locked(self):
+        """True when an admin locked this room or its parent suite. The
+        attendee pages can't change a locked room (cancelling is still
+        allowed) and the waitlist skips it."""
+        return self.lock_source is not None
+
+    @property
+    def is_exported(self):
+        """True once the hotel has this booking: an export stamped it, the
+        hotel confirmed it, or the Passkey export flagged its lottery
+        entry. Exported rooms stay editable."""
+        return bool(self.exported_at
+                    or (self.hotel_confirmation_number or '').strip()
+                    or (self.lottery_application
+                        and self.lottery_application.export_locked))
 
     @property
     def effective_occupants(self):
@@ -1798,10 +1824,10 @@ class ImportMappingTemplate(MagModel, table=True):
 
 
 #
-# RoomAssignment insert/delete events drive the parent LotteryApplication's
-# COMPLETE <-> AWARDED transition. The application status tracks lottery
-# eligibility only - per-room SECURED/EXPIRED/CANCELLED lifecycle stays on
-# RoomAssignment.status.
+# RoomAssignment insert/update/delete events drive the parent
+# LotteryApplication's COMPLETE <-> AWARDED transition. The application
+# status tracks lottery eligibility only - per-room SECURED/EXPIRED/CANCELLED
+# lifecycle stays on RoomAssignment.status.
 
 from sqlalchemy import event as _sa_event  # noqa: E402
 
@@ -1828,10 +1854,9 @@ def _ra_after_insert_promote_app(mapper, connection, target):
     )
 
 
-@_sa_event.listens_for(RoomAssignment, 'after_delete')
-def _ra_after_delete_demote_app(mapper, connection, target):
-    if not target.lottery_application_id:
-        return
+def _demote_app_if_no_live_rooms(connection, target):
+    """AWARDED/PROCESSED -> COMPLETE (and off its run) when no other live
+    row remains on the application; expired/cancelled siblings may linger."""
     remaining_live = connection.execute(
         sa.select(sa.func.count())
         .select_from(RoomAssignment.__table__)
@@ -1840,13 +1865,38 @@ def _ra_after_delete_demote_app(mapper, connection, target):
         .where(RoomAssignment.__table__.c.status.in_(c.HOTEL_LIVE_ASSIGNMENT_STATUSES))
     ).scalar() or 0
     if remaining_live == 0:
-        # Mirrors sync_award_status: deleting the last live row demotes
-        # AWARDED or PROCESSED back to COMPLETE and detaches the run, even
-        # when cancelled/expired siblings linger (the common case, since
-        # expired rows are retained).
         connection.execute(
             sa.update(LotteryApplication.__table__)
             .where(LotteryApplication.__table__.c.id == target.lottery_application_id)
             .where(LotteryApplication.__table__.c.status.in_((c.AWARDED, c.PROCESSED)))
             .values(status=c.COMPLETE, lottery_run_id=None)
         )
+
+
+@_sa_event.listens_for(RoomAssignment, 'after_update')
+def _ra_after_update_sync_app(mapper, connection, target):
+    """A status change to or from live (cancel, expire, reinstate) moves the
+    application the same way an insert or delete would."""
+    if not target.lottery_application_id:
+        return
+    history = sa.inspect(target).attrs.status.history
+    if not history.has_changes():
+        return
+    was_live = any(s in c.HOTEL_LIVE_ASSIGNMENT_STATUSES for s in history.deleted)
+    is_live = target.status in c.HOTEL_LIVE_ASSIGNMENT_STATUSES
+    if is_live and not was_live:
+        connection.execute(
+            sa.update(LotteryApplication.__table__)
+            .where(LotteryApplication.__table__.c.id == target.lottery_application_id)
+            .where(LotteryApplication.__table__.c.status == c.COMPLETE)
+            .values(status=c.AWARDED)
+        )
+    elif was_live and not is_live:
+        _demote_app_if_no_live_rooms(connection, target)
+
+
+@_sa_event.listens_for(RoomAssignment, 'after_delete')
+def _ra_after_delete_demote_app(mapper, connection, target):
+    if not target.lottery_application_id:
+        return
+    _demote_app_if_no_live_rooms(connection, target)

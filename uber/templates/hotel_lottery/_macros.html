@@ -161,7 +161,9 @@
     <i class="fa fa-exclamation-triangle{% if not compact %} fa-lg{% endif %}"></i>
     <div{% if compact %} class="small"{% endif %}>
       <strong>{% if compact %}Not secured - a credit card is required.{% else %}This room is not secured - a credit card is required.{% endif %}</strong>
-      {% if ra.card_deadline %}
+      {% if ra.is_locked %}
+        This room is locked, so please contact the hotel to add a card.
+      {% elif ra.card_deadline %}
         Put a card down by
         <strong>{{ ra.card_deadline|date("%A, %B %-d") }}</strong>
         or this room will be released.
@@ -175,24 +177,29 @@
 
 {# Status badges
 
-   `room_status_badges` renders the badge cluster for a room card:
-   either the "Booking exported" lock badge (once the booking has been
-   transferred to the hotel) or the status badge (Secured / Assigned /
-   Expired / other), plus the "Master bill" badge for rooms that don't
+   `room_status_badges` renders the badge cluster for a room card: the
+   status badge (Secured / Assigned / Expired / other), "Sent to hotel"
+   once the booking was exported, "Locked" when an admin locked the room,
+   plus the "Master bill" badge for rooms that don't
    require a credit card.
 
    Arguments:
      ra - RoomAssignment
 #}
 {% macro room_status_badges(ra) %}
-  {% if ra.export_locked %}
-    <span class="badge bg-warning text-dark"
-          title="This booking has been transferred to the hotel.">
-      <i class="fa fa-lock"></i> Booking exported
+  <span class="badge bg-{% if ra.status == c.SECURED %}success{% elif ra.status == c.ASSIGNED %}warning text-dark{% elif ra.status == c.EXPIRED %}danger{% else %}secondary{% endif %}">
+    {{ ra.status_label }}
+  </span>
+  {% if ra.is_live and ra.is_exported %}
+    <span class="badge bg-light text-dark border ms-1"
+          title="The hotel has been sent this booking. Changes made here may be delayed; confirm them with the hotel.">
+      <i class="fa fa-paper-plane"></i> Sent to hotel
     </span>
-  {% else %}
-    <span class="badge bg-{% if ra.status == c.SECURED %}success{% elif ra.status == c.ASSIGNED %}warning text-dark{% elif ra.status == c.EXPIRED %}danger{% else %}secondary{% endif %}">
-      {{ ra.status_label }}
+  {% endif %}
+  {% if ra.is_live and ra.is_locked %}
+    <span class="badge bg-secondary ms-1"
+          title="Locked - contact the hotel to change this room.">
+      <i class="fa fa-lock"></i> Locked
     </span>
   {% endif %}
   {% if not ra.require_cc %}

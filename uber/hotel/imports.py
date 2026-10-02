@@ -15,6 +15,7 @@ from datetime import date, datetime
 from pytz import UTC
 
 from uber.config import c
+from uber.hotel.exports import record_hotel_transfer
 
 
 def _normalize(value):
@@ -170,6 +171,16 @@ def _store_file(session, raw, filename, content_type, hotel, source, uploaded_by
     return record
 
 
+def _import_note(filename, confirmation='', cancellation=''):
+    """History text for a room a hotel file included."""
+    parts = []
+    if (confirmation or '').strip():
+        parts.append(f"confirmation # {confirmation.strip()}")
+    if (cancellation or '').strip():
+        parts.append(f"cancellation # {cancellation.strip()}")
+    return f"Hotel import {filename or ''}: {', '.join(parts) or 'no numbers'}".strip()
+
+
 def _apply_with_template(session, record, raw, filename, template, hotel):
     """Template-driven half of import_confirmation_file.
 
@@ -211,6 +222,11 @@ def _apply_with_template(session, record, raw, filename, template, hotel):
             continue
 
         row_present = any((mapped.get(key) or '').strip() for key in auto_fields)
+        record_hotel_transfer(
+            session, c.HOTEL_IMPORT, [ra.id for ra in assignments],
+            _import_note(filename, mapped.get('assignment.hotel_confirmation_number'),
+                         mapped.get('assignment.cancellation_confirmation_number')),
+            who=record.uploaded_by, links=f'hotel_import_file({record.id})')
         row_changed = False
         for ra in assignments:
             diff = mapping.diff_row(ra, mapped)
@@ -307,6 +323,11 @@ def import_confirmation_file(session, raw, filename, hotel=None, source='',
             lottery_application_id=app.id).all() if app else []
         if not ras:
             continue  # no matching booking; skip the row
+        record_hotel_transfer(
+            session, c.HOTEL_IMPORT, [ra.id for ra in ras],
+            _import_note(filename, row.get('hotel_confirmation_number'),
+                         row.get('hotel_cancellation_number')),
+            who=record.uploaded_by, links=f'hotel_import_file({record.id})')
 
         row_present = False
         row_changed = False
@@ -387,7 +408,8 @@ def match_assignments(session, app_id='', conf=''):
     return []
 
 
-def apply_confirmation_rows(session, rows, apply_changes=True, on_update=None):
+def apply_confirmation_rows(session, rows, apply_changes=True, on_update=None,
+                            filename=''):
     """Shared row applier for hotel confirmation numbers.
 
     Row columns: `lottery_application_id` and/or `confirmation_num`
@@ -399,7 +421,8 @@ def apply_confirmation_rows(session, rows, apply_changes=True, on_update=None):
     `on_update(assignment)` is invoked for each assignment actually
     changed while applying, so each controller keeps its own email
     behavior (the admin import pages queue a confirmation-updated email;
-    the portal upload does not).
+    the portal upload does not). When applying, every matched assignment
+    gets a "hotel import" history row naming `filename`.
 
     Flushes, never commits - the caller owns the transaction.
     Returns {'new', 'changed', 'unchanged', 'unmatched', 'applied'}.
@@ -423,6 +446,9 @@ def apply_confirmation_rows(session, rows, apply_changes=True, on_update=None):
                 'new_confirmation_num': new_conf,
             })
             continue
+        if apply_changes:
+            record_hotel_transfer(session, c.HOTEL_IMPORT, [a.id for a in assignments],
+                                  _import_note(filename, confirmation=new_conf))
 
         for assignment in assignments:
             existing = assignment.hotel_confirmation_number or ''
@@ -448,7 +474,7 @@ def apply_confirmation_rows(session, rows, apply_changes=True, on_update=None):
     return preview
 
 
-def apply_cancellation_rows(session, rows, apply_changes=True):
+def apply_cancellation_rows(session, rows, apply_changes=True, filename=''):
     """Shared row applier for hotel cancellation numbers.
 
     A row's presence means "this booking was cancelled": callers whose
@@ -461,7 +487,9 @@ def apply_cancellation_rows(session, rows, apply_changes=True):
     is the hotel's cancel record id, optional - it defaults to 'imported'
     when applying. Setting it triggers the model presave that flips
     status to CANCELLED. Applies to EVERY assignment on the matched
-    booking, one preview entry per assignment.
+    booking, one preview entry per assignment. When applying, every
+    matched assignment gets a "hotel import" history row naming
+    `filename`.
 
     Flushes, never commits - the caller owns the transaction.
     Returns {'matched', 'already', 'unmatched', 'applied'}.
@@ -483,6 +511,9 @@ def apply_cancellation_rows(session, rows, apply_changes=True):
                 'cancellation_confirmation_number': cancel_num,
             })
             continue
+        if apply_changes:
+            record_hotel_transfer(session, c.HOTEL_IMPORT, [a.id for a in assignments],
+                                  _import_note(filename, cancellation=cancel_num or 'imported'))
 
         for assignment in assignments:
             if assignment.status == c.CANCELLED:

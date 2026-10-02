@@ -14,6 +14,9 @@
 
 <div class="card card-body">
   <h2>Changelog for {{ application.attendee_name }}'s Lottery Application</h2>
+  <p class="text-muted small">
+    Includes the application's rooms: edits to them, and each hotel export and import that included them.
+  </p>
 
   <table class="table table-striped table-bordered table-sm">
     <thead><tr>
@@ -25,7 +28,14 @@
     </tr></thead>
     {% for tracked in changes %}
       <tr>
-        <td valign="top" style="white-space:nowrap">{{ tracked.model }}</td>
+        <td valign="top" style="white-space:nowrap">
+          {% if tracked.model == 'RoomAssignment' and rooms.get(tracked.fk_id) %}
+            <a href="edit_room_assignment?id={{ tracked.fk_id }}">Room</a>
+            <div class="small text-muted">{{ rooms[tracked.fk_id].room_summary }}</div>
+          {% else %}
+            {{ tracked.model }}
+          {% endif %}
+        </td>
         <td valign="top" style="white-space:nowrap">{{ tracked.action_label }}</td>
         <td valign="top" style="white-space:nowrap">{{ tracked.when|full_datetime_local }}</td>
         <td valign="top" style="white-space:nowrap">{{ tracked.who_repr }}</td>

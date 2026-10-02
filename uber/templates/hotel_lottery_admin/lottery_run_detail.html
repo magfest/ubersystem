@@ -93,6 +93,39 @@
           <button type="submit" class="btn btn-danger" onclick="return confirm('Revert this run? All assigned entries will be reset to Complete.')">Revert Run</button>
         </form>
       </div>
+      {% elif lottery_run.status == c.LOTTERY_AWARDED and run_rooms_live %}
+      {# Lock / unlock every live room this run awarded. #}
+      <div class="mt-3">
+        <p class="mb-2">
+          <i class="fa fa-lock"></i>
+          <strong>{{ run_rooms_locked }} of {{ run_rooms_live }}</strong>
+          awarded room{{ 's' if run_rooms_live != 1 }} locked for attendee edits.
+        </p>
+        <div class="d-flex gap-2">
+          {% if run_rooms_locked < run_rooms_live %}
+          <form method="post" action="lock_run_rooms">
+            {{ csrf_token() }}
+            <input type="hidden" name="id" value="{{ lottery_run.id }}" />
+            <input type="hidden" name="lock" value="1" />
+            <button type="submit" class="btn btn-outline-secondary"
+                    onclick="return confirm('Lock all {{ run_rooms_live }} awarded rooms? Attendees will no longer be able to change them (they can still cancel).')">
+              <i class="fa fa-lock"></i> Lock awarded rooms
+            </button>
+          </form>
+          {% endif %}
+          {% if run_rooms_locked %}
+          <form method="post" action="lock_run_rooms">
+            {{ csrf_token() }}
+            <input type="hidden" name="id" value="{{ lottery_run.id }}" />
+            <input type="hidden" name="lock" value="0" />
+            <button type="submit" class="btn btn-outline-secondary"
+                    onclick="return confirm('Unlock all {{ run_rooms_locked }} locked rooms from this run? This also unlocks rooms that were locked one at a time.')">
+              <i class="fa fa-unlock"></i> Unlock awarded rooms
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
       {% elif lottery_run.status == c.LOTTERY_REVERTED %}
       <div class="mt-3">
         <form method="post" action="delete_run">
