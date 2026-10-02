@@ -124,6 +124,24 @@ class GuestGroup(MagModel, table=True):
             if game.showcase_type in showcases:
                 return True
         return False
+    
+    @property
+    def merch_island_config(self):
+        if self.group_type not in c.ROCK_ISLAND_GROUPS:
+            return {}
+        
+        if self.group_type == c.MIVS:
+            return {
+                'term': "Indie Item Shoppe",
+                'faq_file': 'IndieIsland.pdf',
+                'contact_email': 'indies@magfest.org',
+            }
+        else:
+            return {
+                'term': "Rock Island",
+                'faq_file': 'RockIsland.pdf',
+                'contact_email': 'rockisland@magfest.org',
+            }
 
     @property
     def uses_detailed_travel_plans(self):
@@ -520,6 +538,7 @@ class GuestMerch(MagModel, table=True):
             self._prune_inventory_file(item, new_inventory, prune_missing=prune_missing)
 
     def _save_inventory_files(self, inventory):
+        os.makedirs(c.UPLOADED_FILES_DIR + '/guest_inventory', exist_ok=True)
         for item_id, item in inventory.items():
             for name, file in [(n, f) for (n, f) in item.items() if f]:
                 match = self._inventory_file_regex.match(name)
@@ -608,7 +627,7 @@ class GuestMerch(MagModel, table=True):
 
     @classmethod
     def inventory_path(cls, file):
-        return os.path.join(c.GUESTS_INVENTORY_DIR, file)
+        return os.path.join(c.UPLOADED_FILES_DIR + '/guest_inventory', file)
 
     def inventory_url(self, item_id, name, download=False):
         disposition = 'inline' if not download else 'attachment'

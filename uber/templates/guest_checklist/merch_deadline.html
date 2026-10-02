@@ -25,7 +25,7 @@
       <td></td>
       <td>
         {{ macros.checklist_image(guest.merch.inventory and guest.merch.checkin_time) }}
-        <b><a href="merch?guest_id={{ guest.id }}">Rock Island Inventory</a></b>
+        <b><a href="merch?guest_id={{ guest.id }}">{{ guest.merch_island_config['term'] }} Inventory</a></b>
       </td>
       <td><i>Deadline:</i> {{ c.ROCK_ISLAND_DEADLINE|datetime_local }}</td>
     </tr>
@@ -33,9 +33,9 @@
       <td></td>
       <td colspan="2">
         {% if not guest.merch.inventory %}
-          You haven't uploaded any inventory{% if not guest.merch.checkin_time %} or selected check-in and check-out times{% endif %} for Rock Island yet!
+          You haven't uploaded any inventory{% if not guest.merch.checkin_time %} or selected check-in and check-out times{% endif %} for {{ guest.merch_island_config['term'] }} yet!
         {% else %}
-           Thanks for uploading your Rock Island inventory!{% if not guest.merch.checkin_time %} You have not yet chosen a check-in and check-out time for your inventory.{% endif %}
+           Thanks for uploading your {{ guest.merch_island_config['term'] }} inventory!{% if not guest.merch.checkin_time %} You have not yet chosen a check-in and check-out time for your inventory.{% endif %}
         {% endif %}
         You can update your inventory and check-in/check-out times using the link above.
         <br/></br>
@@ -147,7 +147,7 @@
           <div class="modal-content">
             <div class="modal-header">
               <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-              <h4 class="modal-title" id="arrival-plans-title">Rock Island Inventory Check-In and Check-Out Times</h4>
+              <h4 class="modal-title" id="arrival-plans-title">{{ guest.merch_island_config['term'] }} Inventory Check-In and Check-Out Times</h4>
             </div>
             <form method="post" action="update_arrival_plans" class="form-horizontal" role="form" enctype="multipart/form-data">
               <div class="modal-body">
@@ -159,10 +159,14 @@
                   <div class="col-sm-6">
                     <select name="checkin_time" class="form-control" required>
                       <option value="">Please select an option...</option>
+                      {% if guest.group_type == c.MIVS %}
+                      {{ options(c.GUEST_MERCH_CHECKIN_TIMES|rejectattr('0', 'in', [8, 9, 10]), guest_merch.checkin_time) }}
+                      {% else %}
                       {{ options(c.GUEST_MERCH_CHECKIN_TIMES, guest_merch.checkin_time) }}
+                      {% endif %}
                     </select>
                     <p class="help-block">
-                      Please email {{ "rockisland@magfest.org"|email_to_link }} if your arrival plans change.
+                      Please email {{ guest.merch_island_config['contact_email']|email_to_link }} if your arrival plans change.
                     </p>
                   </div>
                 </div>
@@ -174,7 +178,7 @@
                       {{ options(c.GUEST_MERCH_CHECKOUT_TIMES, guest_merch.checkout_time) }}
                     </select>
                     <p class="help-block">
-                      Please email {{ "rockisland@magfest.org"|email_to_link }} if your departure plans change.
+                      Please email {{ guest.merch_island_config['contact_email']|email_to_link }} if your departure plans change.
                     </p>
                   </div>
                 </div>
@@ -197,31 +201,31 @@
   {% block form_desc %}
     <p>
       Space will be provided for merchandise sales{% if not HAS_ROCK_ISLAND %}: either{% endif %} at a dedicated half-table in our Marketplace area, which you will need to staff{% if not HAS_ROCK_ISLAND %}.
-      {% else %}, or at our “Rock Island” area near our concert hall, where MAGFest staff will sell guest-and-band-provided merchandise throughout the festival.{% endif %}
+      {% else %}, or at our “{{ guest.merch_island_config['term'] }}” area near our concert hall, where MAGFest staff will sell guest-and-band-provided merchandise throughout the festival.{% endif %}
     </p>
 
     {% if HAS_ROCK_ISLAND %}
       <p>
-        It is recommended, but not required, for {{ guest.group_type_label|lower|replace(' ','_') }}s to use our Rock Island service in this area, as merchandise can
+        It is recommended, but not required, for {{ guest.group_type_label|lower|replace(' ','_') }}s to use our {{ guest.merch_island_config['term'] }} service in this area, as merchandise can
         be sold more consistently, and for many more hours.
       </p>
       <p>
         <a href="../static/RockIsland.pdf">
-          Click here for more info about our Rock Island service!
+          Click here for more info about our {{ guest.merch_island_config['term'] }} service!
         </a>
       </p>
     {% endif %}
 
     {% if c.REQUIRE_DEDICATED_GUEST_TABLE_PRESENCE %}
     <p>
-      If you elect to{% if HAS_ROCK_ISLAND %} decline the use of Rock Island and{% endif %} sell your merchandise directly,
+      If you elect to{% if HAS_ROCK_ISLAND %} decline the use of {{ guest.merch_island_config['term'] }} and{% endif %} sell your merchandise directly,
       we require that your half-table in the marketplace be staffed for at least <b>8 hours per day</b>.
     </p>
   {% endif %}
   {% endblock %}
 
   {% if HAS_ROCK_ISLAND %}
-    You have until <strong>{{ guest.deadline_from_model('merch')|datetime_local }}</strong> to let us know whether you plan to use Rock Island,
+    You have until <strong>{{ guest.deadline_from_model('merch')|datetime_local }}</strong> to let us know whether you plan to use {{ guest.merch_island_config['term'] }},
     and until <strong>{{ c.ROCK_ISLAND_DEADLINE|datetime_local }}</strong> to submit your inventory so that we may input everything into our point-of-sale system.
   {% endif %}
   <br/><br/>
@@ -236,13 +240,18 @@
         <select name="selling_merch" class="form-control">
           <option value="">Tell us how you'd like to sell your merch</option>
           {% if HAS_ROCK_ISLAND %}
-            {{ options(c.GUEST_MERCH_OPTS, guest_merch.selling_merch) }}
+            {% for val, label in c.GUEST_MERCH_OPTS %}
+            <option value="{{ val }}"{% if val == guest_merch.selling_merch %} selected="selected"{% endif %}>
+              {% if val == c.ROCK_ISLAND %}{{ guest.merch_island_config['term'] }}{% else %}{{ label }}{% endif %}
+            </option>
+            {% endfor %}
           {% else %}
             {{ options(c.GUEST_MERCH_OPTS|rejectattr('0', 'equalto', c.ROCK_ISLAND), guest_merch.selling_merch) }}
           {% endif %}
         </select>
       </div>
     </div>
+    {% if guest.group_type != c.MIVS %}
     <div class="form-group" id="music-sample" style="display:none">
       <label class="col-sm-3 control-label">Sample Tracks</label>
       <div class="col-sm-6">
@@ -259,15 +268,16 @@
         Please make sure each file's metadata includes the album art, artist name, and the correct track title!
       </p>
     </div>
+    {% endif %}
 
     {% block form_extra %}
       {% if HAS_ROCK_ISLAND %}
         <div id="rockisland" style="display:none">
-          {% if not guest.deadline_from_model('autograph') %}
+          {% if not guest.deadline_from_model('autograph') and guest.group_type != c.MIVS %}
           <h3>Meet N Greet™</h3>
           <div class="form-group">
             <div class="col-sm-6 col-sm-offset-3">
-              <p>Would you like to have a Meet N Greet™ at Rock Island?</p>
+              <p>Would you like to have a Meet N Greet™ at {{ guest.merch_island_config['term'] }}?</p>
               <select name="rock_island_autographs" class="form-control" required>
                 <option value="">Please select an option...</option>
                 <option value="1" {% if guest_autograph.rock_island_autographs %}selected {% endif %}>Yes</option>
@@ -294,7 +304,11 @@
               <span class="glyphicon glyphicon-plus-sign"></span>
               <select class="form-control add_inventory">
                 <option value="">Select an item to add...</option>
+                {% if guest.group_type == c.MIVS %}
                 {{ options(c.MERCH_TYPES_OPTS) }}
+                {% else %}
+                {{ options(c.MERCH_TYPES_OPTS|rejectattr('0', 'equalto', c.PHYSICAL_GAME)|rejectattr('0', 'equalto', c.GAME_CODE)) }}
+                {% endif %}
               </select>
             </div>
           </div>
@@ -342,7 +356,7 @@
                 {{ options(c.GUEST_MERCH_DELIVERY_OPTS, guest_merch.delivery_method) }}
               </select>
               <p class="help-block" id="delivery_hint" style="display:none">
-                Please check <a href="../static/RockIsland.pdf">the FAQ</a> to confirm the shipping address and delivery deadline!
+                Please check <a href="../static/{{ guest.merch_island_config['faq_file'] }}">the FAQ</a> to confirm the shipping address and delivery deadline!
               </p>
             </div>
           </div>
@@ -363,8 +377,10 @@
             {{ macros.form_group(guest_merch, 'check_payable', label='Name on Check', is_required=True) }}
             {{ macros.address_form(guest_merch, name_prefix='check_', model_prefix='check_', is_required=True) }}
           </div>
+          {% if guest.group_type != c.MIVS %}
           {{ macros.form_group(guest_merch, 'merch_events', label="Performance Dates/Times", type='textarea',
                                help="Please tell us any signings/panels/shows you are a part of and that you would like us to be at in order to sell your merch (subject to staff approval and availability).") }}
+          {% endif %}
           {{ macros.form_group(guest_merch, 'extra_info', type='textarea', label='Anything else?',
               placeholder='Anything else we might need to know?',
               is_required=False) }}
@@ -392,6 +408,7 @@
             $.field('check_country').next().prop('required', $.val('payout_method') == "{{ c.CHECK }}");
           }
 
+          {% if guest.group_type != c.MIVS %}
           var deleteTrack = function(id) {
             bootbox.confirm({
               backdrop: true,
@@ -422,11 +439,14 @@
               }
             });
           }
+          {% endif %}
 
             var showOrHideRockIsland = function() {
                 var isRockIsland = $.val('selling_merch') == "{{ c.ROCK_ISLAND }}";
                 setVisible('#rockisland', isRockIsland);
+                {% if guest.group_type != c.MIVS %}
                 setVisible('#music-sample', isRockIsland);
+                {% endif %}
 
                 $('#rockisland input, #rockisland textarea, #rockisland select').prop('disabled', !isRockIsland);
                 if (isRockIsland) {
@@ -553,6 +573,7 @@
                   var formToSubmit = this;
                   event.preventDefault();
 
+                  {% if guest.group_type != c.MIVS %}
                   var files = $('input[name="sample_tracks"]')[0].files;
                   var totalSize = 0;
 
@@ -567,6 +588,9 @@
                   } else {
                     formToSubmit.submit();
                   }
+                  {% else %}
+                    formToSubmit.submit();
+                  {% endif %}
                 });
 
                 $('.add_inventory').on('change', onChooseInventoryType);

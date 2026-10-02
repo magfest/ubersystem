@@ -251,7 +251,7 @@ class Root:
             
             if not message:
                 if guest_merch.selling_merch == c.ROCK_ISLAND and not guest.deadline_from_model('autograph') \
-                        and params.get('rock_island_autographs', '') == '':
+                        and guest.group_type != c.MIVS and params.get('rock_island_autographs', '') == '':
                     message = 'Please select whether you would like to have a Meet N Greet at Rock Island.'
                 elif c.REQUIRE_DEDICATED_GUEST_TABLE_PRESENCE \
                         and guest_merch.selling_merch == c.OWN_TABLE \
@@ -274,7 +274,7 @@ class Root:
                     else:
                         guest.group.apply(group_params, restricted=True)
             if not message:
-                if not guest.deadline_from_model('autograph'):
+                if not guest.deadline_from_model('autograph') and guest.group_type != c.MIVS:
                     guest.autograph = guest_autograph
                     session.add(guest_autograph)
                     if (guest_autograph.is_new and guest_autograph.rock_island_autographs) or \
