@@ -16,7 +16,7 @@
 </div>
 
 {% set _violations = attendee.shift_compliance_violations %}
-{% if _violations %}
+{% if _violations and c.AFTER_SHIFTS_CREATED %}
 <div class="alert alert-warning">
   <strong>Heads up:</strong> You currently don't meet the shift requirements for your assigned room nights. To keep your hotel space, you'll need to:
   <ul class="mb-0">
@@ -28,7 +28,7 @@
       {% endif %}
     {% endfor %}
   </ul>
-  <a href="../staffing/shifts" class="btn btn-sm btn-warning mt-2">Pick up shifts</a>
+  <a href="../staffing/shifts?id={{ attendee.id }}" class="btn btn-sm btn-warning mt-2">Pick up shifts</a>
 </div>
 {% endif %}
 
