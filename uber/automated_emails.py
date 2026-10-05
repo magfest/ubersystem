@@ -1071,7 +1071,7 @@ if c.HOTEL_LOTTERY_FORM_START:
     HotelLotteryEmailFixture(
         'Last chance to complete your hotel lottery entry',
         'hotel/lottery_reminder.html',
-        "lambda a: a.status == c.PARTIAL and not a.staff_hotel_lottery_eligible and days_after(1, a.entry_started)()",
+        "lambda a: a.status == c.PARTIAL and not a.is_staff_entry and days_after(1, a.entry_started)()",
         'hotel_lottery_reminder',
         when=[days_before(3, c.HOTEL_LOTTERY_FORM_DEADLINE)],
     )
