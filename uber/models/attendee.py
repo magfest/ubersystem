@@ -192,11 +192,11 @@ class BadgeInfo(MagModel, table=True):
         self.reported_lost = datetime.now(UTC)
         self.active = False
     
-    def check_in(self):
+    def check_in(self, checkin_time=None):
         if not self.attendee_id:
             return
 
-        self.picked_up = self.attendee.checked_in or datetime.now(UTC)
+        self.picked_up = checkin_time or datetime.now(UTC)
 
 
 Index('ix_badge_info_attendee_id', BadgeInfo.attendee_id.desc())
@@ -856,7 +856,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
                 self.active_badge.unassign()
             badge.assign(self.id)
             if self.checked_in:
-                badge.check_in()
+                badge.check_in(self.checked_in)
             self.session.add(badge)
             self.active_badge = badge
 
@@ -872,9 +872,9 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
             if not new_badge:
                 return
             new_badge.assign(self.id)
-            new_badge.check_in()
+            new_badge.check_in(self.checked_in)
         else:
-            self.active_badge.check_in()
+            self.active_badge.check_in(self.checked_in)
     
     def undo_checkin(self):
         self.checked_in = None

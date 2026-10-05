@@ -1913,7 +1913,7 @@ class UberSession(sqlalchemy.orm.Session):
                                                        ).outerjoin(PromoCode
                                                                    ).outerjoin(PromoCodeGroup)
             if c.NUMBERED_BADGES:
-                attendees = attendees.outerjoin(BadgeInfo, Attendee.active_badge)
+                attendees = attendees.outerjoin(BadgeInfo, Attendee.allocated_badges)
             return attendees
 
         def search(self, text, *filters):
