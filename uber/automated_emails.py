@@ -1062,7 +1062,7 @@ if c.HOTEL_LOTTERY_FORM_START:
         Attendee,
         f'Did you want to enter the {c.EVENT_NAME} {c.EVENT_YEAR} hotel lottery?',
         'hotel/enter_lottery.html',
-        "lambda a: a.hotel_lottery_eligible and not a.lottery_application and not a.staff_hotel_lottery_eligible"
+        "lambda a: a.hotel_lottery_eligible and not a.lottery_application and not a.staff_hotel_lottery_eligible "
         "and not a.active_room_assignments and days_after(1, a.registered)()",
         'enter_hotel_lottery',
         when=[days_before(7, c.HOTEL_LOTTERY_FORM_DEADLINE)],
