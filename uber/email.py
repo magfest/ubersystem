@@ -229,10 +229,10 @@ class EmailService:
         sent_count = 0
         for email in queued_emails:
             sent_email = EmailService.send_email(session, email, email.automated_email, models_by_id.get(email.fk_id, None))
+            session.add(email)
+            session.commit()  # Save each email's status to stop from sending duplicates in case of an error
             if sent_email:
-                session.add(sent_email)
                 sent_count += 1
-        session.commit()
         return sent_count
     
     @staticmethod
