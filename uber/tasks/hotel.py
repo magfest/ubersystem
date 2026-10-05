@@ -28,7 +28,8 @@ def expire_unsecured_assignments():
       - still need a card (`RoomAssignment.needs_card`: ASSIGNED,
         require_cc, no token - the same predicate the UI shows), and
       - have a deposit_cutoff_date strictly in the past, measured in the
-        event's timezone (deadlines are documented as end-of-day local).
+        event's timezone (deadlines are documented as end-of-day local), and
+      - aren't locked (RoomAssignment.is_locked).
 
     The inventory is freed by virtue of the status change (queries that
     count assigned rooms filter on status IN (ASSIGNED, SECURED)), and
@@ -37,11 +38,12 @@ def expire_unsecured_assignments():
     today = localized_now().date()
     expired_count = 0
     with Session() as session:
-        candidates = session.query(RoomAssignment).filter(
+        # Locked rooms are skipped: the attendee can't add a card to one.
+        candidates = [ra for ra in session.query(RoomAssignment).filter(
             RoomAssignment.needs_card,
             RoomAssignment.deposit_cutoff_date.isnot(None),
             RoomAssignment.deposit_cutoff_date < today,
-        ).all()
+        ).all() if not ra.is_locked]
 
         # Group expired assignments by their source application so we move
         # each LotteryApplication back to COMPLETE only once (and only when

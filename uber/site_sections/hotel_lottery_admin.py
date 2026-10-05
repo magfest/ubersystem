@@ -10,8 +10,8 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pytz import UTC
 from dateutil import parser as dateparser
 import sqlalchemy as sa
-from sqlalchemy import func, or_
-from sqlalchemy.orm import joinedload
+from sqlalchemy import and_, func, or_
+from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.types import String
 from sqlmodel import AutoString
 from urllib.parse import urlencode
@@ -34,13 +34,11 @@ from uber.models.hotel import (HotelRoomInventory, InventoryNightQuantity, Inven
                                WaitlistReveal, WaitlistRevealLink, HotelRoomIssueNote,
                                HotelImportFile)
 from uber.email import EmailService
-from uber.hotel.exports import (booking_columns, booking_export_data,
-                                build_waitlist_xlsx, changed_rooms_between,
-                                compute_export_tracking, derive_sync_status,
-                                hotel_activity_timeline, import_changes,
-                                read_stored_file, render_booking_export,
-                                store_export_file, write_hotel_inventory_xlsx,
-                                write_interchange_export)
+from uber.hotel.exports import (booking_columns, booking_export_data, build_waitlist_xlsx,
+                                changed_rooms_between, compute_export_tracking, derive_sync_status,
+                                hotel_activity_timeline, import_changes, read_stored_file,
+                                record_hotel_transfer, render_booking_export, store_export_file,
+                                write_hotel_inventory_xlsx, write_interchange_export)
 from uber.hotel.imports import (apply_cancellation_rows, apply_confirmation_rows,
                                 match_assignments, parse_confirmation_rows,
                                 parse_iso_date, parse_spreadsheet)
@@ -58,9 +56,9 @@ from uber.hotel.audit import (annotate_issues, collect_issues,
                                    filter_issues, get_or_make_issue_note,
                                    group_inventory_issues, group_room_issues,
                                    load_issue_notes)
-from uber.hotel.queries import (attendee_name_filter, attendee_search_results,
-                                block_availability, build_room_assignment_query,
-                                clamp_page_size, paginate)
+from uber.hotel.queries import (attendee_name_filter, attendee_search_results, block_availability,
+                                build_room_assignment_query, clamp_page_size, mark_exported,
+                                paginate)
 from uber.hotel.run_stats import lottery_run_stats
 from uber.hotel.waitlist import (WaitlistError, accept_waitlist_entry,
                                  sweep_eligible, fulfill_waitlist)
@@ -759,6 +757,9 @@ class Root:
             inventory_partitions_map.setdefault(
                 str(pb.inventory_id), []).append(str(pb.partition_id))
 
+        _live_rooms = [ra for ra in (application.attendee.room_assignments
+                                     if application.attendee else [])
+                       if ra.is_live]
         return {
             'message':    message,
             'application':   application,
@@ -767,20 +768,29 @@ class Root:
             'partitions': picker['partitions'],
             'inventory_blocks': picker['inventory_blocks'],
             'inventory_partitions_map': inventory_partitions_map,
-            # Export-lock chip on the Rooms section header (previously a
-            # namespace() loop in the template).
-            'any_export_locked': any(
-                ra.export_locked for ra in
-                (application.attendee.room_assignments
-                 if application.attendee else [])),
+            # Sent-to-hotel / locked chips on the Rooms section header.
+            'rooms_exported': sum(
+                1 for ra in _live_rooms if ra.is_exported),
+            'rooms_locked': sum(
+                1 for ra in _live_rooms if ra.is_locked),
         }
 
     def history(self, session, id):
         application = session.lottery_application(id)
+        # The application's own changes plus its rooms' (edits, and the
+        # hotel exports and imports that included them), in one timeline.
+        rooms = {ra.id: ra for ra in session.query(RoomAssignment)
+                 .filter_by(lottery_application_id=id)}
+        changes = session.query(Tracking).filter(
+            or_(and_(Tracking.model == 'LotteryApplication', Tracking.fk_id == id),
+                and_(Tracking.model == 'RoomAssignment', Tracking.fk_id.in_(list(rooms))))
+        ).order_by(Tracking.when).all() if rooms else session.query(Tracking).filter(
+            Tracking.model == 'LotteryApplication', Tracking.fk_id == id
+        ).order_by(Tracking.when).all()
         return {
             'application':  application,
-            'changes': session.query(Tracking).filter(Tracking.model == 'LotteryApplication', Tracking.fk_id == id
-                                                      ).order_by(Tracking.when).all(),
+            'rooms': rooms,
+            'changes': changes,
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(application)
                                                                 ).order_by(PageViewTracking.when).all(),
         }
@@ -848,9 +858,15 @@ class Root:
             app.id: rooms_by_attendee.get(app.attendee_id, [])
             for app in applications}
 
+        # Lock / unlock-all button counts: the run's live awarded rooms.
+        live_run_rooms = session.query(RoomAssignment).filter(
+            RoomAssignment.lottery_run_id == lottery_run.id,
+            RoomAssignment.is_live)
         return {
             'lottery_run': lottery_run,
             'applications': applications,
+            'run_rooms_live': live_run_rooms.count(),
+            'run_rooms_locked': live_run_rooms.filter(RoomAssignment.locked).count(),
             'stats': lottery_run_stats(session, lottery_run),
             'total': total,
             'page': page_num,
@@ -863,6 +879,30 @@ class Root:
             'message': message,
             **picker,
         }
+
+    def lock_run_rooms(self, session, id, lock='', **params):
+        """Lock (lock=1) or unlock every live room this run awarded.
+        Unlocking also clears locks set on those rooms individually."""
+        _require_post_csrf(params, redirect=f'lottery_run_detail?id={id}')
+        lottery_run = session.query(LotteryRun).get(id)
+        if not lottery_run:
+            raise HTTPRedirect('lottery_runs?message={}', 'Run not found.')
+        if lottery_run.status != c.LOTTERY_AWARDED:
+            raise HTTPRedirect('lottery_run_detail?id={}&message={}', id,
+                               'Only an awarded run has rooms to lock.')
+        new_locked = lock in ('1', 'true', 'yes')
+        changed = 0
+        for ra in session.query(RoomAssignment).filter(
+                RoomAssignment.lottery_run_id == lottery_run.id,
+                RoomAssignment.is_live).all():
+            if bool(ra.locked) != new_locked:
+                ra.locked = new_locked
+                session.add(ra)
+                changed += 1
+        session.commit()
+        verb = 'Locked' if new_locked else 'Unlocked'
+        raise HTTPRedirect('lottery_run_detail?id={}&message={}', id,
+                           f"{verb} {changed} awarded room{'' if changed == 1 else 's'}.")
 
     def update_lottery_run(self, session, id, name, **params):
         _require_post_csrf(params, redirect=f'lottery_run_detail?id={id}')
@@ -1396,7 +1436,8 @@ class Root:
         store_export_file(
             session, hotel, data, filename, content_type,
             source='admin', record_count=len(rows),
-            exported_by=AdminAccount.admin_name() or '')
+            exported_by=AdminAccount.admin_name() or '',
+            assignment_ids=[row[0] for row in rows])
         session.commit()
         cherrypy.response.headers['Content-Type'] = content_type
         cherrypy.response.headers['Content-Disposition'] = \
@@ -1531,7 +1572,8 @@ class Root:
         # applied count per assignment touched. Email behavior stays here.
         conf_preview = apply_confirmation_rows(
             session, rows, apply_changes=True,
-            on_update=lambda ra: _send_confirmation_updated_email(session, ra))
+            on_update=lambda ra: _send_confirmation_updated_email(session, ra),
+            filename=filename)
         updated = conf_preview['applied']
 
         # Unlike the cancellations import page - where a row's presence
@@ -1541,7 +1583,7 @@ class Root:
             row for row in rows
             if (row.get('cancellation_confirmation_number') or '').strip()]
         cancel_preview = apply_cancellation_rows(
-            session, cancel_rows, apply_changes=True)
+            session, cancel_rows, apply_changes=True, filename=filename)
         cancelled = cancel_preview['applied']
 
         date_updates = 0
@@ -2271,7 +2313,10 @@ class Root:
         # per-room request rather than the original lottery entry.
         ra_query = (session.query(RoomAssignment)
                     .filter(RoomAssignment.is_live,
-                            RoomAssignment.inventory_id.isnot(None)))
+                            RoomAssignment.inventory_id.isnot(None))
+                    # sweep_eligible reads these for waitlisted rows.
+                    .options(selectinload(RoomAssignment.lottery_application),
+                             selectinload(RoomAssignment.parent_assignment)))
         if filter_partition_id:
             ra_query = ra_query.filter(RoomAssignment.partition_id == filter_partition_id)
         elif filtering_default:
@@ -2302,13 +2347,19 @@ class Root:
 
         def build_inventory_data(is_suite):
             inventory = defaultdict(list)
-            for inv in session.query(HotelRoomInventory).filter_by(is_suite=is_suite, active=True).all():
+            # Inactive blocks are listed too (marked in the template) since
+            # they can still hold bookings.
+            blocks = (session.query(HotelRoomInventory).filter_by(is_suite=is_suite)
+                      .options(selectinload(HotelRoomInventory.night_quantities)).all())
+            for inv in blocks:
                 hotel_obj = hotel_lookup.get(str(inv.hotel_id))
                 block_id = str(inv.id)
+                night_quantity = inv.night_quantity_map
 
                 night_data = []
                 for night in event_nights:
-                    available = effective_capacity(block_id, inv.quantity_for_night(night))
+                    available = effective_capacity(
+                        block_id, night_quantity.get(night, inv.quantity))
                     assigned = assigned_per_block_night.get(block_id, {}).get(night, 0)
                     waitlisted = waitlist_per_block_night.get(block_id, {}).get(night, 0)
                     night_data.append({
@@ -2346,12 +2397,14 @@ class Root:
         infos = [info for inventory in (room_inventory, suite_inventory)
                  for block_list in inventory.values()
                  for info in block_list]
+        # Inactive blocks aren't offered, so only their bookings count.
         nights = [nd for i in infos for nd in i['nights']]
+        offered_nights = [nd for i in infos if i['inventory'].active for nd in i['nights']]
         summary = {
-            'blocks': len(infos),
-            'offered': sum(nd['available'] for nd in nights),
+            'blocks': sum(1 for i in infos if i['inventory'].active),
+            'offered': sum(nd['available'] for nd in offered_nights),
             'assigned': sum(nd['assigned'] for nd in nights),
-            'remaining': sum(nd['remaining'] for nd in nights),
+            'remaining': sum(nd['remaining'] for nd in offered_nights),
             'waitlisted': sum(nd['waitlisted'] for nd in nights),
         }
 
@@ -2363,7 +2416,8 @@ class Root:
                 for info in block_list:
                     for nd in info['nights']:
                         hotel_totals[key]['assigned'] += nd['assigned']
-                        hotel_totals[key]['remaining'] += nd['remaining']
+                        if info['inventory'].active:
+                            hotel_totals[key]['remaining'] += nd['remaining']
 
         return {
             'room_inventory': room_inventory,
@@ -2429,8 +2483,14 @@ class Root:
                        .order_by(RoomAssignment.inventory_id, RoomAssignment.created))
 
         if lock_entries:
-            # Lock the SOURCE applications (one app may produce many rooms).
-            app_ids_to_lock = {ra.lottery_application_id for ra in assignments
+            # `lock_entries` marks this export as sent to the hotel: stamp
+            # the rooms and flag their source applications (one app may
+            # have many rooms).
+            exported = assignments.all()
+            mark_exported(exported)
+            record_hotel_transfer(session, c.HOTEL_EXPORT, [ra.id for ra in exported],
+                                  'Sent to hotel: Passkey export')
+            app_ids_to_lock = {ra.lottery_application_id for ra in exported
                                if ra.lottery_application_id}
             if app_ids_to_lock:
                 for app in session.query(LotteryApplication).filter(
@@ -2438,7 +2498,7 @@ class Root:
                     if not app.export_locked:
                         app.export_locked = True
                         session.add(app)
-                session.commit()
+            session.commit()
 
         for ra in assignments:
             app = ra.lottery_application
@@ -3055,14 +3115,17 @@ class Root:
             if parse_error:
                 return {'kind': kind, 'preview': None, 'message': parse_error}
 
+            upload_name = getattr(upload, 'filename', '')
             if kind == 'cancellation':
-                preview = apply_cancellation_rows(session, rows, apply_changes)
+                preview = apply_cancellation_rows(session, rows, apply_changes,
+                                                  filename=upload_name)
             else:
                 # Email behavior stays with this controller: the admin
                 # confirmation import notifies the attendee per change.
                 preview = apply_confirmation_rows(
                     session, rows, apply_changes,
-                    on_update=lambda ra: _send_confirmation_updated_email(session, ra))
+                    on_update=lambda ra: _send_confirmation_updated_email(session, ra),
+                    filename=upload_name)
 
             if apply_changes and preview['applied']:
                 session.commit()
@@ -3742,14 +3805,6 @@ class Root:
             'ungranted_admins': ungranted_admins,
             'message': message,
         }
-
-    @ajax
-    def unlock_application(self, session, id):
-        app = session.lottery_application(id)
-        app.export_locked = False
-        session.add(app)
-        session.commit()
-        return {"success": True}
 
     # Wrappers around the underlying RoomAssignment CRUD that live in
     # partition_admin. Each redirects back to the application edit form

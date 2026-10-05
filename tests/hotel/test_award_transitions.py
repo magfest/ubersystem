@@ -1,11 +1,15 @@
 """The COMPLETE <-> AWARDED transition: the RoomAssignment
-after_insert/after_delete SQL listeners and the ORM-side
+after_insert/after_update/after_delete SQL listeners and the ORM-side
 LotteryApplication.sync_award_status must implement the same rule.
 
 The listeners run on the raw connection during flush, so the ORM object is
 stale afterwards - tests flush and then expire/refresh the app to observe.
 """
 
+import contextlib
+from datetime import date
+
+import uber.tasks.hotel as hotel_tasks
 from uber.config import c
 
 from tests.hotel.factories import (N, make_application, make_assignment,
@@ -129,3 +133,81 @@ def test_sync_award_status_agrees_with_listeners(session):
     session.flush()
     app.sync_award_status(session)
     assert app.status == c.WITHDRAWN
+
+
+def test_after_update_cancelling_last_live_room_demotes(session):
+    inv, attendee, app = _fixture(session, c.COMPLETE)
+    run = make_run(session)
+    ra = make_assignment(session, attendee, inv, status=c.SECURED,
+                         lottery_application_id=app.id,
+                         check_in=N[1], check_out=N[3])
+    app.lottery_run_id = run.id
+    session.flush()
+    session.expire(app)
+    assert app.status == c.AWARDED
+
+    ra.status = c.CANCELLED
+    session.flush()
+    session.expire(app)
+
+    assert app.status == c.COMPLETE
+    assert app.lottery_run_id is None
+
+
+def test_after_update_keeps_awarded_while_a_sibling_is_live(session):
+    inv, attendee, app = _fixture(session, c.COMPLETE)
+    first = make_assignment(session, attendee, inv, status=c.SECURED,
+                            lottery_application_id=app.id, check_in=N[1], check_out=N[3])
+    make_assignment(session, attendee, inv, status=c.ASSIGNED,
+                    lottery_application_id=app.id, check_in=N[1], check_out=N[3])
+
+    first.status = c.EXPIRED
+    session.flush()
+    session.expire(app)
+
+    assert app.status == c.AWARDED
+
+
+def test_after_update_reinstating_a_room_promotes(session):
+    inv, attendee, app = _fixture(session, c.COMPLETE)
+    ra = make_assignment(session, attendee, inv, status=c.CANCELLED,
+                         lottery_application_id=app.id, check_in=N[1], check_out=N[3])
+    session.expire(app)
+    assert app.status == c.COMPLETE
+
+    ra.status = c.ASSIGNED
+    session.flush()
+    session.expire(app)
+
+    assert app.status == c.AWARDED
+
+
+def test_sync_award_status_sees_unflushed_status_changes(session):
+    """Sessions don't autoflush; the resync must count the caller's own
+    pending changes."""
+    inv, attendee, app = _fixture(session, c.COMPLETE)
+    ra = make_assignment(session, attendee, inv, status=c.ASSIGNED,
+                         lottery_application_id=app.id, check_in=N[1], check_out=N[3])
+    session.expire(app)
+    assert app.status == c.AWARDED
+
+    ra.status = c.CANCELLED
+    app.sync_award_status(session)
+
+    assert app.status == c.COMPLETE
+
+
+def test_expiry_task_returns_application_to_complete(session, no_cherrypy_session, monkeypatch):
+    inv, attendee, app = _fixture(session, c.COMPLETE)
+    make_assignment(session, attendee, inv, status=c.ASSIGNED, payment_type='credit_card',
+                    lottery_application_id=app.id, check_in=N[1], check_out=N[3],
+                    deposit_cutoff_date=date(2026, 1, 1))
+    session.expire(app)
+    assert app.status == c.AWARDED
+    monkeypatch.setattr(session, 'commit', session.flush)
+    monkeypatch.setattr(hotel_tasks, 'Session', lambda: contextlib.nullcontext(session))
+
+    hotel_tasks.expire_unsecured_assignments()
+    session.expire(app)
+
+    assert app.status == c.COMPLETE

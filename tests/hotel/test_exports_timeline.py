@@ -9,6 +9,7 @@ from datetime import timedelta
 import cherrypy
 from pytz import UTC
 
+from uber.config import c
 from uber.hotel.exports import (changed_rooms_between, hotel_activity_timeline,
                                 render_booking_export, store_export_file,
                                 unprocessed_imports)
@@ -282,7 +283,7 @@ def test_api_export_attribution_defaults_to_api(session, monkeypatch):
     attendee = make_attendee(session)
     app = make_application(session, attendee)
     make_assignment(session, attendee, inventory=inv,
-                    check_in=N[1], check_out=N[3],
+                    check_in=N[1], check_out=N[3], status=c.SECURED, cc_token='tok',
                     lottery_application_id=app.id)
     session.flush()
 

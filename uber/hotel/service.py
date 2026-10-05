@@ -223,7 +223,8 @@ def apply_room_assignment_edits(session, ra, params, *, audit_prefix, fail,
     Only touches fields actually present in `params`, so each surface
     keeps its own field set: the modal posts inventory / partition /
     billing / dates; the standalone page additionally posts status,
-    deposit cutoff, confirmation numbers, and special requests.
+    deposit cutoff, confirmation numbers, special requests, and the
+    room lock (`locked` plus a `locked_present` marker).
 
     `fail(message)` is called on invalid input and must raise (callers
     redirect back to their own page with the message).
@@ -304,6 +305,14 @@ def apply_room_assignment_edits(session, ra, params, *, audit_prefix, fail,
             fail("Invalid status.")
         if new_status != ra.status:
             changes.append('status'); ra.status = new_status
+
+    # An unchecked checkbox isn't posted; `locked_present` marks a form
+    # that showed it.
+    if 'locked_present' in params:
+        new_locked = str(params.get('locked', '')).lower() in ('1', 'true', 'yes', 'on')
+        if new_locked != bool(ra.locked):
+            changes.append('locked' if new_locked else 'unlocked')
+            ra.locked = new_locked
 
     if 'physical_room_id' in params and allow_room_number:
         from uber.models.hotel import PhysicalRoom

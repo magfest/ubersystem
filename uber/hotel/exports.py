@@ -35,9 +35,15 @@ from sqlalchemy.orm import joinedload
 
 from uber.config import c
 from uber.custom_tags import datetime_local_filter
-from uber.models import Attendee, LotteryApplication
+from uber.hotel.queries import exportable_assignments, mark_exported
+from uber.models import AdminAccount, Attendee, LotteryApplication
 from uber.models.hotel import (HotelExportLog, HotelRoomInventory,
                                LotteryHotel, LotteryRoomType, RoomAssignment)
+from uber.models.tracking import Tracking
+
+#: Tracking actions that mark a room's inclusion in a hotel file rather
+#: than a change to it.
+HOTEL_TRANSFER_ACTIONS = (c.HOTEL_EXPORT, c.HOTEL_IMPORT)
 
 
 # CSV/XLSX export + CSV import used by the export-tracking modal. The
@@ -270,14 +276,15 @@ def booking_export_data(session, hotel_id):
     Source is now RoomAssignment - one row per assigned room.
     Connectors get their own line; their `parent_assignment_id`
     column points at the parent (suite) assignment's id so the hotel
-    can group them.
+    can group them. Cancelled rooms the hotel was already sent stay in
+    the file with status "Cancelled".
     """
     hotel = session.query(LotteryHotel).filter_by(id=hotel_id).first()
     if not hotel:
         return None, []
 
-    from uber.hotel.queries import live_assignments_for_hotel
-    assignments = (live_assignments_for_hotel(session, hotel.id)
+    # Live rooms, plus cancelled rooms the hotel was already sent.
+    assignments = (exportable_assignments(session, hotel_id=hotel.id)
                    .options(joinedload(RoomAssignment.partition))
                    .order_by(RoomAssignment.parent_assignment_id.asc().nullsfirst(),
                              RoomAssignment.created.asc())
@@ -291,6 +298,9 @@ def booking_export_data(session, hotel_id):
         for app in session.query(LotteryApplication).filter(
                 LotteryApplication.id.in_(app_ids)).all():
             apps_by_id[app.id] = app
+
+    # This file goes to the hotel, so stamp its rows as exported.
+    mark_exported(assignments)
 
     rows = []
     for ra in assignments:
@@ -425,9 +435,28 @@ def render_booking_export(session, hotel_id, fmt='csv'):
     return hotel, f'{base}.csv', 'text/csv', buffer.getvalue().encode('utf-8')
 
 
+def record_hotel_transfer(session, action, assignment_ids, note, *, who='',
+                          links=''):
+    """One Tracking row per room for a hotel file that included it, so the
+    room's history shows each export and import in order with its edits.
+    `action` is c.HOTEL_EXPORT or c.HOTEL_IMPORT; `note` is the text shown.
+    Flushes, never commits."""
+    ids = list(dict.fromkeys(str(i) for i in assignment_ids if i))
+    if not ids:
+        return
+    who = who or AdminAccount.acting_name() or 'system'
+    for ra in session.query(RoomAssignment).filter(RoomAssignment.id.in_(ids)):
+        session.add(Tracking(
+            model='RoomAssignment', fk_id=ra.id, which=repr(ra), who=who,
+            page=c.PAGE_PATH, links=links, action=action, data=note))
+    session.flush()
+
+
 def store_export_file(session, hotel, raw, filename, content_type, *,
-                      source, exported_by='', record_count=0, notes=''):
-    """Persist an export's bytes and log it. Returns the HotelExportLog."""
+                      source, exported_by='', record_count=0, notes='',
+                      assignment_ids=()):
+    """Persist an export's bytes and log it, and mark each room in
+    `assignment_ids` as sent to the hotel. Returns the HotelExportLog."""
     stored_name = f"hotel_export_{uuid.uuid4().hex}_{filename}"[:200]
     os.makedirs(c.UPLOADED_FILES_DIR, exist_ok=True)
     filepath = os.path.join(c.UPLOADED_FILES_DIR, stored_name)
@@ -448,6 +477,10 @@ def store_export_file(session, hotel, raw, filename, content_type, *,
     )
     session.add(entry)
     session.flush()
+    record_hotel_transfer(
+        session, c.HOTEL_EXPORT, assignment_ids,
+        f"Sent to {hotel.name if hotel else 'hotel'}: {filename}",
+        who=exported_by, links=f'hotel_export_log({entry.id})')
     return entry
 
 
@@ -527,14 +560,13 @@ def changed_rooms_between(session, hotel_id, start, end,
     Returns [{'assignment', 'number', 'guest', 'when', 'who', 'action',
     'changes': [(field, old, new)]}], newest first.
     """
-    from uber.models.tracking import Tracking
-
     ids = _hotel_assignment_ids(session, hotel_id)
     if not ids:
         return []
 
     q = session.query(Tracking).filter(
-        Tracking.model == 'RoomAssignment', Tracking.fk_id.in_(ids))
+        Tracking.model == 'RoomAssignment', Tracking.fk_id.in_(ids),
+        Tracking.action.notin_(HOTEL_TRANSFER_ACTIONS))
     if start:
         q = q.filter(Tracking.when > start)
     if end:
@@ -633,7 +665,6 @@ def hotel_activity_timeline(session, hotel_id, limit=100):
     had at the time. The newest gap runs from the last event to now.
     """
     from uber.models.hotel import HotelImportFile
-    from uber.models.tracking import Tracking
 
     events = []
     for log in (session.query(HotelExportLog)
@@ -676,7 +707,8 @@ def hotel_activity_timeline(session, hotel_id, limit=100):
         if not ids:
             return 0
         q = session.query(func.count(func.distinct(Tracking.fk_id))).filter(
-            Tracking.model == 'RoomAssignment', Tracking.fk_id.in_(ids))
+            Tracking.model == 'RoomAssignment', Tracking.fk_id.in_(ids),
+            Tracking.action.notin_(HOTEL_TRANSFER_ACTIONS))
         if start:
             q = q.filter(Tracking.when > start)
         if end:
@@ -723,7 +755,8 @@ def compute_export_tracking(session):
 
         dirty_count = 0
         if last_export:
-            dirty_count = bookings.filter(
+            # Cancelled rooms the hotel was sent count as changes too.
+            dirty_count = exportable_assignments(session, hotel_id=hotel.id).filter(
                 RoomAssignment.last_modified_at > last_export.exported_at
             ).count()
 

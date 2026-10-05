@@ -310,19 +310,18 @@ def test_fulfill_cascades_to_connector_children(session):
         'the cascade includes waitlist_started_at'
 
 
-def test_fulfill_skips_export_locked_rows(session):
+def test_fulfill_skips_locked_rows(session):
     _, inv = _setup(session, quantity=5)
     attendee = make_attendee(session)
     # entry_type must be non-NULL: the sweep's SQL prefilter
     # (`entry_type != GROUP_ENTRY`) silently drops NULL-entry_type apps
     # (SQL NULL semantics), unlike the python-side sweep_eligible.
-    app = make_application(session, attendee, export_locked=True,
-                           entry_type=c.ROOM_ENTRY)
+    app = make_application(session, attendee, entry_type=c.ROOM_ENTRY)
     ra = make_assignment(session, attendee, inv,
                          check_in=N[2], check_out=N[4], status=c.SECURED,
                          lottery_application_id=app.id,
                          waitlisted_check_in_date=N[1],
-                         waitlist_started_at=T1)
+                         waitlist_started_at=T1, locked=True)
 
     result = fulfill_waitlist(session)
 
@@ -330,6 +329,25 @@ def test_fulfill_skips_export_locked_rows(session):
     assert result.fulfilled == 0
     assert ra.assigned_check_in_date == N[2], 'locked rows are untouched'
     assert ra.waitlisted_check_in_date == N[1]
+
+
+def test_fulfill_serves_exported_but_unlocked_rows(session):
+    """Exported rooms are not locked, so the sweep serves them."""
+    _, inv = _setup(session, quantity=5)
+    attendee = make_attendee(session)
+    app = make_application(session, attendee, export_locked=True,
+                           entry_type=c.ROOM_ENTRY)
+    ra = make_assignment(session, attendee, inv,
+                         check_in=N[2], check_out=N[4], status=c.SECURED,
+                         lottery_application_id=app.id,
+                         waitlisted_check_in_date=N[1],
+                         waitlist_started_at=T1)
+    assert ra.is_exported and not ra.is_locked
+
+    result = fulfill_waitlist(session)
+
+    assert result.skipped_locked == 0
+    assert ra.assigned_check_in_date == N[1]
 
 
 def test_accept_works_on_assigned_row(session):
@@ -348,15 +366,14 @@ def test_accept_works_on_assigned_row(session):
     assert ra.waitlist_started_at is None
 
 
-def test_accept_refuses_export_locked(session):
+def test_accept_refuses_locked(session):
     _, inv = _setup(session, quantity=5)
     attendee = make_attendee(session)
-    app = make_application(session, attendee, export_locked=True)
     ra = make_assignment(session, attendee, inv,
                          check_in=N[2], check_out=N[4], status=c.SECURED,
-                         lottery_application_id=app.id,
                          waitlisted_check_in_date=N[1],
-                         waitlist_started_at=T1)
+                         waitlist_started_at=T1, locked=True)
 
-    with pytest.raises(WaitlistError):
+    with pytest.raises(WaitlistError) as exc:
         accept_waitlist_entry(session, ra)
+    assert 'locked' in exc.value.message
