@@ -120,7 +120,6 @@ class PanelOtherInfo(MagForm):
     past_attendance = TextAreaField("Where and how many people attended?")
     unavailable = TextAreaField("When are you NOT available?")
     verify_unavailable = BooleanField("I verify I am available at any time during the event EXCEPT for the times listed above.")
-    available = TextAreaField()
     extra_info = TextAreaField("Is there anything else you would like to provide regarding your submission?",
                                description="This can include information not for public consumption, but merely things the event needs to know.")
 

@@ -424,18 +424,26 @@ class Root:
 
     @csv_file
     def everything(self, out, session):
-        out.writerow([
-            'Panel Name',
-            'Description',
-            'Expected Length',
-            'Unavailability',
-            'Past Attendance',
-            'Affiliations',
-            'Type of Panel',
-            'Technical Needs',
-            'OK to Livestream',
-            'Applied',
-            'Panelists'])
+        dept_col = ['Department'] if len(c.PANELS_DEPT_OPTS_WITH_DESC) > 1 else []
+        rating_col = ['Rating'] if len(c.PANEL_RATING_OPTS) > 1 else []
+        content_col = ['Mature Content'] if len(c.PANEL_CONTENT_OPTS) > 1 else []
+        if len(c.LIVESTREAM_OPTS) > 2:
+            recording_cols = ['Recording or Livestreaming OK']
+        elif c.CAN_LIVESTREAM:
+            recording_cols = ['Recording OK', 'Livestreaming OK']
+        else:
+            recording_cols = ['Recording OK']
+        
+        header_row = ['Panel Name'] + dept_col + [
+            'Type of Panel', 'Description', 'Public Description'
+            ] + rating_col + content_col + [
+            'Expected Length', 'Reason for Length', 'Noise Level'
+            ] + recording_cols + [
+            'Special Table Set-up', 'Upfront Cost and Materials',
+            'Unavailability', 'Technical Needs', 'Loud Environment Requested',
+            'Extra Info for Internal Use', 'Panelist Is Bringing', 'Affiliations',
+            'Past Attendance', 'Applied', 'Panelists']
+        out.writerow(header_row)
 
         for app in session.panel_apps():
             panelists = []
@@ -445,18 +453,28 @@ class Root:
                     panelist.email,
                     panelist.cellphone
                 ])
-            out.writerow([
-                app.name,
-                app.description,
-                app.length_label,
-                app.unavailable,
-                app.past_attendance,
-                app.affiliations,
+            dept_col = app.department_name if len(c.PANELS_DEPT_OPTS_WITH_DESC) > 1 else []
+            rating_col = [app.rating_label] if len(c.PANEL_RATING_OPTS) > 1 else []
+            content_col = [' / '.join(app.granular_rating_labels)] if len(c.PANEL_CONTENT_OPTS) > 1 else []
+            if len(c.LIVESTREAM_OPTS) > 2:
+                recording_cols = [app.livestream_label]
+            elif c.CAN_LIVESTREAM:
+                recording_cols = [app.record_label, app.livestream_label]
+            else:
+                recording_cols = [app.record_label]
+
+            row = [app.name] + dept_col + [
                 app.other_presentation if app.presentation == c.OTHER else app.presentation_label,
+                app.description, app.public_description] + rating_col + content_col + [
+                app.length_text if app.length == c.OTHER or app.length_text else app.length_label,
+                app.length_reason if app.length == c.OTHER or app.length_text else 'N/A',
+                app.noise_level_label] + recording_cols + [
+                app.tables_desc, app.cost_desc, app.unavailable,
                 ' / '.join(app.tech_needs_labels) + (' / ' if app.other_tech_needs else '') + app.other_tech_needs,
-                app.livestream_label,
-                app.applied.strftime('%Y-%m-%d')
-            ] + panelists)
+                app.is_loud if app.presentation == c.MUSIC else 'N/A', app.extra_info,
+                app.panelist_bringing, app.affiliations, app.past_attendance, app.applied.strftime('%Y-%m-%d')] + panelists
+            
+            out.writerow(row)
 
     def panel_poc_schedule(self, session, attendee_id):
         attendee = session.attendee(attendee_id)
