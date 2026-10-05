@@ -135,13 +135,19 @@ class GuestGroup(MagModel, table=True):
                 'term': "Indie Item Shoppe",
                 'faq_file': 'IndieIsland.pdf',
                 'contact_email': 'indies@magfest.org',
+                'deadline': c.INDIE_ISLAND_DEADLINE,
             }
         else:
             return {
                 'term': "Rock Island",
                 'faq_file': 'RockIsland.pdf',
                 'contact_email': 'rockisland@magfest.org',
+                'deadline': c.ROCK_ISLAND_DEADLINE,
             }
+        
+    @property
+    def uses_quantity(self):
+        return self.group_type == c.MIVS
 
     @property
     def uses_detailed_travel_plans(self):
@@ -505,11 +511,14 @@ class GuestMerch(MagModel, table=True):
         return cls.extract_json_params(params, 'handlers')
 
     @classmethod
-    def validate_inventory(cls, inventory):
+    def validate_inventory(cls, inventory, qty_required=False):
         if not inventory:
             return 'You must add some merch to your inventory!'
         messages = []
         for item_id, item in inventory.items():
+            quantity = int(item.get('quantity') or 0)
+            if qty_required and quantity <= 0 and cls.total_quantity(item) <= 0:
+                messages.append('Please specify a quantity.')
             for name, file in [(n, f) for (n, f) in item.items() if f]:
                 match = cls._inventory_file_regex.match(name)
                 if match and getattr(file, 'filename', None):
@@ -578,12 +587,17 @@ class GuestMerch(MagModel, table=True):
             getattr(c, '{}_SIZES_OPTS'.format(s), defaultdict(lambda: [])))
 
     @classmethod
-    def line_items(cls, item):
+    def total_quantity(cls, item):
+        total_quantity = 0
+        for attr in filter(lambda s: s.startswith('quantity'), item.keys()):
+            total_quantity += int(item[attr] if item[attr] else 0)
+        return total_quantity
+
+    def line_items(self, item):
         line_items = []
 
         for attr in filter(lambda s: s.startswith('quantity-'), item.keys()):
             qty = item[attr] if item[attr] else 0
-            log.error(qty)
             if qty == 'on':
                 qty = 1
             if int(qty) > 0:
@@ -591,10 +605,10 @@ class GuestMerch(MagModel, table=True):
 
         varieties, cuts, sizes = [
             [v for (v, _) in x]
-            for x in cls.item_subcategories_opts(item['type'])]
+            for x in self.item_subcategories_opts(item['type'])]
 
         def _line_item_sort_key(line_item):
-            variety, cut, size = cls.line_item_to_types(line_item)
+            variety, cut, size = self.line_item_to_types(line_item)
             return (
                 varieties.index(variety) if variety else 0,
                 cuts.index(cut) if cut else 0,

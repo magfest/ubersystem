@@ -2118,7 +2118,7 @@ if c.ROCK_ISLAND_GROUPS:
         GuestGroup,
         f'Sign up to sell merch at {c.EVENT_NAME} Rock Island',
         'guests/rock_island_intro.txt',
-        "lambda g: g.group_type in c.ROCK_ISLAND_GROUPS and g.deadline_from_model('merch') and not g.group_type == c.BAND",
+        "lambda g: g.group_type in c.ROCK_ISLAND_GROUPS and g.group_type != c.MIVS and g.deadline_from_model('merch') and not g.group_type == c.BAND",
         'rock_island_intro',
         sender=c.ROCK_ISLAND_EMAIL)
 
@@ -2126,7 +2126,7 @@ if c.ROCK_ISLAND_GROUPS:
         GuestGroup,
         f'Last chance to finalize your {c.EVENT_NAME} Rock Island Inventory',
         'guests/rock_island_inventory_reminder.txt',
-        "lambda g: g.group_type in c.ROCK_ISLAND_GROUPS and g.merch and g.merch.selling_merch == c.ROCK_ISLAND",
+        "lambda g: g.group_type in c.ROCK_ISLAND_GROUPS and g.group_type != c.MIVS and g.merch and g.merch.selling_merch == c.ROCK_ISLAND",
         'ri_inventory_reminder',
         when=[days_before(7, c.ROCK_ISLAND_DEADLINE)],
         sender=c.ROCK_ISLAND_EMAIL)

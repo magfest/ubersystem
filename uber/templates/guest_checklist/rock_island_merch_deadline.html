@@ -5,18 +5,18 @@
 
 {% block deadline_text %}
 {% if guest.merch_status %}
-    You have submitted information for Rock Island, but you can edit it using the link above.
+    You have submitted information for {{ guest.merch_island_config['term'] }}, but you can edit it using the link above.
 {% else %}
-    Please let us know by the above deadline whether you want to utilize our "Rock Island" merch selling service.
-    Once opted in, you will have until <strong>{{ c.ROCK_ISLAND_DEADLINE|datetime_local }}</strong> to input your inventory.
+    Please let us know by the above deadline whether you want to utilize our "{{ guest.merch_island_config['term'] }}" merch selling service.
+    Once opted in, you will have until <strong>{{ guest.merch_island_config['deadline']|datetime_local }}</strong> to input your inventory.
 {% endif %}
 {% endblock %}
 
 {% block form_desc %}
-<p>Please fill in your information for Rock Island below.</p>
+<p>Please fill in your information for {{ guest.merch_island_config['term'] }} below.</p>
 <p>
-    <a href="../static/RockIsland.pdf">
-      Click here for more info about our Rock Island service!
+    <a href="../static/{{ guest.merch_island_config['faq_file'] }}">
+      Click here for more info about our {{ guest.merch_island_config['term'] }} service!
     </a>
 </p>
 {% endblock %}

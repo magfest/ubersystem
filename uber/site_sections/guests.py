@@ -312,7 +312,7 @@ class Root:
             guest.merch = guest_merch
 
         inventory = GuestMerch.extract_inventory(params)
-        message = GuestMerch.validate_inventory(inventory)
+        message = GuestMerch.validate_inventory(inventory, qty_required=guest.group_type == c.MIVS)
         if not message:
             guest_merch.update_inventory(inventory)
             guest_merch.selling_merch = c.ROCK_ISLAND

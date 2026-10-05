@@ -18,6 +18,6 @@
       "../group_admin/history?id={id}", "History", True,
       "../group_admin/emails?id={id}", "Emails", True,
       "../reg_admin/receipt_items?id={id}", "Receipt Items", c.HAS_REG_ADMIN_ACCESS,
-      "../group_admin/index" ~ return_to_hash, "Return to Group List", True
+      "../group_admin/index" ~ return_to, "Return to Group List", True
   ) }}
 {% endif %}

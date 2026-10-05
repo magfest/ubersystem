@@ -27,7 +27,7 @@
         {{ macros.checklist_image(guest.merch.inventory and guest.merch.checkin_time) }}
         <b><a href="merch?guest_id={{ guest.id }}">{{ guest.merch_island_config['term'] }} Inventory</a></b>
       </td>
-      <td><i>Deadline:</i> {{ c.ROCK_ISLAND_DEADLINE|datetime_local }}</td>
+      <td><i>Deadline:</i> {{ guest.merch_island_config['deadline']|datetime_local }}</td>
     </tr>
     <tr>
       <td></td>
@@ -117,6 +117,7 @@
               </div>
               <form method="post" action="save_inventory_item" target="upload_frame" class="form-horizontal" role="form" enctype="multipart/form-data">
                 <div class="modal-body">
+                  <div class="alert alert-dismissible" role="alert" id="inventory-alert" style="display:none"><span></span><button type="button" class="close" onClick="hideMessageBox()" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>
                   {{ csrf_token() }}
                   <input type="hidden" name="guest_id" value="{{ guest.id }}" />
                   {{ guests_macros.inventory_form(type, item=item) }}
@@ -226,7 +227,7 @@
 
   {% if HAS_ROCK_ISLAND %}
     You have until <strong>{{ guest.deadline_from_model('merch')|datetime_local }}</strong> to let us know whether you plan to use {{ guest.merch_island_config['term'] }},
-    and until <strong>{{ c.ROCK_ISLAND_DEADLINE|datetime_local }}</strong> to submit your inventory so that we may input everything into our point-of-sale system.
+    and until <strong>{{ guest.merch_island_config['deadline']|datetime_local }}</strong> to submit your inventory so that we may input everything into our point-of-sale system.
   {% endif %}
   <br/><br/>
 
@@ -287,14 +288,14 @@
           </div>
           {% endif %}
           <h3>Your Inventory &nbsp;<button type="button" class="btn btn-primary" data-toggle="modal" data-target="#arrival-plans">Merch Check-In and Check-Out Times</button></h3>
-          <p>You may add or edit items in your inventory and update your check-in and check-out times until {{ c.ROCK_ISLAND_DEADLINE|datetime_local }}.</p>
           <p>
             {% if not guest_merch.checkin_time %}
             You have not yet selected a check-in and check-out time for your merch.
             {% else %}
-            You are set to check in your inventory on {{ guest_merch.checkin_time_label }} and check out your inventory on {{ guest_merch.checkout_time_label }}.
+            You are set to check in your inventory on <strong>{{ guest_merch.checkin_time_label }}</strong> and check out your inventory on <strong>{{ guest_merch.checkout_time_label }}</strong>.
             {% endif %}
           </p>
+          <p>You may add or edit items in your inventory and update your check-in and check-out times until {{ guest.merch_island_config['deadline']|datetime_local }}.</p>
           <div id="inventory_container"{% if not guest_merch.inventory %} style="display:none"{% endif %}>
             {{ guests_macros.inventory_table(show_controls=True) }}
           </div>
@@ -629,10 +630,10 @@
                           });
                           $modals.modal('hide');
                         } else {
-                          showErrorMessage('', response['error'], {timeOut: 5000});
+                          showErrorMessage(response['error'], 'inventory-alert');
                         }
                       } catch(ex) {
-                        showErrorMessage('', 'There was an error saving the form: ' + responseText.substring(0, 1024), {timeOut: 5000});
+                        showErrorMessage('There was an error saving the form: ' + responseText.substring(0, 1024), 'inventory-alert');
                       }
                     }
                   } finally {
