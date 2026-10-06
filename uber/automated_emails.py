@@ -1057,10 +1057,10 @@ if c.HOTEL_LOTTERY_STAFF_START:
 if c.HOTEL_LOTTERY_FORM_START:
     c.HOTEL_LOTTERY_FORM_DEADLINE = c.HOTEL_LOTTERY_FORM_DEADLINE
 
-    # TODO: Add separate staff lottey reminders
+    # TODO: Add separate staff lottery reminders
     AutomatedEmailFixture(
         Attendee,
-        f'Did you want to enter the {c.EVENT_NAME} {c.EVENT_YEAR} hotel lottery?',
+        f'Round 2 - Did you want to enter the {c.EVENT_NAME} {c.EVENT_YEAR} hotel lottery?',
         'hotel/enter_lottery.html',
         "lambda a: a.hotel_lottery_eligible and not a.lottery_application and not a.staff_hotel_lottery_eligible "
         "and not a.active_room_assignments and days_after(1, a.registered)()",
