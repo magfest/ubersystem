@@ -232,7 +232,7 @@ class EmailService:
             if sent_email:
                 session.add(email)
                 sent_count += 1
-            session.commit()  # Save each email's status or error as we go in case an error kills the task
+            session.commit()  # Save each email's status or error message as we go in case an error kills the task
         return sent_count
     
     @staticmethod
@@ -296,7 +296,7 @@ class EmailService:
 
         if to_model:
             def listify_if_exists(x): return ','.join(listify(x if x else []))
-            email.to = email.to or listify_if_exists(to_model.email_to_address)
+            email.to = listify_if_exists(to_model.email_to_address)
             email.cc = email.cc or listify_if_exists(to_model.cc_emails_for_ident(email.ident))
             email.bcc = email.bcc or listify_if_exists(to_model.bcc_emails_for_ident(email.ident))
             email.replyto = email.replyto or listify_if_exists(to_model.replyto_emails_for_ident(email.ident))
@@ -343,9 +343,13 @@ class EmailService:
         if fixture_obj:
             email.subject = (email.subject or fixture_obj.subject).format_map(render_data)
 
+        if not c.DEV_BOX and not c.SEND_EMAILS:
+            # Use 'send_emails' as an emergency off switch for production servers
+            return
+
         try:
             error_msg = ''
-            if not c.DEV_BOX and c.SEND_EMAILS:
+            if not c.DEV_BOX:
                 ses_payload = {
                     'bodyText' if email.format == 'text' else 'bodyHtml': email.body,
                     'subject': email.subject,

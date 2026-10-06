@@ -4,7 +4,7 @@ import logging
 import pytz
 import traceback
 
-from sqlalchemy import func, or_, any_
+from sqlalchemy import func, or_, any_, nullslast
 
 from uber.automated_emails import AutomatedEmailFixture
 from uber.config import c
@@ -95,7 +95,7 @@ class Root:
             'message': message,
             'page': page,
             'automated_email': automated_email,
-            'emails': get_page(page, emails.order_by(Email.generated.desc())),
+            'emails': get_page(page, emails.order_by(nullslast(func.coalesce(Email.sent, Email.generated).desc()))),
             'count': emails.count(),
             'search_text': search_text if not subject else '',
             'subject_search_text': search_text if subject else '',
