@@ -229,10 +229,10 @@ class EmailService:
         sent_count = 0
         for email in queued_emails:
             sent_email = EmailService.send_email(session, email, email.automated_email, models_by_id.get(email.fk_id, None))
-            session.add(email)
-            session.commit()  # Save each email's status to stop from sending duplicates in case of an error
             if sent_email:
+                session.add(email)
                 sent_count += 1
+            session.commit()  # Save each email's status or error as we go in case an error kills the task
         return sent_count
     
     @staticmethod
@@ -276,9 +276,11 @@ class EmailService:
         if email.fk_id:
             if not to_model:
                 email.error = f"Could not find a {email.model} model with ID {email.fk_id}"
+                session.add(email)
                 return
             if not to_model.email_to_address:
                 email.error = f"Model {to_model} does not have an email address"
+                session.add(email)
                 return
             if not to_model.gets_emails:
                 session.delete(email)
@@ -286,6 +288,7 @@ class EmailService:
 
         if fixture_obj and not fixture_obj.fixture:
             email.error = f"Fixture {email.ident} is no longer defined and cannot be sent"
+            session.add(email)
             return
 
         fixture = fixture_obj.fixture if fixture_obj else None
@@ -293,7 +296,7 @@ class EmailService:
 
         if to_model:
             def listify_if_exists(x): return ','.join(listify(x if x else []))
-            email.to = email.to or listify_if_exists(to_model.email_to_address)
+            email.to = listify_if_exists(to_model.email_to_address)
             email.cc = email.cc or listify_if_exists(to_model.cc_emails_for_ident(email.ident))
             email.bcc = email.bcc or listify_if_exists(to_model.bcc_emails_for_ident(email.ident))
             email.replyto = email.replyto or listify_if_exists(to_model.replyto_emails_for_ident(email.ident))
@@ -334,6 +337,7 @@ class EmailService:
 
         if missing:
             email.error = f"Email {email.id} cannot be sent: missing {readable_join(missing)}"
+            session.add(email)
             return
         
         if fixture_obj:
@@ -357,12 +361,14 @@ class EmailService:
 
             if error_msg:
                 email.error = f"Error while sending email: {str(error_msg)}"
+                session.add(email)
                 return
             email.status = c.SENT
             email.sent = datetime.now(pytz.UTC)
             return email
         except Exception as error:
             email.error = f"Error while sending email: {str(error)}"
+            session.add(email)
 
     @staticmethod
     @reconcile_fixtures
