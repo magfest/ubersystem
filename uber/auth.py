@@ -229,7 +229,7 @@ class OIDC(cherrypy.Tool):
                         session.delete(account)
             else:
                 login_account = accounts
-            return login_accountx.id if login_account else None
+            return login_account.id if login_account else None
 
     def _init_accounts_from_claims(self, claims):
         roles = claims.get('realm_access', {}).get('roles', [])
