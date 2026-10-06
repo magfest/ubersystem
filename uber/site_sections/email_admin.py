@@ -378,7 +378,7 @@ class Root:
         new_status = f"Email sent {localized_now().strftime('%b %-d %-I:%M%p')} by {AdminAccount.admin_name()}"
         email.status_text = new_status
         session.commit()
-        #sent_email = EmailService.send_email(session, email, email.automated_email)
+        sent_email = EmailService.send_email(session, email, email.automated_email)
         sent_email = None
         if not sent_email:
             if email in session.deleted:

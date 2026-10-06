@@ -227,14 +227,12 @@ class EmailService:
             models_by_id = {}
 
         sent_count = 0
-        """
         for email in queued_emails:
             sent_email = EmailService.send_email(session, email, email.automated_email, models_by_id.get(email.fk_id, None))
             session.add(email)
             session.commit()  # Save each email's status to stop from sending duplicates in case of an error
             if sent_email:
                 sent_count += 1
-        """
         return sent_count
     
     @staticmethod
@@ -295,7 +293,7 @@ class EmailService:
 
         if to_model:
             def listify_if_exists(x): return ','.join(listify(x if x else []))
-            email.to = listify_if_exists(to_model.email_to_address)
+            email.to = email.to or listify_if_exists(to_model.email_to_address)
             email.cc = email.cc or listify_if_exists(to_model.cc_emails_for_ident(email.ident))
             email.bcc = email.bcc or listify_if_exists(to_model.bcc_emails_for_ident(email.ident))
             email.replyto = email.replyto or listify_if_exists(to_model.replyto_emails_for_ident(email.ident))
