@@ -338,7 +338,10 @@ class EmailService:
         
         if fixture_obj:
             email.subject = (email.subject or fixture_obj.subject).format_map(render_data)
-        
+
+        return email
+
+        """
         try:
             error_msg = ''
             if not c.DEV_BOX and c.SEND_EMAILS:
@@ -363,6 +366,7 @@ class EmailService:
             return email
         except Exception as error:
             email.error = f"Error while sending email: {str(error)}"
+        """
 
     @staticmethod
     @reconcile_fixtures
