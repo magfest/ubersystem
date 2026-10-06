@@ -121,10 +121,19 @@
     {% endfor %}
 {% endif %}
 {% if not account.valid_attendees and (not c.AT_THE_CON or not account.at_door_pending_attendees) %}
+    {% set empty_account_help_tooltip %}
+        If you bought a badge for {{ c.EVENT_NAME_AND_YEAR }}, make sure you are logged into the same {{ c.OIDC_ACCOUNT_NAME }} account you bought your badge with.
+        <br/><br/>If someone else bought your badge, they can manage your badge under their {{ c.OIDC_ACCOUNT_NAME }} account{% if c.TRANSFERABLE_BADGE_TYPES %} or transfer your badge to your account with a transfer code{% endif %}.
+    {% endset %}
     <div class="text-center">
         <span class="h2 text-uppercase{% if c.THEMED_BG_DARK %} text-white{% endif %}">You have no current registrations</span>
         <h4 class="text-center"><span class="fw-normal fst-italic mb-2 badge bg-secondary">{{ prereg_message }}</span></h4>
         <p>
+            {% if c.OIDC_ACCOUNT_NAME and c.AFTER_PREREG_OPEN %}
+            <button type="button" class="btn btn-sm btn-warning" data-bs-html="true" data-bs-container="body" data-bs-toggle="popover" data-bs-placement="top" data-bs-content="{{ empty_account_help_tooltip }}">
+              <i class="fa fa-question-circle"></i> Help! Where is my badge?
+            </button>
+            {% endif %}
         {% if account.imported_single_badges and not prereg_message %}
             {% if account.imported_attendees|length == 1 %}
             <a href="../preregistration/repurchase?id={{ account.imported_attendees[0].id }}&skip_confirm=true" class="btn btn-info">Import last year's registration</a>

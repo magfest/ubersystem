@@ -220,8 +220,16 @@ class OIDC(cherrypy.Tool):
             return None
 
         with Session() as session:
-            account = session.query(AttendeeAccount).filter(AttendeeAccount.sso_id == claims['sub']).first()
-            return account.id if account else None
+            accounts = session.query(AttendeeAccount).filter(AttendeeAccount.sso_id == claims['sub'])
+            if accounts.count() > 1:
+                for account in accounts:
+                    if account.attendees or account.panel_applications or account.indie_studios or account.mits_teams:
+                        login_account = account
+                    else:
+                        session.delete(account)
+            else:
+                login_account = accounts
+            return login_accountx.id if login_account else None
 
     def _init_accounts_from_claims(self, claims):
         roles = claims.get('realm_access', {}).get('roles', [])
