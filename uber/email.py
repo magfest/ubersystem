@@ -296,7 +296,7 @@ class EmailService:
 
         if to_model:
             def listify_if_exists(x): return ','.join(listify(x if x else []))
-            email.to = listify_if_exists(to_model.email_to_address)
+            email.to = email.to or listify_if_exists(to_model.email_to_address)
             email.cc = email.cc or listify_if_exists(to_model.cc_emails_for_ident(email.ident))
             email.bcc = email.bcc or listify_if_exists(to_model.bcc_emails_for_ident(email.ident))
             email.replyto = email.replyto or listify_if_exists(to_model.replyto_emails_for_ident(email.ident))
