@@ -227,12 +227,14 @@ class EmailService:
             models_by_id = {}
 
         sent_count = 0
+        """
         for email in queued_emails:
             sent_email = EmailService.send_email(session, email, email.automated_email, models_by_id.get(email.fk_id, None))
             session.add(email)
             session.commit()  # Save each email's status to stop from sending duplicates in case of an error
             if sent_email:
                 sent_count += 1
+        """
         return sent_count
     
     @staticmethod
@@ -339,9 +341,6 @@ class EmailService:
         if fixture_obj:
             email.subject = (email.subject or fixture_obj.subject).format_map(render_data)
 
-        return email
-
-        """
         try:
             error_msg = ''
             if not c.DEV_BOX and c.SEND_EMAILS:
@@ -366,7 +365,6 @@ class EmailService:
             return email
         except Exception as error:
             email.error = f"Error while sending email: {str(error)}"
-        """
 
     @staticmethod
     @reconcile_fixtures
