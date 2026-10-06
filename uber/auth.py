@@ -228,7 +228,7 @@ class OIDC(cherrypy.Tool):
                     else:
                         session.delete(account)
             else:
-                login_account = accounts
+                login_account = accounts.first()
             return login_account.id if login_account else None
 
     def _init_accounts_from_claims(self, claims):
