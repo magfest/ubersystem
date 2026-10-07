@@ -255,7 +255,7 @@ class Root:
     def poll_email_generation(self, session, id, **params):
         email_check_status = c.REDIS_STORE.hgetall(c.REDIS_PREFIX + 'email_generation:' + id)
         if not email_check_status:
-            return
+            return {"success": False, 'message': "Email generation did not start. There may be a problem with the email task."}
 
         email_check_error = email_check_status.get('error', '')
         email_check_count = email_check_status.get('emails_generated', '')

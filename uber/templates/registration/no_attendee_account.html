@@ -1,5 +1,5 @@
 {% if c.ATTENDEE_ACCOUNTS_ENABLED and not attendee.is_new and (c.LOCAL_ACCOUNTS_DISABLED or not attendee.has_sso_email) %}
-{% if not attendee.managers %}
+{% if not attendee.managers and not attendee.is_unassigned %}
 <div class="alert alert-info no-account">
 {% if not attendee.is_valid %}
 <strong>This attendee is invalid.</strong> Their badge status is "{{ attendee.badge_status_label }}".

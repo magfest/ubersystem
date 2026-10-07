@@ -12,7 +12,25 @@ from uber.tasks import celery
 log = logging.getLogger(__name__)
 
 
-__all__ = ['expire_processed_saml_assertions', 'set_signnow_key', 'update_shirt_counts', 'update_problem_names']
+__all__ = ['check_task_progress', 'expire_processed_saml_assertions', 'set_signnow_key', 'update_shirt_counts', 'update_problem_names']
+
+
+def check_task_progress(redis_key, task_name, delete_locked=False):
+    # Returns true if the task is in progress, otherwise false
+    task_status = c.REDIS_STORE.hgetall(c.REDIS_PREFIX + redis_key)
+    if task_status:
+        started_timestamp = task_status['started_timestamp']
+        started_time = datetime.fromtimestamp(float(started_timestamp))
+        last_warning = task_status.get('warning_timedelta', 0)
+        if started_time + timedelta(hours=last_warning + 2) < datetime.now():
+            log.error(f"The {task_name} task has taken more than {last_warning + 2} hours. There may be an issue with this task.")
+            if delete_locked:
+                c.REDIS_STORE.delete(c.REDIS_PREFIX + redis_key)
+                return False
+            else:
+                c.REDIS_STORE.hset(c.REDIS_PREFIX + redis_key, 'warning_timedelta', last_warning + 2)
+        return True
+    return False
 
 
 @celery.schedule(timedelta(minutes=30))

@@ -80,15 +80,11 @@ def notify_admins_of_pending_emails():
 
 @celery.task
 def check_emails_for_fixture(id):
-    email_check_status = c.REDIS_STORE.hgetall(c.REDIS_PREFIX + 'email_generation:' + id)
-    if email_check_status:
-        request_timestamp = c.REDIS_STORE.hget(c.REDIS_PREFIX + 'email_generation:' + id, 'request_timestamp')
-        request_time = datetime.fromtimestamp(float(request_timestamp))
-        if request_time + timedelta(hours=2) < datetime.now():
-            log.error(f"The check_emails_for_fixture task for {id} took more than 2 hours. There may be an issue with email generation.")
-            c.REDIS_STORE.delete(c.REDIS_PREFIX + 'email_generation:' + id)
-        else:
-            return
+    from uber.tasks import redis
+
+    task_in_progress = redis.check_task_progress('email_generation:' + id, 'check_emails_for_fixture')
+    if task_in_progress:
+        return
 
     c.REDIS_STORE.hset(c.REDIS_PREFIX + 'email_generation:' + id, 'request_timestamp',
                        datetime.now().timestamp())
@@ -127,39 +123,29 @@ def generate_missing_emails():
 
 @celery.schedule(timedelta(minutes=5))
 def send_automated_emails():
-    """
-    Send any queued emails while using DB locks to ensure the same email doesn't get processed twice.
-    Emails are processed per model.
-    """
-    from uber.tasks import panels
+    from uber.tasks import panels, redis
 
     if not (c.DEV_BOX or c.SEND_EMAILS):
-        return None
+        return
+
+    task_in_progress = redis.check_task_progress('email_processing', 'send_automated_emails')
+    if task_in_progress:
+        log.debug("Skipping email processing as it's being worked on by another thread.")
+        return
 
     quantity_sent = 0
-    start_time = time()
     panels.setup_panel_emails(reconcile_fixtures=False)
+    started = datetime.now()
+    c.REDIS_STORE.hset(c.REDIS_PREFIX + 'email_processing', 'started_timestamp', started.timestamp())
 
     try:
-        Session.session_factory = sessionmaker(bind=Session.engine, expire_on_commit=False, autoflush=False, autocommit=False,
-                                               query_cls=UberSession.QuerySubclass)
         with Session() as session:
             for model_class in set([fixture.model for fixture in AutomatedEmail._fixtures.values()]):
-                with Session.engine.connect() as guard_conn:
-                    model_name = model_class.__name__ if model_class else 'Classless'
-                    lock_key = model_name.lower() + '_email_queue'
-                    lock_key = int.from_bytes(lock_key.encode())  & ((1<<63)-1)
-                    log.debug(f"Attempting to lock {model_name} email queue for processing.")
-
-                    with guard_conn.begin():
-                        if guard_conn.execute(select(func.pg_try_advisory_lock(lock_key))).scalar():
-                            log.debug(f"Sending queued emails for {model_name}.")
-                            quantity_sent += EmailService.process_emails_by_class(session, model_class)
-                            session.commit()
-                            if guard_conn.execute(select(func.pg_advisory_unlock(lock_key))).scalar():
-                                log.debug(f"{model_name} email queue sent and unlocked.")
-                        else:
-                            log.debug(f"Skipping {model_name} as it is being worked by another thread.")
-            log.info(f"Sent {quantity_sent} emails in {time() - start_time} seconds.")
+                model_name = model_class.__name__ if model_class else 'Classless'
+                log.debug(f"Sending queued emails for {model_name}.")
+                quantity_sent += EmailService.process_emails_by_class(session, model_class)
+            log.info(f"Sent {quantity_sent} emails in {(datetime.now() - started).seconds} seconds.")
     except Exception:
         traceback.print_exc()
+
+    c.REDIS_STORE.delete(c.REDIS_PREFIX + 'email_processing')

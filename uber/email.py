@@ -343,8 +343,8 @@ class EmailService:
         if fixture_obj:
             email.subject = (email.subject or fixture_obj.subject).format_map(render_data)
 
-        if not c.DEV_BOX and not c.SEND_EMAILS:
-            # Use 'send_emails' as an emergency off switch for production servers
+        if not (c.DEV_BOX or c.SEND_EMAILS):
+            # We also have this check in `send_automated_emails`, so this is just extra assurance
             return
 
         try:
