@@ -459,7 +459,7 @@ def _stamp_entry_started(application):
     entry keeps its original timestamp and metadata."""
     if application.entry_started:
         return
-    application.entry_started = datetime.now()
+    application.entry_started = datetime.now(UTC)
     application.entry_metadata = {
         'ip_address': cherrypy.request.headers.get('X-Forwarded-For', cherrypy.request.remote.ip),
         'user_agent': cherrypy.request.headers.get('User-Agent', ''),
@@ -501,7 +501,7 @@ def _join_room_group(session, application, group_id):
 
     application.status = c.COMPLETE
     application.entry_type = c.GROUP_ENTRY
-    application.last_submitted = datetime.now()
+    application.last_submitted = datetime.now(UTC)
     application.attendee.hotel_eligible = False
     application.parent_application = room_group
     if application.is_staff_entry and not application.parent_application.is_staff_entry:
@@ -568,7 +568,7 @@ def _reset_group_member(application):
             application.entry_type = c.SUITE_ENTRY
         else:
             application.entry_type = c.ROOM_ENTRY
-        application.last_submitted = datetime.now()
+        application.last_submitted = datetime.now(UTC)
     else:
         application.entry_type = None
         application.status = c.WITHDRAWN
@@ -741,7 +741,7 @@ class Root:
     def _stamp_reveal_click(self, session, reveal, link):
         if link is not None:
             if not link.clicked_at:
-                link.clicked_at = datetime.now()
+                link.clicked_at = datetime.now(UTC)
                 session.add(link)
                 session.commit()
             return
@@ -791,7 +791,7 @@ class Root:
             raise HTTPRedirect('index?id={}', id)
         check_csrf(csrf_token)
         application = session.lottery_application(id)
-        application.last_confirmed_at = datetime.now()
+        application.last_confirmed_at = datetime.now(UTC)
         session.add(application)
         session.commit()
         raise HTTPRedirect(
@@ -1499,7 +1499,7 @@ class Root:
         application = session.lottery_application(id)
         _require_post_csrf(params, f'index?id={application.id}')
         application.is_staff_entry = False
-        application.last_submitted = datetime.now()
+        application.last_submitted = datetime.now(UTC)
         application.status = c.COMPLETE
         application.confirmation_num = ''
         application.attendee.hotel_eligible = False
@@ -1601,7 +1601,7 @@ class Root:
             else:
                 if application.status == c.PARTIAL:
                     application.status = c.COMPLETE
-                application.last_submitted = datetime.now()
+                application.last_submitted = datetime.now(UTC)
 
                 EmailService.queue_email(
                     session, 'hotel_lottery_updated', application,
@@ -1664,7 +1664,7 @@ class Root:
             else:
                 if application.status == c.PARTIAL:
                     application.status = c.COMPLETE
-                application.last_submitted = datetime.now()
+                application.last_submitted = datetime.now(UTC)
 
                 EmailService.queue_email(
                     session, 'hotel_lottery_updated', application,
@@ -1751,7 +1751,7 @@ class Root:
                 form.populate_obj(application)
 
             maybe_swapped = application.last_submitted != None
-            application.last_submitted = datetime.now()
+            application.last_submitted = datetime.now(UTC)
             application.status = c.COMPLETE
             application.attendee.hotel_eligible = False
 
@@ -1870,7 +1870,7 @@ class Root:
 
         for form in forms.values():
             form.populate_obj(application)
-        application.last_submitted = datetime.now()
+        application.last_submitted = datetime.now(UTC)
         raise HTTPRedirect('room_group?id={}&action={}', application.id, action)
 
     @requires_account(LotteryApplication)
@@ -2764,7 +2764,7 @@ class Root:
                         guest_app.invite_token = token
                         guest_app.invited_by_id = application.id
                         guest_app.invite_status = c.INVITE_PENDING
-                        guest_app.invite_expires_at = datetime.now() + timedelta(days=7)
+                        guest_app.invite_expires_at = datetime.now(UTC) + timedelta(days=7)
                         session.add(guest_app)
                         session.commit()
 
