@@ -15,8 +15,8 @@ from uber.decorators import all_renderable, ajax, ajax_gettable, requires_accoun
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, LotteryApplication, RoomAssignment
-from uber.models.hotel import (RoomAssignmentInvite, WaitlistReveal,
-                               WaitlistRevealLink)
+from uber.models.hotel import (RoomAssignmentInvite, OverflowReveal,
+                               OverflowRevealLink)
 from uber.hotel.waitlist import WaitlistError, resize_assignment
 from uber.email import EmailService
 from uber.utils import (RegistrationCode, check_csrf, redirect_with_params,
@@ -661,12 +661,38 @@ def _entry_form_context(session, application, include_suites):
 @all_renderable(public=True)
 class Root:
     @ajax_gettable
-    def waitlist_reveal(self, session, token=None, **params):
+    def overflow_reveal(self, session, token=None, **params):
         """Public page (token-gated). Pre-reveal: countdown. Post-reveal:
-        renders the external URL. The page polls itself near the reveal
+        renders the booking links. The page polls itself near the reveal
         time so attendees don't need to refresh manually.
+
+        The payload is built here, not in a helper method: all_renderable
+        renders a template for any Root method that returns a dict, so a
+        helper returning this payload raises TemplateNotFound.
         """
-        return self._waitlist_reveal_payload(session, token)
+        reveal, link = self._resolve_reveal_token(session, token)
+        if not token:
+            return {'error': 'missing-token'}
+        if not reveal:
+            return {'error': 'invalid-token'}
+        if not reveal.active:
+            return {'error': 'inactive'}
+        # Before the payload is built, so an unauthenticated caller never has
+        # a destination URL constructed for them at all.
+        access_error = self._reveal_access_error(session, reveal, link)
+        if access_error:
+            return {'error': access_error}
+
+        self._stamp_reveal_click(session, reveal, link)
+
+        now = datetime.now(c.EVENT_TIMEZONE) if reveal.reveal_at else None
+        is_revealed = reveal.reveal_at and reveal.reveal_at <= now
+        return {
+            'reveal_name': reveal.name,
+            'reveal_at_iso': reveal.reveal_at.isoformat() if reveal.reveal_at else None,
+            'is_revealed': bool(is_revealed),
+            'booking_links': reveal.booking_links if is_revealed else [],
+        }
 
     def _resolve_reveal_token(self, session, token):
         """(reveal, link) for a token, or (None, None).
@@ -677,71 +703,45 @@ class Root:
         """
         if not token:
             return None, None
-        link = session.query(WaitlistRevealLink).filter_by(token=token).first()
+        link = session.query(OverflowRevealLink).filter_by(token=token).first()
         if link:
-            return link.waitlist_reveal, link
-        reveal = session.query(WaitlistReveal).filter(
-            WaitlistReveal.shared_token == token,
-            WaitlistReveal.shared_token != '').first()
+            return link.overflow_reveal, link
+        reveal = session.query(OverflowReveal).filter(
+            OverflowReveal.shared_token == token,
+            OverflowReveal.shared_token != '').first()
         return reveal, None
 
-    def _reveal_login_ok(self, session, reveal, link):
-        """Whether this viewer may see the reveal at all.
+    def _reveal_access_error(self, session, reveal, link):
+        """Return None if this viewer may see the reveal, else an error key.
 
         requires_account cannot be used here: it keys off an id parameter and
         a model lookup, and these endpoints are token-keyed with no id.
 
-        For a unique link we require the viewer to own it, so forwarding one
-        does not hand over access. A shared token has no owner to check
-        against, so it can only require an eligible signed-in attendee; the
-        admin form says so.
+        A unique link must belong to the viewer, so forwarding one does not
+        hand over access. Staff may own it through their admin login, the same
+        rule as _can_view_as_attendee. A shared token has no owner, so it can only
+        require an eligible signed-in attendee.
         """
-        if not reveal.require_login:
-            return True
-        if not c.ATTENDEE_ACCOUNTS_ENABLED:
-            # The option is meaningless without accounts, and silently locking
-            # everyone out would be worse than ignoring it.
-            return True
+        if not reveal.enforces_login:
+            return None
 
         from uber.hotel.perms import is_lottery_admin
         if is_lottery_admin():
-            return True
+            return None
 
         viewer = _viewer_attendee(session)
         if not viewer:
-            return False
+            return 'login-required'
         if link is not None:
-            return _attendee_account_owns(session, link.attendee_id)
-        return bool(viewer.hotel_lottery_eligible)
-
-    def _waitlist_reveal_payload(self, session, token):
-        reveal, link = self._resolve_reveal_token(session, token)
-        if not token:
-            return {'error': 'missing-token'}
-        if not reveal:
-            return {'error': 'invalid-token'}
-        if not reveal.active:
-            return {'error': 'inactive'}
-        # Before the payload is built, so an unauthenticated caller never has
-        # a destination URL constructed for them at all.
-        if not self._reveal_login_ok(session, reveal, link):
-            return {'error': 'login-required'}
-
-        self._stamp_reveal_click(session, reveal, link)
-
-        now = datetime.now(c.EVENT_TIMEZONE) if reveal.reveal_at else None
-        is_revealed = reveal.reveal_at and reveal.reveal_at <= now
-        return {
-            'reveal_name': reveal.name,
-            'reveal_at_iso': reveal.reveal_at.isoformat() if reveal.reveal_at else None,
-            'is_revealed': bool(is_revealed),
-            'external_url': reveal.external_url if is_revealed else None,
-        }
+            owns = (_attendee_account_owns(session, link.attendee_id)
+                    or _admin_account_is(session, link.attendee_id))
+            return None if owns else 'wrong-account'
+        return None if viewer.hotel_lottery_eligible else 'wrong-account'
 
     def _stamp_reveal_click(self, session, reveal, link):
         if link is not None:
             if not link.clicked_at:
-                link.clicked_at = datetime.now()
+                link.clicked_at = datetime.now(UTC)
                 session.add(link)
                 session.commit()
             return
@@ -751,7 +751,7 @@ class Root:
 
     # Plain HTML view (the email links point here; the JS-poll variant uses
     # the ajax endpoint above when polling for reveal time).
-    def waitlist_reveal_page(self, session, token=None, message=''):
+    def overflow_reveal_page(self, session, token=None, message=''):
         # No CSRF gate on purpose: this is a public, token-authenticated
         # landing page opened by GET straight from an email. The token IS
         # the credential (there's no ambient session authority to forge
@@ -761,8 +761,10 @@ class Root:
         reveal, link = self._resolve_reveal_token(session, token)
         if not reveal or not reveal.active:
             return {'error': 'invalid-token', 'message': message}
-        if not self._reveal_login_ok(session, reveal, link):
-            return {'error': 'login-required', 'message': message}
+        access_error = self._reveal_access_error(session, reveal, link)
+        if access_error:
+            # The token comes back so the sign-in link can return here.
+            return {'error': access_error, 'token': token, 'message': message}
 
         self._stamp_reveal_click(session, reveal, link)
 
@@ -772,9 +774,9 @@ class Root:
             'reveal': reveal,
             'token': token,
             'is_revealed': is_revealed,
-            # Passed separately and only once revealed, so the template cannot
-            # leak it by reaching through `reveal`.
-            'external_url': reveal.external_url if is_revealed else None,
+            # Passed separately and only once revealed. The template must never
+            # read reveal.booking_links, or the URLs ship with the countdown.
+            'booking_links': reveal.booking_links if is_revealed else [],
             'message': message,
         }
 

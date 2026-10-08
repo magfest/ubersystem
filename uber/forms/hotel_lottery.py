@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 
 __all__ = ['LotteryInfo', 'LotteryConfirm', 'LotteryRoomGroup', 'RoomLottery', 'SuiteLottery', 'LotteryAdminInfo',
            'LotteryHotelConfig', 'LotteryRoomTypeConfig', 'HotelInventoryConfig', 'InventoryPartitionConfig',
-           'WaitlistRevealConfig', 'PhysicalRoomConfig']
+           'OverflowRevealConfig', 'PhysicalRoomConfig']
 
 
 def html_format_date(dt):
@@ -422,15 +422,19 @@ class InventoryPartitionConfig(MagForm):
         return ['bill_reference']
 
 
-class WaitlistRevealConfig(MagForm):
+class OverflowRevealConfig(MagForm):
     admin_desc = True
 
     name = StringField(
         'Name', description='Internal label, shown in the email subject and admin list.',
         render_kw={'required': True})
-    external_url = URLField(
-        'External Booking URL', description='Where attendees go after the reveal time.',
-        render_kw={'required': True})
+    booking_links_text = TextAreaField(
+        'Booking Links',
+        description='One hotel per line, as "Label | URL". Every link appears '
+                    'at the reveal time. These are the hotels\' own pages; Uber '
+                    'cannot limit who books once someone has a URL.',
+        render_kw={'required': True, 'rows': 4,
+                   'placeholder': 'Overflow Hotel A | https://book.example.com/a'})
     reveal_at = EventTimeStringField(
         'Reveal At',
         description='In event timezone. Leave blank to keep this reveal hidden until set.',
@@ -443,15 +447,15 @@ class WaitlistRevealConfig(MagForm):
         'Link Type', widget=Select(),
         choices=[('true', 'A unique link for each attendee'),
                  ('false', 'One shared link for everyone')],
-        description='Unique links let you see who clicked and stop a forwarded '
-                    'link from working. A shared link can only be counted in '
-                    'aggregate.')
+        description='Unique links record who clicked. They stop a forwarded '
+                    'link only when sign-in is also required. A shared link '
+                    'can only be counted in aggregate.')
     require_login = BooleanField(
         'Require sign-in to view',
-        description='Only meaningful when attendee accounts are enabled. With '
-                    'unique links this checks the link belongs to the viewer; '
-                    'with a shared link it can only require any eligible '
-                    'signed-in attendee.')
+        description='The Uber link then works only for the account that holds '
+                    'the badge, so a forwarded link is refused. Has no effect '
+                    'when attendee accounts are off. It does not stop anyone '
+                    'sharing the hotel URLs after the reveal.')
     active = BooleanField('Active')
 
 

@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import cherrypy
@@ -20,6 +21,7 @@ from uber.config import c
 from uber.decorators import (all_renderable, log_pageview, ajax, ajax_gettable, xlsx_file, csv_file,
                              multifile_zipfile, render)
 from uber.errors import HTTPRedirect
+from uber.serializer import serializer
 from uber.forms import load_forms
 from uber.models import (AdminAccount, Attendee, AutomatedEmail, Group,
                          LotteryApplication, Email, Tracking, PageViewTracking)
@@ -31,8 +33,8 @@ from uber.hotel.perms import is_lottery_admin, record_partition_audit
 from uber.models.hotel import (HotelRoomInventory, InventoryNightQuantity, InventoryPartition,
                                InventoryPartitionBlock, LotteryRun, HotelExportLog, LotteryHotel, LotteryRoomType,
                                PartitionOwner, RoomAssignment,
-                               WaitlistReveal, WaitlistRevealLink, HotelRoomIssueNote,
-                               HotelImportFile)
+                               OverflowReveal, OverflowRevealLink, HotelRoomIssueNote,
+                               HotelImportFile, room_assignment_occupant)
 from uber.email import EmailService
 from uber.hotel.exports import (booking_columns, booking_export_data,
                                 build_waitlist_xlsx, changed_rooms_between,
@@ -119,31 +121,58 @@ def _unroomed_order(sort):
     return (RoomAssignment.assigned_check_in_date.asc().nullsfirst(),)
 
 
-def _waitlist_reveal_candidates(session, reveal):
+def _overflow_reveal_candidates(session, reveal):
     """(eligible_ids, emailed_ids, pending_ids, new_ids) for one reveal.
 
     Shared by the sender, the link generator, and the recipient preview, so
     the preview cannot drift from what a send would actually do.
 
-    Eligible: lottery-eligible attendees holding no live room.
+    Eligible: lottery-eligible attendees whose entry went through the lottery
+    and who hold no live room. A roommate's entry is their leader's, matching
+    LotteryApplication.app_or_parent.
     """
-    eligible_subq = session.query(Attendee.id).outerjoin(
-        RoomAssignment,
-        sa.and_(
-            RoomAssignment.attendee_id == Attendee.id,
-            RoomAssignment.is_live,
-        )
+    leader = sa.orm.aliased(LotteryApplication)
+    is_member = sa.and_(LotteryApplication.entry_type == c.GROUP_ENTRY,
+                        LotteryApplication.parent_application_id.isnot(None))
+    entry_status = sa.case((is_member, leader.status),
+                           else_=LotteryApplication.status)
+    entry_id = sa.case((is_member, leader.id), else_=LotteryApplication.id)
+
+    # REMOVED roommates count as entered: their group won, but the room had
+    # no space for them.
+    entered_statuses = [c.COMPLETE, c.PROCESSED, c.REJECTED, c.REMOVED]
+
+    # Occupants live in room_assignment_occupant, not RoomAssignment.attendee_id.
+    # An empty occupant list means booker plus group members; see
+    # RoomAssignment.effective_occupants.
+    occupant = sa.orm.aliased(RoomAssignment)
+    group_room = sa.orm.aliased(RoomAssignment)
+    has_live_room = sa.or_(
+        sa.exists().where(RoomAssignment.attendee_id == Attendee.id,
+                          RoomAssignment.is_live),
+        sa.exists().where(
+            room_assignment_occupant.c.attendee_id == Attendee.id,
+            room_assignment_occupant.c.room_assignment_id == occupant.id,
+            occupant.is_live),
+        sa.and_(is_member, sa.exists().where(
+            group_room.lottery_application_id == entry_id,
+            group_room.is_live)),
+    )
+
+    eligible_ids = [row[0] for row in session.query(Attendee.id).join(
+        LotteryApplication, LotteryApplication.attendee_id == Attendee.id
+    ).outerjoin(
+        leader, leader.id == LotteryApplication.parent_application_id
     ).filter(
         Attendee.hotel_lottery_eligible == True,  # noqa: E712
-        RoomAssignment.id.is_(None),
-    ).subquery()
-
-    eligible_ids = [row[0] for row in session.query(eligible_subq.c.id).all()]
+        entry_status.in_(entered_statuses),
+        ~has_live_room,
+    ).all()]
 
     emailed_ids, pending_ids = set(), set()
     for attendee_id, emailed_at in session.query(
-            WaitlistRevealLink.attendee_id,
-            WaitlistRevealLink.emailed_at).filter_by(waitlist_reveal_id=reveal.id):
+            OverflowRevealLink.attendee_id,
+            OverflowRevealLink.emailed_at).filter_by(overflow_reveal_id=reveal.id):
         (emailed_ids if emailed_at else pending_ids).add(attendee_id)
 
     # Anyone eligible who has no link row at all yet.
@@ -158,15 +187,15 @@ def _mint_reveal_links(session, reveal, attendee_ids):
     import secrets
 
     for attendee_id in attendee_ids:
-        session.add(WaitlistRevealLink(
-            waitlist_reveal_id=reveal.id,
+        session.add(OverflowRevealLink(
+            overflow_reveal_id=reveal.id,
             attendee_id=attendee_id,
             token=secrets.token_urlsafe(24)))
     session.flush()
 
-    return session.query(WaitlistRevealLink).filter(
-        WaitlistRevealLink.waitlist_reveal_id == reveal.id,
-        WaitlistRevealLink.emailed_at.is_(None)).all()
+    return session.query(OverflowRevealLink).filter(
+        OverflowRevealLink.overflow_reveal_id == reveal.id,
+        OverflowRevealLink.emailed_at.is_(None)).all()
 
 
 def _deletion_label(obj):
@@ -3101,55 +3130,62 @@ class Root:
         """
         return self._import_hotel_numbers(session, 'confirmation', message, **params)
 
-    def waitlist_reveals(self, session, message=''):
-        """List configured waitlist reveals."""
-        reveals = session.query(WaitlistReveal).order_by(
-            WaitlistReveal.reveal_at.desc().nullsfirst()).all()
+    def overflow_reveals(self, session, message=''):
+        """List configured overflow booking reveals."""
+        reveals = session.query(OverflowReveal).order_by(
+            OverflowReveal.reveal_at.desc().nullsfirst()).all()
         return {'reveals': reveals, 'message': message}
 
-    def edit_waitlist_reveal(self, session, id=None, message='', **params):
-        """Create or edit one WaitlistReveal."""
+    def edit_overflow_reveal(self, session, id=None, message='', **params):
+        """Create or edit one OverflowReveal."""
         if id in [None, '', 'None']:
-            reveal = WaitlistReveal()
+            reveal = OverflowReveal()
         else:
-            reveal = session.waitlist_reveal(id)
+            reveal = session.overflow_reveal(id)
 
-        forms = load_forms(params, reveal, ['WaitlistRevealConfig'])
+        forms = load_forms(params, reveal, ['OverflowRevealConfig'])
 
         if cherrypy.request.method == 'POST':
             # Pre-validate the reveal time: populate_obj's DateTime coercion
             # raises on unparseable text, and we want a friendly message
             # (with the submitted values still on the form) instead.
-            raw = (forms['waitlist_reveal_config'].reveal_at.data or '').strip()
+            raw = (forms['overflow_reveal_config'].reveal_at.data or '').strip()
             if raw:
                 try:
                     dateparser.parse(raw)
                 except (ValueError, TypeError, OverflowError):
                     message = "Could not parse reveal time."
 
+            try:
+                if not OverflowReveal.parse_booking_links(
+                        forms['overflow_reveal_config'].booking_links_text.data):
+                    message = message or "Add at least one booking link."
+            except ValueError as e:
+                message = message or str(e)
+
             if not message:
                 for form in forms.values():
                     form.populate_obj(reveal, is_admin=True)
                 session.add(reveal)
                 session.commit()
-                raise HTTPRedirect('waitlist_reveals?message={}',
+                raise HTTPRedirect('overflow_reveals?message={}',
                                    f"Reveal '{reveal.name}' saved.")
 
         return {'reveal': reveal, 'forms': forms, 'message': message}
 
     @ajax
-    def waitlist_reveal_recipients(self, session, id='', csrf_token=None):
+    def overflow_reveal_recipients(self, session, id='', csrf_token=None):
         """Who a send would reach right now, from the same query the sender
         uses."""
         if cherrypy.request.method != 'POST':
             return {'error': 'This endpoint requires a POST.'}
         check_csrf(csrf_token)
 
-        reveal = session.query(WaitlistReveal).get(id)
+        reveal = session.query(OverflowReveal).get(id)
         if not reveal:
             return {'error': 'Reveal not found.'}
 
-        eligible, emailed, pending, new_ids = _waitlist_reveal_candidates(
+        eligible, emailed, pending, new_ids = _overflow_reveal_candidates(
             session, reveal)
         would_email = list(pending) + new_ids
 
@@ -3172,17 +3208,17 @@ class Root:
         }
 
     @ajax
-    def preview_waitlist_reveal_email(self, session, id='', csrf_token=None):
+    def preview_overflow_reveal_email(self, session, id='', csrf_token=None):
         """The reveal email as one recipient would receive it."""
         if cherrypy.request.method != 'POST':
             return {'error': 'This endpoint requires a POST.'}
         check_csrf(csrf_token)
 
-        reveal = session.query(WaitlistReveal).get(id)
+        reveal = session.query(OverflowReveal).get(id)
         if not reveal:
             return {'error': 'Reveal not found.'}
 
-        _eligible, _emailed, pending, new_ids = _waitlist_reveal_candidates(
+        _eligible, _emailed, pending, new_ids = _overflow_reveal_candidates(
             session, reveal)
         sample_ids = list(pending) + new_ids
         attendee = (session.query(Attendee).get(sample_ids[0]) if sample_ids
@@ -3191,41 +3227,46 @@ class Root:
             return {'error': 'No attendee available to preview against.'}
 
         automated = session.query(AutomatedEmail).filter_by(
-            ident='hotel_lottery_waitlist_reveal').first()
+            ident='hotel_lottery_overflow_reveal').first()
         if not automated:
             return {'error': 'The reveal email is not configured yet.'}
 
         # Unflushed: previewing must not create a link row.
-        link = WaitlistRevealLink(waitlist_reveal_id=reveal.id,
+        link = OverflowRevealLink(overflow_reveal_id=reveal.id,
                                   attendee_id=attendee.id,
                                   token='PREVIEW-TOKEN')
-        data = {'reveal': reveal, 'link': link}
+        # Serialized the way EmailHandler stores render_data on a queued email,
+        # which is what renderable_data expects to decode.
+        data = {'link': json.dumps(link, cls=serializer),
+                'enforces_login': json.dumps(reveal.enforces_login),
+                'reveal_time': json.dumps(reveal.reveal_at_label)}
         subject = automated.render_subject(attendee, data)
         body = automated.render_body(attendee, data)
 
-        # The template only prints the ubersystem token URL today, but a later
-        # edit could start printing the destination. Catching it here turns a
-        # silent leak into a visible one.
-        leaked = bool(reveal.external_url and reveal.external_url in body)
-        if leaked:
-            body = body.replace(reveal.external_url, '[HIDDEN UNTIL REVEAL TIME]')
+        # The email template prints only the Ubersystem token URL. If an edit
+        # ever prints a booking URL, this check makes that leak visible.
+        leaked = False
+        for url in reveal.booking_urls:
+            if url in body:
+                leaked = True
+                body = body.replace(url, '[HIDDEN UNTIL REVEAL TIME]')
 
         return {'ok': True, 'subject': subject, 'body': body,
                 'recipient': f'{attendee.full_name} <{attendee.email}>',
                 'leak_warning': leaked}
 
-    def generate_waitlist_reveal_links(self, session, id='', csrf_token=None):
+    def generate_overflow_reveal_links(self, session, id='', csrf_token=None):
         """Create the link rows without emailing anyone, so the URLs can be
         handed out another way."""
         import secrets
 
-        _require_post_csrf({'csrf_token': csrf_token}, redirect='waitlist_reveals')
+        _require_post_csrf({'csrf_token': csrf_token}, redirect='overflow_reveals')
 
-        reveal = session.query(WaitlistReveal).get(id)
+        reveal = session.query(OverflowReveal).get(id)
         if not reveal:
-            raise HTTPRedirect('waitlist_reveals?message={}', 'Reveal not found.')
+            raise HTTPRedirect('overflow_reveals?message={}', 'Reveal not found.')
 
-        _eligible, _emailed, _pending, new_ids = _waitlist_reveal_candidates(
+        _eligible, _emailed, _pending, new_ids = _overflow_reveal_candidates(
             session, reveal)
         if not reveal.use_unique_links and not reveal.shared_token:
             reveal.shared_token = secrets.token_urlsafe(24)
@@ -3234,13 +3275,12 @@ class Root:
         session.commit()
 
         raise HTTPRedirect(
-            'waitlist_reveals?message={}',
+            'overflow_reveals?message={}',
             f'Generated {len(new_ids)} link(s). Nothing was emailed.')
 
-    def send_waitlist_reveal_emails(self, session, id, csrf_token=None):
-        """Materialize one WaitlistRevealLink per eligible attendee (anyone
-        hotel-lottery-eligible without an active RoomAssignment) and queue
-        the reveal email.
+    def send_overflow_reveal_emails(self, session, id, csrf_token=None):
+        """Materialize one OverflowRevealLink per eligible attendee (see
+        _overflow_reveal_candidates) and queue the reveal email.
 
         Idempotent on emailed_at, not on the link row existing: generating
         links without sending must not make a later send skip everyone.
@@ -3248,15 +3288,15 @@ class Root:
         import secrets
 
         if cherrypy.request.method != 'POST':
-            raise HTTPRedirect('waitlist_reveals')
+            raise HTTPRedirect('overflow_reveals')
         check_csrf(csrf_token)
 
-        reveal = session.query(WaitlistReveal).get(id)
+        reveal = session.query(OverflowReveal).get(id)
         if not reveal or not reveal.active:
-            raise HTTPRedirect('waitlist_reveals?message={}',
+            raise HTTPRedirect('overflow_reveals?message={}',
                                'Reveal is missing or inactive.')
 
-        _eligible, _emailed, _pending, new_ids = _waitlist_reveal_candidates(
+        _eligible, _emailed, _pending, new_ids = _overflow_reveal_candidates(
             session, reveal)
         if not reveal.use_unique_links and not reveal.shared_token:
             reveal.shared_token = secrets.token_urlsafe(24)
@@ -3272,17 +3312,20 @@ class Root:
             if not attendee:
                 continue
             EmailService.queue_email(
-                session, 'hotel_lottery_waitlist_reveal', attendee,
-                subject=f"{c.EVENT_NAME_AND_YEAR}: Hotel waitlist link",
-                data={'reveal': reveal, 'link': link})
+                session, 'hotel_lottery_overflow_reveal', attendee,
+                subject=f"{c.EVENT_NAME_AND_YEAR}: Early hotel overflow booking",
+                # Not the reveal: its booking_links would be stored on every
+                # Email row before the reveal time.
+                data={'link': link, 'enforces_login': reveal.enforces_login,
+                      'reveal_time': reveal.reveal_at_label})
             link.emailed_at = datetime.now(UTC)
             session.add(link)
             queued += 1
 
         session.commit()
         raise HTTPRedirect(
-            'waitlist_reveals?message={}',
-            f"Queued {queued} new waitlist email{'s' if queued != 1 else ''}.")
+            'overflow_reveals?message={}',
+            f"Queued {queued} new overflow booking email{'s' if queued != 1 else ''}.")
 
     def assign_room(self, session, id=None, message='', **params):
         """Create or edit a RoomAssignment outside the lottery flow.
@@ -3590,9 +3633,9 @@ class Root:
         list_page = spec['list_page'] if spec else 'index'
         _require_post_csrf({'csrf_token': csrf_token}, redirect=list_page)
 
-        # force carries the emailed-links acknowledgement checkbox; only a
-        # waitlist reveal has an acknowledgeable group.
-        acknowledged = (kind == 'waitlist_reveal'
+        # force carries the emailed-links acknowledgement checkbox; only an
+        # overflow reveal has an acknowledgeable group.
+        acknowledged = (kind == 'overflow_reveal'
                         and force in ('1', 'true', 'True'))
         try:
             message = perform_delete(session, kind, id, mode=mode,
