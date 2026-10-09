@@ -149,6 +149,8 @@
         Share of awarded rooms that went to groups of each size, against the
         {{ stats.considered_count }} entr{{ 'y' if stats.considered_count == 1 else 'ies' }} this run considered.
         Group size counts the leader plus their current valid {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} members.
+        Win rate is the share of considered entries of that size that won at least one room;
+        "vs. single" divides it by the single entrants' win rate.
       </p>
       {% if not stats.considered_recorded %}
       <div class="alert alert-secondary py-1 small mb-2">
@@ -156,18 +158,27 @@
       </div>
       {% endif %}
       {% if stats.group_sizes %}
+      <div class="table-responsive">
       <table class="table table-sm mb-0">
-        <thead><tr><th>Group size</th><th class="text-end">Awarded rooms</th><th class="text-end">Entries considered</th></tr></thead>
+        <thead><tr>
+          <th>Group size</th><th class="text-end">Awarded rooms</th><th class="text-end">Entries considered</th>
+          {% if stats.considered_recorded %}<th class="text-end">Win rate</th><th class="text-end">vs. single</th>{% endif %}
+        </tr></thead>
         <tbody>
           {% for row in stats.group_sizes %}
           <tr>
             <td>{{ row.size }} {{ 'person' if row.size == 1 else 'people' }}</td>
             <td class="text-end">{{ row.awarded }} <span class="text-muted">({{ row.awarded_pct }}%)</span></td>
             <td class="text-end">{% if stats.considered_recorded %}{{ row.considered }} <span class="text-muted">({{ row.considered_pct }}%)</span>{% else %}&mdash;{% endif %}</td>
+            {% if stats.considered_recorded %}
+            <td class="text-end text-nowrap"{% if row.win_rate is not none %} title="{{ row.won }} of {{ row.considered }} entries won a room"{% endif %}>{% if row.win_rate is not none %}{{ row.win_rate }}%{% else %}&mdash;{% endif %}</td>
+            <td class="text-end text-nowrap">{% if row.relative is not none %}{{ '%.2f'|format(row.relative) }}&times;{% else %}&mdash;{% endif %}</td>
+            {% endif %}
           </tr>
           {% endfor %}
         </tbody>
       </table>
+      </div>
       {% else %}
       <div class="text-muted">Nothing to compare yet.</div>
       {% endif %}
