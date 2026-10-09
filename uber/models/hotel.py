@@ -31,7 +31,7 @@ __all__ = ['LotteryApplication',
            'LotteryRun', 'RoomAssignment', 'RoomAssignmentInvite',
            'PartitionOwner', 'PartitionAuditLog', 'NightShiftRequirement',
            'PhysicalRoom', 'PhysicalRoomConnection',
-           'WaitlistReveal', 'WaitlistRevealLink', 'HotelExportLog', 'HotelImportFile',
+           'OverflowReveal', 'OverflowRevealLink', 'HotelExportLog', 'HotelImportFile',
            'HotelRoomIssueNote',
            'LotteryHotel', 'LotteryRoomType']
 
@@ -1699,21 +1699,19 @@ class HotelRoomIssueNote(MagModel, table=True):
         sa_relationship_kwargs={'foreign_keys': 'HotelRoomIssueNote.admin_account_id'})
 
 
-class WaitlistReveal(MagModel, table=True):
-    """A time-delayed external-link reveal for attendees who didn't get a
-    room from the lottery. Admin configures the target URL and reveal time;
-    each eligible attendee gets a unique WaitlistRevealLink emailed to them.
-    The ubersystem page shows a countdown until reveal_at and only renders
-    the real URL after that moment, giving lottery losers a small head
-    start over the general scalping population.
+class OverflowReveal(MagModel, table=True):
+    """Early overflow-hotel booking links for lottery entrants who got no room.
     """
     __table_args__ = (
-        sa.Index('uq_waitlist_reveal_shared_token', 'shared_token', unique=True,
+        sa.Index('uq_overflow_reveal_shared_token', 'shared_token', unique=True,
                  postgresql_where=sa.text("shared_token <> ''")),
     )
 
     name: str = ''
-    external_url: str = ''
+    # One {'label', 'url'} item per overflow hotel. Every link reveals at the
+    # same reveal_at; a separate reveal would mean a separate email.
+    booking_links: list = Field(
+        sa_type=MutableList.as_mutable(JSONB), default_factory=list)
     reveal_at: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     audience_description: str = ''
     active: bool = True
@@ -1730,32 +1728,81 @@ class WaitlistReveal(MagModel, table=True):
     # meaningful when attendee accounts are enabled.
     require_login: bool = False
 
-    links: list['WaitlistRevealLink'] = Relationship(
-        back_populates="waitlist_reveal",
+    links: list['OverflowRevealLink'] = Relationship(
+        back_populates="overflow_reveal",
         sa_relationship_kwargs={'cascade': 'all,delete-orphan', 'passive_deletes': True})
 
+    @staticmethod
+    def parse_booking_links(text):
+        """Parse one `Label | URL` per line into booking_links items.
 
-class WaitlistRevealLink(MagModel, table=True):
+        The label is optional. Raises ValueError naming the first line whose
+        URL is not absolute http(s).
+        """
+        from urllib.parse import urlparse
+
+        items = []
+        for line in (text or '').splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            label, _, url = line.rpartition('|')
+            label, url = label.strip(), url.strip()
+            parsed = urlparse(url)
+            if parsed.scheme not in ('http', 'https') or not parsed.netloc:
+                raise ValueError(f"Not a valid http(s) URL: {line}")
+            items.append({'label': label, 'url': url})
+        return items
+
+    @property
+    def booking_links_text(self):
+        return '\n'.join(f"{item['label']} | {item['url']}" if item.get('label') else item['url']
+                         for item in self.booking_links or [])
+
+    @booking_links_text.setter
+    def booking_links_text(self, text):
+        self.booking_links = self.parse_booking_links(text)
+
+    @property
+    def enforces_login(self):
+        # require_login is ignored without attendee accounts; locking everyone
+        # out would be worse than not checking.
+        return self.require_login and c.ATTENDEE_ACCOUNTS_ENABLED
+
+    @property
+    def booking_urls(self):
+        return [item['url'] for item in self.booking_links or []]
+
+    @property
+    def reveal_at_label(self):
+        # Preformatted because email render data round-trips through JSON,
+        # which drops the timezone from a datetime.
+        if not self.reveal_at:
+            return ''
+        return self.reveal_at.astimezone(c.EVENT_TIMEZONE).strftime('%A, %B %-d at %-I:%M %p %Z')
+
+
+class OverflowRevealLink(MagModel, table=True):
     """One per (reveal, attendee). Token is the only thing the attendee
     sees in the email URL; we look up the reveal and metadata from it."""
     __table_args__ = (
-        sa.UniqueConstraint('waitlist_reveal_id', 'attendee_id',
-                            name='uq_waitlist_reveal_attendee'),
-        sa.UniqueConstraint('token', name='uq_waitlist_reveal_link_token'),
+        sa.UniqueConstraint('overflow_reveal_id', 'attendee_id',
+                            name='uq_overflow_reveal_attendee'),
+        sa.UniqueConstraint('token', name='uq_overflow_reveal_link_token'),
     )
 
-    waitlist_reveal_id: str = Field(
-        sa_type=Uuid(as_uuid=False), foreign_key='waitlist_reveal.id',
+    overflow_reveal_id: str = Field(
+        sa_type=Uuid(as_uuid=False), foreign_key='overflow_reveal.id',
         ondelete='CASCADE', nullable=False)
-    waitlist_reveal: 'WaitlistReveal' = Relationship(
+    overflow_reveal: 'OverflowReveal' = Relationship(
         back_populates="links",
-        sa_relationship_kwargs={'foreign_keys': 'WaitlistRevealLink.waitlist_reveal_id'})
+        sa_relationship_kwargs={'foreign_keys': 'OverflowRevealLink.overflow_reveal_id'})
 
     attendee_id: str = Field(
         sa_type=Uuid(as_uuid=False), foreign_key='attendee.id',
         ondelete='CASCADE', nullable=False)
     attendee: 'Attendee' = Relationship(
-        sa_relationship_kwargs={'foreign_keys': 'WaitlistRevealLink.attendee_id'})
+        sa_relationship_kwargs={'foreign_keys': 'OverflowRevealLink.attendee_id'})
 
     token: str = Field(nullable=False)
     emailed_at: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)

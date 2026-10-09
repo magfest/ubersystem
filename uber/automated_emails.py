@@ -1200,9 +1200,9 @@ HotelLotteryEmailFixture(
     'hotel_lottery_waitlist_fulfilled'
 )
 HotelLotteryEmailFixture(
-    f'{c.EVENT_NAME_AND_YEAR} hotel waitlist',
-    'hotel/waitlist_reveal.html', None,
-    'hotel_lottery_waitlist_reveal'
+    f'{c.EVENT_NAME_AND_YEAR} early hotel overflow booking',
+    'hotel/overflow_reveal.html', None,
+    'hotel_lottery_overflow_reveal'
 )
 HotelLotteryEmailFixture(
     f'Your {c.EVENT_NAME_AND_YEAR} hotel room has been released',

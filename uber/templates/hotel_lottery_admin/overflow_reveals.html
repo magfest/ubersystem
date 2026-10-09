@@ -1,19 +1,21 @@
 {% extends "base.html" %}{% set admin_area=True %}
 {% import 'hotel_lottery_admin/_macros.html' as hotel_macros with context %}
-{% block title %}Waitlist Reveals{% endblock %}
+{% block title %}Overflow Booking{% endblock %}
 {% block content %}
 
-{% include 'hotel_lottery_admin/nav.html' %}
+{% include 'hotel_lottery_admin/inventory_subnav.html' %}
 
-<h1>Waitlist Reveals</h1>
+<h1>Overflow Booking</h1>
 <p class="text-muted">
-  Time-gated booking-link reveals for attendees who didn't get a room from
-  the lottery. Each eligible attendee gets a unique tokenised ubersystem
-  URL via email; the page shows a countdown and reveals the booking URL
-  only after the configured time.
+  Early overflow-hotel booking links for lottery entrants who got no room.
+  Each recipient gets a personal Uber link by email; the page shows a
+  countdown and reveals the booking links at the reveal time. The Uber link
+  records clicks; it refuses a forwarded link only when sign-in is required.
+  Once revealed, the hotel URLs can be shared like any web page, so the head
+  start lasts only until they spread or are posted publicly.
 </p>
 
-<a href="edit_waitlist_reveal" class="btn btn-primary mb-3">+ New Reveal</a>
+<a href="edit_overflow_reveal" class="btn btn-primary mb-3">+ New Reveal</a>
 
 {% if not reveals %}
 <div class="alert alert-secondary">No reveals configured yet.</div>
@@ -23,7 +25,7 @@
     <tr>
       <th>Name</th>
       <th>Reveal At</th>
-      <th>External URL</th>
+      <th>Booking Links</th>
       <th>Links</th>
       <th>Active</th>
       <th>Emailed / Clicked</th>
@@ -36,13 +38,14 @@
       <td>{{ r.name or '(unnamed)' }}</td>
       <td>{% if r.reveal_at %}{{ r.reveal_at|datetime_local("%Y-%m-%d %H:%M %Z") }}{% else %}-{% endif %}</td>
       <td>
-        {% if r.external_url %}
-        <a href="{{ r.external_url }}" target="_blank" class="text-truncate d-inline-block" style="max-width: 30em;">{{ r.external_url }}</a>
-        {% endif %}
+        {% for item in r.booking_links %}
+        <a href="{{ item.url }}" target="_blank" class="text-truncate d-block" style="max-width: 30em;">{{ item.label or item.url }}</a>
+        {% endfor %}
       </td>
       <td class="small">
         {{ 'Unique per attendee' if r.use_unique_links else 'One shared link' }}
-        {% if r.require_login %}<br/><span class="badge bg-secondary">Sign-in required</span>{% endif %}
+        {% if r.enforces_login %}<br/><span class="badge bg-secondary">Sign-in required</span>
+        {% elif r.require_login %}<br/><span class="badge bg-warning text-dark">Sign-in set, but accounts are off</span>{% endif %}
       </td>
       <td>{{ "Yes" if r.active else "No" }}</td>
       <td>
@@ -56,10 +59,10 @@
         {% endif %}
       </td>
       <td>
-        <a href="edit_waitlist_reveal?id={{ r.id }}" class="btn btn-sm btn-outline-primary">Edit</a>
-        {{ hotel_macros.delete_button('waitlist_reveal', r, 'waitlist_reveals') }}
-        {% if r.active and r.external_url %}
-        <form method="post" action="send_waitlist_reveal_emails" class="d-inline"
+        <a href="edit_overflow_reveal?id={{ r.id }}" class="btn btn-sm btn-outline-primary">Edit</a>
+        {{ hotel_macros.delete_button('overflow_reveal', r, 'overflow_reveals') }}
+        {% if r.active and r.booking_links %}
+        <form method="post" action="send_overflow_reveal_emails" class="d-inline"
               data-confirm-message="Email all eligible attendees who have not received a link for this reveal yet?"
               data-confirm-class="btn-primary">
           {{ csrf_token() }}
@@ -71,7 +74,7 @@
                 data-id="{{ r.id }}">Preview recipients</button>
         <button type="button" class="btn btn-sm btn-outline-secondary hl-reveal-email"
                 data-id="{{ r.id }}">Preview email</button>
-        <form method="post" action="generate_waitlist_reveal_links" class="d-inline"
+        <form method="post" action="generate_overflow_reveal_links" class="d-inline"
               data-confirm-message="Create links for everyone eligible without emailing anyone?"
               data-confirm-class="btn-primary">
           {{ csrf_token() }}
@@ -85,10 +88,10 @@
 </table>
 {% endif %}
 
-{% include 'hotel_lottery_admin/_waitlist_reveal_preview.html' %}
+{% include 'hotel_lottery_admin/_overflow_reveal_preview.html' %}
 
 {{ "js/hotel-confirm-submit.js"|serve_static_content }}
 {{ "js/hotel-delete-conflicts.js"|serve_static_content }}
-{{ "js/hotel-waitlist-reveal.js"|serve_static_content }}
+{{ "js/hotel-overflow-reveal.js"|serve_static_content }}
 
 {% endblock %}

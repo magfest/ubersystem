@@ -1,4 +1,4 @@
-// Waitlist reveal previews: who a send would reach, and what they would get.
+// Overflow booking previews: who a send would reach, and what they would get.
 
 (function () {
   function csrfToken() {
@@ -69,7 +69,7 @@
   document.addEventListener('click', function (e) {
     var recipients = e.target.closest('.hl-reveal-recipients');
     if (recipients) {
-      post('waitlist_reveal_recipients', recipients.dataset.id).then(function (payload) {
+      post('overflow_reveal_recipients', recipients.dataset.id).then(function (payload) {
         if (payload.error) { show('Preview recipients', '<div class="alert alert-danger mb-0">' + escapeHtml(payload.error) + '</div>'); return; }
         show('Who would be emailed', recipientsHtml(payload));
       });
@@ -78,7 +78,7 @@
 
     var email = e.target.closest('.hl-reveal-email');
     if (email) {
-      post('preview_waitlist_reveal_email', email.dataset.id).then(function (payload) {
+      post('preview_overflow_reveal_email', email.dataset.id).then(function (payload) {
         if (payload.error) { show('Preview email', '<div class="alert alert-danger mb-0">' + escapeHtml(payload.error) + '</div>'); return; }
         show('Reveal email preview', emailHtml(payload));
       });
