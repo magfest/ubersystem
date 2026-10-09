@@ -1442,6 +1442,8 @@ class RoomAssignmentInvite(MagModel, table=True):
         sa.UniqueConstraint('invite_token', name='uq_room_assignment_invite_token'),
     )
 
+    email_model_name: ClassVar = 'invite'
+
     room_assignment_id: str = Field(
         sa_type=Uuid(as_uuid=False),
         foreign_key='room_assignment.id', nullable=False)

@@ -953,17 +953,11 @@ class Root:
         session.add(invite)
         session.commit()
 
+        inviter = ra.attendee.full_name if ra.attendee else f'A {c.EVENT_NAME} attendee'
         try:
             EmailService.queue_email(
                 session, 'room_occupant_invite', invite,
-                subject=f"{ra.attendee.full_name if ra.attendee else 'A {c.EVENT_NAME} attendee'} "
-                f"invited you to share a room at {c.EVENT_NAME}",
-                data={
-                'invite': invite,
-                'assignment': ra,
-                'leader': ra.attendee,
-                'token': token,
-            })
+                subject=f"{inviter} invited you to share a room at {c.EVENT_NAME}")
         except Exception:
             # Bad email or template missing - surface a soft message
             # but keep the invite row so the leader can still hand the
