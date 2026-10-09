@@ -7,10 +7,11 @@ from decimal import Decimal
 from pytz import UTC
 from markupsafe import Markup
 import sqlalchemy as sa
-from sqlalchemy import Sequence
+from sqlalchemy import Sequence, inspect as sa_inspect
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict, MutableList
+from sqlalchemy.orm import object_session
 from sqlalchemy.types import Date, Integer, DateTime, Numeric, Uuid
 from typing import Any, ClassVar
 
@@ -354,26 +355,54 @@ class LotteryApplication(MagModel, table=True):
         rows."""
         live = session.query(RoomAssignment).filter(
             RoomAssignment.lottery_application_id == self.id,
-            RoomAssignment.is_live).count()
-        if live and self.status == c.COMPLETE:
+            RoomAssignment.is_live)
+        if self.status == c.COMPLETE and live.filter(RoomAssignment.is_released).count():
             self.status = c.AWARDED
             session.add(self)
-        elif not live and self.status in (c.AWARDED, c.PROCESSED):
+        elif not live.count() and (self.status in (c.AWARDED, c.PROCESSED)
+                                   or self.status == c.COMPLETE and self.lottery_run_id):
             self.status = c.COMPLETE
             self.lottery_run_id = None
             session.add(self)
+
+    @hybrid_property
+    def holds_pending_award(self):
+        """True while this entry has won rooms in a lottery run that hasn't
+        been awarded yet. The entry itself stays COMPLETE until Award
+        Winners, so attendees can't tell winners apart from everyone else;
+        admin pages use this to show "Pending Award" instead."""
+        session = object_session(self)
+        if not session or not self.lottery_run_id:
+            return False
+        return session.query(RoomAssignment).filter(
+            RoomAssignment.lottery_application_id == self.id,
+            RoomAssignment.is_live, ~RoomAssignment.is_released).count() > 0
+
+    @holds_pending_award.expression
+    def holds_pending_award(cls):
+        return sa.exists().where(RoomAssignment.lottery_application_id == cls.id,
+                                 RoomAssignment.is_live, ~RoomAssignment.is_released)
+
+    @property
+    def admin_status_label(self):
+        if self.status == c.COMPLETE and self.holds_pending_award:
+            return 'Pending Award'
+        return self.status_label
 
     @property
     def lottery_room_assignments(self):
         """RoomAssignment rows linked to this entry (its leader's, for group
         members). Manual, partition, and other non-lottery rooms the attendee
-        holds are excluded, so award text and deadlines never key off them."""
+        holds are excluded, so award text and deadlines never key off them.
+        Rows from a lottery run that hasn't been awarded yet are excluded
+        too"""
         from sqlalchemy.orm import object_session
         session = object_session(self)
         if not session:
             return []
         return session.query(RoomAssignment).filter(
-            RoomAssignment.lottery_application_id == self.app_or_parent.id).all()
+            RoomAssignment.lottery_application_id == self.app_or_parent.id,
+            RoomAssignment.is_released).all()
 
     @property
     def other_live_room_assignments(self):
@@ -383,7 +412,7 @@ class LotteryApplication(MagModel, table=True):
         attendee = self.app_or_parent.attendee
         lottery_ids = {ra.id for ra in self.lottery_room_assignments}
         return [ra for ra in (attendee.active_room_assignments if attendee else [])
-                if ra.id not in lottery_ids]
+                if ra.id not in lottery_ids and ra.is_released]
 
     @property
     def booking_url_ready(self):
@@ -469,6 +498,23 @@ class LotteryApplication(MagModel, table=True):
                 LotteryRun.status == c.LOTTERY_PENDING,
             ).first() is not None
         return cache[lottery_group]
+
+    @property
+    def staff_rooms_awarded(self):
+        """True once a staff LotteryRun has been awarded and no other staff
+        run is still pending. Until then every staff entry sees the same
+        text, so a pending run's winners can't be told apart from everyone
+        else."""
+        cached = getattr(self, '_staff_rooms_awarded_cache', None)
+        if cached is None:
+            session = sa_inspect(self).session
+            if not session:
+                return False
+            statuses = {status for (status,) in session.query(LotteryRun.status).filter(
+                LotteryRun.lottery_group == 'staff').distinct()}
+            cached = self._staff_rooms_awarded_cache = (
+                c.LOTTERY_AWARDED in statuses and c.LOTTERY_PENDING not in statuses)
+        return cached
 
     @property
     def guarantee_deadline(self):
@@ -1050,6 +1096,24 @@ class RoomAssignment(MagModel, table=True):
     @is_live.expression
     def is_live(cls):
         return cls.status.in_(c.HOTEL_LIVE_ASSIGNMENT_STATUSES)
+
+    @hybrid_property
+    def is_released(self):
+        """False while this assignment belongs to a lottery run that has
+        not been awarded yet. Pending-run rows still hold inventory (they
+        are live), but only admins may see them: every attendee-facing
+        view, email, partition roster, and hotel export filters on this.
+        """
+        if not self.lottery_run_id:
+            return True
+        return not (self.lottery_run and self.lottery_run.status == c.LOTTERY_PENDING)
+
+    @is_released.expression
+    def is_released(cls):
+        return sa.or_(
+            cls.lottery_run_id.is_(None),
+            ~sa.exists().where(LotteryRun.id == cls.lottery_run_id,
+                               LotteryRun.status == c.LOTTERY_PENDING))
 
     @property
     def export_locked(self):
@@ -1820,6 +1884,12 @@ def _ra_after_insert_promote_app(mapper, connection, target):
         # Inserting an already-cancelled/expired row (imports, seeds)
         # must not promote the application.
         return
+    if target.lottery_run_id and connection.execute(
+            sa.select(LotteryRun.__table__.c.status)
+            .where(LotteryRun.__table__.c.id == target.lottery_run_id)
+    ).scalar() == c.LOTTERY_PENDING:
+        # A pending run's winners stay COMPLETE until Award Winners.
+        return
     connection.execute(
         sa.update(LotteryApplication.__table__)
         .where(LotteryApplication.__table__.c.id == target.lottery_application_id)
@@ -1843,10 +1913,12 @@ def _ra_after_delete_demote_app(mapper, connection, target):
         # Mirrors sync_award_status: deleting the last live row demotes
         # AWARDED or PROCESSED back to COMPLETE and detaches the run, even
         # when cancelled/expired siblings linger (the common case, since
-        # expired rows are retained).
+        # expired rows are retained). A pending run's COMPLETE winner just
+        # detaches from the run.
         connection.execute(
             sa.update(LotteryApplication.__table__)
             .where(LotteryApplication.__table__.c.id == target.lottery_application_id)
-            .where(LotteryApplication.__table__.c.status.in_((c.AWARDED, c.PROCESSED)))
+            .where(LotteryApplication.__table__.c.status.in_(
+                (c.AWARDED, c.PROCESSED, c.COMPLETE)))
             .values(status=c.COMPLETE, lottery_run_id=None)
         )

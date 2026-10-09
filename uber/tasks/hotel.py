@@ -39,6 +39,7 @@ def expire_unsecured_assignments():
     with Session() as session:
         candidates = session.query(RoomAssignment).filter(
             RoomAssignment.needs_card,
+            RoomAssignment.is_released,
             RoomAssignment.deposit_cutoff_date.isnot(None),
             RoomAssignment.deposit_cutoff_date < today,
         ).all()

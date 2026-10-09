@@ -260,7 +260,7 @@
         <tr>
           <td><a href="form?id={{ app.id }}">{{ app.confirmation_num }}</a></td>
           <td>{{ hotel_macros.attendee_cell(app.attendee, show_email=False) }}</td>
-          <td>{{ app.status_label }}</td>
+          <td>{{ app.admin_status_label }}</td>
           <td colspan="4" class="text-muted">No rooms in this run</td>
           <td>{{ app.valid_group_members|length }}</td>
         </tr>

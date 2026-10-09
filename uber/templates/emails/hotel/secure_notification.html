@@ -12,7 +12,7 @@
 {% set app = assignment.lottery_application %}
 {% set inv = assignment.inventory %}
 {% set room_type = 'suite' if inv and inv.is_suite else 'room' %}
-{% set _others = (attendee.room_assignments if attendee else [])
+{% set _others = (attendee.released_room_assignments if attendee else [])
                  |rejectattr('id', 'equalto', assignment.id)|list %}
 {% set pending = _others|selectattr('needs_card')|list %}
 {% set other_confirmed = _others|selectattr('status', 'equalto', c.SECURED)|list %}

@@ -400,6 +400,10 @@ def build_eligible_applications(session, lottery_type_val, lottery_group,
                                                           ).filter(LotteryApplication.status == c.COMPLETE,
                                                                    Attendee.hotel_lottery_eligible == True)  # noqa: E712
 
+    # Winners of a run that hasn't been awarded yet are still COMPLETE, but
+    # they already hold rooms: keep them out of other runs.
+    applications = applications.filter(~LotteryApplication.holds_pending_award)
+
     if cutoff:
         applications = applications.filter(LotteryApplication.last_submitted < cutoff)
 

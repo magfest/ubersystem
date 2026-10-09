@@ -928,9 +928,11 @@ class Root:
         if lottery_run.status != c.LOTTERY_PENDING:
             raise HTTPRedirect('lottery_run_detail?id={}&message={}', id, 'This run cannot be awarded.')
 
+        # Winners wait at COMPLETE (PROCESSED for runs made before that
+        # changed) with lottery_run_id pointing here.
         applications = session.query(LotteryApplication).join(LotteryApplication.attendee).filter(
             LotteryApplication.lottery_run_id == id,
-            LotteryApplication.status == c.PROCESSED,
+            LotteryApplication.status.in_([c.PROCESSED, c.COMPLETE]),
             Attendee.hotel_lottery_eligible == True,
         ).all()
 
@@ -953,6 +955,17 @@ class Root:
                         ra.deposit_cutoff_date = run_deadline_date
                         session.add(ra)
 
+        awarded_ids = {app.id for app in applications}
+        for ra in session.query(RoomAssignment).filter_by(lottery_run_id=lottery_run.id).all():
+            if ra.lottery_application_id not in awarded_ids:
+                session.delete(ra)
+                continue
+            app = ra.lottery_application
+            current = {app.attendee_id} | {m.attendee_id for m in app.valid_group_members or []}
+            for occupant in list(ra.occupants or []):
+                if occupant.id not in current:
+                    ra.occupants.remove(occupant)
+
         lottery_run.status = c.LOTTERY_AWARDED
         lottery_run.awarded_at = datetime.now(UTC)
         session.commit()
@@ -968,7 +981,7 @@ class Root:
 
         applications = session.query(LotteryApplication).filter(
             LotteryApplication.lottery_run_id == id,
-            LotteryApplication.status == c.PROCESSED,
+            LotteryApplication.status.in_([c.PROCESSED, c.COMPLETE]),
         ).all()
 
         for app in applications:
@@ -2224,15 +2237,11 @@ class Root:
         # override remains possible later).
         run_deadline = lottery_run.card_deadline.date() if lottery_run.card_deadline else None
 
-        # Move the awarded leaders' apps to PROCESSED so they can be moved
-        # to AWARDED in the award_run step. Group members come along via
-        # parent_application_id; they stay COMPLETE on the app side and
-        # are added as occupants of the leader's RoomAssignment rows.
+        # Update applications to be aware of the lottery run that awarded them a room
         awarded_leader_ids = {leader_id for leader_id, _inv, _role in allocations}
         for application in applications:
             if application.id in awarded_leader_ids and not application.parent_application:
                 application.lottery_run_id = lottery_run.id
-                application.status = c.PROCESSED
                 if partition_filter:
                     application.partition_id = partition_filter
                 session.add(application)
