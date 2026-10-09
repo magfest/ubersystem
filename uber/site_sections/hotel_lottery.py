@@ -665,10 +665,6 @@ class Root:
         """Public page (token-gated). Pre-reveal: countdown. Post-reveal:
         renders the booking links. The page polls itself near the reveal
         time so attendees don't need to refresh manually.
-
-        The payload is built here, not in a helper method: all_renderable
-        renders a template for any Root method that returns a dict, so a
-        helper returning this payload raises TemplateNotFound.
         """
         reveal, link = self._resolve_reveal_token(session, token)
         if not token:
@@ -677,8 +673,6 @@ class Root:
             return {'error': 'invalid-token'}
         if not reveal.active:
             return {'error': 'inactive'}
-        # Before the payload is built, so an unauthenticated caller never has
-        # a destination URL constructed for them at all.
         access_error = self._reveal_access_error(session, reveal, link)
         if access_error:
             return {'error': access_error}
@@ -718,9 +712,7 @@ class Root:
         a model lookup, and these endpoints are token-keyed with no id.
 
         A unique link must belong to the viewer, so forwarding one does not
-        hand over access. Staff may own it through their admin login, the same
-        rule as _can_view_as_attendee. A shared token has no owner, so it can only
-        require an eligible signed-in attendee.
+        hand over access.
         """
         if not reveal.enforces_login:
             return None

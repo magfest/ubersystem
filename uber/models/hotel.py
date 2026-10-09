@@ -1632,12 +1632,6 @@ class HotelRoomIssueNote(MagModel, table=True):
 
 class OverflowReveal(MagModel, table=True):
     """Early overflow-hotel booking links for lottery entrants who got no room.
-
-    Admins and attendees see this as "Overflow Booking". It is not the
-    date-extension waitlist in uber.hotel.waitlist; it was named
-    WaitlistReveal before October 2026. Each recipient gets an
-    OverflowRevealLink by email, and the page shows booking_links only after
-    reveal_at.
     """
     __table_args__ = (
         sa.Index('uq_overflow_reveal_shared_token', 'shared_token', unique=True,
