@@ -641,7 +641,18 @@ class Root:
                 applications = session.query(LotteryApplication)
                 count = applications.count()
 
-        applications = applications.order(order).options(joinedload(LotteryApplication.attendee))
+        if order.lstrip('-') == 'assigned_rooms':
+            live_rooms = (sa.select(sa.func.count(RoomAssignment.id))
+                          .where(RoomAssignment.attendee_id == LotteryApplication.attendee_id,
+                                 RoomAssignment.is_live)
+                          .correlate(LotteryApplication).scalar_subquery())
+            applications = applications.order_by(
+                live_rooms.desc() if order.startswith('-') else live_rooms)
+        else:
+            if order.lstrip('-') not in LotteryApplication.__table__.columns:
+                order = 'status'
+            applications = applications.order(order)
+        applications = applications.options(joinedload(LotteryApplication.attendee))
 
         pages = range(1, int(math.ceil(count / 100)) + 1)
         applications = applications[-100 + 100*page: 100*page]
