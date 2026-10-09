@@ -363,25 +363,23 @@ def match_assignments(session, app_id='', conf=''):
 
     app_id = (app_id or '').strip()
     conf = (conf or '').strip()
+    released = session.query(RoomAssignment).filter(RoomAssignment.is_released)
 
     if app_id:
-        ras = session.query(RoomAssignment).filter_by(
-            lottery_application_id=app_id).all()
+        ras = released.filter_by(lottery_application_id=app_id).all()
         if ras:
             return ras
     if conf:
         app = session.query(LotteryApplication).filter(
             LotteryApplication.confirmation_num == conf).one_or_none()
         if app:
-            ras = session.query(RoomAssignment).filter_by(
-                lottery_application_id=app.id).all()
+            ras = released.filter_by(lottery_application_id=app.id).all()
             if ras:
                 return ras
-        ra = session.query(RoomAssignment).filter_by(
-            hotel_confirmation_number=conf).first()
+        ra = released.filter_by(hotel_confirmation_number=conf).first()
         if ra:
             if ra.lottery_application_id:
-                return session.query(RoomAssignment).filter_by(
+                return released.filter_by(
                     lottery_application_id=ra.lottery_application_id).all()
             return [ra]
     return []

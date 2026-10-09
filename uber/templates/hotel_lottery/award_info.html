@@ -1,9 +1,9 @@
 {# Award summary partial. Used by decline.html, etc.
-   Reads from `app_or_parent.attendee.room_assignments` - every awarded
+   Reads from `app_or_parent.attendee.released_room_assignments` - every awarded
    room is its own RoomAssignment row. Connector rooms render with the
    "follows another room" explanation. #}
 {% import 'hotel_lottery/_macros.html' as room_macros with context %}
-{% set _rooms = (app_or_parent.attendee.room_assignments if app_or_parent.attendee else [])
+{% set _rooms = (app_or_parent.attendee.released_room_assignments if app_or_parent.attendee else [])
                 |selectattr('is_live')|list %}
 
 {% if _rooms %}

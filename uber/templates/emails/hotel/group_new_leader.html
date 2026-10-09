@@ -1,4 +1,4 @@
-{% set _existing = (app.attendee.room_assignments if app.attendee else [])
+{% set _existing = (app.attendee.released_room_assignments if app.attendee else [])
                    |selectattr('is_live')|list %}
 {% set _has_suite = _existing|selectattr('inventory.is_suite')|list|length > 0 %}
 {% set room_type = 'suite' if _has_suite else 'room' %}

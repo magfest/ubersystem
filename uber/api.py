@@ -1730,6 +1730,7 @@ class HotelLookup:
             if inv_ids:
                 assignments = (session.query(RoomAssignment)
                                .filter(RoomAssignment.is_live,
+                                       RoomAssignment.is_released,
                                        RoomAssignment.inventory_id.in_(inv_ids))
                                .order_by(*order).all())
                 export_hotel_ids = {
@@ -1738,6 +1739,7 @@ class HotelLookup:
                     if row[0]}
             elif hotel_obj:
                 assignments = (live_assignments_for_hotel(session, hotel_obj.id)
+                               .filter(RoomAssignment.is_released)
                                .order_by(*order).all())
                 export_hotel_ids = {str(hotel_obj.id)}
             else:

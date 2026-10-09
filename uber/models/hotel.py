@@ -7,10 +7,11 @@ from decimal import Decimal
 from pytz import UTC
 from markupsafe import Markup
 import sqlalchemy as sa
-from sqlalchemy import Sequence
+from sqlalchemy import Sequence, inspect as sa_inspect
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict, MutableList
+from sqlalchemy.orm import object_session
 from sqlalchemy.types import Date, Integer, DateTime, Numeric, Uuid
 from typing import Any, ClassVar
 
@@ -352,28 +353,59 @@ class LotteryApplication(MagModel, table=True):
         flush; call this from ORM code paths (the expiry cron, admin status
         changes) that flip assignment status without inserting or deleting
         rows."""
+        # The session doesn't autoflush, so push pending status changes
+        # (e.g. the expiry task's) before counting live rows.
+        session.flush()
         live = session.query(RoomAssignment).filter(
             RoomAssignment.lottery_application_id == self.id,
-            RoomAssignment.is_live).count()
-        if live and self.status == c.COMPLETE:
+            RoomAssignment.is_live)
+        if self.status == c.COMPLETE and live.filter(RoomAssignment.is_released).count():
             self.status = c.AWARDED
             session.add(self)
-        elif not live and self.status in (c.AWARDED, c.PROCESSED):
+        elif not live.count() and (self.status in (c.AWARDED, c.PROCESSED)
+                                   or self.status == c.COMPLETE and self.lottery_run_id):
             self.status = c.COMPLETE
             self.lottery_run_id = None
             session.add(self)
+
+    @hybrid_property
+    def holds_pending_award(self):
+        """True while this entry has won rooms in a lottery run that hasn't
+        been awarded yet. The entry itself stays COMPLETE until Award
+        Winners, so attendees can't tell winners apart from everyone else;
+        admin pages use this to show "Pending Award" instead."""
+        session = object_session(self)
+        if not session or not self.lottery_run_id:
+            return False
+        return session.query(RoomAssignment).filter(
+            RoomAssignment.lottery_application_id == self.id,
+            RoomAssignment.is_live, ~RoomAssignment.is_released).count() > 0
+
+    @holds_pending_award.expression
+    def holds_pending_award(cls):
+        return sa.exists().where(RoomAssignment.lottery_application_id == cls.id,
+                                 RoomAssignment.is_live, ~RoomAssignment.is_released)
+
+    @property
+    def admin_status_label(self):
+        if self.status == c.COMPLETE and self.holds_pending_award:
+            return 'Pending Award'
+        return self.status_label
 
     @property
     def lottery_room_assignments(self):
         """RoomAssignment rows linked to this entry (its leader's, for group
         members). Manual, partition, and other non-lottery rooms the attendee
-        holds are excluded, so award text and deadlines never key off them."""
+        holds are excluded, so award text and deadlines never key off them.
+        Rows from a lottery run that hasn't been awarded yet are excluded
+        too"""
         from sqlalchemy.orm import object_session
         session = object_session(self)
         if not session:
             return []
         return session.query(RoomAssignment).filter(
-            RoomAssignment.lottery_application_id == self.app_or_parent.id).all()
+            RoomAssignment.lottery_application_id == self.app_or_parent.id,
+            RoomAssignment.is_released).all()
 
     @property
     def other_live_room_assignments(self):
@@ -383,7 +415,7 @@ class LotteryApplication(MagModel, table=True):
         attendee = self.app_or_parent.attendee
         lottery_ids = {ra.id for ra in self.lottery_room_assignments}
         return [ra for ra in (attendee.active_room_assignments if attendee else [])
-                if ra.id not in lottery_ids]
+                if ra.id not in lottery_ids and ra.is_released]
 
     @property
     def booking_url_ready(self):
@@ -469,6 +501,23 @@ class LotteryApplication(MagModel, table=True):
                 LotteryRun.status == c.LOTTERY_PENDING,
             ).first() is not None
         return cache[lottery_group]
+
+    @property
+    def staff_rooms_awarded(self):
+        """True once a staff LotteryRun has been awarded and no other staff
+        run is still pending. Until then every staff entry sees the same
+        text, so a pending run's winners can't be told apart from everyone
+        else."""
+        cached = getattr(self, '_staff_rooms_awarded_cache', None)
+        if cached is None:
+            session = sa_inspect(self).session
+            if not session:
+                return False
+            statuses = {status for (status,) in session.query(LotteryRun.status).filter(
+                LotteryRun.lottery_group == 'staff').distinct()}
+            cached = self._staff_rooms_awarded_cache = (
+                c.LOTTERY_AWARDED in statuses and c.LOTTERY_PENDING not in statuses)
+        return cached
 
     @property
     def guarantee_deadline(self):
@@ -1051,6 +1100,24 @@ class RoomAssignment(MagModel, table=True):
     def is_live(cls):
         return cls.status.in_(c.HOTEL_LIVE_ASSIGNMENT_STATUSES)
 
+    @hybrid_property
+    def is_released(self):
+        """False while this assignment belongs to a lottery run that has
+        not been awarded yet. Pending-run rows still hold inventory (they
+        are live), but only admins may see them: every attendee-facing
+        view, email, partition roster, and hotel export filters on this.
+        """
+        if not self.lottery_run_id:
+            return True
+        return not (self.lottery_run and self.lottery_run.status == c.LOTTERY_PENDING)
+
+    @is_released.expression
+    def is_released(cls):
+        return sa.or_(
+            cls.lottery_run_id.is_(None),
+            ~sa.exists().where(LotteryRun.id == cls.lottery_run_id,
+                               LotteryRun.status == c.LOTTERY_PENDING))
+
     @property
     def export_locked(self):
         # Locking is currently per-application - once any of an app's rooms
@@ -1374,6 +1441,8 @@ class RoomAssignmentInvite(MagModel, table=True):
     __table_args__ = (
         sa.UniqueConstraint('invite_token', name='uq_room_assignment_invite_token'),
     )
+
+    email_model_name: ClassVar = 'invite'
 
     room_assignment_id: str = Field(
         sa_type=Uuid(as_uuid=False),
@@ -1798,8 +1867,8 @@ class ImportMappingTemplate(MagModel, table=True):
 
 
 #
-# RoomAssignment insert/delete events drive the parent LotteryApplication's
-# COMPLETE <-> AWARDED transition. The application status tracks lottery
+# RoomAssignment insert/update/delete events drive the parent
+# LotteryApplication's COMPLETE <-> AWARDED transition. The application status tracks lottery
 # eligibility only - per-room SECURED/EXPIRED/CANCELLED lifecycle stays on
 # RoomAssignment.status.
 
@@ -1812,13 +1881,14 @@ from sqlalchemy import event as _sa_event  # noqa: E402
 # (The listeners run on raw connections, so they use the status tuple
 # directly rather than the `is_live` hybrid.)
 
-@_sa_event.listens_for(RoomAssignment, 'after_insert')
-def _ra_after_insert_promote_app(mapper, connection, target):
-    if not target.lottery_application_id:
-        return
-    if target.status not in c.HOTEL_LIVE_ASSIGNMENT_STATUSES:
-        # Inserting an already-cancelled/expired row (imports, seeds)
-        # must not promote the application.
+def _promote_app(connection, target):
+    """COMPLETE -> AWARDED for the entry behind a row that just became live,
+    unless the row belongs to a run that hasn't been awarded yet."""
+    if target.lottery_run_id and connection.execute(
+            sa.select(LotteryRun.__table__.c.status)
+            .where(LotteryRun.__table__.c.id == target.lottery_run_id)
+    ).scalar() == c.LOTTERY_PENDING:
+        # A pending run's winners stay COMPLETE until Award Winners.
         return
     connection.execute(
         sa.update(LotteryApplication.__table__)
@@ -1828,25 +1898,93 @@ def _ra_after_insert_promote_app(mapper, connection, target):
     )
 
 
+def _has_live_rooms(connection, app_id, exclude_id=None):
+    remaining = (sa.select(sa.func.count())
+                 .select_from(RoomAssignment.__table__)
+                 .where(RoomAssignment.__table__.c.lottery_application_id == app_id)
+                 .where(RoomAssignment.__table__.c.status.in_(c.HOTEL_LIVE_ASSIGNMENT_STATUSES)))
+    if exclude_id:
+        remaining = remaining.where(RoomAssignment.__table__.c.id != exclude_id)
+    return bool(connection.execute(remaining).scalar())
+
+
+def _demote_app_if_no_live_rooms(connection, app_id, exclude_id=None):
+    """Mirrors sync_award_status: once an entry has no live row left it
+    goes from AWARDED (or PROCESSED) back to COMPLETE and detaches from its
+    run, so the next run can draw it again - even when cancelled/expired
+    siblings linger (the common case, since expired rows are retained). A
+    pending run's COMPLETE winner just detaches from the run."""
+    if _has_live_rooms(connection, app_id, exclude_id):
+        return
+    connection.execute(
+        sa.update(LotteryApplication.__table__)
+        .where(LotteryApplication.__table__.c.id == app_id)
+        .where(LotteryApplication.__table__.c.status.in_(
+            (c.AWARDED, c.PROCESSED, c.COMPLETE)))
+        .values(status=c.COMPLETE, lottery_run_id=None)
+    )
+
+
+def _cancel_app_if_no_live_rooms(connection, app_id):
+    """The hotel cancelled the entry's last live room: the award is over,
+    so the entry becomes CANCELLED, which is final and sends the attendee
+    the award-cancelled email. It keeps lottery_run_id as the record of
+    which run awarded it."""
+    if _has_live_rooms(connection, app_id):
+        return
+    connection.execute(
+        sa.update(LotteryApplication.__table__)
+        .where(LotteryApplication.__table__.c.id == app_id)
+        .where(LotteryApplication.__table__.c.status.in_((c.AWARDED, c.PROCESSED)))
+        .values(status=c.CANCELLED)
+    )
+
+
+@_sa_event.listens_for(RoomAssignment, 'after_insert')
+def _ra_after_insert_promote_app(mapper, connection, target):
+    if not target.lottery_application_id:
+        return
+    if target.status not in c.HOTEL_LIVE_ASSIGNMENT_STATUSES:
+        # Inserting an already-cancelled/expired row (imports, seeds)
+        # must not promote the application.
+        return
+    _promote_app(connection, target)
+
+
+@_sa_event.listens_for(RoomAssignment, 'after_update')
+def _ra_after_update_sync_app(mapper, connection, target):
+    """Keep the entry in step when a room's status changes in place - the
+    card-deadline task, an admin edit, a hotel import, the API. When the
+    entry has no other live room left:
+
+      * a room that EXPIRES (its card deadline passed) puts the entry back
+        to COMPLETE, so the next run can draw it again;
+      * a room the HOTEL cancelled (it carries a cancellation number - set
+        by the cancellation import, the bookings re-import, or the hotel
+        portal's API) makes the entry CANCELLED.
+
+    Reinstating a room awards the entry again. An attendee declining also
+    cancels the room, but without a cancellation number; the decline flow
+    handles its own messaging, so the entry is left alone."""
+    if not target.lottery_application_id:
+        return
+    history = sa.inspect(target).attrs.status.history
+    if not history.has_changes():
+        return
+    old = history.deleted[0] if history.deleted else None
+    was_live = old in c.HOTEL_LIVE_ASSIGNMENT_STATUSES
+    is_live = target.status in c.HOTEL_LIVE_ASSIGNMENT_STATUSES
+    if is_live and not was_live:
+        _promote_app(connection, target)
+    elif was_live and target.status == c.EXPIRED:
+        _demote_app_if_no_live_rooms(connection, target.lottery_application_id)
+    elif was_live and target.status == c.CANCELLED and target.cancellation_confirmation_number:
+        _cancel_app_if_no_live_rooms(connection, target.lottery_application_id)
+
+
 @_sa_event.listens_for(RoomAssignment, 'after_delete')
 def _ra_after_delete_demote_app(mapper, connection, target):
     if not target.lottery_application_id:
         return
-    remaining_live = connection.execute(
-        sa.select(sa.func.count())
-        .select_from(RoomAssignment.__table__)
-        .where(RoomAssignment.__table__.c.lottery_application_id == target.lottery_application_id)
-        .where(RoomAssignment.__table__.c.id != target.id)
-        .where(RoomAssignment.__table__.c.status.in_(c.HOTEL_LIVE_ASSIGNMENT_STATUSES))
-    ).scalar() or 0
-    if remaining_live == 0:
-        # Mirrors sync_award_status: deleting the last live row demotes
-        # AWARDED or PROCESSED back to COMPLETE and detaches the run, even
-        # when cancelled/expired siblings linger (the common case, since
-        # expired rows are retained).
-        connection.execute(
-            sa.update(LotteryApplication.__table__)
-            .where(LotteryApplication.__table__.c.id == target.lottery_application_id)
-            .where(LotteryApplication.__table__.c.status.in_((c.AWARDED, c.PROCESSED)))
-            .values(status=c.COMPLETE, lottery_run_id=None)
-        )
+    _demote_app_if_no_live_rooms(connection, target.lottery_application_id,
+                                 exclude_id=target.id)

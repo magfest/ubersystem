@@ -122,9 +122,11 @@ def build_audit_context(session):
 
     # Apps with rooms should be AWARDED; apps without any live rooms
     # should NOT be AWARDED. The listener flips these in real time,
-    # so any hit here means data was edited around the listener.
+    # so any hit here means data was edited around the listener. Rooms
+    # from a pending run don't count: their entries stay COMPLETE until
+    # Award Winners.
     app_ids_with_rooms = {ra.lottery_application_id for ra in live
-                          if ra.lottery_application_id}
+                          if ra.lottery_application_id and ra.is_released}
     mismatched_apps = []
     if app_ids_with_rooms:
         mismatched_apps = (session.query(LotteryApplication)

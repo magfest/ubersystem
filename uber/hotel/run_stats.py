@@ -9,7 +9,8 @@ in `LotteryRun.considered_application_ids`:
   ranked preference lists (#1, #2, ... or not ranked at all);
 * group size - what share of awarded rooms went to 1-person, 2-person,
   ... groups, against the same distribution over every entry the run
-  considered;
+  considered, plus each size's win rate (the share of its considered
+  entries that won at least one room) relative to single entrants';
 * demand - per hotel and per room/suite type, how many considered
   entries ranked it first (or listed it anywhere) versus how many rooms
   the run awarded there.
@@ -138,7 +139,13 @@ def lottery_run_stats(session, lottery_run):
 
     considered_ids = [str(x) for x in (lottery_run.considered_application_ids or [])]
     considered_total = len(considered_ids)
-    considered_size_counts = Counter(group_sizes(session, considered_ids).values())
+    considered_sizes = group_sizes(session, considered_ids)
+    considered_size_counts = Counter(considered_sizes.values())
+    winner_size_counts = Counter(size for app_id, size in considered_sizes.items()
+                                 if app_id in awarded_app_ids)
+    win_rates = {size: winner_size_counts[size] / n
+                 for size, n in considered_size_counts.items()}
+    single_rate = win_rates.get(1)
 
     first_hotel, any_hotel = Counter(), Counter()
     first_type, any_type = Counter(), Counter()
@@ -179,6 +186,11 @@ def lottery_run_stats(session, lottery_run):
             'awarded_pct': _pct(awarded_size_counts.get(size, 0), award_total),
             'considered': considered_size_counts.get(size, 0),
             'considered_pct': _pct(considered_size_counts.get(size, 0), considered_total),
+            'won': winner_size_counts.get(size, 0),
+            'win_rate': (round(100 * win_rates[size], 1)
+                         if size in win_rates else None),
+            'relative': (round(win_rates[size] / single_rate, 2)
+                         if size in win_rates and single_rate else None),
         } for size in sizes],
         'hotel_demand': _demand_rows(hotel_names, first_hotel, any_hotel, awarded_by_hotel,
                                      considered_total, award_total),

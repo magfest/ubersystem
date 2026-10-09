@@ -1,5 +1,6 @@
 {% import 'emails/hotel/_room_summary.html' as room_summary_macros with context %}
-{% set ra = assignment %}
+{% set ra = invite.room_assignment %}
+{% set leader = ra.attendee if ra else None %}
 <html>
 <head></head>
 <body>
@@ -12,7 +13,7 @@
 {{ room_summary_macros.room_summary(ra) }}
 
 <p>
-  <a href="{{ c.URL_BASE }}/hotel_lottery/invite?token={{ token }}">
+  <a href="{{ c.URL_BASE }}/hotel_lottery/invite?token={{ invite.invite_token }}">
     Click here to accept or reject the invite
   </a>
   - you'll be asked to log in to your {{ c.EVENT_NAME }} account first.

@@ -1,23 +1,22 @@
-{# Cancel notification fires once any RoomAssignment is cancelled.
+{# Cancel notification fires once the entry's lottery award is cancelled.
    Determine room/suite phrasing by scanning whichever of this entry's rooms
-   still exist in any award state - or fall back to "room" if all gone. #}
+   still exist in any award state - or fall back to "room" if all gone.
+   The email deliberately gives no reason beyond saying when the hotel
+   cancelled it (a room carrying a hotel cancellation number). #}
 {% set _existing = app.lottery_room_assignments
                    |selectattr('status', 'in', [c.ASSIGNED, c.SECURED, c.CANCELLED, c.EXPIRED])|list %}
 {% set _has_suite = _existing|selectattr('inventory.is_suite')|list|length > 0 %}
 {% set room_type = 'suite' if _has_suite else 'room' %}
+{% set _by_hotel = _existing|selectattr('cancellation_confirmation_number')|list|length > 0 %}
 {% set has_or_had_parent = app.parent_application or app.former_parent_id %}
 <html>
 <head></head>
 <body>
 <p>
     {{ app.attendee.full_name }},<br/>
-    {% if not app.entry_started and not has_or_had_parent %}
-        This message is to confirm that you have declined your {{ room_type }} reservation awarded in the {{ c.EVENT_NAME_AND_YEAR }} hotel lottery.
-        This decision is final. We have also withdrawn your {% if app.valid_group_members %}and your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }} members' entries{% else %}entry{% endif %} from the hotel lottery.
-    {% else %}
-        <strong><span class="text-danger">{{ app.award_status_str }}</span></strong>
-        This {{ room_type }} has been returned to the lottery{% if has_or_had_parent and not app.entry_started %} and your lottery entry has been withdrawn{% endif %}.
-    {% endif %}
+    <strong><span class="text-danger">{% if app.parent_application %}Your {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}'s{% else %}Your{% endif %}
+    {{ room_type }} awarded in the {{ c.EVENT_NAME_AND_YEAR }} hotel lottery has been cancelled{% if _by_hotel %} by the hotel{% endif %}.</span></strong>
+    This {{ room_type }} has been returned to the lottery.
 </p>
 {% if app.other_live_room_assignments %}
 <p>
@@ -27,9 +26,9 @@
 {% endif %}
 {% if not has_or_had_parent %}
 <p>
-    {% if not app.entry_started %}We appreciate you letting us know you don't need your {{ room_type }} reservation, and we will award this {{ room_type }} to another lottery entrant. T{% else %} We t{% endif %}hank you for participating in the {{ c.EVENT_NAME_AND_YEAR }} hotel lottery.
+    We thank you for participating in the {{ c.EVENT_NAME_AND_YEAR }} hotel lottery.
 </p>
-{% elif app.entry_started and (c.HOTEL_LOTTERY_OPEN or c.STAFF_HOTEL_LOTTERY_OPEN and app.qualifies_for_staff_lottery) %}
+{% elif c.HOTEL_LOTTERY_OPEN or c.STAFF_HOTEL_LOTTERY_OPEN and app.qualifies_for_staff_lottery %}
 <p>
     If you'd like to be eligible for future lottery runs, you can
     {% if app.guarantee_policy_accepted %}

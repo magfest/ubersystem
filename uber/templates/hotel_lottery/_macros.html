@@ -37,7 +37,7 @@
    (the status page, the guarantee page, and the options page) have to
    agree on this copy, so it lives here rather than in each of them. #}
 {%- macro withdraw_confirm_attrs(application) -%}
-  {%- set _has_award = (application.app_or_parent.attendee.room_assignments
+  {%- set _has_award = (application.app_or_parent.attendee.released_room_assignments
                         if application.app_or_parent and application.app_or_parent.attendee
                         else [])|selectattr('is_live')|list|length > 0 -%}
   {{- confirm_attrs(

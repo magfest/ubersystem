@@ -2487,6 +2487,17 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         return [ra for ra in (self.room_assignments or []) if ra.is_live]
 
     @property
+    def released_room_assignments(self):
+        """RoomAssignments that have been released to the attendee, i.e.
+        they aren't temporary assignments from a lottery run."""
+        return [ra for ra in (self.room_assignments or []) if ra.is_released]
+
+    @property
+    def released_occupied_rooms(self):
+        """occupied_rooms minus rows from a not-yet-awarded lottery run."""
+        return [ra for ra in (self.occupied_rooms or []) if ra.is_released]
+
+    @property
     def hotel_status(self):
         """Compact summary of this attendee's live rooms for inline admin
         display, e.g. "2 rooms: 1 secured, 1 awaiting card". Empty string
