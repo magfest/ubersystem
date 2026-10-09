@@ -300,22 +300,22 @@ def solve_lottery(applications, hotel_rooms, lottery_type=c.ROOM_ENTRY,
                     # Sold-out/closed night: forbid awards outright. A
                     # skipped constraint would leave the night
                     # UNconstrained and let the solver oversubscribe it.
-                    solver.Add(sum(night_vars) == 0)
+                    solver.Add(solver.Sum(night_vars) == 0)
                 else:
-                    solver.Add(sum(night_vars) <= night_qty)
+                    solver.Add(solver.Sum(night_vars) <= night_qty)
     else:
         # Fallback when no per-night data is available.
         for hr in hotel_rooms:
             inv_vars = _vars_for_inventory(hr)
             if inv_vars:
-                solver.Add(sum(cv for cv, _ in inv_vars) <= hr["quantity"])
+                solver.Add(solver.Sum([cv for cv, _ in inv_vars]) <= hr["quantity"])
 
     # Per-app "max one primary award" cap. Connector BoolVars are
     # intentionally excluded - connector rooms ride along with the
     # parent and don't count as separate awards.
     for app_id, entry in entries.items():
         if entry["primary_vars"]:
-            solver.Add(sum(v for v, _, _ in entry["primary_vars"]) <= 1)
+            solver.Add(solver.Sum([v for v, _, _ in entry["primary_vars"]]) <= 1)
 
     # Connector coupling. For each (app, parent_inventory, child_type),
     # the sum of connector BoolVars over all inventory of that child
@@ -339,7 +339,7 @@ def solve_lottery(applications, hotel_rooms, lottery_type=c.ROOM_ENTRY,
             if parent_var is None or not cvars:
                 continue
             # sum(connectors) == parent * qty
-            solver.Add(sum(cvars) == parent_var * qty)
+            solver.Add(solver.Sum(cvars) == parent_var * qty)
 
     # Objective: weighted sum on primary BoolVars only. Connectors ride
     # along and don't contribute to the maximization signal.
