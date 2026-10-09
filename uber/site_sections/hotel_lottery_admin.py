@@ -12,7 +12,7 @@ from pytz import UTC
 from dateutil import parser as dateparser
 import sqlalchemy as sa
 from sqlalchemy import func, or_
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, load_only, raiseload
 from sqlalchemy.types import String
 from sqlmodel import AutoString
 from urllib.parse import urlencode
@@ -2319,6 +2319,11 @@ class Root:
         # assignment's waitlisted_* columns, which reflect the current
         # per-room request rather than the original lottery entry.
         ra_query = (session.query(RoomAssignment)
+                    .options(raiseload('*'),
+                             joinedload(RoomAssignment.lottery_application).options(
+                                 load_only(LotteryApplication.entry_type,
+                                           LotteryApplication.export_locked),
+                                 raiseload('*')))
                     .filter(RoomAssignment.is_live,
                             RoomAssignment.inventory_id.isnot(None)))
         if filter_partition_id:
