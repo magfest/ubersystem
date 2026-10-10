@@ -415,8 +415,9 @@ class Department(MagModel, table=True):
         data = {}
 
         for template in self.job_templates:
-            d = template.to_dict()
-            #Avoid potentially exposing extra data to the UI or circular references.
+            attrs = JobTemplate.to_dict_default_attrs + ['required_roles_ids']
+            d = template.to_dict(attrs)
+            # Avoid potentially exposing extra data to the UI or circular references.
             d.pop('jobs', None)
             data[template.id] = d
 
