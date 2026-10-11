@@ -2474,9 +2474,12 @@ def _inherit_parent_dept_memberships(session, context, instances='deprecated'):
 
     pairs = set()
     reparented = []
+    pending_depts = {}
     for obj in session.new:
         if isinstance(obj, DeptMembership):
             pairs.add((obj.attendee_id or obj.attendee.id, obj.department_id or obj.department.id))
+        elif isinstance(obj, Department):
+            pending_depts[obj.id] = obj
     for obj in chain(session.new, session.dirty):
         if isinstance(obj, Department):
             attrs = sqlalchemy.inspect(obj).attrs
@@ -2494,7 +2497,7 @@ def _inherit_parent_dept_memberships(session, context, instances='deprecated'):
                 pairs.add((attendee_id, dept_id))
 
         for attendee_id, dept_id in list(pairs):
-            dept = parent_of(session.get(Department, dept_id))
+            dept = parent_of(pending_depts.get(dept_id) or session.get(Department, dept_id))
             while dept:
                 key = (attendee_id, dept.id)
                 if key in pairs or session.query(DeptMembership.id).filter_by(
