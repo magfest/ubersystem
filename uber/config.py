@@ -2009,6 +2009,7 @@ c.DOOR_PAYMENT_METHODS = {key: val for key, val in c.DOOR_PAYMENT_METHODS.items(
 c.TERMINAL_ID_TABLE = {k.lower().replace('-', ''): v for k, v in _config['secret']['terminal_ids'].items()}
 
 c.SHIFTLESS_DEPTS = {getattr(c, dept.upper()) for dept in c.SHIFTLESS_DEPTS}
+c.DEPT_MEMBERSHIP_SYNC = dict(_config['dept_membership_sync'])
 c.PREASSIGNED_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.PREASSIGNED_BADGE_TYPES]
 c.DEFAULT_COMPED_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.DEFAULT_COMPED_BADGE_TYPES]
 c.TRANSFERABLE_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.TRANSFERABLE_BADGE_TYPES]
