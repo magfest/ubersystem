@@ -2468,6 +2468,50 @@ def _presave_adjustments(session, context, instances='deprecated'):
         model.predelete_adjustments()
 
 
+def _inherit_parent_dept_memberships(session, context, instances='deprecated'):
+    """Materializes parent-department memberships for every new child membership."""
+    from uber.models import Attendee, Department, DeptMembership
+
+    pairs = set()
+    reparented = []
+    pending_depts = {}
+    for obj in session.new:
+        if isinstance(obj, DeptMembership):
+            pairs.add((obj.attendee_id or obj.attendee.id, obj.department_id or obj.department.id))
+        elif isinstance(obj, Department):
+            pending_depts[obj.id] = obj
+    for obj in chain(session.new, session.dirty):
+        if isinstance(obj, Department):
+            attrs = sqlalchemy.inspect(obj).attrs
+            if attrs.parent.history.added or (obj.parent_id and attrs.parent_id.history.has_changes()):
+                reparented.append(obj.id)
+
+    def parent_of(dept):
+        # Lazy-loading dept.parent uses the committed FK, so honor pending in-memory changes first
+        added = sqlalchemy.inspect(dept).attrs.parent.history.added
+        return added[0] if added else session.get(Department, dept.parent_id) if dept.parent_id else None
+
+    with session.no_autoflush:
+        for dept_id in reparented:
+            for (attendee_id,) in session.query(DeptMembership.attendee_id).filter_by(department_id=dept_id):
+                pairs.add((attendee_id, dept_id))
+
+        for attendee_id, dept_id in list(pairs):
+            dept = parent_of(pending_depts.get(dept_id) or session.get(Department, dept_id))
+            while dept:
+                key = (attendee_id, dept.id)
+                if key in pairs or session.query(DeptMembership.id).filter_by(
+                        attendee_id=attendee_id, department_id=dept.id).first():
+                    break
+                pairs.add(key)
+                # Build through the relationships so loaded collections see the new row. A pending
+                # attendee isn't in the identity map yet, so fall back to the id for that case
+                attendee = session.get(Attendee, attendee_id)
+                session.add(DeptMembership(department=dept, attendee=attendee) if attendee
+                            else DeptMembership(department=dept, attendee_id=attendee_id))
+                dept = parent_of(dept)
+
+
 def _track_changes(session, context, instances='deprecated'):
     states = [
         (c.CREATED, session.new),
@@ -2497,6 +2541,7 @@ def register_session_listeners():
     The order in which we register these listeners matters.
     """
     listen(Session.session_factory, 'before_flush', _presave_adjustments)
+    listen(Session.session_factory, 'before_flush', _inherit_parent_dept_memberships)
     listen(Session.session_factory, 'after_flush', _track_changes)
     listen(Session.session_factory, 'before_commit', _check_emails)
 
