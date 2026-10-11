@@ -3,7 +3,7 @@ from datetime import date
 
 from markupsafe import Markup
 from wtforms import (BooleanField, DateField, EmailField,
-                     HiddenField, SelectField, SelectMultipleField, IntegerField,
+                     SelectField, SelectMultipleField, IntegerField,
                      StringField, TimeField, validators, TextAreaField)
 from wtforms.validators import ValidationError, StopValidation
 
@@ -22,6 +22,7 @@ __all__ = ['DepartmentInfo', 'JobInfo', 'JobTemplateInfo', 'BulkPrintingRequestI
 
 class DepartmentInfo(MagForm):
     admin_desc = True
+    dynamic_choices_fields = {'parent_id': lambda: [('', 'None')] + [d for d in c.DEPARTMENT_OPTS if d[0] != -1]}
 
     name = StringField('Name')
     description = StringField(
@@ -36,7 +37,9 @@ class DepartmentInfo(MagForm):
     panels_desc = TextAreaField(
         "Panel Application Description",
         description="What text, if any, should be shown when applying for a panel for this department?")
-    parent_id = HiddenField()
+    parent_id = SelectField(
+        'Parent Department',
+        description="Members of this department are automatically made members of the parent department.")
 
     def populate_obj(self, obj, is_admin=False, dry_run=False):
         max_minutes = self._fields.get('max_consecutive_minutes', None)

@@ -26,6 +26,16 @@ def unique_name(form, field):
                 raise ValidationError("There is already another department with this name.")
 
 
+@DepartmentInfo.field_validation('parent_id')
+def no_parent_cycle(form, field):
+    if field.data and not form.model.is_new:
+        dept = form.model.session.get(Department, field.data)
+        while dept:
+            if dept.id == form.model.id:
+                raise ValidationError("A department cannot be its own parent or ancestor.")
+            dept = dept.parent
+
+
 BaseJobInfo.field_validation.required_fields = {
     'name': "Please provide a job name.",
     'description': "Please provide a job description.",
