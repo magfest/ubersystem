@@ -590,11 +590,11 @@ class Root:
         if cherrypy.request.method == 'POST':
             if guest.group.studio:
                 if 'confirm_checkbox' not in params:
-                    message = "You must confirm that you have filled out the Logistics form."
+                    message = "You must confirm that you have filled out the Booth Preferences form."
                 else:
                     guest.group.studio.logistics_updated = True
                     session.add(guest)
-                    raise HTTPRedirect('index?id={}&message={}', guest.id, 'Thanks for filling out the logistics form!')
+                    raise HTTPRedirect('index?id={}&message={}', guest.id, 'Thanks for filling out the booth preferences form!')
             else:
                 message = "Something is wrong with your group -- please contact us at {}.".format(c.INDIE_ARCADE_EMAIL)
         return {

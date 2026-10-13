@@ -136,6 +136,8 @@ class GuestGroup(MagModel, table=True):
                 'faq_file': 'IndieIsland.pdf',
                 'contact_email': 'indies@magfest.org',
                 'deadline': c.INDIE_ISLAND_DEADLINE,
+                'checkin_times': c.SHOWCASE_MERCH_CHECKIN_TIME_OPTS,
+                'checkout_times': c.SHOWCASE_MERCH_CHECKOUT_TIME_OPTS,
             }
         else:
             return {
@@ -143,6 +145,8 @@ class GuestGroup(MagModel, table=True):
                 'faq_file': 'RockIsland.pdf',
                 'contact_email': 'rockisland@magfest.org',
                 'deadline': c.ROCK_ISLAND_DEADLINE,
+                'checkin_times': c.GUEST_MERCH_CHECKIN_TIMES,
+                'checkout_times': c.GUEST_MERCH_CHECKOUT_TIMES,
             }
         
     @property
@@ -386,8 +390,8 @@ class GuestMerch(MagModel, table=True):
     check_country: str = ''
 
     arrival_plans: str = ''
-    checkin_time: int | None = Field(sa_column=Column(Choice(c.GUEST_MERCH_CHECKIN_TIMES), nullable=True))
-    checkout_time: int | None = Field(sa_column=Column(Choice(c.GUEST_MERCH_CHECKOUT_TIMES), nullable=True))
+    checkin_time: int | None = Field(sa_column=Column(Choice(c.GUEST_MERCH_CHECKIN_TIMES + c.SHOWCASE_MERCH_CHECKIN_TIME_OPTS), nullable=True))
+    checkout_time: int | None = Field(sa_column=Column(Choice(c.GUEST_MERCH_CHECKOUT_TIMES + c.SHOWCASE_MERCH_CHECKOUT_TIME_OPTS), nullable=True))
     merch_events: str = ''
     inventory: dict[Any, Any] = Field(sa_type=JSON, default_factory=dict)
     inventory_updated: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)

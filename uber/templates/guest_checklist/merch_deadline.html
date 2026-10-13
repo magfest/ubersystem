@@ -160,11 +160,7 @@
                   <div class="col-sm-6">
                     <select name="checkin_time" class="form-control" required>
                       <option value="">Please select an option...</option>
-                      {% if guest.group_type == c.MIVS %}
-                      {{ options(c.GUEST_MERCH_CHECKIN_TIMES|rejectattr('0', 'in', [8, 9, 10]), guest_merch.checkin_time) }}
-                      {% else %}
-                      {{ options(c.GUEST_MERCH_CHECKIN_TIMES, guest_merch.checkin_time) }}
-                      {% endif %}
+                      {{ options(guest.merch_island_config['checkin_times'], guest_merch.checkin_time) }}
                     </select>
                     <p class="help-block">
                       Please email {{ guest.merch_island_config['contact_email']|email_to_link }} if your arrival plans change.
@@ -176,7 +172,7 @@
                   <div class="col-sm-6">
                     <select name="checkout_time" class="form-control" required>
                       <option value="">Please select an option...</option>
-                      {{ options(c.GUEST_MERCH_CHECKOUT_TIMES, guest_merch.checkout_time) }}
+                      {{ options(guest.merch_island_config['checkout_times'], guest_merch.checkout_time) }}
                     </select>
                     <p class="help-block">
                       Please email {{ guest.merch_island_config['contact_email']|email_to_link }} if your departure plans change.
