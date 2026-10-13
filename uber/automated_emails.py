@@ -441,7 +441,8 @@ AutomatedEmailFixture(
 AutomatedEmailFixture(
     None, f'{c.EVENT_NAME} group registration dropped',
     'reg_workflow/group_member_dropped.txt', None,
-    'attendee_removed_from_group'
+    'attendee_removed_from_group',
+    sender=c.REGDESK_EMAIL,
 )
 
 
