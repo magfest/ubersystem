@@ -86,7 +86,7 @@ def check_emails_for_fixture(id):
     if task_in_progress:
         return
 
-    c.REDIS_STORE.hset(c.REDIS_PREFIX + 'email_generation:' + id, 'request_timestamp',
+    c.REDIS_STORE.hset(c.REDIS_PREFIX + 'email_generation:' + id, 'started_timestamp',
                        datetime.now().timestamp())
     with Session() as session:
         fixture_obj = session.get(AutomatedEmail, id)
@@ -110,7 +110,7 @@ def generate_missing_emails():
             id = fixture_obj.id
             email_check_status = c.REDIS_STORE.hgetall(c.REDIS_PREFIX + 'email_generation:' + id)
             if not email_check_status and fixture_obj.fixture:
-                c.REDIS_STORE.hset(c.REDIS_PREFIX + 'email_generation:' + id, 'request_timestamp',
+                c.REDIS_STORE.hset(c.REDIS_PREFIX + 'email_generation:' + id, 'started_timestamp',
                                    datetime.now().timestamp())
                 email_count = EmailService.check_emails_for_fixture(session, fixture_obj)
                 session.commit()
