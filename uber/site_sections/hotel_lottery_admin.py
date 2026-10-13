@@ -773,7 +773,7 @@ class Root:
             session.add(application)
             if application.orig_value_of('status') != application.status and application.status in [
                     c.REJECTED, c.CANCELLED, c.REMOVED, c.WITHDRAWN]:
-                application.attendee.hotel_eligible = True
+                application.attendee.restore_crash_space_eligibility()
                 session.add(application.attendee)
             session.commit()
             if stay_on_form:

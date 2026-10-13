@@ -584,7 +584,7 @@ def _reset_group_member(application):
         application.status = c.WITHDRAWN
         application.terms_accepted = False
         application.data_policy_accepted = False
-        application.attendee.hotel_eligible = True
+        application.attendee.restore_crash_space_eligibility()
     
     if application.status == c.COMPLETE and c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery:
         application.is_staff_entry = True
@@ -597,7 +597,7 @@ def _reset_group_member(application):
 
 
 def _clear_application(application, status=c.WITHDRAWN):
-    application.attendee.hotel_eligible = True
+    application.attendee.restore_crash_space_eligibility()
     keep_attrs = [
         'id', 'attendee_id', 'response_id', 'cellphone']
 

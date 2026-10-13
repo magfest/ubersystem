@@ -2388,6 +2388,16 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         else:
             self.admin_notes = note
 
+    def restore_crash_space_eligibility(self):
+        """Give a staffer crash space back after they leave the lottery.
+
+        Withdrawal paths run for public lottery entrants too. hotel.eligible_attendees
+        trusts hotel_eligible alone, so setting it on a non-staff badge sends
+        that attendee to Tuber's crash space form.
+        """
+        if self.badge_type == c.STAFF_BADGE:
+            self.hotel_eligible = True
+
     @presave_adjustment
     def staffer_hotel_eligibility(self):
         if self.badge_type == c.STAFF_BADGE and (self.is_new or self.orig_value_of('badge_type') != c.STAFF_BADGE):
