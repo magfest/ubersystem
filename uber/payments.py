@@ -117,29 +117,34 @@ class PreregCart:
                 promo_code_count += 1
 
         return promo_code_count
+    
+    @classmethod
+    def prereg_attrs(cls, m, **params):
+        from uber.models import Attendee, Group
+
+        if isinstance(m, Attendee):
+            return Attendee.to_dict_default_attrs + ['promo_code', 'group_id'] + list(Attendee._extra_apply_attrs_restricted)
+        elif isinstance(m, Group):
+            return Group.to_dict_default_attrs + ['attendees'] + list(Group._extra_apply_attrs_restricted)
+        else:
+            return []
 
     @classmethod
     def to_sessionized(cls, m, **params):
         from uber.models import Attendee, Group
+
         if is_listy(m):
             return [cls.to_sessionized(t) for t in m]
         elif isinstance(m, dict):
             return m
         elif isinstance(m, Attendee):
-            d = m.to_dict(
-                Attendee.to_dict_default_attrs
-                + ['promo_code']
-                + ['group_id']
-                + list(Attendee._extra_apply_attrs_restricted))
+            d = m.to_dict(cls.prereg_attrs(m))
             for key in params:
                 if params.get(key):
                     d[key] = params.get(key)
             return d
         elif isinstance(m, Group):
-            d = m.to_dict(
-                Group.to_dict_default_attrs
-                + ['attendees']
-                + list(Group._extra_apply_attrs_restricted))
+            d = m.to_dict(cls.prereg_attrs(m))
             for key in params:
                 if params.get(key):
                     d[key] = params.get(key)
