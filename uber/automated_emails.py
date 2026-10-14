@@ -1093,11 +1093,15 @@ if c.HOTEL_LOTTERY_STAFF_START or c.HOTEL_LOTTERY_FORM_START:
         'hotel_lottery_rejected'
     )
 
+    # Attendees put a card down in Ubersystem, so no booking_url is issued and
+    # gating on booking_url_ready would hold this email forever. The 3-day
+    # window keeps the reminder from landing alongside the award email.
     HotelLotteryEmailFixture(
         f'Reminder to confirm your {c.EVENT_NAME_AND_YEAR} hotel reservation',
         'hotel/guarantee_reminder.html',
-        "lambda a: a.status == c.AWARDED and a.booking_url_ready and \
-            days_before(7, a.guarantee_deadline)() and not a.parent_application",
+        "lambda a: a.status == c.AWARDED and not a.parent_application \
+            and any(ra.needs_card for ra in a.lottery_room_assignments) \
+            and days_before(3, a.guarantee_deadline)()",
         'hotel_lottery_guarantee_reminder'
     )
     

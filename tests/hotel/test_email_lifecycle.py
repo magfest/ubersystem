@@ -114,7 +114,7 @@ def email_world(session, monkeypatch):
 
 
 def test_lottery_email_lifecycles(session, no_cherrypy_session, email_world):
-    """Winner, loser, and manually-roomed staff/guest, day -10 through +3.
+    """Winner, loser, and manually-roomed staff/guest, day -10 through +7.
 
     The loser also receives a manually assigned room after rejection: they
     must get the rejection (their entry genuinely lost) and then nothing
@@ -160,12 +160,13 @@ def test_lottery_email_lifecycles(session, no_cherrypy_session, email_world):
                                   'entering the room lottery')
         session.flush()
         winner_app.status = c.AWARDED
+        # No booking_url: attendees enter the card in Ubersystem. The card
+        # deadline is one week out, so the reminder waits until day 5.
         winner_rooms.append(make_assignment(
             session, winner, inv, status=c.ASSIGNED,
             assignment_reason=c.LOTTERY_AWARD,
             payment_type='credit_card',
-            booking_url='https://example.com/book',
-            deposit_cutoff_date=(DEADLINE + timedelta(days=6)).date(),
+            deposit_cutoff_date=(DEADLINE + timedelta(days=7)).date(),
             check_in=N[1], check_out=N[3],
             lottery_application_id=winner_app.id))
         loser_app.status = c.REJECTED
@@ -190,17 +191,17 @@ def test_lottery_email_lifecycles(session, no_cherrypy_session, email_world):
         -9: winner_completes,
         -1: lottery_runs,
         1: loser_safe_room,
-        2: winner_secures,
+        6: winner_secures,
     }
-    for offset in range(-10, 4):
+    for offset in range(-10, 8):
         world.run_day(offset, events.get(offset, lambda: None))
 
     winner_ids = (winner.id, winner_app.id, *[ra.id for ra in winner_rooms])
     assert world.received(*winner_ids) == {
         -9: {'hotel_lottery_confirmation'},
         -1: {'hotel_lottery_awarded'},
-        0: {'hotel_lottery_guarantee_reminder'},
-        2: {'hotel_lottery_secured'},
+        5: {'hotel_lottery_guarantee_reminder'},
+        6: {'hotel_lottery_secured'},
     }
     assert world.received(loser.id, loser_app.id) == {
         -2: {'hotel_lottery_reminder'},
@@ -264,3 +265,39 @@ def test_manual_room_after_registration_stops_the_lottery_nag(
     # after that day's noon delivery pass, so the nag lands on day -6.
     assert world.received(nagged.id) == {-6: {'enter_hotel_lottery'}}
     assert world.received(roomed.id) == {}
+
+
+@pytest.mark.parametrize('days_out, secured, is_member, expected', [
+    (5, False, False, False),  # deadline more than 72 hours away
+    (2, False, False, True),
+    (2, True, False, False),   # every room already has a card
+    (2, False, True, False),   # group members never get the reminder
+])
+def test_guarantee_reminder_filter(session, monkeypatch, days_out, secured,
+                                   is_member, expected):
+    now = _sim_now(0)
+    monkeypatch.setattr('uber.utils.localized_now', lambda: now)
+    # A global deadline inside the window must not reach a secured entry
+    # through guarantee_deadline's fallback.
+    monkeypatch.setattr(c, 'HOTEL_LOTTERY_GUARANTEE_DUE',
+                        now + timedelta(days=1), raising=False)
+
+    inv = make_inventory(session, make_hotel(session), quantity=5)
+    leader = make_attendee(session)
+    app = make_application(session, leader, status=c.AWARDED)
+    make_assignment(session, leader, inv,
+                    status=c.SECURED if secured else c.ASSIGNED,
+                    cc_token='tok' if secured else None,
+                    assignment_reason=c.LOTTERY_AWARD,
+                    deposit_cutoff_date=(now + timedelta(days=days_out)).date(),
+                    check_in=N[1], check_out=N[3],
+                    lottery_application_id=app.id)
+    target = app
+    if is_member:
+        target = make_application(session, make_attendee(session),
+                                  status=c.AWARDED,
+                                  parent_application_id=app.id)
+    session.flush()
+
+    fixture = AutomatedEmail._fixtures['hotel_lottery_guarantee_reminder']
+    assert bool(fixture.filter(target)) is expected
