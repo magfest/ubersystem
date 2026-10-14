@@ -2,6 +2,6 @@
 
 {{ c.EVENT_NAME }} encourages performers to sell their merchandise through "Rock Island," where our volunteers sell your merchandise at a booth which is staffed throughout the event. We need you to tell us whether you intend to sell merch at Rock Island by filling out the form at {{ c.URL_BASE }}/guests/merch?guest_id={{ guest.id }}
 
-You must tell us whether you intend to sell merch at Rock Island by {{ c.BAND_MERCH_DEADLINE|datetime_local }}. If yes, you must also input your inventory by {{ c.ROCK_ISLAND_DEADLINE|datetime_local }}. Failure to submit this information on time may result in forfeiture of the opportunity to sell merchandise at Rock Island.
+You must tell us whether you intend to sell merch at Rock Island by {{ c.BAND_MERCH_DEADLINE|datetime_local }}. If yes, you must also input your inventory by {{ guest.merch_island_config['deadline']|datetime_local }}. Failure to submit this information on time may result in forfeiture of the opportunity to sell merchandise at Rock Island.
 
 {{ email_signature }}

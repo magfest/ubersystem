@@ -277,7 +277,10 @@ def booking_export_data(session, hotel_id):
         return None, []
 
     from uber.hotel.queries import live_assignments_for_hotel
+    # Rows from a lottery run that hasn't been awarded yet stay out of
+    # anything sent to the hotel.
     assignments = (live_assignments_for_hotel(session, hotel.id)
+                   .filter(RoomAssignment.is_released)
                    .options(joinedload(RoomAssignment.partition))
                    .order_by(RoomAssignment.parent_assignment_id.asc().nullsfirst(),
                              RoomAssignment.created.asc())
@@ -713,7 +716,8 @@ def compute_export_tracking(session):
         ).order_by(HotelExportLog.exported_at.desc()).first()
 
         from uber.hotel.queries import live_assignments_for_hotel
-        bookings = live_assignments_for_hotel(session, hotel.id)
+        bookings = live_assignments_for_hotel(session, hotel.id).filter(
+            RoomAssignment.is_released)
 
         total_bookings = bookings.count()
         missing_confirmation = bookings.filter(
@@ -797,6 +801,7 @@ def write_interchange_export(out, session, staff_lottery=False):
 
     applications = session.query(LotteryApplication).join(LotteryApplication.attendee
                                                           ).filter(LotteryApplication.status != c.PROCESSED,
+                                                                   ~LotteryApplication.holds_pending_award,
                                                                    Attendee.hotel_lottery_eligible == True)
     if staff_lottery:
         applications = applications.filter(LotteryApplication.is_staff_entry == True)

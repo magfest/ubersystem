@@ -782,6 +782,21 @@ class Config(_Overridable):
         return [level for level in ['SHIRT', 'SUPPORTER', 'SEASON', 'BONUS'] if getattr(self, level + "_LEVEL", 0) != 0]
 
     @property
+    def LOCKED_ITEMS(self):
+        # Return a list of items configured in `unavailable_items` based on their value
+        # Mainly for use on the statistics summary page
+        locked = []
+        for badge_var in self.BADGE_VARS:
+            if badge_var.lower() in c.UNAVAILABLE_ITEMS:
+                locked.append(getattr(self, badge_var))
+
+        for level in self.KICKIN_LEVELS:
+            if level.lower() in c.UNAVAILABLE_ITEMS:
+                locked.append(getattr(self, level + "_LEVEL"))
+
+        return locked
+
+    @property
     def kickin_availability_matrix(self):
         return {getattr(self, level + "_LEVEL"): getattr(self, level + "_AVAILABLE")
                 for level in self.KICKIN_LEVELS}
@@ -1231,6 +1246,8 @@ class Config(_Overridable):
     @property
     @dynamic
     def REMAINING_BADGES(self):
+        if not c.ATTENDEE_BADGE_AVAILABLE:
+            return 0
         return max(0, self.ATTENDEE_BADGE_STOCK - self.get_stock_count('ATTENDEE_BADGE', self.ATTENDEE_BADGE_STOCK))
 
     @request_cached_property
@@ -1280,7 +1297,8 @@ class Config(_Overridable):
         if self.HAS_HOTEL_LOTTERY_ADMIN_ACCESS:
             return True
         try:
-            account_id = cherrypy.session.get('account_id')
+            # OIDC logins put the id on the request, not the session.
+            account_id = cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))
             if not account_id:
                 return False
             from uber.hotel.perms import has_any_lottery_access
@@ -1631,6 +1649,9 @@ class Config(_Overridable):
             return self.get_badge_count_by_type(badge_type) if badge_type else None
         elif name.endswith('_AVAILABLE'):
             item_check = name.rsplit('_', 1)[0]
+            if item_check.lower() in c.UNAVAILABLE_ITEMS:
+                return False
+
             stock_setting = getattr(self, item_check + '_STOCK', None)
             if stock_setting is None:
                 # Defaults to unlimited stock for any stock not configured
@@ -2335,18 +2356,6 @@ c.EVENT_OPEN = {'colspan': 1}
 c.PRESENTATION_OPTS.sort(key=lambda tup: 'zzz' if tup[0] == c.OTHER else tup[1])
 with contextlib.suppress(Exception):
     c.PANEL_LENGTH_OPTS.sort(key=lambda tup: 'zzz' if tup[0] == c.OTHER else int(tup[1].split(' ')[0]))
-
-
-# =============================
-# tabletop
-# =============================
-
-invalid_tabletop_rooms = [room for room in c.TABLETOP_LOCATIONS if not getattr(c, room.upper(), None)]
-for room in invalid_tabletop_rooms:
-    log.warning('config: tabletop_locations config problem: '
-                'Ignoring {!r} because it was not also found in [[event_location]] section.'.format(room.upper()))
-
-c.TABLETOP_LOCATIONS = [getattr(c, room.upper()) for room in c.TABLETOP_LOCATIONS if room not in invalid_tabletop_rooms]
 
 
 # =============================

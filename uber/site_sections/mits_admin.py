@@ -98,6 +98,7 @@ class Root:
             applicant = session.mits_applicant(applicant_id)
             applicant.attendee = attendee
             add_opt(attendee.ribbon_ints, c.MIVS)
+            attendee.can_transfer = False
             session.commit()
         except Exception:
             log.error('unexpected error linking applicant to a badge', exc_info=True)

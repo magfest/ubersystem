@@ -163,11 +163,10 @@ class Root:
 
     @site_mappable
     def rock_island(self, session, message='', only_empty=None, group_type=None, id=None, **params):
-        query = session.query(GuestGroup).options(
-                subqueryload(GuestGroup.group)).options(
-                subqueryload(GuestGroup.merch))
+        guest_groups = session.query(GuestGroup).options(
+            subqueryload(GuestGroup.group)).options(subqueryload(GuestGroup.merch))
         if id:
-            guest_groups = [query.get(id)]
+            guest_groups = [guest_groups.get(id)]
         else:
             if group_type:
                 guest_groups = guest_groups.filter(GuestGroup.group_type == int(group_type))
@@ -175,7 +174,7 @@ class Root:
                 empty_filter = [GuestMerch.inventory == '{}']
             else:
                 empty_filter = []
-            guest_groups = query.filter(
+            guest_groups = guest_groups.filter(
                 GuestGroup.id == GuestMerch.guest_id,
                 GuestMerch.selling_merch == c.ROCK_ISLAND,
                 GuestGroup.group_id == Group.id).filter(
@@ -195,6 +194,7 @@ class Root:
     @site_mappable(download=True)
     @xlsx_file
     def rock_island_square_xlsx(self, out, session, group_type=None, id=None, **params):
+        island_name = 'MAGFest Indie Item Shoppe' if group_type == c.MIVS else 'MAGFest Rock Island'
         header_row = [
             'Reference Handle', 'Token', 'Item Name', 'Customer-facing Name', 'Variation Name',
             'Unit and Precision', 'SKU', 'Description', 'Categories', 'Reporting Category',
@@ -202,20 +202,19 @@ class Root:
             'Weight (lb)', 'Social Media Link Title', 'Social Media Link Description',
             'Shipping Enabled', 'Self-serve Ordering Enabled', 'Delivery Enabled', 'Pickup Enabled', 'Price',
             'Online Sale Price', 'Archived', 'Sellable', 'Contains Alcohol', 'Stockable', 'Skip Detail Screen in POS',
-            'Option Name 1', 'Option Value 1', 'Current Quantity MAGFest Rock Island', 'New Quantity MAGFest Rock Island',
-            'Stock Alert Enabled MAGFest Rock Island', 'Stock Alert Count MAGFest Rock Island', 'Tax - Sales Tax (6%)'
+            'Option Name 1', 'Option Value 1', f'Current Quantity {island_name}', f'New Quantity {island_name}',
+            f'Stock Alert Enabled {island_name}', f'Stock Alert Count {island_name}', 'Tax - Sales Tax (6%)'
             ]
         
-        query = session.query(GuestGroup).options(
-                subqueryload(GuestGroup.group)).options(
-                subqueryload(GuestGroup.merch))
+        guest_groups = session.query(GuestGroup).options(
+            subqueryload(GuestGroup.group)).options(subqueryload(GuestGroup.merch))
         
         if id:
-            guest_groups = [query.get(id)]
+            guest_groups = [guest_groups.get(id)]
         else:
             if group_type:
                 guest_groups = guest_groups.filter(GuestGroup.group_type == int(group_type))
-            guest_groups = query.filter(
+            guest_groups = guest_groups.filter(
                 GuestGroup.id == GuestMerch.guest_id,
                 GuestMerch.selling_merch == c.ROCK_ISLAND,
                 GuestGroup.group_id == Group.id).order_by(
@@ -223,6 +222,8 @@ class Root:
         
         rows = []
         item_type_square_name = {
+            c.PHYSICAL_GAME: "GAME",
+            c.GAME_CODE: "GAME CODE",
             c.CD: "MUSIC",
             c.TSHIRT: "APPAREL",
             c.APPAREL: "APPAREL",
@@ -242,7 +243,7 @@ class Root:
 
         def _generate_row(item, guest, variation_name='Regular'):
             item_type = int(item['type'])
-            item_name = f'{item_type_square_name[item_type]} {guest.group.name} {item['name']}'
+            item_name = f'{item_type_square_name.get(item_type, c.MERCH_TYPES[item_type].upper())} {guest.group.name} {item['name']}'
             if item_type == c.CD:
                 item_name = f'{item_name} {c.ALBUM_MEDIAS[int(item['media'])]}'
             elif item_type == c.TSHIRT:
@@ -270,15 +271,14 @@ class Root:
         out.writerow([
             'Group Name', 'Inventory Type', 'Inventory Name', 'Price', 'Media', 'Quantity', 'Promo Picture URL',
         ])
-        query = session.query(GuestGroup).options(
-                subqueryload(GuestGroup.group)).options(
-                subqueryload(GuestGroup.merch))
+        guest_groups = session.query(GuestGroup).options(
+            subqueryload(GuestGroup.group)).options(subqueryload(GuestGroup.merch))
         if id:
-            guest_groups = [query.get(id)]
+            guest_groups = [guest_groups.get(id)]
         else:
             if group_type:
                 guest_groups = guest_groups.filter(GuestGroup.group_type == int(group_type))
-            guest_groups = query.filter(
+            guest_groups = guest_groups.filter(
                 GuestGroup.id == GuestMerch.guest_id,
                 GuestMerch.selling_merch == c.ROCK_ISLAND,
                 GuestGroup.group_id == Group.id).order_by(
@@ -302,8 +302,8 @@ class Root:
                             '{} - {}'.format(item['name'], guest.merch.line_item_to_string(item, line_item)),
                             '${:.2f}'.format(float(item['price'])),
                             '',
-                            '1',
-                            convert_to_absolute_url(guest.merch.inventory_url(item['id'], 'image'))
+                            item[line_item] if guest.uses_quantity else 'N/A',
+                            convert_to_absolute_url(guest.inventory_url(item['id'], 'image'))
                         ])
                 else:
                     out.writerow([
@@ -312,21 +312,20 @@ class Root:
                         item['name'],
                         '${:.2f}'.format(float(item['price'])),
                         c.ALBUM_MEDIAS[int(item['media'])] if item.get('media', '') else '',
-                        '1',
+                        guest.merch.total_quantity(item) if guest.uses_quantity else 'N/A',
                         convert_to_absolute_url(guest.merch.inventory_url(item['id'], 'image')),
                     ])
 
     @multifile_zipfile
     def rock_island_image_zip(self, zip_file, session, group_type=None, id=None, **params):
-        query = session.query(GuestGroup).options(
-                subqueryload(GuestGroup.group)).options(
-                subqueryload(GuestGroup.merch))
+        guest_groups = session.query(GuestGroup).options(
+            subqueryload(GuestGroup.group)).options(subqueryload(GuestGroup.merch))
         if id:
-            guest_groups = [query.get(id)]
+            guest_groups = [guest_groups.get(id)]
         else:
             if group_type:
                 guest_groups = guest_groups.filter(GuestGroup.group_type == int(group_type))
-            guest_groups = query.filter(
+            guest_groups = guest_groups.filter(
                 GuestGroup.id == GuestMerch.guest_id,
                 GuestMerch.selling_merch == c.ROCK_ISLAND,
                 GuestGroup.group_id == Group.id).order_by(
@@ -378,7 +377,9 @@ class Root:
                 return "Not Set"
 
         for guest in guest_groups:
-            if not guest.autograph:
+            if guest.group_type == c.MIVS:
+                meet_greet = "N/A"
+            elif not guest.autograph:
                 meet_greet = "Not Selected"
             else:
                 meet_greet = "Yes" if guest.autograph.rock_island_autographs else "No"

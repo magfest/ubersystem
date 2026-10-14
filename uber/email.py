@@ -230,9 +230,9 @@ class EmailService:
         for email in queued_emails:
             sent_email = EmailService.send_email(session, email, email.automated_email, models_by_id.get(email.fk_id, None))
             if sent_email:
-                session.add(sent_email)
+                session.add(email)
                 sent_count += 1
-        session.commit()
+            session.commit()  # Save each email's status or error message as we go in case an error kills the task
         return sent_count
     
     @staticmethod
@@ -276,9 +276,11 @@ class EmailService:
         if email.fk_id:
             if not to_model:
                 email.error = f"Could not find a {email.model} model with ID {email.fk_id}"
+                session.add(email)
                 return
             if not to_model.email_to_address:
                 email.error = f"Model {to_model} does not have an email address"
+                session.add(email)
                 return
             if not to_model.gets_emails:
                 session.delete(email)
@@ -286,6 +288,7 @@ class EmailService:
 
         if fixture_obj and not fixture_obj.fixture:
             email.error = f"Fixture {email.ident} is no longer defined and cannot be sent"
+            session.add(email)
             return
 
         fixture = fixture_obj.fixture if fixture_obj else None
@@ -334,14 +337,19 @@ class EmailService:
 
         if missing:
             email.error = f"Email {email.id} cannot be sent: missing {readable_join(missing)}"
+            session.add(email)
             return
         
         if fixture_obj:
             email.subject = (email.subject or fixture_obj.subject).format_map(render_data)
-        
+
+        if not (c.DEV_BOX or c.SEND_EMAILS):
+            # We also have this check in `send_automated_emails`, so this is just extra assurance
+            return
+
         try:
             error_msg = ''
-            if not c.DEV_BOX and c.SEND_EMAILS:
+            if not c.DEV_BOX:
                 ses_payload = {
                     'bodyText' if email.format == 'text' else 'bodyHtml': email.body,
                     'subject': email.subject,
@@ -357,12 +365,14 @@ class EmailService:
 
             if error_msg:
                 email.error = f"Error while sending email: {str(error_msg)}"
+                session.add(email)
                 return
             email.status = c.SENT
             email.sent = datetime.now(pytz.UTC)
             return email
         except Exception as error:
             email.error = f"Error while sending email: {str(error)}"
+            session.add(email)
 
     @staticmethod
     @reconcile_fixtures

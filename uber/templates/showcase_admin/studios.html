@@ -13,6 +13,7 @@
 <table class="table table-hover datatable" data-page-length="-1">
 <thead>
   <tr>
+    <th>Account Email</th>
     <th>Studio Name</th>
     <th>Primary Contacts</th>
     <th data-orderable="false"></th>
@@ -23,6 +24,7 @@
 <tbody>
 {% for studio in studios %}
   <tr>
+    <td>{{ studio.attendee_account.email if studio.attendee_account else 'None' }}</td>
     <td><a href="studio?id={{ studio.id }}">{{ studio.name }}</a></td>
     <td>
       {% for contact in studio.primary_contacts %}

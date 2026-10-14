@@ -13,7 +13,7 @@ Although your group ({{ group.name }}) {{ 'cancelled their ' + c.DEALER_APP_TERM
 {% endif %}
 we have reserved a badge for you{% if c.PRICE_BUMPS and attendee.badge_cost and attendee.badge_cost < c.BADGE_PRICE %} for {{ attendee.badge_cost|format_currency }}, which was the price of registration when you first applied{% endif %}.
 {% if other_badges > 0 %}Attendee badges were also reserved for the {{ (other_badges ~ ' other people') if other_badges > 1 else 'other person' }} in your group who had a valid name and email. {% endif %}
-{% if group.unregistered_badges > 0 %}All unassigned badges were dropped.{% endif %}
+{% if unregistered_badges %}All unassigned badges were dropped.{% endif %}
 
 <br/><br/>Please note: You are choosing to accept or decline an ATTENDEE badge at the price it would have been had you bought it instead of applying for the {{ c.DEALER_LOC_TERM }}.
   <strong>You were not accepted as {{ c.DEALER_INDEFINITE_TERM }}, and will not have space in the {{ c.DEALER_LOC_TERM }}.</strong>

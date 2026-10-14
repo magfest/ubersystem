@@ -22,10 +22,10 @@
       <br/><br/>
           <b>{{ sender }}{% if c.DEPTS_BY_SENDER[sender|email_only] %} ({% for dept in c.DEPTS_BY_SENDER[sender|email_only] %}{{ dept|form_link(true) }}{% endfor %}){% endif %}</b>
           <ul>
-            {% for email, count in emails.items() %}
+            {% for email_id, count in emails %}
                 <li>
-                    <b>{{ email.subject }}</b> ({{ count }} awaiting approval): 
-                    <a href="{{ c.URL_BASE }}/email_admin/automated_email?id={{ email.id }}">View/Manage</a>
+                    <b>{{ subjects_by_id[email_id] }}</b> ({{ count }} awaiting approval): 
+                    <a href="{{ c.URL_BASE }}/email_admin/automated_email?id={{ email_id }}">View/Manage</a>
                 </li>
             {% endfor %}
           </ul>

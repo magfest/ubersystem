@@ -57,7 +57,7 @@ def convert_declined_groups():
 @celery.schedule(crontab(minute=0, hour=0))
 def rock_island_updates():
     with Session() as session:
-        updated_ri_inventories = session.query(GuestGroup).join(
+        updated_ri_inventories = session.query(GuestGroup).filter(GuestGroup.group_type != c.MIVS).join(
             GuestMerch, GuestGroup.merch).filter(
                 GuestMerch.inventory_updated > datetime.now(pytz.UTC) - timedelta(hours=24))
         if updated_ri_inventories.count():

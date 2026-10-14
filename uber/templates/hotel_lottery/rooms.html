@@ -45,10 +45,15 @@
 
 {% set _rooms = primaries|default([]) %}
 {% set _guest_rooms = guest_in|default([]) %}
+{% set _inactive_rooms = inactive_rooms|default([]) %}
 
 {% if not _rooms and not _guest_rooms %}
 <div class="alert alert-secondary mb-3">
-  You don't have any room assignments yet.
+  {% if _inactive_rooms %}
+    You don't have any active room assignments.
+  {% else %}
+    You don't have any room assignments yet.
+  {% endif %}
   {% if attendee.hotel_lottery_eligible and (c.HOTEL_LOTTERY_OPEN or c.STAFF_HOTEL_LOTTERY_OPEN and attendee.staff_hotel_lottery_eligible) %}
     {% set _page, _text = attendee.lottery_application.homepage_link
        if attendee.lottery_application
@@ -138,7 +143,7 @@
         </div>
         <div class="d-flex gap-2 mt-2">
           <a href="room?id={{ child.id }}&attendee_id={{ attendee.id }}" class="btn btn-sm btn-outline-primary">
-            {% if child.export_locked %}View{% else %}Edit{% endif %}
+            {% if child.export_locked or not child.is_live %}View{% else %}Edit{% endif %}
           </a>
           {% if not child.export_locked and child.require_cc and child.status == c.ASSIGNED %}
             <a href="secure_room?assignment_id={{ child.id }}&attendee_id={{ attendee.id }}" class="btn btn-sm btn-success">
@@ -193,6 +198,44 @@
         </form>
       {% endif %}
     </div>
+  </div>
+</div>
+{% endfor %}
+{% endif %}
+
+{# Expired and cancelled rooms, booked or occupied. They no longer hold
+   inventory, so each card is a read-only record with a View link. #}
+{% if _inactive_rooms %}
+<h2 class="h4 mt-4">Inactive rooms</h2>
+<p class="text-muted small">
+  These rooms are no longer held for you. They stay listed so you can see
+  what happened to them.
+</p>
+
+{% for room in _inactive_rooms %}
+<div class="card mb-3 bg-light">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start">
+      <div>
+        <h3 class="card-title h5 mb-1 text-muted">
+          {{ room_macros.room_name(room) }}
+          {% if room.is_connector %}
+            <span class="badge bg-info text-dark ms-1">Connector</span>
+          {% endif %}
+        </h3>
+        <p class="text-muted mb-1">
+          {{ room_macros.room_dates(room) }}
+          {% if room.attendee_id != attendee.id and room.attendee %}
+            - Booked by {{ room.attendee.first_name }} {{ room.attendee.last_name }}
+          {% endif %}
+        </p>
+        <p class="mb-2">{{ room_macros.inactive_room_reason(room) }}</p>
+      </div>
+      <div>
+        {{ room_macros.room_status_badges(room) }}
+      </div>
+    </div>
+    <a href="room?id={{ room.id }}&attendee_id={{ attendee.id }}" class="btn btn-sm btn-outline-secondary">View</a>
   </div>
 </div>
 {% endfor %}

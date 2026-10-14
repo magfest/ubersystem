@@ -90,9 +90,14 @@ get noBadgeNumText() { return this.preassignedBadge() ? 'Use next available badg
                 {% for manager in attendee.managers %}
                     {% if not loop.first %} / {% endif %}{{ manager.email }}{% if c.HAS_REG_ADMIN_ACCESS %} (<a href="../reg_admin/attendee_account_form?id={{ manager.id }}" target="_blank">View, Manage, & Refund</a>){% endif %}<br/>
                     {% if manager.attendees|length > 1 %}
+                    <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#other-badges" aria-expanded="false" aria-controls="other-badges">
+                        View Other Attendees on Account
+                    </button>
+                    <div class="collapse" id="other-badges">
                     {%- for managed_attendee in manager.attendees|selectattr('id','!=',attendee.id) -%}
                         {% if not loop.first %} / {% endif %}{{ managed_attendee|form_link }}{% if not managed_attendee.is_valid %} <span class="badge bg-secondary">Invalid</span>{% endif %}
-                        {%- endfor -%}
+                    {%- endfor -%}
+                    </div>
                     {% endif %}
                 {% else %}
                     This attendee has no attendee accounts.

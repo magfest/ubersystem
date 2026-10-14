@@ -1,58 +1,4 @@
-"""The per-room waitlist engine.
-
-One implementation of the extend-against-capacity + FIFO algorithm that
-previously existed in three copies: the attendee room editor
-(`hotel_lottery.edit_room`), the admin sweep (run by the Process
-Waitlist button and the inventory-save hook), and the admin single-row
-accept (`accept_waitlist`).
-
-The unit of state is the RoomAssignment: `assigned_check_in_date` /
-`assigned_check_out_date` hold the confirmed range, `waitlisted_*` hold
-the wider requested window, and the model presaves
-(`clear_waitlist_when_satisfied` / `stamp_waitlist_start`) keep
-`waitlist_started_at` - the FIFO key - in sync on every flush.
-
-Deliberate reconciliations vs the code this module replaces (approved
-at plan review):
-
-1. `accept_waitlist_entry` keeps the admin accept's looser gate as a
-   documented admin override: by default (require_secured=False) it
-   does NOT require SECURED status or a non-group entry, but it still
-   refuses export-locked rows and rows with no inventory block
-   (WaitlistError).
-2. `resize_assignment`'s FIFO queue gate is scoped like the sweep's: an
-   extension night is queue-blocked only when some OTHER assignment is
-   sweep-eligible (see `sweep_eligible`), sits in the SAME partition
-   scope of the same block, and actually wants that night (its
-   `waitlisted_gap_nights` contains it). Previously ANY waitlister on
-   the inventory blocked every extension - attendees are no longer
-   blocked by irrelevant queues.
-3. `fulfill_waitlist` processes front-gap nights DESCENDING (closest to
-   the current check-in first) so a multi-night front gap completes in
-   one sweep. The old sweep only ever extended the night adjacent to
-   the current check-in and walked nights ascending, so a front gap
-   advanced one night per run - that walk-order bug dies with the old
-   code. Back-gap nights still walk ascending (earliest first).
-4. ALL three paths cascade assigned dates + waitlisted dates +
-   `waitlist_started_at` to connector children (`ra.child_assignments`)
-   through one helper. The old sweep cascaded nothing (stale child
-   dates); the accept cascaded all three; the attendee editor cascaded
-   the dates but not `waitlist_started_at`.
-5. `resize_assignment` evaluates EXTENSION nights only (nights outside
-   the currently-assigned range). Currently-held nights are never
-   re-evaluated or reported as waitlisted (the old editor could report
-   a held night "Waitlisted" on an oversubscribed block). A shrink is a
-   no-op: the confirmed range only ever widens (extend-or-keep).
-6. Waitlist DEMAND counting (the admin Waitlist dashboard's per-block
-   rows and the inventory overview's waitlist tally) counts exactly the
-   sweep-eligible rows. The two used to disagree - one counted every
-   waitlisted row, the other only SECURED ones. Both controllers now
-   call `sweep_eligible`; the counting itself stays with them (it's
-   presentation shaping).
-
-Transaction convention (see uber.hotel.__init__): functions here flush
-but never commit. Route handlers own the transaction and queue
-notification emails only after their commit succeeds.
+"""Room change waitlist system
 """
 
 from collections import defaultdict, namedtuple
@@ -81,10 +27,13 @@ class WaitlistError(Exception):
         self.message = message
 
 
-#: Result of `resize_assignment`: the final confirmed range plus the
-#: sorted requested nights that ended up outside it (i.e. waitlisted).
+#: Result of `resize_assignment`: the final confirmed range, the sorted
+#: requested nights that ended up outside it (i.e. waitlisted), and the
+#: sorted previously-held nights the request gave up (released back to
+#: the block; they reach queued rows on the next admin sweep).
 ResizeResult = namedtuple(
-    'ResizeResult', 'confirmed_ci confirmed_co waitlisted_nights')
+    'ResizeResult',
+    'confirmed_ci confirmed_co waitlisted_nights released_nights')
 
 #: Result of `fulfill_waitlist`: the set of RoomAssignments that gained
 #: at least one night, the total night-extensions granted, and how many
@@ -140,27 +89,25 @@ def _cascade_to_children(session, ra):
 
 
 def resize_assignment(session, ra, new_ci, new_co, *, respect_queue=True):
-    """Attendee-style resize: widen `ra`'s confirmed range toward
+    """Attendee-style resize: move `ra`'s confirmed range toward
     [new_ci, new_co), confirming whatever contiguous extension nights
-    have open capacity and stashing the full requested window on the
-    row's `waitlisted_*` columns when any of it couldn't be confirmed.
+    have open capacity, releasing held nights the request no longer
+    wants, and stashing the full requested window on the row's
+    `waitlisted_*` columns when any of it couldn't be confirmed.
 
-    Only EXTENSION nights - nights outside the currently-assigned range
-    - are evaluated; held nights are always kept and a shrink is a no-op
-    (reconciliation 5: extend-or-keep). With `respect_queue`, an
+    With `respect_queue`, an
     extension night is also refused when another sweep-eligible row in
-    the same partition scope is already queued for it (reconciliation
-    2) - FIFO fairness, the sweep serves the earlier entrant first.
-
-    Flushes (so the model presaves stamp/clear the waitlist bookkeeping)
-    and cascades to connector children. Never commits.
+    the same partition scope is already queued for it. Requests are
+    served as FIFO when there is limited inventory.
 
     Returns ResizeResult; `waitlisted_nights` is the sorted list of
     requested nights left outside the final confirmed range (all of
-    them extension nights, by construction).
+    them extension nights, by construction) and `released_nights` the
+    sorted list of previously-held nights no longer in it.
 
-    Raises WaitlistError if the row has no inventory block or no
-    confirmed range to extend from.
+    Raises WaitlistError if the row has no inventory block, no
+    confirmed range to move, the request is empty (check-out on or
+    before check-in), or none of the requested nights can be held.
     """
     inv = ra.inventory
     if inv is None:
@@ -169,6 +116,9 @@ def resize_assignment(session, ra, new_ci, new_co, *, respect_queue=True):
     cur_ci, cur_co = ra.assigned_check_in_date, ra.assigned_check_out_date
     if not (cur_ci and cur_co):
         raise WaitlistError('This room has no confirmed dates to adjust.')
+    if new_co <= new_ci:
+        raise WaitlistError('Check-out must be at least one night after '
+                            'check-in.')
 
     # Nights already claimed by someone else's queue position
     # (reconciliation 2): other sweep-eligible rows in the same
@@ -203,19 +153,31 @@ def resize_assignment(session, ra, new_ci, new_co, *, respect_queue=True):
                     available.add(day)
         day += timedelta(days=1)
 
-    # The confirmed range must stay contiguous and include the current
-    # range, so walk outward from it night by night on each end.
-    confirmed_ci, confirmed_co = cur_ci, cur_co
-    if new_ci < confirmed_ci:
-        d = confirmed_ci - timedelta(days=1)
-        while d >= new_ci and d in available:
-            confirmed_ci = d
-            d -= timedelta(days=1)
-    if new_co > confirmed_co:
-        d = confirmed_co
-        while d < new_co and d in available:
-            confirmed_co = d + timedelta(days=1)
-            d += timedelta(days=1)
+    runs, run = [], []
+    day = new_ci
+    while day < new_co:
+        if (cur_ci <= day < cur_co) or day in available:
+            run.append(day)
+        elif run:
+            runs.append(run)
+            run = []
+        day += timedelta(days=1)
+    if run:
+        runs.append(run)
+    if not runs:
+        raise WaitlistError(
+            "None of those nights are available right now, so your "
+            "current dates were kept.")
+    kept = [r for r in runs if any(cur_ci <= d < cur_co for d in r)]
+    chosen = kept[0] if kept else max(runs, key=len)
+    confirmed_ci, confirmed_co = chosen[0], chosen[-1] + timedelta(days=1)
+
+    released_nights = []
+    day = cur_ci
+    while day < cur_co:
+        if day < confirmed_ci or day >= confirmed_co:
+            released_nights.append(day)
+        day += timedelta(days=1)
 
     ra.assigned_check_in_date = confirmed_ci
     ra.assigned_check_out_date = confirmed_co
@@ -244,7 +206,8 @@ def resize_assignment(session, ra, new_ci, new_co, *, respect_queue=True):
             waitlisted_nights.append(day)
         day += timedelta(days=1)
 
-    return ResizeResult(confirmed_ci, confirmed_co, waitlisted_nights)
+    return ResizeResult(confirmed_ci, confirmed_co, waitlisted_nights,
+                        released_nights)
 
 
 def _extendable_direction(ra, night):

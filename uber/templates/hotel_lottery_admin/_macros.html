@@ -160,7 +160,7 @@
   {% elif app.status in _bad %}
     <span class="text-danger">{{ app.status_label }}</span>
   {% else %}
-    {{ app.status_label }}
+    {{ app.admin_status_label }}
   {% endif %}
 {% endmacro %}
 

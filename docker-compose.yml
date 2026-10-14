@@ -49,7 +49,7 @@ services:
   rabbitmq:
     ports:
       - "5672"
-    image: rabbitmq:alpine
+    image: rabbitmq:4.2-alpine
     environment:
       - RABBITMQ_DEFAULT_USER=celery
       - RABBITMQ_DEFAULT_PASS=celery

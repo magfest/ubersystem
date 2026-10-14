@@ -141,7 +141,7 @@
             <th># Group Members</th>
             <th>Admin Notes</th>
             <th><a href="index?order={{ order.is_staff_entry }}&page={{ page }}&{{ list_qs }}">Staff Entry</a></th>
-            <th><a href="index?order={{ order.assigned_inventory_id }}&page={{ page }}&{{ list_qs }}">Assigned Room</a></th>
+            <th><a href="index?order={{ order.assigned_rooms }}&page={{ page }}&{{ list_qs }}">Assigned Room</a></th>
             <th><a href="index?order={{ order.last_modified_at }}&page={{ page }}&{{ list_qs }}">Last Modified</a></th>
             {% endblock tableheadings %}
           </tr>

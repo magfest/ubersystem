@@ -466,6 +466,10 @@ class IndieGame(MagModel, ReviewMixin, table=True):
             self.waitlisted = datetime.now(UTC)
 
     @property
+    def attendee_account(self):
+        return self.studio.attendee_account if self.studio else None
+
+    @property
     def email(self):
         return self.studio.email if self.studio else ''
     

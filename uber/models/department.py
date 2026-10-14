@@ -409,6 +409,19 @@ class Department(MagModel, table=True):
     @property
     def job_templates_choices(self):
         return [(template.id, template.template_name) for template in self.job_templates]
+
+    @property
+    def job_templates_data(self):
+        data = {}
+
+        for template in self.job_templates:
+            attrs = JobTemplate.to_dict_default_attrs + ['required_roles_ids']
+            d = template.to_dict(attrs)
+            # Avoid potentially exposing extra data to the UI or circular references.
+            d.pop('jobs', None)
+            data[template.id] = d
+
+        return data
     
     @property
     def job_templates_by_id(self):
@@ -762,6 +775,9 @@ class JobTemplate(MagModel, table=True):
         self._set_relation_ids('required_roles', DeptRole, value)
 
     def create_jobs(self, session, days_ints=None, reset=True):
+        if self.type == c.CUSTOM:
+            return
+
         if reset:
             for job in self.jobs:
                 session.delete(job)
@@ -791,6 +807,7 @@ class JobTemplate(MagModel, table=True):
                            weight=self.weight, slots=self.min_slots,
                            extra15=self.extra15, visibility=self.visibility,
                            all_roles_required=self.all_roles_required)
+            next_job.required_roles_ids = self.required_roles_ids
             session.add(next_job)
             next_shift_start += interval_delta
 
@@ -798,8 +815,8 @@ class JobTemplate(MagModel, table=True):
         """
         Updates this template's existing jobs based on changes made to the template.
         Order of operations:
-            1. Check for differences in days: if different, set aside jobs on removed days
-            so we don't process them in the next steps. Added days are saved for the end.
+            1. Check for differences in days: if different, set aside jobs on removed days so we don't process them
+            in the next steps. Added days are saved for the end.
             2. Update all the basic attributes that don't require extra logic. Required roles and min slots need
             some simple custom logic, but otherwise they are applied to jobs the same as the others.
             3. If the open or close time has changed, build a list of jobs by day for processing.
@@ -820,26 +837,26 @@ class JobTemplate(MagModel, table=True):
         deleted_jobs = []
         jobs_by_day = defaultdict(list)
 
-        # Storing these now prevents extra hits to the DB
-        old_open_time = self.orig_value_of('open_time')
-        old_close_time = self.orig_value_of('close_time')
-        
-        old_days_ints = set([int(i) for i in str(self.orig_value_of('days')).split(',') if i])
+        if self.type != c.CUSTOM:
+            # Storing these now prevents extra hits to the DB
+            old_open_time = self.orig_value_of('open_time')
+            old_close_time = self.orig_value_of('close_time')
+            
+            old_days_ints = set([int(i) for i in str(self.orig_value_of('days')).split(',') if i])
+            new_days_ints = set(self.days_ints)
 
-        new_days_ints = set(self.days_ints)
+            if old_days_ints != new_days_ints:
+                delete_days = old_days_ints - new_days_ints
+                add_days = new_days_ints - old_days_ints
 
-        if old_days_ints != new_days_ints:
-            delete_days = old_days_ints - new_days_ints
-            add_days = new_days_ints - old_days_ints
-
-            if delete_days:
-                jobs_by_date = session.query(
-                    date_trunc_day(Job.start_time), Job
-                    ).join(Job.template).filter(Job.job_template_id == self.id)
-                for dt, job_to_delete in jobs_by_date:
-                    if int(dt.strftime('%Y%m%d')) in delete_days:
-                        deleted_jobs.append(job_to_delete)
-                        session.delete(job_to_delete)
+                if delete_days:
+                    jobs_by_date = session.query(
+                        date_trunc_day(Job.start_time), Job
+                        ).join(Job.template).filter(Job.job_template_id == self.id)
+                    for dt, job_to_delete in jobs_by_date:
+                        if int(dt.strftime('%Y%m%d')) in delete_days:
+                            deleted_jobs.append(job_to_delete)
+                            session.delete(job_to_delete)
         
         jobs_to_process = [j for j in self.jobs if j.id not in deleted_jobs]
 

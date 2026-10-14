@@ -372,16 +372,16 @@ def _partition_conflicts(session, partition):
     return groups
 
 
-def _waitlist_reveal_conflicts(session, reveal):
-    from uber.models.hotel import WaitlistRevealLink
+def _overflow_reveal_conflicts(session, reveal):
+    from uber.models.hotel import OverflowRevealLink
 
     groups = []
-    emailed = session.query(WaitlistRevealLink).filter(
-        WaitlistRevealLink.waitlist_reveal_id == reveal.id,
-        WaitlistRevealLink.emailed_at.isnot(None)).count()
-    unsent = session.query(WaitlistRevealLink).filter(
-        WaitlistRevealLink.waitlist_reveal_id == reveal.id,
-        WaitlistRevealLink.emailed_at.is_(None)).count()
+    emailed = session.query(OverflowRevealLink).filter(
+        OverflowRevealLink.overflow_reveal_id == reveal.id,
+        OverflowRevealLink.emailed_at.isnot(None)).count()
+    unsent = session.query(OverflowRevealLink).filter(
+        OverflowRevealLink.overflow_reveal_id == reveal.id,
+        OverflowRevealLink.emailed_at.is_(None)).count()
 
     if emailed:
         # Those URLs are in inboxes. Deleting makes every one fail the token
@@ -435,12 +435,12 @@ RESOURCE_SPECS = {
         'soft_delete': True,
         'conflicts': _partition_conflicts,
     },
-    'waitlist_reveal': {
-        'model': 'WaitlistReveal',
-        'title': 'waitlist reveal',
-        'list_page': 'waitlist_reveals',
+    'overflow_reveal': {
+        'model': 'OverflowReveal',
+        'title': 'overflow booking',
+        'list_page': 'overflow_reveals',
         'soft_delete': True,
-        'conflicts': _waitlist_reveal_conflicts,
+        'conflicts': _overflow_reveal_conflicts,
     },
 }
 
@@ -660,7 +660,7 @@ _RESOLVERS = {
     ('room_type', 'connector_children'): _resolve_connector_children,
     ('hotel', 'inventory'): _resolve_hotel_inventory,
     ('hotel', 'physical_rooms'): _resolve_hotel_physical_rooms,
-    ('waitlist_reveal', 'emailed_links'): _resolve_emailed_links,
+    ('overflow_reveal', 'emailed_links'): _resolve_emailed_links,
 }
 
 

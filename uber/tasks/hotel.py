@@ -39,6 +39,7 @@ def expire_unsecured_assignments():
     with Session() as session:
         candidates = session.query(RoomAssignment).filter(
             RoomAssignment.needs_card,
+            RoomAssignment.is_released,
             RoomAssignment.deposit_cutoff_date.isnot(None),
             RoomAssignment.deposit_cutoff_date < today,
         ).all()
@@ -59,10 +60,13 @@ def expire_unsecured_assignments():
         # (via the shared transition rule) so they re-enter the next run.
         # To gate re-eligibility behind opt-in, the admin configures
         # confirmation_window_start on the next run.
+        reset_count = 0
         for app_id in impacted_app_ids:
             app = session.query(LotteryApplication).get(app_id)
             if app:
                 app.sync_award_status(session)
+                session.refresh(app)
+                reset_count += app.status == c.COMPLETE
 
         if expired_count:
             session.commit()
@@ -102,5 +106,5 @@ def expire_unsecured_assignments():
 
             log.info("expire_unsecured_assignments: expired %d assignment(s), "
                      "%d application(s) reset to COMPLETE.",
-                     expired_count, len(impacted_app_ids))
+                     expired_count, reset_count)
     return expired_count

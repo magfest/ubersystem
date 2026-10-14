@@ -1,0 +1,28 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% import "forms/macros.html" as form_macros with context %}
+{% set reveal_config = forms['overflow_reveal_config'] %}
+{% block title %}{% if reveal.is_new %}New{% else %}Edit{% endif %} Overflow Booking{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/inventory_subnav.html' %}
+
+<h1>{% if reveal.is_new %}New{% else %}Edit{% endif %} Overflow Booking</h1>
+
+{# x-data makes this an Alpine scope; without it the form macros' x-show
+   never runs and every label shows its required asterisk. #}
+<form method="post" action="edit_overflow_reveal" x-data>
+  {{ csrf_token() }}
+  {% if not reveal.is_new %}<input type="hidden" name="id" value="{{ reveal.id }}" />{% endif %}
+
+  <div class="mb-3">{{ form_macros.input(reveal_config.name, required_if="true") }}</div>
+  <div class="mb-3">{{ form_macros.input(reveal_config.booking_links_text, required_if="true") }}</div>
+  <div class="mb-3">{{ form_macros.input(reveal_config.reveal_at) }}</div>
+  <div class="mb-3">{{ form_macros.input(reveal_config.audience_description) }}</div>
+  <div class="mb-3">{{ form_macros.input(reveal_config.require_login) }}</div>
+  <div class="mb-3">{{ form_macros.input(reveal_config.active) }}</div>
+
+  <button type="submit" class="btn btn-primary">Save</button>
+  <a class="btn btn-outline-secondary" href="overflow_reveals">Cancel</a>
+</form>
+
+{% endblock %}

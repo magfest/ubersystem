@@ -121,6 +121,7 @@
       {% if duplicate_bypass %}
         <input type="hidden" name="duplicate_bypass" value="True" />
       {% endif %}
+      {% if code %}<input type="hidden" name="code" value="{{ code }}" />{% endif %}
 
       {% include "forms/attendee/personal_info.html" %}
       {% include "forms/attendee/staffing_info.html" %}

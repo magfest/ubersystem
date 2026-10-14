@@ -45,7 +45,7 @@ This is calculated by taking the Attendee badge type's stock and subtracting the
           <td>
             {% if counts.badge_stocks[label]|int != 0 %}
               {{ counts.badge_stocks[label] - counts.badge_counts[label] - counts.reserved_badges[label] }}
-            {% else %}N/A{% endif %}
+            {% else %}N/A{% endif %}{% if key in c.LOCKED_ITEMS %} <em>(Locked)</em>{% endif %}
           </td>
           <td>{{ counts.checked_in_by_type[label] }}</td>
         </tr>
@@ -141,7 +141,10 @@ This is calculated by taking the Attendee badge type's stock and subtracting the
     <td>{{ c.DONATION_TIERS[amount] }} ({{ amount|format_currency }})</td>
     <td>{% if c.kickin_stock_matrix[amount] is none %}Unlimited{% else %}{{ c.kickin_stock_matrix[amount] }}{% endif %}</td>
     <td>{{ count }}</td>
-    <td>{% if c.kickin_stock_matrix[amount] is not none %}{{ c.kickin_stock_matrix[amount]|int - count }}{% else %}N/A{% endif %}</td>
+    <td>
+      {% if c.kickin_stock_matrix[amount] is not none %}{{ c.kickin_stock_matrix[amount]|int - count }}
+      {% else %}N/A{% endif %}{% if amount in c.LOCKED_ITEMS %} <em>(Locked)</em>{% endif %}
+    </td>
     </tr>
     {% endfor %}
   </tbody>

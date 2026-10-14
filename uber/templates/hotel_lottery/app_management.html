@@ -3,7 +3,7 @@
 <div id="select-action" class="collapse">
     <p>
         Welcome {% if application.status != c.PARTIAL %}back {% endif %} to the {{ c.EVENT_NAME }} hotel lottery!
-        {% if not (application.status == c.PROCESSED or application.finalized or application.current_lottery_closed) and application.current_lottery_deadline %}
+        {% if not (application.finalized or application.current_lottery_closed) and application.current_lottery_deadline %}
         The hotel lottery form will close at <strong>{{ application.current_lottery_deadline|datetime_local }}</strong>.
         {% endif %}
     </p>
@@ -16,15 +16,20 @@
     {% if application.current_lottery_closed %}
         {% block lottery_closed_info %}
         {% if application.is_staff_entry %}
+            {# Every staff entry sees the same text until the staff run is
+               awarded, so a pending run's winners can't be picked out. #}
+            {% set _can_opt_in = application.staff_rooms_awarded and not app_or_parent.finalized %}
             <p>
                 <strong><span class="text-danger">The staff lottery is now closed.</span></strong>
-                {% if application.status == c.PROCESSED %}
+                {% if _can_opt_in %}
                 You can opt into the attendee lottery using the button below. You'll be able to edit your lottery entry after opting in.
+                {% elif application.staff_rooms_awarded %}
+                You can view your entry details below.
                 {% else %}
                 You can view your entry details below. You will be able to opt into the attendee lottery after staff rooms are awarded.
                 {% endif %}
             </p>
-            {% if application.status == c.PROCESSED %}
+            {% if _can_opt_in %}
                 {% include 'hotel_lottery/staff_attendee_lottery_info.html' with context %}
                 <p>
                     <form method="post" action="enter_attendee_lottery">
