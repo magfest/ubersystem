@@ -13,7 +13,7 @@ from datetime import datetime, time, timedelta
 import cherrypy
 
 from sqlalchemy import or_
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import lazyload, selectinload
 
 from uber.config import c
 from uber.decorators import all_renderable
@@ -22,7 +22,7 @@ from uber.hotel.queries import (build_room_assignment_query, clamp_page_size,
                                 paginate, shared_room_eligible_query,
                                 staff_rooming_query)
 from uber.models import (Attendee, Department, NightShiftRequirement,
-                         RoomAssignment)
+                         RoomAssignment, Shift)
 from uber.models.hotel import LotteryHotel
 from uber.shift_compliance import non_compliant_staffers
 from uber.utils import check_csrf, redirect_with_params
@@ -215,6 +215,10 @@ class Root:
             filtered = all_results
 
         page_slice, total, page_num, page_count = paginate(filtered, page, ps)
+        if page_slice:
+            session.query(Attendee).filter(Attendee.id.in_([a.id for a, _ in page_slice])).options(
+                selectinload(Attendee.lottery_application),
+                selectinload(Attendee.shifts).options(lazyload(Shift.attendee))).all()
 
         departments = (session.query(Department)
                        .order_by(Department.name).all())
