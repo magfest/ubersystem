@@ -106,11 +106,10 @@
           Secure
         </a>
       {% endif %}
-      {# Declining the suite cancels its connector rooms too, so the
-         Decline action lives only on the parent. #}
-      {% if not room.changes_locked and room.status == c.ASSIGNED %}
-        <a href="decline?id={{ attendee.lottery_application.id if attendee.lottery_application else '' }}&assignment_id={{ room.id }}"
-           class="btn btn-sm btn-outline-danger">Decline</a>
+      {# Cancelling a suite cancels its connector rooms too. #}
+      {% if not room.changes_locked %}
+        <a href="decline?assignment_id={{ room.id }}&attendee_id={{ attendee.id }}"
+           class="btn btn-sm btn-outline-danger">Cancel</a>
       {% endif %}
     </div>
 

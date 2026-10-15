@@ -1108,7 +1108,8 @@ if c.HOTEL_LOTTERY_STAFF_START or c.HOTEL_LOTTERY_FORM_START:
     HotelLotteryEmailFixture(
         f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Award Cancelled',
         'hotel/cancel_notification.html',
-        "lambda a: a.status == c.CANCELLED",
+        # Expired rooms get the room-released email instead.
+        "lambda a: a.status == c.CANCELLED and not a.award_expired",
         'hotel_lottery_award_cancelled'
     )
 

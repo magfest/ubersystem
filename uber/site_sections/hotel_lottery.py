@@ -2127,97 +2127,61 @@ class Root:
                 "link is not available yet.")
         raise HTTPRedirect(booking_url)
 
-    @requires_account(LotteryApplication)
-    def decline(self, session, id, assignment_id=None, message='', **params):
-        """Cancel one of the attendee's awarded RoomAssignments.
-
-        If a connector primary is cancelled, its connector children cascade.
-        If the cancelled assignment is the attendee's last live one, the
-        LotteryApplication.status flips back to COMPLETE via the model
-        listener.
-        """
-        application = session.lottery_application(id)
-        if application.parent_application or application.valid_group_members:
-            you_str = f"Your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}'s"
-        else:
-            you_str = "Your"
-
-        if application.parent_application:
+    @requires_account()
+    def decline(self, session, id=None, assignment_id=None, attendee_id='', message='', **params):
+        """Cancel one of the viewer's rooms, along with its connector rooms.
+        Given only `id` (a lottery entry, as award emails link it), cancels
+        that entry's first room."""
+        application = session.lottery_application(id) if id else None
+        if application and application.parent_application:
             raise HTTPRedirect(
                 'index?id={}&message={}', id,
-                f"Only the leader of your {c.HOTEL_LOTTERY_GROUP_TERM.lower()} "
-                "may decline your room or suite award.")
+                f"Only the leader of your {c.HOTEL_LOTTERY_GROUP_TERM.lower()} can cancel your room.")
 
-        ra = _resolve_assignment(session, assignment_id, application,
-                                 statuses=[c.ASSIGNED])
-        if not ra or ra.lottery_application_id != application.id:
-            raise HTTPRedirect('index?id={}&message={}', id,
-                               f"{you_str} entry does not have a room or suite award.")
+        ra = _resolve_assignment(session, assignment_id, application)
+        if not ra or not ra.is_released:
+            raise HTTPRedirect('rooms?message={}', 'Room not found.')
+        _require_room_access(session, ra, attendee_id)
 
-        # Connector rooms can't be declined on their own - they're a
-        # mandatory part of the parent suite. Send the attendee to the
-        # parent's editor, where declining the suite cancels the
-        # connectors along with it.
         if ra.parent_assignment_id:
-            raise HTTPRedirect(
-                'room?id={}&message={}', ra.parent_assignment_id,
-                "Connector rooms are included with your suite and can't be "
-                "declined separately. Decline the suite to give up the whole "
-                "block.")
-
+            raise HTTPRedirect(_room_url(
+                ra.parent_assignment_id, attendee_id,
+                message="This room is part of your suite. Cancel the suite to cancel both."))
         if ra.changes_locked:
-            raise HTTPRedirect('index?id={}&message={}', id, _lock_message(ra))
-        if ra.status == c.SECURED:
-            raise HTTPRedirect(
-                'index?id={}&message={}', id,
-                "You cannot cancel a reservation that has already been "
-                "confirmed with a credit card guarantee.")
-        if ra.status == c.CANCELLED:
-            raise HTTPRedirect(
-                'index?id={}&message={}', id,
-                "This reservation has already been cancelled.")
-        if ra.status != c.ASSIGNED:
-            raise HTTPRedirect(
-                'index?id={}&message={}', id,
-                f"{you_str} entry does not have a room or suite award.")
+            raise HTTPRedirect(_room_url(ra.id, attendee_id, message=_lock_message(ra)))
+        if not ra.is_live:
+            raise HTTPRedirect(_room_url(ra.id, attendee_id,
+                                         message="This room has already been cancelled."))
 
-        room_type = ('suite' if ra.inventory and ra.inventory.is_suite else 'room')
+        room_type = 'suite' if ra.inventory and ra.inventory.is_suite else 'room'
+        cancelled_ids = {ra.id} | {child.id for child in ra.child_assignments}
+        entry = ra.lottery_application
+        # Cancelling the entry's last live room cancels the entry too.
+        ends_entry = bool(entry) and entry.status in (c.AWARDED, c.PROCESSED) and not any(
+            other.is_live and other.id not in cancelled_ids
+            for other in session.query(RoomAssignment).filter_by(lottery_application_id=entry.id))
 
         if cherrypy.request.method == "POST":
             check_csrf(params.get('csrf_token'))
             if 'confirm' not in params:
-                message = (f"Please check the box confirming that you want to "
-                           f"give up {you_str.lower()} {room_type} award.")
-                return {'application': application,
-                        'assignment': ra,
-                        'message': message}
-
-            children = (session.query(RoomAssignment)
-                        .filter_by(parent_assignment_id=ra.id).all())
-            for child in children:
-                child.status = c.CANCELLED
-                session.add(child)
-            ra.status = c.CANCELLED
-            session.add(ra)
-            session.commit()
-
-            still_live = (session.query(RoomAssignment)
-                          .filter(RoomAssignment.lottery_application_id == application.id,
-                                  RoomAssignment.is_live)
-                          .count())
-            if still_live == 0:
-                message = (f"You have declined your {room_type} award and your "
-                           "lottery entry has been cancelled.")
-                raise HTTPRedirect('{}message={}'.format(
-                    _return_link(application.attendee.id), message))
-            raise HTTPRedirect(
-                'rooms?attendee_id={}&message={}',
-                application.attendee.id,
-                f"You have declined your {room_type} award.")
+                message = f"Please check the box to confirm you want to cancel your {room_type}."
+            else:
+                for room in session.query(RoomAssignment).filter(RoomAssignment.id.in_(cancelled_ids)):
+                    room.status = c.CANCELLED
+                    session.add(room)
+                if ends_entry:
+                    entry.status = c.CANCELLED
+                    session.add(entry)
+                session.commit()
+                raise HTTPRedirect(redirect_with_params(
+                    'rooms', attendee_id=attendee_id, message=f"Your {room_type} has been cancelled."))
 
         return {
-            'application': application,
             'assignment': ra,
+            'application': entry,
+            'ends_entry': ends_entry,
+            'attendee_id': attendee_id,
+            'room_type': room_type,
             'message': message,
         }
 

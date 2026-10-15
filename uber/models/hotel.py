@@ -305,22 +305,28 @@ class LotteryApplication(MagModel, table=True):
 
         if app_or_parent.status == c.CANCELLED:
             has_or_had_parent = self.parent_application or self.former_parent_id
-            if not has_or_had_parent and self.declined:
-                return f"You have declined your {room_type} and your lottery entry has been cancelled."
-
-            base_str = f"Unfortunately, {you_str.lower()} {room_type} has been cancelled "
-            if self.entry_started:
-                if has_or_had_parent:
-                    base_str = base_str + f"because your {c.HOTEL_LOTTERY_GROUP_TERM.lower()} leader "
-                else:
-                    base_str = base_str + "because you "
-                return base_str + f"did not secure your room with a credit card before the deadline of {datetime_local_filter(self.guarantee_deadline, '%A, %B %-d')}."
-            elif has_or_had_parent:
-                return base_str + f"by your {c.HOTEL_LOTTERY_GROUP_TERM.lower()} leader."
-        elif _live:
+            cancelled_str = f"Unfortunately, {you_str.lower()} {room_type} has been cancelled"
+            group_leader = f"your {c.HOTEL_LOTTERY_GROUP_TERM.lower()} leader"
+            if app_or_parent.award_expired:
+                deadlines = [ra.deposit_cutoff_date for ra in _existing if ra.deposit_cutoff_date]
+                deadline = f" of {min(deadlines).strftime('%A, %B %-d')}" if deadlines else ''
+                return (f"{cancelled_str} because {group_leader if has_or_had_parent else 'you'} "
+                        f"did not secure it with a credit card before the deadline{deadline}.")
+            if any(ra.cancellation_confirmation_number for ra in _existing):
+                return f"{cancelled_str} by the hotel."
+            if has_or_had_parent:
+                return f"{cancelled_str} by {group_leader}."
+            return f"You have declined your {room_type} and your lottery entry has been cancelled."
+        if _live:
             return f"Congratulations! {you_str} entry for the {c.EVENT_NAME_AND_YEAR} {room_type} lottery was chosen."
         else:
             return f"Unfortunately, {you_str.lower()} entry for the {c.EVENT_NAME_AND_YEAR} hotel lottery was not chosen."
+
+    @property
+    def award_expired(self):
+        """Every lottery room this entry won expired unsecured."""
+        rooms = self.lottery_room_assignments
+        return bool(rooms) and all(ra.status == c.EXPIRED for ra in rooms)
 
     @property
     def can_reenter(self):
@@ -336,32 +342,39 @@ class LotteryApplication(MagModel, table=True):
 
     @property
     def declined(self):
-        return self.status == c.CANCELLED and not self.entry_started
+        """The attendee cancelled the award themselves."""
+        return self.status == c.CANCELLED and not self.award_expired and not any(
+            ra.cancellation_confirmation_number for ra in self.lottery_room_assignments)
 
     @property
     def complete_or_processed(self):
         return self.status in [c.COMPLETE, c.PROCESSED] or self.finalized
 
     def sync_award_status(self, session):
-        """Recompute this application's COMPLETE <-> AWARDED state from its
-        live room assignments: AWARDED requires at least one live room, and
-        with none left an AWARDED/PROCESSED app returns to COMPLETE (and
-        drops its lottery_run_id) so it re-enters future runs. Terminal app
-        states (WITHDRAWN, DISQUALIFIED, ...) are never overridden.
+        """Recompute this application's award state from its rooms: AWARDED
+        requires a live room. With none left, an AWARDED/PROCESSED app whose
+        rooms expired or were cancelled becomes CANCELLED; one whose rooms were
+        removed returns to COMPLETE (dropping its lottery_run_id) so it
+        re-enters future runs. Terminal app states (WITHDRAWN, DISQUALIFIED,
+        ...) are never overridden.
 
-        The RoomAssignment after_insert/after_delete listeners at the
-        bottom of this module apply the same rule at the SQL layer during
-        flush; call this from ORM code paths (the expiry cron, admin status
-        changes) that flip assignment status without inserting or deleting
-        rows."""
+        The RoomAssignment listeners at the bottom of this module apply the
+        same rule during flush; call this from ORM code paths that change
+        room status."""
         # The session doesn't autoflush, so push pending status changes
         # (e.g. the expiry task's) before counting live rows.
         session.flush()
         live = session.query(RoomAssignment).filter(
             RoomAssignment.lottery_application_id == self.id,
             RoomAssignment.is_live)
-        if self.status == c.COMPLETE and live.filter(RoomAssignment.is_released).count():
+        ended = session.query(RoomAssignment).filter(
+            RoomAssignment.lottery_application_id == self.id,
+            RoomAssignment.status.in_([c.EXPIRED, c.CANCELLED]))
+        if self.status in (c.COMPLETE, c.CANCELLED) and live.filter(RoomAssignment.is_released).count():
             self.status = c.AWARDED
+            session.add(self)
+        elif not live.count() and self.status in (c.AWARDED, c.PROCESSED) and ended.count():
+            self.status = c.CANCELLED
             session.add(self)
         elif not live.count() and (self.status in (c.AWARDED, c.PROCESSED)
                                    or self.status == c.COMPLETE and self.lottery_run_id):
@@ -1971,8 +1984,8 @@ from sqlalchemy import event as _sa_event  # noqa: E402
 # directly rather than the `is_live` hybrid.)
 
 def _promote_app(connection, target):
-    """COMPLETE -> AWARDED for the entry behind a row that just became live,
-    unless the row belongs to a run that hasn't been awarded yet."""
+    """COMPLETE or CANCELLED -> AWARDED for the entry behind a row that just
+    became live, unless the row belongs to a run that hasn't been awarded yet."""
     if target.lottery_run_id and connection.execute(
             sa.select(LotteryRun.__table__.c.status)
             .where(LotteryRun.__table__.c.id == target.lottery_run_id)
@@ -1982,7 +1995,7 @@ def _promote_app(connection, target):
     connection.execute(
         sa.update(LotteryApplication.__table__)
         .where(LotteryApplication.__table__.c.id == target.lottery_application_id)
-        .where(LotteryApplication.__table__.c.status == c.COMPLETE)
+        .where(LotteryApplication.__table__.c.status.in_((c.COMPLETE, c.CANCELLED)))
         .values(status=c.AWARDED)
     )
 
@@ -2015,10 +2028,9 @@ def _demote_app_if_no_live_rooms(connection, app_id, exclude_id=None):
 
 
 def _cancel_app_if_no_live_rooms(connection, app_id):
-    """The hotel cancelled the entry's last live room: the award is over,
-    so the entry becomes CANCELLED, which is final and sends the attendee
-    the award-cancelled email. It keeps lottery_run_id as the record of
-    which run awarded it."""
+    """The entry's last live room expired or the hotel cancelled it: the entry
+    becomes CANCELLED. It keeps lottery_run_id as the record of which run
+    awarded it."""
     if _has_live_rooms(connection, app_id):
         return
     connection.execute(
@@ -2044,17 +2056,11 @@ def _ra_after_insert_promote_app(mapper, connection, target):
 def _ra_after_update_sync_app(mapper, connection, target):
     """Keep the entry in step when a room's status changes in place - the
     card-deadline task, an admin edit, a hotel import, the API. When the
-    entry has no other live room left:
+    entry has no other live room left, a room that EXPIRES or that the HOTEL
+    cancelled (it carries a cancellation number) makes the entry CANCELLED.
 
-      * a room that EXPIRES (its card deadline passed) puts the entry back
-        to COMPLETE, so the next run can draw it again;
-      * a room the HOTEL cancelled (it carries a cancellation number - set
-        by the cancellation import, the bookings re-import, or the hotel
-        portal's API) makes the entry CANCELLED.
-
-    Reinstating a room awards the entry again. An attendee declining also
-    cancels the room, but without a cancellation number; the decline flow
-    handles its own messaging, so the entry is left alone."""
+    Reinstating a room awards the entry again. A room the attendee cancels
+    has no cancellation number; the decline handler cancels the entry."""
     if not target.lottery_application_id:
         return
     history = sa.inspect(target).attrs.status.history
@@ -2065,9 +2071,8 @@ def _ra_after_update_sync_app(mapper, connection, target):
     is_live = target.status in c.HOTEL_LIVE_ASSIGNMENT_STATUSES
     if is_live and not was_live:
         _promote_app(connection, target)
-    elif was_live and target.status == c.EXPIRED:
-        _demote_app_if_no_live_rooms(connection, target.lottery_application_id)
-    elif was_live and target.status == c.CANCELLED and target.cancellation_confirmation_number:
+    elif was_live and (target.status == c.EXPIRED or target.status == c.CANCELLED
+                       and target.cancellation_confirmation_number):
         _cancel_app_if_no_live_rooms(connection, target.lottery_application_id)
 
 
