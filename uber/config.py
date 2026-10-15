@@ -131,6 +131,94 @@ def request_cached_property(func):
         return val
     return with_caching
 
+class DatabaseConfigSection:
+    """A section of settings stored in the `configuration` table.
+
+    Subclasses set:
+      section_name - the row's unique key.
+      version      - the current structure version.
+      defaults     - the full structure; stored values are deep-merged over it.
+      migrations   - {from_version: fn(data) -> data}, applied in order on load.
+    and may override build() to turn the merged dict into objects.
+
+    Loads are cached per web request, and read fresh outside one.
+    TODO: Add process-level caching and invalidation
+    """
+    section_name = None
+    version = 1
+    defaults = {}
+    migrations = {}
+
+    def build(self, data):
+        return data
+
+    def load(self, session=None):
+        """The built settings, read through `session` if given."""
+        key = f'{__name__}.db_config.{self.section_name}'
+        in_request = cherrypy.serving.request.app is not None
+        value = threadlocal.get(key) if in_request else None
+        if value is None:
+            value = self.build(self._merged(self._migrated(*self._fetch(session))))
+            if in_request:
+                threadlocal.set(key, value)
+        return value
+
+    def save(self, data, session=None):
+        """Store the full structure at the current version. A passed session
+        is left for the caller to commit."""
+        if session is None:
+            with self._new_session() as own:
+                self.save(data, own)
+                own.commit()
+            return
+        from uber.models import Configuration  # uber.models imports this module
+        row = self._row(session) or Configuration(section_name=self.section_name)
+        # A new dict, so change tracking records the old and new values.
+        row.config_data = json.loads(json.dumps(data))
+        row.version = self.version
+        session.add(row)
+        session.flush()
+        threadlocal.set(f'{__name__}.db_config.{self.section_name}', None)
+
+    def _new_session(self):
+        from uber.models import Session  # uber.models imports this module
+        return Session()
+
+    def _row(self, session):
+        from uber.models import Configuration  # uber.models imports this module
+        return session.query(Configuration).filter_by(section_name=self.section_name).first()
+
+    def _fetch(self, session):
+        if session is None:
+            with self._new_session() as own:
+                return self._fetch(own)
+        row = self._row(session)
+        return (dict(row.config_data), row.version) if row else (None, self.version)
+
+    def _migrated(self, data, version):
+        if data is None:
+            return {}
+        if version > self.version:
+            log.warning('Config section %s is stored at version %s, newer than this code (%s)',
+                        self.section_name, version, self.version)
+        while version < self.version:
+            if version in self.migrations:
+                data = self.migrations[version](data)
+            version += 1
+        return data
+
+    def _merged(self, data, defaults=None):
+        defaults = self.defaults if defaults is None else defaults
+        merged = {}
+        for name, default in defaults.items():
+            if isinstance(default, dict):
+                stored = data.get(name)
+                merged[name] = self._merged(stored if isinstance(stored, dict) else {}, default)
+            else:
+                merged[name] = data.get(name, default)
+        return merged
+
+
 def cached_property(func):
     """Decorator for making readonly, memoized properties."""
     cache_attr = '_cached_{0}'.format(func.__name__)
@@ -465,12 +553,22 @@ class Config(_Overridable):
         return self.DEPT_CHECKLIST_START and self.AFTER_DEPT_CHECKLIST_START
     
     @property
-    def HOTEL_LOTTERY_OPEN(self):
+    def HOTEL_LOTTERY_IN_WINDOW(self):
         return c.AFTER_HOTEL_LOTTERY_FORM_START and c.BEFORE_HOTEL_LOTTERY_FORM_DEADLINE
-    
+
+    @property
+    def STAFF_HOTEL_LOTTERY_IN_WINDOW(self):
+        return c.AFTER_HOTEL_LOTTERY_STAFF_START and c.BEFORE_HOTEL_LOTTERY_STAFF_DEADLINE
+
+    @property
+    def HOTEL_LOTTERY_OPEN(self):
+        from uber.hotel.config import hotel_lottery_config  # uber.hotel.config imports this module
+        return hotel_lottery_config.load()['attendee'].accepting_entries
+
     @property
     def STAFF_HOTEL_LOTTERY_OPEN(self):
-        return c.AFTER_HOTEL_LOTTERY_STAFF_START and c.BEFORE_HOTEL_LOTTERY_STAFF_DEADLINE
+        from uber.hotel.config import hotel_lottery_config  # uber.hotel.config imports this module
+        return hotel_lottery_config.load()['staff'].accepting_entries
 
     @property
     def HOTEL_LOTTERY_FORM_STEPS(self):

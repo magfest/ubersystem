@@ -796,6 +796,7 @@ class MagModel(SQLModel):
 
 
 from uber.models.admin import *  # noqa: F401,E402,F403
+from uber.models.configuration import *  # noqa: F401,E402,F403
 from uber.models.promo_code import *  # noqa: F401,E402,F403
 from uber.models.attendee import *  # noqa: F401,E402,F403
 from uber.models.badge_printing import *  # noqa: F401,E402,F403

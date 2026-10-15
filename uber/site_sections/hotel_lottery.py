@@ -54,16 +54,19 @@ def _require_post_csrf(params, redirect):
     check_csrf(params.get('csrf_token'))
 
 
-def _require_unlocked(ra, attendee_id=''):
-    """Raise HTTPRedirect back to the room editor if the assignment has
-    been exported to the hotel. Once `ra.export_locked` is True the
-    booking has been transferred and nothing changes locally any more.
-    """
+def _lock_message(ra):
     if ra.export_locked:
-        raise HTTPRedirect(_room_url(
-            ra.id, attendee_id,
-            message='This booking has been transferred to the hotel '
-                    'and can no longer be edited from here.'))
+        return 'Your booking has been sent to the hotel. Please contact your hotel to make changes.'
+    return 'Your room is now locked. Please contact your hotel to make changes.'
+
+
+def _require_unlocked(ra, attendee_id='', card=False):
+    """Redirect back to the room editor if the room is locked. Card details
+    (`card=True`) are only locked by an export, so a room can still be secured
+    before its card deadline."""
+    locked = ra.export_locked if card else ra.changes_locked
+    if locked:
+        raise HTTPRedirect(_room_url(ra.id, attendee_id, message=_lock_message(ra)))
 
 
 def _require_live(ra, attendee_id=''):
@@ -76,7 +79,7 @@ def _require_live(ra, attendee_id=''):
             message="This room is no longer active and can't be changed."))
 
 
-def room_action(func=None, *, allow='leader', allow_inactive=False):
+def room_action(func=None, *, allow='leader', allow_inactive=False, card=False):
     """Boilerplate wrapper for POST-only per-room mutations.
 
     Handles what every such handler repeats by hand: bounce GETs back to
@@ -87,7 +90,8 @@ def room_action(func=None, *, allow='leader', allow_inactive=False):
     Hotel Lottery Admin passes; `allow='occupant'` also admits current
     occupants (e.g. leaving a room). `allow_inactive=True` admits expired
     and cancelled rooms, for actions that stay meaningful after the room
-    is released. The wrapped handler receives the resolved row as `ra`:
+    is released. `card=True` marks card details (see _require_unlocked).
+    The wrapped handler receives the resolved row as `ra`:
 
         @requires_account(Attendee)
         @room_action
@@ -106,7 +110,7 @@ def room_action(func=None, *, allow='leader', allow_inactive=False):
                   if assignment_id else None)
             if not ra or not ra.is_released:
                 raise HTTPRedirect('rooms?message={}', 'Room not found.')
-            _require_unlocked(ra, attendee_id)
+            _require_unlocked(ra, attendee_id, card=card)
             _require_room_access(session, ra, attendee_id,
                                  allow_occupant=(allow == 'occupant'))
             if not allow_inactive:
@@ -529,10 +533,10 @@ def _is_post_cutoff(application):
     Drives the post-cutoff banner in the confirmation email.
     """
     if application.is_staff_entry:
-        return not c.STAFF_HOTEL_LOTTERY_OPEN
+        return not c.STAFF_HOTEL_LOTTERY_IN_WINDOW
     if application.qualifies_for_staff_lottery:
-        return not c.STAFF_HOTEL_LOTTERY_OPEN and not c.HOTEL_LOTTERY_OPEN
-    return not c.HOTEL_LOTTERY_OPEN
+        return not c.STAFF_HOTEL_LOTTERY_IN_WINDOW and not c.HOTEL_LOTTERY_IN_WINDOW
+    return not c.HOTEL_LOTTERY_IN_WINDOW
 
 
 def _max_room_capacity_for_group(session, application):
@@ -1004,6 +1008,7 @@ class Root:
         if not invite:
             raise HTTPRedirect('rooms')
         # Only the room's leader may cancel its invites.
+        _require_unlocked(invite.room_assignment, attendee_id)
         _require_room_access(session, invite.room_assignment, attendee_id)
         assignment_id = invite.room_assignment_id
         session.delete(invite)
@@ -1051,6 +1056,8 @@ class Root:
                                    'Please log in as an attendee to accept this invite.')
 
             ra = invite.room_assignment
+            if ra.changes_locked:
+                raise HTTPRedirect('rooms?message={}', _lock_message(ra))
             assignment_id = ra.id
             session.delete(invite)
             if action == 'accept' and ra and acceptor.id != ra.attendee_id:
@@ -1247,7 +1254,7 @@ class Root:
             message='Special requests updated.'))
 
     @requires_account(Attendee)
-    @room_action
+    @room_action(card=True)
     def save_billing_address(self, session, ra, attendee_id='', **params):
         """Save the billing address for the card on this room. Same
         per-room write pattern as the other section saves; the address
@@ -2158,6 +2165,8 @@ class Root:
                 "declined separately. Decline the suite to give up the whole "
                 "block.")
 
+        if ra.changes_locked:
+            raise HTTPRedirect('index?id={}&message={}', id, _lock_message(ra))
         if ra.status == c.SECURED:
             raise HTTPRedirect(
                 'index?id={}&message={}', id,
@@ -2630,11 +2639,10 @@ class Root:
 
         if cherrypy.request.method == "POST":
             check_csrf(params.get('csrf_token'))
-            if ra.export_locked:
+            if ra.changes_locked:
                 raise HTTPRedirect(_room_url(
                     ra.id, attendee_id or application.attendee.id,
-                    message='Your room details have been exported to the hotel and '
-                            'cannot be changed. Please contact us for assistance.'))
+                    message=_lock_message(ra)))
 
             from dateutil import parser as dateparser
 

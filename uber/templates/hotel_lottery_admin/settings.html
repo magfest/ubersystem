@@ -4,6 +4,75 @@
 
 {% include 'hotel_lottery_admin/nav.html' %}
 
+{% macro tristate(name, value, auto_now, on_label, off_label) %}
+<select name="{{ name }}" class="form-select form-select-sm">
+  <option value="" {% if value is none %}selected{% endif %}>Automatic &mdash; currently {{ (on_label if auto_now else off_label)|lower }}</option>
+  <option value="1" {% if value is sameas true %}selected{% endif %}>{{ on_label }}</option>
+  <option value="0" {% if value is sameas false %}selected{% endif %}>{{ off_label }}</option>
+</select>
+{% endmacro %}
+
+<div class="card card-body mb-3">
+  <h4>Lottery Status</h4>
+  <p class="text-muted">
+    What attendees and staff can do on their lottery pages. "Automatic" follows the configured
+    lottery dates and any pending late run; choose a value to override it.
+  </p>
+  <form method="post" action="update_lottery_settings">
+    {{ csrf_token() }}
+    <table class="table table-sm align-middle">
+      <thead>
+        <tr>
+          <th style="width: 34%"></th>
+          <th>Attendee Lottery</th>
+          <th>Staff Lottery</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th>New entries<div class="small text-muted fw-normal">Eligible attendees can start a lottery entry.</div></th>
+          {% for group, s in lottery_settings.groups.items() %}
+          <td>{{ tristate(group ~ '_accept_entries', s.accept_entries, s.in_window, 'Open', 'Closed') }}</td>
+          {% endfor %}
+        </tr>
+        <tr>
+          <th>Editing entries<div class="small text-muted fw-normal">Entrants can update, switch, or withdraw their entry and manage {{ c.HOTEL_LOTTERY_GROUP_TERM|lower }}s.</div></th>
+          {% for group, s in lottery_settings.groups.items() %}
+          <td>{{ tristate(group ~ '_allow_edits', s.allow_edits, s.accepting_entries or late_run_open[group], 'Open', 'Closed') }}</td>
+          {% endfor %}
+        </tr>
+        <tr>
+          <th>"Lottery closed" notice<div class="small text-muted fw-normal">Entry pages say the lottery is closed.</div></th>
+          {% for group, s in lottery_settings.groups.items() %}
+          <td>{{ tristate(group ~ '_show_closed', s.show_closed, not s.edits_open(late_run_open[group]), 'Shown', 'Hidden') }}</td>
+          {% endfor %}
+        </tr>
+        <tr>
+          <th>Entries without a room<div class="small text-muted fw-normal">What an entrant who has not been awarded a room is told.</div></th>
+          {% for group, s in lottery_settings.groups.items() %}
+          <td>
+            <select name="{{ group }}_show_losses" class="form-select form-select-sm">
+              <option value="0" {% if not s.show_losses %}selected{% endif %}>Lottery still pending</option>
+              <option value="1" {% if s.show_losses %}selected{% endif %}>Not chosen in the initial lottery</option>
+            </select>
+          </td>
+          {% endfor %}
+        </tr>
+      </tbody>
+    </table>
+    <div class="form-check form-switch mb-3">
+      <input class="form-check-input" type="checkbox" role="switch" id="room_changes_locked"
+             name="room_changes_locked" value="1" {% if lottery_settings.room_changes_locked %}checked{% endif %} />
+      <label class="form-check-label" for="room_changes_locked">
+        <strong>Lock room changes</strong>
+        <div class="small text-muted">Rooms become view-only, with a note to contact the hotel for changes.
+          A card can still be added to a room that needs one.</div>
+      </label>
+    </div>
+    <button type="submit" class="btn btn-primary">Save Lottery Status</button>
+  </form>
+</div>
+
 <div class="card card-body mb-3">
   <h4>PCI Vault Integration</h4>
 

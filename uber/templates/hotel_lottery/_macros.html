@@ -138,6 +138,19 @@
   {%- endif -%}
 {%- endmacro %}
 
+{% macro confirmation_numbers(ra, classes='') %}
+  {% if ra.hotel_confirmation_number or ra.cancellation_confirmation_number %}
+  <div class="d-flex flex-wrap column-gap-3 {{ classes }}">
+    {% if ra.hotel_confirmation_number %}
+    <span>Hotel confirmation #: <strong>{{ ra.hotel_confirmation_number }}</strong></span>
+    {% endif %}
+    {% if ra.cancellation_confirmation_number %}
+    <span>Cancellation #: <strong>{{ ra.cancellation_confirmation_number }}</strong></span>
+    {% endif %}
+  </div>
+  {% endif %}
+{% endmacro %}
+
 {# Needs-card alert
 
    `needs_card_alert` renders the big red "not secured - credit card
