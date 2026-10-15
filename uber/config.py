@@ -335,9 +335,9 @@ class _Overridable:
 
                     interpolated[desc] = price
 
-                c.make_enum(name, interpolated, prices=name.endswith('_price'))
+                c.make_enum(name, interpolated, prices=name.endswith('_price'), ints_as_enum=True)
 
-    def make_enum(self, enum_name, section, prices=False):
+    def make_enum(self, enum_name, section, prices=False, ints_as_enum=False):
         """
         Plugins can call this to define individual enums, or call the make_enums
         function to make all enums defined there.  See the [enums] section in
@@ -349,7 +349,7 @@ class _Overridable:
         other_var, other_opt = None, None
 
         for name, desc in section.items():
-            if isinstance(desc, int):
+            if isinstance(desc, int) and ints_as_enum:
                 val, desc = desc, name
             else:
                 val = self.create_enum_val(name)
