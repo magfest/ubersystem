@@ -488,22 +488,19 @@
   </div>
 </div>
 
-{% if is_leader and not locked and ra.status == c.ASSIGNED %}
+{% if is_leader and not read_only %}
   {% if is_connector %}
-  {# Connectors are part of the suite; they can't be declined on their
-     own. Point back to the parent suite, where Decline cancels the
-     whole block. #}
   <div class="d-flex justify-content-end">
     <span class="text-muted small me-2 align-self-center">
-      This connector room is included with your suite.
+      This room is part of your suite. Cancel the suite to cancel both.
     </span>
     <a href="room?id={{ ra.parent_assignment_id }}&attendee_id={{ viewer.id }}"
        class="btn btn-outline-secondary">Go to suite</a>
   </div>
   {% else %}
   <div class="d-flex justify-content-end">
-    <a href="decline?id={{ application.id if application else '' }}&assignment_id={{ ra.id }}"
-       class="btn btn-outline-danger">Decline this room</a>
+    <a href="decline?assignment_id={{ ra.id }}&attendee_id={{ viewer.id }}"
+       class="btn btn-outline-danger">Cancel this {{ 'suite' if ra.inventory and ra.inventory.is_suite else 'room' }}</a>
   </div>
   {% endif %}
 {% endif %}

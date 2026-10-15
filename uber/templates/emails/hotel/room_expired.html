@@ -29,11 +29,9 @@
 </p>
 {% endif %}
 
-{% if _app and _app.status == c.COMPLETE %}
+{% if _app and _app.status == c.CANCELLED %}
 <p>
-  Your hotel lottery entry is still active: it will automatically be
-  considered in any future lottery runs, and you will be notified if you
-  are awarded another room.
+  Your hotel lottery entry has been cancelled.
 </p>
 {% endif %}
 
