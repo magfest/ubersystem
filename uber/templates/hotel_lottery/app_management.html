@@ -8,12 +8,17 @@
         {% endif %}
     </p>
 
-    {% if not application.current_lottery_closed %}
+    {% if application.lost_lottery %}
+        {% block lottery_lost_info %}
+        <p class="h4 mb-3 text-danger">Your entry was not chosen in the initial {{ c.EVENT_NAME }} hotel lottery.</p>
+        <p>Your entry will stay in the lottery, and we'll award more rooms as they become available.</p>
+        {% endblock %}
+    {% elif not application.shows_lottery_closed %}
     <p class="h4 mb-3 text-{% if app_or_parent.complete_or_processed %}success{% else %}danger{% endif %}">
         You are currently {{ application.application_status_str }}.
     </p>
     {% endif %}
-    {% if application.current_lottery_closed %}
+    {% if application.shows_lottery_closed %}
         {% block lottery_closed_info %}
         {% if application.is_staff_entry %}
             {# Every staff entry sees the same text until the staff run is

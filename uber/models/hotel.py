@@ -18,6 +18,7 @@ from typing import Any, ClassVar
 from uber.config import c
 from uber.custom_tags import datetime_local_filter
 from uber.decorators import presave_adjustment
+from uber.hotel.config import hotel_lottery_config, late_run_open
 from uber.models import MagModel
 from uber.models.types import Choice, RankedList, UniqueList, DefaultColumn as Column, DefaultField as Field, DefaultRelationship as Relationship
 from uber.utils import RegistrationCode
@@ -457,26 +458,50 @@ class LotteryApplication(MagModel, table=True):
 
     @property
     def current_lottery_deadline(self):
-        if c.STAFF_HOTEL_LOTTERY_OPEN and self.qualifies_for_staff_lottery:
+        # Only the configured window has a deadline to show.
+        if c.STAFF_HOTEL_LOTTERY_IN_WINDOW and self.qualifies_for_staff_lottery:
             return c.HOTEL_LOTTERY_STAFF_DEADLINE
-        elif c.HOTEL_LOTTERY_OPEN:
+        elif c.HOTEL_LOTTERY_IN_WINDOW:
             return c.HOTEL_LOTTERY_FORM_DEADLINE
+
+    @property
+    def lottery_group(self):
+        return 'staff' if self.is_staff_entry else 'attendee'
+
+    @property
+    def _lottery_groups(self):
+        # A staff-eligible attendee may act under either window until flagged as a staff entry.
+        if self.is_staff_entry:
+            return ['staff']
+        elif self.qualifies_for_staff_lottery:
+            return ['staff', 'attendee']
+        return ['attendee']
 
     @property
     def current_lottery_closed(self):
         if self.can_edit:
             return False
+        return not any(self._lottery_settings(group).edits_open(self._late_run_open(group))
+                       for group in self._lottery_groups)
 
-        if self.is_staff_entry:
-            return not c.STAFF_HOTEL_LOTTERY_OPEN \
-                and not self._late_run_open('staff')
-        elif self.qualifies_for_staff_lottery:
-            return (not c.STAFF_HOTEL_LOTTERY_OPEN
-                    and not c.HOTEL_LOTTERY_OPEN
-                    and not self._late_run_open('staff')
-                    and not self._late_run_open('attendee'))
-        return not c.HOTEL_LOTTERY_OPEN \
-            and not self._late_run_open('attendee')
+    @property
+    def shows_lottery_closed(self):
+        """Whether the entry page shows the "lottery is closed" notice."""
+        if self.can_edit:
+            return False
+        return all(self._lottery_settings(group).shows_closed(self._late_run_open(group))
+                   for group in self._lottery_groups)
+
+    @property
+    def lost_lottery(self):
+        """Entered without winning a room, while Lottery Settings report
+        that as not chosen."""
+        app = self.app_or_parent
+        return app.status in [c.COMPLETE, c.PROCESSED] \
+            and app._lottery_settings(app.lottery_group).show_losses
+
+    def _lottery_settings(self, lottery_group):
+        return hotel_lottery_config.load(sa_inspect(self).session)[lottery_group]
 
     def _late_run_open(self, lottery_group):
         """True if there's a pending LotteryRun for this group with
@@ -491,15 +516,10 @@ class LotteryApplication(MagModel, table=True):
         if cache is None:
             cache = self._late_run_open_cache = {}
         if lottery_group not in cache:
-            from sqlalchemy import inspect as sa_inspect
             session = sa_inspect(self).session
             if not session:
                 return False
-            cache[lottery_group] = session.query(LotteryRun).filter(
-                LotteryRun.lottery_group == lottery_group,
-                LotteryRun.apply_cutoff == False,  # noqa: E712
-                LotteryRun.status == c.LOTTERY_PENDING,
-            ).first() is not None
+            cache[lottery_group] = late_run_open(session, lottery_group)
         return cache[lottery_group]
 
     @property
@@ -1118,6 +1138,18 @@ class RoomAssignment(MagModel, table=True):
             ~sa.exists().where(LotteryRun.id == cls.lottery_run_id,
                                LotteryRun.status == c.LOTTERY_PENDING))
 
+    @hybrid_property
+    def in_hotel_export(self):
+        """Sent to the hotel: live rooms, plus any room the hotel has confirmed,
+        so it hears about cancellations and other changes."""
+        return self.is_released and (self.is_live or bool(self.hotel_confirmation_number))
+
+    @in_hotel_export.expression
+    def in_hotel_export(cls):
+        return sa.and_(cls.is_released, sa.or_(
+            cls.is_live,
+            sa.func.coalesce(cls.hotel_confirmation_number, '') != ''))
+
     @property
     def export_locked(self):
         # Locking is currently per-application - once any of an app's rooms
@@ -1126,6 +1158,16 @@ class RoomAssignment(MagModel, table=True):
         # can promote this to a real column without breaking the
         # template/API contract (everything reads through this property).
         return bool(self.lottery_application and self.lottery_application.export_locked)
+
+    @property
+    def room_changes_locked(self):
+        """Lottery Settings has locked all rooms to changes."""
+        return hotel_lottery_config.load(sa_inspect(self).session).room_changes_locked
+
+    @property
+    def changes_locked(self):
+        """Attendees and staff can view this room but not edit or cancel it."""
+        return self.export_locked or self.room_changes_locked
 
     @property
     def effective_occupants(self):

@@ -16,7 +16,7 @@
 {% endif %}
 
 {% set ra = assignment %}
-{% set locked = ra.export_locked %}
+{% set locked = ra.changes_locked %}
 {# Expired and cancelled rooms no longer hold inventory. The page shows them
    as a record only; the room_action guard refuses their writes as well. #}
 {% set inactive = not ra.is_live %}
@@ -35,6 +35,7 @@
       {{ room_macros.room_dates(ra, fallback='') }}
       - <span class="text-capitalize">{{ ra.status_label }}</span>
     </p>
+    {{ room_macros.confirmation_numbers(ra, classes='mt-1') }}
   </div>
   <a href="rooms?attendee_id={{ viewer.id }}" class="btn btn-outline-secondary">All rooms</a>
 </div>
@@ -42,7 +43,7 @@
 {# `message` is rendered by base.html into the global `#message-alert`
    element via JS; do NOT re-render it inline here or it shows up twice. #}
 
-{% if locked %}
+{% if ra.export_locked or locked %}
 <div class="alert alert-warning d-flex align-items-start gap-2">
   <i class="fa fa-lock fa-lg mt-1"></i>
   <div>
@@ -258,7 +259,7 @@
        (or never arrive in dev). Gate the whole display on `cc_token`,
        and show the last-four detail only when we actually have it
        (mirrors secure_room.html's hasCard()/cardSummaryText()). #}
-    {% if locked %}
+    {% if ra.export_locked %}
       <p class="text-muted mb-0">
         {% if ra.cc_token %}
           {% if ra.cc_last_four %}Ending in {{ ra.cc_last_four }}{% if ra.cc_card_type %} ({{ ra.cc_card_type }}){% endif %}.{% else %}A card is on file.{% endif %}

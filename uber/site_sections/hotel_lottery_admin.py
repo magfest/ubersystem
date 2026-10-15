@@ -30,6 +30,7 @@ from uber.hotel.deletion import (DeletionError, RESOURCE_SPECS, has_blocking,
                                  inspect_conflicts, perform_delete,
                                  resolve_conflict)
 from uber.hotel.perms import is_lottery_admin, record_partition_audit
+from uber.hotel.config import GROUPS as LOTTERY_GROUPS, hotel_lottery_config, late_run_open
 from uber.models.hotel import (HotelRoomInventory, InventoryNightQuantity, InventoryPartition,
                                InventoryPartitionBlock, LotteryRun, HotelExportLog, LotteryHotel, LotteryRoomType,
                                PartitionOwner, RoomAssignment,
@@ -1176,7 +1177,23 @@ class Root:
     def settings(self, session, message=''):
         return {
             'message': message,
+            'lottery_settings': hotel_lottery_config.load(session),
+            'late_run_open': {group: late_run_open(session, group) for group in LOTTERY_GROUPS},
         }
+
+    def update_lottery_settings(self, session, **params):
+        _require_post_csrf(params, redirect='settings')
+        data = {}
+        for group in LOTTERY_GROUPS:
+            # The selects post '' for automatic and '1'/'0' for a forced value.
+            data[group] = {field: None if params.get(f'{group}_{field}', '') == ''
+                           else params[f'{group}_{field}'] == '1'
+                           for field in ('accept_entries', 'allow_edits', 'show_closed')}
+            data[group]['show_losses'] = params.get(f'{group}_show_losses') == '1'
+        data['room_changes_locked'] = params.get('room_changes_locked') == '1'
+        hotel_lottery_config.save(data, session)
+        session.commit()
+        raise HTTPRedirect('settings?message={}', 'Lottery settings saved.')
 
     @ajax
     def vault_usage(self, session, month=''):

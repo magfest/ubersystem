@@ -90,6 +90,7 @@
         <p class="text-muted mb-2">
           {{ room_macros.room_dates(room) }}
         </p>
+        {{ room_macros.confirmation_numbers(room, classes='small mb-2') }}
       </div>
       <div>
         {{ room_macros.room_status_badges(room) }}
@@ -98,7 +99,7 @@
 
     <div class="d-flex gap-2 mt-2">
       <a href="room?id={{ room.id }}&attendee_id={{ attendee.id }}" class="btn btn-sm btn-outline-primary">
-        {% if room.export_locked %}View{% else %}Edit{% endif %}
+        {% if room.changes_locked %}View{% else %}Edit{% endif %}
       </a>
       {% if not room.export_locked and room.require_cc and room.status == c.ASSIGNED %}
         <a href="secure_room?assignment_id={{ room.id }}&attendee_id={{ attendee.id }}" class="btn btn-sm btn-success">
@@ -107,7 +108,7 @@
       {% endif %}
       {# Declining the suite cancels its connector rooms too, so the
          Decline action lives only on the parent. #}
-      {% if not room.export_locked and room.status == c.ASSIGNED %}
+      {% if not room.changes_locked and room.status == c.ASSIGNED %}
         <a href="decline?id={{ attendee.lottery_application.id if attendee.lottery_application else '' }}&assignment_id={{ room.id }}"
            class="btn btn-sm btn-outline-danger">Decline</a>
       {% endif %}
@@ -136,6 +137,7 @@
             <div class="text-muted small">
               {{ room_macros.room_dates(child, fallback='Dates follow the suite') }}
             </div>
+            {{ room_macros.confirmation_numbers(child, classes='small') }}
           </div>
           <div>
             {{ room_macros.room_status_badges(child) }}
@@ -143,7 +145,7 @@
         </div>
         <div class="d-flex gap-2 mt-2">
           <a href="room?id={{ child.id }}&attendee_id={{ attendee.id }}" class="btn btn-sm btn-outline-primary">
-            {% if child.export_locked or not child.is_live %}View{% else %}Edit{% endif %}
+            {% if child.changes_locked or not child.is_live %}View{% else %}Edit{% endif %}
           </a>
           {% if not child.export_locked and child.require_cc and child.status == c.ASSIGNED %}
             <a href="secure_room?assignment_id={{ child.id }}&attendee_id={{ attendee.id }}" class="btn btn-sm btn-success">
@@ -177,6 +179,7 @@
             - Booked by {{ room.attendee.first_name }} {{ room.attendee.last_name }}
           {% endif %}
         </p>
+        {{ room_macros.confirmation_numbers(room, classes='small mb-2') }}
       </div>
       <div>
         {# Shared badge cluster; previously this guest view dropped the
@@ -187,7 +190,7 @@
 
     <div class="d-flex gap-2 mt-2">
       <a href="room?id={{ room.id }}&attendee_id={{ attendee.id }}" class="btn btn-sm btn-outline-primary">View</a>
-      {% if not room.export_locked %}
+      {% if not room.changes_locked %}
         <form method="post" action="leave_room" class="d-inline">
           {{ csrf_token() }}
           <input type="hidden" name="assignment_id" value="{{ room.id }}" />
@@ -230,6 +233,7 @@
           {% endif %}
         </p>
         <p class="mb-2">{{ room_macros.inactive_room_reason(room) }}</p>
+        {{ room_macros.confirmation_numbers(room, classes='small mb-2') }}
       </div>
       <div>
         {{ room_macros.room_status_badges(room) }}
