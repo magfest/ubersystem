@@ -352,8 +352,8 @@ class LotteryApplication(MagModel, table=True):
 
     def sync_award_status(self, session):
         """Recompute this application's award state from its rooms: AWARDED
-        requires a live room. With none left, an AWARDED/PROCESSED app whose
-        rooms expired or were cancelled becomes CANCELLED; one whose rooms were
+        requires a live room. With none left, an AWARDED/PROCESSED app with a
+        cancelled room becomes CANCELLED; one whose rooms expired or were
         removed returns to COMPLETE (dropping its lottery_run_id) so it
         re-enters future runs. Terminal app states (WITHDRAWN, DISQUALIFIED,
         ...) are never overridden.
@@ -367,9 +367,11 @@ class LotteryApplication(MagModel, table=True):
         live = session.query(RoomAssignment).filter(
             RoomAssignment.lottery_application_id == self.id,
             RoomAssignment.is_live)
+        # Expired rooms are deliberately absent: hotel policy keeps an entry
+        # whose room was released for a missing card eligible for later runs.
         ended = session.query(RoomAssignment).filter(
             RoomAssignment.lottery_application_id == self.id,
-            RoomAssignment.status.in_([c.EXPIRED, c.CANCELLED]))
+            RoomAssignment.status == c.CANCELLED)
         if self.status in (c.COMPLETE, c.CANCELLED) and live.filter(RoomAssignment.is_released).count():
             self.status = c.AWARDED
             session.add(self)
@@ -2028,9 +2030,9 @@ def _demote_app_if_no_live_rooms(connection, app_id, exclude_id=None):
 
 
 def _cancel_app_if_no_live_rooms(connection, app_id):
-    """The entry's last live room expired or the hotel cancelled it: the entry
-    becomes CANCELLED. It keeps lottery_run_id as the record of which run
-    awarded it."""
+    """The hotel cancelled the entry's last live room: the entry becomes
+    CANCELLED. It keeps lottery_run_id as the record of which run awarded
+    it."""
     if _has_live_rooms(connection, app_id):
         return
     connection.execute(
@@ -2056,8 +2058,9 @@ def _ra_after_insert_promote_app(mapper, connection, target):
 def _ra_after_update_sync_app(mapper, connection, target):
     """Keep the entry in step when a room's status changes in place - the
     card-deadline task, an admin edit, a hotel import, the API. When the
-    entry has no other live room left, a room that EXPIRES or that the HOTEL
-    cancelled (it carries a cancellation number) makes the entry CANCELLED.
+    entry has no other live room left, a room that EXPIRES returns the entry
+    to COMPLETE so later runs can draw it. A room the HOTEL cancelled (it
+    carries a cancellation number) makes the entry CANCELLED.
 
     Reinstating a room awards the entry again. A room the attendee cancels
     has no cancellation number; the decline handler cancels the entry."""
@@ -2071,8 +2074,9 @@ def _ra_after_update_sync_app(mapper, connection, target):
     is_live = target.status in c.HOTEL_LIVE_ASSIGNMENT_STATUSES
     if is_live and not was_live:
         _promote_app(connection, target)
-    elif was_live and (target.status == c.EXPIRED or target.status == c.CANCELLED
-                       and target.cancellation_confirmation_number):
+    elif was_live and target.status == c.EXPIRED:
+        _demote_app_if_no_live_rooms(connection, target.lottery_application_id)
+    elif was_live and target.status == c.CANCELLED and target.cancellation_confirmation_number:
         _cancel_app_if_no_live_rooms(connection, target.lottery_application_id)
 
 
