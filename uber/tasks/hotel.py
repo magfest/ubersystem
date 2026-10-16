@@ -52,9 +52,7 @@ def expire_unsecured_assignments():
             if ra.lottery_application_id:
                 impacted_app_ids.add(ra.lottery_application_id)
 
-        # An entry whose last live room expired returns to COMPLETE and
-        # re-enters the next run. To gate re-entry behind opt-in, the admin
-        # sets confirmation_window_start on that run.
+        # An entry whose last live room expired returns to COMPLETE.
         reset_count = 0
         for app_id in impacted_app_ids:
             app = session.query(LotteryApplication).get(app_id)

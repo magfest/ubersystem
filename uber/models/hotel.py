@@ -367,8 +367,8 @@ class LotteryApplication(MagModel, table=True):
         live = session.query(RoomAssignment).filter(
             RoomAssignment.lottery_application_id == self.id,
             RoomAssignment.is_live)
-        # Expired rooms are deliberately absent: hotel policy keeps an entry
-        # whose room was released for a missing card eligible for later runs.
+        # EXPIRED is excluded: an entry whose room was released for a missing
+        # card stays in later runs.
         ended = session.query(RoomAssignment).filter(
             RoomAssignment.lottery_application_id == self.id,
             RoomAssignment.status == c.CANCELLED)
