@@ -52,13 +52,13 @@ def expire_unsecured_assignments():
             if ra.lottery_application_id:
                 impacted_app_ids.add(ra.lottery_application_id)
 
-        # An entry whose last live room expired is cancelled.
-        cancelled_count = 0
+        # An entry whose last live room expired returns to COMPLETE.
+        reset_count = 0
         for app_id in impacted_app_ids:
             app = session.query(LotteryApplication).get(app_id)
             if app:
                 app.sync_award_status(session)
-                cancelled_count += app.status == c.CANCELLED
+                reset_count += app.status == c.COMPLETE
 
         if expired_count:
             session.commit()
@@ -97,6 +97,6 @@ def expire_unsecured_assignments():
             session.commit()
 
             log.info("expire_unsecured_assignments: expired %d assignment(s), "
-                     "%d application(s) cancelled.",
-                     expired_count, cancelled_count)
+                     "%d application(s) reset to COMPLETE.",
+                     expired_count, reset_count)
     return expired_count
