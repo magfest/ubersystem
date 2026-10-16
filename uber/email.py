@@ -35,7 +35,7 @@ class EmailHandler:
     def create_email_obj(self, fixture_obj=None, to_model=None, **kwargs):
         """
         Creates an email with properties based on any passed arguments, falling back to the email's fixture if there is one.
-        We don't generate the subject or cc, bcc, or replyto based on the model as that's done at send time.
+        We don't generate the cc, bcc, or replyto based on the model as that's done at send time.
         """
         email_obj = Email(status=c.QUEUED)
 
@@ -403,6 +403,12 @@ class EmailService:
             if replace_unsent:
                 log.error(f"Misconfigured email '{ident}': emails cannot have replace_unset set without both a valid fixture and a to_model.")
                 return
+
+        if kwargs.get('custom_ident', None):
+            # Sometimes we need to send a fixture email but use a different ident to track it
+            # In this case, set a shared ident instead
+            kwargs['shared_ident'] = ident
+            ident = kwargs.pop('custom_ident')
 
         email_handler = EmailHandler(fixture_obj, to_model, ident=ident, to=to, data=data, **kwargs)
         if not email_handler.can_queue_email(session, limit_one, delete_existing=replace_unsent):
