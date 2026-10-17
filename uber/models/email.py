@@ -139,6 +139,7 @@ class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
         from uber.tasks import panels
         with Session() as session:
             panels.setup_panel_emails(reconcile_fixtures=False)
+            c.REDIS_STORE.delete(c.REDIS_PREFIX + 'email_processing')
 
             existing_automated_emails = session.query(AutomatedEmail)
 
