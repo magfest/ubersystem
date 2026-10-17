@@ -21,7 +21,7 @@ def check_task_progress(redis_key, task_name, delete_locked=False):
     if task_status:
         started_timestamp = task_status['started_timestamp']
         started_time = datetime.fromtimestamp(float(started_timestamp))
-        last_warning = task_status.get('warning_timedelta', 0)
+        last_warning = int(task_status.get('warning_timedelta', 0))
         if started_time + timedelta(hours=last_warning + 2) < datetime.now():
             log.error(f"The {task_name} task has taken more than {last_warning + 2} hours. There may be an issue with this task.")
             if delete_locked:
