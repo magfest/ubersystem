@@ -2459,7 +2459,7 @@ c.GUEST_CHECKLIST_ITEMS = [
     {'name': 'mc', 'header': 'MC'},
     {'name': 'stage_plot', 'header': 'Stage Plans', 'is_link': True},
     {'name': 'rehearsal'},
-    {'name': 'taxes', 'header': 'W9 Uploaded', 'is_link': True},
+    {'name': 'taxes', 'header': 'Payment Info Uploaded', 'is_link': True},
     {'name': 'badges', 'header': 'Badges Claimed'},
     {'name': 'hospitality'},
     {'name': 'travel_plans'},

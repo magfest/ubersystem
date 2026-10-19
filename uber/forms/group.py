@@ -31,7 +31,7 @@ class GroupInfo(MagForm):
 
 class AdminGroupInfo(GroupInfo):
     guest_group_type = SelectField('Checklist Type', default=0, choices=[(0, 'N/A')] + c.GROUP_TYPE_OPTS, coerce=int)
-    payment = BooleanField('Enable the W9 checklist step for this guest.')
+    payment = BooleanField('Enable the Payment Information/W9 checklist step for this guest.')
     hotel_included = BooleanField('Enable the hotel checklist step for this guest.')
     can_add = BooleanField('This group may purchase additional badges.')
     is_dealer = BooleanField(f'This group should be treated as {c.DEALER_INDEFINITE_TERM}.',

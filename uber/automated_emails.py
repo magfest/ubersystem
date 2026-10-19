@@ -2011,14 +2011,14 @@ BandEmailFixture(
     when=[days_before(3, c.BAND_BIO_DEADLINE)])
 
 BandEmailFixture(
-    f'Reminder to submit your W9 for {c.EVENT_NAME}',
+    f'Reminder to submit your payment information for {c.EVENT_NAME}',
     'guests/band_w9_reminder.txt',
     "lambda b: b.payment and not b.taxes_status",
     'band_w9_reminder',
     when=[days_before(14, c.BAND_TAXES_DEADLINE, 3)])
 
 BandEmailFixture(
-    f'Last chance to submit your W9 for {c.EVENT_NAME}',
+    f'Last chance to submit your payment information for {c.EVENT_NAME}',
     'guests/band_w9_reminder.txt',
     "lambda b: b.payment and not b.taxes_status",
     'band_w9_reminder_last',
