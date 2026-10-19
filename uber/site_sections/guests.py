@@ -110,11 +110,11 @@ class Root:
         guest_taxes = session.guest_taxes(params, restricted=True)
         if cherrypy.request.method == 'POST':
             if not guest_taxes.w9_sent:
-                message = 'You must confirm that you have uploaded your W9 at the secure document portal'
+                message = 'You must confirm that you have uploaded your payment information at the secure document portal'
             else:
                 guest.taxes = guest_taxes
                 session.add(guest_taxes)
-                raise HTTPRedirect('index?id={}&message={}', guest.id, 'Thank you for sending in your W9!')
+                raise HTTPRedirect('index?id={}&message={}', guest.id, 'Thank you for sending in your payment information!')
 
         return {
             'guest': guest,

@@ -3,17 +3,17 @@
     <tr>
       <td width="25">{{ macros.checklist_image(guest.taxes_status) }}</td>
       <td><b><a href="taxes?guest_id={{ guest.id }}">
-        {% block deadline_headline %}Upload W9{% endblock %}</a></b></td>
+        {% block deadline_headline %}Payment Information/W9 Uploader{% endblock %}</a></b></td>
       <td><i>Deadline:</i> {{ guest.deadline_from_model('taxes')|datetime_local }}</td>
     </tr>
     <tr>
       <td colspan="3">
         {% block deadline_text %}
           {% if guest.taxes_status %}
-            You have already uploaded your W9 form, but if you need to make changes you can upload a new one
+            You have already uploaded your payment information, but if you need to make changes you can upload a new one
             using the link above.
           {% else %}
-            Use the link above to upload a completed W9 form (a link will be provided to a blank form).
+            Use the link above to upload your payment information.
           {% endif %}
         {% endblock %}
         <br/></br>
@@ -21,11 +21,15 @@
     </tr>
   {% endif %}
 {% else %}
-  <h2>{% block form_title %}Completed W9 for {{ guest.group.name }}{% endblock %}</h2>
+  <h2>{% block form_title %}Payment Information for {{ guest.group.name }}{% endblock %}</h2>
 
   {% block form_desc %}
-    <p>Please use our secure document portal below to upload a W9 for the person to whom the check will be issued. We will issue 1099 forms to applicable parties at the end of the tax year.</p>
-    <p>You can find a blank W9 form <a target="_blank" href="https://www.irs.gov/pub/irs-pdf/fw9.pdf">here</a>.</p>
+  <p>
+    This portal is for anyone receiving a payment from MAGFest to input their payment preferences and information.
+  </p>
+  <p>
+    For payments above $600 in any calendar year, you can find a blank W9 <a target="_blank" href="https://www.irs.gov/pub/irs-pdf/fw9.pdf">here</a> to upload as well. We will issue 1099 forms to applicable parties at the end of the tax year.
+  </p>
   {% endblock %}
 
   <p><a href="{{ c.SECURE_DOCUMENT_URL }}" class="btn btn-info" target="_blank">Secure Document Portal</a></p>
@@ -35,7 +39,7 @@
     <input type="hidden" name="id" value="{{ guest_taxes.db_id }}" />
     
     {{ csrf_token() }}
-    {{ macros.checkbox(guest_taxes, 'w9_sent', label='I confirm that I have uploaded my W9 form at the document portal above.') }}
+    {{ macros.checkbox(guest_taxes, 'w9_sent', label='I confirm that I have uploaded my payment information at the document portal above.') }}
     <br/>
     {% block form_extra %}{% endblock %}
     <input type="submit" class="btn btn-primary" value="Confirm Upload" />

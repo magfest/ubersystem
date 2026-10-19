@@ -76,7 +76,7 @@ class Root:
             '# Panel Applications',
             '# of Autograph Sessions', 'Autograph Session Length (Minutes)',
             'Wants RI Meet & Greet', 'Meet & Greet Length (Minutes)',
-            'Completed W9', 'Stage Plot',
+            'Completed Payment Info', 'Stage Plot',
             'Selling Merchandise',
             'Charity Answer', 'Charity Donation',
             'Travel Mode(s)', 'Travel Mode(s) Text', 'Travel Details',
