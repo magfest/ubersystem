@@ -158,7 +158,7 @@ class MagModel(SQLModel):
             elif isinstance(fields, list):
                 enabled_fields = fields
             elif isinstance(fields, dict):
-                enabled_fields = [x for x in fields.keys() if fields[x] is True]
+                enabled_fields = [x for x in fields.keys() if fields[x] is not False]
                 disabled_fields = [x for x in fields.keys() if fields[x] is False]
 
         for field in (enabled_fields or self.to_dict_default_attrs):

@@ -1397,7 +1397,6 @@ class DepartmentLookup:
                 'name': True,
                 'description': True,
                 'solicits_volunteers': True,
-                'is_shiftless': True,
                 'max_consecutive_minutes': True,
                 'from_email': True,
                 'manages_panels': True,
