@@ -582,7 +582,11 @@ class Job(MagModel, table=True):
     def no_overlap(self, attendee):
         before = self.start_time - timedelta(minutes=1)
         after = self.start_time + timedelta(minutes=self.duration)
-        return not self.minutes.intersection(attendee.shift_minutes) and (
+        # Compares intervals, not Job.minutes sets; the shifts page runs this once per visible job.
+        # A zero-minute job covers no minutes, so it overlaps nothing.
+        overlaps = self.duration and any(self.start_time < shift.job.end_time and shift.job.start_time < after
+                                         for shift in attendee.shifts if shift.job.duration)
+        return not overlaps and (
             before not in attendee.shift_minute_map
             or not attendee.shift_minute_map[before].extra15
             or self.department_id == attendee.shift_minute_map[before].department_id
