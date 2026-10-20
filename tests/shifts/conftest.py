@@ -43,7 +43,10 @@ def database():
     from alembic import command
 
     from uber.migration import create_alembic_config
-    from uber.models import Session
+    from uber.models import Session, initialize_db
+
+    # The cherrypy 'start' hook normally binds model getters such as session.job.
+    initialize_db()
 
     cfg = create_alembic_config()
     cfg.attributes['connection'] = Session.engine

@@ -22,7 +22,7 @@ from pytz import UTC
 from sqlalchemy import and_, func, or_, create_engine
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.event import listen
-from sqlalchemy.exc import IntegrityError, NoResultFound
+from sqlalchemy.exc import IntegrityError, NoResultFound, OperationalError
 from sqlalchemy.ext.hybrid import hybrid_method, hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import Query, joinedload, lazyload, selectinload, subqueryload, contains_eager, declared_attr, sessionmaker, scoped_session
@@ -43,6 +43,10 @@ from uber.utils import check_csrf, normalize_email_legacy, create_new_hash, Dept
 from uber.payments import ReceiptManager
 
 log = logging.getLogger(__name__)
+
+# How long Session.assign waits for another signup's lock on the same job. Each waiter holds a
+# pooled connection, so a short wait keeps one stalled signup from draining the pool.
+SHIFT_LOCK_TIMEOUT = '5s'
 
 def _make_getter(model):
     def getter(
@@ -2142,8 +2146,21 @@ class UberSession(sqlalchemy.orm.Session):
             assign an Attendee to a Job by creating a Shift
             :return: 'None' on success, error message on failure
             """
-            job = self.job(job_id)
+            # Lock the job row until the transaction ends so concurrent signups for its last slot take
+            # turns; populate_existing reloads job.shifts that this session may already hold.
+            self.execute(sqlalchemy.text(f"SET LOCAL lock_timeout = '{SHIFT_LOCK_TIMEOUT}'"))
+            try:
+                job = self.query(Job).filter(Job.id == job_id).with_for_update(of=Job).populate_existing().one()
+            except OperationalError as e:
+                if getattr(e.orig, 'pgcode', None) != '55P03':  # Postgres lock_not_available
+                    raise
+                self.rollback()
+                return 'Someone else is signing up for this shift right now. Please try again.'
+            self.execute(sqlalchemy.text("SET LOCAL lock_timeout = DEFAULT"))
             attendee = self.attendee(attendee_id)
+
+            if any(shift.attendee_id == attendee.id for shift in job.shifts):
+                return 'This volunteer is already signed up for this shift.'
 
             if not attendee.has_badge:
                 return f'This badge is currently {attendee.badge_status_label} and cannot sign up for shifts.'
