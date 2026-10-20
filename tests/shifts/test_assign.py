@@ -1,61 +1,11 @@
 import threading
 import time
-import uuid
-from datetime import timedelta
 
 import pytest
 import sqlalchemy
 
 import uber.models
-from uber.config import c
-from uber.models import Attendee, Department, Job, Session, Shift, Tracking
-
-
-@pytest.fixture
-def committed(request):
-    """Commit a department, a job, and two staffers so separate connections can see them.
-
-    Parametrize indirectly to set the job's slot count; the default is 1.
-    """
-    def staffer(session, first_name):
-        attendee = Attendee(first_name=first_name, last_name='Assign', email=f'{uuid.uuid4().hex}@example.com',
-                            badge_type=c.STAFF_BADGE, badge_status=c.COMPLETED_STATUS, paid=c.NEED_NOT_PAY,
-                            staffing=True)
-        session.add(attendee)
-        return attendee
-
-    slots = getattr(request, 'param', 1)
-    with Session() as session:
-        dept = Department(name=f'Assign {uuid.uuid4().hex[:8]}', description='Assign')
-        session.add(dept)
-        session.flush()
-        job = Job(department_id=dept.id, name='Gate', start_time=c.EPOCH + timedelta(hours=2), duration=60, slots=slots)
-        session.add(job)
-        first, second = staffer(session, 'First'), staffer(session, 'Second')
-        session.commit()
-        ids = {'dept': dept.id, 'job': job.id, 'first': first.id, 'second': second.id}
-
-    yield ids
-
-    with Session() as session:
-        session.query(Shift).filter(Shift.job_id == ids['job']).delete()
-        session.query(Job).filter(Job.id == ids['job']).delete()
-        session.query(Attendee).filter(Attendee.id.in_([ids['first'], ids['second']])).delete()
-        session.query(Department).filter(Department.id == ids['dept']).delete()
-        session.query(Tracking).filter(Tracking.fk_id.in_(list(ids.values()))).delete()
-        # Shift rows are gone by now; their Tracking entries carry the job id in the repr.
-        session.query(Tracking).filter(Tracking.model == 'Shift', Tracking.data.contains(ids['job'])).delete(
-            synchronize_session=False)
-        session.commit()
-
-
-@pytest.fixture
-def shift_count():
-    """Return a function that counts committed shifts for a job."""
-    def count(job_id):
-        with Session() as session:
-            return session.query(Shift).filter(Shift.job_id == job_id).count()
-    return count
+from uber.models import Job, Session, Shift
 
 
 def _start_assign(attendee_id, job_id):

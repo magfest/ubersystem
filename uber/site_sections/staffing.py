@@ -363,6 +363,14 @@ class Root:
     @ajax
     def sign_up(self, session, id, job_id, **params):
         volunteer = session.volunteer_from_id(id)
+
+        # These match the conditions under which signup_base.html shows the Shifts link.
+        if not volunteer.shift_signups_available:
+            return {'success': False, 'message': "Shift signups are not available yet."}
+        if c.VOLUNTEER_CHECKLIST_OPEN and not volunteer.shift_prereqs_complete:
+            return {'success': False,
+                    'message': "Please complete your volunteer checklist before signing up for shifts."}
+
         message = session.assign(volunteer.id, job_id)
         if message:
             return {'success': False, 'message': message}
