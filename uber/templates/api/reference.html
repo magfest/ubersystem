@@ -307,11 +307,21 @@
         <em>401 Unauthorized</em>. Requests with an invalid <code>X-Auth-Token</code>
         header will return <em>403 Forbidden</em>.
       </p>
+      <p>
+        The <code>self_lookup</code> service also needs the signed-in user's OIDC access token in an
+        <code>Authorization: Bearer</code> header. The access token must be issued to the OIDC client
+        bound to your Self token. A missing or invalid access token returns <em>401 Unauthorized</em>;
+        an access token issued to a different client returns <em>403 Forbidden</em>.
+      </p>
     </div>
     <div class="col-sm-6 code-column">
       <div class="example">
         <label>HTTP Request Headers</label>
         <pre class="code">X-Auth-Token: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX</pre>
+      </div>
+      <div class="example">
+        <label>Additional Header for self_lookup</label>
+        <pre class="code">Authorization: Bearer &lt;user's OIDC access token&gt;</pre>
       </div>
     </div>
   </div>
@@ -333,6 +343,10 @@
       <div class="example">
         <label>Using Curl</label>
         <pre class="code">curl -v -k -d '{"method": "config.info"}' -H "X-Auth-Token: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX" -w "\n" {{ c.URL_BASE }}/jsonrpc/</pre>
+      </div>
+      <div class="example">
+        <label>Using Curl with self_lookup</label>
+        <pre class="code">curl -v -k -d '{"method": "self_lookup.badges"}' -H "X-Auth-Token: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX" -H "Authorization: Bearer $ACCESS_TOKEN" -w "\n" {{ c.URL_BASE }}/jsonrpc/</pre>
       </div>
     </div>
   </div>
@@ -365,6 +379,7 @@
       'mivs': '{"method": "mivs.list", "params": [""]}',
       'print_job': '{"method": "print_job.get_pending", "params": ["", "", "true"]}',
       'schedule': '{"method": "schedule.schedule"}',
+      'self_lookup': '{"method": "self_lookup.badges"}',
       'shifts': '{"method": "shifts.lookup", "params": {"department_id": "' ~ c.DEFAULT_DEPARTMENT_ID ~ '", "start_time": "now"}}'
     }
   -%}

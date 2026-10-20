@@ -10,7 +10,7 @@ from uber.config import c
 from uber.decorators import ajax, all_renderable, not_site_mappable, public, site_mappable
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, ApiJob, ApiToken
-from uber.utils import check
+from uber.utils import check, check_csrf
 
 
 @all_renderable()
@@ -85,11 +85,16 @@ class Root:
         else:
             return {'error': 'POST required'}
 
-    def revoke_api_token(self, session, id=None):
+    def revoke_api_token(self, session, id=None, csrf_token=None):
         if not id or not cherrypy.request.method == 'POST':
             raise HTTPRedirect('index')
+        check_csrf(csrf_token)
 
         api_token = session.api_token(id)
+        admin_account = session.current_admin_account()
+        # Permission boundary: this mirrors the token list in index(); keep the two rules identical.
+        if not admin_account.is_super_admin and api_token.admin_account_id != admin_account.id:
+            raise HTTPRedirect('index?message={}', 'You may only revoke your own API tokens')
         api_token.revoked_time = datetime.now(pytz.UTC)
         raise HTTPRedirect(
             'index?message={}', 'Successfully revoked API token')
