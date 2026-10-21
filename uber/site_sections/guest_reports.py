@@ -303,8 +303,8 @@ class Root:
                             c.MERCH_TYPES[merch_type],
                             '{} - {}'.format(item['name'], guest.merch.line_item_to_string(item, line_item)),
                             '${:.2f}'.format(float(item['price'])),
-                            item[line_item] if guest.uses_quantity else 'N/A',
-                            convert_to_absolute_url(guest.inventory_url(item['id'], 'image'))
+                            item[line_item],
+                            convert_to_absolute_url(guest.merch.inventory_url(item['id'], 'image'))
                         ])
                 else:
                     out.writerow([
@@ -312,7 +312,7 @@ class Root:
                         c.MERCH_TYPES[merch_type],
                         item['name'],
                         '${:.2f}'.format(float(item['price'])),
-                        guest.merch.total_quantity(item) if guest.uses_quantity else 'N/A',
+                        guest.merch.total_quantity(item),
                         convert_to_absolute_url(guest.merch.inventory_url(item['id'], 'image')),
                     ])
 

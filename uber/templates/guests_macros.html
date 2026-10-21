@@ -245,9 +245,10 @@
       (Sales Tax: 6%; Square Fees: <a href="https://squareup.com/pricing">https://squareup.com/pricing</a>)
     </p>
   </div>
-  {% if guest.uses_quantity %}
+  {% if show_quantity %}
+    {%- set quantity_label = 'Quantity' if guest.uses_exact_quantity else 'Estimated Quantity' %}
     <div class="form-group">
-      <label class="col-sm-3 control-label">Quantity</label>
+      <label class="col-sm-3 control-label">{{ quantity_label }}</label>
       <div class="col-sm-6">
         <input class="form-control" type="number" name="inventory_quantity{{ suffix }}" value="{{ item.quantity }}" placeholder="How many do you have for sale?" min="0" required />
       </div>
@@ -271,7 +272,7 @@
 
 {% macro apparel_inventory_form(type, item=None, suffix='') -%}
   {%- set varieties_opts, cuts_opts, sizes_opts = GuestMerch.item_subcategories_opts(type) -%}
-  {% call base_inventory_form(type, item=item, suffix=suffix) %}
+  {% call base_inventory_form(type, show_quantity=False, item=item, suffix=suffix) %}
     {%- set step_count = varieties_opts|length -%}
     {%- set col_size = ([4, (12 / step_count)|round(0, 'floor')|int] | sort)[-1] -%}
     {% for variety_value, variety_label in varieties_opts %}
@@ -292,17 +293,9 @@
                   <tr>
                     <td>
                       {%- set quantity_attr = 'quantity-' ~ variety_value ~ '-' ~ cut_value ~ '-' ~ size_value -%}
-                      {% if guest.uses_quantity %}
-                        {% if cut_label|trim %}{{ cut_label }} - {% endif %}{{ size_label }}
-                        <input type="number" name="inventory_{{ quantity_attr }}{{ suffix }}" {% if has_quantity %}value="{{ item[quantity_attr] }}"{% endif %} min="0"/>
                       {%- set has_quantity = item[quantity_attr] if item and quantity_attr in item else False -%}
-                      {% else %}
-                        {%- set has_quantity = True if item and quantity_attr in item else False -%}
-                        <label class="form-check-label">
-                        <input type="checkbox" class="form-check-input" value="1" name="inventory_{{ quantity_attr }}{{ suffix }}"{% if has_quantity %} checked{% endif %} />
-                          {% if cut_label|trim %}{{ cut_label }} - {% endif %}{{ size_label }}
-                        </label>
-                      {% endif %}
+                      {% if cut_label|trim %}{{ cut_label }} - {% endif %}{{ size_label }}
+                      <input type="number" name="inventory_{{ quantity_attr }}{{ suffix }}" {% if has_quantity %}value="{{ item[quantity_attr] }}"{% endif %} min="0"/>
                     </td>
                   </tr>
                 {% endfor %}
@@ -344,7 +337,7 @@
       <div class="line-item data-item">
         <dt>Total</dt>
         <dd>
-          {% if guest.uses_quantity %}{{ guest_merch.total_quantity(item) }}{% endif %}
+         {{ guest_merch.total_quantity(item) }}
         </dd>
       </div>
       </dl>
@@ -383,13 +376,12 @@
           <dt>Price</dt>
           <dd>{{ item.price|format_currency }}</dd>
         </div>
-        {% if guest.uses_quantity %}
         {%- set quantity = guest_merch.total_quantity(item) if type in [c.TSHIRT, c.APPAREL] else item.quantity -%}
+        {%- set quantity_label = 'Quantity' if guest.uses_exact_quantity else 'Estimated Quantity' %}
         <div class="inventory-item-quantity data-item">
-          <dt>Quantity</dt>
+          <dt>{{ quantity_label }}</dt>
           <dd>{{ quantity }}</dd>
         </div>
-        {% endif %}
       </dl>
     </td>
     {% if type in [c.TSHIRT, c.APPAREL] -%}

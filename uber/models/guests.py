@@ -150,7 +150,7 @@ class GuestGroup(MagModel, table=True):
             }
 
     @property
-    def uses_quantity(self):
+    def uses_exact_quantity(self):
         return self.group_type == c.MIVS
 
     @property
@@ -515,13 +515,13 @@ class GuestMerch(MagModel, table=True):
         return cls.extract_json_params(params, 'handlers')
 
     @classmethod
-    def validate_inventory(cls, inventory, qty_required=False):
+    def validate_inventory(cls, inventory):
         if not inventory:
             return 'You must add some merch to your inventory!'
         messages = []
         for item_id, item in inventory.items():
             quantity = int(item.get('quantity') or 0)
-            if qty_required and quantity <= 0 and cls.total_quantity(item) <= 0:
+            if quantity <= 0 and cls.total_quantity(item) <= 0:
                 messages.append('Please specify a quantity.')
             for name, file in [(n, f) for (n, f) in item.items() if f]:
                 match = cls._inventory_file_regex.match(name)
@@ -610,8 +610,6 @@ class GuestMerch(MagModel, table=True):
 
         for attr in filter(lambda s: s.startswith('quantity-'), item.keys()):
             qty = item[attr] if item[attr] else 0
-            if qty == 'on':
-                qty = 1
             if int(qty) > 0:
                 line_items.append(attr)
 
