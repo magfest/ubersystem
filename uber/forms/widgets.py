@@ -255,7 +255,8 @@ class HourMinuteDuration(HiddenInput):
             minutes: {minutes},
             total: { duration }
             }}"
-            x-effect="total = parseInt(hours) * 60 + parseInt(minutes)"
+            x-effect="total = (parseInt(hours) || 0)  * 60 + (parseInt(minutes) || 0)"
+            x-on:set-{field.name}.window="hours = Math.floor($event.detail / 60); minutes = $event.detail % 60"
             x-modelable="total"
             {model_binding}>
             <div class="input-group">

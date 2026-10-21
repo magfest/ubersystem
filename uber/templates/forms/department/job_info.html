@@ -15,7 +15,9 @@ applyTemplate() {
 
         this.name = template.name;
         this.description = template.description;
-        this.duration = template.duration;
+        //$dispatch is AlpineJS wrapper to emit an event. Normally hours and minutes don't update from a total after load
+        //but when we apply a template, that's actually what we need.
+        this.$dispatch('set-duration', template.duration);
         this.extra15 = template.extra15;
         this.weight = template.weight;
         this.visibility = template.visibility;
