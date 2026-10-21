@@ -148,9 +148,9 @@ class GuestGroup(MagModel, table=True):
                 'checkin_times': c.GUEST_MERCH_CHECKIN_TIMES,
                 'checkout_times': c.GUEST_MERCH_CHECKOUT_TIMES,
             }
-        
+
     @property
-    def uses_quantity(self):
+    def uses_exact_quantity(self):
         return self.group_type == c.MIVS
 
     @property
@@ -515,13 +515,13 @@ class GuestMerch(MagModel, table=True):
         return cls.extract_json_params(params, 'handlers')
 
     @classmethod
-    def validate_inventory(cls, inventory, qty_required=False):
+    def validate_inventory(cls, inventory):
         if not inventory:
             return 'You must add some merch to your inventory!'
         messages = []
         for item_id, item in inventory.items():
             quantity = int(item.get('quantity') or 0)
-            if qty_required and quantity <= 0 and cls.total_quantity(item) <= 0:
+            if quantity <= 0 and cls.total_quantity(item) <= 0:
                 messages.append('Please specify a quantity.')
             for name, file in [(n, f) for (n, f) in item.items() if f]:
                 match = cls._inventory_file_regex.match(name)
@@ -532,6 +532,14 @@ class GuestMerch(MagModel, table=True):
                     ext = filename_extension(file.filename)
                     if extensions and ext not in extensions:
                         messages.append('{} files must be one of {}'.format(file_type.title(), ', '.join(extensions)))
+
+                    max_size_mb = getattr(c, 'ALLOWED_INVENTORY_{}_SIZE'.format(file_type), None)
+                    if max_size_mb:
+                        file.file.seek(0, os.SEEK_END)
+                        file_size = file.file.tell()
+                        file.file.seek(0)  # _save_inventory_files reads from the start
+                        if file_size > max_size_mb * 1024 * 1024:
+                            messages.append('{} files must be under {}MB'.format(file_type.title(), max_size_mb))
 
         return '. '.join(dict.fromkeys([s.strip() for s in messages if s.strip()]))
 
@@ -602,8 +610,6 @@ class GuestMerch(MagModel, table=True):
 
         for attr in filter(lambda s: s.startswith('quantity-'), item.keys()):
             qty = item[attr] if item[attr] else 0
-            if qty == 'on':
-                qty = 1
             if int(qty) > 0:
                 line_items.append(attr)
 

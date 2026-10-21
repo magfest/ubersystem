@@ -1,7 +1,7 @@
 import os
 
 from collections import defaultdict
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import subqueryload
 
 from uber.config import c
@@ -178,7 +178,7 @@ class Root:
                 GuestGroup.id == GuestMerch.guest_id,
                 GuestMerch.selling_merch == c.ROCK_ISLAND,
                 GuestGroup.group_id == Group.id).filter(
-                *empty_filter).order_by(Group.name).all()
+                *empty_filter).order_by(func.lower(Group.name)).all()
         
         guest_tracks = defaultdict(list)
         tracks = session.query(File).filter(File.fk_model == 'GuestGroup')
@@ -218,13 +218,18 @@ class Root:
                 GuestGroup.id == GuestMerch.guest_id,
                 GuestMerch.selling_merch == c.ROCK_ISLAND,
                 GuestGroup.group_id == Group.id).order_by(
-                Group.name).all()
+                func.lower(Group.name)).all()
         
         rows = []
         item_type_square_name = {
             c.PHYSICAL_GAME: "GAME",
             c.GAME_CODE: "GAME CODE",
-            c.CD: "MUSIC",
+            c.CD: "CD",
+            c.VINYL: "VINYL",
+            c.CASSETTE: "CASSETTE",
+            c.USB: "USB",
+            c.KEYCHAIN: "KEYCHAIN",
+            c.BAG: "BAG",
             c.TSHIRT: "APPAREL",
             c.APPAREL: "APPAREL",
             c.PIN: "PIN",
@@ -243,11 +248,8 @@ class Root:
 
         def _generate_row(item, guest, variation_name='Regular'):
             item_type = int(item['type'])
-            item_name = f'{item_type_square_name.get(item_type, c.MERCH_TYPES[item_type].upper())} {guest.group.name} {item['name']}'
-            if item_type == c.CD:
-                item_name = f'{item_name} {c.ALBUM_MEDIAS[int(item['media'])]}'
-            elif item_type == c.TSHIRT:
-                item_name = f'{item_name} T-shirt'
+            item_name = f'{item['name']} T-shirt' if item_type == c.TSHIRT else item['name']
+            item_name = f'{item_type_square_name.get(item_type, c.MERCH_TYPES[item_type].upper())} {item_name} {guest.group.name}'
 
             return [
                 '', '', item_name, '', variation_name, '', '', '', guest.group.name, guest.group.name,
@@ -261,6 +263,8 @@ class Root:
                 if merch_type in (c.TSHIRT, c.APPAREL):
                     for line_item in guest.merch.line_items(item):
                         rows.append(_generate_row(item, guest, guest.merch.line_item_to_string(item, line_item)))
+                elif merch_type == c.POSTER:
+                    rows.append(_generate_row(item, guest, item.get('dimensions','')))
                 else:
                     rows.append(_generate_row(item, guest))
         out.writerows(header_row, rows)
@@ -269,7 +273,7 @@ class Root:
     @csv_file
     def rock_island_csv(self, out, session, group_type=None, id=None, **params):
         out.writerow([
-            'Group Name', 'Inventory Type', 'Inventory Name', 'Price', 'Media', 'Quantity', 'Promo Picture URL',
+            'Group Name', 'Inventory Type', 'Inventory Name', 'Price', 'Quantity', 'Promo Picture URL',
         ])
         guest_groups = session.query(GuestGroup).options(
             subqueryload(GuestGroup.group)).options(subqueryload(GuestGroup.merch))
@@ -282,7 +286,7 @@ class Root:
                 GuestGroup.id == GuestMerch.guest_id,
                 GuestMerch.selling_merch == c.ROCK_ISLAND,
                 GuestGroup.group_id == Group.id).order_by(
-                Group.name).all()
+                func.lower(Group.name)).all()
 
         def _inventory_sort_key(item):
             return ' '.join([
@@ -301,18 +305,17 @@ class Root:
                             c.MERCH_TYPES[merch_type],
                             '{} - {}'.format(item['name'], guest.merch.line_item_to_string(item, line_item)),
                             '${:.2f}'.format(float(item['price'])),
-                            '',
-                            item[line_item] if guest.uses_quantity else 'N/A',
-                            convert_to_absolute_url(guest.inventory_url(item['id'], 'image'))
+                            item[line_item],
+                            convert_to_absolute_url(guest.merch.inventory_url(item['id'], 'image'))
                         ])
                 else:
+                    item_extras = f"{item['name']} {item.get('dimensions','')}".strip() if merch_type == c.POSTER else item['name']
                     out.writerow([
                         guest.group.name,
                         c.MERCH_TYPES[merch_type],
-                        item['name'],
+                        item_extras,
                         '${:.2f}'.format(float(item['price'])),
-                        c.ALBUM_MEDIAS[int(item['media'])] if item.get('media', '') else '',
-                        guest.merch.total_quantity(item) if guest.uses_quantity else 'N/A',
+                        guest.merch.total_quantity(item),
                         convert_to_absolute_url(guest.merch.inventory_url(item['id'], 'image')),
                     ])
 
@@ -329,7 +332,7 @@ class Root:
                 GuestGroup.id == GuestMerch.guest_id,
                 GuestMerch.selling_merch == c.ROCK_ISLAND,
                 GuestGroup.group_id == Group.id).order_by(
-                Group.name).all()
+                func.lower(Group.name)).all()
             
         def _inventory_sort_key(item):
             return ' '.join([
@@ -363,7 +366,7 @@ class Root:
                     GuestGroup.id == GuestMerch.guest_id,
                     GuestMerch.selling_merch == c.ROCK_ISLAND,
                     GuestGroup.group_id == Group.id).order_by(
-                        Group.name).all()
+                        func.lower(Group.name)).all()
 
         out.writerow(['Group Name', 'PoC Name', 'PoC Phone #', 'PoC Email', 'PoC Address 1', 'PoC Address 2',
                       'PoC City', 'PoC Region', 'PoC ZipCode', 'PoC Country', 'Meet N Greet', 'Delivery Method',
