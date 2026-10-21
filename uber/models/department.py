@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, time
 
 import six
+import logging
 from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.schema import ForeignKey, Table, UniqueConstraint, Index
@@ -17,6 +18,8 @@ from uber.models.attendee import Attendee
 from uber.models.types import (default_relationship as relationship, Choice, DefaultColumn as Column, MultiChoice,
                                DefaultField as Field, DefaultRelationship as Relationship)
 
+
+log = logging.getLogger(__name__)
 
 __all__ = [
     'dept_membership_dept_role', 'job_required_role', 'Department',
@@ -579,10 +582,17 @@ class Job(MagModel, table=True):
 
         return minutes_worked <= working_minutes_limit
 
+    def check_overlap(self, job_list):
+        after = self.start_time + timedelta(minutes=self.duration)
+        # A zero-minute job covers no minutes, so it overlaps nothing.
+        return self.duration and any(self.start_time < job.end_time and job.start_time < after
+                                     for job in job_list if job.duration)
+
     def no_overlap(self, attendee):
         before = self.start_time - timedelta(minutes=1)
         after = self.start_time + timedelta(minutes=self.duration)
-        return not self.minutes.intersection(attendee.shift_minutes) and (
+        overlaps = self.check_overlap(attendee.jobs)
+        return not overlaps and (
             before not in attendee.shift_minute_map
             or not attendee.shift_minute_map[before].extra15
             or self.department_id == attendee.shift_minute_map[before].department_id

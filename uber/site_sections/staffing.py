@@ -3,14 +3,13 @@ from datetime import datetime, timedelta
 import logging
 import ics
 from sqlalchemy.orm import joinedload, selectinload
-from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
 from uber.custom_tags import safe_string
 from uber.decorators import ajax, ajax_gettable, all_renderable, check_shutdown, csrf_protected, id_required, render, requires_account
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
-from uber.models import Attendee, Job, FoodRestrictions
+from uber.models import Attendee, Job, FoodRestrictions, Shift
 from uber.utils import check_csrf, create_valid_user_supplied_redirect_url, ensure_csrf_token_exists, localized_now, extract_urls, validate_model
 
 log = logging.getLogger(__name__)
@@ -363,6 +362,14 @@ class Root:
     @ajax
     def sign_up(self, session, id, job_id, **params):
         volunteer = session.volunteer_from_id(id)
+
+        # These match the conditions under which signup_base.html shows the Shifts link.
+        if not volunteer.shift_signups_available:
+            return {'success': False, 'message': "Shift signups are not available yet."}
+        if c.VOLUNTEER_CHECKLIST_OPEN and not volunteer.shift_prereqs_complete:
+            return {'success': False,
+                    'message': "Please complete your volunteer checklist before signing up for shifts."}
+
         message = session.assign(volunteer.id, job_id)
         if message:
             return {'success': False, 'message': message}
@@ -377,19 +384,22 @@ class Root:
                 'success': False,
                 'message': "You can no longer drop shifts."
             }
-        try:
-            volunteer = session.volunteer_from_id(id)
-            shift = session.shift(job_id=job_id, attendee_id=volunteer.id)
-            session.delete(shift)
-            session.commit()
-        except NoResultFound:
+        volunteer = session.volunteer_from_id(id)
+        # Shift has no unique constraint on (job_id, attendee_id), so drop every matching row.
+        shifts = session.query(Shift).filter_by(job_id=job_id, attendee_id=volunteer.id).all()
+        if not shifts:
             return {
                 'success': True,
                 'message': "You've already dropped or have been unassigned from this shift.",
                 'hours': volunteer.weighted_hours
             }
-        finally:
-            return {'success': True, 'message': "Shift dropped.", 'hours': volunteer.weighted_hours}
+
+        # session.delete is what writes the Tracking row; it leaves volunteer.shifts stale until expired.
+        for shift in shifts:
+            session.delete(shift)
+        session.commit()
+        session.expire(volunteer, ['shifts'])
+        return {'success': True, 'message': "Shift dropped.", 'hours': volunteer.weighted_hours}
 
     @requires_account(Attendee)
     def onsite_jobs(self, session, id, message=''):
