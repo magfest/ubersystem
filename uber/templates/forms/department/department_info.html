@@ -7,6 +7,7 @@
     basic_info
     hours_panels
     checkboxes
+    parent
     hidden
 
   Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
@@ -51,8 +52,13 @@ manages_panels: {{ department_info.manages_panels.data|jsonize }},
 {% endblock %}
 </div>
 
+<div class="row g-3 mb-3">
+{% block parent %}
+    <div class="col-sm">{{ form_macros.input(department_info.parent_id) }}</div>
+{% endblock %}
+</div>
+
 {% block hidden %}
-{{ form_macros.input(department_info.parent_id, show_label=False) }}
 {% endblock %}
 
 </div>

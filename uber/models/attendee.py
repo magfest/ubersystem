@@ -2125,19 +2125,22 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
 
     @property
     def assigned_depts_ids(self):
-        _, ids = self._get_relation_ids('assigned_depts')
-        return [str(d.id) for d in self.assigned_depts] if ids is None else ids
+        return [str(m.department_id) for m in self.dept_memberships]
 
     @assigned_depts_ids.setter
     def assigned_depts_ids(self, value):
+        from uber.models.department import DeptMembership
         values = set(s for s in listify(value) if s)
+        current = set()
         for membership in list(self.dept_memberships):
             if membership.department_id not in values:
                 # Manually remove dept_memberships to ensure the associated
                 # rows in the dept_membership_dept_role table are deleted.
                 self.dept_memberships.remove(membership)
-        from uber.models.department import Department
-        self._set_relation_ids('assigned_depts', Department, list(values))
+            else:
+                current.add(membership.department_id)
+        for dept_id in values - current:
+            self.dept_memberships.append(DeptMembership(department_id=dept_id))
 
     @property
     def requestable_public_depts(self):
