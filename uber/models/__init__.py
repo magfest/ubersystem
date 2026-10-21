@@ -1181,13 +1181,9 @@ class UberSession(sqlalchemy.orm.Session):
             jobs = self.volunteer_from_id(id).possible
             if all:
                 return jobs
-            # Compares (start, duration), not Job.minutes sets, which cost seconds per load with thousands of jobs.
-            # Durations are whole minutes, so the results match; zero-minute jobs share one empty set, hence None.
-            def time_slot(job):
-                return (job.start_time, job.duration) if job.duration else None
 
-            restricted_times = {time_slot(job) for job in jobs if job.required_roles}
-            return [job for job in jobs if job.required_roles or time_slot(job) not in restricted_times]
+            restricted_job_list = [job for job in jobs if job.required_roles]
+            return [job for job in jobs if job.required_roles or not job.check_overlap(restricted_job_list)]
 
         def possible_match_list(self):
             possibles = defaultdict(list)
