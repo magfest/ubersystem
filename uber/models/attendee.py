@@ -2049,7 +2049,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
 
         return [
             job for job in self.available_jobs
-            if job.no_overlap(self) and job.working_limit_ok(self)]
+            if job.duration and job.no_overlap(self) and job.working_limit_ok(self)]
 
     @property
     def possible_opts(self):
