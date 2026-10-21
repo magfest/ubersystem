@@ -399,7 +399,7 @@ class StripeRequestMixin:
                     f'{self.amount} cents for {self.description}')
 
         return stripe.PaymentIntent.create(
-            payment_method_types=['card'],
+            allowed_payment_method_types=['card'],
             amount=self.amount,
             currency='usd',
             description=self.description,
