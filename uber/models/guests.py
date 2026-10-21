@@ -148,7 +148,7 @@ class GuestGroup(MagModel, table=True):
                 'checkin_times': c.GUEST_MERCH_CHECKIN_TIMES,
                 'checkout_times': c.GUEST_MERCH_CHECKOUT_TIMES,
             }
-        
+
     @property
     def uses_quantity(self):
         return self.group_type == c.MIVS
@@ -532,6 +532,14 @@ class GuestMerch(MagModel, table=True):
                     ext = filename_extension(file.filename)
                     if extensions and ext not in extensions:
                         messages.append('{} files must be one of {}'.format(file_type.title(), ', '.join(extensions)))
+
+                    max_size_mb = getattr(c, 'ALLOWED_INVENTORY_{}_SIZE'.format(file_type), None)
+                    if max_size_mb:
+                        file.file.seek(0, os.SEEK_END)
+                        file_size = file.file.tell()
+                        file.file.seek(0)  # _save_inventory_files reads from the start
+                        if file_size > max_size_mb * 1024 * 1024:
+                            messages.append('{} files must be under {}MB'.format(file_type.title(), max_size_mb))
 
         return '. '.join(dict.fromkeys([s.strip() for s in messages if s.strip()]))
 

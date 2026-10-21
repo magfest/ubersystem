@@ -219,7 +219,7 @@
 {%- endmacro %}
 
 
-{% macro base_inventory_form(type, item=None, suffix='') -%}
+{% macro base_inventory_form(type, show_quantity=True, item=None, suffix='') -%}
   {%- set label = c.MERCH_TYPES[type] -%}
   <input type="hidden" name="inventory_type{{ suffix }}" value="{{ type }}"/>
   <input type="hidden" name="inventory_id{{ suffix }}" {% if item and item.id %}value="{{ item.id }}"{% endif %}/>
@@ -239,8 +239,9 @@
     </div>
     <div class="clearfix"></div>
     <p class="help-block col-sm-offset-3 col-sm-9">
-      Please remember to include sales tax and square fees into your pricing,
+      Please remember to incorporate sales tax and Square fees into your pricing,
       as we do not calculate them at the time of sale.
+      Please also round your prices to the nearest dollar, as we do not accept coins.
       (Sales Tax: 6%; Square Fees: <a href="https://squareup.com/pricing">https://squareup.com/pricing</a>)
     </p>
   </div>
@@ -259,10 +260,8 @@
     </div>
     <div class="clearfix"></div>
     <p class="help-block col-sm-offset-3 col-sm-9">
-      Images should be square, and must be in {{ c.ALLOWED_INVENTORY_IMAGE_EXTENSIONS|readable_join('or') }}
-      format. We want a high resolution image of your merch, not a camera
-      phone picture of it. We'll print them out, so upload a good
-      resolution! ;)
+      Images should be square, under {{ c.ALLOWED_INVENTORY_IMAGE_SIZE }}MB, and must be in {{ c.ALLOWED_INVENTORY_IMAGE_EXTENSIONS|readable_join('or') }}
+      format. Design preview/proof images are fine.
     </p>
   </div>
   {% if caller %}{{ caller() }}{% endif %}
@@ -316,28 +315,10 @@
   {% endcall %}
 {%- endmacro %}
 
-
-{% macro cd_inventory_form(type, item=None, suffix='') -%}
-  {% call base_inventory_form(type, item=item, suffix=suffix) %}
-    <div class="form-group">
-      <label class="col-sm-3 control-label">Medium</label>
-      <div class="col-sm-6">
-        <select class="form-control" name="inventory_media{{ suffix }}" required>
-          <option value="">Select an option...</option>
-          {{ options(c.ALBUM_MEDIA_OPTS, item.media) }}
-        </select>
-      </div>
-    </div>
-  {% endcall %}
-{%- endmacro %}
-
-
 {% macro inventory_form(type, item=None, suffix='') -%}
   {% set type = type|int %}
   {% if type in [c.TSHIRT, c.APPAREL] -%}
     {{ apparel_inventory_form(type, item=item, suffix=suffix) }}
-  {% elif type == c.CD %}
-    {{ cd_inventory_form(type, item=item, suffix=suffix) }}
   {% else %}
     {{ base_inventory_form(type, item=item, suffix=suffix) }}
   {% endif %}
@@ -398,12 +379,6 @@
         <div class="inventory-item-name data-item">
           <dd>{{ item.name }}</dd>
         </div>
-        {% if item.media %}
-        <div class="inventory-item-media data-item">
-          <dt>Media</dt>
-          <dd>{{ c.ALBUM_MEDIAS[item.media|int] }}</dd>
-        </div>
-        {% endif %}
         <div class="inventory-item-price data-item">
           <dt>Price</dt>
           <dd>{{ item.price|format_currency }}</dd>
@@ -419,7 +394,7 @@
     </td>
     {% if type in [c.TSHIRT, c.APPAREL] -%}
       {{ inventory_table_data_apparel_custom(item) }}
-    {%- elif type == c.CD -%}
+    {%- elif type in [c.CD, c.VINYL, c.CASSETTE, c.USB] -%}
       {{ inventory_table_data_cd_custom(item) }}
     {%- else -%}
       <td class="inventory-item-custom"></td>
