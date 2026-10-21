@@ -224,10 +224,10 @@ class Root:
         item_type_square_name = {
             c.PHYSICAL_GAME: "GAME",
             c.GAME_CODE: "GAME CODE",
-            c.CD: "CD",
-            c.VINYL: "VINYL",
-            c.CASSETTE: "CASSETTE",
-            c.USB: "USB",
+            c.CD: "MUSIC CD",
+            c.VINYL: "MUSIC VINYL",
+            c.CASSETTE: "MUSIC CASSETTE",
+            c.USB: "MUSIC USB",
             c.KEYCHAIN: "KEYCHAIN",
             c.BAG: "BAG",
             c.TSHIRT: "APPAREL",
@@ -263,6 +263,8 @@ class Root:
                 if merch_type in (c.TSHIRT, c.APPAREL):
                     for line_item in guest.merch.line_items(item):
                         rows.append(_generate_row(item, guest, guest.merch.line_item_to_string(item, line_item)))
+                elif merch_type == c.POSTER:
+                    rows.append(_generate_row(item, guest, item.get('dimensions','')))
                 else:
                     rows.append(_generate_row(item, guest))
         out.writerows(header_row, rows)
@@ -307,10 +309,11 @@ class Root:
                             convert_to_absolute_url(guest.merch.inventory_url(item['id'], 'image'))
                         ])
                 else:
+                    item_extras = f"{item['name']} {item.get('dimensions','')}".strip() if merch_type == c.POSTER else item['name']
                     out.writerow([
                         guest.group.name,
                         c.MERCH_TYPES[merch_type],
-                        item['name'],
+                        item_extras,
                         '${:.2f}'.format(float(item['price'])),
                         guest.merch.total_quantity(item),
                         convert_to_absolute_url(guest.merch.inventory_url(item['id'], 'image')),

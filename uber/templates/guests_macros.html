@@ -269,6 +269,17 @@
   <div class="clearfix"></div>
 {%- endmacro %}
 
+{% macro poster_inventory_form(type, item=None, suffix='') -%}
+  {% call base_inventory_form(type, item=item, suffix=suffix) %}
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Dimensions</label>
+      <div class="col-sm-6">
+        <input class="form-control" type="text" name="inventory_dimensions{{ suffix }}" value="{{ item.dimensions }}" placeholder="e.g. 18x24in" />
+      </div>
+    </div>
+  {% endcall %}
+{%- endmacro %}
+
 
 {% macro apparel_inventory_form(type, item=None, suffix='') -%}
   {%- set varieties_opts, cuts_opts, sizes_opts = GuestMerch.item_subcategories_opts(type) -%}
@@ -312,6 +323,8 @@
   {% set type = type|int %}
   {% if type in [c.TSHIRT, c.APPAREL] -%}
     {{ apparel_inventory_form(type, item=item, suffix=suffix) }}
+  {% elif type == c.POSTER %}
+    {{ poster_inventory_form(type, item=item, suffix=suffix) }}
   {% else %}
     {{ base_inventory_form(type, item=item, suffix=suffix) }}
   {% endif %}
@@ -362,6 +375,17 @@
   </td>
 {%- endmacro %}
 
+{% macro inventory_table_data_poster_custom(item) -%}
+  <td class="inventory-item-custom">
+    <dl>
+      <div class="line-item data-item">
+        <dt>Dimensions</dt>
+        <dd>{{ item.dimensions }}</dd>
+      </div>
+    </dl>
+  </td>
+{%- endmacro %}
+
 
 {% macro inventory_table_row(item, show_controls=False, suppress_preview=False) -%}
   {%- set type = item.type|int -%}
@@ -388,6 +412,8 @@
       {{ inventory_table_data_apparel_custom(item) }}
     {%- elif type in [c.CD, c.VINYL, c.CASSETTE, c.USB] -%}
       {{ inventory_table_data_cd_custom(item) }}
+    {%- elif type == c.POSTER %}
+      {{ inventory_table_data_poster_custom(item) }}
     {%- else -%}
       <td class="inventory-item-custom"></td>
     {%- endif %}
