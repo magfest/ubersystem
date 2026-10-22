@@ -36,7 +36,7 @@ sentry-sdk==2.32.0
 signnow_python_sdk==2.0.1
 SQLAlchemy==2.0.46
 sqlmodel==0.0.37
-stripe==9.1.0
+stripe>=16.0.0,<17
 twilio==9.6.5
 uszipcode==1.0.1
 WTForms==3.2.1
