@@ -350,18 +350,18 @@ class Department(MagModel, table=True):
     
     @property
     def members_with_shifts(self):
-        return [a for a in self.members if a.weighted_hours_in(self) > 0]
+        return [a for a in self.members if a.weighted_hours_in(self.id) > 0]
 
     @property
     def member_emails(self):
-        return [a.email for a in self.members if a.email and (a.has_badge or a.weighted_hours_in(self) > 0)]
+        return [a.email for a in self.members if a.email and (a.has_badge or a.weighted_hours_in(self.id) > 0)]
 
     @property
     def everyone_with_shifts_emails(self):
         return [a.email for a in self.attendees_working_shifts]
 
     def member_emails_role(self, role):
-        return [a.email for a in self.members if a.email and (a.has_badge or a.weighted_hours_in(self) > 0) and a.has_role(role)]
+        return [a.email for a in self.members if a.email and (a.has_badge or a.weighted_hours_in(self.id) > 0) and a.has_role(role)]
 
     @classmethod
     def to_id(cls, department):
