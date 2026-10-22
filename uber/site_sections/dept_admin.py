@@ -235,10 +235,10 @@ class Root:
         for attendee in department.members:
             row = [attendee.full_name, attendee.legal_name, attendee.email, attendee.cellphone,
                    attendee.ec_name + ": " + attendee.ec_phone,
-                   attendee.weighted_hours_in(department),
+                   attendee.weighted_hours_in(department_id),
                    attendee.badge_status_label,
                    yesno(attendee.placeholder, 'Yes,No'),
-                   yesno(attendee.weighted_hours_in(department) > 0, 'Yes,No'),
+                   yesno(attendee.weighted_hours_in(department_id) > 0, 'Yes,No'),
                    readable_join([role.name for role in attendee.dept_roles])]
 
             out.writerow(row)

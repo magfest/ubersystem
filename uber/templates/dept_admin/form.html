@@ -436,7 +436,7 @@
             </thead>
             <tbody>
               {% for attendee in department.members|selectattr("has_badge") %}
-                {%- set hours_here = attendee.weighted_hours_in(department) -%}
+                {%- set hours_here = attendee.weighted_hours_in(department.id) -%}
                 {%- set weighted_hours = attendee.weighted_hours -%}
                 <tr>
                   <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
