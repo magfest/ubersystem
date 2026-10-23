@@ -2424,6 +2424,7 @@ class Root:
             # "is_admin" bypasses the locked fields, which includes purchaseable upgrades
             form.populate_obj(attendee, is_admin=True)
 
+        session.add_all(receipt_items)
         session.commit()
         session.refresh_receipt_and_model(attendee)
 
