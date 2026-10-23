@@ -481,7 +481,7 @@ class PromoCode(MagModel, table=True):
                 less than zero or greater than `price`. If `price` is None
                 or a negative number, then the return value will always be 0.
         """
-        if str(credit_type) not in self.discount_on:
+        if credit_type not in self.discount_on_ints:
             return price
 
         if not self.discount or not price or price < 0:
@@ -496,7 +496,14 @@ class PromoCode(MagModel, table=True):
             discounted_price = int(price * ((100.0 - self.discount) / 100.0))
 
         return min(max(discounted_price, 0), price)
-
+    
+    @property
+    def discount_on_repr(self):
+        discount_strs = []
+        for val, label in c.DISCOUNT_ON_OPTS:
+            if val in self.discount_on_ints:
+                discount_strs.append(label)
+        return ' + '.join(discount_strs)
 
 Index(
     'uq_promo_code_normalized_code',

@@ -1,9 +1,10 @@
+{% set staff_lottery = app.qualifies_for_staff_lottery and c.STAFF_HOTEL_LOTTERY_OPEN %}
 <html>
 <head></head>
 <body>
 <p>
     {{ app.attendee.full_name }},<br/>
-    This is to notify you that you have withdrawn your entry from the {{ c.EVENT_NAME }} hotel lottery.
+    This is to notify you that you have withdrawn your entry from the {{ c.EVENT_NAME }} {% if staff_lottery %}staff{% else %}attendee{% endif %} hotel lottery.
     You do NOT have an entry in the lottery and will not be awarded a room.
 </p>
 

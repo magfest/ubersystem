@@ -34,6 +34,29 @@ def valid_cellphone(form, field):
                               'include a country code (e.g. +44) for international numbers.')
 
 
+def valid_country(form, field):
+    if field.data and field.data not in [opt['value'] for opt in c.COUNTRY_OPTS]:
+        raise ValidationError('Please select a country from the list of countries.')
+
+
+def valid_state(form, field):
+    if not hasattr(form, 'country'):
+        return
+    
+    country = form.country.data
+    if field.data and country == 'United States' and field.data not in [opt['value'] for opt in c.REGION_OPTS_US]:
+        raise ValidationError('Please select a state from the list of states.')
+
+
+def valid_province(form, field):
+    if not hasattr(form, 'country'):
+        return
+    
+    country = form.country.data
+    if field.data and country == 'Canada' and field.data not in [opt['value'] for opt in c.REGION_OPTS_CANADA]:
+        raise ValidationError('Please select a province from the list of provinces.')
+
+
 def maximum_values(form, field):
     if not field.data:
         return
@@ -216,6 +239,11 @@ class CustomValidation:
 
     def set_phone_validators(self, field_name):
         self.validations[field_name]['valid'] = valid_cellphone
+    
+    def set_address_validators(self):
+        self.validations['country']['valid'] = valid_country
+        self.validations['region_us']['valid'] = valid_state
+        self.validations['region_canada']['valid'] = valid_province
 
     def set_server_max(self, field_name):
         self.validations[field_name]['server_max'] = maximum_values
@@ -288,6 +316,7 @@ class MagForm(Form):
                     elif ufield.field_class.__name__ != "FormField":
                         if 'length' not in form.field_validation.validations[field_name]:
                             form.field_validation.set_server_max(field_name)
+                        form.field_validation.set_address_validators()
 
     @classmethod
     def inherit_validations(cls, form, inherit_from):
@@ -506,7 +535,8 @@ class MagForm(Form):
                 try:
                     setattr(obj, name, field.data)
                 except (AttributeError, ValueError) as e:
-                    pass  # Indicates collision between a property name and a field name, like 'badges' for GroupInfo
+                    # Indicates collision between a property name and a field name, like 'badges' for GroupInfo
+                    setattr(obj, name + '_val', field.data)
             else:
                 try:
                     field.populate_obj(obj, name, is_admin=is_admin, dry_run=dry_run, session=session)

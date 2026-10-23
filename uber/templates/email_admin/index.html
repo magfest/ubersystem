@@ -24,6 +24,7 @@
             Email Queue{% if automated_email %} for "{{ automated_email.subject }}" <small><a href="index?{{ c.query_str_for_search('ident') }}">Show All Emails</a></small>{% endif %}
         </h2>
         <div class="row g-3 mb-3">
+            {% if c.DEPARTMENT_OPTS and c.DEPARTMENT_OPTS[0][0] != -1 %}
             <div class="col-sm">
                 <label for="department_id" class="form-text">Department</label>
                 <select id="department_id" onChange="deptIdChanged()" class="form-select">
@@ -33,6 +34,7 @@
                 {{ options(c.get_dept_opts(admin_access=True, has_email=True), department_id) }}
                 </select>
             </div>
+            {% endif %}
             <div class="col-sm">
                 <label for="status" class="form-text">Email Status </label>
                 <div class="card card-body">

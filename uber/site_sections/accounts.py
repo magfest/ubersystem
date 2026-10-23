@@ -416,7 +416,7 @@ class Root:
 
         raise HTTPRedirect('login?message={}', msg)
 
-    @public
+    @any_admin_access
     def sitemap(self):
         return {'pages': c.SITE_MAP}
 

@@ -1,5 +1,7 @@
 import cherrypy
 
+from datetime import datetime
+from pytz import UTC
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import joinedload
 
@@ -9,7 +11,7 @@ from uber.email import EmailService
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, BadgeInfo, Tracking, ArtistMarketplaceApplication, Email, PageViewTracking, ReceiptTransaction
-from uber.utils import check, remove_opt, validate_model
+from uber.utils import check, remove_opt, validate_model, SignNowRequest
 
 
 @all_renderable()
@@ -41,9 +43,10 @@ class Root:
 
     def form(self, session, new_app='', message='', **params):
         if new_app and 'attendee_id' in params:
-            app = session.artist_marketplace_application(params, ignore_csrf=True)
+            app = ArtistMarketplaceApplication()
+            session.add(app)
         else:
-            app = session.artist_marketplace_application(params)
+            app = session.get(ArtistMarketplaceApplication, params['id'])
         attendee = None
 
         attendee_attrs = session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, BadgeInfo.ident) \
@@ -56,6 +59,30 @@ class Root:
         
         forms_list = ["AdminArtistMarketplaceForm"]
         forms = load_forms(params, app, forms_list)
+
+        signnow_last_emailed = None
+        signnow_signed = False
+        if c.SIGNNOW_MARKETPLACE_TEMPLATE_ID and (app.status == c.ACCEPTED or int(params.get('status', 0)) == c.ACCEPTED):
+            if cherrypy.request.method == 'POST':
+                signnow_request = SignNowRequest(session=session, model=app,
+                                                 ident="terms_and_conditions", create_if_none=True)
+            else:
+                signnow_request = SignNowRequest(session=session, model=app)
+
+            if not signnow_request.error_message and signnow_request.document:
+                session.add(signnow_request.document)
+
+                signnow_signed = signnow_request.document.signed
+                if not signnow_signed:
+                    signnow_signed = signnow_request.get_doc_signed_timestamp()
+                    if signnow_signed:
+                        signnow_signed = datetime.fromtimestamp(int(signnow_signed))
+                        signnow_request.document.signed = signnow_signed
+                        signnow_link = ''
+                        signnow_request.document.link = signnow_link
+
+                signnow_last_emailed = signnow_request.document.last_emailed
+                session.commit()
 
         if cherrypy.request.method == 'POST':
             if new_app:
@@ -70,7 +97,6 @@ class Root:
             message = message or check(app)
             if not message:
                 if attendee:
-
                     session.add(attendee)
                     app.attendee = attendee
 
@@ -88,6 +114,8 @@ class Root:
             'attendee_id': app.attendee_id or params.get('attendee_id', ''),
             'all_attendees': sorted(attendees, key=lambda tup: tup[1]),
             'new_app': new_app,
+            'signnow_last_emailed': signnow_last_emailed,
+            'signnow_signed': signnow_signed,
         }
     
     @ajax

@@ -1314,7 +1314,7 @@ class Root:
         signnow_link = ''
 
         if group.is_dealer and c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_valid and group.status in c.DEALER_ACCEPTED_STATUSES:
-            signnow_request = SignNowRequest(session=session, group=group, ident="terms_and_conditions",
+            signnow_request = SignNowRequest(session=session, model=group, ident="terms_and_conditions",
                                              create_if_none=True)
 
             if not signnow_request.error_message:
@@ -1330,7 +1330,7 @@ class Root:
                         signnow_link = ''
                         signnow_document.link = signnow_link
                     elif not signnow_link:
-                        signnow_link = signnow_request.create_dealer_signing_link()
+                        signnow_link = signnow_request.create_signing_link()
                         if not signnow_request.error_message:
                             signnow_document.link = signnow_link
 
@@ -1366,22 +1366,6 @@ class Root:
             'incomplete_txn': receipt.get_last_incomplete_txn() if receipt else None,
             'message': message
         }
-
-    @requires_account(Group)
-    def download_signnow_document(self, session, id, return_to='../preregistration/group_members'):
-        group = session.group(id)
-        signnow_request = SignNowRequest(session=session, group=group)
-        if signnow_request.error_message:
-            raise HTTPRedirect(return_to + "?id={}&message={}", id,
-                               "We're having an issue fetching this document link. Please try again later!")
-        elif signnow_request.document:
-            if signnow_request.document.signed:
-                download_link = signnow_request.get_download_link()
-                if not signnow_request.error_message:
-                    raise HTTPRedirect(download_link)
-            raise HTTPRedirect(return_to + "?id={}&message={}", id,
-                               "We don't have a record of this document being signed.")
-        raise HTTPRedirect(return_to + "?id={}&message={}", id, "We don't have a record of a document for this group.")
 
     @requires_account()
     def register_group_member(self, session, group_id, message='', **params):
@@ -1619,15 +1603,27 @@ class Root:
                            group.leader.id, message)
 
     @requires_account(Attendee)
-    def purchase_dealer_badge(self, session, id):
+    def purchase_dealer_badge(self, session, id, return_to='confirm'):
         from uber.site_sections.dealer_admin import convert_dealer_badge
         from uber.custom_tags import datetime_local_filter
+
         attendee = session.attendee(id)
+        if attendee.paid != c.PAID_BY_GROUP:
+            if attendee.amount_unpaid:
+                raise HTTPRedirect('new_badge_payment?id={}&return_to={}', attendee.id, return_to)
+
+            if return_to == 'group_members':
+                redirect_url_base = return_to + '?id=' + attendee.group.id + '&'
+            else:
+                redirect_url_base = 'confirm?id=' + id + '&' if not return_to or return_to == 'confirm' else return_to + (
+                    '?' if '?' not in return_to else '&')
+            raise HTTPRedirect(redirect_url_base + 'message={}', 'You have already purchased your badge.')
+
         convert_dealer_badge(session, attendee, f"Self-purchased dealer badge {datetime_local_filter(datetime.now())}.")
         session.add(attendee)
         session.commit()
 
-        raise HTTPRedirect(f'new_badge_payment?id={attendee.id}&return_to=confirm')
+        raise HTTPRedirect(f'new_badge_payment?id={attendee.id}&return_to={return_to}')
 
     @requires_account(Group)
     def dealer_signed_document(self, session, id):
@@ -2033,9 +2029,6 @@ class Root:
                             Please contact {email_only(c.REGDESK_EMAIL)} for assistance.")
         
         session.commit()
-        if c.ATTENDEE_ACCOUNTS_ENABLED and attendee.managers:
-            attendee.managers[0].set_account_owner()
-            session.commit()
 
         raise HTTPRedirect("homepage?&message={}", ' '.join(messages))
 
@@ -2094,10 +2087,6 @@ class Root:
         attendee.badge_status = c.REFUNDED_STATUS
         for shift in attendee.shifts:
             session.delete(shift)
-
-        if c.ATTENDEE_ACCOUNTS_ENABLED and attendee.managers:
-            attendee.managers[0].set_account_owner()
-            session.commit()
 
         raise HTTPRedirect('{}?message={}', page_redirect, success_message)
 
@@ -2435,6 +2424,7 @@ class Root:
             # "is_admin" bypasses the locked fields, which includes purchaseable upgrades
             form.populate_obj(attendee, is_admin=True)
 
+        session.add_all(receipt_items)
         session.commit()
         session.refresh_receipt_and_model(attendee)
 
@@ -2636,12 +2626,12 @@ class Root:
 
         if not c.LOCAL_ACCOUNTS_DISABLED:
             owner_id = params.get('owner_id', '')
-            if not owner_id:
+            if not owner_id and account.valid_adults:
                 message = "Please select a registration to be the account owner."
-            else:
+            elif owner_id:
                 owner_attendee = session.get(Attendee, owner_id)
             
-            if not owner_attendee or owner_attendee not in account.valid_adults:
+            if (not owner_attendee or owner_attendee not in account.valid_adults) and account.valid_adults:
                 message = "Please select a valid registration over 17 years old to be the account owner."
         else:
             message = message or valid_email(params.get('account_email'))

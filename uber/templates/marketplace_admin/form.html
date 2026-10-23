@@ -12,7 +12,26 @@ app, c.PAGE_PATH,
 ) }}
 
 <h2>Artist Marketplace Application Form{% if app.attendee %} for {{ app.attendee|form_link }}{% endif %}</a></h2>
-<p><a class="btn btn-primary" href="../marketplace/edit?id={{ app.id }}" target="_blank">View as Attendee</a></p>
+<div class="row mb-3">
+  <div class="col text-start">
+  <a class="btn btn-primary" href="../marketplace/edit?id={{ app.id }}" target="_blank">View as Attendee</a>
+  </div>
+  {% if signnow_signed %}
+    <div class="col text-end">
+      <em>This applicant signed their SignNow document on {{ signnow_signed|datetime_local }}.</em>
+    </div>
+    {% elif signnow_last_emailed %}
+    <div class="col text-end">
+    <em>This applicant was last emailed their SignNow document at {{ signnow_last_emailed|datetime_local }}.</em>
+    <a class="btn btn-warning" href="../services/send_signnow_link?id={{ app.id }}&cls=ArtistMarketplaceApplication&return_to=../marketplace_admin/form">Resend SignNow Link</a>
+    </div>
+    {% elif c.SIGNNOW_MARKETPLACE_TEMPLATE_ID and app.status == c.ACCEPTED %}
+    <div class="col text-end">
+    <em>This dealer has not been emailed a SignNow document yet.</em>
+    <a class="btn btn-success" href="../services/send_signnow_link?id={{ app.id }}&cls=ArtistMarketplaceApplication&return_to=../marketplace_admin/form">Send SignNow Link</a>
+    </div>
+  {% endif %}
+</div>
 <div class="card">
   <div class="card-body">
     {{ form_macros.form_validation('marketplace-form', 'validate_marketplace_app') }}

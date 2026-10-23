@@ -286,7 +286,7 @@ class PreregCart:
                 account = session.current_attendee_account()
                 if attendee.age_now_or_at_con < c.ACCOMPANYING_ADULT_AGE and not adults_in_cart and not account.valid_adults:
                     return f"Attendees under {c.ACCOMPANYING_ADULT_AGE} must have at least one accompanying adult with them. \
-                        Please add a registration for {attendee.full_name}'s accompany adult."
+                        Please add a registration for {attendee.full_name}'s accompanying adult."
 
 
     def check_promo_code(self, session, attendee):
@@ -1987,6 +1987,6 @@ class ReceiptManager:
                                          data={'group': model, 'amount_paid_repr': model.amount_paid_repr})
             if model and isinstance(model, ArtShowApplication) and not txn.receipt.open_purchase_items:
                 EmailService.queue_email(session, 'art_show_payment_admin', to=c.ART_SHOW_NOTIFICATIONS_EMAIL,
-                                         data={'app': model})
+                                         data={'app': model, 'app_name': model.attendee.full_name})
         session.commit()
         return matching_txns

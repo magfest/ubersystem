@@ -4,6 +4,7 @@
 {% import 'forms/macros.html' as form_macros with context %}
 {% import 'hotel_lottery/_macros.html' as room_macros with context %}
 {% set lottery_room_group = lottery_room_group or forms['lottery_room_group'] %}
+{% set app_editable = not application.locked %}
 
 {% block content %}
 <script type="text/javascript">

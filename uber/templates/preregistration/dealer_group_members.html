@@ -58,12 +58,30 @@
     <div class="alert alert-{{ 'danger' if group.status == c.DECLINED else 'warning' }} pb-0" role="alert">
       <p>Your {{ c.DEALER_APP_TERM }} {{ 'is' if group.status == c.UNAPPROVED else 'has been' }} <strong>{{ group.status_label }}</strong>.</p>
       {% if group.status != c.UNAPPROVED and group.leader and group.leader.paid == c.PAID_BY_GROUP and c.DEALER_BADGE_PRICE == c.INITIAL_ATTENDEE %}
-        <p>If you'd like to attend the event regardless of your application status, you can purchase your badge now by clicking the button below. Your {{ c.DEALER_APP_TERM }} will remain {{ group.status_label }}.</p>
-        <p><a class="btn btn-success" href="../preregistration/purchase_dealer_badge?id={{ group.leader.id }}">Purchase Badge Now</a></p>
-      {% endif %}
-      {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE and group.leader %}
-        <p>If you would like, you may instead
-        <a href="../marketplace/apply?attendee_id={{ group.leader.id }}" target="_blank">apply for a table in the Marketplace.</a></p>
+        {% if group.leader.marketplace_application and group.leader.marketplace_application.status not in [c.ACCEPTED, c.DECLINED, c.CANCELLED] %}
+        <p>
+          You currently have a {{ group.leader.marketplace_application.status_label|lower }} artist marketplace application.
+          Accepted applicants will be able to purchase their badge with their marketplace fee.
+          If you'd like to attend regardless of your marketplace application OR {{ c.DEALER_APP_TERM }} status, you can purchase your badge now using the button below.
+        </p>
+        {% elif group.leader.marketplace_application and group.leader.marketplace_application.status == c.ACCEPTED %}
+        <p>
+          You currently have an accepted artist marketplace application. Please click the button below to purchase your badge and finalize your application.
+        </p>
+        {% else %}
+        <p>If you'd like to attend the event regardless of your application status, you can purchase your badge now using one of the buttons below. Your {{ c.DEALER_APP_TERM }} will remain {{ group.status_label }}.</p>
+        {% endif %}
+        <p>
+          {% if group.leader.marketplace_application and group.leader.marketplace_application.status == c.ACCEPTED %}
+          <a class="btn btn-success" href="../marketplace/edit?id={{ group.leader.marketplace_application.id }}">Finish Artist Marketplace Application</a>
+          {% else %}
+          <a class="btn btn-success" href="../preregistration/purchase_dealer_badge?id={{ group.leader.id }}">Purchase Badge Now</a>
+          {% endif %}
+          {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE and group.leader and not group.leader.marketplace_application %}
+            OR
+            <a class="btn btn-primary" href="../marketplace/apply?attendee_id={{ group.leader.id }}" target="_blank">Apply for Artist Marketplace</a></p>
+          {% endif %}
+        </p>
       {% endif %}
     </div>
 {% endif %}
@@ -74,7 +92,7 @@
 {% if c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_valid and group.status in c.DEALER_ACCEPTED_STATUSES %}
   {% if signnow_document and signnow_document.signed %}
   <span id="tc-link">
-    <a href="../preregistration/download_signnow_document?id={{ group.id }}" class="btn btn-info" role="button">
+    <a href="../services/download_signnow_document?id={{ group.id }}" class="btn btn-info" role="button">
       <i class="fa fa-download"></i> Terms and Conditions
     </a>
   </span>
@@ -84,7 +102,7 @@
     });
   </script>
   {% elif signnow_link %}
-  <div class="alert alert-danger pb-0" role="alert">
+  <div class="alert alert-warning pb-0" role="alert">
     <p>We need you to sign our terms and conditions for vending at {{ c.EVENT_NAME }}.</p>
     <p><a href="{{ signnow_link }}" class="btn btn-primary" target="_blank">
       Review and Sign

@@ -63,7 +63,7 @@ class AdminArtShowInfo(ArtShowInfo):
     locations = StringField("Locations", render_kw={'placeholder': "Space assignments for this artist."})
     artist_id = StringField("Artist ID")
     artist_id_ad = StringField("Mature Artist ID")
-    overridden_price = StringField('Custom Fee', widget=NumberInputGroup())
+    overridden_price = StringField('Custom Fee', widget=NumberInputGroup(), default='')
     check_in_notes = TextAreaField("Check-In Notes")
     admin_notes = TextAreaField("Admin Notes")
 

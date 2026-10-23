@@ -77,8 +77,10 @@
 
             {% if c.ONE_AGENT_PER_APP %}
             <p>{{ c.ART_SHOW_APP_TERM|title }}s are limited to one agent. Use the button below to cancel the existing code and generate a new one.</p>
-            <input type="hidden" form="cancel_agent_code" name="id" value="{{ app.valid_agent_codes[0].id }}" />
-            <button type="submit" form="cancel_agent_code" class="btn btn-danger">Generate New Code</button>
+            <form method="post" id="cancel_agent_code" action="cancel_agent_code" role="form">
+              <input type="hidden" name="id" value="{{ app.valid_agent_codes[0].id }}" />
+              <button type="submit" class="btn btn-danger">Generate New Code</button>
+            </form>
             {% endif %}
           </div>
         {% endif %}
@@ -101,16 +103,25 @@
               {% if not readonly %}
               <form method="post" id="cancel_agent_code" action="cancel_agent_code" role="form">
                 <div class="form-text">&nbsp;</div>
-                <input type="hidden" form="cancel_agent_code" name="id" value="{{ app.valid_agent_codes[0].id }}" />
-                <button type="submit" form="cancel_agent_code" class="btn btn-danger btn-sm">{{ "Remove Agent" if agent_code.attendee else "Cancel Code" }}</button>
+                <input type="hidden" name="id" value="{{ app.valid_agent_codes[0].id }}" />
+                <button type="submit" class="btn btn-danger btn-sm">{{ "Remove Agent" if agent_code.attendee else "Cancel Code" }}</button>
               </form>
             {% endif %}
             </div>
           {% endfor %}
         {% endif %}
         {% endif %}
+
+        {% if c.INDEPENDENT_ART_SHOW %}
+        {% set validation_form_list = ['ArtShowInfo', 'ArtistAttendeeInfo', 'ArtistMailingInfo'] %}
+        {% elif app.delivery_method == c.BY_MAIL %}
+        {% set validation_form_list = ['ArtShowInfo', 'ArtistMailingInfo'] %}
+        {% else %}
+        {% set validation_form_list = ['ArtShowInfo'] %}
+        {% endif %}
+
         
-        {{ form_macros.form_validation('edit-app-form', 'validate_app') }}
+        {{ form_macros.form_validation('edit-app-form', 'validate_app', form_list=validation_form_list) }}
         <form novalidate method="post" action="edit" id="edit-app-form" role="form">
           {{ csrf_token() }}
           <input type="hidden" name="id" value="{{ app.id }}">

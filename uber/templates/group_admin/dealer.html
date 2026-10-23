@@ -39,7 +39,7 @@
   </thead>
   <tbody>
 {% for group in groups|selectattr("is_dealer") %}
-    <tr{% if c.SIGNNOW_DEALER_TEMPLATE_ID and not group.signnow_document_signed or group.status in [c.DECLINED, c.CANCELLED] %} class="danger"{% endif %}>
+    <tr{% if group.status in [c.DECLINED, c.CANCELLED] %} class="danger"{% endif %}>
         <td style="text-align:left" data-order="{{ group.name }}" data-search="{{ group.name }}"> 
           <a href="form?id={{ group.id }}">{{ group.name|default('?????', boolean=True) }}</a></td>
         <td>
@@ -52,7 +52,13 @@
         <td>{{ group.amount_unpaid|format_currency }}</td>
         <td>{{ (group.amount_paid / 100)|format_currency }}</td>
         <td>{{ group.admin_notes }}</td>
-        {% if c.SIGNNOW_DEALER_TEMPLATE_ID %}<td>{{ group.signnow_document_signed }}</td>{% endif %}
+        {% if c.SIGNNOW_DEALER_TEMPLATE_ID %}
+          <td>
+            {% if group.status not in c.DEALER_ACCEPTED_STATUSES %}N/A
+            {% elif not group.terms_conditions_doc %}No Document
+            {% else %}{{ group.signnow_document_signed }}{% endif %}
+          </td>
+        {% endif %}
     </tr>
 {% endfor %}
   </tbody>

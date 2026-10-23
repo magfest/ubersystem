@@ -1,3 +1,4 @@
+{% set staff_lottery = app.qualifies_for_staff_lottery and c.STAFF_HOTEL_LOTTERY_OPEN %}
 <html>
 <head></head>
 <body>
@@ -14,7 +15,7 @@
 <p>
     For more options, {% if c.ATTENDEE_ACCOUNTS_ENABLED %}log into{% else %}visit{% endif %} your <a href="{{ c.URL_BASE }}/hotel_lottery/index?attendee_id={{ app.attendee.id }}" target="_blank">lottery options page</a>.
     {% else %}
-    <strong>This means that you have been withdrawn from the {{ c.EVENT_NAME }} hotel lottery.</strong>
+    <strong>This means that you have been withdrawn from the {{ c.EVENT_NAME }} {% if staff_lottery %}staff{% else %}attendee{% endif %} hotel lottery.</strong>
     You do NOT have an entry in the lottery and will not be awarded a room.
 </p>
 {% if app.current_lottery_deadline %}

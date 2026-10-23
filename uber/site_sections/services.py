@@ -4,17 +4,18 @@ import logging
 import cherrypy
 import pytz
 from datetime import datetime
+from pytz import UTC
 from cherrypy.lib.static import serve_file
 from sqlalchemy.orm.exc import NoResultFound
 from urllib.parse import urlparse, parse_qsl
 import base64
 
 from uber.config import c
-from uber.decorators import ajax, all_renderable, not_site_mappable
+from uber.decorators import any_admin_access, ajax, all_renderable, not_site_mappable, requires_account
 from uber.errors import HTTPRedirect
-from uber.models import AdminAccount, AttendeeAccount
+from uber.models import AdminAccount, AttendeeAccount, Session
 from uber.model_checks import mivs_show_info_required_fields
-from uber.utils import check, filename_extension
+from uber.utils import check, filename_extension, SignNowRequest
 from uber.files import FileService
 from uber.payments import ReceiptManager
 
@@ -25,6 +26,7 @@ log = logging.getLogger(__name__)
 @all_renderable(public=True)
 class Root:
     @not_site_mappable
+    @requires_account()
     def download_file(self, session, id, filename='', preview=False):
         file_handler = FileService.from_db_id(session, id)
         if preview:
@@ -33,6 +35,7 @@ class Root:
             return file_handler.serve_file(filename=filename)
         
     @ajax
+    @requires_account()
     def delete_file(self, session, id):
         file_handler = FileService.from_db_id(session, id)
         file_handler.delete()
@@ -111,3 +114,34 @@ class Root:
                 return "No matching Stripe transactions"
             cherrypy.response.status = 200
             return "Payments marked complete for payment intent ID " + payment_intent['id']
+
+    @any_admin_access
+    def send_signnow_link(self, session, id, cls="Group", return_to='../group_admin/form'):
+        model = session.get(Session.resolve_model(cls), id)
+
+        signnow_request = SignNowRequest(session=session, model=model, create_if_none=True)
+        signnow_request.send_signing_invite_email()
+        if signnow_request.error_message:
+            raise HTTPRedirect(return_to + "?id={}&message={}", id,
+                               f"Error sending SignNow link: {signnow_request.error_message}")
+        else:
+            signnow_request.document.last_emailed = datetime.now(UTC)
+            session.add(signnow_request.document)
+            raise HTTPRedirect("{}?id={}&message={}", return_to, id, "SignNow link sent!")
+
+    @requires_account()
+    def download_signnow_document(self, session, id, cls="Group", return_to='../preregistration/group_members'):
+        model = session.get(Session.resolve_model(cls), id)
+
+        signnow_request = SignNowRequest(session=session, model=model)
+        if signnow_request.error_message:
+            raise HTTPRedirect(return_to + "?id={}&message={}", id,
+                               "We're having an issue fetching this document link. Please try again later!")
+        elif signnow_request.document:
+            if signnow_request.document.signed:
+                download_link = signnow_request.get_download_link()
+                if not signnow_request.error_message:
+                    raise HTTPRedirect(download_link)
+            raise HTTPRedirect(return_to + "?id={}&message={}", id,
+                               "We don't have a record of this document being signed.")
+        raise HTTPRedirect(return_to + "?id={}&message={}", id, "We don't have a record of a document for this application.")

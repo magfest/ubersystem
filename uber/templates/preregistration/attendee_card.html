@@ -27,11 +27,11 @@
 </div>
 {% set _has_rooms = attendee.released_room_assignments|selectattr('is_live')|list|length > 0 %}
 {% set _lottery_active = c.HOTEL_LOTTERY_OPEN or c.STAFF_HOTEL_LOTTERY_OPEN and (attendee.badge_type == c.STAFF_BADGE or c.STAFF_RIBBON in attendee.ribbon_ints) %}
-{% set _has_entry = attendee.lottery_application and attendee.lottery_application.complete_or_processed %}
+{% set _has_entry = attendee.lottery_application and attendee.lottery_application.complete_or_processed and c.BEFORE_HOTEL_LOTTERY_SHUTDOWN %}
 {% if _lottery_active or _has_rooms or _has_entry %}
 <div class="d-flex gap-3 justify-content-between align-items-center">
     {% set which_page, button_text = attendee.lottery_application.homepage_link if attendee.lottery_application else ('start?attendee_id=' ~ attendee.id, 'Enter Hotel Lottery') %}
-    {% if attendee.lottery_application %}
+    {% if attendee.lottery_application and c.BEFORE_HOTEL_LOTTERY_SHUTDOWN %}
     <em>
     <strong>Hotel Lottery Status</strong>:
     {% if attendee.lottery_application.status == c.PARTIAL %}Not Entered
@@ -52,14 +52,16 @@
         <span class="badge bg-light text-dark ms-1">{{ attendee.released_room_assignments|selectattr('is_live')|list|length }}</span>
     </a>
     {% endif %}
-    {% if (_lottery_active and attendee.hotel_lottery_eligible) or _has_entry %}
-    <a href="../hotel_lottery/{{ which_page }}" class="btn btn-sm {{ 'btn-danger' if 'Finish' in button_text else 'btn-secondary' }}">
-        <i class="fa fa-hotel"></i>&nbsp; {{ button_text }}
-    </a>
-    {% elif _lottery_active %}
-    <span class="tooltip-wrapper" tabindex="0" data-bs-toggle="tooltip" data-placement="top" title="{{ attendee.hotel_lottery_ineligible_reason }}">
-    <button class="btn btn-sm btn-secondary" disabled><i class="fa fa-hotel"></i>&nbsp; Enter Hotel Lottery</button>
-    </span>
+    {% if c.BEFORE_HOTEL_LOTTERY_SHUTDOWN %}
+        {% if (_lottery_active and attendee.hotel_lottery_eligible) or _has_entry %}
+        <a href="../hotel_lottery/{{ which_page }}" class="btn btn-sm {{ 'btn-danger' if 'Finish' in button_text else 'btn-secondary' }}">
+            <i class="fa fa-hotel"></i>&nbsp; {{ button_text }}
+        </a>
+        {% elif _lottery_active %}
+        <span class="tooltip-wrapper" tabindex="0" data-bs-toggle="tooltip" data-placement="top" title="{{ attendee.hotel_lottery_ineligible_reason }}">
+        <button class="btn btn-sm btn-secondary" disabled><i class="fa fa-hotel"></i>&nbsp; Enter Hotel Lottery</button>
+        </span>
+        {% endif %}
     {% endif %}
     </div>
 </div>

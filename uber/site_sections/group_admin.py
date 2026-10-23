@@ -191,12 +191,12 @@ class Root:
 
         signnow_last_emailed = None
         signnow_signed = False
-        if c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_dealer and group.status in c.DEALER_ACCEPTED_STATUSES:
+        if group.is_dealer and c.SIGNNOW_DEALER_TEMPLATE_ID and group.is_valid and group.status in c.DEALER_ACCEPTED_STATUSES:
             if cherrypy.request.method == 'POST':
-                signnow_request = SignNowRequest(session=session, group=group,
+                signnow_request = SignNowRequest(session=session, model=group,
                                                  ident="terms_and_conditions", create_if_none=True)
             else:
-                signnow_request = SignNowRequest(session=session, group=group)
+                signnow_request = SignNowRequest(session=session, model=group)
 
             if not signnow_request.error_message and signnow_request.document:
                 session.add(signnow_request.document)
@@ -209,10 +209,6 @@ class Root:
                         signnow_request.document.signed = signnow_signed
                         signnow_link = ''
                         signnow_request.document.link = signnow_link
-
-                if not signnow_signed and not signnow_request.document.last_emailed:
-                    signnow_request.send_dealer_signing_invite()
-                    signnow_request.document.last_emailed = datetime.now(UTC)
 
                 signnow_last_emailed = signnow_request.document.last_emailed
                 session.commit()

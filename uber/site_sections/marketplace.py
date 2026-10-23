@@ -10,7 +10,7 @@ from uber.decorators import ajax, all_renderable, render, credit_card, requires_
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, ArtistMarketplaceApplication
-from uber.utils import check, validate_model
+from uber.utils import check, validate_model, SignNowRequest
 from uber.payments import TransactionRequest, ReceiptManager, RefundRequest
 
 log = logging.getLogger(__name__)
@@ -83,6 +83,30 @@ class Root:
             forms_list = ["ArtistMarketplaceForm"]
             forms = load_forms(params, app, forms_list)
 
+        signnow_document = None
+        signnow_link = ''
+        if c.SIGNNOW_MARKETPLACE_TEMPLATE_ID and app.attendee and app.attendee.is_valid and app.status == c.ACCEPTED:
+            signnow_request = SignNowRequest(session=session, model=app, ident="terms_and_conditions",
+                                             create_if_none=True)
+
+            if not signnow_request.error_message:
+                signnow_document = signnow_request.document
+                session.add(signnow_document)
+
+                signnow_link = signnow_document.link
+
+                if not signnow_document.signed:
+                    signed = signnow_request.get_doc_signed_timestamp()
+                    if signed:
+                        signnow_document.signed = datetime.fromtimestamp(int(signed))
+                        signnow_link = ''
+                        signnow_document.link = signnow_link
+                    elif not signnow_link:
+                        signnow_link = signnow_request.create_signing_link()
+                        if not signnow_request.error_message:
+                            signnow_document.link = signnow_link
+                session.commit()
+
         if cherrypy.request.method == 'POST':
             old_app = {}
             old_app['name'] = app.name
@@ -105,6 +129,8 @@ class Root:
             'app': app,
             'forms': forms,
             'homepage_account': session.current_attendee_account(),
+            'signnow_document': signnow_document,
+            'signnow_link': signnow_link,
         }
     
     @ajax

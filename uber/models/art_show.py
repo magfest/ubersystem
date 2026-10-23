@@ -87,7 +87,7 @@ class ArtShowApplication(MagModel, table=True):
     us_only: bool = False
     admin_notes: str = ''
     check_in_notes: str = ''
-    overridden_price: int = Field(nullable=True, default=0)
+    overridden_price: int | None = None
     active_receipt: 'ModelReceipt' = Relationship(sa_relationship=relationship(
         'ModelReceipt',
         primaryjoin='and_(remote(ModelReceipt.owner_id) == foreign(ArtShowApplication.id),'
@@ -279,6 +279,9 @@ class ArtShowApplication(MagModel, table=True):
         
     @badge_status.setter
     def badge_status(self, value):
+        if not value:
+            return
+
         value = int(value)
         if value not in c.BADGE_STATUS_OPTS:
             log.error(f"Tried to set invalid badge status on art show app {self.id}'s attendee: {value}")
@@ -449,7 +452,7 @@ class ArtShowPiece(MagModel, table=True):
     winning_bidder_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='art_show_bidder.id', nullable=True)
     winning_bidder: 'ArtShowBidder' = Relationship(back_populates="art_show_pieces")
     
-    piece_id: int = 1
+    piece_id: int = 0
     name: str = ''
     for_sale: bool = False
     type: int = Field(sa_column=Column(Choice(c.ART_PIECE_TYPE_OPTS)), default=c.PRINT)
@@ -470,7 +473,7 @@ class ArtShowPiece(MagModel, table=True):
 
     @presave_adjustment
     def create_piece_id(self):
-        if not self.piece_id:
+        if not self.piece_id and self.app:
             self.piece_id = int(self.app.highest_piece_id) + 1
 
     @presave_adjustment

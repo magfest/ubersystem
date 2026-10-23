@@ -96,17 +96,35 @@
           {% else %}
             {% set bg_class = 'info' %}
           {% endif %}
-          <div class="alert alert-{{ bg_class }}" role="alert">
+          <div class="alert alert-{{ bg_class }} pb-0" role="alert">
             {% set group_link = '' if attendee.is_group_leader else attendee.group.name %}
-            <p>Your {{ c.DEALER_APP_TERM }} {% if attendee.is_group_leader %}"<a href="group_members?id={{ attendee.group.id }}" target="_blank">{{ attendee.group.name }}</a>"{% else %}{{ attendee.group.name }}{% endif %}
-            is currently {{ attendee.group.status_label }}.</p>
-            {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE and attendee.group.status not in [c.APPROVED, c.SHARED, c.CANCELLED] and attendee.is_group_leader %}
-            <p>If you would like, you may instead
-            <a href="../marketplace/apply?attendee_id={{ attendee.id }}" target="_blank">apply for a table in the Marketplace.</a></p>
-            {% endif %}
+            <p>
+              Your {{ c.DEALER_APP_TERM }} {% if attendee.is_group_leader %}"<a href="group_members?id={{ attendee.group.id }}" target="_blank">{{ attendee.group.name }}</a>"{% else %}{{ attendee.group.name }}{% endif %}
+              is currently <strong>{{ attendee.group.status_label }}</strong>.
+            </p>
             {% if attendee.group.status not in [c.APPROVED, c.SHARED, c.UNAPPROVED] and attendee.paid == c.PAID_BY_GROUP and c.DEALER_BADGE_PRICE == c.INITIAL_ATTENDEE %}
-            <p>If you'd like to attend the event regardless of your group's status, you can purchase your badge now by clicking the button below.</p>
-            <p><a class="btn btn-success" href="../preregistration/purchase_dealer_badge?id={{ attendee.id }}">Purchase Badge Now</a></p>
+              {% if attendee.marketplace_application and attendee.marketplace_application.status not in [c.ACCEPTED, c.DECLINED, c.CANCELLED] %}
+                <p>
+                  You currently have a {{ attendee.marketplace_application.status_label|lower }} artist marketplace application.
+                  Accepted applicants will be able to purchase their badge with their marketplace fee.
+                  If you'd like to attend regardless of your marketplace application OR {{ c.DEALER_APP_TERM }} status, you can purchase your badge now using the button below.
+                </p>
+              {% elif attendee.marketplace_application and attendee.marketplace_application.status == c.ACCEPTED %}
+                <p>You currently have an accepted artist marketplace application. Please click the button below to purchase your badge and finalize your application.</p>
+              {% else %}
+                <p>If you'd like to attend the event regardless of your {{ c.DEALER_APP_TERM }}'s status, you can purchase your badge now by clicking the button below.</p>
+              {% endif %}
+              <p>
+              {% if attendee.marketplace_application and attendee.marketplace_application.status == c.ACCEPTED %}
+                <a class="btn btn-success" href="../preregistration/purchase_dealer_badge?id={{ attendee.id }}&return_to=../marketplace/edit?id={{ attendee.marketplace_application.id }}">Finish Artist Marketplace Application</a>
+                {% else %}
+                <a class="btn btn-success" href="../preregistration/purchase_dealer_badge?id={{ attendee.id }}">Purchase Badge Now</a>
+              {% endif %}
+              {% if c.AFTER_MARKETPLACE_REG_START and c.BEFORE_MARKETPLACE_DEADLINE and not attendee.marketplace_application and attendee.group.status not in [c.APPROVED, c.SHARED, c.CANCELLED] and attendee.is_group_leader %}
+                OR
+                <a class="btn btn-primary" href="../marketplace/apply?attendee_id={{ attendee.id }}" target="_blank">Apply for Artist Marketplace</a>
+              {% endif %}
+              </p>
             {% endif %}
           </div> 
         {% endif %}
