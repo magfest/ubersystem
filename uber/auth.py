@@ -219,6 +219,8 @@ class OIDC(cherrypy.Tool):
         if not claims or not claims.get('sub', None):
             return None
 
+        login_account = None
+
         with Session() as session:
             accounts = session.query(AttendeeAccount).filter(AttendeeAccount.sso_id == claims['sub'])
             if accounts.count() > 1:
