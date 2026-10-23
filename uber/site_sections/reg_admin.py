@@ -898,7 +898,7 @@ class Root:
 
         receipt_managers = {}
         txn_attendees = {}  # Dumb, but avoids a lot of DB calls
-        all_refunds = defaultdict(lambda: [0, []])
+        all_refunds = defaultdict(lambda: [0, [], {}])
 
         for id in refund_ids:
             attendee = session.attendee(id)
@@ -922,15 +922,17 @@ class Root:
                         attendee.badge_status = c.REFUNDED_STATUS
                         attendee.paid = c.REFUNDED
 
-                    for charge_id, (refund_amount, txns) in refunds.items():
+                    for charge_id, (refund_amount, txns, txn_amounts) in refunds.items():
                         all_refunds[charge_id][0] += refund_amount
                         all_refunds[charge_id][1].extend(txns)
+                        all_refunds[charge_id][2].update(txn_amounts)
                         for txn in txns:
                             txn_attendees[txn.id] = attendee
                 receipt_managers[attendee] = receipt_manager
 
-        for charge_id, (refund_amount, txns) in all_refunds.items():
-            refund = RefundRequest(session, txns, refund_amount, skip_errors=True, who=AdminAccount.admin_name())
+        for charge_id, (refund_amount, txns, txn_amounts) in all_refunds.items():
+            refund = RefundRequest(session, txns, refund_amount, skip_errors=True, who=AdminAccount.admin_name(),
+                                   txn_amounts=txn_amounts)
 
             error = refund.process_refund()
             if error:

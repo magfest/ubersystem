@@ -848,10 +848,11 @@ class TransactionRequest(AuthNetRequestMixin if c.AUTHORIZENET_LOGIN_ID else Str
 
 
 class RefundRequest(TransactionRequest):
-    def __init__(self, session, txns, amount=0, skip_errors=False, who='', **kwargs):
+    def __init__(self, session, txns, amount=0, skip_errors=False, who='', txn_amounts=None, **kwargs):
         super().__init__(session, **kwargs)
 
         txns = listify(txns)
+        self.txn_amounts = txn_amounts or {}
 
         self.txns = []
         self.items_to_add = set()
@@ -880,6 +881,11 @@ class RefundRequest(TransactionRequest):
             raise ValueError(f"Invalid refund request: {'; '.join(errors)}.")
 
         self.amount = int(amount) or self.total_refundable
+
+        # Checked here, before Stripe is called; failing after the refund is sent would leave it unrecorded.
+        if len(self.txns) > 1 and any(txn.id not in self.txn_amounts for txn in self.txns):
+            raise ValueError("Invalid refund request: refunds across multiple transactions must include "
+                             "the amount to record for each transaction.")
 
         if self.total_refundable < self.amount:
             raise ValueError(f"Invalid refund request: not enough left on given transaction(s) to refund {format_currency(
@@ -935,7 +941,12 @@ class RefundRequest(TransactionRequest):
 
         for txn in self.txns:
             receipt_manager = ReceiptManager(txn.receipt, who=self.who)
-            txn_refund_amt = self.amount if len(self.txns) == 1 else txn.amount_left
+            # txn_amounts holds each receipt's refund after withheld fees. Without it, __init__ allows only
+            # one transaction, so the whole refund belongs to it.
+            if txn.id in self.txn_amounts:
+                txn_refund_amt = self.txn_amounts[txn.id]
+            else:
+                txn_refund_amt = self.amount
 
             receipt_manager.create_refund_transaction(txn, "Automatic refund of transaction " + txn.stripe_id,
                                                       str(self.response_id), txn_refund_amt,
@@ -1481,11 +1492,11 @@ class ReceiptManager:
 
         refund_desc = f"Full Refund for {model.id}"
         if isinstance(model, Attendee):
-            refund_desc = f"Refunding and Cancelling {model.full_name}'s Badge",
+            refund_desc = f"Refunding and Cancelling {model.full_name}'s Badge"
         elif isinstance(model, Group):
             refund_desc = f"Refunding and Cancelling Group {model.name}"
 
-        receipt_refunds = defaultdict(lambda: [0, []])
+        receipt_refunds = defaultdict(lambda: [0, [], {}])
 
         if self.receipt.manual_payments and self.receipt.txn_total != 0:
             self.error_message = "This receipt has manual payments and cannot be refunded automatically."
@@ -1503,6 +1514,7 @@ class ReceiptManager:
                     total_processing_fees += processing_fees
                 receipt_refunds[txn.charge_id][0] += refund_amount
                 receipt_refunds[txn.charge_id][1].append(txn)
+                receipt_refunds[txn.charge_id][2][txn.id] = refund_amount
 
         if self.receipt.item_total > 0:
             self.items_to_add.add(ReceiptItem(
@@ -1521,7 +1533,7 @@ class ReceiptManager:
                 department=c.OTHER_RECEIPT_ITEM,
                 category=c.PROCESSING_FEES,
                 desc=f"Processing Fees for {refund_desc}",
-                amount=processing_fees,
+                amount=total_processing_fees,
                 who=self.who,
             ))
 

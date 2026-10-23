@@ -327,8 +327,8 @@ class ModelReceipt(MagModel, table=True):
         else:
             if not refunds:
                 session.add_all(receipt_manager.items_to_add)
-            for _, (refund_amount, txns) in refunds.items():
-                refund = RefundRequest(session, txns, refund_amount, skip_errors=True)
+            for _, (refund_amount, txns, txn_amounts) in refunds.items():
+                refund = RefundRequest(session, txns, refund_amount, skip_errors=True, txn_amounts=txn_amounts)
 
                 error = refund.process_refund()
                 if error:
@@ -467,7 +467,8 @@ class ReceiptTransaction(MagModel, table=True):
         if not intent.latest_charge.balance_transaction:
             return 0
 
-        return intent.latest_charge.balance_transaction.fee_details[0].amount
+        # fee is the sum of every fee_details line
+        return intent.latest_charge.balance_transaction.fee
 
     def calc_processing_fee(self, amount=0):
         from decimal import Decimal
