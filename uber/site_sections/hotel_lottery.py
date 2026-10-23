@@ -2567,45 +2567,58 @@ class Root:
         return {'success': True}
 
     @requires_account(LotteryApplication)
-    def edit_room(self, session, id, assignment_id=None, attendee_id='',
+    def edit_room(self, session, id=None, assignment_id=None, attendee_id='',
                   message='', **params):
         """Edit a specific RoomAssignment's check-in/out dates and special
         requests. Connector rooms inherit their dates from the parent.
 
+        `id` is the LotteryApplication id. Partition grants and other
+        non-lottery rooms have no application, so room.html omits it and
+        this handler finds the room from `assignment_id` alone.
+
         `attendee_id` is forwarded on the redirect back to the per-room
         editor so admin view-as-attendee context survives the round-trip.
         """
-        application = session.lottery_application(id)
+        application = session.lottery_application(id) if id else None
 
-        if application.parent_application:
-            raise HTTPRedirect(
-                'index?attendee_id={}&message={}', application.attendee.id,
-                f"Only the leader of your {c.HOTEL_LOTTERY_GROUP_TERM.lower()} "
-                "may edit the room.")
+        if application:
+            if application.parent_application:
+                raise HTTPRedirect(
+                    'index?attendee_id={}&message={}', application.attendee.id,
+                    f"Only the leader of your {c.HOTEL_LOTTERY_GROUP_TERM.lower()} "
+                    "may edit the room.")
 
-        ra = _resolve_assignment(session, assignment_id, application,
-                                 statuses='live')
-        if not ra or ra.lottery_application_id != application.id:
-            raise HTTPRedirect(
-                'index?attendee_id={}&message={}', application.attendee.id,
-                "Your entry does not have a room award to edit.")
+            ra = _resolve_assignment(session, assignment_id, application,
+                                     statuses='live')
+            if not ra or ra.lottery_application_id != application.id:
+                raise HTTPRedirect(
+                    'index?attendee_id={}&message={}', application.attendee.id,
+                    "Your entry does not have a room award to edit.")
+        else:
+            # With no application, requires_account checks only attendee_id,
+            # so confirm the viewer leads this room.
+            ra = _resolve_assignment(session, assignment_id)
+            if not ra:
+                raise HTTPRedirect('rooms?message={}', 'Room not found.')
+            _require_room_access(session, ra, attendee_id)
+
+        viewer_id = attendee_id or ra.attendee_id
 
         if ra.parent_assignment_id:
             # Connector rooms follow the parent's dates - redirect to it.
             raise HTTPRedirect(_room_url(
-                ra.parent_assignment_id,
-                attendee_id or application.attendee.id,
+                ra.parent_assignment_id, viewer_id,
                 message="Connector rooms inherit their dates from the parent room."))
 
         # _resolve_assignment applies `statuses` only when it falls back to
         # the application's first room; an explicit assignment_id skips it.
-        _require_live(ra, attendee_id or application.attendee.id)
+        _require_live(ra, viewer_id)
 
         if cherrypy.request.method == "POST":
             check_csrf(params.get('csrf_token'))
             if ra.changes_locked:
                 raise HTTPRedirect(_room_url(
-                    ra.id, attendee_id or application.attendee.id,
+                    ra.id, viewer_id,
                     message=_lock_message(ra)))
 
             from dateutil import parser as dateparser
@@ -2627,13 +2640,13 @@ class Root:
                     new_co = dateparser.parse(new_check_out).date()
                 except (ValueError, OverflowError):
                     raise HTTPRedirect(_room_url(
-                        ra.id, attendee_id or application.attendee.id,
+                        ra.id, viewer_id,
                         message='Please enter valid check-in and check-out dates.'))
 
                 date_error = _check_stay_window(new_ci, new_co)
                 if date_error:
                     raise HTTPRedirect(_room_url(
-                        ra.id, attendee_id or application.attendee.id,
+                        ra.id, viewer_id,
                         message=date_error))
 
                 # Extension nights someone else is already queued for
@@ -2644,7 +2657,7 @@ class Root:
                     result = resize_assignment(session, ra, new_ci, new_co)
                 except WaitlistError as e:
                     raise HTTPRedirect(_room_url(
-                        ra.id, attendee_id or application.attendee.id,
+                        ra.id, viewer_id,
                         message=e.message))
 
                 released_nights = result.released_nights
@@ -2688,7 +2701,6 @@ class Root:
                     setattr(ra, field, params.get(field, '').strip())
 
             session.add(ra)
-            session.add(application)
             session.commit()
             if not message:
                 message = 'Room details updated.'
@@ -2698,7 +2710,7 @@ class Root:
         # land there too.
         raise HTTPRedirect(_room_url(
             ra.id,
-            attendee_id or application.attendee.id,
+            viewer_id,
             message=message))
 
     @requires_account(LotteryApplication)

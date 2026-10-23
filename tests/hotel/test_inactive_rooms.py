@@ -4,7 +4,6 @@ so an occupant can still take themselves off a released room."""
 
 from datetime import date
 
-import cherrypy
 import pytest
 
 from uber.config import c
@@ -14,25 +13,6 @@ from tests.hotel.factories import (make_application, make_assignment,
                                    make_attendee, make_hotel, make_inventory)
 
 INACTIVE = [c.EXPIRED, c.CANCELLED]
-
-
-@pytest.fixture
-def post_request(monkeypatch, session, no_cherrypy_session):
-    """Drive handlers as a POST with CSRF and ownership checks stubbed out;
-    those gates have their own coverage and are not what these tests probe.
-    Commits become flushes so the per-test rollback still undoes them."""
-    import uber.site_sections.hotel_lottery as hotel_lottery
-    from uber.models import initialize_db
-
-    # Registers session.attendee() and the other model getters, which the
-    # app only does when the CherryPy engine starts.
-    initialize_db()
-    monkeypatch.setattr(cherrypy.request, 'method', 'POST')
-    monkeypatch.setattr(hotel_lottery, 'check_csrf', lambda *a, **k: None)
-    monkeypatch.setattr(hotel_lottery, '_require_room_access', lambda *a, **k: None)
-    monkeypatch.setattr(hotel_lottery, '_require_view_as_attendee', lambda *a, **k: None)
-    monkeypatch.setattr(session, 'commit', session.flush)
-    return hotel_lottery
 
 
 def _handler(name):

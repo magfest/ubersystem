@@ -259,3 +259,18 @@ def test_dates_outside_the_lottery_window_are_still_allowed(session, no_cherrypy
         assigned_check_in_date='2030-06-01',
         assigned_check_out_date='2030-06-03')
     assert ra.assigned_check_in_date == date(2030, 6, 1)
+
+
+def test_create_room_assignment_booker_is_occupant(session, no_cherrypy_session):
+    hotel = make_hotel(session)
+    inv = make_inventory(session, hotel, quantity=5)
+    attendee = make_attendee(session)
+    partition = make_partition(session)
+    make_partition_block(session, partition, inv, quantity=2)
+
+    ra = create_room_assignment(session, attendee_id=attendee.id,
+                                inventory_id=inv.id,
+                                partition_id=partition.id)
+
+    session.expire(ra, ['occupants'])
+    assert [o.id for o in ra.occupants] == [attendee.id]

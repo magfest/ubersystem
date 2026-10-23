@@ -1457,10 +1457,15 @@ class RoomAssignment(MagModel, table=True):
         the hotel's record of who's checking in doesn't match anyone in
         the room.
         """
-        if not self.attendee_id or not self.attendee:
+        if not self.attendee_id:
             return
-        if self.attendee not in self.occupants:
-            self.occupants.append(self.attendee)
+        attendee = self.attendee
+        if attendee is None:
+            from uber.models import Attendee
+            session = object_session(self)
+            attendee = session.get(Attendee, self.attendee_id) if session else None
+        if attendee and attendee not in self.occupants:
+            self.occupants.append(attendee)
 
     @presave_adjustment
     def update_last_modified(self):
