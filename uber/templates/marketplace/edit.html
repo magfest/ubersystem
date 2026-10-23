@@ -52,11 +52,11 @@
     <p>
       {% if app.status == c.ACCEPTED %}
       Congratulations, your application has been accepted!
-        {% if not app.incomplete_reason and app.amount_unpaid %}
-          {% if c.SIGNNOW_MARKETPLACE_FOLDER_ID and not c.SIGNNOW_MARKETPLACE_TEMPLATE_ID %}
-            Your next step will be to sign our terms and conditions for vending at {{ c.EVENT_NAME }}, but we're still preparing them!
-            Sit tight and we'll email them to you when they're ready, after which you can pay for your application on this page.
-          {% elif not c.SIGNNOW_MARKETPLACE_FOLDER_ID or signnow_document and signnow_document.signed %}
+        {% if c.SIGNNOW_MARKETPLACE_FOLDER_ID and not c.SIGNNOW_MARKETPLACE_TEMPLATE_ID %}
+          Your next step will be to sign our terms and conditions for vending at {{ c.EVENT_NAME }}, but we're still preparing them!
+          Sit tight and we'll email them to you when they're ready, after which you can pay for your application on this page.
+        {% elif not c.SIGNNOW_MARKETPLACE_FOLDER_ID or signnow_document and signnow_document.signed %}
+          {% if not app.incomplete_reason and app.amount_unpaid %}
             {% if c.AT_THE_CON and c.SPIN_TERMINAL_AUTH_KEY %}
               Please see the help desk at Registration to complete your payment of {{ app.amount_unpaid|format_currency }} for your application.
             {% elif not c.ONLINE_PAYMENT_AVAILABLE %}
@@ -71,30 +71,30 @@
                 {{ stripe_form('process_marketplace_payment', app) }}
               {% endif %}
             {% endif %}
-          {% endif %}
-        {% elif app.incomplete_reason %}</p><p>{{ app.incomplete_reason }}{% endif %}
-        {% if c.SIGNNOW_DEALER_TEMPLATE_ID and app.status == c.ACCEPTED %}
-          {% if signnow_document and signnow_document.signed %}
-          <div id="tc-link" class="col col-auto">
-            <a href="../services/download_signnow_document?id={{ app.id }}&cls=ArtistMarketplaceApplication&return_to=../marketplace/edit" class="btn btn-info" role="button">
-              <i class="fa fa-download"></i> Terms and Conditions
-            </a>
-          </div>
-          <script type="text/javascript">
-            $(function() {
-              $('#tc-link').appendTo($("#marketplace-actions"));
-            });
-          </script>
-          {% elif signnow_link %}
-          <div class="alert alert-warning pb-0" role="alert">
-            <p>We need you to sign our terms and conditions for vending at {{ c.EVENT_NAME }}.</p>
+          {% elif app.incomplete_reason %}</p><p>{{ app.incomplete_reason }}{% endif %}
+        {% else %}
+          {% if signnow_link %}
+            </p><p>We need you to sign our terms and conditions for vending at {{ c.EVENT_NAME }}.</p>
             <p><a href="{{ signnow_link }}" class="btn btn-primary" target="_blank">
               Review and Sign
             </a></p>
-            <p>Make sure to click "Finish" at the bottom of the page to confirm your signature.</p>
-          </div>
+            <p>Make sure to click "Finish" at the bottom of the page to confirm your signature.
+          {% else %}
           {% endif %}
         {% endif %}
+      </p>
+      {% if c.SIGNNOW_DEALER_TEMPLATE_ID and app.status == c.ACCEPTED and signnow_document and signnow_document.signed %}
+      <div id="tc-link" class="col col-auto">
+        <a href="../services/download_signnow_document?id={{ app.id }}&cls=ArtistMarketplaceApplication&return_to=../marketplace/edit" class="btn btn-info" role="button">
+          <i class="fa fa-download"></i> Terms and Conditions
+        </a>
+      </div>
+      <script type="text/javascript">
+        $(function() {
+          $('#tc-link').appendTo($("#marketplace-actions"));
+        });
+      </script>
+      {% endif %}
       {% elif app.status in [c.DECLINED, c.CANCELLED] %}
       Unfortunately, since your application has been {{ app.status_label|lower }}, you may no longer edit it. However,
       you may still view the details of your application below.

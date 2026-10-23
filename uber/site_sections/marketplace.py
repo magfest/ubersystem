@@ -105,6 +105,7 @@ class Root:
                         signnow_link = signnow_request.create_signing_link()
                         if not signnow_request.error_message:
                             signnow_document.link = signnow_link
+                session.commit()
 
         if cherrypy.request.method == 'POST':
             old_app = {}

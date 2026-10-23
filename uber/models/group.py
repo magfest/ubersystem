@@ -159,7 +159,7 @@ class Group(MagModel, TakesPaymentMixin, table=True):
         textLineHeight = 12
         textSize = 10
 
-        texts_config = [(self.name, 73, 392), (self.email, 73, 436), (self.id, 200, 748)]
+        texts_config = [(self.name, 77, 375), (self.email, 77, 420), (self.id, 200, 748)]
 
         texts = []
 

@@ -127,7 +127,7 @@ class Root:
         else:
             signnow_request.document.last_emailed = datetime.now(UTC)
             session.add(signnow_request.document)
-            raise HTTPRedirect("../group_admin/form?id={}&message={}", id, "SignNow link sent!")
+            raise HTTPRedirect("{}?id={}&message={}", return_to, id, "SignNow link sent!")
 
     @requires_account()
     def download_signnow_document(self, session, id, cls="Group", return_to='../preregistration/group_members'):
