@@ -1753,7 +1753,7 @@ class Root:
             session.delete(old.lottery_application)
 
         EmailService.queue_email(session, 'code_badge_transfer_new_badge',
-                                 to=[transfer_badge.email_to_address, c.REGDESK_EMAIL],
+                                 to=[transfer_badge.email_to_address, c.BADGE_TRANSFERS_EMAIL],
                                  data={'transferee_code': transfer_badge.transfer_code, 'transferer_code': old.transfer_code,
                                        'attendee': transfer_badge, 'consent_form': transfer_badge.age_group_conf['consent_form']})
         
@@ -1849,7 +1849,7 @@ class Root:
                     session.delete(old.lottery_application)
 
                 EmailService.queue_email(session, 'link_badge_transfer',
-                                         to=[attendee.email_to_address, c.REGDESK_EMAIL],
+                                         to=[attendee.email_to_address, c.BADGE_TRANSFERS_EMAIL],
                                          data={'new': attendee, 'old': old, 'include_link': True,
                                                'old_badge_type': old.badge_type_label,
                                                'new_consent_form': attendee.age_group_conf['consent_form']})
@@ -2424,9 +2424,7 @@ class Root:
             # "is_admin" bypasses the locked fields, which includes purchaseable upgrades
             form.populate_obj(attendee, is_admin=True)
 
-        session.add_all(receipt_items)
         session.commit()
-
         session.refresh_receipt_and_model(attendee)
 
         return {'success': True, 'free_upgrade': not receipt.current_amount_owed}

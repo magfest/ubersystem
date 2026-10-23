@@ -219,7 +219,7 @@
 {%- endmacro %}
 
 
-{% macro base_inventory_form(type, item=None, suffix='') -%}
+{% macro base_inventory_form(type, show_quantity=True, item=None, suffix='') -%}
   {%- set label = c.MERCH_TYPES[type] -%}
   <input type="hidden" name="inventory_type{{ suffix }}" value="{{ type }}"/>
   <input type="hidden" name="inventory_id{{ suffix }}" {% if item and item.id %}value="{{ item.id }}"{% endif %}/>
@@ -239,11 +239,21 @@
     </div>
     <div class="clearfix"></div>
     <p class="help-block col-sm-offset-3 col-sm-9">
-      Please remember to include sales tax and square fees into your pricing,
+      Please remember to incorporate sales tax and Square fees into your pricing,
       as we do not calculate them at the time of sale.
+      Please also round your prices to the nearest dollar, as we do not accept coins.
       (Sales Tax: 6%; Square Fees: <a href="https://squareup.com/pricing">https://squareup.com/pricing</a>)
     </p>
   </div>
+  {% if show_quantity %}
+    {%- set quantity_label = 'Quantity' if guest.uses_exact_quantity else 'Estimated Quantity' %}
+    <div class="form-group">
+      <label class="col-sm-3 control-label">{{ quantity_label }}</label>
+      <div class="col-sm-6">
+        <input class="form-control" type="number" name="inventory_quantity{{ suffix }}" value="{{ item.quantity }}" placeholder="How many do you have for sale?" min="0" required />
+      </div>
+    </div>
+  {% endif %}
   <div class="form-group">
     <label class="col-sm-3 control-label">Promo Picture</label>
     <div class="col-sm-6">
@@ -251,20 +261,29 @@
     </div>
     <div class="clearfix"></div>
     <p class="help-block col-sm-offset-3 col-sm-9">
-      Images should be square, and must be in {{ c.ALLOWED_INVENTORY_IMAGE_EXTENSIONS|readable_join('or') }}
-      format. We want a high resolution image of your merch, not a camera
-      phone picture of it. We'll print them out, so upload a good
-      resolution! ;)
+      Images should be square, under {{ c.ALLOWED_INVENTORY_IMAGE_SIZE }}MB, and must be in {{ c.ALLOWED_INVENTORY_IMAGE_EXTENSIONS|readable_join('or') }}
+      format. Design preview/proof images are fine.
     </p>
   </div>
   {% if caller %}{{ caller() }}{% endif %}
   <div class="clearfix"></div>
 {%- endmacro %}
 
+{% macro poster_inventory_form(type, item=None, suffix='') -%}
+  {% call base_inventory_form(type, item=item, suffix=suffix) %}
+    <div class="form-group">
+      <label class="col-sm-3 control-label">Dimensions</label>
+      <div class="col-sm-6">
+        <input class="form-control" type="text" name="inventory_dimensions{{ suffix }}" value="{{ item.dimensions }}" placeholder="e.g. 18x24in" required />
+      </div>
+    </div>
+  {% endcall %}
+{%- endmacro %}
+
 
 {% macro apparel_inventory_form(type, item=None, suffix='') -%}
   {%- set varieties_opts, cuts_opts, sizes_opts = GuestMerch.item_subcategories_opts(type) -%}
-  {% call base_inventory_form(type, item=item, suffix=suffix) %}
+  {% call base_inventory_form(type, show_quantity=False, item=item, suffix=suffix) %}
     {%- set step_count = varieties_opts|length -%}
     {%- set col_size = ([4, (12 / step_count)|round(0, 'floor')|int] | sort)[-1] -%}
     {% for variety_value, variety_label in varieties_opts %}
@@ -285,11 +304,9 @@
                   <tr>
                     <td>
                       {%- set quantity_attr = 'quantity-' ~ variety_value ~ '-' ~ cut_value ~ '-' ~ size_value -%}
-                      {%- set has_quantity = True if item and quantity_attr in item else False -%}
-                      <label class="form-check-label">
-                      <input type="checkbox" class="form-check-input" value="1" name="inventory_{{ quantity_attr }}{{ suffix }}"{% if has_quantity %} checked{% endif %} />
-                        {% if cut_label|trim %}{{ cut_label }} - {% endif %}{{ size_label }}
-                      </label>
+                      {%- set has_quantity = item[quantity_attr] if item and quantity_attr in item else False -%}
+                      {% if cut_label|trim %}{{ cut_label }} - {% endif %}{{ size_label }}
+                      <input type="number" name="inventory_{{ quantity_attr }}{{ suffix }}" {% if has_quantity %}value="{{ item[quantity_attr] }}"{% endif %} min="0"/>
                     </td>
                   </tr>
                 {% endfor %}
@@ -302,28 +319,12 @@
   {% endcall %}
 {%- endmacro %}
 
-
-{% macro cd_inventory_form(type, item=None, suffix='') -%}
-  {% call base_inventory_form(type, item=item, suffix=suffix) %}
-    <div class="form-group">
-      <label class="col-sm-3 control-label">Medium</label>
-      <div class="col-sm-6">
-        <select class="form-control" name="inventory_media{{ suffix }}" required>
-          <option value="">Select an option...</option>
-          {{ options(c.ALBUM_MEDIA_OPTS, item.media) }}
-        </select>
-      </div>
-    </div>
-  {% endcall %}
-{%- endmacro %}
-
-
 {% macro inventory_form(type, item=None, suffix='') -%}
   {% set type = type|int %}
   {% if type in [c.TSHIRT, c.APPAREL] -%}
     {{ apparel_inventory_form(type, item=item, suffix=suffix) }}
-  {% elif type == c.CD %}
-    {{ cd_inventory_form(type, item=item, suffix=suffix) }}
+  {% elif type == c.POSTER %}
+    {{ poster_inventory_form(type, item=item, suffix=suffix) }}
   {% else %}
     {{ base_inventory_form(type, item=item, suffix=suffix) }}
   {% endif %}
@@ -348,7 +349,9 @@
       <hr>
       <div class="line-item data-item">
         <dt>Total</dt>
-        <dd></dd>
+        <dd>
+         {{ guest_merch.total_quantity(item) }}
+        </dd>
       </div>
       </dl>
     {%- endif %}
@@ -372,6 +375,17 @@
   </td>
 {%- endmacro %}
 
+{% macro inventory_table_data_poster_custom(item) -%}
+  <td class="inventory-item-custom">
+    <dl>
+      <div class="line-item data-item">
+        <dt>Dimensions</dt>
+        <dd>{{ item.dimensions }}</dd>
+      </div>
+    </dl>
+  </td>
+{%- endmacro %}
+
 
 {% macro inventory_table_row(item, show_controls=False, suppress_preview=False) -%}
   {%- set type = item.type|int -%}
@@ -382,22 +396,24 @@
         <div class="inventory-item-name data-item">
           <dd>{{ item.name }}</dd>
         </div>
-        {% if item.media %}
-        <div class="inventory-item-media data-item">
-          <dt>Media</dt>
-          <dd>{{ c.ALBUM_MEDIAS[item.media|int] }}</dd>
-        </div>
-        {% endif %}
         <div class="inventory-item-price data-item">
           <dt>Price</dt>
           <dd>{{ item.price|format_currency }}</dd>
+        </div>
+        {%- set quantity = guest_merch.total_quantity(item) if type in [c.TSHIRT, c.APPAREL] else item.quantity -%}
+        {%- set quantity_label = 'Quantity' if guest.uses_exact_quantity else 'Estimated Quantity' %}
+        <div class="inventory-item-quantity data-item">
+          <dt>{{ quantity_label }}</dt>
+          <dd>{{ quantity }}</dd>
         </div>
       </dl>
     </td>
     {% if type in [c.TSHIRT, c.APPAREL] -%}
       {{ inventory_table_data_apparel_custom(item) }}
-    {%- elif type == c.CD -%}
+    {%- elif type in [c.CD, c.VINYL, c.CASSETTE, c.USB] -%}
       {{ inventory_table_data_cd_custom(item) }}
+    {%- elif type == c.POSTER %}
+      {{ inventory_table_data_poster_custom(item) }}
     {%- else -%}
       <td class="inventory-item-custom"></td>
     {%- endif %}

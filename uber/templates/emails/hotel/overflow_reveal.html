@@ -1,0 +1,21 @@
+<p>Hi {{ attendee.first_name }},</p>
+
+{% block intro %}
+<p>Unfortunately, you did not receive a room allocation in the first round of the {{ c.EVENT_NAME_AND_YEAR }} hotel lottery. Although we weren't able to assign you a room in this lottery, we're giving lottery entrants first chance to reserve a room in our overflow hotel blocks before we share them publicly.</p>
+{% endblock %}
+
+<p>Your personal link is below. Bookmark it now. The booking links stay hidden on the page until {% if reveal_time %}{{ reveal_time }}{% else %}the reveal time{% endif %}, but you can sit there with the countdown if you want.</p>
+
+<p><a href="{{ c.URL_BASE }}/hotel_lottery/overflow_reveal_page?token={{ link.token }}">{{ c.URL_BASE }}/hotel_lottery/overflow_reveal_page?token={{ link.token }}</a></p>
+
+{% if enforces_login %}
+<p>This link only works when you are signed in to the account that holds your badge. Sign in before the reveal time so you are not locked out when the links open.{% if c.HOTEL_LOTTERY_EMAIL %} If you cannot sign in, contact us at {{ c.HOTEL_LOTTERY_EMAIL|email_only|email_to_link }} before then.{% endif %}</p>
+{% else %}
+<p>This link is meant for you, but it is not locked to your account. Please don't forward it.</p>
+{% endif %}
+
+<p>The booking links go to each hotel's own reservation page. Rooms there are first come, first served, and we can't hold a room for you or control who books once a hotel's page is open.</p>
+
+<p>Thanks for entering the lottery. We will be doing later lottery runs to allocate rooms that are unclaimed or cancelled, and your entry will remain in our system unless you go in and withdraw it. We hope to see you at {{ c.EVENT_NAME }}.</p>
+
+<p>{{ c.EVENT_NAME }} Hotel Team</p>

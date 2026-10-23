@@ -37,7 +37,7 @@
    (the status page, the guarantee page, and the options page) have to
    agree on this copy, so it lives here rather than in each of them. #}
 {%- macro withdraw_confirm_attrs(application) -%}
-  {%- set _has_award = (application.app_or_parent.attendee.room_assignments
+  {%- set _has_award = (application.app_or_parent.attendee.released_room_assignments
                         if application.app_or_parent and application.app_or_parent.attendee
                         else [])|selectattr('is_live')|list|length > 0 -%}
   {{- confirm_attrs(
@@ -138,6 +138,19 @@
   {%- endif -%}
 {%- endmacro %}
 
+{% macro confirmation_numbers(ra, classes='') %}
+  {% if ra.hotel_confirmation_number or ra.cancellation_confirmation_number %}
+  <div class="d-flex flex-wrap column-gap-3 {{ classes }}">
+    {% if ra.hotel_confirmation_number %}
+    <span>Hotel confirmation #: <strong>{{ ra.hotel_confirmation_number }}</strong></span>
+    {% endif %}
+    {% if ra.cancellation_confirmation_number %}
+    <span>Cancellation #: <strong>{{ ra.cancellation_confirmation_number }}</strong></span>
+    {% endif %}
+  </div>
+  {% endif %}
+{% endmacro %}
+
 {# Needs-card alert
 
    `needs_card_alert` renders the big red "not secured - credit card
@@ -208,6 +221,25 @@
     </span>
   {% endif %}
 {% endmacro %}
+
+{# Inactive room reason
+
+   `inactive_room_reason` renders one sentence explaining why a room that
+   is no longer live (EXPIRED, CANCELLED) is still listed. The row stays on
+   file as a record; its inventory may already belong to someone else.
+
+   Arguments:
+     ra - RoomAssignment with is_live False
+#}
+{% macro inactive_room_reason(ra) -%}
+  {% if ra.status == c.EXPIRED -%}
+    This room was released because no card was on file by {% if ra.deposit_cutoff_date %}{{ ra.deposit_cutoff_date.strftime('%A, %B %-d') }}{% else %}the deadline{% endif %}.
+  {%- elif ra.status == c.CANCELLED -%}
+    This reservation was cancelled.
+  {%- else -%}
+    This room is no longer active ({{ ra.status_label }}).
+  {%- endif %}
+{%- endmacro %}
 
 {# Room summary table
 

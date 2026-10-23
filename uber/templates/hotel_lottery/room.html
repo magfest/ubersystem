@@ -1,6 +1,6 @@
 {% extends "./preregistration/preregbase.html" %}
 {% import 'hotel_lottery/_macros.html' as room_macros with context %}
-{% set title_text = "Edit Room" if is_leader else "Your Room" %}
+{% set title_text = "Edit Room" if is_leader and assignment.is_live else "Your Room" %}
 {% block content %}
 
 {# Outer card wrapper matches /hotel_lottery/index and /hotel_lottery/rooms
@@ -16,7 +16,11 @@
 {% endif %}
 
 {% set ra = assignment %}
-{% set locked = ra.export_locked %}
+{% set locked = ra.changes_locked %}
+{# Expired and cancelled rooms no longer hold inventory. The page shows them
+   as a record only; the room_action guard refuses their writes as well. #}
+{% set inactive = not ra.is_live %}
+{% set read_only = locked or inactive %}
 {% set is_connector = ra.is_connector %}
 
 <div class="d-flex justify-content-between align-items-start mb-3">
@@ -31,6 +35,7 @@
       {{ room_macros.room_dates(ra, fallback='') }}
       - <span class="text-capitalize">{{ ra.status_label }}</span>
     </p>
+    {{ room_macros.confirmation_numbers(ra, classes='mt-1') }}
   </div>
   <a href="rooms?attendee_id={{ viewer.id }}" class="btn btn-outline-secondary">All rooms</a>
 </div>
@@ -38,13 +43,22 @@
 {# `message` is rendered by base.html into the global `#message-alert`
    element via JS; do NOT re-render it inline here or it shows up twice. #}
 
-{% if locked %}
+{% if ra.export_locked or locked %}
 <div class="alert alert-warning d-flex align-items-start gap-2">
   <i class="fa fa-lock fa-lg mt-1"></i>
   <div>
     <strong>This booking has been transferred to the hotel's system.</strong>
     The information shown here may not reflect the realtime state of
     your reservation. For changes, please contact the hotel directly.
+  </div>
+</div>
+{% elif inactive %}
+<div class="alert alert-secondary d-flex align-items-start gap-2">
+  <i class="fa fa-ban fa-lg mt-1"></i>
+  <div>
+    <strong>{{ room_macros.inactive_room_reason(ra) }}</strong>
+    This room is no longer held for you, and its details can't be changed.
+    Questions? Contact {{ c.HOTEL_LOTTERY_EMAIL|email_only|email_to_link }}.
   </div>
 </div>
 {% endif %}
@@ -57,7 +71,7 @@
        hold confirmed; the diff between waitlisted_* and assigned_*
        drives the admin-triggered sweep (Process Waitlist button ->
        uber.hotel.waitlist.fulfill_waitlist). #}
-    {% if ra.is_waitlisted %}
+    {% if ra.is_waitlisted and not inactive %}
     <div class="alert alert-info py-2 mb-2 small">
       <strong>Waitlisted nights:</strong>
       You're on the waitlist for additional nights on this room.
@@ -92,7 +106,7 @@
           </div>
         </div>
       </div>
-    {% elif is_leader and not locked %}
+    {% elif is_leader and not read_only %}
       <form method="post" action="edit_room">
         {{ csrf_token() }}
         {% if application %}<input type="hidden" name="id" value="{{ application.id }}" />{% endif %}
@@ -143,7 +157,7 @@
       This is set on your attendee profile and applies to every room
       you book or occupy.
     </p>
-    {% if not locked %}
+    {% if not read_only %}
     <form method="post" action="save_hotel_name">
       {{ csrf_token() }}
       <input type="hidden" name="attendee_id" value="{{ viewer.id }}" />
@@ -183,7 +197,7 @@
 
     {% if is_leader %}
     <hr class="my-3"/>
-    {% if not locked %}
+    {% if not read_only %}
     <form method="post" action="save_rewards_number">
       {{ csrf_token() }}
       <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
@@ -219,7 +233,7 @@
 <div class="card mb-3">
   <div class="card-header py-2"><strong>Special requests</strong></div>
   <div class="card-body py-2">
-    {% if not locked %}
+    {% if not read_only %}
     <form method="post" action="save_special_requests">
       {{ csrf_token() }}
       <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
@@ -235,7 +249,8 @@
 </div>
 {% endif %}
 
-{% if is_leader and ra.require_cc %}
+{# A released room takes no card, so its past-due deadline is not shown. #}
+{% if is_leader and ra.require_cc and not inactive %}
 <div class="card mb-3">
   <div class="card-header py-2"><strong>Card on file</strong></div>
   <div class="card-body py-2">
@@ -244,7 +259,7 @@
        (or never arrive in dev). Gate the whole display on `cc_token`,
        and show the last-four detail only when we actually have it
        (mirrors secure_room.html's hasCard()/cardSummaryText()). #}
-    {% if locked %}
+    {% if ra.export_locked %}
       <p class="text-muted mb-0">
         {% if ra.cc_token %}
           {% if ra.cc_last_four %}Ending in {{ ra.cc_last_four }}{% if ra.cc_card_type %} ({{ ra.cc_card_type }}){% endif %}.{% else %}A card is on file.{% endif %}
@@ -327,8 +342,11 @@
           </td>
           <td><small class="text-muted">{{ occ.email }}</small></td>
           <td class="text-end">
+            {# Leaving stays available on an inactive room so occupants can
+               take themselves off it; leader actions do not. #}
             {% if not locked and occ.id != ra.attendee_id %}
               {% if is_leader %}
+              {% if not inactive %}
                 {# Warn about the card only when one is actually on file
                    (on this room or a connector child) - the transfer
                    removes it and un-secures the room. #}
@@ -349,6 +367,7 @@
                   <input type="hidden" name="occupant_attendee_id" value="{{ occ.id }}" />
                   <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
                 </form>
+              {% endif %}
               {% elif occ.id == viewer.id %}
                 <form method="post" action="leave_room" class="d-inline"
                       onsubmit="return confirm('Leave this room?');">
@@ -365,7 +384,7 @@
       </tbody>
     </table>
 
-    {% if is_leader and not locked %}
+    {% if is_leader and not read_only %}
       {# Pending invites #}
       {% if pending_invites %}
       <h3 class="h6 mt-3">Pending invites</h3>
@@ -469,22 +488,19 @@
   </div>
 </div>
 
-{% if is_leader and not locked and ra.status == c.ASSIGNED %}
+{% if is_leader and not read_only %}
   {% if is_connector %}
-  {# Connectors are part of the suite; they can't be declined on their
-     own. Point back to the parent suite, where Decline cancels the
-     whole block. #}
   <div class="d-flex justify-content-end">
     <span class="text-muted small me-2 align-self-center">
-      This connector room is included with your suite.
+      This room is part of your suite. Cancel the suite to cancel both.
     </span>
     <a href="room?id={{ ra.parent_assignment_id }}&attendee_id={{ viewer.id }}"
        class="btn btn-outline-secondary">Go to suite</a>
   </div>
   {% else %}
   <div class="d-flex justify-content-end">
-    <a href="decline?id={{ application.id if application else '' }}&assignment_id={{ ra.id }}"
-       class="btn btn-outline-danger">Decline this room</a>
+    <a href="decline?assignment_id={{ ra.id }}&attendee_id={{ viewer.id }}"
+       class="btn btn-outline-danger">Cancel this {{ 'suite' if ra.inventory and ra.inventory.is_suite else 'room' }}</a>
   </div>
   {% endif %}
 {% endif %}

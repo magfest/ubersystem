@@ -1,38 +1,52 @@
 {% extends "./preregistration/preregbase.html" %}
-{% set title_text = "Hotel Waitlist" %}
+{% set title_text = "Hotel Overflow Booking" %}
 
 {% block content %}
-<div class="card card-body" id="waitlist-reveal-card">
+<div class="card card-body" id="overflow-reveal-card">
   {% if error == 'invalid-token' %}
-    <h1>Hotel Waitlist Link</h1>
+    <h1>Hotel Overflow Booking</h1>
     <p>This link is invalid or has expired. If you believe this is a mistake,
     please contact us.</p>
   {% elif error == 'login-required' %}
-    <h1>Hotel Waitlist Link</h1>
-    <p>Please <a href="../landing/index">sign in</a> to view this link.</p>
+    {# Landing passes original_location to both the password form and the SSO
+       button, so either login method comes back to this page. #}
+    {% set return_to = c.PATH ~ '/hotel_lottery/overflow_reveal_page?token=' ~ token %}
+    <h1>Hotel Overflow Booking</h1>
+    <p>This link only works for the account that holds the badge it was sent
+    for. <a href="../landing/index?original_location={{ return_to|urlencode }}">Sign in</a>
+    and you will come back to this page.</p>
+  {% elif error == 'wrong-account' %}
+    <h1>Hotel Overflow Booking</h1>
+    <p>This link belongs to a badge on a different account than the one you
+    are signed in with. <a href="../accounts/logout">Log out</a>, then open the
+    link from your email again and sign in with the account that holds that
+    badge.</p>
   {% else %}
-    <h1>{{ reveal.name or 'Hotel Waitlist' }}</h1>
+    <h1>{{ reveal.name or 'Hotel Overflow Booking' }}</h1>
     {% if reveal.audience_description %}
     <p class="text-muted">{{ reveal.audience_description }}</p>
     {% endif %}
 
     {% if is_revealed %}
       <div class="alert alert-success">
-        <h4>The link is open.</h4>
-        <p>
-          <a id="external-link" href="{{ external_url }}" target="_blank" class="btn btn-primary">
-            Go to the booking page ->
+        <h4>{{ 'The links are' if booking_links|length > 1 else 'The link is' }} open.</h4>
+        <div class="d-grid gap-2 mb-3">
+          {% for item in booking_links %}
+          <a href="{{ item.url }}" target="_blank" class="btn btn-primary booking-link">
+            {{ item.label or 'Go to the booking page' }} ->
           </a>
-        </p>
+          {% endfor %}
+        </div>
         <p class="small text-muted mb-0">
-          Spots are limited and not held for you. Click through promptly.
+          These links go to each hotel's own reservation page. Rooms there are
+          first come, first served, and we can't hold a room for you.
         </p>
       </div>
     {% else %}
       <div class="alert alert-info">
         <h4>Coming soon</h4>
         <p>
-          We'll reveal the booking link here at
+          We'll reveal the booking links here at
           {% if reveal.reveal_at %}<strong>{{ reveal.reveal_at|datetime_local("%A, %B %-d %-I:%M %p %Z") }}</strong>{% else %}a time TBD{% endif %}.
         </p>
         <p id="countdown" class="h2 mb-0">...</p>
@@ -72,14 +86,14 @@
     $cd.textContent = fmt(remaining);
 
     if (remaining <= 0) {
-      // Poll the ajax endpoint for the actual external URL - once we get
-      // is_revealed=true, swap the page contents in.
-      fetch("waitlist_reveal?token=" + encodeURIComponent(token), {
+      // Poll until the server says the reveal is open, then reload so the
+      // server renders the links.
+      fetch("overflow_reveal?token=" + encodeURIComponent(token), {
         headers: {"Accept": "application/json"}
       })
       .then(function (r) { return r.json(); })
       .then(function (data) {
-        if (data && data.is_revealed && data.external_url) {
+        if (data && data.is_revealed) {
           window.location.reload();
         }
       })

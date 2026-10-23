@@ -23,6 +23,8 @@ from sqlalchemy import and_, func, or_, create_engine
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.event import listen
 from sqlalchemy.exc import IntegrityError, NoResultFound
+
+
 from sqlalchemy.ext.hybrid import hybrid_method, hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import Query, joinedload, lazyload, selectinload, subqueryload, contains_eager, declared_attr, sessionmaker, scoped_session
@@ -158,7 +160,7 @@ class MagModel(SQLModel):
             elif isinstance(fields, list):
                 enabled_fields = fields
             elif isinstance(fields, dict):
-                enabled_fields = [x for x in fields.keys() if fields[x] is True]
+                enabled_fields = [x for x in fields.keys() if fields[x] is not False]
                 disabled_fields = [x for x in fields.keys() if fields[x] is False]
 
         for field in (enabled_fields or self.to_dict_default_attrs):
@@ -796,6 +798,7 @@ class MagModel(SQLModel):
 
 
 from uber.models.admin import *  # noqa: F401,E402,F403
+from uber.models.configuration import *  # noqa: F401,E402,F403
 from uber.models.promo_code import *  # noqa: F401,E402,F403
 from uber.models.attendee import *  # noqa: F401,E402,F403
 from uber.models.badge_printing import *  # noqa: F401,E402,F403
@@ -1174,15 +1177,11 @@ class UberSession(sqlalchemy.orm.Session):
 
         def jobs_for_signups(self, id, all=False):
             jobs = self.volunteer_from_id(id).possible
-            restricted_minutes = set()
-            for job in jobs:
-                if job.required_roles:
-                    restricted_minutes.add(frozenset(job.minutes))
             if all:
                 return jobs
-            return [
-                job
-                for job in jobs if (job.required_roles or frozenset(job.minutes) not in restricted_minutes)]
+
+            restricted_job_list = [job for job in jobs if job.required_roles]
+            return [job for job in jobs if job.required_roles or not job.check_overlap(restricted_job_list)]
 
         def possible_match_list(self):
             possibles = defaultdict(list)
@@ -1913,7 +1912,7 @@ class UberSession(sqlalchemy.orm.Session):
                                                        ).outerjoin(PromoCode
                                                                    ).outerjoin(PromoCodeGroup)
             if c.NUMBERED_BADGES:
-                attendees = attendees.outerjoin(BadgeInfo, Attendee.active_badge)
+                attendees = attendees.outerjoin(BadgeInfo, Attendee.allocated_badges)
             return attendees
 
         def search(self, text, *filters):
@@ -2141,8 +2140,13 @@ class UberSession(sqlalchemy.orm.Session):
             assign an Attendee to a Job by creating a Shift
             :return: 'None' on success, error message on failure
             """
-            job = self.job(job_id)
+            # populate_existing reloads job.shifts that this session may already hold, so the slot and
+            # duplicate checks below count shifts committed by other requests.
+            job = self.query(Job).filter(Job.id == job_id).populate_existing().one()
             attendee = self.attendee(attendee_id)
+
+            if any(shift.attendee_id == attendee.id for shift in job.shifts):
+                return 'This volunteer is already signed up for this shift.'
 
             if not attendee.has_badge:
                 return f'This badge is currently {attendee.badge_status_label} and cannot sign up for shifts.'

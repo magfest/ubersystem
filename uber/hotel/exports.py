@@ -53,7 +53,7 @@ from uber.models.hotel import (HotelExportLog, HotelRoomInventory,
 
 BOOKING_BASE_COLS = [
     'assignment_id', 'lottery_application_id', 'parent_assignment_id',
-    'confirmation_num', 'assignment_reason', 'status', 'payment_code',
+    'confirmation_num', 'assignment_reason', 'status', 'is_cancelled', 'payment_code',
     'hotel', 'partition_name', 'partition_bill_reference',
     'room_type', 'suite_type',
     'check_in_date', 'check_out_date',
@@ -154,6 +154,8 @@ def booking_dict(ra, app):
                               if hasattr(ra, 'assignment_reason_label')
                               else ra.assignment_reason),
         'status': ra.status_label if hasattr(ra, 'status_label') else ra.status,
+        # Cancelled or expired: the hotel should release the room.
+        'is_cancelled': not ra.is_live,
         'hotel': hotel.name if hotel else '',
         'hotel_id': str(inv.hotel_id) if inv and inv.hotel_id else None,
         # Which carve-out the room came from, and the hotel's billing account
@@ -240,6 +242,7 @@ def booking_row(ra, app, d=None):
         d['confirmation_num'] or '',
         d['assignment_reason'],
         d['status'],
+        ('yes' if d['is_cancelled'] else ''),
         d['payment_code'] or '',
         d['hotel'] or '',
         d['partition_name'] or '', d['partition_bill_reference'] or '',
@@ -276,8 +279,8 @@ def booking_export_data(session, hotel_id):
     if not hotel:
         return None, []
 
-    from uber.hotel.queries import live_assignments_for_hotel
-    assignments = (live_assignments_for_hotel(session, hotel.id)
+    from uber.hotel.queries import exported_assignments_for_hotel
+    assignments = (exported_assignments_for_hotel(session, hotel.id)
                    .options(joinedload(RoomAssignment.partition))
                    .order_by(RoomAssignment.parent_assignment_id.asc().nullsfirst(),
                              RoomAssignment.created.asc())
@@ -712,8 +715,9 @@ def compute_export_tracking(session):
             HotelExportLog.hotel_id == hotel.id, HotelExportLog.export_type == 'confirmation_import'
         ).order_by(HotelExportLog.exported_at.desc()).first()
 
-        from uber.hotel.queries import live_assignments_for_hotel
-        bookings = live_assignments_for_hotel(session, hotel.id)
+        from uber.hotel.queries import exported_assignments_for_hotel, live_assignments_for_hotel
+        bookings = live_assignments_for_hotel(session, hotel.id).filter(
+            RoomAssignment.is_released)
 
         total_bookings = bookings.count()
         missing_confirmation = bookings.filter(
@@ -723,7 +727,8 @@ def compute_export_tracking(session):
 
         dirty_count = 0
         if last_export:
-            dirty_count = bookings.filter(
+            # Includes confirmed rooms since cancelled, which the next export sends.
+            dirty_count = exported_assignments_for_hotel(session, hotel.id).filter(
                 RoomAssignment.last_modified_at > last_export.exported_at
             ).count()
 
@@ -797,6 +802,7 @@ def write_interchange_export(out, session, staff_lottery=False):
 
     applications = session.query(LotteryApplication).join(LotteryApplication.attendee
                                                           ).filter(LotteryApplication.status != c.PROCESSED,
+                                                                   ~LotteryApplication.holds_pending_award,
                                                                    Attendee.hotel_lottery_eligible == True)
     if staff_lottery:
         applications = applications.filter(LotteryApplication.is_staff_entry == True)

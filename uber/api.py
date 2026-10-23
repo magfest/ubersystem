@@ -28,6 +28,7 @@ from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, Attr
                          GuestGroup, LotteryApplication)
 from uber.models.hotel import (HotelExportLog, HotelRoomInventory, LotteryHotel,
                                RoomAssignment)
+from uber.hotel.queries import shared_room_eligible_query
 from uber.models.badge_printing import PrintJob
 from uber.serializer import serializer
 from uber.utils import check, check_csrf, normalize_email_legacy, normalize_newlines, is_listy
@@ -1396,7 +1397,6 @@ class DepartmentLookup:
                 'name': True,
                 'description': True,
                 'solicits_volunteers': True,
-                'is_shiftless': True,
                 'max_consecutive_minutes': True,
                 'from_email': True,
                 'manages_panels': True,
@@ -1514,26 +1514,19 @@ class HotelLookup:
         """
         Returns the attendees eligible for a shared staff room.
 
-        Excludes anyone who is not flagged eligible, and anyone who already
-        holds a live room: a staffer may take a room through the lottery or
-        through the shared room signup, but not both, so someone already
-        roomed must stop being offered one.
-
-        Returns a bare list of attendee ids by default, which is the shape
-        this endpoint has always had. Pass full=True for a list of dicts with
-        the name, email, badge type, and both eligibility flags, which is
-        enough to explain why someone is or is not on the list.
+        Returns a bare list of attendee ids by default. Pass full=True for a list
+        of dicts with the name, email, badge type, both eligibility flags, and
+        whether they already hold a live room.
         """
         if isinstance(full, six.string_types):
             full = full.strip().lower() not in ('', 'f', 'false', 'n', 'no', '0')
         with Session() as session:
-            query = session.query(Attendee).filter(
-                Attendee.hotel_eligible == True,  # noqa: E712
-                ~Attendee.room_assignments.any(RoomAssignment.is_live))
+            query = shared_room_eligible_query(session)
 
             if not full:
                 return [str(a.id) for a in query.all()]
 
+            query = query.options(selectinload(Attendee.room_assignments))
             return [{
                 'id': str(a.id),
                 'first_name': a.first_name,
@@ -1542,6 +1535,7 @@ class HotelLookup:
                 'badge_type_label': a.badge_type_label,
                 'hotel_eligible': a.hotel_eligible,
                 'staff_lottery_eligible': a.staff_lottery_eligible,
+                'has_live_room': bool(a.active_room_assignments),
             } for a in query.all()]
 
     @api_auth('api_update')
@@ -1712,7 +1706,7 @@ class HotelLookup:
         """
         who = str(exported_by or '').strip()[:255] or 'api'
         from uber.hotel.exports import booking_dict, resolve_lottery_hotel
-        from uber.hotel.queries import live_assignments_for_hotel
+        from uber.hotel.queries import exported_assignments_for_hotel
 
         with Session() as session:
             ident = hotel_name or hotel
@@ -1729,7 +1723,7 @@ class HotelLookup:
                      RoomAssignment.created.asc())
             if inv_ids:
                 assignments = (session.query(RoomAssignment)
-                               .filter(RoomAssignment.is_live,
+                               .filter(RoomAssignment.in_hotel_export,
                                        RoomAssignment.inventory_id.in_(inv_ids))
                                .order_by(*order).all())
                 export_hotel_ids = {
@@ -1737,7 +1731,7 @@ class HotelLookup:
                     .filter(HotelRoomInventory.id.in_(inv_ids)).distinct().all()
                     if row[0]}
             elif hotel_obj:
-                assignments = (live_assignments_for_hotel(session, hotel_obj.id)
+                assignments = (exported_assignments_for_hotel(session, hotel_obj.id)
                                .order_by(*order).all())
                 export_hotel_ids = {str(hotel_obj.id)}
             else:

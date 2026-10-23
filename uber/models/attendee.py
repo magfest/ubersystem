@@ -192,11 +192,11 @@ class BadgeInfo(MagModel, table=True):
         self.reported_lost = datetime.now(UTC)
         self.active = False
     
-    def check_in(self):
+    def check_in(self, checkin_time=None):
         if not self.attendee_id:
             return
 
-        self.picked_up = self.attendee.checked_in or datetime.now(UTC)
+        self.picked_up = checkin_time or datetime.now(UTC)
 
 
 Index('ix_badge_info_attendee_id', BadgeInfo.attendee_id.desc())
@@ -856,7 +856,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
                 self.active_badge.unassign()
             badge.assign(self.id)
             if self.checked_in:
-                badge.check_in()
+                badge.check_in(self.checked_in)
             self.session.add(badge)
             self.active_badge = badge
 
@@ -872,9 +872,9 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
             if not new_badge:
                 return
             new_badge.assign(self.id)
-            new_badge.check_in()
+            new_badge.check_in(self.checked_in)
         else:
-            self.active_badge.check_in()
+            self.active_badge.check_in(self.checked_in)
     
     def undo_checkin(self):
         self.checked_in = None
@@ -2049,7 +2049,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
 
         return [
             job for job in self.available_jobs
-            if job.no_overlap(self) and job.working_limit_ok(self)]
+            if job.duration and job.no_overlap(self) and job.working_limit_ok(self)]
 
     @property
     def possible_opts(self):
@@ -2388,6 +2388,16 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         else:
             self.admin_notes = note
 
+    def restore_crash_space_eligibility(self):
+        """Give a staffer crash space back after they leave the lottery.
+
+        Withdrawal paths run for public lottery entrants too. hotel.eligible_attendees
+        trusts hotel_eligible alone, so setting it on a non-staff badge sends
+        that attendee to Tuber's crash space form.
+        """
+        if self.badge_type == c.STAFF_BADGE:
+            self.hotel_eligible = True
+
     @presave_adjustment
     def staffer_hotel_eligibility(self):
         if self.badge_type == c.STAFF_BADGE and (self.is_new or self.orig_value_of('badge_type') != c.STAFF_BADGE):
@@ -2485,6 +2495,17 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         (not cancelled / expired / removed). The list every "does this
         person have a room?" check should use."""
         return [ra for ra in (self.room_assignments or []) if ra.is_live]
+
+    @property
+    def released_room_assignments(self):
+        """RoomAssignments that have been released to the attendee, i.e.
+        they aren't temporary assignments from a lottery run."""
+        return [ra for ra in (self.room_assignments or []) if ra.is_released]
+
+    @property
+    def released_occupied_rooms(self):
+        """occupied_rooms minus rows from a not-yet-awarded lottery run."""
+        return [ra for ra in (self.occupied_rooms or []) if ra.is_released]
 
     @property
     def hotel_status(self):

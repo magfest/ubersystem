@@ -15,8 +15,8 @@ from uber.decorators import all_renderable, ajax, ajax_gettable, requires_accoun
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import Attendee, LotteryApplication, RoomAssignment
-from uber.models.hotel import (RoomAssignmentInvite, WaitlistReveal,
-                               WaitlistRevealLink)
+from uber.models.hotel import (RoomAssignmentInvite, OverflowReveal,
+                               OverflowRevealLink)
 from uber.hotel.waitlist import WaitlistError, resize_assignment
 from uber.email import EmailService
 from uber.utils import (RegistrationCode, check_csrf, redirect_with_params,
@@ -54,28 +54,44 @@ def _require_post_csrf(params, redirect):
     check_csrf(params.get('csrf_token'))
 
 
-def _require_unlocked(ra, attendee_id=''):
-    """Raise HTTPRedirect back to the room editor if the assignment has
-    been exported to the hotel. Once `ra.export_locked` is True the
-    booking has been transferred and nothing changes locally any more.
-    """
+def _lock_message(ra):
     if ra.export_locked:
+        return 'Your booking has been sent to the hotel. Please contact your hotel to make changes.'
+    return 'Your room is now locked. Please contact your hotel to make changes.'
+
+
+def _require_unlocked(ra, attendee_id='', card=False):
+    """Redirect back to the room editor if the room is locked. Card details
+    (`card=True`) are only locked by an export, so a room can still be secured
+    before its card deadline."""
+    locked = ra.export_locked if card else ra.changes_locked
+    if locked:
+        raise HTTPRedirect(_room_url(ra.id, attendee_id, message=_lock_message(ra)))
+
+
+def _require_live(ra, attendee_id=''):
+    """Raise HTTPRedirect back to the room page if the assignment no longer
+    holds inventory. Expired and cancelled rows stay on file as a record, and
+    their inventory may already belong to someone else."""
+    if not ra.is_live:
         raise HTTPRedirect(_room_url(
             ra.id, attendee_id,
-            message='This booking has been transferred to the hotel '
-                    'and can no longer be edited from here.'))
+            message="This room is no longer active and can't be changed."))
 
 
-def room_action(func=None, *, allow='leader'):
+def room_action(func=None, *, allow='leader', allow_inactive=False, card=False):
     """Boilerplate wrapper for POST-only per-room mutations.
 
     Handles what every such handler repeats by hand: bounce GETs back to
     the room page, check CSRF, resolve `assignment_id` to a RoomAssignment
     (consistent "Room not found." redirect), refuse export-locked rooms,
-    and verify the acting viewer may touch the room at all. By default
-    only the room leader (booker) or a Hotel Lottery Admin passes;
-    `allow='occupant'` also admits current occupants (e.g. leaving a
-    room). The wrapped handler receives the resolved row as `ra`:
+    refuse rooms that are no longer live, and verify the acting viewer may
+    touch the room at all. By default only the room leader (booker) or a
+    Hotel Lottery Admin passes; `allow='occupant'` also admits current
+    occupants (e.g. leaving a room). `allow_inactive=True` admits expired
+    and cancelled rooms, for actions that stay meaningful after the room
+    is released. `card=True` marks card details (see _require_unlocked).
+    The wrapped handler receives the resolved row as `ra`:
 
         @requires_account(Attendee)
         @room_action
@@ -92,11 +108,13 @@ def room_action(func=None, *, allow='leader'):
             check_csrf(csrf_token)
             ra = (session.query(RoomAssignment).get(assignment_id)
                   if assignment_id else None)
-            if not ra:
+            if not ra or not ra.is_released:
                 raise HTTPRedirect('rooms?message={}', 'Room not found.')
-            _require_unlocked(ra, attendee_id)
+            _require_unlocked(ra, attendee_id, card=card)
             _require_room_access(session, ra, attendee_id,
                                  allow_occupant=(allow == 'occupant'))
+            if not allow_inactive:
+                _require_live(ra, attendee_id)
             return fn(self, session, ra=ra, attendee_id=attendee_id, **params)
         return wrapper
 
@@ -193,6 +211,7 @@ def _card_reuse_sources(session, ra):
             session.query(RoomAssignment)
             .filter(RoomAssignment.attendee_id == ra.attendee_id,
                     RoomAssignment.id != ra.id,
+                    RoomAssignment.is_released,
                     RoomAssignment.cc_token.isnot(None)).all()
             if _effective_vault_reference(other) == target_ref]
 
@@ -218,11 +237,16 @@ def _resolve_assignment(session, assignment_id, application=None, *,
             hybrid (True keeps card-guaranteed types, False the rest);
           - without_card=True adds cc_token IS NULL.
 
+    Rows from a lottery run that hasn't been awarded yet are never
+    returned (see RoomAssignment.is_released).
+
     Returns the row or None; callers keep their own error redirects.
     """
     ra = None
     if assignment_id:
         ra = session.query(RoomAssignment).get(assignment_id)
+        if ra and not ra.is_released:
+            ra = None
         if match_application and ra and (
                 application is None
                 or ra.lottery_application_id != application.id):
@@ -231,6 +255,7 @@ def _resolve_assignment(session, assignment_id, application=None, *,
         filters = [
             RoomAssignment.lottery_application_id == application.id,
             RoomAssignment.parent_assignment_id.is_(None),
+            RoomAssignment.is_released,
         ]
         if statuses == 'live':
             filters.append(RoomAssignment.is_live)
@@ -261,7 +286,7 @@ def _secure_flow_assignment(session, assignment_id, *, token=None,
     """
     ra = (session.query(RoomAssignment).get(assignment_id)
           if assignment_id else None)
-    if not ra:
+    if not ra or not ra.is_released:
         return None, {'error': 'Assignment not found.'}
     if ra.export_locked:
         return None, {'error': 'This booking has been transferred to the hotel '
@@ -279,7 +304,7 @@ def _render_room_detail(session, assignment_id, attendee_id, message):
     have CherryPy looking for `hotel_lottery/_render_room_detail.html`).
     """
     ra = session.query(RoomAssignment).get(assignment_id)
-    if not ra:
+    if not ra or not ra.is_released:
         raise HTTPRedirect('rooms?message={}', 'Room not found.')
 
     # Resolve the viewer's attendee - explicit attendee_id wins (admin
@@ -326,7 +351,8 @@ def _render_room_detail(session, assignment_id, attendee_id, message):
         other_rooms = (session.query(RoomAssignment)
                        .filter(RoomAssignment.attendee_id == viewer.id,
                                RoomAssignment.id != ra.id,
-                               RoomAssignment.is_live).all())
+                               RoomAssignment.is_live,
+                               RoomAssignment.is_released).all())
         seen_ids = {o.id for o in (ra.occupants or [])}
         for other in other_rooms:
             for occ in (other.occupants or []):
@@ -368,7 +394,8 @@ def _viewer_attendee(session):
         # first badge. Handlers acting on a specific room should
         # still pass attendee_id explicitly.
         with_rooms = [a for a in aa.attendees
-                      if a.active_room_assignments or a.occupied_rooms]
+                      if any(ra.is_live for ra in a.released_room_assignments)
+                      or a.released_occupied_rooms]
         return with_rooms[0] if with_rooms else aa.attendees[0]
     admin = session.current_admin_account()
     if admin and admin.attendee:
@@ -506,10 +533,10 @@ def _is_post_cutoff(application):
     Drives the post-cutoff banner in the confirmation email.
     """
     if application.is_staff_entry:
-        return not c.STAFF_HOTEL_LOTTERY_OPEN
+        return not c.STAFF_HOTEL_LOTTERY_IN_WINDOW
     if application.qualifies_for_staff_lottery:
-        return not c.STAFF_HOTEL_LOTTERY_OPEN and not c.HOTEL_LOTTERY_OPEN
-    return not c.HOTEL_LOTTERY_OPEN
+        return not c.STAFF_HOTEL_LOTTERY_IN_WINDOW and not c.HOTEL_LOTTERY_IN_WINDOW
+    return not c.HOTEL_LOTTERY_IN_WINDOW
 
 
 def _max_room_capacity_for_group(session, application):
@@ -522,7 +549,8 @@ def _max_room_capacity_for_group(session, application):
         (ra.inventory.capacity if ra.inventory else 0)
         for ra in (session.query(RoomAssignment)
                    .filter(RoomAssignment.lottery_application_id == application.id,
-                           RoomAssignment.is_live)
+                           RoomAssignment.is_live,
+                           RoomAssignment.is_released)
                    .all())
     ]
     if not capacities:
@@ -560,7 +588,7 @@ def _reset_group_member(application):
         application.status = c.WITHDRAWN
         application.terms_accepted = False
         application.data_policy_accepted = False
-        application.attendee.hotel_eligible = True
+        application.attendee.restore_crash_space_eligibility()
     
     if application.status == c.COMPLETE and c.STAFF_HOTEL_LOTTERY_OPEN and application.qualifies_for_staff_lottery:
         application.is_staff_entry = True
@@ -573,7 +601,7 @@ def _reset_group_member(application):
 
 
 def _clear_application(application, status=c.WITHDRAWN):
-    application.attendee.hotel_eligible = True
+    application.attendee.restore_crash_space_eligibility()
     keep_attrs = [
         'id', 'attendee_id', 'response_id', 'cellphone']
 
@@ -647,12 +675,32 @@ def _entry_form_context(session, application, include_suites):
 @all_renderable(public=True)
 class Root:
     @ajax_gettable
-    def waitlist_reveal(self, session, token=None, **params):
+    def overflow_reveal(self, session, token=None, **params):
         """Public page (token-gated). Pre-reveal: countdown. Post-reveal:
-        renders the external URL. The page polls itself near the reveal
+        renders the booking links. The page polls itself near the reveal
         time so attendees don't need to refresh manually.
         """
-        return self._waitlist_reveal_payload(session, token)
+        reveal, link = self._resolve_reveal_token(session, token)
+        if not token:
+            return {'error': 'missing-token'}
+        if not reveal:
+            return {'error': 'invalid-token'}
+        if not reveal.active:
+            return {'error': 'inactive'}
+        access_error = self._reveal_access_error(session, reveal, link)
+        if access_error:
+            return {'error': access_error}
+
+        self._stamp_reveal_click(session, reveal, link)
+
+        now = datetime.now(c.EVENT_TIMEZONE) if reveal.reveal_at else None
+        is_revealed = reveal.reveal_at and reveal.reveal_at <= now
+        return {
+            'reveal_name': reveal.name,
+            'reveal_at_iso': reveal.reveal_at.isoformat() if reveal.reveal_at else None,
+            'is_revealed': bool(is_revealed),
+            'booking_links': reveal.booking_links if is_revealed else [],
+        }
 
     def _resolve_reveal_token(self, session, token):
         """(reveal, link) for a token, or (None, None).
@@ -663,71 +711,43 @@ class Root:
         """
         if not token:
             return None, None
-        link = session.query(WaitlistRevealLink).filter_by(token=token).first()
+        link = session.query(OverflowRevealLink).filter_by(token=token).first()
         if link:
-            return link.waitlist_reveal, link
-        reveal = session.query(WaitlistReveal).filter(
-            WaitlistReveal.shared_token == token,
-            WaitlistReveal.shared_token != '').first()
+            return link.overflow_reveal, link
+        reveal = session.query(OverflowReveal).filter(
+            OverflowReveal.shared_token == token,
+            OverflowReveal.shared_token != '').first()
         return reveal, None
 
-    def _reveal_login_ok(self, session, reveal, link):
-        """Whether this viewer may see the reveal at all.
+    def _reveal_access_error(self, session, reveal, link):
+        """Return None if this viewer may see the reveal, else an error key.
 
         requires_account cannot be used here: it keys off an id parameter and
         a model lookup, and these endpoints are token-keyed with no id.
 
-        For a unique link we require the viewer to own it, so forwarding one
-        does not hand over access. A shared token has no owner to check
-        against, so it can only require an eligible signed-in attendee; the
-        admin form says so.
+        A unique link must belong to the viewer, so forwarding one does not
+        hand over access.
         """
-        if not reveal.require_login:
-            return True
-        if not c.ATTENDEE_ACCOUNTS_ENABLED:
-            # The option is meaningless without accounts, and silently locking
-            # everyone out would be worse than ignoring it.
-            return True
+        if not reveal.enforces_login:
+            return None
 
         from uber.hotel.perms import is_lottery_admin
         if is_lottery_admin():
-            return True
+            return None
 
         viewer = _viewer_attendee(session)
         if not viewer:
-            return False
+            return 'login-required'
         if link is not None:
-            return _attendee_account_owns(session, link.attendee_id)
-        return bool(viewer.hotel_lottery_eligible)
-
-    def _waitlist_reveal_payload(self, session, token):
-        reveal, link = self._resolve_reveal_token(session, token)
-        if not token:
-            return {'error': 'missing-token'}
-        if not reveal:
-            return {'error': 'invalid-token'}
-        if not reveal.active:
-            return {'error': 'inactive'}
-        # Before the payload is built, so an unauthenticated caller never has
-        # a destination URL constructed for them at all.
-        if not self._reveal_login_ok(session, reveal, link):
-            return {'error': 'login-required'}
-
-        self._stamp_reveal_click(session, reveal, link)
-
-        now = datetime.now(c.EVENT_TIMEZONE) if reveal.reveal_at else None
-        is_revealed = reveal.reveal_at and reveal.reveal_at <= now
-        return {
-            'reveal_name': reveal.name,
-            'reveal_at_iso': reveal.reveal_at.isoformat() if reveal.reveal_at else None,
-            'is_revealed': bool(is_revealed),
-            'external_url': reveal.external_url if is_revealed else None,
-        }
+            owns = (_attendee_account_owns(session, link.attendee_id)
+                    or _admin_account_is(session, link.attendee_id))
+            return None if owns else 'wrong-account'
+        return None if viewer.hotel_lottery_eligible else 'wrong-account'
 
     def _stamp_reveal_click(self, session, reveal, link):
         if link is not None:
             if not link.clicked_at:
-                link.clicked_at = datetime.now()
+                link.clicked_at = datetime.now(UTC)
                 session.add(link)
                 session.commit()
             return
@@ -737,7 +757,7 @@ class Root:
 
     # Plain HTML view (the email links point here; the JS-poll variant uses
     # the ajax endpoint above when polling for reveal time).
-    def waitlist_reveal_page(self, session, token=None, message=''):
+    def overflow_reveal_page(self, session, token=None, message=''):
         # No CSRF gate on purpose: this is a public, token-authenticated
         # landing page opened by GET straight from an email. The token IS
         # the credential (there's no ambient session authority to forge
@@ -747,8 +767,10 @@ class Root:
         reveal, link = self._resolve_reveal_token(session, token)
         if not reveal or not reveal.active:
             return {'error': 'invalid-token', 'message': message}
-        if not self._reveal_login_ok(session, reveal, link):
-            return {'error': 'login-required', 'message': message}
+        access_error = self._reveal_access_error(session, reveal, link)
+        if access_error:
+            # The token comes back so the sign-in link can return here.
+            return {'error': access_error, 'token': token, 'message': message}
 
         self._stamp_reveal_click(session, reveal, link)
 
@@ -758,9 +780,9 @@ class Root:
             'reveal': reveal,
             'token': token,
             'is_revealed': is_revealed,
-            # Passed separately and only once revealed, so the template cannot
-            # leak it by reaching through `reveal`.
-            'external_url': reveal.external_url if is_revealed else None,
+            # Passed separately and only once revealed. The template must never
+            # read reveal.booking_links, or the URLs ship with the countdown.
+            'booking_links': reveal.booking_links if is_revealed else [],
             'message': message,
         }
 
@@ -810,7 +832,8 @@ class Root:
         source = session.query(RoomAssignment).get(source_id)
         target = session.query(RoomAssignment).get(target_id)
         if not source or not target or source.attendee_id != attendee.id \
-                or target.attendee_id != attendee.id:
+                or target.attendee_id != attendee.id \
+                or not source.is_released or not target.is_released:
             _fail('Assignment not found.')
 
         if target.export_locked:
@@ -869,31 +892,34 @@ class Root:
 
         attendee = session.attendee(attendee_id)
         assignments = (session.query(RoomAssignment)
-                       .filter_by(attendee_id=attendee.id)
+                       .filter(RoomAssignment.attendee_id == attendee.id,
+                               RoomAssignment.is_released)
                        .order_by(RoomAssignment.assigned_check_in_date
                                  .asc().nullsfirst(),
                                  RoomAssignment.created.asc()).all())
 
         # Also include rooms where this attendee is an occupant but
         # not the booker (so guests see the rooms they're part of).
-        guest_in = [ra for ra in attendee.occupied_rooms
-                    if ra.attendee_id != attendee.id]
+        guest_rooms = [ra for ra in attendee.released_occupied_rooms
+                       if ra.attendee_id != attendee.id]
 
-        # Connector children render under their parent suite via the
-        # child_assignments relationship. A child whose parent isn't in
-        # this attendee's own list (e.g. the suite is booked by someone
-        # else) is appended as its own top-level "orphan" card - the
-        # template detects that case via parent_assignment_id.
-        primaries = [ra for ra in assignments if not ra.parent_assignment_id]
-        primary_ids = {p.id for p in primaries}
-        primaries.extend(
-            ra for ra in assignments
-            if ra.parent_assignment_id and ra.parent_assignment_id not in primary_ids)
+        # Connector children render under their live parent suite via the
+        # child_assignments relationship. Any other child (the suite is
+        # booked by someone else, or is no longer live) gets its own
+        # top-level card; the template flags it via is_orphan_connector.
+        live_parent_ids = {ra.id for ra in assignments
+                           if ra.is_live and not ra.parent_assignment_id}
+        top_level = [ra for ra in assignments
+                     if ra.parent_assignment_id not in live_parent_ids]
 
+        # Expired and cancelled rooms stay on file as a record but no longer
+        # hold inventory, so they get their own read-only section.
         return {
             'attendee': attendee,
-            'primaries': primaries,
-            'guest_in': guest_in,
+            'primaries': [ra for ra in top_level if ra.is_live],
+            'guest_in': [ra for ra in guest_rooms if ra.is_live],
+            'inactive_rooms': ([ra for ra in top_level if not ra.is_live]
+                               + [ra for ra in guest_rooms if not ra.is_live]),
             'message': message,
         }
 
@@ -925,17 +951,11 @@ class Root:
         session.add(invite)
         session.commit()
 
+        inviter = ra.attendee.full_name if ra.attendee else f'A {c.EVENT_NAME} attendee'
         try:
             EmailService.queue_email(
                 session, 'room_occupant_invite', invite,
-                subject=f"{ra.attendee.full_name if ra.attendee else 'A {c.EVENT_NAME} attendee'} "
-                f"invited you to share a room at {c.EVENT_NAME}",
-                data={
-                'invite': invite,
-                'assignment': ra,
-                'leader': ra.attendee,
-                'token': token,
-            })
+                subject=f"{inviter} invited you to share a room at {c.EVENT_NAME}")
         except Exception:
             # Bad email or template missing - surface a soft message
             # but keep the invite row so the leader can still hand the
@@ -988,6 +1008,7 @@ class Root:
         if not invite:
             raise HTTPRedirect('rooms')
         # Only the room's leader may cancel its invites.
+        _require_unlocked(invite.room_assignment, attendee_id)
         _require_room_access(session, invite.room_assignment, attendee_id)
         assignment_id = invite.room_assignment_id
         session.delete(invite)
@@ -1012,6 +1033,11 @@ class Root:
         """
         invite = (session.query(RoomAssignmentInvite)
                   .filter_by(invite_token=(token or '').strip()).first()) if token else None
+        # An invite to a released room reads as expired: the room it offers
+        # no longer exists, and its inventory may belong to someone else.
+        if invite and not (invite.room_assignment.is_live
+                           and invite.room_assignment.is_released):
+            invite = None
 
         if cherrypy.request.method == 'POST' and invite and action:
             check_csrf(csrf_token)
@@ -1030,6 +1056,8 @@ class Root:
                                    'Please log in as an attendee to accept this invite.')
 
             ra = invite.room_assignment
+            if ra.changes_locked:
+                raise HTTPRedirect('rooms?message={}', _lock_message(ra))
             assignment_id = ra.id
             session.delete(invite)
             if action == 'accept' and ra and acceptor.id != ra.attendee_id:
@@ -1061,7 +1089,8 @@ class Root:
         code = (code or '').strip()
         invite = (session.query(RoomAssignmentInvite)
                   .filter_by(invite_token=code).first()) if code else None
-        if not invite:
+        if not invite or not invite.room_assignment.is_live \
+                or not invite.room_assignment.is_released:
             if attendee_id:
                 raise HTTPRedirect(
                     'rooms?attendee_id={}&message={}', attendee_id,
@@ -1147,7 +1176,7 @@ class Root:
             message='Occupant removed.'))
 
     @requires_account(Attendee)
-    @room_action(allow='occupant')
+    @room_action(allow='occupant', allow_inactive=True)
     def leave_room(self, session, ra, attendee_id='', **params):
         # Whoever's logged in removes themselves; refuse for the booker.
         viewer = _viewer_attendee(session)
@@ -1225,7 +1254,7 @@ class Root:
             message='Special requests updated.'))
 
     @requires_account(Attendee)
-    @room_action
+    @room_action(card=True)
     def save_billing_address(self, session, ra, attendee_id='', **params):
         """Save the billing address for the card on this room. Same
         per-room write pattern as the other section saves; the address
@@ -1254,10 +1283,11 @@ class Root:
                 _room_url(target_assignment_id, attendee_id))
         check_csrf(csrf_token)
         ra = session.query(RoomAssignment).get(target_assignment_id)
-        if not ra:
+        if not ra or not ra.is_released:
             raise HTTPRedirect('rooms?message={}', 'Room not found.')
         _require_unlocked(ra, attendee_id)
         _require_room_access(session, ra, attendee_id)
+        _require_live(ra, attendee_id)
 
         ids = [i.strip() for i in (source_attendee_ids or '').split(',') if i.strip()]
         if not ids:
@@ -1269,7 +1299,8 @@ class Root:
         # by the same leader.
         my_other_rooms = (session.query(RoomAssignment)
                           .filter(RoomAssignment.attendee_id == ra.attendee_id,
-                                  RoomAssignment.id != ra.id).all())
+                                  RoomAssignment.id != ra.id,
+                                  RoomAssignment.is_released).all())
         allowed = set()
         for other in my_other_rooms:
             for occ in (other.occupants or []):
@@ -1400,7 +1431,7 @@ class Root:
             # lottery entry start screen. Everyone else goes to start.
             if attendee_id:
                 attendee = session.attendee(attendee_id)
-                if attendee.room_assignments:
+                if attendee.released_room_assignments:
                     raise HTTPRedirect(f'rooms?attendee_id={attendee_id}')
             raise HTTPRedirect(f'start?attendee_id={attendee_id}')
         elif application.locked:
@@ -1426,10 +1457,10 @@ class Root:
         # attendee's own rooms.
         app_or_parent = application.app_or_parent
         live_rooms = [
-            ra for ra in (app_or_parent.attendee.room_assignments
+            ra for ra in (app_or_parent.attendee.released_room_assignments
                           if app_or_parent and app_or_parent.attendee else [])
             if ra.is_live]
-        own_rooms = (application.attendee.room_assignments
+        own_rooms = (application.attendee.released_room_assignments
                      if application.attendee else [])
         unsecured = [ra for ra in own_rooms if ra.needs_card]
         deadlines = [ra.card_deadline for ra in unsecured if ra.card_deadline]
@@ -1440,7 +1471,9 @@ class Root:
             'any_pending': any(ra.status == c.ASSIGNED for ra in live_rooms),
             'unsecured_count': len(unsecured),
             'earliest_card_deadline': min(deadlines) if deadlines else None,
-            'room_count': len(own_rooms),
+            # Expired and cancelled rows stay on file, but the CTA promises
+            # rooms the attendee can still manage.
+            'room_count': sum(1 for ra in own_rooms if ra.is_live),
         }
 
         return {
@@ -1475,6 +1508,9 @@ class Root:
     def enter_attendee_lottery(self, session, id=None, **params):
         application = session.lottery_application(id)
         _require_post_csrf(params, f'index?id={application.id}')
+        if not application.staff_rooms_awarded or application.app_or_parent.finalized:
+            raise HTTPRedirect('index?id={}&message={}', application.id,
+                               "You can opt into the attendee lottery after staff rooms are awarded.")
         application.is_staff_entry = False
         application.last_submitted = datetime.now()
         application.status = c.COMPLETE
@@ -2091,95 +2127,61 @@ class Root:
                 "link is not available yet.")
         raise HTTPRedirect(booking_url)
 
-    @requires_account(LotteryApplication)
-    def decline(self, session, id, assignment_id=None, message='', **params):
-        """Cancel one of the attendee's awarded RoomAssignments.
-
-        If a connector primary is cancelled, its connector children cascade.
-        If the cancelled assignment is the attendee's last live one, the
-        LotteryApplication.status flips back to COMPLETE via the model
-        listener.
-        """
-        application = session.lottery_application(id)
-        if application.parent_application or application.valid_group_members:
-            you_str = f"Your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}'s"
-        else:
-            you_str = "Your"
-
-        if application.parent_application:
+    @requires_account()
+    def decline(self, session, id=None, assignment_id=None, attendee_id='', message='', **params):
+        """Cancel one of the viewer's rooms, along with its connector rooms.
+        Given only `id` (a lottery entry, as award emails link it), cancels
+        that entry's first room."""
+        application = session.lottery_application(id) if id else None
+        if application and application.parent_application:
             raise HTTPRedirect(
                 'index?id={}&message={}', id,
-                f"Only the leader of your {c.HOTEL_LOTTERY_GROUP_TERM.lower()} "
-                "may decline your room or suite award.")
+                f"Only the leader of your {c.HOTEL_LOTTERY_GROUP_TERM.lower()} can cancel your room.")
 
-        ra = _resolve_assignment(session, assignment_id, application,
-                                 statuses=[c.ASSIGNED])
-        if not ra or ra.lottery_application_id != application.id:
-            raise HTTPRedirect('index?id={}&message={}', id,
-                               f"{you_str} entry does not have a room or suite award.")
+        ra = _resolve_assignment(session, assignment_id, application)
+        if not ra or not ra.is_released:
+            raise HTTPRedirect('rooms?message={}', 'Room not found.')
+        _require_room_access(session, ra, attendee_id)
 
-        # Connector rooms can't be declined on their own - they're a
-        # mandatory part of the parent suite. Send the attendee to the
-        # parent's editor, where declining the suite cancels the
-        # connectors along with it.
         if ra.parent_assignment_id:
-            raise HTTPRedirect(
-                'room?id={}&message={}', ra.parent_assignment_id,
-                "Connector rooms are included with your suite and can't be "
-                "declined separately. Decline the suite to give up the whole "
-                "block.")
+            raise HTTPRedirect(_room_url(
+                ra.parent_assignment_id, attendee_id,
+                message="This room is part of your suite. Cancel the suite to cancel both."))
+        if ra.changes_locked:
+            raise HTTPRedirect(_room_url(ra.id, attendee_id, message=_lock_message(ra)))
+        if not ra.is_live:
+            raise HTTPRedirect(_room_url(ra.id, attendee_id,
+                                         message="This room has already been cancelled."))
 
-        if ra.status == c.SECURED:
-            raise HTTPRedirect(
-                'index?id={}&message={}', id,
-                "You cannot cancel a reservation that has already been "
-                "confirmed with a credit card guarantee.")
-        if ra.status == c.CANCELLED:
-            raise HTTPRedirect(
-                'index?id={}&message={}', id,
-                "This reservation has already been cancelled.")
-        if ra.status != c.ASSIGNED:
-            raise HTTPRedirect(
-                'index?id={}&message={}', id,
-                f"{you_str} entry does not have a room or suite award.")
-
-        room_type = ('suite' if ra.inventory and ra.inventory.is_suite else 'room')
+        room_type = 'suite' if ra.inventory and ra.inventory.is_suite else 'room'
+        cancelled_ids = {ra.id} | {child.id for child in ra.child_assignments}
+        entry = ra.lottery_application
+        # Cancelling the entry's last live room cancels the entry too.
+        ends_entry = bool(entry) and entry.status in (c.AWARDED, c.PROCESSED) and not any(
+            other.is_live and other.id not in cancelled_ids
+            for other in session.query(RoomAssignment).filter_by(lottery_application_id=entry.id))
 
         if cherrypy.request.method == "POST":
             check_csrf(params.get('csrf_token'))
             if 'confirm' not in params:
-                message = (f"Please check the box confirming that you want to "
-                           f"give up {you_str.lower()} {room_type} award.")
-                return {'application': application,
-                        'assignment': ra,
-                        'message': message}
-
-            children = (session.query(RoomAssignment)
-                        .filter_by(parent_assignment_id=ra.id).all())
-            for child in children:
-                child.status = c.CANCELLED
-                session.add(child)
-            ra.status = c.CANCELLED
-            session.add(ra)
-            session.commit()
-
-            still_live = (session.query(RoomAssignment)
-                          .filter(RoomAssignment.lottery_application_id == application.id,
-                                  RoomAssignment.is_live)
-                          .count())
-            if still_live == 0:
-                message = (f"You have declined your {room_type} award and your "
-                           "lottery entry has been cancelled.")
-                raise HTTPRedirect('{}message={}'.format(
-                    _return_link(application.attendee.id), message))
-            raise HTTPRedirect(
-                'rooms?attendee_id={}&message={}',
-                application.attendee.id,
-                f"You have declined your {room_type} award.")
+                message = f"Please check the box to confirm you want to cancel your {room_type}."
+            else:
+                for room in session.query(RoomAssignment).filter(RoomAssignment.id.in_(cancelled_ids)):
+                    room.status = c.CANCELLED
+                    session.add(room)
+                if ends_entry:
+                    entry.status = c.CANCELLED
+                    session.add(entry)
+                session.commit()
+                raise HTTPRedirect(redirect_with_params(
+                    'rooms', attendee_id=attendee_id, message=f"Your {room_type} has been cancelled."))
 
         return {
-            'application': application,
             'assignment': ra,
+            'application': entry,
+            'ends_entry': ends_entry,
+            'attendee_id': attendee_id,
+            'room_type': room_type,
             'message': message,
         }
 
@@ -2595,13 +2597,16 @@ class Root:
                 attendee_id or application.attendee.id,
                 message="Connector rooms inherit their dates from the parent room."))
 
+        # _resolve_assignment applies `statuses` only when it falls back to
+        # the application's first room; an explicit assignment_id skips it.
+        _require_live(ra, attendee_id or application.attendee.id)
+
         if cherrypy.request.method == "POST":
             check_csrf(params.get('csrf_token'))
-            if ra.export_locked:
+            if ra.changes_locked:
                 raise HTTPRedirect(_room_url(
                     ra.id, attendee_id or application.attendee.id,
-                    message='Your room details have been exported to the hotel and '
-                            'cannot be changed. Please contact us for assistance.'))
+                    message=_lock_message(ra)))
 
             from dateutil import parser as dateparser
 

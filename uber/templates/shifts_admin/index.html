@@ -138,7 +138,7 @@ Please select a department above to view its shifts.
 {% endif %}
 </div>
 
-<div class="d-flex gap-2 justify-content-between mb-3 align-items-end">
+<div class="d-flex gap-2 justify-content-between mb-3 align-items-end flex-wrap">
     <div class="d-flex gap-2">
         <div><a class="btn btn-primary" href="form?id=None&department_id={{ department.id }}">Add Job</a></div>
         <div><a class="btn btn-primary" href="template?id=None&department_id={{ department.id }}">Add Jobs by Template</a></div>
@@ -237,6 +237,7 @@ Please select a department above to view its shifts.
     const event_start_date = '{{ c.EPOCH.date() }}';
     const event_end_date = '{{ c.ESCHATON.date() }}';
     const event_dates = getDateArray(event_start_date, event_end_date);
+    const SA_ACTIVETABKEY = 'shifts_admin.activeTab';
 
 $(document).ready(function() {
     let eventList = new Array();
@@ -268,9 +269,26 @@ $(document).ready(function() {
     }
   }
 
+    const calendarViewConfig = {
+      'setupView': {text: 'Setup', date: setup_date, days:setup_duration, view: 'timeGridWeek'},
+      'eventView': {text: 'Event', date: event_start_date, days:event_duration, view: 'timeGridWeek'},
+      'teardownView': {text: 'Teardown', date: event_end_date, days: teardown_duration + 1, view: 'timeGridWeek'},
+      'allView': {text: 'All', date: setup_date, days:total_duration + 1, view: 'timeGridWeek'},
+      'listView': {text: 'List', date: setup_date, days:total_duration + 1, view: 'listWeek'}
+    }
+
+    let activeTab = window.matchMedia('(max-width: 576px)').matches ? 'listView' : 'eventView' ;
+
+    try{
+        let savedTab = localStorage.getItem(SA_ACTIVETABKEY);
+        if (savedTab && calendarViewConfig.hasOwnProperty(savedTab)) { activeTab = savedTab; }
+    } catch(e){
+        console.error("Could not load saved tab " + e);
+    }
+
     const ec = new EventCalendar(document.getElementById('shift_cal'), {
-        view: window.matchMedia('(max-width: 576px)').matches ? 'listWeek' : 'timeGridWeek',
-        date: event_start_date,
+        view: calendarViewConfig[activeTab].view,
+        date: calendarViewConfig[activeTab].date,
         allDaySlot: false,
         highlightedDates: event_dates,
         headerToolbar: {
@@ -280,38 +298,18 @@ $(document).ready(function() {
         },
         buttonText: {close: 'Close', listWeek: 'List', timeGridDay: 'Day'},
         noEventsContent: '<em>No shifts exist for the given department and days chosen.</em>',
-        customButtons: {
-          setupView: {
-            text: 'Setup',
-            click: function() { showCalView(setup_date, setup_duration, 'setupView'); },
-            active: false,
-          },
-          eventView: {
-            text: 'Event',
-            click: function() { showCalView(event_start_date, event_duration, 'eventView'); },
-            active: true,
-          },
-          teardownView: {
-            text: 'Teardown',
-            click: function() { showCalView(event_end_date, teardown_duration + 1, 'teardownView'); },
-            active: false,
-          },
-          allView: {
-            text: 'All',
-            click: function() { showCalView(setup_date, total_duration + 1, 'allView'); },
-            active: false,
-          },
-          listView: {
-            text: 'List',
-            click: function() { showCalView(setup_date, undefined, 'listView'); },
-            active: false,
-          },
-        },
+        customButtons: Object.fromEntries(
+          Object.entries(calendarViewConfig).map(([buttonName, viewConfig]) => [buttonName, {
+            text: viewConfig.text,
+            click: function() { showCalView(buttonName); },
+            active: activeTab === buttonName,
+          }])
+        ),
         scrollTime: '09:00:00',
         views: {
             timeGridWeek: {
               pointer: true,
-              duration: {days: event_duration},
+              duration: {days: calendarViewConfig[activeTab].days},
             },
             listWeek: {
               duration: {days: total_duration + 1},
@@ -333,18 +331,19 @@ $(document).ready(function() {
     });
 
 
-    let showCalView = function (startDay, newDuration, whichButton) {
+    let showCalView = function (whichButton) {
+        let viewConfig = calendarViewConfig[whichButton];
         let currentViews = ec.getOption('views');
-        if(whichButton !== 'listView'){
-           currentViews['timeGridWeek']['duration']['days'] = newDuration;
+        if(viewConfig.view === 'timeGridWeek'){
+           currentViews['timeGridWeek']['duration']['days'] = viewConfig.days;
         }
         ec.setOption('views', currentViews);
 
         setActiveButton(whichButton);
-        ec.setOption('date', startDay);
+        ec.setOption('date', viewConfig.date);
         ec.setOption('view', '');
-        let view = whichButton === 'listView' ? 'listWeek' : 'timeGridWeek';
-        ec.setOption('view', view);
+        ec.setOption('view', viewConfig.view);
+        localStorage.setItem(SA_ACTIVETABKEY,whichButton);
    }
 
     let setActiveButton = function(whichButton) {

@@ -195,7 +195,10 @@ def requires_partition_capability(capability, message=None):
                 if assignment_id:
                     from uber.models import RoomAssignment
                     assignment = session.query(RoomAssignment).get(assignment_id)
-                    if not assignment:
+                    # Pending lottery-run rows are hidden from everyone
+                    # but lottery admins, so treat them as missing.
+                    if not assignment or (not assignment.is_released
+                                          and not is_lottery_admin()):
                         raise HTTPRedirect('index?message={}',
                                            'Assignment not found.')
                     partition_id = assignment.partition_id

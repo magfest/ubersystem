@@ -20,20 +20,15 @@
   has been <strong>released</strong> because a payment card was not
   provided by the guarantee deadline
   {%- if deadline_display %} of {{ deadline_display }}{% endif %}.
+  {% if _app and _app.status == c.COMPLETE %}
+  Your lottery entry will remain eligible for later lottery runs.
+  {% endif %}
 </p>
 
 {% if check_in_display and check_out_display %}
 <p>
   The released reservation was for
   {{ check_in_display }} to {{ check_out_display }}.
-</p>
-{% endif %}
-
-{% if _app and _app.status == c.COMPLETE %}
-<p>
-  Your hotel lottery entry is still active: it will automatically be
-  considered in any future lottery runs, and you will be notified if you
-  are awarded another room.
 </p>
 {% endif %}
 

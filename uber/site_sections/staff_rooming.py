@@ -13,15 +13,16 @@ from datetime import datetime, time, timedelta
 import cherrypy
 
 from sqlalchemy import or_
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import lazyload, selectinload
 
 from uber.config import c
 from uber.decorators import all_renderable
 from uber.errors import HTTPRedirect
-from uber.hotel.queries import (build_room_assignment_query,
-                                     clamp_page_size, paginate)
+from uber.hotel.queries import (build_room_assignment_query, clamp_page_size,
+                                paginate, shared_room_eligible_query,
+                                staff_rooming_query)
 from uber.models import (Attendee, Department, NightShiftRequirement,
-                         RoomAssignment)
+                         RoomAssignment, Shift)
 from uber.models.hotel import LotteryHotel
 from uber.shift_compliance import non_compliant_staffers
 from uber.utils import check_csrf, redirect_with_params
@@ -214,6 +215,10 @@ class Root:
             filtered = all_results
 
         page_slice, total, page_num, page_count = paginate(filtered, page, ps)
+        if page_slice:
+            session.query(Attendee).filter(Attendee.id.in_([a.id for a, _ in page_slice])).options(
+                selectinload(Attendee.lottery_application),
+                selectinload(Attendee.shifts).options(lazyload(Shift.attendee))).all()
 
         departments = (session.query(Department)
                        .order_by(Department.name).all())
@@ -297,13 +302,12 @@ class Root:
         ps = clamp_page_size(page_size)
         shared_enabled = bool(c.HOTEL_REQUESTS_URL)
 
-        q = session.query(Attendee).filter(Attendee.badge_type.in_(
-            [c.STAFF_BADGE, c.CONTRACTOR_BADGE]))
+        q = staff_rooming_query(session)
 
         # 'eligible' and 'ineligible' are the pre-split values; keep them
         # meaning the shared room flag so existing links still work.
         if show in ('eligible', 'shared'):
-            q = q.filter(Attendee.hotel_eligible.is_(True))
+            q = shared_room_eligible_query(session)
         elif show in ('ineligible', 'not_shared'):
             q = q.filter(Attendee.hotel_eligible.is_(False))
         elif show == 'staff_lottery':
@@ -330,10 +334,9 @@ class Root:
         staffers, total, page_num, page_count = paginate(q, page, ps)
 
         # Cross-status counts for the header badges.
-        all_staff_q = session.query(Attendee).filter(Attendee.badge_type.in_(
-            [c.STAFF_BADGE, c.CONTRACTOR_BADGE]))
+        all_staff_q = staff_rooming_query(session)
         total_staff = all_staff_q.count()
-        total_eligible = all_staff_q.filter(Attendee.hotel_eligible.is_(True)).count()
+        total_eligible = shared_room_eligible_query(session).count()
         total_ineligible = all_staff_q.filter(Attendee.hotel_eligible.is_(False)).count()
         total_staff_lottery = all_staff_q.filter(
             Attendee.staff_lottery_eligible.is_(True)).count()

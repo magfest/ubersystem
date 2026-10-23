@@ -12,6 +12,7 @@ Modules:
     pricing   - nightly rate resolution and stay totals
     audit     - room-data consistency checks (the Room Issues page)
     perms     - partition-scoped permission grants and audit trail
+    config    - admin-editable lottery settings stored in the configuration table
 
 Transaction convention: modules in this package may session.flush() but
 never session.commit() or rollback(). Route handlers, API methods, and

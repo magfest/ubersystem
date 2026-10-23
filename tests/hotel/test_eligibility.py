@@ -7,6 +7,7 @@ configured."""
 import inspect
 
 import cherrypy
+import pytest
 
 from uber.config import c
 
@@ -61,6 +62,25 @@ def test_the_two_flags_gate_independently(session):
     staffer.staff_lottery_eligible = True
     assert staffer.hotel_eligible is False
     assert staffer.staff_hotel_lottery_eligible is True
+
+
+@pytest.mark.parametrize('badge_type, expected', [
+    (c.STAFF_BADGE, True),
+    (c.CONTRACTOR_BADGE, False),
+    (c.ATTENDEE_BADGE, False),
+])
+@pytest.mark.parametrize('leave', ['_clear_application', '_reset_group_member'])
+def test_leaving_the_lottery_restores_crash_space_for_staff_only(
+        session, leave, badge_type, expected):
+    from uber.site_sections import hotel_lottery
+
+    attendee = make_attendee(session, badge_type=badge_type)
+    attendee.hotel_eligible = False
+    session.flush()
+    application = make_application(session, attendee)
+
+    getattr(hotel_lottery, leave)(application)
+    assert attendee.hotel_eligible is expected
 
 
 # ---------------------------------------------------------------------------

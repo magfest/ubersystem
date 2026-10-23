@@ -110,11 +110,11 @@ class Root:
         guest_taxes = session.guest_taxes(params, restricted=True)
         if cherrypy.request.method == 'POST':
             if not guest_taxes.w9_sent:
-                message = 'You must confirm that you have uploaded your W9 at the secure document portal'
+                message = 'You must confirm that you have uploaded your payment information at the secure document portal'
             else:
                 guest.taxes = guest_taxes
                 session.add(guest_taxes)
-                raise HTTPRedirect('index?id={}&message={}', guest.id, 'Thank you for sending in your W9!')
+                raise HTTPRedirect('index?id={}&message={}', guest.id, 'Thank you for sending in your payment information!')
 
         return {
             'guest': guest,
@@ -251,7 +251,7 @@ class Root:
             
             if not message:
                 if guest_merch.selling_merch == c.ROCK_ISLAND and not guest.deadline_from_model('autograph') \
-                        and params.get('rock_island_autographs', '') == '':
+                        and guest.group_type != c.MIVS and params.get('rock_island_autographs', '') == '':
                     message = 'Please select whether you would like to have a Meet N Greet at Rock Island.'
                 elif c.REQUIRE_DEDICATED_GUEST_TABLE_PRESENCE \
                         and guest_merch.selling_merch == c.OWN_TABLE \
@@ -274,7 +274,7 @@ class Root:
                     else:
                         guest.group.apply(group_params, restricted=True)
             if not message:
-                if not guest.deadline_from_model('autograph'):
+                if not guest.deadline_from_model('autograph') and guest.group_type != c.MIVS:
                     guest.autograph = guest_autograph
                     session.add(guest_autograph)
                     if (guest_autograph.is_new and guest_autograph.rock_island_autographs) or \
@@ -590,11 +590,11 @@ class Root:
         if cherrypy.request.method == 'POST':
             if guest.group.studio:
                 if 'confirm_checkbox' not in params:
-                    message = "You must confirm that you have filled out the Logistics form."
+                    message = "You must confirm that you have filled out the Booth Preferences form."
                 else:
                     guest.group.studio.logistics_updated = True
                     session.add(guest)
-                    raise HTTPRedirect('index?id={}&message={}', guest.id, 'Thanks for filling out the logistics form!')
+                    raise HTTPRedirect('index?id={}&message={}', guest.id, 'Thanks for filling out the booth preferences form!')
             else:
                 message = "Something is wrong with your group -- please contact us at {}.".format(c.INDIE_ARCADE_EMAIL)
         return {
@@ -676,7 +676,9 @@ class Root:
 
                 if not message:
                     for game in guest.group.studio.confirmed_games:
-                        if not game.guidebook_header or not game.guidebook_thumbnail:
+                        guidebook_header = FileService.get_existing_files(session, game, and_flags=['guidebook_header'], uselist=False)
+                        guidebook_thumbnail = FileService.get_existing_files(session, game, and_flags=['guidebook_thumbnail'], uselist=False)
+                        if not guidebook_header or not guidebook_thumbnail:
                             message = "Please upload a Guidebook header and thumbnail."
                         else:
                             message = mivs_show_info_required_fields(game)

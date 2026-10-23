@@ -322,12 +322,12 @@ def test_partition_run_filters_null_only_for_pending_runs(session, no_cherrypy_s
 
 
 # ---------------------------------------------------------------------------
-# waitlist reveals
+# overflow reveals
 # ---------------------------------------------------------------------------
 
 def _reveal(session, **kwargs):
-    from uber.models.hotel import WaitlistReveal
-    reveal = WaitlistReveal(name='Test reveal', **kwargs)
+    from uber.models.hotel import OverflowReveal
+    reveal = OverflowReveal(name='Test reveal', **kwargs)
     session.add(reveal)
     session.flush()
     return reveal
@@ -336,36 +336,36 @@ def _reveal(session, **kwargs):
 def test_emailed_links_block_a_reveal_delete_until_forced(session, no_cherrypy_session):
     from datetime import datetime
     from pytz import UTC
-    from uber.models.hotel import WaitlistRevealLink
+    from uber.models.hotel import OverflowRevealLink
 
     reveal = _reveal(session)
-    session.add(WaitlistRevealLink(waitlist_reveal_id=reveal.id,
+    session.add(OverflowRevealLink(overflow_reveal_id=reveal.id,
                                    attendee_id=make_attendee(session).id,
                                    token='tok', emailed_at=datetime.now(UTC)))
     session.flush()
 
-    groups = _groups(session, 'waitlist_reveal', reveal)
+    groups = _groups(session, 'overflow_reveal', reveal)
     assert groups['emailed_links']['severity'] == 'blocking'
 
     with pytest.raises(DeletionError):
-        perform_delete(session, 'waitlist_reveal', reveal.id, mode='hard')
+        perform_delete(session, 'overflow_reveal', reveal.id, mode='hard')
 
     # Only an explicit acknowledgement gets past it.
-    perform_delete(session, 'waitlist_reveal', reveal.id, mode='hard', force=True)
+    perform_delete(session, 'overflow_reveal', reveal.id, mode='hard', force=True)
 
 
 def test_unsent_links_do_not_block(session, no_cherrypy_session):
-    from uber.models.hotel import WaitlistRevealLink
+    from uber.models.hotel import OverflowRevealLink
 
     reveal = _reveal(session)
-    session.add(WaitlistRevealLink(waitlist_reveal_id=reveal.id,
+    session.add(OverflowRevealLink(overflow_reveal_id=reveal.id,
                                    attendee_id=make_attendee(session).id,
                                    token='tok2'))
     session.flush()
 
-    groups = _groups(session, 'waitlist_reveal', reveal)
+    groups = _groups(session, 'overflow_reveal', reveal)
     assert groups['unsent_links']['severity'] == 'advisory'
-    perform_delete(session, 'waitlist_reveal', reveal.id, mode='hard')
+    perform_delete(session, 'overflow_reveal', reveal.id, mode='hard')
 
 
 # ---------------------------------------------------------------------------

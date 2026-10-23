@@ -17,8 +17,10 @@ This module is the single definition of:
     HotelRoomInventory.quantity_for_night.
   * overlaps / physical_room_conflicts / vacant_physical_rooms /
     vacant_rooms_map - the physical-room occupancy predicates.
-  * live_assignments_for_hotel - the standard "all live bookings at a
-    hotel" query.
+  * live_assignments_for_hotel / exported_assignments_for_hotel - a
+    hotel's live bookings, and the bookings sent to it in exports.
+  * staff_rooming_query / shared_room_eligible_query - the staff the
+    rooming pages manage, and those eligible for a shared room.
 
 Access control is intentionally NOT handled here: each section keeps its
 own controller, ACL checks, and templates. Everything here is read-only;
@@ -30,9 +32,22 @@ from datetime import timedelta
 
 from sqlalchemy import func, or_
 
+from uber.config import c
 from uber.models import Attendee
 from uber.models.hotel import (HotelRoomInventory, InventoryPartitionBlock,
                                LotteryApplication, PhysicalRoom, RoomAssignment)
+
+
+def staff_rooming_query(session):
+    """Every badge the staff rooming pages manage"""
+    return session.query(Attendee).filter(
+        Attendee.badge_type.in_([c.STAFF_BADGE]))
+
+
+def shared_room_eligible_query(session):
+    """Staff eligible for a shared room. The hotel.eligible_attendees API
+    returns this same set."""
+    return staff_rooming_query(session).filter(Attendee.hotel_eligible.is_(True))
 
 
 def attendee_name_filter(term):
@@ -427,6 +442,16 @@ def live_assignments_for_hotel(session, hotel_id):
                   HotelRoomInventory.id == RoomAssignment.inventory_id)
             .filter(HotelRoomInventory.hotel_id == str(hotel_id),
                     RoomAssignment.is_live))
+
+
+def exported_assignments_for_hotel(session, hotel_id):
+    """RoomAssignments at the given hotel that its booking exports include
+    """
+    return (session.query(RoomAssignment)
+            .join(HotelRoomInventory,
+                  HotelRoomInventory.id == RoomAssignment.inventory_id)
+            .filter(HotelRoomInventory.hotel_id == str(hotel_id),
+                    RoomAssignment.in_hotel_export))
 
 
 def physical_room_conflicts(session, physical_room_id, check_in, check_out,

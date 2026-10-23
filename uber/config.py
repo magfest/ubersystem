@@ -131,6 +131,94 @@ def request_cached_property(func):
         return val
     return with_caching
 
+class DatabaseConfigSection:
+    """A section of settings stored in the `configuration` table.
+
+    Subclasses set:
+      section_name - the row's unique key.
+      version      - the current structure version.
+      defaults     - the full structure; stored values are deep-merged over it.
+      migrations   - {from_version: fn(data) -> data}, applied in order on load.
+    and may override build() to turn the merged dict into objects.
+
+    Loads are cached per web request, and read fresh outside one.
+    TODO: Add process-level caching and invalidation
+    """
+    section_name = None
+    version = 1
+    defaults = {}
+    migrations = {}
+
+    def build(self, data):
+        return data
+
+    def load(self, session=None):
+        """The built settings, read through `session` if given."""
+        key = f'{__name__}.db_config.{self.section_name}'
+        in_request = cherrypy.serving.request.app is not None
+        value = threadlocal.get(key) if in_request else None
+        if value is None:
+            value = self.build(self._merged(self._migrated(*self._fetch(session))))
+            if in_request:
+                threadlocal.set(key, value)
+        return value
+
+    def save(self, data, session=None):
+        """Store the full structure at the current version. A passed session
+        is left for the caller to commit."""
+        if session is None:
+            with self._new_session() as own:
+                self.save(data, own)
+                own.commit()
+            return
+        from uber.models import Configuration  # uber.models imports this module
+        row = self._row(session) or Configuration(section_name=self.section_name)
+        # A new dict, so change tracking records the old and new values.
+        row.config_data = json.loads(json.dumps(data))
+        row.version = self.version
+        session.add(row)
+        session.flush()
+        threadlocal.set(f'{__name__}.db_config.{self.section_name}', None)
+
+    def _new_session(self):
+        from uber.models import Session  # uber.models imports this module
+        return Session()
+
+    def _row(self, session):
+        from uber.models import Configuration  # uber.models imports this module
+        return session.query(Configuration).filter_by(section_name=self.section_name).first()
+
+    def _fetch(self, session):
+        if session is None:
+            with self._new_session() as own:
+                return self._fetch(own)
+        row = self._row(session)
+        return (dict(row.config_data), row.version) if row else (None, self.version)
+
+    def _migrated(self, data, version):
+        if data is None:
+            return {}
+        if version > self.version:
+            log.warning('Config section %s is stored at version %s, newer than this code (%s)',
+                        self.section_name, version, self.version)
+        while version < self.version:
+            if version in self.migrations:
+                data = self.migrations[version](data)
+            version += 1
+        return data
+
+    def _merged(self, data, defaults=None):
+        defaults = self.defaults if defaults is None else defaults
+        merged = {}
+        for name, default in defaults.items():
+            if isinstance(default, dict):
+                stored = data.get(name)
+                merged[name] = self._merged(stored if isinstance(stored, dict) else {}, default)
+            else:
+                merged[name] = data.get(name, default)
+        return merged
+
+
 def cached_property(func):
     """Decorator for making readonly, memoized properties."""
     cache_attr = '_cached_{0}'.format(func.__name__)
@@ -247,9 +335,9 @@ class _Overridable:
 
                     interpolated[desc] = price
 
-                c.make_enum(name, interpolated, prices=name.endswith('_price'))
+                c.make_enum(name, interpolated, prices=name.endswith('_price'), ints_as_enum=True)
 
-    def make_enum(self, enum_name, section, prices=False):
+    def make_enum(self, enum_name, section, prices=False, ints_as_enum=False):
         """
         Plugins can call this to define individual enums, or call the make_enums
         function to make all enums defined there.  See the [enums] section in
@@ -261,7 +349,7 @@ class _Overridable:
         other_var, other_opt = None, None
 
         for name, desc in section.items():
-            if isinstance(desc, int):
+            if isinstance(desc, int) and ints_as_enum:
                 val, desc = desc, name
             else:
                 val = self.create_enum_val(name)
@@ -465,12 +553,22 @@ class Config(_Overridable):
         return self.DEPT_CHECKLIST_START and self.AFTER_DEPT_CHECKLIST_START
     
     @property
-    def HOTEL_LOTTERY_OPEN(self):
+    def HOTEL_LOTTERY_IN_WINDOW(self):
         return c.AFTER_HOTEL_LOTTERY_FORM_START and c.BEFORE_HOTEL_LOTTERY_FORM_DEADLINE
-    
+
+    @property
+    def STAFF_HOTEL_LOTTERY_IN_WINDOW(self):
+        return c.AFTER_HOTEL_LOTTERY_STAFF_START and c.BEFORE_HOTEL_LOTTERY_STAFF_DEADLINE
+
+    @property
+    def HOTEL_LOTTERY_OPEN(self):
+        from uber.hotel.config import hotel_lottery_config  # uber.hotel.config imports this module
+        return hotel_lottery_config.load()['attendee'].accepting_entries
+
     @property
     def STAFF_HOTEL_LOTTERY_OPEN(self):
-        return c.AFTER_HOTEL_LOTTERY_STAFF_START and c.BEFORE_HOTEL_LOTTERY_STAFF_DEADLINE
+        from uber.hotel.config import hotel_lottery_config  # uber.hotel.config imports this module
+        return hotel_lottery_config.load()['staff'].accepting_entries
 
     @property
     def HOTEL_LOTTERY_FORM_STEPS(self):
@@ -774,6 +872,21 @@ class Config(_Overridable):
     def SOLD_OUT_BADGE_TYPES(self):
         # Override in event plugin based on your specific badge types
         return []
+
+    @property
+    def LOCKED_ITEMS(self):
+        # Return a list of items configured in `unavailable_items` based on their value
+        # Mainly for use on the statistics summary page
+        locked = []
+        for badge_var in self.BADGE_VARS:
+            if badge_var.lower() in c.UNAVAILABLE_ITEMS:
+                locked.append(getattr(self, badge_var))
+
+        for level in ['SHIRT', 'SUPPORTER', 'SEASON']:
+            if level.lower() in c.UNAVAILABLE_ITEMS:
+                locked.append(getattr(self, level + "_LEVEL"))
+
+        return locked
 
     @property
     def kickin_availability_matrix(self):
@@ -1224,6 +1337,8 @@ class Config(_Overridable):
     @property
     @dynamic
     def REMAINING_BADGES(self):
+        if not c.ATTENDEE_BADGE_AVAILABLE:
+            return 0
         return max(0, self.ATTENDEE_BADGE_STOCK - self.get_stock_count('ATTENDEE_BADGE', self.ATTENDEE_BADGE_STOCK))
 
     @request_cached_property
@@ -1273,7 +1388,8 @@ class Config(_Overridable):
         if self.HAS_HOTEL_LOTTERY_ADMIN_ACCESS:
             return True
         try:
-            account_id = cherrypy.session.get('account_id')
+            # OIDC logins put the id on the request, not the session.
+            account_id = cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))
             if not account_id:
                 return False
             from uber.hotel.perms import has_any_lottery_access
@@ -1624,6 +1740,9 @@ class Config(_Overridable):
             return self.get_badge_count_by_type(badge_type) if badge_type else None
         elif name.endswith('_AVAILABLE'):
             item_check = name.rsplit('_', 1)[0]
+            if item_check.lower() in c.UNAVAILABLE_ITEMS:
+                return False
+
             stock_setting = getattr(self, item_check + '_STOCK', None)
             if stock_setting is None:
                 # Defaults to unlimited stock for any stock not configured
@@ -1988,6 +2107,7 @@ c.DOOR_PAYMENT_METHODS = {key: val for key, val in c.DOOR_PAYMENT_METHODS.items(
 c.TERMINAL_ID_TABLE = {k.lower().replace('-', ''): v for k, v in _config['secret']['terminal_ids'].items()}
 
 c.SHIFTLESS_DEPTS = {getattr(c, dept.upper()) for dept in c.SHIFTLESS_DEPTS}
+c.DEPT_MEMBERSHIP_SYNC = dict(_config['dept_membership_sync'])
 c.PREASSIGNED_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.PREASSIGNED_BADGE_TYPES]
 c.DEFAULT_COMPED_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.DEFAULT_COMPED_BADGE_TYPES]
 c.TRANSFERABLE_BADGE_TYPES = [getattr(c, badge_type.upper()) for badge_type in c.TRANSFERABLE_BADGE_TYPES]
@@ -2322,18 +2442,6 @@ with contextlib.suppress(Exception):
 
 
 # =============================
-# tabletop
-# =============================
-
-invalid_tabletop_rooms = [room for room in c.TABLETOP_LOCATIONS if not getattr(c, room.upper(), None)]
-for room in invalid_tabletop_rooms:
-    log.warning('config: tabletop_locations config problem: '
-                'Ignoring {!r} because it was not also found in [[event_location]] section.'.format(room.upper()))
-
-c.TABLETOP_LOCATIONS = [getattr(c, room.upper()) for room in c.TABLETOP_LOCATIONS if room not in invalid_tabletop_rooms]
-
-
-# =============================
 # guests
 # =============================
 
@@ -2351,7 +2459,7 @@ c.GUEST_CHECKLIST_ITEMS = [
     {'name': 'mc', 'header': 'MC'},
     {'name': 'stage_plot', 'header': 'Stage Plans', 'is_link': True},
     {'name': 'rehearsal'},
-    {'name': 'taxes', 'header': 'W9 Uploaded', 'is_link': True},
+    {'name': 'taxes', 'header': 'Payment Info Uploaded', 'is_link': True},
     {'name': 'badges', 'header': 'Badges Claimed'},
     {'name': 'hospitality'},
     {'name': 'travel_plans'},

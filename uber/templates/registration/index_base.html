@@ -312,7 +312,7 @@
                 {% if c.PREASSIGNED_BADGE_TYPES %}<td>{{ attendee.badge_printed_name }}</td>{% endif %}
                 <td><nobr>{{ attendee.badge_type_label }}</nobr></td>
                 {% if c.NUMBERED_BADGES %}
-                <td>{{ attendee.badge_num }}{% if not attendee.badge_num and attendee.lost_badges %}{{ attendee.lost_badges[0].ident }}{% endif %}</td>
+                <td>{% if not attendee.badge_num and attendee.lost_badges %}<em class="text-danger">{{ attendee.lost_badges[0].ident }}</em>{% else %}{{ attendee.badge_num }}{% endif %}</td>
                 {% endif %}
                 <td id="ribbon_{{ attendee.id }}">{{ attendee.ribbon_labels|join(", ") }}</td>
                 {% if c.DONATION_TIER_OPTS|length > 1 %}<td id="amount_extra_{{ attendee.id }}">{{ attendee.amount_extra_label }}</td>{% endif %}

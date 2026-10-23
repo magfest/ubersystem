@@ -124,6 +124,34 @@ class GuestGroup(MagModel, table=True):
             if game.showcase_type in showcases:
                 return True
         return False
+    
+    @property
+    def merch_island_config(self):
+        if self.group_type not in c.ROCK_ISLAND_GROUPS:
+            return {}
+        
+        if self.group_type == c.MIVS:
+            return {
+                'term': "Indie Item Shoppe",
+                'faq_file': 'IndieIsland.pdf',
+                'contact_email': 'indies@magfest.org',
+                'deadline': c.INDIE_ISLAND_DEADLINE,
+                'checkin_times': c.SHOWCASE_MERCH_CHECKIN_TIME_OPTS,
+                'checkout_times': c.SHOWCASE_MERCH_CHECKOUT_TIME_OPTS,
+            }
+        else:
+            return {
+                'term': "Rock Island",
+                'faq_file': 'RockIsland.pdf',
+                'contact_email': 'rockisland@magfest.org',
+                'deadline': c.ROCK_ISLAND_DEADLINE,
+                'checkin_times': c.GUEST_MERCH_CHECKIN_TIMES,
+                'checkout_times': c.GUEST_MERCH_CHECKOUT_TIMES,
+            }
+
+    @property
+    def uses_exact_quantity(self):
+        return self.group_type == c.MIVS
 
     @property
     def uses_detailed_travel_plans(self):
@@ -362,8 +390,8 @@ class GuestMerch(MagModel, table=True):
     check_country: str = ''
 
     arrival_plans: str = ''
-    checkin_time: int | None = Field(sa_column=Column(Choice(c.GUEST_MERCH_CHECKIN_TIMES), nullable=True))
-    checkout_time: int | None = Field(sa_column=Column(Choice(c.GUEST_MERCH_CHECKOUT_TIMES), nullable=True))
+    checkin_time: int | None = Field(sa_column=Column(Choice(c.GUEST_MERCH_CHECKIN_TIMES + c.SHOWCASE_MERCH_CHECKIN_TIME_OPTS), nullable=True))
+    checkout_time: int | None = Field(sa_column=Column(Choice(c.GUEST_MERCH_CHECKOUT_TIMES + c.SHOWCASE_MERCH_CHECKOUT_TIME_OPTS), nullable=True))
     merch_events: str = ''
     inventory: dict[Any, Any] = Field(sa_type=JSON, default_factory=dict)
     inventory_updated: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
@@ -492,6 +520,9 @@ class GuestMerch(MagModel, table=True):
             return 'You must add some merch to your inventory!'
         messages = []
         for item_id, item in inventory.items():
+            quantity = int(item.get('quantity') or 0)
+            if quantity <= 0 and cls.total_quantity(item) <= 0:
+                messages.append('Please specify a quantity.')
             for name, file in [(n, f) for (n, f) in item.items() if f]:
                 match = cls._inventory_file_regex.match(name)
                 if match and getattr(file, 'filename', None):
@@ -501,6 +532,14 @@ class GuestMerch(MagModel, table=True):
                     ext = filename_extension(file.filename)
                     if extensions and ext not in extensions:
                         messages.append('{} files must be one of {}'.format(file_type.title(), ', '.join(extensions)))
+
+                    max_size_mb = getattr(c, 'ALLOWED_INVENTORY_{}_SIZE'.format(file_type), None)
+                    if max_size_mb:
+                        file.file.seek(0, os.SEEK_END)
+                        file_size = file.file.tell()
+                        file.file.seek(0)  # _save_inventory_files reads from the start
+                        if file_size > max_size_mb * 1024 * 1024:
+                            messages.append('{} files must be under {}MB'.format(file_type.title(), max_size_mb))
 
         return '. '.join(dict.fromkeys([s.strip() for s in messages if s.strip()]))
 
@@ -520,6 +559,7 @@ class GuestMerch(MagModel, table=True):
             self._prune_inventory_file(item, new_inventory, prune_missing=prune_missing)
 
     def _save_inventory_files(self, inventory):
+        os.makedirs(c.UPLOADED_FILES_DIR + '/guest_inventory', exist_ok=True)
         for item_id, item in inventory.items():
             for name, file in [(n, f) for (n, f) in item.items() if f]:
                 match = self._inventory_file_regex.match(name)
@@ -559,23 +599,26 @@ class GuestMerch(MagModel, table=True):
             getattr(c, '{}_SIZES_OPTS'.format(s), defaultdict(lambda: [])))
 
     @classmethod
-    def line_items(cls, item):
+    def total_quantity(cls, item):
+        total_quantity = 0
+        for attr in filter(lambda s: s.startswith('quantity'), item.keys()):
+            total_quantity += int(item[attr] if item[attr] else 0)
+        return total_quantity
+
+    def line_items(self, item):
         line_items = []
 
         for attr in filter(lambda s: s.startswith('quantity-'), item.keys()):
             qty = item[attr] if item[attr] else 0
-            log.error(qty)
-            if qty == 'on':
-                qty = 1
             if int(qty) > 0:
                 line_items.append(attr)
 
         varieties, cuts, sizes = [
             [v for (v, _) in x]
-            for x in cls.item_subcategories_opts(item['type'])]
+            for x in self.item_subcategories_opts(item['type'])]
 
         def _line_item_sort_key(line_item):
-            variety, cut, size = cls.line_item_to_types(line_item)
+            variety, cut, size = self.line_item_to_types(line_item)
             return (
                 varieties.index(variety) if variety else 0,
                 cuts.index(cut) if cut else 0,
@@ -608,7 +651,7 @@ class GuestMerch(MagModel, table=True):
 
     @classmethod
     def inventory_path(cls, file):
-        return os.path.join(c.GUESTS_INVENTORY_DIR, file)
+        return os.path.join(c.UPLOADED_FILES_DIR + '/guest_inventory', file)
 
     def inventory_url(self, item_id, name, download=False):
         disposition = 'inline' if not download else 'attachment'

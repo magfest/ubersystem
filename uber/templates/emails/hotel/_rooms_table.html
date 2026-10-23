@@ -1,6 +1,6 @@
 {# Reusable per-application rooms block used by every confirmation,
    award, secure, and cancel email. Takes one argument: `app` - a
-   LotteryApplication. Looks up `app.attendee.room_assignments`.
+   LotteryApplication. Looks up `app.attendee.released_room_assignments`.
 
    Each room is rendered as a bullet with hotel + type + status +
    check-in/out. Connector rooms get the explanatory note so the
@@ -25,7 +25,7 @@
    are gated on `RoomAssignment.needs_card`, which is false for secured,
    cancelled, and master-bill rooms; that is what keeps this block
    correct in the cancel and secured emails. #}
-{% set _rooms = (app.attendee.room_assignments if app.attendee else [])
+{% set _rooms = (app.attendee.released_room_assignments if app.attendee else [])
                 |selectattr('status', 'in', [c.ASSIGNED, c.SECURED, c.CANCELLED, c.EXPIRED])|list %}
 {% if _rooms %}
 <ul>

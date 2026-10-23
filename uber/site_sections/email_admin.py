@@ -4,7 +4,7 @@ import logging
 import pytz
 import traceback
 
-from sqlalchemy import func, or_, any_
+from sqlalchemy import func, or_, any_, nullslast
 
 from uber.automated_emails import AutomatedEmailFixture
 from uber.config import c
@@ -95,7 +95,7 @@ class Root:
             'message': message,
             'page': page,
             'automated_email': automated_email,
-            'emails': get_page(page, emails.order_by(Email.generated.desc())),
+            'emails': get_page(page, emails.order_by(nullslast(func.coalesce(Email.sent, Email.generated).desc()))),
             'count': emails.count(),
             'search_text': search_text if not subject else '',
             'subject_search_text': search_text if subject else '',
@@ -255,7 +255,7 @@ class Root:
     def poll_email_generation(self, session, id, **params):
         email_check_status = c.REDIS_STORE.hgetall(c.REDIS_PREFIX + 'email_generation:' + id)
         if not email_check_status:
-            return
+            return {"success": False, 'message': "Email generation did not start. There may be a problem with the email task."}
 
         email_check_error = email_check_status.get('error', '')
         email_check_count = email_check_status.get('emails_generated', '')
@@ -379,6 +379,7 @@ class Root:
         email.status_text = new_status
         session.commit()
         sent_email = EmailService.send_email(session, email, email.automated_email)
+        sent_email = None
         if not sent_email:
             if email in session.deleted:
                 session.commit()

@@ -25,7 +25,6 @@ def convert_dealer_badge(session, attendee, admin_note=''):
     """
 
     receipt = session.get_receipt_by_model(attendee)
-    receipt_items = []
     params = {
         'ribbon': remove_opt(attendee.ribbon_ints, c.DEALER_RIBBON),
         'badge_cost': None,
@@ -110,7 +109,7 @@ def decline_and_convert_dealer_group(session, group, status=c.DECLINED, admin_no
                 EmailService.queue_email(
                     session, ident, attendee,
                     data={'group': group, 'other_badges': assigned_badges - 1,
-                          'unassigned_badges': group.unregistered_badges > 0})
+                          'unregistered_badges': group.unregistered_badges > 0})
                 emails_sent += 1
 
             badges_converted += 1

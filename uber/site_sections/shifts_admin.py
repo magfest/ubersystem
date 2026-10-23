@@ -579,14 +579,16 @@ class Root:
         }
 
     @csv_file
-    def shift_schedule_csv(self, out, session, department_id, day='all', **params):
+    def shift_schedule_csv(self, out, session, department_id=None, day='all', **params):
         filters = []
 
         if day != 'all':
             date = datetime.combine(datetime.strptime(day, '%Y-%m-%d'), datetime.min.time()).replace(tzinfo=c.EVENT_TIMEZONE)
             filters.extend([Job.start_time >= date, Job.start_time < date + timedelta(days=1)])
+        if department_id:
+            filters.append(Job.department_id == department_id)
         
-        jobs = session.query(Job).filter(Job.department_id == department_id).filter(*filters).order_by(Job.start_time).order_by(Job.name)
+        jobs = session.query(Job).filter(*filters).order_by(Job.start_time).order_by(Job.name)
 
         out.writerow(["Name", "Description", "Start Time", "Duration", "Extra 15?", "Slots", "Weight", "Roles"])
         

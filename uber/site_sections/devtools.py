@@ -427,7 +427,7 @@ def _seed_curated_scenarios(session, ctx):
 
     from uber.utils import RegistrationCode
     from uber.models import DeptMembership, Shift
-    from uber.models.hotel import LotteryApplication, RoomAssignment
+    from uber.models.hotel import LotteryApplication, RoomAssignment, RoomAssignmentInvite
 
     make_attendee = functools.partial(_make_attendee, session)
     make_application = functools.partial(_make_application, session, ctx.now)
@@ -563,8 +563,58 @@ def _seed_curated_scenarios(session, ctx):
             assigned_check_in_date=event_start, assigned_check_out_date=event_end))
         curated_created += 1
 
+    # Inactive rooms: every state the attendee rooms pages handle for rooms
+    # that no longer hold inventory. The booker holds live, expired and
+    # cancelled rooms plus a live suite with a cancelled connector; the other
+    # two attendees see an expired room only as its booker or its guest.
+    booker, created = make_attendee('Inactive', 'Rooms', 'inactive.rooms@example.com',
+                                    hotel_eligible=True)
+    if created:
+        only_expired, _ = make_attendee('Only', 'Expired', 'only.expired@example.com',
+                                        hotel_eligible=True)
+        guest, _ = make_attendee('Expired', 'Guest', 'expired.guest@example.com',
+                                 hotel_eligible=True)
+        app = make_application(booker, status=c.COMPLETE, entry_type=c.ROOM_ENTRY,
+                               hotel_preference=str(hotels[0].id),
+                               room_type_preference=str(std_type.id), **full_window)
+        past_deadline = now.date() - timedelta(days=5)
+        card = dict(address1='123 Test St', city='Rockville', region='MD',
+                    zip_code='20850', country='United States', cc_captured_at=now,
+                    cc_card_type='Visa')
+
+        def room(owner, inventory, status, **kwargs):
+            params = dict(
+                attendee_id=owner.id, inventory_id=inventory.id, status=status,
+                lottery_run_id=run.id, assignment_reason=c.LOTTERY_AWARD,
+                payment_type='credit_card', assigned_check_in_date=event_start,
+                assigned_check_out_date=event_end)
+            params.update(kwargs)
+            ra = RoomAssignment(**params)
+            session.add(ra)
+            session.flush()
+            return ra
+
+        room(booker, inv_blocks[0], c.SECURED, cc_token='test-vault-token',
+             cc_last_four='4242', **card)
+        expired = room(booker, inv_blocks[0], c.EXPIRED, lottery_application_id=app.id,
+                       deposit_cutoff_date=past_deadline,
+                       special_requests='High floor please')
+        expired.occupants = [guest]
+        session.add(RoomAssignmentInvite(room_assignment_id=expired.id,
+                                         invite_token='DEV-EXPIRED-ROOM',
+                                         email='invitee@example.com'))
+        room(booker, inv_blocks[0], c.CANCELLED)
+        suite = room(booker, suite_blocks[0], c.SECURED, cc_token='test-vault-token-2',
+                     cc_last_four='1111', **card)
+        room(booker, connector_blocks[hotels[0].id], c.CANCELLED,
+             parent_assignment_id=suite.id, assignment_reason=c.SUITE_CONNECTOR)
+        hosted = room(only_expired, inv_blocks[0], c.EXPIRED,
+                      deposit_cutoff_date=past_deadline)
+        hosted.occupants = [booker]
+        curated_created += 1
+
     return [f'Curated scenarios: {curated_created} created, '
-            f'{7 - curated_created} already existed']
+            f'{8 - curated_created} already existed']
 
 
 def _seed_bulk_personas(session, ctx, count, seed):

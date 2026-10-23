@@ -57,7 +57,8 @@ def _partitions_for_current_admin(session):
     if is_lottery_admin():
         return session.query(InventoryPartition).filter_by(active=True).order_by(
             InventoryPartition.name).all()
-    account_id = cherrypy.session.get('account_id') if cherrypy.session else None
+    # OIDC logins put the id on the request, not the session.
+    account_id = cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))
     if not account_id:
         return []
     grants = session.query(PartitionOwner).filter_by(
@@ -194,6 +195,8 @@ class Root:
             RoomAssignment.status.asc(),
             RoomAssignment.assigned_check_in_date.asc().nullsfirst(),
             RoomAssignment.created.asc())
+        if not is_lottery_admin():
+            roster_q = roster_q.filter(RoomAssignment.is_released)
         if can_view_assignments:
             roster, roster_total, page, last_page = paginate(
                 roster_q, page, PAGE_SIZE)
@@ -205,9 +208,11 @@ class Root:
         # partition's view).
         attendee_ids = list({ra.attendee_id for ra in roster if ra.attendee_id})
         if attendee_ids:
-            modal_assignments = session.query(RoomAssignment).filter(
-                RoomAssignment.attendee_id.in_(attendee_ids)
-            ).order_by(
+            modal_q = session.query(RoomAssignment).filter(
+                RoomAssignment.attendee_id.in_(attendee_ids))
+            if not is_lottery_admin():
+                modal_q = modal_q.filter(RoomAssignment.is_released)
+            modal_assignments = modal_q.order_by(
                 RoomAssignment.assigned_check_in_date.asc().nullsfirst()
             ).all()
         else:
@@ -288,7 +293,7 @@ class Root:
             raise HTTPRedirect('index')
         check_csrf(csrf_token)
         assignment = session.query(RoomAssignment).get(assignment_id)
-        if not assignment:
+        if not assignment or (not assignment.is_released and not is_lottery_admin()):
             raise HTTPRedirect('index?message={}', 'Assignment not found.')
 
         try:
@@ -367,7 +372,7 @@ class Root:
             raise HTTPRedirect('index')
         check_csrf(csrf_token)
         assignment = session.query(RoomAssignment).get(assignment_id)
-        if not assignment:
+        if not assignment or (not assignment.is_released and not is_lottery_admin()):
             raise HTTPRedirect('index?message={}', 'Assignment not found.')
 
         target_partition = assignment.partition_id
@@ -397,7 +402,7 @@ class Root:
             raise HTTPRedirect('index')
         check_csrf(csrf_token)
         assignment = session.query(RoomAssignment).get(assignment_id)
-        if not assignment:
+        if not assignment or (not assignment.is_released and not is_lottery_admin()):
             raise HTTPRedirect('index?message={}', 'Assignment not found.')
 
         partition_id = assignment.partition_id

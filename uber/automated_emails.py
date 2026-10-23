@@ -441,7 +441,8 @@ AutomatedEmailFixture(
 AutomatedEmailFixture(
     None, f'{c.EVENT_NAME} group registration dropped',
     'reg_workflow/group_member_dropped.txt', None,
-    'attendee_removed_from_group'
+    'attendee_removed_from_group',
+    sender=c.REGDESK_EMAIL,
 )
 
 
@@ -1055,24 +1056,25 @@ if c.HOTEL_LOTTERY_STAFF_START:
 
 
 if c.HOTEL_LOTTERY_FORM_START:
-    earliest_hotel_deadline = c.HOTEL_LOTTERY_FORM_DEADLINE
+    c.HOTEL_LOTTERY_FORM_DEADLINE = c.HOTEL_LOTTERY_FORM_DEADLINE
 
+    # TODO: Add separate staff lottery reminders
     AutomatedEmailFixture(
         Attendee,
         f'Did you want to enter the {c.EVENT_NAME} {c.EVENT_YEAR} hotel lottery?',
         'hotel/enter_lottery.html',
-        "lambda a: a.hotel_lottery_eligible and not a.lottery_application "
+        "lambda a: a.hotel_lottery_eligible and not a.lottery_application and not a.staff_hotel_lottery_eligible "
         "and not a.active_room_assignments and days_after(1, a.registered)()",
         'enter_hotel_lottery',
-        when=[days_before(7, earliest_hotel_deadline)],
-        sender=c.HOTEL_LOTTERY_EMAIL,)
+        when=[days_before(7, c.HOTEL_LOTTERY_FORM_DEADLINE)],
+        sender=c.HOTEL_LOTTERY_EMAIL)
 
     HotelLotteryEmailFixture(
         'Last chance to complete your hotel lottery entry',
         'hotel/lottery_reminder.html',
-        "lambda a: a.status == c.PARTIAL and days_after(1, a.entry_started)()",
+        "lambda a: a.status == c.PARTIAL and not a.is_staff_entry and days_after(1, a.entry_started)()",
         'hotel_lottery_reminder',
-        when=[days_before(3, earliest_hotel_deadline)],
+        when=[days_before(3, c.HOTEL_LOTTERY_FORM_DEADLINE)],
     )
 
 
@@ -1091,18 +1093,23 @@ if c.HOTEL_LOTTERY_STAFF_START or c.HOTEL_LOTTERY_FORM_START:
         'hotel_lottery_rejected'
     )
 
+    # Attendees put a card down in Ubersystem, so no booking_url is issued and
+    # gating on booking_url_ready would hold this email forever. The 3-day
+    # window keeps the reminder from landing alongside the award email.
     HotelLotteryEmailFixture(
         f'Reminder to confirm your {c.EVENT_NAME_AND_YEAR} hotel reservation',
         'hotel/guarantee_reminder.html',
-        "lambda a: a.status == c.AWARDED and a.booking_url_ready and \
-            days_before(7, a.guarantee_deadline)() and not a.parent_application",
+        "lambda a: a.status == c.AWARDED and not a.parent_application \
+            and any(ra.needs_card for ra in a.lottery_room_assignments) \
+            and days_before(3, a.guarantee_deadline)()",
         'hotel_lottery_guarantee_reminder'
     )
     
     HotelLotteryEmailFixture(
         f'{c.EVENT_NAME_AND_YEAR} Hotel Lottery Award Cancelled',
         'hotel/cancel_notification.html',
-        "lambda a: a.status == c.CANCELLED",
+        # Expired rooms get the room-released email instead.
+        "lambda a: a.status == c.CANCELLED and not a.award_expired",
         'hotel_lottery_award_cancelled'
     )
 
@@ -1199,9 +1206,9 @@ HotelLotteryEmailFixture(
     'hotel_lottery_waitlist_fulfilled'
 )
 HotelLotteryEmailFixture(
-    f'{c.EVENT_NAME_AND_YEAR} hotel waitlist',
-    'hotel/waitlist_reveal.html', None,
-    'hotel_lottery_waitlist_reveal'
+    f'{c.EVENT_NAME_AND_YEAR} early hotel overflow booking',
+    'hotel/overflow_reveal.html', None,
+    'hotel_lottery_overflow_reveal'
 )
 HotelLotteryEmailFixture(
     f'Your {c.EVENT_NAME_AND_YEAR} hotel room has been released',
@@ -2004,14 +2011,14 @@ BandEmailFixture(
     when=[days_before(3, c.BAND_BIO_DEADLINE)])
 
 BandEmailFixture(
-    f'Reminder to submit your W9 for {c.EVENT_NAME}',
+    f'Reminder to submit your payment information for {c.EVENT_NAME}',
     'guests/band_w9_reminder.txt',
     "lambda b: b.payment and not b.taxes_status",
     'band_w9_reminder',
     when=[days_before(14, c.BAND_TAXES_DEADLINE, 3)])
 
 BandEmailFixture(
-    f'Last chance to submit your W9 for {c.EVENT_NAME}',
+    f'Last chance to submit your payment information for {c.EVENT_NAME}',
     'guests/band_w9_reminder.txt',
     "lambda b: b.payment and not b.taxes_status",
     'band_w9_reminder_last',
@@ -2118,7 +2125,7 @@ if c.ROCK_ISLAND_GROUPS:
         GuestGroup,
         f'Sign up to sell merch at {c.EVENT_NAME} Rock Island',
         'guests/rock_island_intro.txt',
-        "lambda g: g.group_type in c.ROCK_ISLAND_GROUPS and g.deadline_from_model('merch') and not g.group_type == c.BAND",
+        "lambda g: g.group_type in c.ROCK_ISLAND_GROUPS and g.group_type != c.MIVS and g.deadline_from_model('merch') and not g.group_type == c.BAND",
         'rock_island_intro',
         sender=c.ROCK_ISLAND_EMAIL)
 
@@ -2126,7 +2133,7 @@ if c.ROCK_ISLAND_GROUPS:
         GuestGroup,
         f'Last chance to finalize your {c.EVENT_NAME} Rock Island Inventory',
         'guests/rock_island_inventory_reminder.txt',
-        "lambda g: g.group_type in c.ROCK_ISLAND_GROUPS and g.merch and g.merch.selling_merch == c.ROCK_ISLAND",
+        "lambda g: g.group_type in c.ROCK_ISLAND_GROUPS and g.group_type != c.MIVS and g.merch and g.merch.selling_merch == c.ROCK_ISLAND",
         'ri_inventory_reminder',
         when=[days_before(7, c.ROCK_ISLAND_DEADLINE)],
         sender=c.ROCK_ISLAND_EMAIL)
