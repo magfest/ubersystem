@@ -1128,6 +1128,34 @@ AutomatedEmailFixture(
     sender=c.HOTEL_LOTTERY_EMAIL,
 )
 
+# Partition rooms have no LotteryApplication, so the award email never
+# reaches them. Admins assigning into a partition save the room as MANUAL,
+# not PARTITION_GRANT, so both reasons count. The one-hour wait gives the
+# assigner time to fix dates or billing. generate_missing_emails pauses five
+# minutes after each fixture, so the real wait is often longer. Master-billed
+# rooms are excluded; their departments contact those guests.
+AutomatedEmailFixture(
+    RoomAssignment,
+    f'Secure your {c.EVENT_NAME_AND_YEAR} hotel room',
+    'hotel/partition_room_assigned.html',
+    "lambda ra: ra.partition_id and ra.assignment_reason in [c.PARTITION_GRANT, c.MANUAL] \
+        and ra.needs_card and ra.created < datetime.now(UTC) - timedelta(hours=1)",
+    'hotel_partition_room_assigned',
+    sender=c.HOTEL_LOTTERY_EMAIL,
+)
+
+# Queued by uber.hotel.service.notify_guest_of_room_change. The send filter
+# holds it until the room has gone ten minutes without a change, so a run of
+# edits produces one email with the final state.
+AutomatedEmailFixture(
+    RoomAssignment,
+    f'Your {c.EVENT_NAME_AND_YEAR} hotel room was updated',
+    'hotel/partition_room_updated.html', None,
+    'hotel_partition_room_updated',
+    send_filter="lambda ra: ra.last_updated < datetime.now(UTC) - timedelta(minutes=10)",
+    sender=c.HOTEL_LOTTERY_EMAIL,
+)
+
 HotelLotteryEmailFixture(
     f'{c.EVENT_NAME_AND_YEAR} ' + '{app.entry_type_label} Lottery Confirmation',
     'hotel/hotel_lottery_entry.html', None,

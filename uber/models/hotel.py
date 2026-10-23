@@ -987,6 +987,10 @@ class RoomAssignment(MagModel, table=True):
     def email_to_address(self):
         return self.attendee.email if self.attendee else ''
 
+    @property
+    def gets_emails(self):
+        return self.attendee and self.attendee.is_valid
+
     inventory_id: str | None = Field(
         sa_type=Uuid(as_uuid=False), foreign_key='hotel_room_inventory.id', nullable=True)
     inventory: 'HotelRoomInventory' = Relationship(
@@ -1461,6 +1465,8 @@ class RoomAssignment(MagModel, table=True):
             return
         attendee = self.attendee
         if attendee is None:
+            # SQLAlchemy does not lazy-load relationships on a pending row, so a
+            # row built from attendee_id alone has no attendee yet.
             from uber.models import Attendee
             session = object_session(self)
             attendee = session.get(Attendee, self.attendee_id) if session else None
