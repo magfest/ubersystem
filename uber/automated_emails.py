@@ -1201,7 +1201,7 @@ HotelLotteryEmailFixture(
     'hotel_lottery_inventory_changed_owner'
 )
 HotelLotteryEmailFixture(
-    f'{c.EVENT_NAME} Hotel Lottery - Room Dates Updated',
+    f'Your {c.EVENT_NAME_AND_YEAR} hotel room dates were updated',
     'hotel/waitlist_fulfilled.html', None,
     'hotel_lottery_waitlist_fulfilled'
 )
