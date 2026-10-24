@@ -22,6 +22,7 @@ class ApiToken(MagModel, table=True):
     token: str | None = Field(sa_type=Uuid(as_uuid=False), default_factory=lambda: str(uuid.uuid4()), private=True)
     access: str = Field(sa_type=MultiChoice(c.API_ACCESS_OPTS), default='')
     name: str = ''
+    oidc_client_id: str = ''
     description: str = ''
     issued_time: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
     revoked_time: datetime = Field(sa_type=DateTime(timezone=True), default=None, nullable=True)
@@ -41,6 +42,10 @@ class ApiToken(MagModel, table=True):
     @property
     def api_delete(self):
         return c.API_DELETE in self.access_ints
+
+    @property
+    def api_self(self):
+        return c.API_SELF in self.access_ints
 
 
 class ApiJob(MagModel, table=True):

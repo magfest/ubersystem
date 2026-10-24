@@ -1,3 +1,4 @@
+from collections import defaultdict
 import json
 import math
 import re
@@ -2117,6 +2118,43 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     @property
     def requested_depts_labels(self):
         return [d.name for d in self.requested_depts]
+
+    @property
+    def dept_summary(self):
+        """Return this attendee's departments, keyed by department ID, for each membership flag.
+
+        attendee.export, self_lookup, and the TaskUtils staff import all depend on these keys; renaming one breaks them.
+        """
+        assigned_depts = {}
+        checklist_admin_depts = {}
+        dept_head_depts = {}
+        poc_depts = {}
+        roles_depts = defaultdict(list)
+
+        if self.badge_status == c.DEFERRED_STATUS:
+            active_dept_memberships = self.dept_memberships
+        else:
+            active_dept_memberships = [m for m in self.dept_memberships if m.has_inherent_role or
+                                       m.department in self.depts_where_working]
+
+        for membership in active_dept_memberships:
+            assigned_depts[membership.department_id] = membership.department.name
+            for role in membership.dept_roles:
+                roles_depts[membership.department_id].append([role.id, role.name])
+            if membership.is_checklist_admin:
+                checklist_admin_depts[membership.department_id] = membership.department.name
+            if membership.is_dept_head:
+                dept_head_depts[membership.department_id] = membership.department.name
+            if membership.is_poc:
+                poc_depts[membership.department_id] = membership.department.name
+
+        return {
+            'assigned_depts': assigned_depts,
+            'checklist_admin_depts': checklist_admin_depts,
+            'dept_head_depts': dept_head_depts,
+            'poc_depts': poc_depts,
+            'roles_depts': dict(roles_depts),
+        }
 
     def get_labels_for_memberships(self, prop_name):
         # Takes a string for one of the 'depts_memberships' properties on the Attendee model
