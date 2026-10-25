@@ -875,8 +875,12 @@ class JobTemplate(MagModel, table=True):
                 changes[attr] = getattr(self, attr)
         
         old_required_roles_ids = [role.id for role in self.required_roles]
+        new_required_roles: list['DeptRole'] = []  # Only used if changed
         if old_required_roles_ids != self.required_roles_ids:
             changes['required_roles_ids'] = self.required_roles_ids
+            new_role_ids = [i for i in self.required_roles_ids if i and i != 'None']
+            if new_role_ids:
+                new_required_roles = session.query(DeptRole).filter(DeptRole.id.in_(new_role_ids)).all()
 
         for job in jobs_to_process:
             job_updated = False
@@ -885,6 +889,10 @@ class JobTemplate(MagModel, table=True):
                     if job.slots and job.slots < new_val:
                         job.slots = new_val
                         job_updated = True
+                elif attr_name == 'required_roles_ids':
+                    # required_role_ids is a custom setter that won't trigger dirty tracking in updated cases like this.
+                    job.required_roles = list(new_required_roles)
+                    job_updated = True
                 else:
                     setattr(job, attr_name, new_val)
                     job_updated = True
