@@ -1809,6 +1809,8 @@ if c.MITS_START:
 
 class PanelAppEmailFixture(AutomatedEmailFixture):
     def __init__(self, subject, template, filter, ident, **kwargs):
+        from uber.custom_tags import email_only
+
         panel_filter = None
         if filter:
             if callable(filter):
@@ -1824,6 +1826,7 @@ class PanelAppEmailFixture(AutomatedEmailFixture):
             panel_filter,
             ident,
             sender=kwargs.pop('sender', c.PANELS_EMAIL),
+            extra_data=kwargs.pop('extra_data', {'dept_name': 'Panels', 'dept_email': email_only(c.PANELS_EMAIL)}),
             **kwargs)
 
 

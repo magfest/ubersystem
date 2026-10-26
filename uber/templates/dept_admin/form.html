@@ -423,6 +423,7 @@
                 <th>Paid</th>
                 <th>Hours Here</th>
                 <th>Hours Overall</th>
+                <th>Other Departments</th>
                 {% if c.AT_OR_POST_CON %}
                   <th>Worked</th>
                 {% endif %}
@@ -438,6 +439,7 @@
               {% for attendee in department.members|selectattr("has_badge") %}
                 {%- set hours_here = attendee.weighted_hours_in(department.id) -%}
                 {%- set weighted_hours = attendee.weighted_hours -%}
+                {%- set other_depts = attendee.assigned_depts|rejectattr('id','==',department.id)|list -%}
                 <tr>
                   <td data-order="{{ attendee.full_name }}" data-search="{{ attendee.full_name }}">
                     <a href="#attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a>
@@ -449,6 +451,11 @@
                   </td>
                   <td data-order="{{ weighted_hours }}" data-search="{{ weighted_hours }}">
                     <a href="#attendee_form?id={{ attendee.id }}&tab_view=Shifts">{{ weighted_hours }}</a>
+                  </td>
+                  <td data-order="{{ other_depts|length }}">
+                    {% if other_depts %}
+                    {{ attendee.assigned_depts_labels|reject('==', department.name)|list|readable_join }}
+                    {% endif %}
                   </td>
                   {% if c.AT_OR_POST_CON %}
                     <td data-order="{{ attendee.worked_hours }}" data-search="{{ attendee.worked_hours }}">
