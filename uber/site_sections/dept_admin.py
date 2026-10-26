@@ -62,6 +62,7 @@ class Root:
                 selectinload(Department.dept_roles).selectinload(DeptRole.dept_memberships),
                 selectinload(Department.members).selectinload(Attendee.shifts).joinedload(Shift.job),
                 selectinload(Department.members).joinedload(Attendee.admin_account),
+                selectinload(Department.members).joinedload(Attendee.assigned_depts),
                 selectinload(Department.dept_heads).selectinload(Attendee.dept_memberships),
                 selectinload(Department.pocs).selectinload(Attendee.dept_memberships),
                 selectinload(Department.checklist_admins).selectinload(Attendee.dept_memberships)

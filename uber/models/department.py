@@ -912,6 +912,7 @@ class JobTemplate(MagModel, table=True):
     def update_last_jobs(self, session, day_int, jobs):
         cutoff_time = self.real_cutoff_time(day_int)
         jobs = sorted(jobs, key=lambda x: x.start_time, reverse=True)
+        last_job = None
 
         for job in jobs:
             if job.start_time >= cutoff_time:
@@ -919,6 +920,9 @@ class JobTemplate(MagModel, table=True):
             else:
                 last_job = job
                 break
+
+        if not last_job:
+            return
 
         if self.type == c.FILL_GAPS:
             last_job_time = last_job.start_time + timedelta(minutes=last_job.duration)

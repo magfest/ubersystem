@@ -81,7 +81,7 @@ BulkPrintingRequestInfo.field_validation.required_fields = {
     'size': "Please select the size of paper to print this document on.",
     'size_text': ("Please enter the width and height of paper to print this document on.",
                   'size', lambda x: x == c.CUSTOM),
-    'link_is_shared': "Please verify that you have made sure the link to this document is publically viewable.",
+    'link_is_shared': "Please verify that you have made sure the link to this document is publicly viewable.",
 }
 
 

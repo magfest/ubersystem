@@ -116,7 +116,7 @@ class IndieJudge(MagModel, ReviewMixin, table=True):
 
     @property
     def full_name(self):
-        return self.attendee.full_name
+        return self.attendee.full_name if self.attendee else ''
 
     @property
     def email(self):
