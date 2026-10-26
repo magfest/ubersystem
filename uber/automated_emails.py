@@ -1133,13 +1133,15 @@ AutomatedEmailFixture(
 # not PARTITION_GRANT, so both reasons count. The one-hour wait gives the
 # assigner time to fix dates or billing. generate_missing_emails pauses five
 # minutes after each fixture, so the real wait is often longer. Master-billed
-# rooms are excluded; their departments contact those guests.
+# rooms stay ASSIGNED and get the email without the card request; secured card
+# rooms are skipped.
 AutomatedEmailFixture(
     RoomAssignment,
-    f'Secure your {c.EVENT_NAME_AND_YEAR} hotel room',
+    f'Your {c.EVENT_NAME_AND_YEAR} hotel room assignment',
     'hotel/partition_room_assigned.html',
     "lambda ra: ra.partition_id and ra.assignment_reason in [c.PARTITION_GRANT, c.MANUAL] \
-        and ra.needs_card and ra.created < datetime.now(UTC) - timedelta(hours=1)",
+        and ra.status == c.ASSIGNED and (ra.needs_card or not ra.require_cc) \
+        and ra.created < datetime.now(UTC) - timedelta(hours=1)",
     'hotel_partition_room_assigned',
     sender=c.HOTEL_LOTTERY_EMAIL,
 )

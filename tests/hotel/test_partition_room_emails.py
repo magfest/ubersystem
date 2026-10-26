@@ -1,10 +1,11 @@
 """Emails for rooms assigned from a department's partition.
 
-The assignment email goes to card-required partition rooms an hour after
-they are created, whether a department head or an admin assigned them;
-master-billed guests hear from their department. Once it has been sent, a
-change to dates, room block, or billing queues the room-updated email, which
-waits until the room has gone ten minutes without a change.
+The assignment email goes to partition rooms an hour after they are created,
+whether a department head or an admin assigned them. Card-required rooms are
+asked to secure the room; master-billed rooms are told no card is needed. Once
+it has been sent, a change to dates, room block, or billing queues the
+room-updated email, which waits until the room has gone ten minutes without a
+change.
 """
 
 from datetime import datetime, timedelta
@@ -61,14 +62,35 @@ def test_assigned_email_covers_admin_made_partition_rooms(session, partition_fix
 
 
 @pytest.mark.parametrize('overrides', [
-    {'payment_type': 'masterbill'},
     {'status': c.SECURED},
+    {'status': c.CANCELLED},
     {'assignment_reason': c.LOTTERY_AWARD},
     {'assignment_reason': c.MANUAL, 'partition_id': None},
 ])
 def test_assigned_email_skips_rooms_that_need_nothing(session, partition_fixtures,
                                                       overrides):
     assert not _assigned_filter(_grant(session, **overrides))
+
+
+def test_assigned_email_covers_master_billed_rooms(session, partition_fixtures):
+    assert _assigned_filter(_grant(session, payment_type='masterbill'))
+    assert _assigned_filter(_grant(session, payment_type='masterbill_parking'))
+
+
+def test_master_billed_email_says_no_card_is_needed(session, partition_fixtures,
+                                                    monkeypatch):
+    from uber.email import EmailService
+
+    monkeypatch.setattr(session, 'commit', session.flush)
+    ra = _grant(session, payment_type='masterbill')
+    EmailService.check_emails_for_fixture(
+        session, partition_fixtures['hotel_partition_room_assigned'])
+    email = session.query(Email).filter_by(
+        ident='hotel_partition_room_assigned', fk_id=ra.id).one()
+
+    assert 'do not need to provide a credit card' in email.body
+    assert 'secure_room' not in email.body
+    assert f'room?id={ra.id}' in email.body
 
 
 def test_assigned_email_skips_guests_without_a_valid_badge(session, partition_fixtures):
