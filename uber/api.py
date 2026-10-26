@@ -900,6 +900,38 @@ class AttendeeAccountLookup:
                 'attendees': attendees,
             }
 
+    def lookup_badges(self, sso_id, full=False):
+        """
+        Returns the valid badges managed by the attendee account(s) linked to a MAGFest ID.
+
+        `sso_id` is the UUID of the MAGFest ID account (the OIDC `sub` claim).
+
+        Optionally, "full" may be passed as the second parameter to return the
+        complete attendee records, including departments, shifts, and food
+        restrictions.
+        """
+        try:
+            sso_id = str(uuid.UUID(sso_id))
+        except (TypeError, ValueError, AttributeError):
+            raise HTTPError(400, 'Invalid MAGFest ID UUID: {}'.format(sso_id))
+
+        with Session() as session:
+            accounts = session.query(AttendeeAccount).filter(AttendeeAccount.sso_id == sso_id).all()
+            if not accounts:
+                raise HTTPError(404, 'No attendee account found for this MAGFest ID')
+
+            managed_ids = session.query(Attendee.id).join(Attendee.managers).filter(
+                AttendeeAccount.sso_id == sso_id)
+            attendee_query = session.query(Attendee).filter(Attendee.id.in_(managed_ids)).order_by(
+                Attendee.registered)
+            fields, attendee_query = _attendee_fields_and_query(full, attendee_query)
+            fields = dict(fields, id=True, group_id=True)
+            return {
+                'sso_id': sso_id,
+                'attendee_account_ids': [a.id for a in accounts],
+                'badges': [a.to_dict(fields) for a in attendee_query],
+            }
+
     def export(self, query, all=False, page=0, page_size=None):
         """
         Searches for attendee accounts by either email or id.
