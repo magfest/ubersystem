@@ -93,7 +93,7 @@
 <div class="card">
   <div class="card-body">
     <div class="row g-3 mb-3">
-      {% if c.DEPARTMENTS %}
+      {% if c.DEPARTMENT_OPTS and c.DEPARTMENT_OPTS[0][0] != -1 %}
       <div class="col-6 col-sm-4">
           <label for="department_id" class="form-text">Department</label>
           <select id="department_id" onChange="deptIdChanged()" class="form-select">

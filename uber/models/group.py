@@ -10,7 +10,7 @@ from sqlalchemy.types import DateTime, Uuid
 from typing import ClassVar
 
 from uber.config import c
-from uber.custom_tags import format_currency
+from uber.custom_tags import format_currency, email_only
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.types import (Choice, default_relationship as relationship, DefaultColumn as Column, MultiChoice, TakesPaymentMixin,
@@ -120,6 +120,34 @@ class Group(MagModel, TakesPaymentMixin, table=True):
         
         if attendee:
             return attendee.purchaser_id
+        
+    @property
+    def signnow_config(self):
+        return {
+            'template_id': c.SIGNNOW_DEALER_TEMPLATE_ID,
+            'folder_id': c.SIGNNOW_DEALER_FOLDER_ID,
+            'doc_title': f"MFF {c.EVENT_YEAR} Dealer Terms - {self.name}",
+            'redirect_link': f'/preregistration/group_members?id={self.id}'
+        }
+
+    @property
+    def signnow_email_invite(self):
+        first_name = self.leader.first_name if self.leader else ''
+        last_name = self.leader.last_name if self.leader else ''
+        if self.is_dealer:
+            return {
+                "to": [
+                    {"email": self.email, "printed_name": f"{first_name} {last_name}",
+                    "role": "Dealer", "order": 1}
+                ],
+                "from": email_only(c.MARKETPLACE_EMAIL),
+                "cc": [],
+                "subject": f"ACTION REQUIRED: {c.EVENT_NAME} {c.DEALER_TERM.title()} Terms and Conditions",
+                "message": (f"Congratulations on being accepted into the {c.EVENT_NAME} {c.DEALER_LOC_TERM.title()}! "
+                            "Please click the button below to review and sign the terms and conditions. "
+                            "You MUST sign this in order to complete your registration."),
+                "redirect_uri": (c.REDIRECT_URL_BASE or c.URL_BASE) + self.signnow_config['redirect_link']
+            }
 
     @property
     def signnow_texts_list(self):
@@ -131,7 +159,7 @@ class Group(MagModel, TakesPaymentMixin, table=True):
         textLineHeight = 12
         textSize = 10
 
-        texts_config = [(self.name, 73, 392), (self.email, 73, 436), (self.id, 200, 748)]
+        texts_config = [(self.name, 77, 375), (self.email, 77, 420), (self.id, 200, 748)]
 
         texts = []
 
@@ -150,7 +178,7 @@ class Group(MagModel, TakesPaymentMixin, table=True):
 
     @property
     def signnow_document_signed(self):
-        return self.terms_conditions_doc and self.terms_conditions_doc.signed
+        return bool(self.terms_conditions_doc and self.terms_conditions_doc.signed)
 
     def convert_to_shared(self, session):
         self.tables = 0

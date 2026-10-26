@@ -39,7 +39,7 @@ This is calculated by taking the Attendee badge type's stock and subtracting the
         {% set label = c.BADGES[key] %}
         <tr>
           <td>{{ c.BADGES[key] }}</td>
-          <td>{{ counts.badge_stocks[label] }}</td>
+          <td>{{ counts.badge_stocks[label] or 'Unlimited' }}</td>
           <td>{{ counts.reserved_badges[label] }}</td>
           <td>{{ counts.badge_counts[label] }}</td>
           <td>
@@ -68,6 +68,7 @@ This is calculated by taking the Attendee badge type's stock and subtracting the
         {% endfor %}
     </table>
   </div>
+  {% if c.INTEREST_OPTS %}
   <div class="col">
     <h4>Interests</h4>
     <table class="table table-bordered table-striped">
@@ -84,6 +85,7 @@ This is calculated by taking the Attendee badge type's stock and subtracting the
         {% endfor %}
     </table>
   </div>
+  {% endif %}
   <div class="col">
     <h4>Ribbons</h4>
     <table class="table table-bordered table-striped">

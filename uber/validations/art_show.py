@@ -78,6 +78,9 @@ def no_mature_name_if_no_space(form, field):
         raise ValidationError('You cannot enter a banner name for the mature gallery without any space in the mature gallery.')
 
 
+AdminArtShowInfo.field_validation.validations['badge_status']['optional'] = validators.Optional()
+
+
 @AdminArtShowInfo.field_validation('overridden_price')
 def is_unset_or_number(form, field):
     if not field.data:
@@ -97,13 +100,18 @@ ArtistAttendeeInfo.field_validation.required_fields = {
     'email': "Please enter an email address."
 }
 
-
 for field_name, message in address_required_validators.items():
+    ArtistMailingInfo.field_validation.required_fields[field_name] = (
+        message, field_name, lambda x: x.form.model.delivery_method == c.BY_MAIL or c.INDEPENDENT_ART_SHOW)
+
     AdminArtistAttendeeInfo.field_validation.required_fields[field_name] = (
         message, field_name, lambda x: x.form.model.badge_status != c.NOT_ATTENDING)
 
 
 for field_name in ['region', 'region_us', 'region_canada']:
+    ArtistMailingInfo.field_validation.validations[field_name][f'required_{field_name}'] = which_required_region(
+        field_name, check_lambda=lambda x: x.form.model.delivery_method == c.BY_MAIL or c.INDEPENDENT_ART_SHOW)
+
     AdminArtistAttendeeInfo.field_validation.validations[field_name][f'required_{field_name}'] = which_required_region(
         field_name, check_placeholder=True, check_lambda=lambda form: form.model.badge_status != c.NOT_ATTENDING)
 

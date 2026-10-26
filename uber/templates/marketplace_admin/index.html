@@ -45,6 +45,7 @@
           <th>IBT Number</th>
           <th>Admin Notes</th>
           <th>Paid</th>
+          {% if c.SIGNNOW_MARKETPLACE_TEMPLATE_ID %}<th>Signed?</th>{% endif %}
         </tr>
       </thead>
       {% for app in applications %}
@@ -61,6 +62,13 @@
           <td>{{ app.tax_number }}</td>
           <td>{{ app.admin_notes }}</td>
           <td>{{ (app.amount_paid / 100)|format_currency }}</td>
+          {% if c.SIGNNOW_MARKETPLACE_TEMPLATE_ID %}
+          <td>
+            {% if app.status != c.ACCEPTED %}N/A
+            {% elif not app.terms_conditions_doc %}No Document
+            {% else %}{{ app.signnow_document_signed }}{% endif %}
+          </td>
+          {% endif %}
         </tr>
       {% endfor %}
       <caption align="bottom">

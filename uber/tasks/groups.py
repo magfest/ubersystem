@@ -19,18 +19,19 @@ __all__ = ['check_document_signed', 'convert_declined_groups']
 
 @celery.schedule(crontab(minute=0, hour='*/6'))
 def check_document_signed():
+    # TODO fix this
     from uber.models import SignedDocument
     if not c.SIGNNOW_DEALER_TEMPLATE_ID:
         return
     with Session() as session:
-        for document in session.query(SignedDocument).filter_by(model="Group"):
+        for document in session.query(SignedDocument):
             if not document.signed:
                 try:
                     group = session.group(document.fk_id)
                 except NoResultFound:
-                    log.debug(f"Signed document {document.id} is dangling, group f{document.fk_id} not found.")
+                    log.debug(f"Signed document {document.id} is dangling, model {document.model} {document.fk_id} not found.")
                 else:
-                    signnow_request = SignNowRequest(session=session, group=group)
+                    signnow_request = SignNowRequest(session=session, model=group)
                     signed = signnow_request.get_doc_signed_timestamp()
                     if signed:
                         signnow_request.document.signed = datetime.fromtimestamp(int(signed))

@@ -1,5 +1,6 @@
 import shlex
 import urllib
+from collections import defaultdict
 from datetime import timedelta
 
 import cherrypy
@@ -22,13 +23,23 @@ class Root:
             'admin': [PromoCode.group_id == None],  # noqa: E711
             'group': [PromoCode.group_id != None],  # noqa: E711
             'overused': [PromoCode.uses_remaining < 0]
-        }[show]
+        }
 
-        promo_codes = session.query(PromoCode).filter(*which).options(joinedload(PromoCode.used_by)).all()
+        promo_code_stats = defaultdict(lambda: defaultdict(int))
+        promo_codes = session.query(PromoCode).filter(*which[show]).options(joinedload(PromoCode.used_by)).all()
+
+        limited_codes = session.query(PromoCode).filter(*which['admin']).filter(PromoCode.uses_allowed != None)
+        for code in limited_codes:
+            stat_category = f"{code.discount_on_repr} ({code.discount_str})" if code.discount else code.discount_on_repr
+            promo_code_stats[stat_category]['total'] += code.uses_allowed
+            promo_code_stats[stat_category]['used'] += code.uses_count
+            promo_code_stats[stat_category]['left'] += code.uses_remaining
+
         return {
             'show': show,
             'message': message,
-            'promo_codes': promo_codes
+            'promo_codes': promo_codes,
+            'promo_code_stats': promo_code_stats,
         }
 
     @ajax

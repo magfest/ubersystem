@@ -92,6 +92,28 @@ $(document).ready(function() {
   </a>
 </h1>
 <div class="card card-body">
+  <div class="mb-3">
+    <table class="table table-hover table-sm">
+      <thead>
+        <tr>
+          <th>Discount On</th>
+          <th>Issued</th>
+          <th>Redeemed</th>
+          <th>Remaining</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for label, pc_stats in promo_code_stats.items() %}
+        <tr>
+          <td>{{ label }}</td>
+          <td>{{ pc_stats['total'] }}</td>
+          <td>{{ pc_stats['used'] }}</td>
+          <td>{{ pc_stats['left'] }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <em class="pull-right">Does not include unlimited or group promo codes.</em>
+  </div>
   <ul class="nav nav-tabs">
   <li class="nav-item"><a class="nav-link{% if show == "admin" %} active{% endif %}" href="index?show=admin">Discount Codes</a></li>
   <li class="nav-item"><a class="nav-link{% if show == "group" %} active{% endif %}" href="index?show=group">Promo Code Group Codes</a></li>

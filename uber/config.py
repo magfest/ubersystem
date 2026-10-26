@@ -2191,7 +2191,6 @@ for country in list(pycountry.countries):
     else:
         c.COUNTRY_OPTS.append(opt)
 
-
 c.REGION_OPTS_US = sorted([{'value': region.name, 'label': region.name, 'alt_spellings': region.code[2:]
       } for region in list(pycountry.subdivisions.get(country_code='US'))], key=lambda x: x['label'])
 c.REGION_OPTS_CANADA = sorted([{'value': region.name, 'label': region.name, 'alt_spellings': region.code[2:]

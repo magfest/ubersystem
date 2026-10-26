@@ -28,9 +28,6 @@
       });
     });
   });
-  
-    
-  
 </script>
 
 
@@ -42,26 +39,62 @@
     {% include 'confirm_tabs.html' with context %}
     {{ form_macros.form_validation('marketplace-form', 'validate_marketplace_app') }}
     <h2>{{ c.EVENT_NAME }} Artist Marketplace Application</h2>
+    {% if app.status in [c.DECLINED, c.CANCELLED] or app.amount_unpaid %}
+      {% if app.status in [c.DECLINED, c.CANCELLED] %}
+        {% set bg_class = 'danger' %}
+      {% elif app.incomplete_reason %}
+        {% set bg_class = 'warning' %}
+      {% else %}
+        {% set bg_class = 'info' %}
+      {% endif %}
+      <div class="alert alert-{{ bg_class }} pb-0" role="alert">
+    {% endif %}
     <p>
       {% if app.status == c.ACCEPTED %}
       Congratulations, your application has been accepted!
-        {% if not app.incomplete_reason and app.amount_unpaid %}
-          {% if c.AT_THE_CON and c.SPIN_TERMINAL_AUTH_KEY %}
-          Please see the help desk at Registration to complete your payment of {{ app.amount_unpaid|format_currency }} for your application.
-          {% elif not c.ONLINE_PAYMENT_AVAILABLE %}
-          You will need to pay {{ app.amount_unpaid|format_currency }} to complete your application, but
-          we are not able to take online payments at this time. You will be able to pay your balance at the Registration help desk on-site.
-          {% else %}
-          In order to complete your application, please pay the {{ app.amount_unpaid|format_currency }} artist marketplace fee using the button below.<br/>
-          <div style="text-align:center">
-            {% if incomplete_txn %}
-              {{ stripe_form('finish_pending_payment', app, txn_id=incomplete_txn.id, stripe_button_id="complete_txn") }}
+        {% if c.SIGNNOW_MARKETPLACE_FOLDER_ID and not c.SIGNNOW_MARKETPLACE_TEMPLATE_ID %}
+          Your next step will be to sign our terms and conditions for vending at {{ c.EVENT_NAME }}, but we're still preparing them!
+          Sit tight and we'll email them to you when they're ready, after which you can pay for your application on this page.
+        {% elif not c.SIGNNOW_MARKETPLACE_FOLDER_ID or signnow_document and signnow_document.signed %}
+          {% if not app.incomplete_reason and app.amount_unpaid %}
+            {% if c.AT_THE_CON and c.SPIN_TERMINAL_AUTH_KEY %}
+              Please see the help desk at Registration to complete your payment of {{ app.amount_unpaid|format_currency }} for your application.
+            {% elif not c.ONLINE_PAYMENT_AVAILABLE %}
+              You will need to pay {{ app.amount_unpaid|format_currency }} to complete your application, but
+              we are not able to take online payments at this time. You will be able to pay your balance at the Registration help desk on-site.
             {% else %}
-              {{ stripe_form('process_marketplace_payment', app) }}
+              In order to complete your application, please pay the {{ app.amount_unpaid|format_currency }} artist marketplace fee using the button below.<br/>
+              </p><p>
+              {% if incomplete_txn %}
+                {{ stripe_form('finish_pending_payment', app, txn_id=incomplete_txn.id, stripe_button_id="complete_txn") }}
+              {% else %}
+                {{ stripe_form('process_marketplace_payment', app) }}
+              {% endif %}
             {% endif %}
-          </div>
+          {% elif app.incomplete_reason %}</p><p>{{ app.incomplete_reason }}{% endif %}
+        {% else %}
+          {% if signnow_link %}
+            </p><p>We need you to sign our terms and conditions for vending at {{ c.EVENT_NAME }}.</p>
+            <p><a href="{{ signnow_link }}" class="btn btn-primary" target="_blank">
+              Review and Sign
+            </a></p>
+            <p>Make sure to click "Finish" at the bottom of the page to confirm your signature.
+          {% else %}
           {% endif %}
-        {% else %}<p>{{ app.incomplete_reason }}</p>{% endif %}
+        {% endif %}
+      </p>
+      {% if c.SIGNNOW_DEALER_TEMPLATE_ID and app.status == c.ACCEPTED and signnow_document and signnow_document.signed %}
+      <div id="tc-link" class="col col-auto">
+        <a href="../services/download_signnow_document?id={{ app.id }}&cls=ArtistMarketplaceApplication&return_to=../marketplace/edit" class="btn btn-info" role="button">
+          <i class="fa fa-download"></i> Terms and Conditions
+        </a>
+      </div>
+      <script type="text/javascript">
+        $(function() {
+          $('#tc-link').appendTo($("#marketplace-actions"));
+        });
+      </script>
+      {% endif %}
       {% elif app.status in [c.DECLINED, c.CANCELLED] %}
       Unfortunately, since your application has been {{ app.status_label|lower }}, you may no longer edit it. However,
       you may still view the details of your application below.
@@ -69,6 +102,9 @@
       Your application is currently <strong>{{ app.status_label }}</strong>.
       {% endif %}
     </p>
+    {% if app.status in [c.DECLINED, c.CANCELLED] or app.amount_unpaid %}
+    </div>
+    {% endif %}
     <form novalidate method="post" action="edit" role="form" id="marketplace-form">
       <input type="hidden" name="id" value="{{ app.id }}">
       {{ csrf_token() }}
@@ -78,7 +114,7 @@
 
     </form>
       {% if not read_only %}
-      <div class="row g-sm-1 row-cols-auto">
+      <div class="row g-sm-1 row-cols-auto" id="marketplace-actions">
         <div class="col col-auto">
           <button type="submit" form="marketplace-form" class="btn btn-primary">Update Application</button>
         </div>

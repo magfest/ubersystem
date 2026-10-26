@@ -33,10 +33,14 @@ def convert_dealer_badge(session, attendee, admin_note=''):
     if attendee.paid not in [c.HAS_PAID, c.NEED_NOT_PAY]:
         params['paid'] = c.NOT_PAID
         params['badge_status'] = c.NEW_STATUS
-        params['overridden_price'] = c.get_attendee_price(attendee.registered_local)
         attendee.can_transfer = False
+        if receipt:
+            ReceiptManager.auto_update_receipt(session, attendee, receipt, params)
 
-    if receipt:
+            # Update the overridden price separately as it ignores other params
+            ReceiptManager.auto_update_receipt(session, attendee, receipt,
+                                               {'overridden_price': c.get_attendee_price(attendee.registered_local)})
+    elif receipt:
         ReceiptManager.auto_update_receipt(session, attendee, receipt, params)
 
     for key, val in params.items():
@@ -213,19 +217,6 @@ class Root:
         session.commit()
         return {'success': True,
                 'message': message}
-    
-    def send_signnow_link(self, session, id):
-        group = session.group(id)
-
-        signnow_request = SignNowRequest(session=session, group=group, create_if_none=True)
-        signnow_request.send_dealer_signing_invite()
-        if signnow_request.error_message:
-            raise HTTPRedirect("../group_admin/form?id={}&message={}", id,
-                               f"Error sending SignNow link: {signnow_request.error_message}")
-        else:
-            signnow_request.document.last_emailed = datetime.now(UTC)
-            session.add(signnow_request.document)
-            raise HTTPRedirect("../group_admin/form?id={}&message={}", id, "SignNow link sent!")
 
     @ajax
     def set_table_shared(self, session, id, shared_group_name, **params):

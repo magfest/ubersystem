@@ -7,7 +7,7 @@
 {% if c.SIGNNOW_DEALER_TEMPLATE_ID and attendee_or_group.is_valid and attendee_or_group.status in c.DEALER_ACCEPTED_STATUSES %}
   {% if signnow_document and signnow_document.signed %}
   <span id="tc-link">
-    <a href="../preregistration/download_signnow_document?id={{ group.id }}" class="btn btn-info" role="button">
+    <a href="../services/download_signnow_document?id={{ group.id }}" class="btn btn-info" role="button">
       <i class="fa fa-download"></i> Terms and Conditions
     </a>
   </span>

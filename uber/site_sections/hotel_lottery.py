@@ -577,7 +577,7 @@ def _disband_room_group(session, application):
 
 
 def _reset_group_member(application):
-    if application.guarantee_policy_accepted and not application.finalized:
+    if application.guarantee_policy_accepted and not application.finalized and c.REVERT_DISBANDED_GROUP_MEMBERS:
         if application.suite_type_preference:
             application.entry_type = c.SUITE_ENTRY
         else:

@@ -8,7 +8,7 @@ get showDeclineReason() { return this.status == {{ c.DECLINED|tojson }} },
 
 {% block attendee_info %}
 <div class="col-sm">{{ form_macros.input(art_show_info.attendee_id, choices=[('', 'None')] + all_attendees) }}</div>
-{% if not new_app %}
+{% if not new_app and app.attendee %}
 <div class="col-sm">{{ form_macros.input(art_show_info.badge_status) }}</div>
 {% endif %}
 <div class="col-sm">{{ form_macros.input(art_show_info.email) }}</div>

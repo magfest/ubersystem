@@ -73,7 +73,7 @@
 {% set _on_rooms = (c.PAGE_PATH.endswith('/hotel_lottery/rooms')
                     or c.PAGE_PATH.endswith('/hotel_lottery/room')) %}
 {% set _on_lottery = 'hotel_lottery' in c.PAGE_PATH and not _on_rooms %}
-{% if _on_lottery or _on_rooms or attendee.lottery_application and attendee.lottery_application.complete_or_processed %}
+{% if c.BEFORE_HOTEL_LOTTERY_SHUTDOWN and (_on_lottery or _on_rooms or attendee.lottery_application and attendee.lottery_application.complete_or_processed) %}
 <li class="nav-item" role="presentation">
   <a href="../hotel_lottery/index?attendee_id={{ attendee.id }}" class="nav-link{% if _on_lottery %} active{% endif %}">
     <span class="fa fa-hotel"></span>
@@ -92,7 +92,7 @@
 {# Hotel Rooms tab: the rooms the attendee has been assigned, decoupled
    from the lottery. Always visible so even attendees with no rooms
    yet can reach the page to redeem an invite code from a friend. #}
-{% if c.HOTEL_LOTTERY_FORM_START %}
+{% if c.HOTEL_LOTTERY_FORM_START and c.VAULT_ENABLED and (c.BEFORE_HOTEL_LOTTERY_SHUTDOWN or attendee.active_room_assignments|length > 1) %}
 <li class="nav-item" role="presentation">
   <a href="../hotel_lottery/rooms?attendee_id={{ attendee.id }}" class="nav-link{% if _on_rooms %} active{% endif %}">
     <span class="fa fa-bed"></span> Hotel Rooms

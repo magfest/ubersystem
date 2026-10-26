@@ -5,7 +5,7 @@
 <body>
 <p>
     {{ app.attendee.full_name }},<br/>
-    Thank you for {{ action_str }} for {{ c.EVENT_NAME_AND_YEAR }}! Your{% if app.entry_type == c.SUITE_ENTRY %} suite{% elif app.entry_type == c.GROUP_ENTRY %} group's{% endif %} entry details are below.
+    Thank you for {{ action_str }} for {{ c.EVENT_NAME_AND_YEAR }}! Your{% if app.entry_type == c.SUITE_ENTRY %} suite{% elif app.entry_type == c.GROUP_ENTRY %} group's{% endif %} {% if app_or_parent.is_staff_entry %}staff{% else %}attendee{% endif %} lottery entry details are below.
 </p>
 {% if post_cutoff %}
 <p>

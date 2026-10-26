@@ -1862,9 +1862,9 @@ class ExcelWorksheetStreamWriter:
 
 
 class SignNowRequest:
-    def __init__(self, session, group=None, ident='', create_if_none=False):
-        self.group = group
-        self.group_leader_name = ''
+    def __init__(self, session, model=None, ident='', create_if_none=False):
+        self.model = model
+        self.first_name, self.last_name = '', ''
         self.document = None
         self.access_token = None
         self.error_message = ''
@@ -1874,24 +1874,28 @@ class SignNowRequest:
             log.error(self.error_message)
             return
 
-        from uber.models import SignedDocument
+        from uber.models import Group, SignedDocument
 
-        if group:
-            self.document = session.query(SignedDocument).filter_by(model="Group", fk_id=group.id).first()
+        if model:
+            model_class = model.__class__.__name__
+            self.document = session.query(SignedDocument).filter_by(model=model_class, fk_id=model.id).first()
 
             if not self.document and create_if_none:
-                self.document = SignedDocument(fk_id=group.id, model="Group", ident=ident)
-                first_name = group.leader.first_name if group.leader else ''
-                last_name = group.leader.last_name if group.leader else ''
-                self.group_leader_name = first_name + ' ' + last_name
+                self.document = SignedDocument(fk_id=model.id, model=model_class, ident=ident)
+                if isinstance(model, Group):
+                    self.first_name = model.leader.first_name if model.leader else ''
+                    self.last_name = model.leader.last_name if model.leader else ''
+                else:
+                    self.first_name = model.attendee.first_name if model.attendee else ''
+                    self.last_name = model.attendee.last_name if model.attendee else ''
 
             if self.document and not self.document.document_id:
                 self.document.document_id = self.create_document(
-                    template_id=c.SIGNNOW_DEALER_TEMPLATE_ID,
-                    doc_title="MFF {} Dealer Terms - {}".format(c.EVENT_YEAR, group.name),
-                    folder_id=c.SIGNNOW_DEALER_FOLDER_ID,
-                    uneditable_texts_list=group.signnow_texts_list,
-                    fields={} if c.SIGNNOW_ENV == 'eval' else {'printed_name': self.group_leader_name})
+                    template_id=model.signnow_config['template_id'],
+                    doc_title=model.signnow_config['doc_title'],
+                    folder_id=model.signnow_config['folder_id'],
+                    uneditable_texts_list=model.signnow_texts_list,
+                    fields={} if c.SIGNNOW_ENV == 'eval' else {'printed_name': f"{self.first_name} {self.last_name}"})
 
     @property
     def api_call_headers(self):
@@ -1929,10 +1933,10 @@ class SignNowRequest:
         if self.error_message:
             log.error(self.error_message)
 
-    def invalid_request(self, msg, check_group=False):
-        if check_group:
-            if not self.group:
-                self.error_message = f"{msg} without a group attached to the request!"
+    def invalid_request(self, msg, check_model=False):
+        if check_model:
+            if not self.model:
+                self.error_message = f"{msg} without a model attached to the request!"
         elif not self.document:
             self.error_message = f"{msg} without a document attached to the request!"
         else:
@@ -2012,19 +2016,15 @@ class SignNowRequest:
         if details and details.get('signatures'):
             return details['signatures'][0].get('created')
 
-    def create_dealer_signing_link(self):
-        if self.invalid_request("Tried to send a dealer signing link", check_group=True):
+    def create_signing_link(self):
+        if self.invalid_request("Tried to generate a SignNow signing link", check_model=True):
             log.error(self.error_message)
             return
 
-        first_name = self.group.leader.first_name if self.group.leader else ''
-        last_name = self.group.leader.last_name if self.group.leader else ''
-
         if self.document.document_id and not self.document.signed:
-            link = self.get_signing_link(first_name,
-                                         last_name,
-                                         (c.REDIRECT_URL_BASE or c.URL_BASE) + '/preregistration/group_members?id={}'
-                                         .format(self.group.id))
+            link = self.get_signing_link(self.first_name,
+                                         self.last_name,
+                                         (c.REDIRECT_URL_BASE or c.URL_BASE) + self.model.signnow_config['redirect_link'])
             return link
 
     def get_signing_link(self, first_name="", last_name="", redirect_uri=""):
@@ -2060,29 +2060,15 @@ class SignNowRequest:
         else:
             return signing_request.get('url_no_signup')
 
-    def send_dealer_signing_invite(self):
+    def send_signing_invite_email(self, role=''):
         from uber.custom_tags import email_only
 
-        if self.invalid_request("Tried to send a dealer signing invite", check_group=True):
+        if self.invalid_request("Tried to send a dealer signing invite", check_model=True):
             log.error(self.error_message)
             return
 
-        invite_payload = {
-            "to": [
-                {"email": self.group.email, "printed_name": self.group_leader_name,
-                 "role": "Dealer", "order": 1}
-            ],
-            "from": email_only(c.MARKETPLACE_EMAIL),
-            "cc": [],
-            "subject": f"ACTION REQUIRED: {c.EVENT_NAME} {c.DEALER_TERM.title()} Terms and Conditions",
-            "message": (f"Congratulations on being accepted into the {c.EVENT_NAME} {c.DEALER_LOC_TERM.title()}! "
-                        "Please click the button below to review and sign the terms and conditions. "
-                        "You MUST sign this in order to complete your registration."),
-            "redirect_uri": "{}/preregistration/group_members?id={}".format(c.REDIRECT_URL_BASE or c.URL_BASE,
-                                                                            self.group.id)
-            }
-
-        invite_request = signnow_sdk.Document.invite(self.access_token, self.document.document_id, invite_payload)
+        invite_request = signnow_sdk.Document.invite(self.access_token, self.document.document_id,
+                                                     self.model.signnow_email_invite)
 
         if 'error' in invite_request:
             self.error_message = "Error sending invite to sign: " + invite_request['error']

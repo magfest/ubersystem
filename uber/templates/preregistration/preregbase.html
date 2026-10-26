@@ -77,6 +77,7 @@
                     <input type="email" name="account_email" id="account_email" value="{{ account.email }}" class="form-control" placeholder="Account email address" required>
                 </div>
             </div>
+            {% if account.valid_adults %}
             <div class="row g-3 mb-3">
                 <div class="col-sm">
                     <label for="owner_id" class="form-text">Account Owner</label>
@@ -88,6 +89,7 @@
                     </select>
                 </div>
             </div>
+            {% endif %}
             <div class="row g-3 mb-3">
                 <div class="col-sm">
                     <label for="new-password" class="form-text">New Password</label>

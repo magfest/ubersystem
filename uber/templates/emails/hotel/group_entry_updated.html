@@ -5,7 +5,7 @@
 <body>
 <p>
     {{ app.attendee.full_name }},<br/>
-    This is to let you know that your group leader has updated your group's {% if app_or_parent.entry_type == c.SUITE_ENTRY %} suite{% endif %} lottery entry. Your group's updated details are below.
+    This is to let you know that your group leader has updated your group's {% if app_or_parent.entry_type == c.SUITE_ENTRY %} suite{% endif %} {% if app_or_parent.is_staff_entry %}staff{% else %}attendee{% endif %} lottery entry. Your group's updated details are below.
 </p>
 {% set confirmation = False %}
 {% include 'emails/hotel/entry_details.html' with context %}
