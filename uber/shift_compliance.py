@@ -1,7 +1,7 @@
 """Staff shift-compliance computation against NightShiftRequirement rules.
 
-A staffer holding a RoomAssignment must satisfy any NightShiftRequirement
-that exists for the nights their assignment covers:
+A Staff badge holding a checked room (see `is_checked_room`) must satisfy any
+NightShiftRequirement that exists for the nights that room covers:
 
 - Setup/teardown nights - they need at least one shift overlapping the
   configured window
@@ -15,7 +15,7 @@ lookup) is one query for the whole table; cache it once per request via
 from collections import defaultdict
 from datetime import timedelta
 
-from sqlalchemy import inspect as sa_inspect
+from sqlalchemy import and_, inspect as sa_inspect
 from sqlalchemy.orm import selectinload
 
 from uber.config import c
@@ -28,15 +28,31 @@ def load_requirements(session):
     return {r.night_date: r for r in session.query(NightShiftRequirement).all()}
 
 
+def is_checked_room(ra):
+    """Return whether this room puts its holder under the night requirements.
+
+    Only live master-bill rooms outside the lottery count: crash space, manual
+    and department block rooms. Self-paid rooms and every lottery room are
+    exempt, including suite connectors, which carry the entry's ID but not the
+    Lottery Award reason. `CHECKED_ROOM` is the SQL form; keep the two in step.
+    """
+    return bool(ra.is_live and not ra.require_cc and not ra.lottery_application_id
+                and ra.assignment_reason != c.LOTTERY_AWARD)
+
+
+CHECKED_ROOM = and_(RoomAssignment.is_live, ~RoomAssignment.require_cc,
+                    RoomAssignment.lottery_application_id.is_(None),
+                    RoomAssignment.assignment_reason != c.LOTTERY_AWARD)
+
+
 def assigned_nights(room_assignments):
-    """Return the set of dates the given assignments cover.
+    """Return the set of dates the given checked rooms cover.
 
     Check-in date X with check-out date X+N means the staffer sleeps in the
-    room on nights X, X+1, ..., X+N-1. Skipped: assignments in EXPIRED or
-    CANCELLED status, or with missing dates.
+    room on nights X, X+1, ..., X+N-1. Rooms with missing dates are skipped.
     """
     return _nights((ra.assigned_check_in_date, ra.assigned_check_out_date)
-                   for ra in room_assignments if ra.status not in (c.EXPIRED, c.CANCELLED))
+                   for ra in room_assignments if is_checked_room(ra))
 
 
 def _nights(stays):
@@ -72,10 +88,10 @@ def _violations(nights, weighted_hours, shift_spans, requirements_by_date):
 def compliance_violations(attendee, requirements_by_date=None):
     """Return the list of NightShiftRequirement rows this attendee violates.
 
-    Empty list means the attendee is compliant (or has no room assignment,
-    or no requirements exist).
+    Empty list means the attendee is compliant, holds no Staff badge or no
+    checked room, or no requirements exist.
     """
-    if not attendee.room_assignments:
+    if attendee.badge_type != c.STAFF_BADGE or not attendee.room_assignments:
         return []
 
     if requirements_by_date is None:
@@ -102,13 +118,13 @@ def is_compliant(attendee, requirements_by_date=None):
 
 def non_compliant_staffers(session, department_id=None):
     """Return [(attendee, violations), ...], ordered by name, for staff with a
-    live room who aren't compliant, optionally only members of `department_id`.
+    checked room who aren't compliant, optionally only members of `department_id`.
     """
     reqs = load_requirements(session)
     if not reqs:
         return []
 
-    staff = staff_rooming_query(session).filter(Attendee.room_assignments.any(RoomAssignment.is_live))
+    staff = staff_rooming_query(session).filter(Attendee.room_assignments.any(CHECKED_ROOM))
     if department_id:
         staff = staff.filter(Attendee.dept_memberships.any(department_id=department_id))
     nonshift_minutes = dict(staff.with_entities(Attendee.id, Attendee.nonshift_minutes))
@@ -120,7 +136,7 @@ def non_compliant_staffers(session, department_id=None):
     for attendee_id, check_in, check_out in session.query(
             RoomAssignment.attendee_id, RoomAssignment.assigned_check_in_date,
             RoomAssignment.assigned_check_out_date).filter(
-            RoomAssignment.attendee_id.in_(ids), RoomAssignment.is_live):
+            RoomAssignment.attendee_id.in_(ids), CHECKED_ROOM):
         stays[attendee_id].append((check_in, check_out))
 
     hours = {attendee_id: (minutes or 0) / 60 for attendee_id, minutes in nonshift_minutes.items()}
