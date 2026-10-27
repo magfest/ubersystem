@@ -1,24 +1,25 @@
-{# Bare-fragment email body, matching every other template in
-   `emails/hotel/`. The earlier `{% extends "emails/base.html" %}`
-   header pointed at a template that doesn't exist in this codebase -
-   the sender (`uber.tasks.email.send_email`) renders this file directly
-   as the message body, no wrapper required. #}
+{# Queued by hotel_lottery_admin._queue_waitlist_fulfilled_email, one per
+   room. The to_model is the LotteryApplication (`app`) or, for rooms with no
+   application, the Attendee (`attendee`). The room arrives as plain values;
+   that function's docstring says why. #}
 
-{# Greeting falls back through the assignment's attendee when we have
-   no lottery application (department / partition / manual rooms). #}
-{% set _to = (app.attendee if app else assignment.attendee) %}
+{% set _app = app|default(none) %}
+{% set _to = _app.attendee if _app else attendee %}
 <p>Hello {{ _to.first_name }},</p>
 
-<p>Great news! Additional room nights have become available for the {{ c.EVENT_NAME }} hotel lottery,
+<p>Great news! Additional room nights have become available at {{ c.EVENT_NAME }},
 and your room dates have been updated.</p>
 
-<p><strong>Your updated rooms:</strong></p>
-{% include 'emails/hotel/_rooms_table.html' with context %}
+<p><strong>Your updated room:</strong></p>
+<ul>
+  {% if hotel_name %}<li><strong>Hotel:</strong> {{ hotel_name }}</li>{% endif %}
+  {% if room_type %}<li><strong>Room type:</strong> {{ room_type }}</li>{% endif %}
+  {% if check_in_display and check_out_display %}
+    <li><strong>Dates:</strong> {{ check_in_display }} to {{ check_out_display }}</li>
+  {% endif %}
+</ul>
 
-{# Waitlist state is per-RoomAssignment now - reading `app.has_waitlist_request`
-   would tell us about the original lottery entry, not whether this
-   specific room still has unfulfilled demand. #}
-{% if assignment.is_waitlisted %}
+{% if still_waitlisted %}
 <p>You are still on the waitlist for additional nights on this room. We'll notify you if more availability opens up.</p>
 {% else %}
 <p>All of your requested nights for this room have been confirmed.</p>

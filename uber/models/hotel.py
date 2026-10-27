@@ -987,6 +987,10 @@ class RoomAssignment(MagModel, table=True):
     def email_to_address(self):
         return self.attendee.email if self.attendee else ''
 
+    @property
+    def gets_emails(self):
+        return self.attendee and self.attendee.is_valid
+
     inventory_id: str | None = Field(
         sa_type=Uuid(as_uuid=False), foreign_key='hotel_room_inventory.id', nullable=True)
     inventory: 'HotelRoomInventory' = Relationship(
@@ -1178,6 +1182,11 @@ class RoomAssignment(MagModel, table=True):
     def room_changes_locked(self):
         """Lottery Settings has locked all rooms to changes."""
         return hotel_lottery_config.load(sa_inspect(self).session).room_changes_locked
+
+    @property
+    def partition_guarantee_due(self):
+        """Card deadline shown in partition room emails, from Lottery Settings."""
+        return hotel_lottery_config.load(sa_inspect(self).session).partition_guarantee_due
 
     @property
     def changes_locked(self):
@@ -1457,10 +1466,17 @@ class RoomAssignment(MagModel, table=True):
         the hotel's record of who's checking in doesn't match anyone in
         the room.
         """
-        if not self.attendee_id or not self.attendee:
+        if not self.attendee_id:
             return
-        if self.attendee not in self.occupants:
-            self.occupants.append(self.attendee)
+        attendee = self.attendee
+        if attendee is None:
+            # SQLAlchemy does not lazy-load relationships on a pending row, so a
+            # row built from attendee_id alone has no attendee yet.
+            from uber.models import Attendee
+            session = object_session(self)
+            attendee = session.get(Attendee, self.attendee_id) if session else None
+        if attendee and attendee not in self.occupants:
+            self.occupants.append(attendee)
 
     @presave_adjustment
     def update_last_modified(self):

@@ -141,9 +141,8 @@ def test_double_booking_links_both_rooms(session, no_cherrypy_session):
                              check_in=date(2027, 1, 8), check_out=date(2027, 1, 11))
     # The check keys on the occupants M2M, not the booker, since one person
     # may book several rooms but cannot sleep in two on the same night.
-    first.occupants.append(attendee)
-    second.occupants.append(attendee)
-    session.flush()
+    # ensure_booker_is_occupant already put the booker in both rooms.
+    assert attendee in first.occupants and attendee in second.occupants
 
     room_issues, _ = _annotated(session)
     doubles = _by_kind(room_issues, 'double_booked')

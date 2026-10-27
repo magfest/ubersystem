@@ -213,6 +213,30 @@ def create_room_assignment(session, *, attendee_id, inventory_id,
     return ra
 
 
+# Change labels from apply_room_assignment_edits that the partition room
+# emails show to the guest.
+_GUEST_FACING_CHANGES = {'inventory', 'billing', 'check-in', 'check-out'}
+
+
+def notify_guest_of_room_change(session, ra):
+    """Queue the partition room-updated email if the assignment email was sent.
+
+    Before then, the sender re-renders the assignment email, so it already
+    shows the change. Rooms that never got one, such as lottery rooms, are
+    skipped.
+    """
+    from uber.email import EmailService
+    from uber.models import Email
+
+    already_told = session.query(Email).filter(
+        Email.ident == 'hotel_partition_room_assigned',
+        Email.fk_id == ra.id,
+        Email.status == c.SENT).first()
+    if already_told:
+        EmailService.queue_email(session, 'hotel_partition_room_updated', ra,
+                                 replace_unsent=True)
+
+
 def apply_room_assignment_edits(session, ra, params, *, audit_prefix, fail,
                                 allowed_inventory_ids=None,
                                 allow_room_number=True):
@@ -239,7 +263,8 @@ def apply_room_assignment_edits(session, ra, params, *, audit_prefix, fail,
 
     Returns the user-facing result message; flushes (never commits - the
     caller owns the transaction) and writes one partition audit row
-    prefixed with `audit_prefix` when anything changed.
+    prefixed with `audit_prefix` when anything changed. A change to dates,
+    room block, or billing also calls notify_guest_of_room_change.
     """
     changes = []
 
@@ -347,6 +372,8 @@ def apply_room_assignment_edits(session, ra, params, *, audit_prefix, fail,
                             f"{ra.room_summary}",
                 target_type='assignment', target_id=ra.id,
                 attendee_id=ra.attendee_id)
+        if _GUEST_FACING_CHANGES.intersection(changes):
+            notify_guest_of_room_change(session, ra)
         session.flush()
         return f"Updated {', '.join(changes)}."
     return 'No changes.'

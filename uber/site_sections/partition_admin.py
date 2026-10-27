@@ -23,7 +23,7 @@ from uber.hotel.queries import (attendee_search_results,
                                 build_room_assignment_query, paginate)
 from uber.hotel.service import (
     RoomAssignmentError, apply_room_assignment_edits, create_room_assignment,
-    parse_payment_type,
+    notify_guest_of_room_change, parse_payment_type,
 )
 from uber.hotel.perms import (
     can_edit_assignments_in,
@@ -308,6 +308,7 @@ class Root:
 
         assignment.payment_type = new_payment_type
         session.add(assignment)
+        notify_guest_of_room_change(session, assignment)
         record_partition_audit(
             session, assignment.partition_id,
             action='assignment.payment_type_changed',

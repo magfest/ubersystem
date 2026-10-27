@@ -74,6 +74,28 @@
 </div>
 
 <div class="card card-body mb-3">
+  <h4>Partition Rooms</h4>
+  <p class="text-muted">
+    Rooms that departments assign from their partitions. These settings do not affect the lottery.
+  </p>
+  <form method="post" action="update_partition_settings">
+    {{ csrf_token() }}
+    <div class="mb-3" style="max-width: 360px;">
+      <label class="form-label mb-1" for="partition_guarantee_due"><strong>Card deadline shown in emails</strong></label>
+      <input class="form-control form-control-sm" type="date" id="partition_guarantee_due"
+             name="partition_guarantee_due" value="{{ lottery_settings.partition_guarantee_due_text }}" />
+    </div>
+    <div class="alert alert-info small" style="max-width: 720px;">
+      <strong>Display only.</strong> Partition room emails ask guests to add a card by 11:59pm on this date.
+      Unlike the lottery's card deadline, nothing expires or is released on this date;
+      Hotel Dept follows up on rooms still missing a card by hand.
+      Leave it blank to leave the deadline out of the emails.
+    </div>
+    <button type="submit" class="btn btn-primary">Save Partition Settings</button>
+  </form>
+</div>
+
+<div class="card card-body mb-3">
   <h4>PCI Vault Integration</h4>
 
   <table class="table table-sm mb-3">

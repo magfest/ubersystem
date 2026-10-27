@@ -516,6 +516,29 @@ def _send_confirmation_updated_email(session, assignment):
     })
 
 
+def _queue_waitlist_fulfilled_email(session, ra):
+    """Tell the booker that waitlisted nights on `ra` came through.
+
+    `data` holds plain values because the queue JSON-encodes it; a
+    RoomAssignment would arrive as a dict of columns with no properties.
+    """
+    to_model = ra.lottery_application or ra.attendee
+    if not to_model:
+        return
+    inv = ra.inventory
+    EmailService.queue_email(
+        session, 'hotel_lottery_waitlist_fulfilled', to_model,
+        data={
+            'hotel_name': inv.hotel.name if inv and inv.hotel else '',
+            'room_type': inv.display_name if inv else '',
+            'check_in_display': ra.assigned_check_in_date.strftime('%B %-d')
+            if ra.assigned_check_in_date else '',
+            'check_out_display': ra.assigned_check_out_date.strftime('%B %-d')
+            if ra.assigned_check_out_date else '',
+            'still_waitlisted': bool(ra.is_waitlisted),
+        })
+
+
 def _room_issues_url(message='', severity='all', kind='all', search='',
                      show_hidden=''):
     """Build a room_issues URL preserving the active filters, so the
@@ -1143,11 +1166,7 @@ class Root:
             waitlist_result = fulfill_waitlist(session, inventory_id=str(item.id))
             session.commit()
             for ra in waitlist_result.fulfilled_assignments:
-                if ra.attendee and ra.lottery_application:
-                    EmailService.queue_email(
-                        session, 'hotel_lottery_waitlist_fulfilled', ra.lottery_application,
-                        subject=f'{c.EVENT_NAME} Hotel Lottery - Room Dates Updated',
-                        data={'assignment': ra, })
+                _queue_waitlist_fulfilled_email(session, ra)
             save_msg = 'Inventory item saved.'
             if waitlist_result.fulfilled > 0:
                 save_msg += f" Waitlist: {waitlist_result.fulfilled} entries fulfilled."
@@ -1183,7 +1202,7 @@ class Root:
 
     def update_lottery_settings(self, session, **params):
         _require_post_csrf(params, redirect='settings')
-        data = {}
+        data = hotel_lottery_config.load_data(session)
         for group in LOTTERY_GROUPS:
             # The selects post '' for automatic and '1'/'0' for a forced value.
             data[group] = {field: None if params.get(f'{group}_{field}', '') == ''
@@ -1194,6 +1213,21 @@ class Root:
         hotel_lottery_config.save(data, session)
         session.commit()
         raise HTTPRedirect('settings?message={}', 'Lottery settings saved.')
+
+    def update_partition_settings(self, session, **params):
+        _require_post_csrf(params, redirect='settings')
+        due = (params.get('partition_guarantee_due') or '').strip()
+        if due:
+            try:
+                date.fromisoformat(due)
+            except ValueError:
+                raise HTTPRedirect('settings?message={}',
+                                   'Could not parse the partition card deadline.') from None
+        data = hotel_lottery_config.load_data(session)
+        data['partition_guarantee_due'] = due
+        hotel_lottery_config.save(data, session)
+        session.commit()
+        raise HTTPRedirect('settings?message={}', 'Partition room settings saved.')
 
     @ajax
     def vault_usage(self, session, month=''):
@@ -4103,11 +4137,7 @@ class Root:
         result = fulfill_waitlist(session, inventory_id=inv_id, night_date=nd)
         session.commit()
         for ra in result.fulfilled_assignments:
-            if ra.attendee and ra.lottery_application:
-                EmailService.queue_email(
-                    session, 'hotel_lottery_waitlist_fulfilled', ra.lottery_application,
-                    subject=f'{c.EVENT_NAME} Hotel Lottery - Room Dates Updated',
-                    data={'assignment': ra, })
+            _queue_waitlist_fulfilled_email(session, ra)
         return {
             'success': True,
             'fulfilled': result.fulfilled,
@@ -4335,14 +4365,10 @@ class Root:
 
         # Notify the attendee that some/all of their requested nights
         # came through. Same template the sweep uses.
-        if ra.attendee and ra.lottery_application:
-            try:
-                EmailService.queue_email(
-                    session, 'hotel_lottery_waitlist_fulfilled', ra.lottery_application,
-                    subject=f'{c.EVENT_NAME} Hotel Lottery - Room Dates Updated',
-                    data={'assignment': ra, })
-            except Exception:
-                log.exception('accept_waitlist: notification failed')
+        try:
+            _queue_waitlist_fulfilled_email(session, ra)
+        except Exception:
+            log.exception('accept_waitlist: notification failed')
 
         msg = (f'Accepted {total_extended} night(s) off waitlist. '
                f'New range: {ra.assigned_check_in_date} - '

@@ -1,0 +1,37 @@
+{# Sent once per partition room that needs a card or is master-billed. The
+   to_model is the RoomAssignment, exposed here as `assignment`. #}
+{% import 'emails/hotel/_room_summary.html' as room_summary_macros with context %}
+{% set attendee = assignment.attendee %}
+{% set room_type = 'suite' if assignment.inventory and assignment.inventory.is_suite else 'room' %}
+<html>
+<head></head>
+<body>
+<p>
+    {{ attendee.full_name }},<br/>
+    You have been assigned a hotel {{ room_type }} for {{ c.EVENT_NAME_AND_YEAR }}.
+</p>
+{{ room_summary_macros.room_summary(assignment) }}
+{% if assignment.needs_card %}
+<p>
+    Your {{ room_type }} is <strong>not</strong> confirmed until you provide a credit card guarantee.
+    {% if assignment.partition_guarantee_due %}
+    <strong><span class="text-danger">Please secure it by {{ assignment.partition_guarantee_due|datetime_local }}.</span></strong>
+    {% endif %}
+</p>
+<p>
+    You can <a href="{{ c.URL_BASE }}/hotel_lottery/secure_room?assignment_id={{ assignment.id }}&attendee_id={{ attendee.id }}" target="_blank">secure your {{ room_type }} here</a>.
+    You can also <a href="{{ c.URL_BASE }}/hotel_lottery/room?id={{ assignment.id }}&attendee_id={{ attendee.id }}" target="_blank">review your dates and add roommates</a>.
+</p>
+{% else %}
+<p>
+    This {{ room_type }} is covered by {{ c.EVENT_NAME }}, so you do not need to provide a credit card.
+</p>
+<p>
+    Please <a href="{{ c.URL_BASE }}/hotel_lottery/room?id={{ assignment.id }}&attendee_id={{ attendee.id }}" target="_blank">review your dates and add roommates</a>.
+</p>
+{% endif %}
+<p>
+    If you have any questions, please contact us at {{ c.HOTEL_LOTTERY_EMAIL|email_only|email_to_link }}.
+</p>
+</body>
+</html>

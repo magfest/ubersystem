@@ -163,6 +163,14 @@ class DatabaseConfigSection:
                 threadlocal.set(key, value)
         return value
 
+    def load_data(self, session=None):
+        """The stored structure merged over the defaults, before build().
+
+        A form that edits part of a section starts from this, so saving it
+        keeps the fields other forms own.
+        """
+        return self._merged(self._migrated(*self._fetch(session)))
+
     def save(self, data, session=None):
         """Store the full structure at the current version. A passed session
         is left for the caller to commit."""
