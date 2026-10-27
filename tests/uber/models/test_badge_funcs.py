@@ -1,7 +1,7 @@
-from datetime import datetime, timedelta
+from datetime import timezone, datetime, timedelta
 
 import pytest
-from pytz import UTC
+
 
 from uber.badge_funcs import needs_badge_num
 from uber.config import c

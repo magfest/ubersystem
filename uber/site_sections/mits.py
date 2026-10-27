@@ -1,11 +1,10 @@
 import shutil
-from datetime import datetime, timedelta
+from datetime import timezone, datetime, timedelta
 from PIL import Image
 import logging
 
 import cherrypy
 from cherrypy.lib.static import serve_file
-from pytz import UTC
 
 from uber.email import EmailService
 from uber.config import c
@@ -17,7 +16,6 @@ from uber.models import Email, File, MITSTeam, MITSApplicant, MITSGame, MITSPane
 from uber.utils import check, localized_now, GuidebookUtils, listify
 
 log = logging.getLogger(__name__)
-
 
 @all_renderable(public=True)
 class Root:
@@ -442,7 +440,7 @@ class Root:
         elif c.AFTER_MITS_SUBMISSION_DEADLINE and not team.accepted:
             raise HTTPRedirect('index?id={}&message={}', team.id, 'You cannot submit an application past the deadline.')
         else:
-            team.submitted = datetime.now(UTC)
+            team.submitted = datetime.now(timezone.utc)
             raise HTTPRedirect('index?id={}&message={}', team.id, 'Your application has been submitted!')
 
     def accepted_teams(self, session):

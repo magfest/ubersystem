@@ -1,11 +1,10 @@
 import json
 import ics
-import pytz
 import cherrypy
 import logging
 
 from collections import defaultdict
-from datetime import datetime, time, timedelta
+from datetime import datetime, time, timedelta, timezone
 from dateutil import parser as dateparser
 from time import mktime
 from sqlalchemy.orm import joinedload, selectinload
@@ -18,7 +17,6 @@ from uber.models import AssignedPanelist, Attendee, Event, EventLocation, PanelA
 from uber.utils import check, localized_now, normalize_newlines, validate_model, load_locations_from_config, listify
 
 log = logging.getLogger(__name__)
-
 
 @all_renderable()
 class Root:
@@ -375,7 +373,7 @@ class Root:
         event = session.event(id)
         if not event:
             return {'success': False, 'message': "Event not found. Try refreshing the page."}
-        event.start_time = c.EVENT_TIMEZONE.localize(dateparser.parse(start_time)).astimezone(pytz.UTC)
+        event.start_time = dateparser.parse(start_time).replace(tzinfo=c.EVENT_TIMEZONE).astimezone(timezone.utc)
         event.duration = event.duration + (int(delta_seconds) / 60)
         event.event_location_id = location_id
         session.commit()

@@ -1,8 +1,7 @@
 import checkdigit.verhoeff as verhoeff
-import pytz
 from typing import Iterable
 from collections import OrderedDict, defaultdict
-from datetime import datetime, timedelta
+from datetime import timezone, datetime, timedelta
 from dateutil.parser import parse
 from uuid import uuid4
 from sqlalchemy.orm import selectinload
@@ -450,8 +449,8 @@ class AuthNetRequestMixin:
             return ("This transaction cannot be refunded because of an invalid status: "
                     f"{self.response.transactionStatus}.")
         else:
-            if parse(str(self.response.submitTimeUTC)).replace(tzinfo=pytz.UTC) \
-                    < datetime.now(pytz.UTC) - timedelta(days=180):
+            if parse(str(self.response.submitTimeUTC)).replace(tzinfo=timezone.utc) \
+                    < datetime.now(timezone.utc) - timedelta(days=180):
                 return "This transaction is more than 180 days old and cannot be refunded automatically."
 
             if self.response.settleAmount * 100 < amount:
@@ -1093,7 +1092,7 @@ class RefundRequest(TransactionRequest):
 
             return_response_json = return_response.json()
             self.tracker.response = return_response_json
-            self.tracker.resolved = datetime.now(UTC)
+            self.tracker.resolved = datetime.now(timezone.utc)
 
             self.spin_request.log_api_response(return_response_json)
 
@@ -1201,7 +1200,7 @@ class SpinTerminalRequest(TransactionRequest):
         except AttributeError:
             response_json = response
         self.tracker.response = response_json
-        self.tracker.resolved = datetime.now(UTC)
+        self.tracker.resolved = datetime.now(timezone.utc)
 
         receipt_items_to_add = self.get_receipt_items_to_add()
         if receipt_items_to_add:
@@ -1225,7 +1224,7 @@ class SpinTerminalRequest(TransactionRequest):
 
             if self.tracker:
                 self.tracker.response = void_response_json
-                self.tracker.resolved = datetime.now(pytz.UTC)
+                self.tracker.resolved = datetime.now(timezone.utc)
 
             self.log_api_response(void_response_json)
             if self.api_response_successful(void_response_json):

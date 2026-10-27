@@ -1,7 +1,6 @@
 from collections import OrderedDict
-from datetime import datetime, timedelta
+from datetime import timezone, datetime, timedelta
 
-import pytz
 from sqlalchemy import and_, cast, exists, func, not_
 from sqlalchemy.ext.associationproxy import AssociationProxy, association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -19,11 +18,9 @@ from uber.models.types import (DefaultColumn as Column, default_relationship as 
                                DefaultField as Field, DefaultRelationship as Relationship)
 from uber.utils import evening_datetime, noon_datetime, localized_now, slugify, listify, groupify
 
-
 __all__ = [
     'Attraction', 'AttractionFeature', 'AttractionEvent', 'AttractionSignup',
     'AttractionNotification', 'AttractionNotificationReply']
-
 
 class AttractionMixin():
     populate_schedule: bool = True
@@ -279,7 +276,7 @@ class Attraction(MagModel, AttractionMixin, table=True):
         for event in self.events:
             if event.populate_schedule:
                 event.schedule_item.department_id = self.department_id
-                event.schedule_item.last_updated = datetime.now(pytz.UTC)
+                event.schedule_item.last_updated = datetime.now(timezone.utc)
                 session.add(event.schedule_item)
 
     def signups_requiring_notification(self, session, from_time, to_time, options=None):
@@ -405,7 +402,7 @@ class AttractionFeature(MagModel, AttractionMixin, table=True):
             if event.populate_schedule:
                 event.schedule_item.name = self.name
                 event.schedule_item.description = event.schedule_description
-                event.schedule_item.last_updated = datetime.now(pytz.UTC)
+                event.schedule_item.last_updated = datetime.now(timezone.utc)
                 session.add(event.schedule_item)
 
     @property
@@ -500,7 +497,7 @@ class AttractionEvent(MagModel, AttractionMixin, table=True):
                 self.orig_value_of('signups_open_relative') != self.signups_open_relative or
                 self.orig_value_of('signups_open_time') != self.signups_open_time):
             self.schedule_item.description = self.schedule_description
-            self.schedule_item.last_updated = datetime.now(pytz.UTC)
+            self.schedule_item.last_updated = datetime.now(timezone.utc)
             self.session.add(self.schedule_item)
 
 
@@ -570,7 +567,7 @@ class AttractionEvent(MagModel, AttractionMixin, table=True):
 
     @property
     def time_remaining_to_checkin(self):
-        return self.checkin_start_time - datetime.now(pytz.UTC)
+        return self.checkin_start_time - datetime.now(timezone.utc)
 
     @property
     def time_remaining_to_checkin_label(self):
@@ -578,7 +575,7 @@ class AttractionEvent(MagModel, AttractionMixin, table=True):
 
     @property
     def is_checkin_over(self):
-        return self.checkin_end_time < datetime.now(pytz.UTC)
+        return self.checkin_end_time < datetime.now(timezone.utc)
     
     @property
     def signed_up_attendees(self):
@@ -606,7 +603,7 @@ class AttractionEvent(MagModel, AttractionMixin, table=True):
 
     @property
     def is_started(self):
-        return self.start_time < datetime.now(pytz.UTC)
+        return self.start_time < datetime.now(timezone.utc)
 
     @property
     def remaining_slots(self):
@@ -724,7 +721,7 @@ class AttractionEvent(MagModel, AttractionMixin, table=True):
             updated = True
         
         if updated:
-            event.last_updated = datetime.now(pytz.UTC)
+            event.last_updated = datetime.now(timezone.utc)
             session.add(event)
 
     def overlap(self, event):
@@ -753,7 +750,7 @@ class AttractionSignup(MagModel, table=True):
     attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', ondelete='CASCADE')
     attendee: 'Attendee' = Relationship(back_populates="attraction_signups", sa_relationship_kwargs={'lazy': 'joined'})
 
-    signup_time: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(pytz.UTC))
+    signup_time: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(timezone.utc))
     checkin_time: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: utcmin.datetime, index=True)
     on_waitlist: bool = False
 
@@ -844,7 +841,7 @@ class AttractionNotification(MagModel, table=True):
     notification_type: int = Field(sa_column=Column(Choice(Attendee._NOTIFICATION_PREF_OPTS)), default=0)
     ident: str = Field(default='', index=True)
     sid: str = ''
-    sent_time: datetime = Field(sa_type=DateTime(timezone=True), default=lambda: datetime.now(pytz.UTC))
+    sent_time: datetime = Field(sa_type=DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     subject: str = ''
     body: str = ''
 
@@ -872,8 +869,8 @@ class AttractionNotificationReply(MagModel, table=True):
     from_phonenumber: str = ''
     to_phonenumber: str = ''
     sid: str = Field(default='', index=True)
-    received_time: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(pytz.UTC))
-    sent_time: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(pytz.UTC))
+    received_time: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(timezone.utc))
+    sent_time: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(timezone.utc))
     body: str = ''
 
     @presave_adjustment

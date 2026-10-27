@@ -2,9 +2,7 @@ import os
 import stripe
 import logging
 import cherrypy
-import pytz
-from datetime import datetime
-from pytz import UTC
+from datetime import timezone, datetime
 from cherrypy.lib.static import serve_file
 from sqlalchemy.orm.exc import NoResultFound
 from urllib.parse import urlparse, parse_qsl
@@ -19,9 +17,7 @@ from uber.utils import check, filename_extension, SignNowRequest
 from uber.files import FileService
 from uber.payments import ReceiptManager
 
-
 log = logging.getLogger(__name__)
-
 
 @all_renderable(public=True)
 class Root:
@@ -67,7 +63,7 @@ class Root:
 
         admin_account_id = getattr(cherrypy.request, 'admin_account', None)
         attendee_account_id = getattr(cherrypy.request, 'attendee_account', None)
-        now = datetime.now(pytz.UTC)
+        now = datetime.now(timezone.utc)
         if admin_account_id:
             login_account = session.get(AdminAccount, admin_account_id)
             login_account.last_signed_in = now
@@ -125,7 +121,7 @@ class Root:
             raise HTTPRedirect(return_to + "?id={}&message={}", id,
                                f"Error sending SignNow link: {signnow_request.error_message}")
         else:
-            signnow_request.document.last_emailed = datetime.now(UTC)
+            signnow_request.document.last_emailed = datetime.now(timezone.utc)
             session.add(signnow_request.document)
             raise HTTPRedirect("{}?id={}&message={}", return_to, id, "SignNow link sent!")
 

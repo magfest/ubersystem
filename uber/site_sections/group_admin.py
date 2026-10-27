@@ -2,8 +2,7 @@ import cherrypy
 import logging
 
 from collections import defaultdict
-from datetime import datetime
-from pytz import UTC
+from datetime import timezone, datetime
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import joinedload
 

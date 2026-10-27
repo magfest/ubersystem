@@ -1,7 +1,7 @@
-from datetime import datetime, date, timedelta
+from datetime import timezone, datetime, date, timedelta
 
 import pytest
-import pytz
+
 
 from tests.uber.conftest import admin_attendee, assert_unique, POST
 from uber.config import c
@@ -15,7 +15,7 @@ assert admin_attendee
 assert POST
 
 
-next_week = datetime.now(pytz.UTC) + timedelta(days=7)
+next_week = datetime.now(timezone.utc) + timedelta(days=7)
 
 
 @pytest.fixture(autouse=True)
