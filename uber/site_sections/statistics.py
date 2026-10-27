@@ -4,7 +4,6 @@ from geopy.distance import geodesic
 import logging
 import six
 from sqlalchemy import func
-from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.expression import literal
 
 from uber.config import c
@@ -181,7 +180,9 @@ class Root:
             counts['shirt_counts'][c.PREREG_SHIRTS[shirt_enum_key]] = \
                 c.REDIS_STORE.hget(c.REDIS_PREFIX + 'shirt_counts', shirt_enum_key)
 
-        for a in session.query(Attendee).options(joinedload(Attendee.group)):
+        group_paid = dict(session.query(Group.id, Group.amount_paid))
+
+        for a in session.query(Attendee):
             counts['statuses'][a.badge_status_label] += 1
 
             if a.badge_status not in [c.INVALID_GROUP_STATUS, c.INVALID_STATUS, c.IMPORTED_STATUS, c.REFUNDED_STATUS]:
@@ -198,8 +199,8 @@ class Root:
                     counts['checked_in_by_type'][a.badge_type_label] += 1
                 for val in a.interests_ints:
                     counts['interests'][c.INTERESTS[val]] += 1
-                if a.paid == c.PAID_BY_GROUP and a.group:
-                    counts['groups']['paid' if a.group.amount_paid else 'free'] += 1
+                if a.paid == c.PAID_BY_GROUP and a.group_id:
+                    counts['groups']['paid' if group_paid.get(a.group_id) else 'free'] += 1
 
                 donation_amounts = list(counts['donation_tiers'].keys())
                 for index, amount in enumerate(donation_amounts):
@@ -207,7 +208,7 @@ class Root:
                     if a.amount_extra >= amount and a.amount_extra < next_amount:
                         counts['donation_tiers'][amount] = counts['donation_tiers'][amount] + 1
                 if not a.checked_in:
-                    is_paid = a.paid == c.HAS_PAID or a.paid == c.PAID_BY_GROUP and a.group and a.group.amount_paid
+                    is_paid = a.paid == c.HAS_PAID or a.paid == c.PAID_BY_GROUP and group_paid.get(a.group_id)
                     key = 'paid' if is_paid else 'free'
                     counts['noshows'][key] += 1
 
