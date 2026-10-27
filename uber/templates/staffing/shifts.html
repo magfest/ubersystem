@@ -600,6 +600,7 @@
         view: window.matchMedia('(max-width: 576px)').matches ? 'listWeek' : 'timeGridWeek',
         date: window.matchMedia('(max-width: 576px)').matches ? '{{ start }}' : '{{ c.EPOCH.date() }}',
         allDaySlot: false,
+        slotEventOverlap: false,
         highlightedDates: {{ highlighted_dates|safe }},
         headerToolbar: {
             start: 'prev,next timeGridDay',
