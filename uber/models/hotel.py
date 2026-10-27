@@ -1184,6 +1184,11 @@ class RoomAssignment(MagModel, table=True):
         return hotel_lottery_config.load(sa_inspect(self).session).room_changes_locked
 
     @property
+    def partition_guarantee_due(self):
+        """Card deadline shown in partition room emails, from Lottery Settings."""
+        return hotel_lottery_config.load(sa_inspect(self).session).partition_guarantee_due
+
+    @property
     def changes_locked(self):
         """Attendees and staff can view this room but not edit or cancel it."""
         return self.export_locked or self.room_changes_locked

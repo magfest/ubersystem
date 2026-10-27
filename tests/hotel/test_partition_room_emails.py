@@ -104,10 +104,11 @@ def test_assigned_email_renders_deadline_and_links(session, partition_fixtures,
                                                    monkeypatch):
     from uber.email import EmailService
 
+    from tests.hotel.test_partition_guarantee_due import set_partition_guarantee_due
+
     # check_emails_for_fixture commits; keep the per-test rollback intact.
     monkeypatch.setattr(session, 'commit', session.flush)
-    monkeypatch.setattr(c, 'HOTEL_PARTITION_GUARANTEE_DUE',
-                        datetime(2026, 11, 23, 4, 59, tzinfo=UTC), raising=False)
+    set_partition_guarantee_due(session, '2026-11-22')
     ra = _grant(session)
     EmailService.check_emails_for_fixture(
         session, partition_fixtures['hotel_partition_room_assigned'])

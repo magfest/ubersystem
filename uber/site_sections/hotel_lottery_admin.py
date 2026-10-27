@@ -1202,7 +1202,7 @@ class Root:
 
     def update_lottery_settings(self, session, **params):
         _require_post_csrf(params, redirect='settings')
-        data = {}
+        data = hotel_lottery_config.load_data(session)
         for group in LOTTERY_GROUPS:
             # The selects post '' for automatic and '1'/'0' for a forced value.
             data[group] = {field: None if params.get(f'{group}_{field}', '') == ''
@@ -1213,6 +1213,21 @@ class Root:
         hotel_lottery_config.save(data, session)
         session.commit()
         raise HTTPRedirect('settings?message={}', 'Lottery settings saved.')
+
+    def update_partition_settings(self, session, **params):
+        _require_post_csrf(params, redirect='settings')
+        due = (params.get('partition_guarantee_due') or '').strip()
+        if due:
+            try:
+                date.fromisoformat(due)
+            except ValueError:
+                raise HTTPRedirect('settings?message={}',
+                                   'Could not parse the partition card deadline.') from None
+        data = hotel_lottery_config.load_data(session)
+        data['partition_guarantee_due'] = due
+        hotel_lottery_config.save(data, session)
+        session.commit()
+        raise HTTPRedirect('settings?message={}', 'Partition room settings saved.')
 
     @ajax
     def vault_usage(self, session, month=''):
