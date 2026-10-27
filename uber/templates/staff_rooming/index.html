@@ -64,6 +64,19 @@
   <button type="submit" class="btn btn-primary">Save</button>
 </form>
 
+<form method="post" action="add_night" class="row g-2 align-items-center mt-3">
+  {{ csrf_token() }}
+  <div class="col-auto">
+    <label for="add-night-date" class="col-form-label">Add a night</label>
+  </div>
+  <div class="col-auto">
+    <input type="date" id="add-night-date" name="night_date" class="form-control form-control-sm" required />
+  </div>
+  <div class="col-auto">
+    <button type="submit" class="btn btn-sm btn-outline-secondary">Add night</button>
+  </div>
+</form>
+
 {# Separate form - nested forms are invalid HTML, and this POSTs to its
    own endpoint. Deleting the rows makes `index` re-seed them from
    `_default_settings()` on the next load. #}

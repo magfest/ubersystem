@@ -8,7 +8,7 @@ weighted-hour minimum across the whole con.
 The page auto-populates with sensible defaults on first visit
 """
 
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 
 import cherrypy
 
@@ -141,6 +141,28 @@ class Root:
 
         session.commit()
         raise HTTPRedirect('index?message={}', 'Staff rooming requirements saved.')
+
+    def add_night(self, session, night_date='', csrf_token=None):
+        """Add a row for a night outside the default range, starting as No Requirement.
+
+        `_default_settings` only covers two days before EPOCH through one day
+        after ESCHATON; a night with no row is never checked.
+        """
+        if cherrypy.request.method != 'POST':
+            raise HTTPRedirect('index')
+        check_csrf(csrf_token)
+
+        try:
+            night = date.fromisoformat(night_date)
+        except ValueError:
+            raise HTTPRedirect('index?message={}', 'Pick a date to add.') from None
+        if session.query(NightShiftRequirement).filter_by(night_date=night).first():
+            raise HTTPRedirect('index?message={}', f'{night:%Y-%m-%d} already has a row.')
+
+        session.add(NightShiftRequirement(night_date=night, kind=c.NONE))
+        session.commit()
+        raise HTTPRedirect('index?message={}',
+                           f'Added {night:%Y-%m-%d}. Set its kind and window, then save.')
 
     def reset_to_defaults(self, session, csrf_token=None):
         if cherrypy.request.method != 'POST':
