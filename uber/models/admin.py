@@ -205,7 +205,8 @@ class AdminAccount(MagModel, table=True):
                 # Manually remove the group to ensure the associated
                 # rows in the admin_access_group table are deleted.
                 self.access_groups.remove(group)
-        self._set_relation_ids('access_groups', AccessGroup, list(values))
+        if set(value) != set(self.access_groups_ids):
+            self._set_relation_ids('access_groups', AccessGroup, list(values))
 
     @property
     def allowed_access_opts(self):

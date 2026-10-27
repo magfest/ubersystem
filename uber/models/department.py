@@ -231,7 +231,8 @@ class DeptRole(MagModel, table=True):
 
     @dept_memberships_ids.setter
     def dept_memberships_ids(self, value):
-        self._set_relation_ids('dept_memberships', DeptMembership, value)
+        if set(value) != set(self.dept_memberships_ids):
+            self._set_relation_ids('dept_memberships', DeptMembership, value)
 
 
 class Department(MagModel, table=True):
@@ -527,7 +528,8 @@ class Job(MagModel, table=True):
 
     @required_roles_ids.setter
     def required_roles_ids(self, value):
-        self._set_relation_ids('required_roles', DeptRole, value)
+        if set(value) != set(self.required_roles_ids):
+            self._set_relation_ids('required_roles', DeptRole, value)
 
     @property
     def minutes(self):
@@ -782,7 +784,8 @@ class JobTemplate(MagModel, table=True):
 
     @required_roles_ids.setter
     def required_roles_ids(self, value):
-        self._set_relation_ids('required_roles', DeptRole, value)
+        if set(value) != set(self.required_roles_ids):
+            self._set_relation_ids('required_roles', DeptRole, value)
 
     def create_jobs(self, session, days_ints=None, reset=True):
         if self.type == c.CUSTOM:
@@ -878,18 +881,19 @@ class JobTemplate(MagModel, table=True):
         if old_required_roles_ids != self.required_roles_ids:
             changes['required_roles_ids'] = self.required_roles_ids
 
+        update_all_jobs = len(changes) > 1 or 'min_slots' not in changes
         for job in jobs_to_process:
-            job_updated = False
+            if update_all_jobs:
+                session.add(job)
+
             for attr_name, new_val in changes.items():
                 if attr_name == 'min_slots':
                     if job.slots and job.slots < new_val:
                         job.slots = new_val
-                        job_updated = True
+                        if not update_all_jobs:
+                            session.add(job)
                 else:
                     setattr(job, attr_name, new_val)
-                    job_updated = True
-            if job_updated:
-                session.add(job)
 
         if self.type != c.CUSTOM and (old_open_time != self.open_time or old_close_time != self.close_time):
             old_open_minutes = (old_open_time.hour * 60) + old_open_time.minute
