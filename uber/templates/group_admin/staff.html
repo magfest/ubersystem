@@ -17,7 +17,7 @@
         <td data-sort="{{ group.leader.full_name if group.leader else 'ZZZZZZZ' }}">{{ group.leader|form_link if group.leader else 'None' }}</td>
         <td>
             {% if group.leader %}
-            {{ group.leader.assigned_depts_labels|default('None') }}
+            {{ group.leader.assigned_depts_labels|default(['None'])|readable_join }}
             {% else %}N/A{% endif %}
         </td>
         <td>{{ group.badges - group.unregistered_badges }} / {{ group.badges }}</td>

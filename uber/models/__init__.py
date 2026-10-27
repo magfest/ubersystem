@@ -429,8 +429,14 @@ class MagModel(SQLModel):
         return getattr(self, '_relation_ids', {}).get(relation, (None, None))
 
     def _set_relation_ids(self, relation, ModelClass, ids):
+        # TODO: The relation_ids code is managing data outside of the SQLAlchemy session workflow and should be removed
+        from sqlalchemy.orm.attributes import flag_dirty
+
         _relation_ids = getattr(self, '_relation_ids', {})
         _relation_ids[relation] = (ModelClass, ids)
+        if self.session and self not in self.session.dirty and self not in self.session.new:
+            flag_dirty(self)
+
         setattr(self, '_relation_ids', _relation_ids)
 
     @presave_adjustment
