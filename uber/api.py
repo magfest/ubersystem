@@ -902,7 +902,7 @@ class AttendeeAccountLookup:
 
     def lookup_badges(self, sso_id, full=False):
         """
-        Returns the valid badges linked to an SSO account through attendee accounts or an admin account.
+        Returns the valid badges managed by the attendee accounts linked to an SSO account.
 
         `sso_id` is the account's OIDC `sub` claim. A person is linked only after they sign in to
         this Ubersystem with SSO at least once; until then this returns 404. This method trusts the
@@ -912,8 +912,7 @@ class AttendeeAccountLookup:
         complete attendee records, including departments, shifts, and food
         restrictions.
 
-        Returns `sso_id`, `attendee_account_ids`, and `badges`. `attendee_account_ids` is empty for
-        someone linked only through an admin account.
+        Returns `sso_id`, `attendee_account_ids`, and `badges`.
         """
         try:
             sso_id = str(uuid.UUID(sso_id))
@@ -922,15 +921,13 @@ class AttendeeAccountLookup:
 
         with Session() as session:
             accounts = session.query(AttendeeAccount).filter(AttendeeAccount.sso_id == sso_id).all()
-
-            admin_ids = session.query(AdminAccount.attendee_id).filter(AdminAccount.sso_id == sso_id)
-            if not accounts and not admin_ids.first():
-                raise HTTPError(404, 'No account found for this {} ID'.format(c.OIDC_ACCOUNT_NAME))
+            if not accounts:
+                raise HTTPError(404, 'No attendee account found for this {} ID'.format(c.OIDC_ACCOUNT_NAME))
 
             managed_ids = session.query(Attendee.id).join(Attendee.managers).filter(
                 AttendeeAccount.sso_id == sso_id)
-            attendee_query = session.query(Attendee).filter(
-                or_(Attendee.id.in_(managed_ids), Attendee.id.in_(admin_ids))).order_by(Attendee.registered)
+            attendee_query = session.query(Attendee).filter(Attendee.id.in_(managed_ids)).order_by(
+                Attendee.registered)
             fields, attendee_query = _attendee_fields_and_query(full, attendee_query)
             fields = dict(fields, id=True, group_id=True)
             return {
