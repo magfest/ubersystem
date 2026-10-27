@@ -902,25 +902,30 @@ class AttendeeAccountLookup:
 
     def lookup_badges(self, sso_id, full=False):
         """
-        Returns the valid badges linked to a MAGFest ID through attendee accounts or an admin account.
+        Returns the valid badges linked to an SSO account through attendee accounts or an admin account.
 
-        `sso_id` is the UUID of the MAGFest ID account (the OIDC `sub` claim).
+        `sso_id` is the account's OIDC `sub` claim. A person is linked only after they sign in to
+        this Ubersystem with SSO at least once; until then this returns 404. This method trusts the
+        `sso_id` it receives, so the caller must verify the person's login first.
 
         Optionally, "full" may be passed as the second parameter to return the
         complete attendee records, including departments, shifts, and food
         restrictions.
+
+        Returns `sso_id`, `attendee_account_ids`, and `badges`. `attendee_account_ids` is empty for
+        someone linked only through an admin account.
         """
         try:
             sso_id = str(uuid.UUID(sso_id))
         except (TypeError, ValueError, AttributeError):
-            raise HTTPError(400, 'Invalid MAGFest ID UUID: {}'.format(sso_id))
+            raise HTTPError(400, 'Invalid {} ID: {}'.format(c.OIDC_ACCOUNT_NAME, sso_id))
 
         with Session() as session:
             accounts = session.query(AttendeeAccount).filter(AttendeeAccount.sso_id == sso_id).all()
 
             admin_ids = session.query(AdminAccount.attendee_id).filter(AdminAccount.sso_id == sso_id)
             if not accounts and not admin_ids.first():
-                raise HTTPError(404, 'No account found for this MAGFest ID')
+                raise HTTPError(404, 'No account found for this {} ID'.format(c.OIDC_ACCOUNT_NAME))
 
             managed_ids = session.query(Attendee.id).join(Attendee.managers).filter(
                 AttendeeAccount.sso_id == sso_id)
