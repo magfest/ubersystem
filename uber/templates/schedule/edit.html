@@ -282,6 +282,7 @@ ec = new EventCalendar(document.getElementById('event-schedule'), {
     date: '{{ current_date }}',
     slotMinTime: '{{ c.PANELS_EPOCH.hour if c.PANELS_EPOCH.date()|string in current_date else "00:00:00" }}',
     allDaySlot: false,
+    slotEventOverlap: false,
     scrollTime: '{{ c.PANELS_EPOCH.hour }}',
     headerToolbar: {
         start: 'prev,next title',
