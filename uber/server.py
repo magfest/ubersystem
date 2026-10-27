@@ -173,6 +173,10 @@ cherrypy.tools.custom_verbose_logger = cherrypy.Tool('before_error_response', lo
 
 
 class StaticViews:
+    _cp_config = {
+        'tools.sessions.on': False,
+    }
+
     @classmethod
     def path_args_to_string(cls, path_args):
         return '/'.join(path_args)
@@ -240,6 +244,8 @@ def error_page_404(status, message, traceback, version):
 
 
 c.APPCONF['/']['error_page.404'] = error_page_404
+c.APPCONF['/static'] = {'tools.sessions.on': False}
+c.APPCONF['/static_views'] = {'tools.sessions.on': False}
 
 cherrypy.tree.mount(Root(), c.CHERRYPY_MOUNT_PATH, c.APPCONF)
 static_overrides(os.path.join(c.MODULE_ROOT, 'static'))
