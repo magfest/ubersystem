@@ -902,7 +902,7 @@ class AttendeeAccountLookup:
 
     def lookup_badges(self, sso_id, full=False):
         """
-        Returns the valid badges managed by the attendee account(s) linked to a MAGFest ID.
+        Returns the valid badges linked to a MAGFest ID through attendee accounts or an admin account.
 
         `sso_id` is the UUID of the MAGFest ID account (the OIDC `sub` claim).
 
@@ -917,13 +917,15 @@ class AttendeeAccountLookup:
 
         with Session() as session:
             accounts = session.query(AttendeeAccount).filter(AttendeeAccount.sso_id == sso_id).all()
-            if not accounts:
-                raise HTTPError(404, 'No attendee account found for this MAGFest ID')
+
+            admin_ids = session.query(AdminAccount.attendee_id).filter(AdminAccount.sso_id == sso_id)
+            if not accounts and not admin_ids.first():
+                raise HTTPError(404, 'No account found for this MAGFest ID')
 
             managed_ids = session.query(Attendee.id).join(Attendee.managers).filter(
                 AttendeeAccount.sso_id == sso_id)
-            attendee_query = session.query(Attendee).filter(Attendee.id.in_(managed_ids)).order_by(
-                Attendee.registered)
+            attendee_query = session.query(Attendee).filter(
+                or_(Attendee.id.in_(managed_ids), Attendee.id.in_(admin_ids))).order_by(Attendee.registered)
             fields, attendee_query = _attendee_fields_and_query(full, attendee_query)
             fields = dict(fields, id=True, group_id=True)
             return {
