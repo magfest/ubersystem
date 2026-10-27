@@ -1,38 +1,149 @@
 ---
-name: Build Docker Image
+name: CI & Docker Build
 
-on: [push, workflow_dispatch]
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
 
 jobs:
+  lint:
+    name: Lint (Ruff)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Reviewdog
+        uses: reviewdog/action-setup@v1
+        with:
+          reviewdog_version: latest
+
+      - name: Install Ruff
+        run: pip install ruff
+
+      - name: Ruff Lint (PR Diff)
+        if: github.event_name == 'pull_request'
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ruff check --output-format=rdjson . | reviewdog -f=rdjson -name="ruff-lint" -reporter=github-pr-check -fail-level=any
+
+      - name: Ruff Format Check (PR Diff)
+        if: always() && github.event_name == 'pull_request'
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ruff format --diff . | reviewdog -f=diff -name="ruff-format" -reporter=github-pr-check -fail-level=any
+
+      - name: Ruff Check (Full)
+        if: github.event_name != 'pull_request'
+        run: ruff check .
+
+  test:
+    name: Database Migrations & Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: uber_db
+          POSTGRES_PASSWORD: uber_db
+          POSTGRES_DB: uber_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U uber_db -d uber_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxml2-dev libxmlsec1-dev pkg-config
+
+      - name: Install Python dependencies
+        run: |
+          pip install uv
+          uv pip install --system -r requirements.txt -r requirements_test.txt
+
+      - name: Check Database Migrations
+        env:
+          DB_CONNECTION_STRING: postgresql://uber_db:uber_db@localhost:5432/uber_db
+          UBER_CONFIG_FILES: test-defaults.ini
+        run: |
+          python3 sep.py alembic upgrade heads
+
+      - name: Run Pytest
+        env:
+          DB_CONNECTION_STRING: postgresql://uber_db:uber_db@localhost:5432/uber_db
+          UBER_CONFIG_FILES: test-defaults.ini
+        run: |
+          pytest tests/uber/test_templates.py tests/uber/test_jinja.py tests/uber/test_custom_tags.py tests/uber/test_utils.py -v
+
   downstream:
-    # This job reads $DOCKER_BUILDS to look for any downstream docker containers that
-    # depend on this branch and adds matrix jobs to build them in parallel.
+    name: Determine Downstream Builds
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - id: set-matrix
         run: |
-          echo "matrix={\"include\":$(echo "${{ vars.DOCKER_BUILDS }}" | yq -o=json -I 0 e '.branches.${{ github.ref_name }} // [{"name":"${{ vars.UBER_REPO || 'magfest/ubersystem' }}:${{ github.ref_name }}", "plugins":[]}]' -)}" >> $GITHUB_OUTPUT
+          SAFE_TAG=$(echo "${{ github.ref_name }}" | tr '/' '-')
+          echo "matrix={\"include\":$(echo "${{ vars.DOCKER_BUILDS }}" | yq -o=json -I 0 e ".branches.\"${{ github.ref_name }}\" // [{\"name\":\"${{ vars.UBER_REPO || 'magfest/ubersystem' }}:${SAFE_TAG}\", \"plugins\":[]}]" -)}" >> $GITHUB_OUTPUT
           cat $GITHUB_OUTPUT
 
   build_downstream:
+    name: Build Downstream Images
+    needs: [downstream, lint, test]
     permissions:
       contents: read
       packages: write
-    needs: downstream
     strategy:
       matrix: ${{ fromJson(needs.downstream.outputs.matrix) }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v1
+        uses: actions/checkout@v4
 
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
 
       - name: Login to GHCR
-        uses: docker/login-action@v2
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -55,45 +166,38 @@ jobs:
             PLUGIN_NAMES=${{ env.plugin_names }}
           platforms: linux/amd64,linux/arm64
           context: "."
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ghcr.io/${{ matrix.name }}
-          # cache-from: type=gha
-          # cache-to: type=gha,mode=max
 
   build:
+    name: Build Docker Container
+    needs: [lint, test]
     permissions:
       contents: read
       packages: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v1
+        uses: actions/checkout@v4
 
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
 
       - name: Login to GHCR
-        uses: docker/login-action@v1
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-# TODO: Enable tests once we can run Postgres in CI
-#      - name: Build Test Docker Image
-#        uses: docker/build-push-action@v2
-#        with:
-#          build-args: BRANCH=${{ github.ref_name }}
-#          context: "."
-#          push: false
-#          tags: ghcr.io/${{ github.repository }}:${{ github.ref_name }}-test
-#          target: test
-
-#      - name: Execute Tests
-#        run: docker run ghcr.io/${{ github.repository }}:${{ github.ref_name }}-test
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+
+      - name: Compute Tag
+        id: tag
+        run: |
+          echo "tag=$(echo '${{ github.ref_name }}' | tr '/' '-')" >> $GITHUB_OUTPUT
 
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v6
@@ -101,7 +205,5 @@ jobs:
           build-args: BRANCH=${{ github.ref_name }}
           platforms: linux/amd64,linux/arm64
           context: "."
-          push: true
-          tags: ghcr.io/${{ vars.UBER_REPO || github.repository }}:${{ github.ref_name }}
-          # cache-from: type=gha
-          # cache-to: type=gha,mode=max
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ghcr.io/${{ vars.UBER_REPO || github.repository }}:${{ steps.tag.outputs.tag }}

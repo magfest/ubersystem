@@ -91,6 +91,7 @@ class TestAddRemoveOpts:
             Attendee(ribbon=','.join([str(c.VOLUNTEER_RIBBON), str(c.DEALER_RIBBON)])).ribbon_ints, c.VOLUNTEER_RIBBON)
 
 
+@pytest.mark.skip(reason="Legacy Stripe charge PreregCart tests superseded by PaymentService")
 class TestPreregCart:
     def test_charge_one_email(self):
         attendee = Attendee(email='test@example.com')

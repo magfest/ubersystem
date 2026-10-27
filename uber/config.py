@@ -1952,7 +1952,7 @@ def create_hour_opts(start_hour, end_hour, step, prefix=''):
     
 
 c = Config()
-_config = parse_config("uber", pathlib.Path("/app/uber"))  # outside this module, we use the above c global instead of using this directly
+_config = parse_config("uber", pathlib.Path(__file__).parent)  # outside this module, we use the above c global instead of using this directly
 db_connection_string = os.environ.get('DB_CONNECTION_STRING')
 
 for conf, val in _config['secret'].items():
