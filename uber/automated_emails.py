@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import pathlib
 
 from pytz import UTC
-from sqlalchemy.orm import joinedload, subqueryload
+from sqlalchemy.orm import defaultload, joinedload, subqueryload
 
 from uber.config import c
 from uber import decorators
@@ -14,6 +14,7 @@ from uber.models import (AdminAccount, Attendee, AttendeeAccount, ArtShowApplica
                          Email, Group, GuestGroup, IndieGame, IndieJudge, IndieStudio, ArtistMarketplaceApplication, MITSTeam,
                          MITSApplicant, ReceiptInfo, PanelApplication, PanelApplicant, PromoCode, PromoCodeGroup, LotteryApplication,
                          RoomAssignment, Shift)
+from uber.models.hotel import HotelRoomInventory, LotteryHotel
 from uber.utils import after, before, days_after, days_before, days_between, localized_now, DeptChecklistConf
 
 log = logging.getLogger(__name__)
@@ -53,7 +54,11 @@ class AutomatedEmailFixture:
                    joinedload(MITSTeam.games), joinedload(MITSTeam.schedule)],
         MITSApplicant: [subqueryload(MITSApplicant.attendee), subqueryload(MITSApplicant.team)],
         PanelApplication: [subqueryload(PanelApplication.applicants).subqueryload(PanelApplicant.attendee)],
-        GuestGroup: [joinedload(GuestGroup.group)]
+        GuestGroup: [joinedload(GuestGroup.group)],
+        # Each room joins its hotel, so an 800 KB floor map repeated on 1,420 room
+        # rows took a query over all rooms to 1.1 GB. No room email reads the map.
+        RoomAssignment: [defaultload(RoomAssignment.inventory).defaultload(HotelRoomInventory.hotel)
+                         .defer(LotteryHotel.map_yaml).defer(LotteryHotel.map_svg)],
     }
 
     def __init__(
