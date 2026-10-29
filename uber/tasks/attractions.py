@@ -192,7 +192,7 @@ def attractions_send_notifications():
                 # for "when checkin starts".
                 advance_notice = min(advance_notices)
                 if advance_notice == -1 or advance_notice > 30:
-                    checkin = 'is at {}'.format(event.checkin_start_time_label)
+                    checkin = f'is at {event.checkin_start_time_label}'
                 else:
                     checkin = humanize_timedelta(
                         event.time_remaining_to_checkin,

@@ -151,7 +151,7 @@ class Root:
                 picker_upper = session.query(Attendee).join(BadgeInfo).filter(BadgeInfo.ident == int(picker_upper)).one()
             except Exception:
                 message = 'Please enter a valid badge number for the person picking up the merch: ' \
-                    '{} is not in the system'.format(picker_upper)
+                    f'{picker_upper} is not in the system'
             else:
                 for badge_num in set(badges):
                     if badge_num:
@@ -165,7 +165,7 @@ class Root:
                                     '{a.name_and_badge_info} already got their merch'.format(a=attendee))
                             else:
                                 attendee.got_merch = True
-                                shirt_key = 'shirt_{}'.format(attendee.badge_num)
+                                shirt_key = f'shirt_{attendee.badge_num}'
                                 if shirt_key in shirt_sizes:
                                     attendee.shirt = int(listify(shirt_sizes.get(shirt_key, c.SIZE_UNKNOWN))[0])
                                 picked_up.append('{a.name_and_badge_info}: {a.merch}'.format(a=attendee))
@@ -255,7 +255,7 @@ class Root:
         merch = attendee.staff_merch if staff_merch else attendee.merch
         got = attendee.got_staff_merch if staff_merch else attendee.got_merch
         if not merch:
-            message = '{} has no merch.'.format(attendee.name_and_badge_info)
+            message = f'{attendee.name_and_badge_info} has no merch.'
         elif got and give_swadge and not attendee.got_swadge:
             message = '{a.name_and_badge_info} marked as receiving their swadge.'.format(
                 a=attendee)
@@ -331,7 +331,7 @@ class Root:
         discount.uses += 1
         session.add(discount)
         session.commit()
-        return {'success': True, 'message': 'Discount for {} has been marked as redeemed.'.format(attendee.name_and_badge_info)}
+        return {'success': True, 'message': f'Discount for {attendee.name_and_badge_info} has been marked as redeemed.'}
 
     @ajax
     @kiosk_login()
@@ -399,7 +399,7 @@ class Root:
             message = '{sale.what} sold{to} for ${sale.cash}{mpoints}' \
                       .format(sale=sale,
                               to=(' to ' + sale.attendee.name_and_badge_info) if sale.attendee else '',
-                              mpoints=' and {} MPoints.'.format(sale.mpoints) if sale.mpoints else '')
+                              mpoints=f' and {sale.mpoints} MPoints.' if sale.mpoints else '')
             return {'id': sale.id, 'success': True, 'message': message}
 
     @ajax

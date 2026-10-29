@@ -117,7 +117,7 @@ def _make_jsonrpc_handler(services, debug=c.DEV_BOX, precall=lambda body: None):
             return error(http_error.code, ERR_FUNC_EXCEPTION, http_error._message)
         except Exception as e:
             log.error('Unexpected error', exc_info=True)
-            message = 'Unexpected error: {}'.format(e)
+            message = f'Unexpected error: {e}'
             if debug:
                 message += '\n' + traceback.format_exc()
             return error(500, ERR_FUNC_EXCEPTION, message)
@@ -130,7 +130,7 @@ jsonrpc_services = {}
 
 def register_jsonrpc(service, name=None):
     name = name or service.__name__
-    assert name not in jsonrpc_services, '{} has already been registered'.format(name)
+    assert name not in jsonrpc_services, f'{name} has already been registered'
     jsonrpc_services[name] = service
 
 
@@ -341,12 +341,12 @@ def auth_by_token(required_access):
     with Session() as session:
         api_token = session.query(ApiToken).filter_by(token=token).first()
         if not api_token:
-            return (403, 'Auth token not recognized: {}'.format(token))
+            return (403, f'Auth token not recognized: {token}')
         if api_token.revoked_time:
-            return (403, 'Revoked auth token: {}'.format(token))
+            return (403, f'Revoked auth token: {token}')
         for access_level in required_access:
             if not getattr(api_token, access_level, None):
-                return (403, 'Insufficient access for auth token: {}'.format(token))
+                return (403, f'Insufficient access for auth token: {token}')
         cherrypy.session['account_id'] = api_token.admin_account_id
     return None
 
@@ -636,7 +636,7 @@ class AttendeeLookup:
             if attendee:
                 return attendee.to_dict(fields)
             else:
-                raise HTTPError(404, 'No attendee found with badge #{}'.format(badge_num))
+                raise HTTPError(404, f'No attendee found with badge #{badge_num}')
 
     def search(self, query, full=False):
         """
@@ -839,7 +839,7 @@ class AttendeeLookup:
 
             for key, val in params.items():
                 if not hasattr(Attendee, key):
-                    return HTTPError(400, 'Attendee has no field {}'.format(key))
+                    return HTTPError(400, f'Attendee has no field {key}')
                 setattr(attendee, key, val)
 
             message = check(attendee)
@@ -997,7 +997,7 @@ class AttendeeAccountLookup:
 
                 attendees = {}
                 for attendee in a.attendees:
-                    attendees[attendee.id] = attendee.full_name + " <{}>".format(attendee.email)
+                    attendees[attendee.id] = attendee.full_name + f" <{attendee.email}>"
 
                 d.update({
                     'attendees': attendees,
@@ -1031,7 +1031,7 @@ class AttractionLookup:
         with Session() as session:
             attraction = session.get(Attraction, attraction_id)
             if not attraction:
-                raise HTTPError(404, 'Attraction id not found: {}'.format(attraction_id))
+                raise HTTPError(404, f'Attraction id not found: {attraction_id}')
             return attraction.to_dict({
                 'id': True,
                 'name': True,
@@ -1164,7 +1164,7 @@ class JobLookup:
         with Session() as session:
             shift = session.get(Shift, shift_id)
             if not shift:
-                raise HTTPError(404, 'Shift id not found:{}'.format(shift_id))
+                raise HTTPError(404, f'Shift id not found:{shift_id}')
 
             session.delete(shift)
             session.commit()
@@ -1191,13 +1191,13 @@ class JobLookup:
             status = int(status)
             assert c.WORKED_STATUS[status] is not None
         except Exception:
-            raise HTTPError(400, 'Invalid status: {}'.format(status))
+            raise HTTPError(400, f'Invalid status: {status}')
 
         try:
             rating = int(rating)
             assert c.RATINGS[rating] is not None
         except Exception:
-            raise HTTPError(400, 'Invalid rating: {}'.format(rating))
+            raise HTTPError(400, f'Invalid rating: {rating}')
 
         if rating in (c.RATED_BAD, c.RATED_GREAT) and not comment:
             raise HTTPError(400, 'You must leave a comment explaining why the staffer was rated as: {}'.format(
@@ -1206,7 +1206,7 @@ class JobLookup:
         with Session() as session:
             shift = session.get(Shift, shift_id)
             if not shift:
-                raise HTTPError(404, 'Shift id not found:{}'.format(shift_id))
+                raise HTTPError(404, f'Shift id not found:{shift_id}')
 
             shift.worked = status
             shift.rating = rating
@@ -1269,7 +1269,7 @@ class GroupLookup:
                 attendees = {}
                 for attendee in g.attendees:
                     if not attendee.is_unassigned:
-                        attendees[attendee.id] = attendee.full_name + " <{}>".format(attendee.email)
+                        attendees[attendee.id] = attendee.full_name + f" <{attendee.email}>"
 
                 d.update({
                     'assigned_attendees': attendees,
@@ -1365,7 +1365,7 @@ class GroupLookup:
                 attendees = {}
                 for attendee in g.attendees:
                     if not attendee.is_unassigned:
-                        attendees[attendee.id] = attendee.full_name + " <{}>".format(attendee.email)
+                        attendees[attendee.id] = attendee.full_name + f" <{attendee.email}>"
 
                 d.update({
                     'assigned_attendees': attendees,
@@ -1398,7 +1398,7 @@ class DepartmentLookup:
         with Session() as session:
             department = session.get(Department, department_id)
             if not department:
-                raise HTTPError(404, 'Department id not found: {}'.format(department_id))
+                raise HTTPError(404, f'Department id not found: {department_id}')
             if full:
                 attendee_fields = AttendeeLookup.fields_full
             else:
@@ -1427,7 +1427,7 @@ class DepartmentLookup:
         with Session() as session:
             department = session.get(Department, department_id)
             if not department:
-                raise HTTPError(404, 'Department id not found: {}'.format(department_id))
+                raise HTTPError(404, f'Department id not found: {department_id}')
             return department.to_dict({
                 'id': True,
                 'name': True,
@@ -1541,7 +1541,7 @@ class ConfigLookup:
         if field.upper() in self.fields:
             return getattr(c, field.upper())
         else:
-            raise HTTPError(404, 'Config field not found: {}'.format(field))
+            raise HTTPError(404, f'Config field not found: {field}')
 
 
 @all_api_auth('api_read')
@@ -1593,7 +1593,7 @@ class HotelLookup:
             if id:
                 inv = session.query(HotelRoomInventory).filter(HotelRoomInventory.id == id).one_or_none()
                 if not inv:
-                    return HTTPError(404, "Could not locate inventory {}".format(id))
+                    return HTTPError(404, f"Could not locate inventory {id}")
             else:
                 inv = HotelRoomInventory()
             for attr in ['hotel_id', 'room_type_id', 'suite_type_id', 'quantity',
@@ -1628,7 +1628,7 @@ class HotelLookup:
             if id:
                 app = session.query(LotteryApplication).filter(LotteryApplication.id == id).one_or_none()
                 if not app:
-                    return HTTPError(404, "Could not locate application {}".format(id))
+                    return HTTPError(404, f"Could not locate application {id}")
             else:
                 app = LotteryApplication()
             for attr in ['attendee_id', 'status', 'entry_type', 'is_staff_entry',
@@ -1683,7 +1683,7 @@ class HotelLookup:
             if id:
                 assignment = session.query(RoomAssignment).filter(RoomAssignment.id == id).one_or_none()
                 if not assignment:
-                    return HTTPError(404, "Could not locate room assignment {}".format(id))
+                    return HTTPError(404, f"Could not locate room assignment {id}")
             else:
                 assignment = RoomAssignment()
             for attr in ['attendee_id', 'inventory_id', 'lottery_application_id',
@@ -1950,7 +1950,7 @@ class BarcodeLookup:
             if attendee:
                 return attendee.to_dict(fields)
             else:
-                raise HTTPError(404, 'Valid barcode, but no attendee found with Badge #{}'.format(badge_num))
+                raise HTTPError(404, f'Valid barcode, but no attendee found with Badge #{badge_num}')
 
     def lookup_badge_number_from_barcode(self, barcode_value):
         """

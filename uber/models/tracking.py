@@ -193,13 +193,13 @@ class Tracking(MagModel, table=True):
                 try:
                     old_val_repr = cls.repr(old_val, column)
                 except Exception:
-                    log.error('Tracking repr({}) failed on old value'.format(attr), exc_info=True)
+                    log.error(f'Tracking repr({attr}) failed on old value', exc_info=True)
                     old_val_repr = '<ERROR>'
 
                 try:
                     new_val_repr = cls.repr(new_val, column)
                 except Exception:
-                    log.error('Tracking repr({}) failed on new value'.format(attr), exc_info=True)
+                    log.error(f'Tracking repr({attr}) failed on new value', exc_info=True)
                     new_val_repr = '<ERROR>'
 
                 diff[attr] = "'{} -> {}'".format(old_val_repr, new_val_repr)
@@ -270,7 +270,7 @@ class Tracking(MagModel, table=True):
             if not data:
                 return
         else:
-            data = 'id={}'.format(instance.id)
+            data = f'id={instance.id}'
 
         links = ', '.join(
             '{}({})'.format(list(column.foreign_keys)[0].column.table.name, getattr(instance, name))
@@ -297,7 +297,7 @@ class Tracking(MagModel, table=True):
             dict.pop('receipt_changes', None)
             snapshot = json.dumps(dict, cls=serializer)
         except TypeError as e:
-            snapshot = "Could not save JSON dump due to error: {}".format(e)
+            snapshot = f"Could not save JSON dump due to error: {e}"
 
         session.add(Tracking(
             model=instance.__class__.__name__,

@@ -28,9 +28,9 @@ class MultiCheckbox():
                 options['disabled'] = True
             if checked:
                 options['checked'] = 'checked'
-            html.append('<label for="{}" class="checkbox-label">'.format(choice_id))
+            html.append(f'<label for="{choice_id}" class="checkbox-label">')
             html.append('<input {} /> '.format(html_params(**options)))
-            html.append('{}</label>'.format(label))
+            html.append(f'{label}</label>')
         return Markup(''.join(html))
 
 
@@ -126,10 +126,10 @@ class NumberInputGroup(TextInput):
     def __call__(self, field, **kwargs):
         html = []
         if self.prefix:
-            html.append('<span class="input-group-text">{}</span>'.format(self.prefix))
+            html.append(f'<span class="input-group-text">{self.prefix}</span>')
         html.append(super().__call__(field, **kwargs))
         if self.suffix:
-            html.append('<span class="input-group-text rounded-end">{}</span>'.format(self.suffix))
+            html.append(f'<span class="input-group-text rounded-end">{self.suffix}</span>')
 
         return Markup(''.join(html))
 

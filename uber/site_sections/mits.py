@@ -382,8 +382,8 @@ class Root:
         team = session.mits_team(team_id)
         if cherrypy.request.method == 'POST':
             for applicant in team.applicants:
-                applicant.declined_hotel_space = '{}-declined'.format(applicant.id) in params
-                applicant.requested_room_nights = ','.join(listify(params.get('{}-night'.format(applicant.id), [])))
+                applicant.declined_hotel_space = f'{applicant.id}-declined' in params
+                applicant.requested_room_nights = ','.join(listify(params.get(f'{applicant.id}-night', [])))
                 if not applicant.declined_hotel_space and not applicant.requested_room_nights:
                     message = '{} must either declined hotel space or ' \
                         'indicate which room nights they need'.format(applicant.full_name)
