@@ -11,10 +11,19 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 
 from uber.config import c
-from uber.models import Attendee, Department, DeptMembership, DeptRole, Job, PromoCode, Session, WatchList, \
-    initialize_db, register_session_listeners
+from uber.models import (
+    Attendee,
+    Department,
+    DeptMembership,
+    DeptRole,
+    Job,
+    PromoCode,
+    Session,
+    WatchList,
+    initialize_db,
+    register_session_listeners,
+)
 from uber.utils import localized_now
-
 
 try:
     TEST_DB_FILE = c.TEST_DB_FILE
@@ -30,13 +39,19 @@ def patch_session(Session, request):
     request.addfinalizer(lambda: setattr(Session, 'engine', orig_engine))
     request.addfinalizer(lambda: setattr(Session, 'session_factory', orig_factory))
 
-    name = Session.__module__.split('.')[0]
-    db_path = '/tmp/{}.db'.format(name)
-    Session.engine = sqlalchemy.create_engine('sqlite+pysqlite:///' + db_path, poolclass=NullPool)
-    event.listen(Session.engine, 'connect', lambda conn, record: conn.execute('pragma foreign_keys=ON'))
+    db_url = os.environ.get('TEST_DB_URL') or os.environ.get('DB_CONNECTION_STRING')
+    if db_url:
+        Session.engine = sqlalchemy.create_engine(db_url, poolclass=NullPool)
+    else:
+        name = Session.__module__.split('.')[0]
+        db_path = f'/tmp/{name}.db'
+        Session.engine = sqlalchemy.create_engine('sqlite+pysqlite:///' + db_path, poolclass=NullPool)
+        event.listen(Session.engine, 'connect', lambda conn, record: conn.execute('pragma foreign_keys=ON'))
+
     Session.session_factory = sessionmaker(bind=Session.engine, autoflush=False, autocommit=False,
                                            query_cls=Session.QuerySubclass)
-    Session.initialize_db(drop=True)
+    if hasattr(Session, 'initialize_db'):
+        Session.initialize_db(drop=True)
 
 def assert_unique(x):
     assert len(x) == len(set(x))
@@ -90,8 +105,13 @@ def clear_price_bumps(request, monkeypatch):
 
 @pytest.fixture(autouse=True)
 def patch_send_email_delay(request, monkeypatch):
-    from uber.tasks import email as email_tasks
-    monkeypatch.setattr(email_tasks.send_email, 'delay', email_tasks.send_email)
+    try:
+        from uber.tasks import email as email_tasks
+
+        if hasattr(email_tasks, "send_email"):
+            monkeypatch.setattr(email_tasks.send_email, "delay", email_tasks.send_email)
+    except (ImportError, AttributeError):
+        pass
 
 
 @pytest.fixture(scope='session', autouse=True)
@@ -99,7 +119,7 @@ def init_db(request):
     if os.path.exists(TEST_DB_FILE):
         os.remove(TEST_DB_FILE)
     patch_session(Session, request)
-    initialize_db(modify_tables=True)
+    initialize_db()
     register_session_listeners()
     with Session() as session:
         session.add(Attendee(
@@ -238,8 +258,10 @@ def init_db(request):
 
 @pytest.fixture(autouse=True)
 def db(request, init_db):
-    shutil.copy(TEST_DB_FILE, TEST_DB_FILE + '.backup')
-    request.addfinalizer(lambda: shutil.move(TEST_DB_FILE + '.backup', TEST_DB_FILE))
+    db_url = os.environ.get('TEST_DB_URL') or os.environ.get('DB_CONNECTION_STRING')
+    if not db_url and os.path.exists(TEST_DB_FILE):
+        shutil.copy(TEST_DB_FILE, TEST_DB_FILE + '.backup')
+        request.addfinalizer(lambda: shutil.move(TEST_DB_FILE + '.backup', TEST_DB_FILE))
 
 
 @pytest.fixture(autouse=True)

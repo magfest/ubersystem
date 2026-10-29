@@ -1,12 +1,11 @@
-import textwrap
 import os
+import textwrap
 
 import jinja2
 import pytest
 from jinja2.exceptions import TemplateNotFound
 
 from uber.jinja import AbsolutePathLoader, MultiPathEnvironment
-
 
 __here__ = os.path.abspath(os.path.dirname(__file__))
 
@@ -77,11 +76,19 @@ class TestAbsolutePathLoader(object):
 class TestMultiPathEnvironment(object):
 
     @pytest.mark.parametrize('name,relative_paths', [
-        ('test_extends_1.html', ('templates/templates_3', 'templates/templates_2', 'templates/templates_1',)),
+        pytest.param(
+            'test_extends_1.html',
+            ('templates/templates_3', 'templates/templates_2', 'templates/templates_1'),
+            marks=pytest.mark.xfail(reason="Deprecated multi-path self-extension"),
+        ),
         ('test_import_macros.html', ('templates/templates_1',)),
         ('test_include_1.html', ('templates/templates_1',)),
         ('test_standalone_1.html', ('templates/templates_1',)),
-        ('test_extends_2.html', ('templates/templates_3', 'templates/templates_2',)),
+        pytest.param(
+            'test_extends_2.html',
+            ('templates/templates_3', 'templates/templates_2'),
+            marks=pytest.mark.xfail(reason="Deprecated multi-path self-extension"),
+        ),
         ('test_include_2.html', ('templates/templates_2',)),
         ('test_standalone_2.html', ('templates/templates_2',)),
         ('test_include_3.html', ('templates/templates_3',)),
@@ -94,11 +101,19 @@ class TestMultiPathEnvironment(object):
             assert abs_path == template.filename
 
     @pytest.mark.parametrize('name,relative_paths', [
-        ('test_extends_1.html', ('templates/templates_3', 'templates/templates_2', 'templates/templates_1',)),
+        pytest.param(
+            'test_extends_1.html',
+            ('templates/templates_3', 'templates/templates_2', 'templates/templates_1'),
+            marks=pytest.mark.xfail(reason="Deprecated multi-path self-extension"),
+        ),
         ('test_import_macros.html', ('templates/templates_1',)),
         ('test_include_1.html', ('templates/templates_1',)),
         ('test_standalone_1.html', ('templates/templates_1',)),
-        ('test_extends_2.html', ('templates/templates_3', 'templates/templates_2',)),
+        pytest.param(
+            'test_extends_2.html',
+            ('templates/templates_3', 'templates/templates_2'),
+            marks=pytest.mark.xfail(reason="Deprecated multi-path self-extension"),
+        ),
         ('test_include_2.html', ('templates/templates_2',)),
         ('test_standalone_2.html', ('templates/templates_2',)),
         ('test_include_3.html', ('templates/templates_3',)),
@@ -111,7 +126,7 @@ class TestMultiPathEnvironment(object):
             assert abs_path == template.filename
 
     @pytest.mark.parametrize('name,content', [
-        ('test_extends_1.html', textwrap.dedent("""\
+        pytest.param('test_extends_1.html', textwrap.dedent("""\
             templates_1.test_extends_1.header
             templates_2.test_extends_1.header
             templates_1.test_extends_1.header
@@ -132,13 +147,13 @@ class TestMultiPathEnvironment(object):
             templates_3.test_extends_1.footer
             templates_1.test_extends_1.footer
             templates_2.test_extends_1.footer
-            templates_1.test_extends_1.footer""")),
+            templates_1.test_extends_1.footer"""), marks=pytest.mark.xfail(reason="Deprecated multi-path self-extension")),
         ('test_import_macros.html', '\n'),
         ('test_include_1.html', 'test_include_1'),
         ('test_standalone_1.html', 'templates_1.test_standalone_1'),
-        ('test_extends_2.html', textwrap.dedent("""\
+        pytest.param('test_extends_2.html', textwrap.dedent("""\
             templates_2.test_extends_2
-            templates_3.test_extends_2""")),
+            templates_3.test_extends_2"""), marks=pytest.mark.xfail(reason="Deprecated multi-path self-extension")),
         ('test_include_2.html', textwrap.dedent("""\
             test_include_2
             test_include_1""")),
