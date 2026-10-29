@@ -1,8 +1,7 @@
 from datetime import date, datetime, timedelta
 
 import pytest
-import pytz
-import six
+import sys
 
 from tests.uber.conftest import admin_attendee, assert_unique, csrf_token, POST
 from uber.config import c
@@ -137,7 +136,7 @@ class TestRegisterGroupMember(object):
             group = session.query(Group).get(duplicate_badge_num_preconditions)
             attendees = sorted(
                 [a for a in group.attendees if not a.is_unassigned],
-                key=lambda a: a.badge_num or six.MAXSIZE)
+                key=lambda a: a.badge_num or sys.maxsize)
 
             for attendee in attendees:
                 if attendee.id != group.leader.id:

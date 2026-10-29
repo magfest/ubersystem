@@ -1,5 +1,4 @@
 import json
-import six
 import sys
 import logging
 from datetime import datetime
@@ -187,7 +186,7 @@ class Tracking(MagModel, table=True):
                 problem.
                 """
                 # Don't track whitespace changes
-                if isinstance(old_val, six.string_types) and old_val.strip() == new_val:
+                if isinstance(old_val, str) and old_val.strip() == new_val:
                     continue
 
                 try:
