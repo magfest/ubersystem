@@ -1,11 +1,14 @@
 """Staff shift-compliance computation against NightShiftRequirement rules.
 
-A Staff badge holding a checked room (see `is_checked_room`) must satisfy any
+Someone holding a checked room (see `is_checked_room`) must satisfy any
 NightShiftRequirement that exists for the nights that room covers:
 
 - Setup/teardown nights - they need at least one shift overlapping the
   configured window
 - Core nights - their total weighted hours must be >= required_weighted_hours
+
+Admins choose the checked badges and rooms on the Staff Rooming page; they are
+stored in `staff_rooming_config`.
 
 All computation is real-time. The expensive query (NightShiftRequirement
 lookup) is one query for the whole table; cache it once per request via
@@ -18,8 +21,7 @@ from datetime import timedelta
 from sqlalchemy import and_, inspect as sa_inspect
 from sqlalchemy.orm import selectinload
 
-from uber.config import c
-from uber.hotel.queries import staff_rooming_query
+from uber.config import c, DatabaseConfigSection
 from uber.models import Attendee, Job, NightShiftRequirement, RoomAssignment, Shift
 
 
@@ -28,31 +30,65 @@ def load_requirements(session):
     return {r.night_date: r for r in session.query(NightShiftRequirement).all()}
 
 
-def is_checked_room(ra):
+class StaffRoomingConfig(DatabaseConfigSection):
+    """Which badges and rooms the night requirements apply to.
+
+    The defaults check Staff badges on master-bill rooms outside the lottery:
+    crash space, manual and department block rooms. Lottery Award and Suite
+    Connector are the two reasons the lottery solver assigns.
+    """
+    section_name = 'staff_rooming'
+    defaults = {
+        'badge_types': [c.STAFF_BADGE],
+        'room_reasons': [reason for reason, _ in c.HOTEL_ASSIGNMENT_REASON_OPTS
+                         if reason not in (c.LOTTERY_AWARD, c.SUITE_CONNECTOR)],
+        # [hotel_lottery] [[payment_types]] section names, as RoomAssignment stores them.
+        'payment_types': [key for key in c.HOTEL_PAYMENT_TYPES if key not in c.HOTEL_PAYMENT_TYPES_REQUIRING_CC],
+    }
+
+
+staff_rooming_config = StaffRoomingConfig()
+
+# Admin-facing names for [[hotel_assignment_reason]]. The configured labels
+# name the code path, not what an admin did.
+_ROOM_REASON_NAMES = {
+    c.LOTTERY_AWARD: ('Won in the lottery', 'Awarded by a lottery run'),
+    c.SUITE_CONNECTOR: ('Lottery suite connecting room', 'Added with an awarded suite'),
+    c.MANUAL: ('Hotel admin assigned', 'Crash space and other rooms a hotel lottery admin adds'),
+    c.PARTITION_GRANT: ('Department room block', 'Given by a department from its block of rooms'),
+    c.STAFF_AUTO: ('Automatic staff room', 'No current admin screen assigns this'),
+    c.MIGRATED: ('Old hotel system', 'Carried over when the hotel lottery replaced the old tables'),
+}
+
+
+def room_reason_opts():
+    """Return (value, name, hint) for each room assignment reason, for the Staff Rooming page."""
+    return [(value, *_ROOM_REASON_NAMES.get(value, (label, '')))
+            for value, label in c.HOTEL_ASSIGNMENT_REASON_OPTS]
+
+
+def is_checked_room(ra, rules):
     """Return whether this room puts its holder under the night requirements.
 
-    Only live master-bill rooms outside the lottery count: crash space, manual
-    and department block rooms. Self-paid rooms and every lottery room are
-    exempt, including suite connectors, which carry the entry's ID but not the
-    Lottery Award reason. `CHECKED_ROOM` is the SQL form; keep the two in step.
+    `checked_room_clause` is the SQL form; keep the two in step.
     """
-    return bool(ra.is_live and not ra.require_cc and not ra.lottery_application_id
-                and ra.assignment_reason != c.LOTTERY_AWARD)
+    return bool(ra.is_live and ra.assignment_reason in rules['room_reasons']
+                and ra.payment_type in rules['payment_types'])
 
 
-CHECKED_ROOM = and_(RoomAssignment.is_live, ~RoomAssignment.require_cc,
-                    RoomAssignment.lottery_application_id.is_(None),
-                    RoomAssignment.assignment_reason != c.LOTTERY_AWARD)
+def checked_room_clause(rules):
+    return and_(RoomAssignment.is_live, RoomAssignment.assignment_reason.in_(rules['room_reasons']),
+                RoomAssignment.payment_type.in_(rules['payment_types']))
 
 
-def assigned_nights(room_assignments):
+def assigned_nights(room_assignments, rules):
     """Return the set of dates the given checked rooms cover.
 
     Check-in date X with check-out date X+N means the staffer sleeps in the
     room on nights X, X+1, ..., X+N-1. Rooms with missing dates are skipped.
     """
     return _nights((ra.assigned_check_in_date, ra.assigned_check_out_date)
-                   for ra in room_assignments if is_checked_room(ra))
+                   for ra in room_assignments if is_checked_room(ra, rules))
 
 
 def _nights(stays):
@@ -88,22 +124,25 @@ def _violations(nights, weighted_hours, shift_spans, requirements_by_date):
 def compliance_violations(attendee, requirements_by_date=None):
     """Return the list of NightShiftRequirement rows this attendee violates.
 
-    Empty list means the attendee is compliant, holds no Staff badge or no
-    checked room, or no requirements exist.
+    Empty list means the attendee is compliant, their badge type or rooms are
+    not checked, or no requirements exist.
     """
-    if attendee.badge_type != c.STAFF_BADGE or not attendee.room_assignments:
+    if not attendee.room_assignments:
+        return []
+
+    session = sa_inspect(attendee).session
+    if session is None:
+        return []
+    rules = staff_rooming_config.load(session)
+    if attendee.badge_type not in rules['badge_types']:
         return []
 
     if requirements_by_date is None:
-        session = sa_inspect(attendee).session
-        if session is None:
-            return []
         requirements_by_date = load_requirements(session)
-
     if not requirements_by_date:
         return []
 
-    nights = assigned_nights(attendee.room_assignments)
+    nights = assigned_nights(attendee.room_assignments, rules)
     if not nights:
         return []
 
@@ -117,14 +156,18 @@ def is_compliant(attendee, requirements_by_date=None):
 
 
 def non_compliant_staffers(session, department_id=None):
-    """Return [(attendee, violations), ...], ordered by name, for staff with a
-    checked room who aren't compliant, optionally only members of `department_id`.
+    """Return [(attendee, violations), ...], ordered by name, for holders of a
+    checked badge and room who aren't compliant, optionally only members of
+    `department_id`.
     """
     reqs = load_requirements(session)
     if not reqs:
         return []
 
-    staff = staff_rooming_query(session).filter(Attendee.room_assignments.any(CHECKED_ROOM))
+    rules = staff_rooming_config.load(session)
+    checked_room = checked_room_clause(rules)
+    staff = session.query(Attendee).filter(Attendee.badge_type.in_(rules['badge_types']),
+                                           Attendee.room_assignments.any(checked_room))
     if department_id:
         staff = staff.filter(Attendee.dept_memberships.any(department_id=department_id))
     nonshift_minutes = dict(staff.with_entities(Attendee.id, Attendee.nonshift_minutes))
@@ -136,7 +179,7 @@ def non_compliant_staffers(session, department_id=None):
     for attendee_id, check_in, check_out in session.query(
             RoomAssignment.attendee_id, RoomAssignment.assigned_check_in_date,
             RoomAssignment.assigned_check_out_date).filter(
-            RoomAssignment.attendee_id.in_(ids), CHECKED_ROOM):
+            RoomAssignment.attendee_id.in_(ids), checked_room):
         stays[attendee_id].append((check_in, check_out))
 
     hours = {attendee_id: (minutes or 0) / 60 for attendee_id, minutes in nonshift_minutes.items()}

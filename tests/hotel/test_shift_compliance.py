@@ -7,7 +7,8 @@ import pytest
 
 from uber.config import c
 from uber.models.hotel import NightShiftRequirement
-from uber.shift_compliance import compliance_violations, non_compliant_staffers
+from uber.shift_compliance import (compliance_violations, non_compliant_staffers, room_reason_opts,
+                                   staff_rooming_config)
 
 from tests.hotel.factories import (N, make_application, make_assignment,
                                    make_attendee, make_run)
@@ -36,10 +37,20 @@ def _lottery_room(session, attendee, reason):
                  lottery_run_id=make_run(session).id, assignment_reason=reason)
 
 
-def test_staff_master_bill_manual_room_is_checked(session, setup_night):
+def _room_rules(session, **changes):
+    data = staff_rooming_config.load_data(session)
+    data.update(changes)
+    staff_rooming_config.save(data, session)
+
+
+@pytest.mark.parametrize('payment_type, checked', [
+    ('masterbill', True), ('masterbill_parking', True),
+    ('credit_card', False), ('credit_card_parking', False),
+])
+def test_default_billing_checks_both_master_bill_types(session, setup_night, payment_type, checked):
     staffer = _staffer(session)
-    _room(session, staffer)
-    assert compliance_violations(staffer, {N[0]: setup_night}) == [setup_night]
+    _room(session, staffer, payment_type=payment_type)
+    assert bool(compliance_violations(staffer, {N[0]: setup_night})) is checked
 
 
 def test_self_paid_room_is_not_checked(session, setup_night):
@@ -55,6 +66,15 @@ def test_lottery_room_is_not_checked_even_on_master_bill(session, setup_night, r
     assert compliance_violations(staffer, {N[0]: setup_night}) == []
 
 
+@pytest.mark.parametrize('payment_type, checked', [('masterbill', True), ('credit_card', False)])
+def test_manual_room_added_from_a_lottery_entry_counts_only_on_master_bill(
+        session, setup_night, payment_type, checked):
+    staffer = _staffer(session)
+    app = make_application(session, staffer)
+    _room(session, staffer, lottery_application_id=app.id, payment_type=payment_type)
+    assert bool(compliance_violations(staffer, {N[0]: setup_night})) is checked
+
+
 def test_non_staff_badge_is_not_checked(session, setup_night):
     volunteer = make_attendee(session)
     _room(session, volunteer)
@@ -66,6 +86,49 @@ def test_checked_room_still_counts_beside_an_exempt_room(session, setup_night):
     _lottery_room(session, staffer, c.LOTTERY_AWARD)
     _room(session, staffer)
     assert compliance_violations(staffer, {N[0]: setup_night}) == [setup_night]
+
+
+def test_room_rules_can_count_self_paid_rooms(session, setup_night):
+    _room_rules(session, payment_types=list(c.HOTEL_PAYMENT_TYPES))
+    staffer = _staffer(session)
+    _room(session, staffer, payment_type='credit_card')
+    assert compliance_violations(staffer, {N[0]: setup_night}) == [setup_night]
+
+
+def test_room_rules_can_skip_master_bill_rooms(session, setup_night):
+    _room_rules(session, payment_types=['credit_card'])
+    staffer = _staffer(session)
+    _room(session, staffer)
+    assert compliance_violations(staffer, {N[0]: setup_night}) == []
+
+
+def test_room_rules_can_count_lottery_awards(session, setup_night):
+    _room_rules(session, room_reasons=staff_rooming_config.defaults['room_reasons'] + [c.LOTTERY_AWARD])
+    staffer = _staffer(session)
+    _lottery_room(session, staffer, c.LOTTERY_AWARD)
+    assert compliance_violations(staffer, {N[0]: setup_night}) == [setup_night]
+
+
+def test_room_rules_can_check_other_badge_types(session, setup_night):
+    _room_rules(session, badge_types=[c.STAFF_BADGE, c.ATTENDEE_BADGE])
+    volunteer = make_attendee(session)
+    _room(session, volunteer)
+    assert compliance_violations(volunteer, {N[0]: setup_night}) == [setup_night]
+
+
+def test_report_follows_room_rules(session, setup_night):
+    session.query(NightShiftRequirement).delete()
+    session.add(setup_night)
+    session.flush()
+    _room_rules(session, payment_types=list(c.HOTEL_PAYMENT_TYPES), badge_types=[c.STAFF_BADGE, c.ATTENDEE_BADGE])
+
+    self_paid = _staffer(session)
+    _room(session, self_paid, payment_type='credit_card')
+    volunteer = make_attendee(session)
+    _room(session, volunteer)
+
+    flagged = {attendee.id for attendee, _ in non_compliant_staffers(session)}
+    assert {self_paid.id, volunteer.id} <= flagged
 
 
 def test_report_lists_only_staff_with_a_checked_room(session, setup_night):
@@ -89,50 +152,80 @@ def test_report_lists_only_staff_with_a_checked_room(session, setup_night):
 
 
 @pytest.fixture
-def add_night(session, monkeypatch):
-    """Root.add_night unwrapped, as a POST with CSRF stubbed and commits
-    turned into flushes."""
+def post(session, monkeypatch):
+    """Call a Staff Rooming handler unwrapped, as a POST with CSRF stubbed and
+    commits turned into flushes. Returns the redirect's message text."""
+    from urllib.parse import unquote
+
     import cherrypy
 
     import uber.site_sections.staff_rooming as staff_rooming
+    from uber.errors import HTTPRedirect
 
     monkeypatch.setattr(cherrypy.request, 'method', 'POST')
     monkeypatch.setattr(staff_rooming, 'check_csrf', lambda *a, **k: None)
     monkeypatch.setattr(session, 'commit', session.flush)
-    func = staff_rooming.Root.add_night
-    while hasattr(func, '__wrapped__'):
-        func = func.__wrapped__
-    return lambda **kwargs: func(staff_rooming.Root(), session, **kwargs)
+
+    def call(name, **kwargs):
+        func = getattr(staff_rooming.Root, name)
+        while hasattr(func, '__wrapped__'):
+            func = func.__wrapped__
+        with pytest.raises(HTTPRedirect) as excinfo:
+            func(staff_rooming.Root(), session, **kwargs)
+        return unquote(excinfo.value.urls[0])
+    return call
 
 
-def _add(add_night, **kwargs):
-    from urllib.parse import unquote
-
-    from uber.errors import HTTPRedirect
-
-    with pytest.raises(HTTPRedirect) as excinfo:
-        add_night(**kwargs)
-    return unquote(excinfo.value.urls[0])
-
-
-def test_add_night_creates_an_unchecked_row(session, add_night):
+def test_add_night_creates_an_unchecked_row(session, post):
     session.query(NightShiftRequirement).delete()
-    _add(add_night, night_date='2026-01-02')
+    post('add_night', night_date='2026-01-02')
 
     req = session.query(NightShiftRequirement).one()
     assert (req.night_date.isoformat(), req.kind) == ('2026-01-02', c.NONE)
 
 
-def test_add_night_refuses_a_date_that_already_has_a_row(session, add_night, setup_night):
+def test_add_night_refuses_a_date_that_already_has_a_row(session, post, setup_night):
     session.query(NightShiftRequirement).delete()
     session.add(setup_night)
     session.flush()
 
-    assert 'already' in _add(add_night, night_date=N[0].isoformat())
+    assert 'already' in post('add_night', night_date=N[0].isoformat())
     assert session.query(NightShiftRequirement).one().kind == c.SETUP
 
 
-def test_add_night_requires_a_date(session, add_night):
+def test_add_night_requires_a_date(session, post):
     before = session.query(NightShiftRequirement).count()
-    assert 'date' in _add(add_night, night_date='').lower()
+    assert 'date' in post('add_night', night_date='').lower()
     assert session.query(NightShiftRequirement).count() == before
+
+
+def test_save_room_rules_stores_the_checked_boxes(session, post):
+    post('save_room_rules', badge_types=[str(c.STAFF_BADGE), str(c.ATTENDEE_BADGE)],
+         room_reasons=str(c.MANUAL), payment_types='credit_card')
+
+    rules = staff_rooming_config.load_data(session)
+    assert rules == {'badge_types': [c.STAFF_BADGE, c.ATTENDEE_BADGE], 'room_reasons': [c.MANUAL],
+                     'payment_types': ['credit_card']}
+
+
+def test_save_room_rules_with_no_boxes_checks_nothing(session, post, setup_night):
+    post('save_room_rules')
+    staffer = _staffer(session)
+    _room(session, staffer)
+    assert compliance_violations(staffer, {N[0]: setup_night}) == []
+
+
+def test_page_shows_plain_names_for_room_reasons(session, no_cherrypy_session):
+    from uber.decorators import render
+
+    html = render('staff_rooming/index.html', {
+        'message': '', 'requirements': [], 'night_kind_opts': c.NIGHT_KIND_OPTS,
+        'room_rules': staff_rooming_config.load(session), 'badge_opts': c.BADGE_OPTS,
+        'room_reason_opts': room_reason_opts()})
+    html = html.decode() if isinstance(html, bytes) else html
+
+    assert 'Won in the lottery' in html
+    assert 'Migrated From Legacy' not in html
+    assert 'Billing' in html
+    assert 'id="payment-type-masterbill_parking" checked' in html
+    assert 'id="payment-type-credit_card" />' in html

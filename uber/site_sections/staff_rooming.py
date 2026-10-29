@@ -1,9 +1,10 @@
 """Staff Rooming admin - configures the per-date shift-compliance
 requirements that gate staff hotel rooms.
 
-Setup/teardown dates require staff with a RoomAssignment to have at least
-one shift overlapping a configured time window. Core dates require a total
-weighted-hour minimum across the whole con.
+Setup/teardown dates require holders of a checked room to have at least one
+shift overlapping a configured time window. Core dates require a total
+weighted-hour minimum across the whole con. Which badges and rooms are checked
+is a separate setting on the same page; see `uber.shift_compliance`.
 
 The page auto-populates with sensible defaults on first visit
 """
@@ -24,7 +25,7 @@ from uber.hotel.queries import (build_room_assignment_query, clamp_page_size,
 from uber.models import (Attendee, Department, NightShiftRequirement,
                          RoomAssignment, Shift)
 from uber.models.hotel import LotteryHotel
-from uber.shift_compliance import non_compliant_staffers
+from uber.shift_compliance import non_compliant_staffers, room_reason_opts, staff_rooming_config
 from uber.utils import check_csrf, redirect_with_params
 
 
@@ -118,6 +119,9 @@ class Root:
             'message': message,
             'requirements': requirements,
             'night_kind_opts': c.NIGHT_KIND_OPTS,
+            'room_rules': staff_rooming_config.load(session),
+            'badge_opts': c.BADGE_OPTS,
+            'room_reason_opts': room_reason_opts(),
         }
 
     def save(self, session, csrf_token=None, **params):
@@ -141,6 +145,24 @@ class Root:
 
         session.commit()
         raise HTTPRedirect('index?message={}', 'Staff rooming requirements saved.')
+
+    def save_room_rules(self, session, badge_types=(), room_reasons=(), payment_types=(),
+                        csrf_token=None):
+        if cherrypy.request.method != 'POST':
+            raise HTTPRedirect('index')
+        check_csrf(csrf_token)
+
+        def checked(values):
+            # CherryPy posts one checked box as a string and several as a list.
+            return [values] if isinstance(values, str) else list(values)
+
+        staff_rooming_config.save({
+            'badge_types': [int(value) for value in checked(badge_types)],
+            'room_reasons': [int(value) for value in checked(room_reasons)],
+            'payment_types': checked(payment_types),
+        }, session)
+        session.commit()
+        raise HTTPRedirect('index?message={}', 'Checked rooms saved.')
 
     def add_night(self, session, night_date='', csrf_token=None):
         """Add a row for a night outside the default range, starting as No Requirement.
