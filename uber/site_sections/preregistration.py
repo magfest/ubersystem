@@ -11,6 +11,7 @@ import bcrypt
 import cherrypy
 import secrets
 from collections import defaultdict
+from collections.abc import Iterator
 from sqlalchemy import func, or_
 from sqlalchemy.orm import selectinload, joinedload, make_transient
 from sqlalchemy.orm.exc import NoResultFound
@@ -24,12 +25,25 @@ from uber.decorators import ajax, ajax_gettable, all_renderable, credit_card, cs
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import AdminAccount, Attendee, AttendeeAccount, Attraction, BadgePickupGroup, Email, Group, PromoCode, PromoCodeGroup, \
-                        PasswordReset, ReceiptItem, ReceiptTransaction, Tracking
+                        PasswordReset, Receipt, ReceiptItem, ReceiptTransaction, Session, Tracking
 from uber.utils import add_opt, remove_opt, check, localized_now, normalize_email, normalize_email_legacy, genpasswd, valid_email, \
     valid_password, SignNowRequest, validate_model, create_new_hash, get_age_conf_from_birthday, RegistrationCode, listify
 from uber.payments import PreregCart, TransactionRequest, ReceiptManager, RefundRequest
 
 log = logging.getLogger(__name__)
+
+
+@contextlib.contextmanager
+def _get_scoped_session(external_session: Session | None = None) -> Iterator[Session]:
+    """
+    Context manager to release database connections during long external network operations
+    (like payment processor calls) while supporting externally supplied sessions for backwards compatibility.
+    """
+    if external_session is not None:
+        yield external_session
+    else:
+        with Session() as session:
+            yield session
 
 
 def check_if_can_reg(is_dealer_reg=False):
@@ -892,177 +906,200 @@ class Root:
     @requires_account()
     @ajax
     @credit_card
-    def prereg_payment(self, session, message='', **params):
-        errors = check_if_can_reg()
-        if errors:
-            return errors
-        update_prereg_cart(session)
-        cart = PreregCart(list(PreregCart.unpaid_preregs.values()))
-        cart.set_total_cost()
-        account = session.current_attendee_account() if c.ATTENDEE_ACCOUNTS_ENABLED else None
+    def prereg_payment(self, message='', **params):
+        external_session = params.get('session')
 
-        pickup_group_id = None
-        for attendee in cart.attendees:
-            pending_attendee = session.get(Attendee, attendee.id)
-            if pending_attendee and pending_attendee.badge_pickup_group_id:
-                pickup_group_id = pending_attendee.badge_pickup_group_id
-        pending_attendee = None
-        
-        if pickup_group_id:
-            pickup_group = session.badge_pickup_group(pickup_group_id)
-        else:
-            pickup_group = BadgePickupGroup()
-            session.add(pickup_group)
+        with _get_scoped_session(external_session) as session:
+            errors = check_if_can_reg()
+            if errors:
+                return errors
+            update_prereg_cart(session)
+            cart = PreregCart(list(PreregCart.unpaid_preregs.values()))
+            cart.set_total_cost()
+            account = session.current_attendee_account() if c.ATTENDEE_ACCOUNTS_ENABLED else None
+            account_id = account.id if account else None
 
-        if c.ATTENDEE_ACCOUNTS_ENABLED:
-            pickup_group.account_id = account.id
-
-        if not cart.total_cost:
-            if not cart.models:
-                HTTPRedirect('form?message={}', 'Your preregistration has already been finalized')
-            message = 'Your total cost was $0. Your credit card has not been charged.'
-        else:
-            prereg_cart_error = cart.prereg_cart_checks(session)
-            if prereg_cart_error:
-                return {'error': prereg_cart_error}
-
-            used_codes = defaultdict(int)
+            pickup_group_id = None
             for attendee in cart.attendees:
-                session.add(attendee)
-                used_codes[attendee.promo_code_code] += 1
-                form_list = ['BadgeExtras'] # Re-check purchase limits
+                pending_attendee = session.get(Attendee, attendee.id)
+                if pending_attendee and pending_attendee.badge_pickup_group_id:
+                    pickup_group_id = pending_attendee.badge_pickup_group_id
+            pending_attendee = None
 
-                forms = load_forms(params, attendee, form_list, checkboxes_present=False)
+            if pickup_group_id:
+                pickup_group = session.badge_pickup_group(pickup_group_id)
+            else:
+                pickup_group = BadgePickupGroup()
+                session.add(pickup_group)
 
-                all_errors = validate_model(session, forms, attendee, create_preview_model=False)
-                session.expunge(attendee)
-                make_transient(attendee)
-                if all_errors:
-                    message = ' '.join([item for sublist in all_errors.values() for item in sublist])
+            if c.ATTENDEE_ACCOUNTS_ENABLED and account:
+                pickup_group.account_id = account.id
+
+            charge = None
+            if not cart.total_cost:
+                if not cart.models:
+                    HTTPRedirect('form?message={}', 'Your preregistration has already been finalized')
+                message = 'Your total cost was $0. Your credit card has not been charged.'
+            else:
+                prereg_cart_error = cart.prereg_cart_checks(session)
+                if prereg_cart_error:
+                    return {'error': prereg_cart_error}
+
+                used_codes = defaultdict(int)
+                for attendee in cart.attendees:
+                    session.add(attendee)
+                    used_codes[attendee.promo_code_code] += 1
+                    form_list = ['BadgeExtras']  # Re-check purchase limits
+
+                    forms = load_forms(params, attendee, form_list, checkboxes_present=False)
+
+                    all_errors = validate_model(session, forms, attendee, create_preview_model=False)
+                    session.expunge(attendee)
+                    make_transient(attendee)
+                    if all_errors:
+                        message = ' '.join([item for sublist in all_errors.values() for item in sublist])
+
+                    if message:
+                        message += f" Please click 'Edit' next to {attendee.full_name}'s registration to fix any issues."
+                        break
 
                 if message:
-                    message += f" Please click 'Edit' next to {attendee.full_name}'s registration to fix any issues."
-                    break
-            
-            if message:
-                return {'error': message}
+                    return {'error': message}
 
-            receipts = []
-            for model in cart.models:
-                charge_receipt, charge_receipt_items = ReceiptManager.create_new_receipt(
-                    model, who='non-admin', create_model=True, purchaser_id=account.id if account else cart.purchaser.id)
-                existing_receipt = session.refresh_receipt_and_model(model, is_prereg=True)
-                if existing_receipt:
-                    # Multiple attendees can have the same transaction during pre-reg,
-                    # so we always cancel any incomplete transactions
-                    incomplete_txn = existing_receipt.get_last_incomplete_txn()
-                    if incomplete_txn:
-                        incomplete_txn.cancelled = datetime.now()
-                        session.add(incomplete_txn)
+                receipts = []
+                for model in cart.models:
+                    charge_receipt, charge_receipt_items = ReceiptManager.create_new_receipt(
+                        model, who='non-admin', create_model=True, purchaser_id=account.id if account else cart.purchaser.id)
+                    existing_receipt = session.refresh_receipt_and_model(model, is_prereg=True)
+                    if existing_receipt:
+                        # Multiple attendees can have the same transaction during pre-reg,
+                        # so we always cancel any incomplete transactions
+                        incomplete_txn = existing_receipt.get_last_incomplete_txn()
+                        if incomplete_txn:
+                            incomplete_txn.cancelled = datetime.now()
+                            session.add(incomplete_txn)
 
-                    # If their registration costs changed, close their old receipt
-                    compare_fields = ['amount', 'count', 'desc']
-                    existing_items = [item.to_dict(compare_fields) for item in existing_receipt.receipt_items]
-                    new_items = [item.to_dict(compare_fields) for item in charge_receipt_items]
+                        # If their registration costs changed, close their old receipt
+                        compare_fields = ['amount', 'count', 'desc']
+                        existing_items = [item.to_dict(compare_fields) for item in existing_receipt.receipt_items]
+                        new_items = [item.to_dict(compare_fields) for item in charge_receipt_items]
 
-                    for item in existing_items:
-                        del item['id']
-                    for item in new_items:
-                        del item['id']
+                        for item in existing_items:
+                            del item['id']
+                        for item in new_items:
+                            del item['id']
 
-                    diff_list = [x for x in existing_items + new_items
-                                    if x not in existing_items or x not in new_items]
+                        diff_list = [x for x in existing_items + new_items
+                                     if x not in existing_items or x not in new_items]
 
-                    if diff_list:
-                        existing_receipt.closed = datetime.now()
-                        session.add(existing_receipt)
-                    else:
-                        receipts.append(existing_receipt)
+                        if diff_list:
+                            existing_receipt.closed = datetime.now()
+                            session.add(existing_receipt)
+                        else:
+                            receipts.append(existing_receipt)
 
-                if not existing_receipt or existing_receipt.closed:
-                    session.add(charge_receipt)
-                    for item in charge_receipt_items:
-                        session.add(item)
-                    session.flush()
-                    receipts.append(charge_receipt)
+                    if not existing_receipt or existing_receipt.closed:
+                        session.add(charge_receipt)
+                        for item in charge_receipt_items:
+                            session.add(item)
+                        session.flush()
+                        receipts.append(charge_receipt)
 
-            receipt_email = account.email if c.ATTENDEE_ACCOUNTS_ENABLED else cart.receipt_email
-            charge = TransactionRequest(session, receipt_email=receipt_email,
-                                        description=cart.description,
-                                        amount=sum([receipt.current_amount_owed for receipt in receipts]),
-                                        who='non-admin')
+                receipt_email = account.email if c.ATTENDEE_ACCOUNTS_ENABLED and account else cart.receipt_email
+                total_owed = sum([receipt.current_amount_owed for receipt in receipts])
+                receipt_trans_info = [{'receipt_id': receipt.id, 'amount_owed': receipt.current_amount_owed}
+                                      for receipt in receipts]
+                cart_description = cart.description
+                session.commit()
+                pickup_group_id = pickup_group.id
+
+        # Create Stripe payment intent outside the database session so external
+        # network latency does not tie up connections from the database pool.
+        if cart.total_cost:
+            charge = TransactionRequest(None, receipt_email=receipt_email,
+                                        description=cart_description,
+                                        amount=total_owed,
+                                        who='non-admin',
+                                        account=account)
             message = charge.create_payment_intent()
 
         if message:
             return {'error': message}
 
-        for receipt in receipts:
-            receipt_manager = ReceiptManager(receipt)
-            if receipt.current_amount_owed != 0:
-                receipt_manager.create_payment_transaction(charge.description, charge.intent,
-                                                           receipt.current_amount_owed)
-                session.add_all(receipt_manager.items_to_add)
+        with _get_scoped_session(external_session) as session:
+            account = session.get(AttendeeAccount, account_id) if account_id else None
+            pickup_group = session.get(BadgePickupGroup, pickup_group_id)
 
-        for attendee in cart.attendees:
-            pending_attendee = session.get(Attendee, attendee.id)
-            if pending_attendee:
-                for key, val in PreregCart.to_sessionized(attendee).items():
-                    if key in ('created', 'registered', 'badge_status', 'paid', 'badge_pickup_group_id'):
-                        continue
-                    with contextlib.suppress(AttributeError):
-                        setattr(pending_attendee, key, val)
-                pending_attendee.badge_pickup_group_id = pickup_group.id
-                if attendee.badges and pending_attendee.promo_code_groups:
-                    pc_group = pending_attendee.promo_code_groups[0]
-                    pc_group.name = attendee.name
+            if charge:
+                for r_info in receipt_trans_info:
+                    receipt = session.get(Receipt, r_info['receipt_id'])
+                    receipt_manager = ReceiptManager(receipt)
+                    if r_info['amount_owed'] != 0:
+                        receipt_manager.create_payment_transaction(charge.description, charge.intent,
+                                                                   r_info['amount_owed'])
+                        session.add_all(receipt_manager.items_to_add)
 
-                    pc_codes = int(attendee.badges) - 1
-                    pending_codes = len(pc_group.promo_codes)
-                    if pc_codes > pending_codes:
-                        session.add_codes_to_pc_group(pc_group, pc_codes - pending_codes)
-                    elif pc_codes < pending_codes:
-                        session.remove_codes_from_pc_group(pc_group, pending_codes - pc_codes)
-                elif attendee.badges:
-                    pc_group = session.create_promo_code_group(pending_attendee, attendee.name,
-                                                               int(attendee.badges) - 1)
-                    session.add(pc_group)
-                elif pending_attendee.promo_code_groups:
-                    pc_group = pending_attendee.promo_code_groups[0]
-                    session.delete(pc_group)
+            for attendee in cart.attendees:
+                pending_attendee = session.get(Attendee, attendee.id)
+                if pending_attendee:
+                    for key, val in PreregCart.to_sessionized(attendee).items():
+                        if key in ('created', 'registered', 'badge_status', 'paid', 'badge_pickup_group_id'):
+                            continue
+                        with contextlib.suppress(AttributeError):
+                            setattr(pending_attendee, key, val)
+                    pending_attendee.badge_pickup_group_id = pickup_group.id
+                    if attendee.badges and pending_attendee.promo_code_groups:
+                        pc_group = pending_attendee.promo_code_groups[0]
+                        pc_group.name = attendee.name
 
-                if c.ATTENDEE_ACCOUNTS_ENABLED:
-                    session.add_attendee_to_account(pending_attendee, account)
-            else:
-                if attendee.id in cherrypy.session.setdefault('imported_attendee_ids', {}):
-                    old_attendee = session.attendee(cherrypy.session['imported_attendee_ids'][attendee.id])
-                    old_attendee.current_attendee = attendee
-                    session.add(old_attendee)
-                    del cherrypy.session['imported_attendee_ids'][attendee.id]
+                        pc_codes = int(attendee.badges) - 1
+                        pending_codes = len(pc_group.promo_codes)
+                        if pc_codes > pending_codes:
+                            session.add_codes_to_pc_group(pc_group, pc_codes - pending_codes)
+                        elif pc_codes < pending_codes:
+                            session.remove_codes_from_pc_group(pc_group, pending_codes - pc_codes)
+                    elif attendee.badges:
+                        pc_group = session.create_promo_code_group(pending_attendee, attendee.name,
+                                                                   int(attendee.badges) - 1)
+                        session.add(pc_group)
+                    elif pending_attendee.promo_code_groups:
+                        pc_group = pending_attendee.promo_code_groups[0]
+                        session.delete(pc_group)
 
-                attendee.badge_status = c.PENDING_STATUS
-                attendee.paid = c.PENDING
-                attendee.badge_pickup_group_id = pickup_group.id
-                session.add(attendee)
+                    if c.ATTENDEE_ACCOUNTS_ENABLED and account:
+                        session.add_attendee_to_account(pending_attendee, account)
+                else:
+                    if attendee.id in cherrypy.session.setdefault('imported_attendee_ids', {}):
+                        old_attendee = session.attendee(cherrypy.session['imported_attendee_ids'][attendee.id])
+                        old_attendee.current_attendee = attendee
+                        session.add(old_attendee)
+                        del cherrypy.session['imported_attendee_ids'][attendee.id]
 
-                if c.ATTENDEE_ACCOUNTS_ENABLED:
-                    session.add_attendee_to_account(attendee, account)
+                    attendee.badge_status = c.PENDING_STATUS
+                    attendee.paid = c.PENDING
+                    attendee.badge_pickup_group_id = pickup_group.id
+                    session.add(attendee)
 
-                if attendee.badges:
-                    pc_group = session.create_promo_code_group(attendee, attendee.name, int(attendee.badges) - 1)
-                    session.add(pc_group)
+                    if c.ATTENDEE_ACCOUNTS_ENABLED and account:
+                        session.add_attendee_to_account(attendee, account)
 
-        cherrypy.session['pending_preregs'] = PreregCart.unpaid_preregs.copy()
+                    if attendee.badges:
+                        pc_group = session.create_promo_code_group(attendee, attendee.name, int(attendee.badges) - 1)
+                        session.add(pc_group)
 
-        PreregCart.unpaid_preregs.clear()
-        PreregCart.paid_preregs.extend(cart.targets)
-        cherrypy.session['payment_intent_id'] = charge.intent.id
-        session.commit()
+            cherrypy.session['pending_preregs'] = PreregCart.unpaid_preregs.copy()
 
-        if c.ATTENDEE_ACCOUNTS_ENABLED:
-            account.set_account_owner()
+            PreregCart.unpaid_preregs.clear()
+            PreregCart.paid_preregs.extend(cart.targets)
+            if charge and charge.intent:
+                cherrypy.session['payment_intent_id'] = charge.intent.id
             session.commit()
 
-        return {'stripe_intent': charge.intent,
+            if c.ATTENDEE_ACCOUNTS_ENABLED and account:
+                account.set_account_owner()
+                session.commit()
+
+        return {'stripe_intent': charge.intent if charge else None,
                 'success_url': 'paid_preregistrations?total_cost={}&message={}'.format(
                     cart.dollar_amount, 'Payment accepted!'),
                 'cancel_url': 'cancel_prereg_payment'}
@@ -1455,22 +1492,35 @@ class Root:
     @requires_account(Group)
     @ajax
     @credit_card
-    def process_group_payment(self, session, id):
-        group = session.group(id)
-        receipt = session.get_receipt_by_model(group, who='non-admin', create_if_none="DEFAULT")
-        charge_desc = "{}: {}".format(group.name, receipt.charge_description_list)
-        charge = TransactionRequest(session, receipt,
-                                    receipt_email=group.email, description=charge_desc, who='non-admin')
+    def process_group_payment(self, id, **params):
+        external_session = params.get('session')
 
-        message = charge.prepare_payment()
+        with _get_scoped_session(external_session) as session:
+            group = session.group(id)
+            receipt = session.get_receipt_by_model(group, who='non-admin', create_if_none="DEFAULT")
+            charge_desc = "{}: {}".format(group.name, receipt.charge_description_list)
+            group_email = group.email
+            group_id = group.id
+            amount_owed = receipt.current_amount_owed
+            session.commit()
+            receipt_id = receipt.id
+
+        # Create payment intent outside DB session to avoid holding connections during network latency
+        charge = TransactionRequest(None, receipt_email=group_email, description=charge_desc,
+                                    amount=amount_owed, who='non-admin')
+        message = charge.create_payment_intent()
         if message:
             return {'error': message}
 
-        session.add_all(charge.get_receipt_items_to_add())
-        session.commit()
+        with _get_scoped_session(external_session) as session:
+            receipt = session.get(Receipt, receipt_id)
+            receipt_manager = ReceiptManager(receipt, 'non-admin')
+            receipt_manager.create_payment_transaction(charge.description, charge.intent, amount=amount_owed)
+            session.add_all(receipt_manager.items_to_add)
+            session.commit()
 
         return {'stripe_intent': charge.intent,
-                'success_url': 'group_members?id={}&message={}'.format(group.id, 'Your payment has been accepted')}
+                'success_url': 'group_members?id={}&message={}'.format(group_id, 'Your payment has been accepted')}
 
     @requires_account(Attendee)
     @csrf_protected
@@ -2505,26 +2555,37 @@ class Root:
                     'Your payment has been accepted!'),
                 'cancel_url': 'cancel_payment'}
 
-    @ajax
-    @credit_card
     @requires_account(Attendee)
-    def process_attendee_payment(self, session, id, receipt_id, message='', **params):
-        receipt = session.model_receipt(receipt_id)
-        attendee = session.attendee(id)
-        charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
-        charge = TransactionRequest(session, receipt,
-                                    receipt_email=attendee.email, description=charge_desc, who='non-admin')
+    def process_attendee_payment(self, id, receipt_id, message='', **params):
+        external_session = params.get('session')
 
-        message = charge.prepare_payment()
+        with _get_scoped_session(external_session) as session:
+            receipt = session.model_receipt(receipt_id)
+            attendee = session.attendee(id)
+            charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
+            attendee_email = attendee.email
+            group_id = attendee.group.id if attendee.group else None
+            amount_owed = receipt.current_amount_owed
+            receipt_id = receipt.id
+            session.commit()
+
+        # Create payment intent outside DB session to avoid holding connections during network latency
+        charge = TransactionRequest(None, receipt_email=attendee_email, description=charge_desc,
+                                    amount=amount_owed, who='non-admin')
+        message = charge.create_payment_intent()
         if message:
             return {'error': message}
 
-        session.add_all(charge.get_receipt_items_to_add())
-        session.commit()
+        with _get_scoped_session(external_session) as session:
+            receipt = session.get(Receipt, receipt_id)
+            receipt_manager = ReceiptManager(receipt, 'non-admin')
+            receipt_manager.create_payment_transaction(charge.description, charge.intent, amount=amount_owed)
+            session.add_all(receipt_manager.items_to_add)
+            session.commit()
 
         return_to = params.get('return_to')
-        if return_to == 'group_members':
-            success_url_base = return_to + '?id=' + attendee.group.id + '&'
+        if return_to == 'group_members' and group_id:
+            success_url_base = return_to + '?id=' + group_id + '&'
         else:
             success_url_base = 'confirm?id=' + id + '&' if not return_to or return_to == 'confirm' else return_to + (
                 '?' if '?' not in return_to else '&')
@@ -2573,34 +2634,44 @@ class Root:
     @ajax
     @credit_card
     @requires_account(Attendee)
-    def buy_own_group_badge(self, session, id):
-        attendee = session.attendee(id)
-        if attendee.paid != c.PAID_BY_GROUP:
-            return {'error': 'You should already have an individual badge. Please refresh the page.'}
+    def buy_own_group_badge(self, id, **params):
+        external_session = params.get('session')
 
-        attendee.paid = c.NOT_PAID
-        session.add(attendee)
-        session.commit()
+        with _get_scoped_session(external_session) as session:
+            attendee = session.attendee(id)
+            if attendee.paid != c.PAID_BY_GROUP:
+                return {'error': 'You should already have an individual badge. Please refresh the page.'}
 
-        if session.get_receipt_by_model(attendee):
-            return {'error': 'You have outstanding purchases. Please refresh the page to pay for them.'}
+            attendee.paid = c.NOT_PAID
+            session.add(attendee)
+            session.commit()
 
-        receipt, receipt_items = ReceiptManager.create_new_receipt(attendee, who='non-admin', create_model=True)
-        session.add(receipt)
-        session.add_all(receipt_items)
+            if session.get_receipt_by_model(attendee):
+                return {'error': 'You have outstanding purchases. Please refresh the page to pay for them.'}
 
-        session.commit()
+            receipt, receipt_items = ReceiptManager.create_new_receipt(attendee, who='non-admin', create_model=True)
+            session.add(receipt)
+            session.add_all(receipt_items)
+            session.commit()
 
-        charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
-        charge = TransactionRequest(session, receipt,
-                                    receipt_email=attendee.email, description=charge_desc, who='non-admin')
+            charge_desc = "{}: {}".format(attendee.full_name, receipt.charge_description_list)
+            attendee_email = attendee.email
+            amount_owed = receipt.current_amount_owed
+            receipt_id = receipt.id
 
-        message = charge.prepare_payment()
+        # Create payment intent outside DB session to avoid holding connections during network latency
+        charge = TransactionRequest(None, receipt_email=attendee_email, description=charge_desc,
+                                    amount=amount_owed, who='non-admin')
+        message = charge.create_payment_intent()
         if message:
             return {'error': message}
 
-        session.add_all(charge.get_receipt_items_to_add())
-        session.commit()
+        with _get_scoped_session(external_session) as session:
+            receipt = session.get(Receipt, receipt_id)
+            receipt_manager = ReceiptManager(receipt, 'non-admin')
+            receipt_manager.create_payment_transaction(charge.description, charge.intent, amount=amount_owed)
+            session.add_all(receipt_manager.items_to_add)
+            session.commit()
 
         return {'stripe_intent': charge.intent,
                 'success_url': 'confirm?id={}&message={}'.format(id, 'Payment accepted!'),
