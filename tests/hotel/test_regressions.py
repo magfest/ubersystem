@@ -82,8 +82,6 @@ def test_room_expired_template_renders_from_queue_shaped_data(session):
 
 
 def test_disband_room_group_detaches_every_member(session, monkeypatch):
-    # Detaching a member removes it from leader.group_members through
-    # back_populates; a loop over the live list skips every other member.
     import uber.site_sections.hotel_lottery as hotel_lottery
 
     monkeypatch.setattr(session, 'commit', session.flush)
