@@ -79,3 +79,22 @@ def test_room_expired_template_renders_from_queue_shaped_data(session):
     text2 = html2.decode('utf-8') if isinstance(html2, bytes) else html2
     assert 'Expiry' in text2
     assert 'Regression Test Hotel' not in text2
+
+
+def test_disband_room_group_detaches_every_member(session, monkeypatch):
+    import uber.site_sections.hotel_lottery as hotel_lottery
+
+    monkeypatch.setattr(session, 'commit', session.flush)
+    monkeypatch.setattr(hotel_lottery.EmailService, 'queue_email', lambda *a, **k: None)
+
+    leader = make_application(session, make_attendee(session, first='Leader'),
+                              room_group_name='Disband Test')
+    members = [make_application(session, make_attendee(session, first=f'Member{i}'),
+                                parent_application_id=leader.id)
+               for i in range(3)]
+    session.expire(leader, ['group_members'])
+    assert len(leader.group_members) == 3
+
+    hotel_lottery._disband_room_group(session, leader)
+
+    assert [m.parent_application_id for m in members] == [None, None, None]

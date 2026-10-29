@@ -563,7 +563,7 @@ def _disband_room_group(session, application):
     application.room_group_name = ''
     application.invite_code = ''
 
-    for member in application.group_members:
+    for member in list(application.group_members):
         member = _reset_group_member(member)
         session.add(member)
         session.commit()
