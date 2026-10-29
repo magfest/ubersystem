@@ -703,7 +703,9 @@ class Root:
 
     def delete(self, session, id, return_to='index?', return_msg=False, **params):
         attendee = session.attendee(id, allow_invalid=True)
-        if attendee.group:
+        if attendee.cannot_delete_badge_reason:
+            message = attendee.cannot_delete_badge_reason
+        elif attendee.group:
             if attendee.group.leader_id == attendee.id:
                 message = 'You cannot delete the leader of a group; ' \
                     'you must make someone else the leader first, or just delete the entire group'
