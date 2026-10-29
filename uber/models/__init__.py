@@ -2124,8 +2124,11 @@ class UberSession(sqlalchemy.orm.Session):
             ribbon_to_use = ','.join(map(str, listify(new_ribbon_type))) if new_ribbon_type else group.new_ribbon
 
             if int(new_badge_type) in c.PREASSIGNED_BADGE_TYPES and c.AFTER_PRINTED_BADGE_DEADLINE and diff > 0:
-                return 'Custom badges have already been ordered, so you will need to select a different badge type'
-            elif diff > 0:
+                admin = self.current_admin_account()
+                if not admin.is_super_admin:
+                    return 'Custom badges have already been ordered, so you will need to select a different badge type'
+
+            if diff > 0:
                 for i in range(diff):
                     new_attendee = Attendee(
                         badge_type=new_badge_type,
