@@ -563,7 +563,9 @@ def _disband_room_group(session, application):
     application.room_group_name = ''
     application.invite_code = ''
 
-    for member in application.group_members:
+    # Iterate a copy: resetting a member removes it from group_members, which
+    # would make a loop over the live list skip every other member.
+    for member in list(application.group_members):
         member = _reset_group_member(member)
         session.add(member)
         session.commit()
