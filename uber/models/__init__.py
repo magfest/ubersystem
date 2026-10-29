@@ -39,7 +39,7 @@ import uber
 from uber.config import c, create_namespace_uuid
 from uber.errors import HTTPRedirect
 from uber.decorators import presave_adjustment, suffix_property, cached_classproperty, classproperty
-from uber.models.types import Choice, MultiChoice, utcnow, UniqueList, DefaultField as Field
+from uber.models.types import Choice, MultiChoice, utcnow, UniqueList, DefaultField as Field, Money, MoneyType, MoneyField
 from uber.utils import check_csrf, normalize_email_legacy, create_new_hash, DeptChecklistConf, \
     RegistrationCode, listify
 from uber.payments import ReceiptManager
@@ -353,7 +353,7 @@ class MagModel(SQLModel):
         """
         return params
 
-    def calc_default_cost(self, include_discounts=True):
+    def calc_default_cost(self, include_discounts: bool = True) -> Money:
         """
         Returns the sum of all cost and credit receipt items for this model instance.
 
@@ -362,7 +362,16 @@ class MagModel(SQLModel):
         """
         receipt, receipt_items = ReceiptManager.create_new_receipt(self, include_discounts=include_discounts)
 
-        return max(0, sum([(cost * count) for desc, cost, count in receipt_items]) / 100)
+        return max(
+            Money.zero(),
+            sum(
+                [
+                    (cost if isinstance(cost, Money) else Money.from_cents(cost)) * count
+                    for desc, cost, count in receipt_items
+                ],
+                Money.zero(),
+            ),
+        )
 
     @property
     def stripe_transactions(self):
@@ -589,7 +598,7 @@ class MagModel(SQLModel):
             super().__setattr__('__pydantic_extra__', {})
         super().__setattr__(name, value)
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         suffixed = suffix_property.check(self, name)
         if suffixed is not None:
             return suffixed
@@ -610,15 +619,22 @@ class MagModel(SQLModel):
         try:
             cost_calc = receipt_items[self.__class__.__name__][name[8:]](self)
             if not cost_calc:
-                return 0
+                return Money.zero()
 
-            try:
-                return sum(item[0] * item[1] for item in cost_calc[1].items()) / 100
-            except AttributeError:
+            cost = cost_calc[1]
+            if hasattr(cost, 'items'):
+                return sum(
+                    [(price if isinstance(price, Money) else Money.from_cents(price)) * count
+                     for price, count in cost.items()],
+                    Money.zero()
+                )
+            if isinstance(cost, Money):
                 if len(cost_calc) > 3:
-                    return cost_calc[1] * cost_calc[3] / 100
-                else:
-                    return cost_calc[1] / 100
+                    return cost * cost_calc[3]
+                return cost
+            if isinstance(cost, (int, float)):
+                cents = cost * cost_calc[3] if len(cost_calc) > 3 else cost
+                return Money.from_cents(int(cents))
         except Exception:
             pass
 
@@ -662,8 +678,13 @@ class MagModel(SQLModel):
             if value is None:
                 return  # Totally fine for value to be None
 
-            elif value == '' and isinstance(column.type, (Uuid, Float, Numeric, Choice, Integer, DateTime, Date)):
+            elif value == '' and isinstance(column.type, (Uuid, Float, Numeric, Choice, Integer, DateTime, Date, MoneyType)):
                 return None
+
+            elif isinstance(column.type, MoneyType):
+                if isinstance(value, Money):
+                    return value
+                return Money.from_dollars(value)
 
             elif isinstance(column.type, Boolean):
                 if isinstance(value, six.string_types):
@@ -859,7 +880,7 @@ class UberSession(sqlalchemy.orm.Session):
                     and hasattr(self.SessionMixin.__dict__[name], '__call__'), name
             UberSession._checked_mixin_names = mixin_names
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         val = self.SessionMixin.__dict__.get(name) if not name.startswith('__') else None
         if val is None or not hasattr(val, '__call__'):
             raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
@@ -2433,7 +2454,7 @@ class HybridSessionProxy:
     """
     A smart proxy that mimics the old Session class behavior.
     """
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         """
         Return thread-scoped session as expected by modern sqlalchemy usage on 'Session.query()'
         """

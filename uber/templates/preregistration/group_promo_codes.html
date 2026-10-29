@@ -17,11 +17,11 @@
     {% include 'confirm_tabs.html' with context %}
 
     <h2> Members of "{{ group.name }}" </h2>
-    <p>You have bought {{ group.paid_codes|length }} promo codes for a total of {{ group.total_cost|format_currency }} (not including your badge).</p>
+    <p>You have bought {{ group.paid_codes|length }} promo codes for a total of {{ group.total_cost }} (not including your badge).</p>
 
     {% if receipt and receipt.current_amount_owed %}
     <div class="alert alert-danger pb-0" role="alert">
-      <p>You currently have an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>.
+      <p>You currently have an outstanding balance of <strong>{{ receipt.current_amount_owed }}</strong>.
       {% if c.ONLINE_PAYMENT_AVAILABLE %}
       Please use the button below to pay in order to manage your group codes.</p>
       <p>{{ stripe_form('process_attendee_payment', attendee, receipt_id=receipt.id, return_to='group_promo_codes?id=' ~ group.id) }}</p>

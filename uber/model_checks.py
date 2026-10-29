@@ -23,7 +23,7 @@ from sqlalchemy import and_, func, or_
 
 from uber.badge_funcs import get_real_badge_type
 from uber.config import c
-from uber.custom_tags import format_currency, full_date_local
+from uber.custom_tags import full_date_local
 from uber.decorators import prereg_validation, validation
 from uber.models import (AccessGroup, AdminAccount, ApiToken, Attendee, ArtShowApplication, ArtShowPiece,
                          Attraction, AttractionFeature, ArtShowBidder, DeptRole, Event,
@@ -31,7 +31,7 @@ from uber.models import (AccessGroup, AdminAccount, ApiToken, Attendee, ArtShowA
                          Job, ArtistMarketplaceApplication, MITSApplicant, MITSGame, MITSTeam,
                          PromoCode, PromoCodeGroup, Sale, Session, WatchList)
 from uber.utils import localized_now, valid_email, get_age_from_birthday, slugify
-from uber.payments import PreregCart
+from uber.payments import MAX_CHARGE, PreregCart
 
 log = logging.getLogger(__name__)
 
@@ -758,10 +758,9 @@ Attendee.required = [('first_name', 'First Name'),
 
 
 @prereg_validation.Attendee
-def reasonable_total_cost(attendee):
-    if attendee.total_cost >= 999999:
-        return ('', 'We cannot charge {}. Please reduce extras so the total is below $9,999.'.format(
-            format_currency(attendee.total_cost)))
+def reasonable_total_cost(attendee: Attendee) -> tuple[str, str] | None:
+    if attendee.total_cost > MAX_CHARGE:
+        return ('', f'We cannot charge {attendee.total_cost}. Please reduce extras so the total is below $9,999.')
 
 
 @prereg_validation.Attendee
@@ -807,8 +806,8 @@ def attendee_badge_under_13(attendee):
 
 
 @prereg_validation.Attendee
-def age_discount_after_paid(attendee):
-    if (attendee.total_cost * 100) < attendee.amount_paid:
+def age_discount_after_paid(attendee: Attendee) -> tuple[str, str] | None:
+    if attendee.total_cost < attendee.amount_paid:
         if (not attendee.orig_value_of('birthdate') or attendee.orig_value_of('birthdate') < attendee.birthdate) \
                 and attendee.age_group_conf['discount'] > 0:
             return ('birthdate', 'The date of birth you entered incurs a discount; \

@@ -3,6 +3,7 @@ import json
 import six
 import uuid
 import logging
+from typing import Any
 from datetime import datetime, timedelta
 from functools import wraps
 from urllib.parse import urlparse
@@ -24,7 +25,8 @@ from uber.decorators import ajax, ajax_gettable, all_renderable, credit_card, cs
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import AdminAccount, Attendee, AttendeeAccount, Attraction, BadgePickupGroup, Email, Group, PromoCode, PromoCodeGroup, \
-                        PasswordReset, ReceiptItem, ReceiptTransaction, Tracking
+                        PasswordReset, ReceiptItem, ReceiptTransaction, Tracking, Session
+from uber.money import Money
 from uber.utils import add_opt, remove_opt, check, localized_now, normalize_email, normalize_email_legacy, genpasswd, valid_email, \
     valid_password, SignNowRequest, validate_model, create_new_hash, get_age_conf_from_birthday, RegistrationCode, listify
 from uber.payments import PreregCart, TransactionRequest, ReceiptManager, RefundRequest
@@ -1289,7 +1291,7 @@ class Root:
                                                              c.GROUP_BADGE,
                                                              f'{count} extra badge{"s" if count > 1 else ""} '
                                                              f'for {group.name}',
-                                                             count * c.GROUP_PRICE * 100))
+                                                             Money.from_dollars(count * c.GROUP_PRICE)))
         
         session.add_codes_to_pc_group(group, count)
         session.commit()
@@ -2035,8 +2037,7 @@ class Root:
 
     @csrf_protected
     @requires_account(Attendee)
-    def abandon_badge(self, session, id):
-        from uber.custom_tags import format_currency
+    def abandon_badge(self, session: Session, id: str) -> None:
         attendee = session.attendee(id)
         if attendee.amount_paid and not attendee.is_group_leader:
             failure_message = "Something went wrong with your refund. Please contact us at {}."\
@@ -2066,8 +2067,7 @@ class Root:
             receipt.closed = datetime.now()
             session.add(receipt)
 
-            success_message = "Your badge has been successfully cancelled. Your refund of {} should appear on your credit card in 7-10 days."\
-                .format(format_currency(refund_total / 100))
+            success_message = f"Your badge has been successfully cancelled. Your refund of {Money.from_cents(refund_total)} should appear on your credit card in 7-10 days."
             if attendee.paid == c.HAS_PAID:
                 attendee.paid = c.REFUNDED
 
@@ -2205,7 +2205,7 @@ class Root:
     @id_required(Attendee)
     @requires_account(Attendee)
     @log_pageview
-    def confirm(self, session, message='', return_to='confirm', undoing_extra='', **params):
+    def confirm(self, session: Session, message: str = '', return_to: str = 'confirm', undoing_extra: str = '', **params: Any) -> dict[str, Any]:
         if params.get('id') not in [None, '', 'None']:
             attendee = session.get(Attendee, params.get('id'), options=[
                 selectinload(Attendee.dept_membership_requests),
@@ -2279,7 +2279,7 @@ class Root:
             'homepage_account': session.get_attendee_account_by_attendee(attendee),
             'message':       message,
             'attractions':   session.query(Attraction).filter_by(is_public=True).all(),
-            'badge_cost':    attendee.badge_cost if attendee.paid != c.PAID_BY_GROUP else 0,
+            'badge_cost':    attendee.badge_cost if attendee.paid != c.PAID_BY_GROUP else Money.zero(),
             'receipt':       session.get_receipt_by_model(attendee) if attendee.is_valid else None,
             'incomplete_txn':  receipt.get_last_incomplete_txn() if receipt else None,
             'forms': forms,

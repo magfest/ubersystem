@@ -5,13 +5,13 @@ import logging
 from collections import defaultdict
 from sqlalchemy.orm import joinedload, lazyload
 from sqlalchemy import or_, func, not_, and_
-from typing import Iterable
+from typing import Iterable, Any
 
 from uber.config import c
 from uber.decorators import all_renderable, log_pageview, csv_file
 from uber.errors import HTTPRedirect
 from uber.models import (ArbitraryCharge, Attendee, AttendeeAccount, Group, ModelReceipt, MPointsForCash, Sale, PromoCodeGroup,
-                         ReceiptTransaction, ReceiptItem)
+                         ReceiptTransaction, ReceiptItem, Money, Session)
 from uber.server import redirect_site_section
 from uber.utils import localized_now, Order
 
@@ -53,12 +53,13 @@ def get_dict_sum(dict_to_sum):
 @all_renderable()
 class Root:
     @log_pageview
-    def index(self, session):
+    def index(self, session: Session) -> dict[str, Any]:
         receipt_items = session.query(ReceiptItem)
-        receipt_total = sum([item.amount for item in receipt_items.filter_by(txn_type=c.PAYMENT).all()]
-                            ) - sum([item.amount for item in receipt_items.filter_by(txn_type=c.REFUND).all()])
-        sales_total = sum([sale.cash * 100 for sale in session.query(Sale).all()])
-        arbitrary_charge_total = sum([charge.amount * 100 for charge in session.query(ArbitraryCharge).all()])
+        receipt_total = sum([item.amount for item in receipt_items.filter_by(txn_type=c.PAYMENT).all()], Money.zero()) - sum(
+            [item.amount for item in receipt_items.filter_by(txn_type=c.REFUND).all()], Money.zero()
+        )
+        sales_total = sum([Money.from_dollars(sale.cash) for sale in session.query(Sale).all()], Money.zero())
+        arbitrary_charge_total = sum([Money.from_dollars(charge.amount) for charge in session.query(ArbitraryCharge).all()], Money.zero())
         return {
             'receipt_items': receipt_items.filter_by(txn_type=c.REFUND),
             'arbitrary_charges': session.query(ArbitraryCharge),
@@ -184,7 +185,7 @@ class Root:
             'now': localized_now(),
         }
 
-    def dealer_cost_summary(self, session):
+    def dealer_cost_summary(self, session: Session) -> dict[str, Any]:
         dealers = session.query(Group).filter(Group.is_dealer == True,  # noqa: E712
                                               Group.attendees_have_badges == True, Group.cost > 0)  # noqa: E712
 
@@ -205,7 +206,7 @@ class Root:
                 paid_total += 1
                 if not group.auto_recalc:
                     paid_custom['count'] += 1
-                    paid_custom['sum'] += group.cost
+                    paid_custom['sum'] += int(group.cost.dollars)
                 else:
                     paid_tables[group.tables] += 1
                     paid_badges[group.badges_purchased] += 1
@@ -213,7 +214,7 @@ class Root:
                 unpaid_total += 1
                 if not group.auto_recalc:
                     unpaid_custom['count'] += 1
-                    unpaid_custom['sum'] += group.cost
+                    unpaid_custom['sum'] += int(group.cost.dollars)
                 else:
                     unpaid_tables[group.tables] += 1
                     unpaid_badges[group.badges_purchased] += 1

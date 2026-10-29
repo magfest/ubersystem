@@ -5,6 +5,8 @@ from decimal import Decimal
 from sqlalchemy.ext import associationproxy
 from sqlmodel import SQLModel
 
+from uber.money import Money
+
 class serializer(json.JSONEncoder):
     """
     JSONEncoder subclass for plugins to register serializers for types.
@@ -54,3 +56,4 @@ serializer.register(set, lambda s: sorted(list(s)))
 serializer.register(Decimal, lambda n: float(n))
 serializer.register(associationproxy._AssociationList, list)
 serializer.register(SQLModel, lambda m: m.to_dict())
+serializer.register(Money, lambda m: m.cents)

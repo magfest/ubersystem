@@ -9,7 +9,7 @@ from uber.custom_tags import email_only
 from uber.decorators import ajax, all_renderable, render, credit_card, requires_account, public
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
-from uber.models import Attendee, ArtistMarketplaceApplication
+from uber.models import Attendee, ArtistMarketplaceApplication, Session
 from uber.utils import check, validate_model, SignNowRequest
 from uber.payments import TransactionRequest, ReceiptManager, RefundRequest
 
@@ -223,7 +223,7 @@ class Root:
                                                                 c.ARTIST_ALLEY_RECEIPT_ITEM,
                                                                 c.MARKETPLACE,
                                                                 "Artist Marketplace Application",
-                                                                app.amount_unpaid * 100,
+                                                                app.amount_unpaid,
                                                                 purchaser_id=app.attendee.purchaser_id)
             receipt_item.fk_id = app.id
             receipt_item.fk_model = "ArtistMarketplaceApplication"
@@ -232,7 +232,7 @@ class Root:
             session.refresh(receipt)
         
         charge = TransactionRequest(session, receipt, receipt_email=app.email_address,
-                                    description="Artist Marketplace Application Payment", amount=app.amount_unpaid * 100)
+                                    description="Artist Marketplace Application Payment", amount=app.amount_unpaid)
         incomplete_txn = receipt.get_last_incomplete_txn()
 
         if incomplete_txn and incomplete_txn.desc == "Artist Marketplace Application Payment":

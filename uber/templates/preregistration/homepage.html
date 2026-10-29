@@ -190,7 +190,7 @@
         The following attendees on your account have outstanding balances:
         <ul>
     {% endif %}
-    <li>{{ attendee }}{% if attendee.group %} ({{ attendee.group_name }}){% endif %} owes {{ (money_owed / 100)|format_currency }}</li>
+    <li>{{ attendee }}{% if attendee.group %} ({{ attendee.group_name }}){% endif %} owes {{ money_owed }}</li>
     {% if loop.last %}
     </ul>
     Please click "Edit Registration" on the appropriate attendee below to view and pay for their registration.

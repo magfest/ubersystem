@@ -418,7 +418,7 @@ AutomatedEmailFixture(
     Group,
     f'{c.EVENT_NAME} group payment received',
     'reg_workflow/group_confirmation.html',
-    "lambda g: g.amount_paid == g.cost * 100 and g.cost != 0 and g.leader_id",
+    "lambda g: g.amount_paid == g.cost and g.cost != 0 and g.leader_id",
     'group_payment_received',
     sender=c.REGDESK_EMAIL,
     )
@@ -456,7 +456,7 @@ if len(c.DONATION_TIERS) > 1:
         Attendee,
         f'{c.EVENT_NAME} merch pre-order received',
         'reg_workflow/group_donation.txt',
-        "lambda a: a.paid == c.PAID_BY_GROUP and a.amount_extra and a.amount_paid >= (a.amount_extra * 100)",
+        "lambda a: a.paid == c.PAID_BY_GROUP and a.amount_extra and a.amount_paid >= a.amount_extra",
         'group_extra_payment_received',
         sender=c.MERCH_EMAIL)
 

@@ -8,6 +8,7 @@ import shutil
 from datetime import datetime, timedelta
 from functools import wraps
 from io import BytesIO
+from typing import Any
 
 import cherrypy
 from cherrypy.lib.static import serve_file
@@ -29,7 +30,7 @@ from uber.forms import load_forms
 from uber.models import (Attendee, AttendeeAccount, AdminAccount, BadgeInfo, Email, EscalationTicket, Group, Job, PageViewTracking,
                          TxnRequestTracking, PasswordReset,
                          PrintJob, PromoCode, PromoCodeGroup, ReportTracking, Sale, Session, Shift, Tracking, ReceiptTransaction,
-                         WorkstationAssignment)
+                         WorkstationAssignment, Money)
 from uber.site_sections.preregistration import check_if_can_reg
 from uber.utils import add_opt, check, check_pii_consent, get_page, hour_day_format, \
     localized_now, Order, validate_model, normalize_email_legacy
@@ -229,7 +230,7 @@ class Root:
         return {"success": True}
 
     @ajax
-    def validate_attendee_checkin(self, session, form_list, **params):
+    def validate_attendee_checkin(self, session: Session, form_list: Any, **params: Any) -> dict[str, Any]:
         if params.get('id') in [None, '', 'None']:
             attendee = Attendee()
         else:
@@ -246,15 +247,13 @@ class Root:
 
         if attendee.group and attendee.paid == c.PAID_BY_GROUP and attendee.group.amount_unpaid:
             return {
-                "error": {'': ['This attendee\'s group has an outstanding balance of ${}.'.format(
-                    format_currency(attendee.group.amount_unpaid))]}
-                    }
+                "error": {'': [f"This attendee's group has an outstanding balance of {attendee.group.amount_unpaid}."]}
+            }
 
         if attendee.amount_unpaid_if_valid:
             return {
-                "error": {'': ['This attendee has an outstanding balance of ${}.'.format(
-                    format_currency(attendee.amount_unpaid_if_valid))]}
-                    }
+                "error": {'': [f"This attendee has an outstanding balance of {attendee.amount_unpaid_if_valid}."]}
+            }
 
         return {"success": True}
 
@@ -625,7 +624,7 @@ class Root:
                                                                  c.REG_RECEIPT_ITEM,
                                                                  c.GROUP_BADGE,
                                                                  f'Adding {badges} Badge{"s" if badges > 1 else ""}',
-                                                                 badges * int(cost_per_badge) * 100,
+                                                                 Money.from_dollars(badges * int(cost_per_badge)),
                                                                  purchaser_id=buyer.purchaser_id))
                 raise HTTPRedirect('promo_code_group_form?id={}&message={}', group.id, "Group saved")
 
@@ -942,12 +941,12 @@ class Root:
             'forms': forms,
         }
 
-    def check_in_group_form(self, session, id):
+    def check_in_group_form(self, session: Session, id: str) -> dict[str, Any]:
         pickup_group = session.badge_pickup_group(id)
         reg_station_id = cherrypy.session.get('reg_station', '')
         workstation_assignment = session.query(WorkstationAssignment).filter_by(
             reg_station_id=reg_station_id or -1).first()
-        total_cost = 0
+        total_cost = Money.zero()
         for attendee in pickup_group.check_inable_attendees:
             receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
             total_cost += receipt.current_amount_owed
@@ -1399,7 +1398,7 @@ class Root:
     def arbitrary_charge_form(self, message='', amount=None, description='', sale_id=None):
         raise HTTPRedirect('../merch_admin/arbitrary_charge_form')
 
-    def reg_take_report(self, session, **params):
+    def reg_take_report(self, session: Session, **params: Any) -> dict[str, Any]:
         if params:
             start = c.EVENT_TIMEZONE.localize(
                 datetime.strptime('{startday} {starthour}:{startminute}'.format(**params), '%Y-%m-%d %H:%M'))
@@ -1415,12 +1414,14 @@ class Root:
 
             params['sales'] = sales
             params['attendees'] = attendees
-            params['total_cash'] = \
-                sum((a.amount_paid / 100) for a in attendees if a.payment_method == c.CASH) \
-                + sum(s.cash for s in sales if s.payment_method == c.CASH)
-            params['total_credit'] = \
-                sum((a.amount_paid / 100) for a in attendees if a.payment_method in [c.STRIPE, c.SQUARE, c.MANUAL]) \
-                + sum(s.cash for s in sales if s.payment_method == c.CREDIT)
+            params['total_cash'] = (
+                sum((a.amount_paid for a in attendees if a.payment_method == c.CASH), Money.zero())
+                + sum((Money.from_dollars(s.cash) for s in sales if s.payment_method == c.CASH), Money.zero())
+            )
+            params['total_credit'] = (
+                sum((a.amount_paid for a in attendees if a.payment_method in [c.STRIPE, c.SQUARE, c.MANUAL]), Money.zero())
+                + sum((Money.from_dollars(s.cash) for s in sales if s.payment_method == c.CREDIT), Money.zero())
+            )
         else:
             params['endday'] = localized_now().strftime('%Y-%m-%d')
             params['endhour'] = localized_now().strftime('%H')
@@ -1537,7 +1538,7 @@ class Root:
                                     .order_by(Attendee.full_name).all()}
 
     @site_mappable
-    def discount(self, session, message='', **params):
+    def discount(self, session: Session, message: str = '', **params: Any) -> dict[str, Any]:
         attendee = session.attendee(params)
         if 'first_name' in params:
             try:
@@ -1545,11 +1546,11 @@ class Root:
                     message = 'First and Last Name are required'
                 elif attendee.overridden_price < 0:
                     message = 'Non-Negative Discounted Price is required'
-                elif attendee.overridden_price > c.BADGE_PRICE:
+                elif attendee.overridden_price > Money.from_dollars(c.BADGE_PRICE):
                     message = 'You cannot create a discounted badge that costs more than the regular price!'
                 elif attendee.overridden_price == 0:
                     attendee.paid = c.NEED_NOT_PAY
-                    attendee.overridden_price = c.BADGE_PRICE
+                    attendee.overridden_price = Money.from_dollars(c.BADGE_PRICE)
             except TypeError:
                 message = 'Discounted Price is required'
 

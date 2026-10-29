@@ -17,6 +17,7 @@ from uber.config import c
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
 from uber.models.types import MultiChoice, DefaultColumn as Column, Choice, DefaultField as Field, DefaultRelationship as Relationship
+from uber.money import Money
 from uber.utils import localized_now, RegistrationCode
 
 
@@ -469,33 +470,35 @@ class PromoCode(MagModel, table=True):
         # Always make expiration_date 11:59pm of the given date
         self.expiration_date = self.normalize_expiration_date(self.expiration_date)
 
-    def calculate_discounted_price(self, price, credit_type=c.BASE_BADGE):
+    def calculate_discounted_price(self, price: Money, credit_type: int = c.BASE_BADGE) -> Money:
         """
         Returns the discounted price based on the promo code's `discount_type`.
 
         Args:
-            price (int): The badge price in whole dollars.
+            price (Money): The badge price.
 
         Returns:
-            int: The discounted price. The returned number will never be
+            Money: The discounted price. The returned number will never be
                 less than zero or greater than `price`. If `price` is None
-                or a negative number, then the return value will always be 0.
+                or a negative number, then the return value will always be Money.zero().
         """
         if credit_type not in self.discount_on_ints:
             return price
 
         if not self.discount or not price or price < 0:
-            return 0
+            return Money.zero()
 
-        discounted_price = price
+        money_discount = Money.from_dollars(self.discount or 0)
         if self.discount_type == c.FIXED_DISCOUNT:
-            discounted_price = price - self.discount
+            discounted = price - money_discount
         elif self.discount_type == c.FIXED_PRICE:
-            discounted_price = self.discount
+            discounted = money_discount
         elif self.discount_type == c.PERCENT_DISCOUNT:
-            discounted_price = int(price * ((100.0 - self.discount) / 100.0))
+            discounted = price * ((100.0 - (self.discount or 0)) / 100.0)
+        else:
+            discounted = price
 
-        return min(max(discounted_price, 0), price)
+        return min(max(discounted, Money.zero()), price)
     
     @property
     def discount_on_repr(self):

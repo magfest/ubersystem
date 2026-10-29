@@ -22,7 +22,7 @@ from uber.decorators import presave_adjustment, render, cached_property, classpr
 from uber.models import MagModel
 from uber.models.group import Group
 from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column, \
-    MultiChoice, TakesPaymentMixin, DefaultField as Field, DefaultRelationship as Relationship
+    MultiChoice, TakesPaymentMixin, DefaultField as Field, DefaultRelationship as Relationship, Money, MoneyType, MoneyField
 from uber.utils import add_opt, get_age_from_birthday, get_age_conf_from_birthday, hour_day_format, \
     localized_now, mask_string, normalize_email, normalize_email_legacy, remove_opt, RegistrationCode, listify, groupify
 
@@ -312,8 +312,8 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     checked_in: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
 
     paid: int = Field(sa_column=Column(Choice(c.PAYMENT_OPTS), index=True, admin_only=True), default=c.NOT_PAID)
-    badge_cost: int | None
-    overridden_price: int | None
+    badge_cost: Money | None = MoneyField(None)
+    overridden_price: Money | None = MoneyField(None)
     amount_extra: int = Field(sa_column=Column(Choice(c.DONATION_TIER_OPTS, allow_unspecified=True)), default=0)
     extra_donation: int = 0
 
@@ -325,7 +325,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         'ModelReceipt.owner_model == "Attendee",'
         'ModelReceipt.closed == None)',
         lazy='select'))
-    default_cost: int | None
+    default_cost: Money | None = MoneyField(None)
 
     created_groups: list['Group'] = Relationship(
         back_populates="creator",
@@ -749,10 +749,6 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         if self.is_valid or self.badge_status == c.PENDING_STATUS:
             self.default_cost = self.calc_default_cost()
 
-    @hybrid_property
-    def default_cost_cents(self):
-        return self.default_cost * 100
-
     @presave_adjustment
     def assign_creator(self):
         if self.is_new and not self.creator_id:
@@ -1092,20 +1088,20 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         return preordered_merch_opts
 
     @property
-    def badge_cost_with_promo_code(self):
+    def badge_cost_with_promo_code(self) -> Money:
         return self.calculate_badge_cost(use_promo_code=True)
 
-    def calculate_badge_cost(self, use_promo_code=False, include_price_override=True):
+    def calculate_badge_cost(self, use_promo_code: bool = False, include_price_override: bool = True) -> Money:
         if self.paid == c.NEED_NOT_PAY or self.badge_status == c.NOT_ATTENDING:
-            return 0
+            return Money.zero()
         elif self.overridden_price is not None and include_price_override:
             return self.overridden_price
         elif self.is_dealer:
-            return c.DEALER_BADGE_PRICE
+            cost = Money.from_dollars(c.DEALER_BADGE_PRICE)
         elif self.promo_code_groups or (self.group and self.group.auto_recalc and self.paid == c.PAID_BY_GROUP):
-            return c.get_group_price()
+            cost = Money.from_dollars(c.get_group_price())
         else:
-            cost = self.new_badge_cost
+            cost = Money.from_dollars(self.new_badge_cost)
 
         if c.BADGE_PROMO_CODES_ENABLED and self.promo_code and use_promo_code:
             return self.promo_code.calculate_discounted_price(cost)
@@ -1113,10 +1109,10 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
             return cost
 
     @property
-    def base_badge_prices_cost(self):
+    def base_badge_prices_cost(self) -> Money:
         # This is a special type of cost that accounts for badge upgrades for comped attendees
         if self.paid == c.NEED_NOT_PAY:
-            return self.new_badge_cost
+            return Money.from_dollars(self.new_badge_cost)
         return self.calculate_badge_cost()
 
     def undo_extras(self):
@@ -1184,31 +1180,32 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         return get_age_conf_from_birthday(self.birthdate, c.NOW_OR_AT_CON)
 
     @property
-    def total_cost(self):
+    def total_cost(self) -> Money:
         if not self.is_valid:
-            return 0
-
+            return Money.zero()
         if self.active_receipt:
-            return (self.active_receipt.item_total - self.active_receipt.discount_total) / 100
+            return self.active_receipt.item_total - self.active_receipt.discount_total
         return self.default_cost or self.calc_default_cost()
 
     @property
-    def total_cost_if_valid(self):
-        if self.active_receipt:
-            return (self.active_receipt.item_total - self.active_receipt.discount_total) / 100
-        return self.default_cost or self.calc_default_cost()
+    def total_cost_if_valid(self) -> Money:
+        return self.total_cost
 
     @property
-    def amount_unpaid_if_valid(self):
-        if self.paid == c.PAID_BY_GROUP:
-            personal_cost = max(0, self.total_cost_if_valid - self.badge_cost)
+    def amount_unpaid(self) -> Money:
+        if self.paid == c.PAID_BY_GROUP and not self.active_receipt:
+            personal_cost = max(Money.zero(), self.total_cost - (self.badge_cost or Money.zero()))
         else:
-            personal_cost = self.total_cost_if_valid
-        return max(0, ((personal_cost * 100) - self.amount_paid) / 100)
+            personal_cost = self.total_cost
+        return max(Money.zero(), personal_cost - self.amount_paid)
 
     @property
-    def total_donation(self):
-        return self.total_cost - self.badge_cost
+    def amount_unpaid_if_valid(self) -> Money:
+        return self.amount_unpaid
+
+    @property
+    def total_donation(self) -> Money:
+        return self.total_cost - (self.badge_cost or Money.zero())
 
     def calculate_shipping_fee_cost(self):
         # For plugins to override with custom shipping fee logic
@@ -1220,20 +1217,20 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         return self.active_receipt.has_at_con_payments if self.active_receipt else False
 
     @property
-    def amount_extra_unpaid(self):
-        return self.total_cost - self.badge_cost
+    def amount_extra_unpaid(self) -> Money:
+        return self.total_cost - (self.badge_cost or Money.zero())
 
     @property
-    def amount_pending(self):
-        return self.active_receipt.pending_total if self.active_receipt else 0
+    def amount_pending(self) -> Money:
+        return self.active_receipt.pending_total if self.active_receipt else Money.zero()
 
     @property
-    def is_paid(self):
+    def is_paid(self) -> bool:
         return self.active_receipt and self.active_receipt.current_amount_owed == 0
 
     @hybrid_property
-    def amount_paid(self):
-        return self.active_receipt.payment_total if self.active_receipt else 0
+    def amount_paid(self) -> Money:
+        return self.active_receipt.payment_total if self.active_receipt else Money.zero()
 
     @amount_paid.expression
     def amount_paid(cls):
@@ -1245,8 +1242,8 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
                  ModelReceipt.closed == None)).label('amount_paid')  # noqa: E711
 
     @hybrid_property
-    def amount_refunded(self):
-        return self.active_receipt.refund_total if self.active_receipt else 0
+    def amount_refunded(self) -> Money:
+        return self.active_receipt.refund_total if self.active_receipt else Money.zero()
 
     @amount_refunded.expression
     def amount_refunded(cls):
@@ -1257,15 +1254,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
                  ModelReceipt.owner_model == "Attendee")).label('amount_refunded')
 
     @property
-    def amount_unpaid(self):
-        if self.paid == c.PAID_BY_GROUP and not self.active_receipt:
-            personal_cost = max(0, self.total_cost - self.badge_cost)
-        else:
-            personal_cost = self.total_cost
-        return max(0, ((personal_cost * 100) - self.amount_paid) / 100)
-
-    @property
-    def paid_for_badge(self):
+    def paid_for_badge(self) -> bool:
         return self.paid == c.HAS_PAID or \
                 self.paid == c.PAID_BY_GROUP and self.group and self.group.amount_paid or \
                 self.in_promo_code_group and self.promo_code.cost

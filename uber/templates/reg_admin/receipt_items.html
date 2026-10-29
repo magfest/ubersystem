@@ -552,9 +552,9 @@
             <div class="col-12 col-sm-4">
               <div class="form-text">Quantity/Amount</div>
               <div class="mb-3">
-                {{ (item.amount / 100)|format_currency(true) }}
+                {{ item.amount|abs }}
                 {% if item.count and item.count > 1 %}
-                  x{{ item.count }}: {{ (item.count * item.amount / 100)|format_currency }}
+                  x{{ item.count }}: {{ item.total_amount }}
                 {% endif %}
               </div>
             </div>
@@ -579,7 +579,7 @@
                     <td width="1%" class="text-nowrap"><input class="form-check-input" type="radio" name="receipt_txn_id" id="receipt_txn_id_{{ txn.id }}" value="{{ txn.id }}"{% if txn.cancelled or txn.is_pending_charge %} disabled{% endif %}{% if item.receipt_txn.id == txn.id %} checked{% endif %}></td>
                     <td><label class="form-check-label" for="receipt_txn_id_{{ txn.id }}">{{ txn.added|datetime_local("%b %-d, %-I:%M%p") }}</label></td>
                     <td>
-                      <label class="form-check-label" for="receipt_txn_id_{{ txn.id }}">{{ (txn.amount / 100)|format_currency }} {{ txn.method_label }} {{ "Payment" if txn.amount > 0 else "Refund" }}{% if txn.card_info %} ({{ txn.card_info }}){% endif %}</label>
+                      <label class="form-check-label" for="receipt_txn_id_{{ txn.id }}">{{ txn.amount }} {{ txn.method_label }} {{ "Payment" if txn.amount > 0 else "Refund" }}{% if txn.card_info %} ({{ txn.card_info }}){% endif %}</label>
                     </td>
                     <td><label class="form-check-label" for="receipt_txn_id_{{ txn.id }}">{{ txn.desc }}{{ " (" ~ processors[txn.method] ~ " ID: " ~ txn.stripe_id ~ ")" if txn.stripe_id else "" }}</td></label></td>
                     <td><label class="form-check-label" for="receipt_txn_id_{{ txn.id }}">
@@ -746,7 +746,7 @@
           <div class="col-12 col-sm-6">
             <div class="form-text">Refunded</div>
             <div class="mb-3">
-              {{ (txn.refunded / 100)|format_currency }} Refunded{% if txn.refund_id %} via {{ processors[txn.method] }} ID {{ txn.refund_id }}{% endif %}{% if txn.amount_left %} ({{ (txn.amount_left / 100)|format_currency }} Remaining){% endif %}
+              {{ txn.refunded }} Refunded{% if txn.refund_id %} via {{ processors[txn.method] }} ID {{ txn.refund_id }}{% endif %}{% if txn.amount_left %} ({{ txn.amount_left }} Remaining){% endif %}
             </div>
           </div>
           {% endif %}
@@ -760,9 +760,9 @@
           <div class="col-12 col-sm-6">
             <div class="form-text">Amount</div>
             <div class="mb-3">
-              {{ (txn.amount / 100)|format_currency(true) }}
+              {{ txn.amount|abs }}
               {% if txn.txn_total and txn.txn_total != txn.amount %}
-              ({{ (txn.txn_total / 100)|format_currency }} across all receipts)
+              ({{ txn.txn_total }} across all receipts)
               {% endif %}
             </div>
           </div>
@@ -952,9 +952,9 @@
         </td>
         <td>{{ item.desc }}{{ " (" ~ processors[item.method] ~ " ID: " ~ item.stripe_id ~ ")" if item.stripe_id else "" }}</td>
         <td>
-          {{ (item.amount / 100)|format_currency(true) }}
+          {{ item.amount|abs }}
           {% if item.count and item.count > 1 %}
-             x{{ item.count }}: {{ (item.count * item.amount / 100)|format_currency }}
+             x{{ item.count }}: {{ item.total_amount }}
           {% endif %}
         </td>
         <td>
@@ -962,10 +962,10 @@
           <button class="btn btn-sm btn-warning text-nowrap"
                   onClick="
                   {% if item.method %}
-                  refundTxn('{{ item.id }}', '{{ (item.amount_left / 100)|format_currency }}')">
+                  refundTxn('{{ item.id }}', '{{ item.amount_left }}')">
                   Refund
                   {% else %}
-                  refundItem('{{ item.id }}', '{{ (item.amount / 100)|format_currency }}', '{{ item.count }}', '{{ item.revert_change|yesno }}')">
+                  refundItem('{{ item.id }}', '{{ item.amount }}', '{{ item.count }}', '{{ item.revert_change|yesno }}')">
                   Refund Options
                   {% endif %}
           </button>
@@ -1004,10 +1004,10 @@
             <em>On Hold</em>
           {% endif %}
           {% if item.refunded %}
-          <em>{{ (item.refunded / 100)|format_currency }} Refunded</em>{% if item.refundable and item.amount_left %} ({{ (item.amount_left / 100)|format_currency }} left){% endif %}
+          <em>{{ item.refunded }} Refunded</em>{% if item.refundable and item.amount_left %} ({{ item.amount_left }} left){% endif %}
           {% endif %}
           {% if item.refundable and item.id in refund_txn_candidates %}
-          <button class="btn btn-sm btn-success" onClick="settleUp('{{ item.id }}', '{{ (receipt.current_receipt_amount * -1 / 100)|format_currency }}')">Refund {{ (receipt.current_receipt_amount * -1 / 100)|format_currency }}</button>
+          <button class="btn btn-sm btn-success" onClick="settleUp('{{ item.id }}', '{{ (-receipt.current_receipt_amount) }}')">Refund {{ (-receipt.current_receipt_amount) }}</button>
           {% endif %}
         </td>
       </tr>
@@ -1094,7 +1094,7 @@
     <button class="btn btn-danger" onClick="fullRefund('{{ active_receipt.id }}')">Refund and Cancel This {{ model_str|title }}</button>
     {% if not c.AUTHORIZENET_LOGIN_ID %}
       OR
-      <button class="btn btn-danger" onClick="mostlyFullRefund('{{ active_receipt.id }}', '{{ (active_receipt.remaining_processing_fees / 100)|format_currency }}', '{{ (group_processing_fee / 100)|format_currency if group_leader_receipt_id else '' }}')">Refund and Cancel This {{ model_str|title }} Excluding Processing Fees</button>
+      <button class="btn btn-danger" onClick="mostlyFullRefund('{{ active_receipt.id }}', '{{ active_receipt.remaining_processing_fees }}', '{{ group_processing_fee if group_leader_receipt_id else '' }}')">Refund and Cancel This {{ model_str|title }} Excluding Processing Fees</button>
     {% endif %}
   {% endif %}
   <button class="btn btn-outline-danger" onClick="closeReceipt('{{ active_receipt.id }}')">Close Receipt</button>
@@ -1116,7 +1116,7 @@
     </div>
     {% if group_leader_receipt_id and attendee and attendee.badge_status != c.REFUNDED_STATUS %}
     <button class="btn btn-danger" onClick="fullRefund('{{ group_leader_receipt_id }}')">Refund Badge Cost To Group Leader</button>
-    <button class="btn btn-danger" onClick="mostlyFullRefund('{{ group_leader_receipt_id }}', '{{ (group_processing_fee / 100)|format_currency }}')">Refund Badge Cost To Group Leader Excluding Processing Fees</a>
+    <button class="btn btn-danger" onClick="mostlyFullRefund('{{ group_leader_receipt_id }}', '{{ group_processing_fee }}')">Refund Badge Cost To Group Leader Excluding Processing Fees</a>
     {% endif %}
   </div>
 {% endif %}

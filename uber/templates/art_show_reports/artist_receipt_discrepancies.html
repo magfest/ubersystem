@@ -34,14 +34,14 @@
                 {{ app.deliver_method_label }}
             </td>
             <td id="{{ app.id }}-cost">
-                {{ app.true_default_cost|format_currency }}
+                {{ app.true_default_cost }}
             </td>
             <td id="{{ app.id }}-receipt-total">
-                {{ (app.active_receipt.item_total / 100)|format_currency }}
+                {{ app.active_receipt.item_total }}
             </td>
-            <td>{{ (app.active_receipt.payment_total / 100)|format_currency }}</td>
-            <td>{{ (app.active_receipt.refund_total / 100)|format_currency }}</td>
-            <td>{{ (app.active_receipt.txn_total / 100)|format_currency }}</td>
+            <td>{{ app.active_receipt.payment_total }}</td>
+            <td>{{ app.active_receipt.refund_total }}</td>
+            <td>{{ app.active_receipt.txn_total }}</td>
             {% if c.HAS_REG_ADMIN_ACCESS %}
                 <td>
                     <a class="btn btn-success" href="../reg_admin/receipt_items?id={{ app.id }}" target="_blank">View Receipt Items</a>

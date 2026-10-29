@@ -15,6 +15,7 @@ import os
 import re
 import sys
 from datetime import datetime, timedelta
+from decimal import Decimal
 from urllib.parse import quote_plus
 from pytz import UTC
 
@@ -340,24 +341,16 @@ def percent_of(numerator, denominator):
     return '{}%'.format(int(100 * numerator / denominator))
 
 
+from uber.money import Money
+JinjaEnv.jinja_export(Money)
+
+
 @JinjaEnv.jinja_filter
-def format_currency(value, show_abs=False):
-    if not value:
-        value = 0
-
-    value = float(value)
-    if show_abs:
-        value = abs(value)
-
-    if value < 0:
-        sign = "-$"
-        value = abs(value)
-    else:
-        sign = "$"
-
-    if int(value) != value:
-        return "{}{:,.2f}".format(sign, value)
-    return "{}{:,}".format(sign, int(value))
+def format_currency(value: Money | Decimal | float | int | str | None = 0, show_abs: bool = False) -> str:
+    """Format a dollar value (int, float, Decimal, str, or Money) as currency."""
+    if isinstance(value, Money):
+        return value.format(show_abs=show_abs, strip_zero_cents=True)
+    return Money.from_dollars(value or 0).format(show_abs=show_abs, strip_zero_cents=True)
 
 
 @JinjaEnv.jinja_filter

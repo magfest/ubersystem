@@ -1,4 +1,5 @@
 from itertools import chain
+from typing import Any
 from uber.models.attendee import AttendeeAccount
 
 import cherrypy
@@ -12,11 +13,12 @@ from sqlalchemy.orm import joinedload, raiseload, subqueryload
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
-from uber.custom_tags import datetime_local_filter, time_day_local, pluralize, format_currency, readable_join
+from uber.custom_tags import datetime_local_filter, time_day_local, pluralize, readable_join
 from uber.decorators import ajax, all_renderable, csv_file, not_site_mappable, site_mappable
 from uber.errors import HTTPRedirect
 from uber.models import AdminAccount, ApiJob, ArtShowApplication, Attendee, Group, ModelReceipt, ReceiptItem, \
-    ReceiptInfo, ReceiptTransaction, Tracking, WorkstationAssignment, EscalationTicket
+    ReceiptInfo, ReceiptTransaction, Tracking, WorkstationAssignment, EscalationTicket, Session
+from uber.money import Money
 from uber.site_sections import devtools
 from uber.utils import check, get_api_service_from_server, normalize_email, normalize_email_legacy, valid_email, \
     TaskUtils, Order, groupify
@@ -237,16 +239,16 @@ class Root:
         session.commit()
         return {'success': True, 'message': "Ticket deleted."}
     
-    def receipt_items(self, session, id, message='', highlight_id=''):
+    def receipt_items(self, session: Session, id: str, message: str = '', highlight_id: str = '') -> dict[str, Any]:
         group_leader_receipt = None
-        group_processing_fee = 0
+        group_processing_fee = Money.zero()
         refund_txn_candidates = []
 
         try:
             model = session.attendee(id)
             if model.in_promo_code_group and model.promo_code.group.buyer:
                 group_leader_receipt = session.get_receipt_by_model(model.promo_code.group.buyer)
-                potential_refund_amount = model.promo_code.cost * 100
+                potential_refund_amount = Money.from_dollars(model.promo_code.cost)
                 if group_leader_receipt:
                     refundable_txns = sorted([txn for txn in group_leader_receipt.refundable_txns
                                               if txn.amount_left >= potential_refund_amount], key=lambda x: x.added)
@@ -387,7 +389,7 @@ class Root:
                                 department=params.get('department', c.OTHER_RECEIPT_ITEM),
                                 category=params.get('category', c.OTHER),
                                 desc=params['desc'],
-                                amount=amount * 100,
+                                amount=Money.from_dollars(amount),
                                 count=int(count or 1),
                                 who=AdminAccount.admin_name() or 'non-admin'
                                 ))
@@ -587,7 +589,7 @@ class Root:
 
         new_txn = ReceiptTransaction(receipt_id=receipt.id,
                                      department=receipt.default_department,
-                                     amount=amount * 100,
+                                     amount=Money.from_dollars(amount),
                                      method=params.get('method'),
                                      desc=params['desc'],
                                      who=AdminAccount.admin_name() or 'non-admin'
@@ -646,7 +648,7 @@ class Root:
         }
 
     @ajax
-    def refresh_receipt_txn(self, session, id='', **params):
+    def refresh_receipt_txn(self, session: Session, id: str = '', **params: Any) -> dict[str, Any]:
         txn = session.receipt_transaction(id)
         messages = []
 
@@ -661,8 +663,7 @@ class Root:
                 prior_amount = txn.amount - txn.amount_left
                 new_amount, last_refund_id = txn.update_amount_refunded()
                 if prior_amount < new_amount:
-                    messages.append("Refund amount updated from {} to {}.".format(format_currency(prior_amount / 100),
-                                                                                  format_currency(new_amount / 100)))
+                    messages.append(f"Refund amount updated from {prior_amount} to {new_amount}.")
                     session.add(ReceiptTransaction(
                         receipt_id=txn.receipt_id,
                         refund_id=last_refund_id,
@@ -695,7 +696,7 @@ class Root:
         return {}
 
     @not_site_mappable
-    def settle_up(self, session, id=''):
+    def settle_up(self, session: Session, id: str = '') -> None:
         txn = session.receipt_transaction(id)
         receipt = txn.receipt
         refund_amount = receipt.current_receipt_amount * -1
@@ -710,7 +711,7 @@ class Root:
         elif txn.amount_left < refund_amount:
             raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}',
                                session.get_model_by_receipt(receipt).id,
-                               f"This transaction does not have {format_currency(refund_amount / 100)}"
+                               f"This transaction does not have {refund_amount}"
                                " left to refund!")
 
         error = ''
@@ -734,26 +735,27 @@ class Root:
 
         raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}',
                            session.get_model_by_receipt(receipt).id,
-                           f"{format_currency(refund_amount / 100)} refunded.")
+                           f"{refund_amount} refunded.")
 
     @not_site_mappable
-    def process_full_refund(self, session, id='', attendee_id='', group_id='', exclude_fees=False):
+    def process_full_refund(self, session: Session, id: str = '', attendee_id: str = '', group_id: str = '', exclude_fees: bool = False) -> None:
         receipt = session.model_receipt(id)
-        refund_total = 0
+        refund_total = Money.zero()
         group_leader_receipt = None
-        group_refund_amount = 0
+        group_refund_amount = Money.zero()
 
         if attendee_id:
             model = session.attendee(attendee_id)
             if model.in_promo_code_group and model.promo_code.group.buyer:
                 group_leader_receipt = session.get_receipt_by_model(model.promo_code.group.buyer)
-                group_refund_amount = model.promo_code.cost * 100
+                group_refund_amount = Money.from_dollars(model.promo_code.cost)
         elif group_id:
             model = session.group(group_id)
 
         if session.get_receipt_by_model(model) == receipt:
-            refund_total, error = receipt.process_full_refund(
+            refund_cents, error = receipt.process_full_refund(
                 session, model, who=AdminAccount.admin_name() or 'non-admin', exclude_fees=exclude_fees)
+            refund_total = Money.from_cents(refund_cents)
 
             if error:
                 raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}',
@@ -775,7 +777,7 @@ class Root:
 
         if group_refund_amount:
             if refund_total:
-                error_start = f"This attendee was refunded {format_currency(refund_total / 100)}, but their"
+                error_start = f"This attendee was refunded {refund_total}, but their"
             else:
                 error_start = "This attendee's"
 
@@ -828,12 +830,12 @@ class Root:
             session.commit()
             session.check_receipt_closed(receipt)
 
-        message_end = f" Their group leader was refunded {format_currency(group_refund_amount / 100)}."\
+        message_end = f" Their group leader was refunded {group_refund_amount}."\
             if group_refund_amount else ""
         raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}',
                            attendee_id or group_id,
                            "{}'s registration has been cancelled and they have been refunded {}.{}".format(
-                               getattr(model, 'full_name', None) or model.name, format_currency(refund_total / 100),
+                               getattr(model, 'full_name', None) or model.name, refund_total,
                                message_end
                                ))
 
@@ -968,7 +970,7 @@ class Root:
                            account_id, ' '.join(messages))
 
     @ajax
-    def refresh_model_receipt(self, session, id=''):
+    def refresh_model_receipt(self, session: Session, id: str = '') -> dict[str, Any]:
         try:
             model = session.attendee(id)
         except NoResultFound:
@@ -979,15 +981,15 @@ class Root:
 
         receipt = session.get_receipt_by_model(model)
 
-        old_cost = getattr(model, 'default_cost', getattr(model, 'cost', -1)) * 100
+        old_cost = getattr(model, 'default_cost', getattr(model, 'cost', Money.from_cents(-1)))
         old_receipt_total = receipt.item_total
 
         session.refresh_receipt_and_model(model)
 
-        new_cost = getattr(model, 'default_cost', getattr(model, 'cost', -1)) * 100
+        new_cost = getattr(model, 'default_cost', getattr(model, 'cost', Money.from_cents(-1)))
         new_receipt_total = receipt.item_total
-        formatted_new_cost = format_currency(new_cost / 100)
-        formatted_new_receipt_total = format_currency(new_receipt_total / 100)
+        formatted_new_cost = str(new_cost)
+        formatted_new_receipt_total = str(new_receipt_total)
 
         if new_cost == old_cost and new_receipt_total == old_receipt_total:
             message = 'Model and receipt refreshed, but nothing changed.'

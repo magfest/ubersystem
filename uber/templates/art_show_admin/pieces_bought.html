@@ -132,13 +132,13 @@
       </tr>
       {% endfor %}
       {% if receipt.pieces %}
-      <tr><td colspan="9" class="text-end">Subtotal: {{ (receipt.subtotal / 100)|format_currency }}</td></tr>
-      <tr><td colspan="9" class="text-end">Sales Tax ({{ c.SALES_TAX / 100 }}%): {{ (receipt.tax / 100)|format_currency }}</td></tr>
-      <tr><td colspan="9" class="text-end">Total Cost: {{ (receipt.total / 100)|format_currency }}</td></tr>
-      <tr><td colspan="9" class="text-end">Total Paid: {{ (receipt.paid / 100)|format_currency }}</td></tr>
+      <tr><td colspan="9" class="text-end">Subtotal: {{ receipt.subtotal }}</td></tr>
+      <tr><td colspan="9" class="text-end">Sales Tax ({{ c.SALES_TAX / 100 }}%): {{ receipt.tax }}</td></tr>
+      <tr><td colspan="9" class="text-end">Total Cost: {{ receipt.total }}</td></tr>
+      <tr><td colspan="9" class="text-end">Total Paid: {{ receipt.paid }}</td></tr>
       <tr><td colspan="9"></td></tr>
       {% if receipt.owed and receipt_open %}
-      <tr><td colspan="9" class="text-end">Owed: {{ (receipt.owed / 100)|format_currency }}</td></tr>
+      <tr><td colspan="9" class="text-end">Owed: {{ receipt.owed }}</td></tr>
       <tr><td colspan="9" class="text-end">
         <form role="form" method="post" action="record_payment">
           <div class="row g-3 row-cols-auto justify-content-end">
@@ -146,7 +146,7 @@
               <input type="hidden" name="id" value="{{ receipt.id }}" />
               <input type="hidden" name="type" value="{{ c.CASH }}" />
               <div class="input-group">
-                <span class="input-group-text">$</span><input type="text" class="form-control" name="amount" placeholder="{{ ((receipt.owed / 100)|format_currency)[1:] }}" />
+                <span class="input-group-text">$</span><input type="text" class="form-control" name="amount" placeholder="{{ receipt.owed.amount_str }}" />
               </div>
             </div>
             <div class="col"><button type="submit" class="btn btn-success">Record Cash Payment</button></div>
@@ -160,8 +160,8 @@
         {% else %}
           <div class="col">
             <div class="input-group">
-              <input type="hidden" id="original_total_cents" value="{{ receipt.owed }}" />
-              <span class="input-group-text">$</span><input type="text" class="form-control" id="card_amount" placeholder="{{ ((receipt.owed / 100)|format_currency)[1:] }}" />
+              <input type="hidden" id="original_total_cents" value="{{ receipt.owed.cents }}" />
+              <span class="input-group-text">$</span><input type="text" class="form-control" id="card_amount" placeholder="{{ receipt.owed.amount_str }}" />
             </div>
           </div>
           <div class="col">
@@ -184,7 +184,7 @@
               <input type="hidden" name="id" value="{{ receipt.id }}" />
               <input type="hidden" name="type" value="{{ c.REFUND }}" />
               <div class="input-group">
-                <span class="input-group-text">$</span><input type="text" class="form-control" name="amount" placeholder="{{ ((receipt.paid / 100)|format_currency)[1:] }}" />
+                <span class="input-group-text">$</span><input type="text" class="form-control" name="amount" placeholder="{{ receipt.paid.amount_str }}" />
               </div>
             </div>
             <div class="col"><button type="submit" class="btn btn-success">Record Refund</button></div>
@@ -218,7 +218,7 @@
           Refund of
           {%- else -%}
           {{ payment.type_label }} payment of
-          {% endif %} {{ (payment.amount / 100)|format_currency }}
+          {% endif %} {{ payment.amount }}
           {%- endset -%}
           {{ payment_desc }} on {{ payment.when_local|datetime("%-I:%M%p")|lower }} {{ payment.when_local|datetime("%a") }}
           &nbsp;

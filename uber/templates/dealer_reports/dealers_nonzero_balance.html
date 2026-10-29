@@ -39,16 +39,16 @@
                 {{ group.leader|form_link("true") }}
             </td>
             <td>
-                {{ (item_total / 100)|format_currency }}
+                {{ item_total }}
             </td>
             <td>
-                {{ (payment_total / 100)|format_currency }}
+                {{ payment_total }}
             </td>
             <td>
-                {{ (refund_total / 100)|format_currency }}
+                {{ refund_total }}
             </td>
             <td>
-                {{ ((item_total - txn_total) / 100)|format_currency }}
+                {{ item_total - txn_total }}
             </td>
             {% if c.HAS_REG_ADMIN_ACCESS %}
             <td>
@@ -65,10 +65,10 @@
             <td data-order="{{ group.leader.full_name }}" data-search="{{ group.leader.full_name }}">
                 {{ group.leader|form_link("true") }}
             </td>
-            <td>{{ group.cost|format_currency }}</td>
+            <td>{{ group.cost }}</td>
             <td>No Receipt</td>
             <td>No Receipt</td>
-            <td>{{ group.cost|format_currency }}</td>
+            <td>{{ group.cost }}</td>
             {% if c.HAS_REG_ADMIN_ACCESS %}
             <td>
                 <a class="btn btn-success" href="../reg_admin/receipt_items?id={{ group.id }}" target="_blank">Create Receipt</a>

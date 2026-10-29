@@ -24,7 +24,8 @@ from uber.errors import HTTPRedirect
 from uber.forms import load_forms
 from uber.models import AdminAccount, ArtShowApplication, ArtShowBidder, ArtShowPayment, ArtShowPiece, ArtShowReceipt, ArtShowPanel, \
                         ArtPanelAssignment, Attendee, BadgeInfo, Email, Tracking, PageViewTracking, ReceiptItem, ReceiptTransaction, \
-                        WorkstationAssignment
+                        Session, WorkstationAssignment
+from uber.money import Money
 from uber.utils import check, get_static_file_path, localized_now, Order, validate_model
 from uber.payments import TransactionRequest, ReceiptManager
 
@@ -1171,28 +1172,27 @@ class Root:
                                receipt.id,
                                'Piece {} successfully unclaimed'.format(piece.artist_and_piece_id))
 
-    def record_payment(self, session, id, amount='', type=c.CASH):
+    def record_payment(self, session: Session, id: str, amount: str | int | float | Money = '', type: int = c.CASH) -> None:
         receipt = session.art_show_receipt(id)
 
         if receipt.closed:
             raise HTTPRedirect('pieces_bought?id={}&message={}', receipt.id,
                                "This receipt is closed and cannot be altered.")
 
-        if amount:
-            amount = int(Decimal(amount) * 100)
-
         is_payment = type == str(c.CASH)
+        if amount:
+            payment_amount = Money.from_dollars(amount)
+        else:
+            payment_amount = receipt.owed if is_payment else receipt.paid
 
         if is_payment:
-            amount = amount or receipt.owed
-            message = 'Cash payment of {} recorded'.format(format_currency(amount / 100))
+            message = f'Cash payment of {payment_amount} recorded'
         else:
-            amount = amount or receipt.paid
-            message = 'Refund of {} recorded'.format(format_currency(amount / 100))
+            message = f'Refund of {payment_amount} recorded'
 
         session.add(ArtShowPayment(
             receipt=receipt,
-            amount=amount,
+            amount=payment_amount,
             type=type,
         ))
 
@@ -1242,7 +1242,7 @@ class Root:
         raise HTTPRedirect('pieces_bought?id={}&message={}', receipt.id, "Receipt re-opened.")
 
 
-    def print_receipt(self, session, id, close=False, **params):
+    def print_receipt(self, session: Session, id: str, close: bool = False, **params: Any) -> None:
         receipt = session.art_show_receipt(id)
 
         if close and not receipt.closed:
@@ -1283,7 +1283,8 @@ class Root:
             )
 
             main_txn = None
-            cash_total, credit_total, credit_num = 0, 0, 0
+            cash_total, credit_total = Money.zero(), Money.zero()
+            credit_num = 0
             for txn in [txn for txn in attendee_receipt.receipt_txns if f"Art Show Invoice #{receipt.invoice_num}" in txn.desc]:
                 if not main_txn or txn.amount > main_txn.amount:
                     main_txn = txn
@@ -1295,9 +1296,9 @@ class Root:
 
             admin_notes = []
             if cash_total:
-                admin_notes.append(f"Cash: {format_currency(cash_total / 100)}")
+                admin_notes.append(f"Cash: {cash_total}")
             if credit_total:
-                credit_note = f"Credit: {format_currency(credit_total / 100)}"
+                credit_note = f"Credit: {credit_total}"
                 if credit_num > 1:
                     credit_note += f" ({credit_num} payments)"
                 admin_notes.append(credit_note)
@@ -1375,10 +1376,10 @@ class Root:
             if not amount:
                 amount = receipt.owed
             else:
-                amount = int(Decimal(amount) * 100)
+                amount = Money.from_dollars(amount)
 
             description = '{}ayment for Art Show Invoice #{}'.format(
-                'P' if int(float(amount)) == receipt.total else 'Partial p',
+                'P' if amount == receipt.total else 'Partial p',
                 receipt.invoice_num)
             model_id = receipt.attendee.id
 
@@ -1388,7 +1389,7 @@ class Root:
                                     model_id=model_id,
                                     description=description,
                                     use_account_info=False,
-                                    amount=amount,
+                                    amount=amount.cents,
                                     who=AdminAccount.admin_name())
         return {'success': True}
 
@@ -1413,7 +1414,7 @@ class Root:
         session.commit()
         return {'success': True}
 
-    def paid_with_cash(self, session, id):
+    def paid_with_cash(self, session: Session, id: str) -> None:
         if not cherrypy.session.get('reg_station'):
             raise HTTPRedirect('form?id={}&message={}', id, 'You must set a workstation ID to take payments.')
 
@@ -1434,4 +1435,4 @@ class Root:
         session.commit()
         session.check_receipt_closed(receipt)
         raise HTTPRedirect('form?id={}&message={}', id,
-                           f"Cash payment of {format_currency(amount_owed / 100)} recorded.")
+                           f"Cash payment of {amount_owed} recorded.")

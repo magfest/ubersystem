@@ -45,14 +45,14 @@
                 {{ attendee.badge_type_label }}
             </td>
             <td id="{{ attendee.id }}-cost">
-                {{ attendee.default_cost|format_currency }}
+                {{ attendee.default_cost }}
             </td>
             <td id="{{ attendee.id }}-receipt-total">
-                {{ (attendee.active_receipt.item_total / 100)|format_currency }}
+                {{ attendee.active_receipt.item_total }}
             </td>
-            <td>{{ (attendee.active_receipt.payment_total / 100)|format_currency }}</td>
-            <td>{{ (attendee.active_receipt.refund_total / 100)|format_currency }}</td>
-            <td>{{ (attendee.active_receipt.txn_total / 100)|format_currency }}</td>
+            <td>{{ attendee.active_receipt.payment_total }}</td>
+            <td>{{ attendee.active_receipt.refund_total }}</td>
+            <td>{{ attendee.active_receipt.txn_total }}</td>
             {% if c.HAS_REG_ADMIN_ACCESS %}
                 <td>
                     <a class="btn btn-success" href="../reg_admin/receipt_items?id={{ attendee.id }}" target="_blank">View Receipt Items</a>

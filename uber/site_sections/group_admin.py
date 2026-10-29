@@ -2,19 +2,21 @@ import cherrypy
 import logging
 
 from collections import defaultdict
+from typing import Any
 from datetime import datetime
 from pytz import UTC
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import joinedload
 
 from uber.config import c
-from uber.custom_tags import format_currency, readable_join
+from uber.custom_tags import readable_join
 from uber.decorators import ajax, any_admin_access, all_renderable, csrf_protected, log_pageview
 from uber.email import EmailService
 from uber.errors import HTTPRedirect
 from uber.files import FileService
 from uber.forms import load_forms
-from uber.models import AdminAccount, Attendee, Email, DeptMembership, Group, GuestGroup, PageViewTracking, Tracking
+from uber.models import AdminAccount, Attendee, Email, DeptMembership, Group, GuestGroup, PageViewTracking, Tracking, Session
+from uber.money import Money
 from uber.utils import check, validate_model, add_opt, SignNowRequest
 from uber.payments import ReceiptManager
 
@@ -330,7 +332,7 @@ class Root:
 
         return {"success": True}
 
-    def paid_with_cash(self, session, id):
+    def paid_with_cash(self, session: Session, id: str) -> None:
         if not cherrypy.session.get('reg_station'):
             raise HTTPRedirect('form?id={}&message={}', id, 'You must set a workstation ID to take payments.')
 
@@ -351,7 +353,7 @@ class Root:
         session.commit()
         session.check_receipt_closed(receipt)
         raise HTTPRedirect('form?id={}&message={}', id,
-                           f"Cash payment of {format_currency(amount_owed / 100)} recorded.")
+                           f"Cash payment of {amount_owed} recorded.")
 
     def history(self, session, id):
         group = session.group(id)

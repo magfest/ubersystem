@@ -3,7 +3,7 @@ from uber.custom_tags import email_only, email_to_link
 from uber.models import MagModel
 from uber.decorators import presave_adjustment
 from uber.models.types import (Choice, default_relationship as relationship, DefaultColumn as Column,
-                               DefaultField as Field, DefaultRelationship as Relationship)
+                               DefaultField as Field, DefaultRelationship as Relationship, Money, MoneyType, MoneyField)
 
 from datetime import datetime
 from markupsafe import Markup
@@ -34,7 +34,7 @@ class ArtistMarketplaceApplication(MagModel, table=True):
     registered: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
     accepted: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     admin_notes: str = ''
-    overridden_price: int | None = Field(default=0, nullable=True)
+    overridden_price: Money | None = MoneyField(None)
 
     receipt_items: list['ReceiptItem'] = Relationship(sa_relationship=relationship('ReceiptItem',
                                  primaryjoin='and_('
@@ -59,36 +59,41 @@ class ArtistMarketplaceApplication(MagModel, table=True):
         return self.email_address or self.attendee.email
     
     @property
-    def default_cost(self):
-        return self.overridden_price or c.ARTIST_MARKETPLACE_FEE
+    def default_cost(self) -> Money:
+        if self.overridden_price is not None:
+            return self.overridden_price
+        return Money.from_dollars(c.ARTIST_MARKETPLACE_FEE)
 
     @property
-    def total_cost(self):
+    def total_cost(self) -> Money:
         if self.receipt_items:
-            return sum([item.amount for item in self.receipt_items]) / 100
+            return sum((item.amount for item in self.receipt_items), Money.zero())
         return self.default_cost
 
     @property
-    def amount_unpaid(self):
+    def amount_unpaid(self) -> Money:
         if self.status != c.ACCEPTED:
-            return 0
+            return Money.zero()
         elif not self.receipt_items or self.was_refunded:
             return self.default_cost
 
-        return sum([item.amount for item in self.receipt_items if not item.closed]) / 100
+        return sum((item.amount for item in self.receipt_items if not item.closed), Money.zero())
 
     @property
-    def was_refunded(self):
+    def was_refunded(self) -> bool:
         if not self.receipt_items:
             return False
         return all([item.receipt_txn and item.receipt_txn.refunded for item in self.receipt_items])
 
     @property
-    def amount_paid(self):
+    def amount_paid(self) -> Money:
         if self.receipt_items:
-            return sum([item.amount for item in self.receipt_items if item.closed and (
-                not item.receipt_txn or not item.receipt_txn.refunded)])
-        return 0
+            return sum(
+                (item.amount for item in self.receipt_items if item.closed and (
+                    not item.receipt_txn or not item.receipt_txn.refunded)),
+                Money.zero(),
+            )
+        return Money.zero()
     
     @property
     def incomplete_reason(self):

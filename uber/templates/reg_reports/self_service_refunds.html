@@ -62,7 +62,7 @@
             <td data-order="{{ refund.added }}">
               {{ refund.added|datetime_local }}
             </td>
-            <td>{{ (refund.amount * -1 / 100)|format_currency }}</td>
+            <td>{{ (-refund.amount) }}</td>
             <td>
               {{ refund.desc }}
             </td>

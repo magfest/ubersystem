@@ -130,7 +130,7 @@
     </div>
 {% elif not group.is_dealer and receipt and receipt.current_amount_owed and incomplete_txn and c.ONLINE_PAYMENT_AVAILABLE %}
 <div style="text-align:center">
-  You currently have an incomplete payment of {{ (incomplete_txn.amount / 100)|format_currency }}.
+  You currently have an incomplete payment of {{ incomplete_txn.amount }}.
   <br/><br/>Click here to complete your payment: {{ stripe_form('finish_pending_group_payment', group, txn_id=incomplete_txn.id, stripe_button_id="complete_txn") }}
 </div>
 {% endif %}

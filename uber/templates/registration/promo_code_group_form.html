@@ -154,7 +154,7 @@
           </td>
           
           <td>{{ code.created_info.when|datetime_local }}</td>
-          <td>{{ code.cost|format_currency }}</td>
+          <td>{{ code.cost }}</td>
           <td>
             {% if not code.valid_used_by %}
               <button class="btn btn-sm btn-danger" onClick="deleteCode('{{ code.id }}')"><i class="fa fa-remove"></i></button>

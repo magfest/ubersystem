@@ -7,7 +7,7 @@ from uber.config import c
 from uber.custom_tags import time_day_local
 from uber.decorators import ajax, ajax_gettable, all_renderable, not_site_mappable
 from uber.errors import HTTPRedirect
-from uber.models import AdminAccount, Attendee, PrintJob, ReceiptItem
+from uber.models import AdminAccount, Attendee, PrintJob, ReceiptItem, Money
 from uber.utils import localized_now
 
 
@@ -161,7 +161,7 @@ class Root:
                                         department=c.REG_RECEIPT_ITEM,
                                         category=c.BADGE_REPRINT,
                                         desc="Badge reprint fee (${})".format(reprint_fee),
-                                        amount=reprint_fee * 100,
+                                        amount=Money.from_dollars(reprint_fee),
                                         fk_id=print_id,
                                         fk_model="PrintJob",
                                         count=1,
@@ -231,7 +231,7 @@ class Root:
                                             department=c.REG_RECEIPT_ITEM,
                                             category=c.BADGE_REPRINT,
                                             desc="Badge reprint cancelled (${})".format(job.print_fee),
-                                            amount=job.print_fee * 100 * -1,
+                                            amount=Money.from_dollars(-job.print_fee),
                                             count=1,
                                             who=AdminAccount.admin_name() or 'non-admin',
                                             )

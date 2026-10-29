@@ -83,7 +83,7 @@
             <div class="alert alert-warning" role="alert">
                 <p>
                     The badge associated with this transfer code (<strong>{{ code }}</strong>) currently has an outstanding balance
-                    of <strong>{{ (transfer_badge.active_receipt.current_amount_owed / 100)|format_currency }}</strong>.
+                    of <strong>{{ transfer_badge.active_receipt.current_amount_owed }}</strong>.
                 </p>
                 <p>Otherwise, the badge is valid and can be transferred.</p>
                 {{ badge_details }}
@@ -105,7 +105,7 @@
 
     {% if receipt and receipt.current_amount_owed %}
     <div class="alert alert-danger" role="alert">
-      This badge currently has an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>.
+      This badge currently has an outstanding balance of <strong>{{ receipt.current_amount_owed }}</strong>.
       You will be prompted for payment after transferring the badge.
     </div>
     {% endif %}
