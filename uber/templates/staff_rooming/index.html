@@ -17,7 +17,7 @@
 </ol>
 <p class="mb-1">Someone sees the warning only when both are true:</p>
 <ul>
-  <li>they hold a room that matches the first section, and</li>
+  <li>they hold or share a room that matches the first section, and</li>
   <li>that room covers a night in the second section whose requirement they don't meet.</li>
 </ul>
 <p>Nights that aren't listed in the second section are never checked.</p>
@@ -25,7 +25,8 @@
 <h2 class="h4">Which rooms show the shift warning</h2>
 <p class="text-muted">
   A room is checked against the nights below only when it matches a box in
-  every column. Rooms that miss any column never show the warning.
+  every column. Everyone in a checked room is checked, the holder and each
+  roommate, as long as their own badge type is checked.
 </p>
 <form method="post" action="save_room_rules" class="mb-4">
   {{ csrf_token() }}

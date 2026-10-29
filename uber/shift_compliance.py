@@ -1,7 +1,7 @@
 """Staff shift-compliance computation against NightShiftRequirement rules.
 
-Someone holding a checked room (see `is_checked_room`) must satisfy any
-NightShiftRequirement that exists for the nights that room covers:
+Someone holding or sharing a checked room (see `is_checked_room`) must satisfy
+any NightShiftRequirement that exists for the nights that room covers:
 
 - Setup/teardown nights - they need at least one shift overlapping the
   configured window
@@ -18,11 +18,12 @@ lookup) is one query for the whole table; cache it once per request via
 from collections import defaultdict
 from datetime import timedelta
 
-from sqlalchemy import and_, inspect as sa_inspect
+from sqlalchemy import and_, inspect as sa_inspect, or_
 from sqlalchemy.orm import selectinload
 
 from uber.config import c, DatabaseConfigSection
 from uber.models import Attendee, Job, NightShiftRequirement, RoomAssignment, Shift
+from uber.models.hotel import room_assignment_occupant
 
 
 def load_requirements(session):
@@ -124,12 +125,10 @@ def _violations(nights, weighted_hours, shift_spans, requirements_by_date):
 def compliance_violations(attendee, requirements_by_date=None):
     """Return the list of NightShiftRequirement rows this attendee violates.
 
+    Rooms the attendee holds and rooms they share as an occupant both count.
     Empty list means the attendee is compliant, their badge type or rooms are
     not checked, or no requirements exist.
     """
-    if not attendee.room_assignments:
-        return []
-
     session = sa_inspect(attendee).session
     if session is None:
         return []
@@ -137,12 +136,16 @@ def compliance_violations(attendee, requirements_by_date=None):
     if attendee.badge_type not in rules['badge_types']:
         return []
 
+    rooms = list(attendee.room_assignments) + list(attendee.occupied_rooms)
+    if not rooms:
+        return []
+
     if requirements_by_date is None:
         requirements_by_date = load_requirements(session)
     if not requirements_by_date:
         return []
 
-    nights = assigned_nights(attendee.room_assignments, rules)
+    nights = assigned_nights(rooms, rules)
     if not nights:
         return []
 
@@ -156,9 +159,9 @@ def is_compliant(attendee, requirements_by_date=None):
 
 
 def non_compliant_staffers(session, department_id=None):
-    """Return [(attendee, violations), ...], ordered by name, for holders of a
-    checked badge and room who aren't compliant, optionally only members of
-    `department_id`.
+    """Return [(attendee, violations), ...], ordered by name, for people with a
+    checked badge who hold or share a checked room and aren't compliant,
+    optionally only members of `department_id`.
     """
     reqs = load_requirements(session)
     if not reqs:
@@ -166,8 +169,8 @@ def non_compliant_staffers(session, department_id=None):
 
     rules = staff_rooming_config.load(session)
     checked_room = checked_room_clause(rules)
-    staff = session.query(Attendee).filter(Attendee.badge_type.in_(rules['badge_types']),
-                                           Attendee.room_assignments.any(checked_room))
+    staff = session.query(Attendee).filter(Attendee.badge_type.in_(rules['badge_types']), or_(
+        Attendee.room_assignments.any(checked_room), Attendee.occupied_rooms.any(checked_room)))
     if department_id:
         staff = staff.filter(Attendee.dept_memberships.any(department_id=department_id))
     nonshift_minutes = dict(staff.with_entities(Attendee.id, Attendee.nonshift_minutes))
@@ -180,6 +183,12 @@ def non_compliant_staffers(session, department_id=None):
             RoomAssignment.attendee_id, RoomAssignment.assigned_check_in_date,
             RoomAssignment.assigned_check_out_date).filter(
             RoomAssignment.attendee_id.in_(ids), checked_room):
+        stays[attendee_id].append((check_in, check_out))
+    occupant_id = room_assignment_occupant.c.attendee_id
+    for attendee_id, check_in, check_out in session.query(
+            occupant_id, RoomAssignment.assigned_check_in_date, RoomAssignment.assigned_check_out_date).join(
+            RoomAssignment, RoomAssignment.id == room_assignment_occupant.c.room_assignment_id).filter(
+            occupant_id.in_(ids), checked_room):
         stays[attendee_id].append((check_in, check_out))
 
     hours = {attendee_id: (minutes or 0) / 60 for attendee_id, minutes in nonshift_minutes.items()}

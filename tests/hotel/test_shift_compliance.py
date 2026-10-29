@@ -151,6 +151,58 @@ def test_report_lists_only_staff_with_a_checked_room(session, setup_night):
     assert self_paid.id not in flagged
 
 
+def _share(session, room, *roommates):
+    room.occupants.extend(roommates)
+    session.flush()
+    for roommate in roommates:
+        session.expire(roommate, ['occupied_rooms'])
+
+
+def test_staff_roommate_in_a_checked_room_is_checked(session, setup_night):
+    room = _room(session, _staffer(session))
+    roommate = _staffer(session)
+    _share(session, room, roommate)
+    assert compliance_violations(roommate, {N[0]: setup_night}) == [setup_night]
+
+
+def test_roommate_in_a_lottery_room_is_not_checked(session, setup_night):
+    room = _lottery_room(session, _staffer(session), c.LOTTERY_AWARD)
+    roommate = _staffer(session)
+    _share(session, room, roommate)
+    assert compliance_violations(roommate, {N[0]: setup_night}) == []
+
+
+def test_roommate_badge_is_checked_on_its_own(session, setup_night):
+    room = _room(session, _staffer(session))
+    volunteer = make_attendee(session)
+    _share(session, room, volunteer)
+    assert compliance_violations(volunteer, {N[0]: setup_night}) == []
+
+
+def test_holder_stays_checked_when_left_off_the_occupant_list(session, setup_night):
+    holder = _staffer(session)
+    room = _room(session, holder)
+    _share(session, room, _staffer(session))
+    assert compliance_violations(holder, {N[0]: setup_night}) == [setup_night]
+
+
+def test_report_lists_every_staffer_sharing_a_checked_room(session, setup_night):
+    session.query(NightShiftRequirement).delete()
+    session.add(setup_night)
+    session.flush()
+
+    holder = _staffer(session)
+    room = _room(session, holder)
+    roommates = [_staffer(session) for _ in range(3)]
+    _share(session, room, *roommates)
+    lottery_roommate = _staffer(session)
+    _share(session, _lottery_room(session, _staffer(session), c.LOTTERY_AWARD), lottery_roommate)
+
+    flagged = {attendee.id for attendee, _ in non_compliant_staffers(session)}
+    assert {holder.id, *(r.id for r in roommates)} <= flagged
+    assert lottery_roommate.id not in flagged
+
+
 @pytest.fixture
 def post(session, monkeypatch):
     """Call a Staff Rooming handler unwrapped, as a POST with CSRF stubbed and
