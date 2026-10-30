@@ -13,8 +13,18 @@ from uber.config import c
 from uber.custom_tags import email_only
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
-from uber.models.types import (Choice, default_relationship as relationship, DefaultColumn as Column, MultiChoice, TakesPaymentMixin,
-                               DefaultField as Field, DefaultRelationship as Relationship, Money, MoneyType, MoneyField)
+from uber.models.types import (
+    Choice,
+    default_relationship as relationship,
+    DefaultColumn as Column,
+    MultiChoice,
+    TakesPaymentMixin,
+    DefaultField as Field,
+    DefaultRelationship as Relationship,
+    Money,
+    MoneyType,
+    MoneyField,
+)
 from uber.utils import add_opt
 
 
@@ -361,9 +371,12 @@ class Group(MagModel, TakesPaymentMixin, table=True):
             return Money.zero()
 
         return sum(
-            (attendee.badge_cost for attendee in self.attendees
-             if attendee.paid == c.PAID_BY_GROUP and attendee.badge_cost),
-            Money.zero()
+            (
+                attendee.badge_cost
+                for attendee in self.attendees
+                if attendee.paid == c.PAID_BY_GROUP and attendee.badge_cost
+            ),
+            Money.zero(),
         )
 
     @property
@@ -373,8 +386,14 @@ class Group(MagModel, TakesPaymentMixin, table=True):
     @property
     def amount_extra(self) -> Money:
         if self.is_new:
-            return sum((max(Money.zero(), a.total_cost - (a.badge_cost or Money.zero()))
-                        for a in self.attendees if a.paid == c.PAID_BY_GROUP and a.badge_cost), Money.zero())
+            return sum(
+                (
+                    max(Money.zero(), a.total_cost - (a.badge_cost or Money.zero()))
+                    for a in self.attendees
+                    if a.paid == c.PAID_BY_GROUP and a.badge_cost
+                ),
+                Money.zero(),
+            )
         return Money.zero()
 
     @property
@@ -401,7 +420,9 @@ class Group(MagModel, TakesPaymentMixin, table=True):
 
     @property
     def amount_pending(self) -> Money:
-        return self.active_receipt.pending_total if self.active_receipt else Money.zero()
+        return (
+            self.active_receipt.pending_total if self.active_receipt else Money.zero()
+        )
 
     @property
     def amount_paid_repr(self) -> str:
@@ -413,7 +434,9 @@ class Group(MagModel, TakesPaymentMixin, table=True):
 
     @hybrid_property
     def amount_paid(self) -> Money:
-        return self.active_receipt.payment_total if self.active_receipt else Money.zero()
+        return (
+            self.active_receipt.payment_total if self.active_receipt else Money.zero()
+        )
 
     @amount_paid.expression
     def amount_paid(cls):

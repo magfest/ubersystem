@@ -20,9 +20,21 @@ from uber.money import Money, MoneyType
 from uber.utils import listify
 
 __all__ = [
-    'default_relationship', 'relationship', 'utcmin', 'utcnow', 'Choice',
-    'Column', 'DefaultColumn', 'DefaultField', 'DefaultRelationship', 'MultiChoice',
-    'Money', 'MoneyType', 'MoneyField', 'TakesPaymentMixin']
+    'default_relationship',
+    'relationship',
+    'utcmin',
+    'utcnow',
+    'Choice',
+    'Column',
+    'DefaultColumn',
+    'DefaultField',
+    'DefaultRelationship',
+    'MultiChoice',
+    'Money',
+    'MoneyType',
+    'MoneyField',
+    'TakesPaymentMixin',
+]
 
 
 def DefaultColumn(*args, admin_only=False, private=False, **kwargs):
@@ -97,7 +109,13 @@ def DefaultField(*args, admin_only=False, private=False, **kwargs):
     return col
 
 
-def MoneyField(default: Money | Callable[[], Money] | None = Money.zero, *, admin_only: bool = False, private: bool = False, **kwargs: Any) -> Any:
+def MoneyField(
+    default: Money | Callable[[], Money] | None = Money.zero,
+    *,
+    admin_only: bool = False,
+    private: bool = False,
+    **kwargs: Any,
+) -> Any:
     """
     Returns a SQLModel Field pre-configured for a Money column backed by MoneyType.
 

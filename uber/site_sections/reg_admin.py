@@ -13,11 +13,35 @@ from sqlalchemy.orm import joinedload, raiseload, subqueryload
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
-from uber.custom_tags import datetime_local_filter, time_day_local, pluralize, readable_join
-from uber.decorators import ajax, all_renderable, csv_file, not_site_mappable, site_mappable
+from uber.custom_tags import (
+    datetime_local_filter,
+    time_day_local,
+    pluralize,
+    readable_join,
+)
+from uber.decorators import (
+    ajax,
+    all_renderable,
+    csv_file,
+    not_site_mappable,
+    site_mappable,
+)
 from uber.errors import HTTPRedirect
-from uber.models import AdminAccount, ApiJob, ArtShowApplication, Attendee, Group, ModelReceipt, ReceiptItem, \
-    ReceiptInfo, ReceiptTransaction, Tracking, WorkstationAssignment, EscalationTicket, Session
+from uber.models import (
+    AdminAccount,
+    ApiJob,
+    ArtShowApplication,
+    Attendee,
+    Group,
+    ModelReceipt,
+    ReceiptItem,
+    ReceiptInfo,
+    ReceiptTransaction,
+    Tracking,
+    WorkstationAssignment,
+    EscalationTicket,
+    Session,
+)
 from uber.money import Money
 from uber.site_sections import devtools
 from uber.utils import check, get_api_service_from_server, normalize_email, normalize_email_legacy, valid_email, \
@@ -238,8 +262,10 @@ class Root:
         session.delete(ticket)
         session.commit()
         return {'success': True, 'message': "Ticket deleted."}
-    
-    def receipt_items(self, session: Session, id: str, message: str = '', highlight_id: str = '') -> dict[str, Any]:
+
+    def receipt_items(
+        self, session: Session, id: str, message: str = '', highlight_id: str = ''
+    ) -> dict[str, Any]:
         group_leader_receipt = None
         group_processing_fee = Money.zero()
         refund_txn_candidates = []
@@ -384,15 +410,20 @@ class Root:
             except Exception:
                 return {'error': "The count must be a number."}
 
-        session.add(ReceiptItem(purchaser_id=ReceiptManager.get_purchaser_id(receipt) if amount > 0 else None,
-                                receipt_id=receipt.id,
-                                department=params.get('department', c.OTHER_RECEIPT_ITEM),
-                                category=params.get('category', c.OTHER),
-                                desc=params['desc'],
-                                amount=Money.from_dollars(amount),
-                                count=int(count or 1),
-                                who=AdminAccount.admin_name() or 'non-admin'
-                                ))
+        session.add(
+            ReceiptItem(
+                purchaser_id=(
+                    ReceiptManager.get_purchaser_id(receipt) if amount > 0 else None
+                ),
+                receipt_id=receipt.id,
+                department=params.get('department', c.OTHER_RECEIPT_ITEM),
+                category=params.get('category', c.OTHER),
+                desc=params['desc'],
+                amount=Money.from_dollars(amount),
+                count=int(count or 1),
+                who=AdminAccount.admin_name() or 'non-admin',
+            )
+        )
 
         try:
             session.commit()
@@ -587,13 +618,14 @@ class Root:
                 model.paid = c.REFUNDED
                 session.add(model)
 
-        new_txn = ReceiptTransaction(receipt_id=receipt.id,
-                                     department=receipt.default_department,
-                                     amount=Money.from_dollars(amount),
-                                     method=params.get('method'),
-                                     desc=params['desc'],
-                                     who=AdminAccount.admin_name() or 'non-admin'
-                                     )
+        new_txn = ReceiptTransaction(
+            receipt_id=receipt.id,
+            department=receipt.default_department,
+            amount=Money.from_dollars(amount),
+            method=params.get('method'),
+            desc=params['desc'],
+            who=AdminAccount.admin_name() or 'non-admin',
+        )
         session.add(new_txn)
 
         try:
@@ -648,7 +680,9 @@ class Root:
         }
 
     @ajax
-    def refresh_receipt_txn(self, session: Session, id: str = '', **params: Any) -> dict[str, Any]:
+    def refresh_receipt_txn(
+        self, session: Session, id: str = '', **params: Any
+    ) -> dict[str, Any]:
         txn = session.receipt_transaction(id)
         messages = []
 
@@ -663,16 +697,21 @@ class Root:
                 prior_amount = txn.amount - txn.amount_left
                 new_amount, last_refund_id = txn.update_amount_refunded()
                 if prior_amount < new_amount:
-                    messages.append(f"Refund amount updated from {prior_amount} to {new_amount}.")
-                    session.add(ReceiptTransaction(
-                        receipt_id=txn.receipt_id,
-                        refund_id=last_refund_id,
-                        department=txn.receipt.default_department,
-                        amount=(new_amount - prior_amount) * -1,
-                        receipt_items=txn.receipt.open_credit_items,
-                        desc="Automatic refund of Stripe transaction " + txn.stripe_id,
-                        who=AdminAccount.admin_name() or 'non-admin'
-                    ))
+                    messages.append(
+                        f"Refund amount updated from {prior_amount} to {new_amount}."
+                    )
+                    session.add(
+                        ReceiptTransaction(
+                            receipt_id=txn.receipt_id,
+                            refund_id=last_refund_id,
+                            department=txn.receipt.default_department,
+                            amount=(new_amount - prior_amount) * -1,
+                            receipt_items=txn.receipt.open_credit_items,
+                            desc="Automatic refund of Stripe transaction "
+                            + txn.stripe_id,
+                            who=AdminAccount.admin_name() or 'non-admin',
+                        )
+                    )
                     for item in txn.receipt.open_credit_items:
                         item.closed = datetime.now()
 
@@ -709,10 +748,11 @@ class Root:
                                session.get_model_by_receipt(receipt).id,
                                "This transaction cannot be refunded automatically.")
         elif txn.amount_left < refund_amount:
-            raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}',
-                               session.get_model_by_receipt(receipt).id,
-                               f"This transaction does not have {refund_amount}"
-                               " left to refund!")
+            raise HTTPRedirect(
+                '../reg_admin/receipt_items?id={}&message={}',
+                session.get_model_by_receipt(receipt).id,
+                f"This transaction does not have {refund_amount} left to refund!",
+            )
 
         error = ''
         try:
@@ -733,12 +773,21 @@ class Root:
         session.commit()
         session.check_receipt_closed(receipt)
 
-        raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}',
-                           session.get_model_by_receipt(receipt).id,
-                           f"{refund_amount} refunded.")
+        raise HTTPRedirect(
+            '../reg_admin/receipt_items?id={}&message={}',
+            session.get_model_by_receipt(receipt).id,
+            f"{refund_amount} refunded.",
+        )
 
     @not_site_mappable
-    def process_full_refund(self, session: Session, id: str = '', attendee_id: str = '', group_id: str = '', exclude_fees: bool = False) -> None:
+    def process_full_refund(
+        self,
+        session: Session,
+        id: str = '',
+        attendee_id: str = '',
+        group_id: str = '',
+        exclude_fees: bool = False,
+    ) -> None:
         receipt = session.model_receipt(id)
         refund_total = Money.zero()
         group_leader_receipt = None
@@ -830,14 +879,20 @@ class Root:
             session.commit()
             session.check_receipt_closed(receipt)
 
-        message_end = f" Their group leader was refunded {group_refund_amount}."\
-            if group_refund_amount else ""
-        raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}',
-                           attendee_id or group_id,
-                           "{}'s registration has been cancelled and they have been refunded {}.{}".format(
-                               getattr(model, 'full_name', None) or model.name, refund_total,
-                               message_end
-                               ))
+        message_end = (
+            f" Their group leader was refunded {group_refund_amount}."
+            if group_refund_amount
+            else ""
+        )
+        raise HTTPRedirect(
+            '../reg_admin/receipt_items?id={}&message={}',
+            attendee_id or group_id,
+            "{}'s registration has been cancelled and they have been refunded {}.{}".format(
+                getattr(model, 'full_name', None) or model.name,
+                refund_total,
+                message_end,
+            ),
+        )
 
     @not_site_mappable
     def close_receipt(self, session, id='', **params):
@@ -981,12 +1036,16 @@ class Root:
 
         receipt = session.get_receipt_by_model(model)
 
-        old_cost = getattr(model, 'default_cost', getattr(model, 'cost', Money.from_cents(-1)))
+        old_cost = getattr(
+            model, 'default_cost', getattr(model, 'cost', Money.from_cents(-1))
+        )
         old_receipt_total = receipt.item_total
 
         session.refresh_receipt_and_model(model)
 
-        new_cost = getattr(model, 'default_cost', getattr(model, 'cost', Money.from_cents(-1)))
+        new_cost = getattr(
+            model, 'default_cost', getattr(model, 'cost', Money.from_cents(-1))
+        )
         new_receipt_total = receipt.item_total
         formatted_new_cost = str(new_cost)
         formatted_new_receipt_total = str(new_receipt_total)

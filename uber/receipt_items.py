@@ -35,30 +35,43 @@ from typing import Any
 from uber.config import c
 from uber.decorators import receipt_calculation
 from uber.money import Money
-from uber.models import Attendee, ArtShowApplication, Group, ArtistMarketplaceApplication
+from uber.models import (
+    Attendee,
+    ArtShowApplication,
+    Group,
+    ArtistMarketplaceApplication,
+)
 
 log = logging.getLogger(__name__)
 
 ReceiptItemResult = (
     tuple[str, Money | dict[Money, int] | None, str | tuple[str, ...] | int | None]
-    | tuple[str, Money | dict[Money, int] | None, str | tuple[str, ...] | int | None, int]
+    | tuple[
+        str, Money | dict[Money, int] | None, str | tuple[str, ...] | int | None, int
+    ]
     | None
 )
 
 
-def calc_simple_cost_change(model: Attendee, col_name: str, col_str: str, new_model: Attendee | None = None) -> ReceiptItemResult:
+def calc_simple_cost_change(
+    model: Attendee, col_name: str, col_str: str, new_model: Attendee | None = None
+) -> ReceiptItemResult:
     """
     Takes an instance of a model and attempts to calculate a simple cost change
     based on a column name. Used for columns where the cost is the column, e.g.,
     extra_donation and amount_extra.
     """
     col_val = getattr(model, col_name, 0)
-    col_money = col_val if isinstance(col_val, Money) else Money.from_dollars(col_val or 0)
+    col_money = (
+        col_val if isinstance(col_val, Money) else Money.from_dollars(col_val or 0)
+    )
     if not new_model:
         return (col_str, col_money, col_name) if col_money else None
     
     new_val = getattr(new_model, col_name, 0)
-    new_money = new_val if isinstance(new_val, Money) else Money.from_dollars(new_val or 0)
+    new_money = (
+        new_val if isinstance(new_val, Money) else Money.from_dollars(new_val or 0)
+    )
     if new_money > col_money:
         label = "Increase"
     else:
@@ -70,7 +83,13 @@ def calc_simple_cost_change(model: Attendee, col_name: str, col_str: str, new_mo
     return None
 
 
-def calc_multiplied_cost_change(app: ArtShowApplication, col_name: str, col_str: str, price_per: Money, new_app: ArtShowApplication | None = None) -> ReceiptItemResult:
+def calc_multiplied_cost_change(
+    app: ArtShowApplication,
+    col_name: str,
+    col_str: str,
+    price_per: Money,
+    new_app: ArtShowApplication | None = None,
+) -> ReceiptItemResult:
     col_val = getattr(app, col_name)
 
     if not new_app:    
@@ -94,18 +113,26 @@ def calc_multiplied_cost_change(app: ArtShowApplication, col_name: str, col_str:
 @receipt_calculation.ArtistMarketplaceApplication
 def app_cost(app: ArtistMarketplaceApplication) -> ReceiptItemResult:
     if app.status == c.APPROVED:
-        fee = app.overridden_price or Money.from_dollars(getattr(c, 'MARKETPLACE_FEE', 0) or getattr(c, 'ARTIST_MARKETPLACE_FEE', 0))
+        fee = app.overridden_price or Money.from_dollars(
+            getattr(c, 'MARKETPLACE_FEE', 0) or getattr(c, 'ARTIST_MARKETPLACE_FEE', 0)
+        )
         return ("Marketplace Application Fee", fee, None)
     return None
 
 
 @receipt_calculation.ArtShowApplication
-def overridden_app_cost(app: ArtShowApplication, new_app: ArtShowApplication | None = None) -> ReceiptItemResult:
+def overridden_app_cost(
+    app: ArtShowApplication, new_app: ArtShowApplication | None = None
+) -> ReceiptItemResult:
     if not new_app:
         if app.overridden_price is None:
             return None
-        return ("Art Show Application (Custom Fee)", app.overridden_price, 'overridden_price')
-    
+        return (
+            "Art Show Application (Custom Fee)",
+            app.overridden_price,
+            'overridden_price',
+        )
+
     if app.overridden_price is None and new_app.overridden_price is None:
         return None
     
@@ -130,46 +157,88 @@ def overridden_app_cost(app: ArtShowApplication, new_app: ArtShowApplication | N
 
 
 @receipt_calculation.ArtShowApplication
-def panel_cost(app: ArtShowApplication, new_app: ArtShowApplication | None = None) -> ReceiptItemResult:
-    if app.overridden_price is not None or new_app and new_app.overridden_price is not None:
+def panel_cost(
+    app: ArtShowApplication, new_app: ArtShowApplication | None = None
+) -> ReceiptItemResult:
+    if (
+        app.overridden_price is not None
+        or new_app
+        and new_app.overridden_price is not None
+    ):
         return None
 
-    return calc_multiplied_cost_change(app, 'panels', 'General Panels', Money.from_dollars(c.COST_PER_PANEL), new_app)
+    return calc_multiplied_cost_change(
+        app, 'panels', 'General Panels', Money.from_dollars(c.COST_PER_PANEL), new_app
+    )
 
 
 @receipt_calculation.ArtShowApplication
-def table_cost(app: ArtShowApplication, new_app: ArtShowApplication | None = None) -> ReceiptItemResult:
-    if app.overridden_price is not None or new_app and new_app.overridden_price is not None:
+def table_cost(
+    app: ArtShowApplication, new_app: ArtShowApplication | None = None
+) -> ReceiptItemResult:
+    if (
+        app.overridden_price is not None
+        or new_app
+        and new_app.overridden_price is not None
+    ):
         return None
-    
-    return calc_multiplied_cost_change(app, 'tables', 'General Tables', Money.from_dollars(c.COST_PER_TABLE), new_app)
+
+    return calc_multiplied_cost_change(
+        app, 'tables', 'General Tables', Money.from_dollars(c.COST_PER_TABLE), new_app
+    )
 
 
 @receipt_calculation.ArtShowApplication
-def mature_panel_cost(app: ArtShowApplication, new_app: ArtShowApplication | None = None) -> ReceiptItemResult:
-    if app.overridden_price is not None or new_app and new_app.overridden_price is not None:
+def mature_panel_cost(
+    app: ArtShowApplication, new_app: ArtShowApplication | None = None
+) -> ReceiptItemResult:
+    if (
+        app.overridden_price is not None
+        or new_app
+        and new_app.overridden_price is not None
+    ):
         return None
-    
-    return calc_multiplied_cost_change(app, 'panels_ad', 'Mature Panels', Money.from_dollars(c.COST_PER_PANEL), new_app)
+
+    return calc_multiplied_cost_change(
+        app, 'panels_ad', 'Mature Panels', Money.from_dollars(c.COST_PER_PANEL), new_app
+    )
 
 
 @receipt_calculation.ArtShowApplication
-def mature_table_cost(app: ArtShowApplication, new_app: ArtShowApplication | None = None) -> ReceiptItemResult:
-    if app.overridden_price is not None or new_app and new_app.overridden_price is not None:
+def mature_table_cost(
+    app: ArtShowApplication, new_app: ArtShowApplication | None = None
+) -> ReceiptItemResult:
+    if (
+        app.overridden_price is not None
+        or new_app
+        and new_app.overridden_price is not None
+    ):
         return None
-    
-    return calc_multiplied_cost_change(app, 'tables_ad', 'Mature Tables', Money.from_dollars(c.COST_PER_TABLE), new_app)
+
+    return calc_multiplied_cost_change(
+        app, 'tables_ad', 'Mature Tables', Money.from_dollars(c.COST_PER_TABLE), new_app
+    )
 
 
 @receipt_calculation.ArtShowApplication
-def mailing_fee_cost(app: ArtShowApplication, new_app: ArtShowApplication | None = None) -> ReceiptItemResult:
+def mailing_fee_cost(
+    app: ArtShowApplication, new_app: ArtShowApplication | None = None
+) -> ReceiptItemResult:
     if not new_app and app.delivery_method != c.BY_MAIL:
         return None
     elif not new_app:
         return ("Mailing Fee", Money.from_dollars(app.mailing_fee), 'delivery_method')
 
-    old_cost = Money.from_dollars(app.mailing_fee) if app.delivery_method == c.BY_MAIL else Money.zero()
-    new_cost = Money.from_dollars(new_app.mailing_fee) if new_app.delivery_method == c.BY_MAIL else Money.zero()
+    old_cost = (
+        Money.from_dollars(app.mailing_fee)
+        if app.delivery_method == c.BY_MAIL
+        else Money.zero()
+    )
+    new_cost = (
+        Money.from_dollars(new_app.mailing_fee)
+        if new_app.delivery_method == c.BY_MAIL
+        else Money.zero()
+    )
     if old_cost == new_cost:
         return None
 
@@ -202,10 +271,16 @@ ArtShowApplication.department = c.ART_SHOW_RECEIPT_ITEM
 def skip_badge_cost_calc(attendee: Attendee, new_receipt: bool = False) -> bool:
     if new_receipt:
         return bool(attendee.promo_code_groups or getattr(attendee, 'badges', None))
-    return bool(attendee.paid == c.PAID_BY_GROUP or attendee.promo_code_groups or getattr(attendee, 'badges', None))
+    return bool(
+        attendee.paid == c.PAID_BY_GROUP
+        or attendee.promo_code_groups
+        or getattr(attendee, 'badges', None)
+    )
 
 
-def cost_from_base_badge_item(attendee: Attendee, new_attendee: Attendee | None = None) -> Money:
+def cost_from_base_badge_item(
+    attendee: Attendee, new_attendee: Attendee | None = None
+) -> Money:
     badge_cost_tuple = base_badge_cost(attendee, new_attendee)
     if badge_cost_tuple is None:
         return Money.zero()
@@ -214,7 +289,9 @@ def cost_from_base_badge_item(attendee: Attendee, new_attendee: Attendee | None 
 
 
 @receipt_calculation.Attendee
-def base_badge_cost(attendee: Attendee, new_attendee: Attendee | None = None) -> ReceiptItemResult:
+def base_badge_cost(
+    attendee: Attendee, new_attendee: Attendee | None = None
+) -> ReceiptItemResult:
     """
     Special logic for new receipts only:
     - Skip entirely if this attendee is buying a promo code group, as that is its own item
@@ -252,15 +329,23 @@ def base_badge_cost(attendee: Attendee, new_attendee: Attendee | None = None) ->
 
 
 @receipt_calculation.Attendee
-def overridden_badge_cost(attendee: Attendee, new_attendee: Attendee | None = None) -> ReceiptItemResult:
-    if not new_attendee and (attendee.overridden_price is None or attendee.paid == c.PAID_BY_GROUP):
+def overridden_badge_cost(
+    attendee: Attendee, new_attendee: Attendee | None = None
+) -> ReceiptItemResult:
+    if not new_attendee and (
+        attendee.overridden_price is None or attendee.paid == c.PAID_BY_GROUP
+    ):
         return None
     elif not new_attendee:
         old_cost = cost_from_base_badge_item(attendee, new_attendee)
         if old_cost == 0:
             if skip_badge_cost_calc(attendee, new_receipt=True):
                 old_cost = attendee.calculate_badge_cost(include_price_override=False)
-        return ("Custom Badge Price", attendee.overridden_price - old_cost, 'overridden_price')
+        return (
+            "Custom Badge Price",
+            attendee.overridden_price - old_cost,
+            'overridden_price',
+        )
 
     if attendee.overridden_price is None and new_attendee.overridden_price is None:
         return None
@@ -268,13 +353,23 @@ def overridden_badge_cost(attendee: Attendee, new_attendee: Attendee | None = No
         return None
 
     # Check paid by group for converting dealer badges
-    old_cost = Money.zero() if attendee.paid == c.PAID_BY_GROUP else (
-        attendee.overridden_price if attendee.overridden_price is not None
-        else attendee.calculate_badge_cost()
+    old_cost = (
+        Money.zero()
+        if attendee.paid == c.PAID_BY_GROUP
+        else (
+            attendee.overridden_price
+            if attendee.overridden_price is not None
+            else attendee.calculate_badge_cost()
+        )
     )
-    new_cost = Money.zero() if new_attendee.paid == c.PAID_BY_GROUP else (
-        new_attendee.overridden_price if new_attendee.overridden_price is not None
-        else new_attendee.calculate_badge_cost()
+    new_cost = (
+        Money.zero()
+        if new_attendee.paid == c.PAID_BY_GROUP
+        else (
+            new_attendee.overridden_price
+            if new_attendee.overridden_price is not None
+            else new_attendee.calculate_badge_cost()
+        )
     )
 
     if old_cost == new_cost:
@@ -301,7 +396,9 @@ def one_day_or_upgraded_badge_cost(attendee: Attendee) -> int:
 
 
 @receipt_calculation.Attendee
-def badge_upgrade_cost(attendee: Attendee, new_attendee: Attendee | None = None) -> ReceiptItemResult:
+def badge_upgrade_cost(
+    attendee: Attendee, new_attendee: Attendee | None = None
+) -> ReceiptItemResult:
     if not new_attendee and attendee.badge_type in c.BADGE_TYPE_PRICES:
         new_cost = Money.from_dollars(c.BADGE_TYPE_PRICES[attendee.badge_type])
         old_cost = cost_from_base_badge_item(attendee, new_attendee)
@@ -334,12 +431,18 @@ def badge_upgrade_cost(attendee: Attendee, new_attendee: Attendee | None = None)
 
 
 @receipt_calculation.Attendee
-def extra_donation_cost(attendee: Attendee, new_attendee: Attendee | None = None) -> ReceiptItemResult:
-    return calc_simple_cost_change(attendee, 'extra_donation', "Extra Donation", new_attendee)
+def extra_donation_cost(
+    attendee: Attendee, new_attendee: Attendee | None = None
+) -> ReceiptItemResult:
+    return calc_simple_cost_change(
+        attendee, 'extra_donation', "Extra Donation", new_attendee
+    )
 
 
 @receipt_calculation.Attendee
-def amount_extra_cost(attendee: Attendee, new_attendee: Attendee | None = None) -> ReceiptItemResult:
+def amount_extra_cost(
+    attendee: Attendee, new_attendee: Attendee | None = None
+) -> ReceiptItemResult:
     from uber.custom_tags import format_currency
 
     if c.MERCH_TAX:
@@ -373,15 +476,23 @@ def amount_extra_cost(attendee: Attendee, new_attendee: Attendee | None = None) 
     cost_change_tuple = calc_simple_cost_change(attendee, 'amount_extra', "Preordered Merch", new_attendee)
     if not cost_change_tuple:
         return None
-    prefix, cost_diff, col_name = cost_change_tuple[0], cost_change_tuple[1], cost_change_tuple[2]
+    prefix, cost_diff, col_name = (
+        cost_change_tuple[0],
+        cost_change_tuple[1],
+        cost_change_tuple[2],
+    )
 
     prefix = prefix.replace("Increase", "Upgrade").replace("Decrease", "Downgrade")
-    label = c.DONATION_TIERS[getattr(new_attendee, str(col_name), getattr(attendee, str(col_name), 0))]
+    label = c.DONATION_TIERS[
+        getattr(new_attendee, str(col_name), getattr(attendee, str(col_name), 0))
+    ]
     return (f"{prefix} to {label}", cost_diff, col_name)
 
 
 @receipt_calculation.Attendee
-def promo_code_group_cost(attendee: Attendee, new_attendee: Attendee | None = None) -> ReceiptItemResult:
+def promo_code_group_cost(
+    attendee: Attendee, new_attendee: Attendee | None = None
+) -> ReceiptItemResult:
     if new_attendee:
         return None
 
@@ -392,7 +503,11 @@ def promo_code_group_cost(attendee: Attendee, new_attendee: Attendee | None = No
         cost_table[Money.from_dollars(c.get_group_price())] = int(attendee.badges)
     elif attendee.promo_code_groups:
         for code in attendee.promo_code_groups[0].promo_codes:
-            code_cost = code.cost if isinstance(code.cost, Money) else Money.from_dollars(code.cost or 0)
+            code_cost = (
+                code.cost
+                if isinstance(code.cost, Money)
+                else Money.from_dollars(code.cost or 0)
+            )
             cost_table[code_cost] += 1
     else:
         return None
@@ -402,7 +517,9 @@ def promo_code_group_cost(attendee: Attendee, new_attendee: Attendee | None = No
 
 
 @receipt_calculation.Attendee
-def dealer_badge_credit(attendee: Attendee, new_attendee: Attendee | None = None) -> ReceiptItemResult:
+def dealer_badge_credit(
+    attendee: Attendee, new_attendee: Attendee | None = None
+) -> ReceiptItemResult:
     if not new_attendee:
         # This is rolled into base_badge_cost, since it's just what dealer badges cost
         return None
@@ -418,8 +535,8 @@ def dealer_badge_credit(attendee: Attendee, new_attendee: Attendee | None = None
     if old_cost == new_cost:
         return None
     if attendee.paid != new_attendee.paid and new_attendee.paid == c.NOT_PAID:
-        return None # This cost change will be in the paid status receipt item
-    
+        return None  # This cost change will be in the paid status receipt item
+
     if attendee.is_dealer and new_attendee.is_dealer:
         return None
     elif attendee.is_dealer:
@@ -430,7 +547,9 @@ def dealer_badge_credit(attendee: Attendee, new_attendee: Attendee | None = None
 
 
 @receipt_calculation.Attendee
-def badge_comp_credit(attendee: Attendee, new_attendee: Attendee | None = None) -> ReceiptItemResult:
+def badge_comp_credit(
+    attendee: Attendee, new_attendee: Attendee | None = None
+) -> ReceiptItemResult:
     if not new_attendee:
         old_cost = cost_from_base_badge_item(attendee, new_attendee)
         if old_cost != 0 and attendee.paid == c.NEED_NOT_PAY and not attendee.promo_code:
@@ -476,7 +595,11 @@ def table_cost(group: Group, new_group: Group | None = None) -> ReceiptItemResul
     if not new_group:
         table_count = int(float(group.tables))
         if table_count:
-            return (f"{table_count} Tables", Money.from_dollars(c.get_table_price(table_count)), 'tables')
+            return (
+                f"{table_count} Tables",
+                Money.from_dollars(c.get_table_price(table_count)),
+                'tables',
+            )
         return None
     
     old_tables = int(float(group.tables))
@@ -489,9 +612,11 @@ def table_cost(group: Group, new_group: Group | None = None) -> ReceiptItemResul
         label = "Add"
     else:
         label = "Remove"
-    
-    diff = Money.from_dollars(c.get_table_price(new_tables) - c.get_table_price(old_tables))
-    
+
+    diff = Money.from_dollars(
+        c.get_table_price(new_tables) - c.get_table_price(old_tables)
+    )
+
     return (f"{label} {abs(new_tables - old_tables)} Tables", diff, 'tables')
 
 
@@ -519,10 +644,17 @@ def badge_cost(group: Group, new_group: Group | None = None) -> ReceiptItemResul
     category = c.BADGE if new_group.is_dealer else c.GROUP_BADGE
 
     if new_badges > old_badges:
-        return (f"Add {label} Badge", Money.from_dollars(new_group.new_badge_cost), category, badge_diff)
+        return (
+            f"Add {label} Badge",
+            Money.from_dollars(new_group.new_badge_cost),
+            category,
+            badge_diff,
+        )
     else:
         cost_table = defaultdict(int)
-        ordered_badges = sorted(group.floating, key=lambda a: a.badge_cost or Money.zero(), reverse=True)
+        ordered_badges = sorted(
+            group.floating, key=lambda a: a.badge_cost or Money.zero(), reverse=True
+        )
 
         if len(ordered_badges) < badge_diff:
             log.error("We tried to compute a group reducing its badges to below its floating badges, "
@@ -537,13 +669,19 @@ def badge_cost(group: Group, new_group: Group | None = None) -> ReceiptItemResul
 
 
 @receipt_calculation.Group
-def custom_group_cost(group: Group, new_group: Group | None = None) -> ReceiptItemResult:
+def custom_group_cost(
+    group: Group, new_group: Group | None = None
+) -> ReceiptItemResult:
     if not new_group and group.auto_recalc:
         return None
     elif not new_group:
         group_name = c.DEALER_TERM.title() if group.is_dealer else "Group"
-        return (f"{group_name} (Custom Fee)".format(group.name), group.cost, ('auto_recalc', 'cost'))
-    
+        return (
+            f"{group_name} (Custom Fee)".format(group.name),
+            group.cost,
+            ('auto_recalc', 'cost'),
+        )
+
     if group.auto_recalc and new_group.auto_recalc:
         return None
     

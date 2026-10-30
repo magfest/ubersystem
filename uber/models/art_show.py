@@ -11,8 +11,16 @@ from pytz import UTC
 from uber.config import c
 from uber.models import MagModel
 from uber.decorators import presave_adjustment, classproperty
-from uber.models.types import (Choice, DefaultColumn as Column, default_relationship as relationship,
-                               DefaultField as Field, DefaultRelationship as Relationship, Money, MoneyType, MoneyField)
+from uber.models.types import (
+    Choice,
+    DefaultColumn as Column,
+    default_relationship as relationship,
+    DefaultField as Field,
+    DefaultRelationship as Relationship,
+    Money,
+    MoneyType,
+    MoneyField,
+)
 from uber.utils import RegistrationCode, get_static_file_path
 
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -290,7 +298,9 @@ class ArtShowApplication(MagModel, table=True):
 
     @property
     def amount_paid(self) -> Money:
-        return self.active_receipt.payment_total if self.active_receipt else Money.zero()
+        return (
+            self.active_receipt.payment_total if self.active_receipt else Money.zero()
+        )
 
     @property
     def amount_refunded(self) -> Money:
@@ -298,7 +308,9 @@ class ArtShowApplication(MagModel, table=True):
 
     @property
     def amount_pending(self) -> Money:
-        return self.active_receipt.pending_total if self.active_receipt else Money.zero()
+        return (
+            self.active_receipt.pending_total if self.active_receipt else Money.zero()
+        )
 
     @property
     def amount_unpaid(self) -> Money:
@@ -423,9 +435,11 @@ class ArtShowApplication(MagModel, table=True):
     @property
     def total_sales(self) -> Money:
         return sum(
-            (Money.from_dollars(piece.sale_price)
-             for piece in self.art_show_pieces
-             if piece.status in [c.SOLD, c.PAID] and piece.sale_price),
+            (
+                Money.from_dollars(piece.sale_price)
+                for piece in self.art_show_pieces
+                if piece.status in [c.SOLD, c.PAID] and piece.sale_price
+            ),
             Money.zero(),
         )
 
@@ -692,9 +706,11 @@ class ArtShowReceipt(MagModel, table=True):
     @property
     def subtotal(self) -> Money:
         return sum(
-            (Money.from_dollars(piece.sale_price)
-             for piece in self.pieces
-             if piece.sale_price),
+            (
+                Money.from_dollars(piece.sale_price)
+                for piece in self.pieces
+                if piece.sale_price
+            ),
             Money.zero(),
         )
 
@@ -727,18 +743,30 @@ class ArtShowReceipt(MagModel, table=True):
     @property
     def card_total(self) -> Money:
         return sum(
-            (payment.amount for payment in self.art_show_payments if payment.type in [c.STRIPE, c.SQUARE]),
+            (
+                payment.amount
+                for payment in self.art_show_payments
+                if payment.type in [c.STRIPE, c.SQUARE]
+            ),
             Money.zero(),
         )
 
     @property
     def cash_total(self) -> Money:
         cash = sum(
-            (payment.amount for payment in self.art_show_payments if payment.type == c.CASH),
+            (
+                payment.amount
+                for payment in self.art_show_payments
+                if payment.type == c.CASH
+            ),
             Money.zero(),
         )
         refund = sum(
-            (payment.amount for payment in self.art_show_payments if payment.type == c.REFUND),
+            (
+                payment.amount
+                for payment in self.art_show_payments
+                if payment.type == c.REFUND
+            ),
             Money.zero(),
         )
         return cash - refund

@@ -17,20 +17,68 @@ import sqlalchemy as sa
 
 
 def upgrade():
-    op.execute(sa.text('UPDATE attendee SET badge_cost = badge_cost * 100 WHERE badge_cost IS NOT NULL'))
-    op.execute(sa.text('UPDATE attendee SET default_cost = default_cost * 100 WHERE default_cost IS NOT NULL'))
-    op.execute(sa.text('UPDATE attendee SET overridden_price = overridden_price * 100 WHERE overridden_price IS NOT NULL'))
+    op.execute(
+        sa.text(
+            'UPDATE attendee SET badge_cost = badge_cost * 100 WHERE badge_cost IS NOT NULL'
+        )
+    )
+    op.execute(
+        sa.text(
+            'UPDATE attendee SET default_cost = default_cost * 100 WHERE default_cost IS NOT NULL'
+        )
+    )
+    op.execute(
+        sa.text(
+            'UPDATE attendee SET overridden_price = overridden_price * 100 WHERE overridden_price IS NOT NULL'
+        )
+    )
     op.execute(sa.text('UPDATE "group" SET cost = cost * 100 WHERE cost IS NOT NULL'))
-    op.execute(sa.text('UPDATE art_show_application SET default_cost = default_cost * 100 WHERE default_cost IS NOT NULL'))
-    op.execute(sa.text('UPDATE art_show_application SET overridden_price = overridden_price * 100 WHERE overridden_price IS NOT NULL'))
-    op.execute(sa.text('UPDATE artist_marketplace_application SET overridden_price = overridden_price * 100 WHERE overridden_price IS NOT NULL'))
+    op.execute(
+        sa.text(
+            'UPDATE art_show_application SET default_cost = default_cost * 100 WHERE default_cost IS NOT NULL'
+        )
+    )
+    op.execute(
+        sa.text(
+            'UPDATE art_show_application SET overridden_price = overridden_price * 100 WHERE overridden_price IS NOT NULL'
+        )
+    )
+    op.execute(
+        sa.text(
+            'UPDATE artist_marketplace_application SET overridden_price = overridden_price * 100 WHERE overridden_price IS NOT NULL'
+        )
+    )
 
 
 def downgrade():
-    op.execute(sa.text('UPDATE attendee SET badge_cost = badge_cost / 100 WHERE badge_cost IS NOT NULL'))
-    op.execute(sa.text('UPDATE attendee SET default_cost = default_cost / 100 WHERE default_cost IS NOT NULL'))
-    op.execute(sa.text('UPDATE attendee SET overridden_price = overridden_price / 100 WHERE overridden_price IS NOT NULL'))
+    op.execute(
+        sa.text(
+            'UPDATE attendee SET badge_cost = badge_cost / 100 WHERE badge_cost IS NOT NULL'
+        )
+    )
+    op.execute(
+        sa.text(
+            'UPDATE attendee SET default_cost = default_cost / 100 WHERE default_cost IS NOT NULL'
+        )
+    )
+    op.execute(
+        sa.text(
+            'UPDATE attendee SET overridden_price = overridden_price / 100 WHERE overridden_price IS NOT NULL'
+        )
+    )
     op.execute(sa.text('UPDATE "group" SET cost = cost / 100 WHERE cost IS NOT NULL'))
-    op.execute(sa.text('UPDATE art_show_application SET default_cost = default_cost / 100 WHERE default_cost IS NOT NULL'))
-    op.execute(sa.text('UPDATE art_show_application SET overridden_price = overridden_price / 100 WHERE overridden_price IS NOT NULL'))
-    op.execute(sa.text('UPDATE artist_marketplace_application SET overridden_price = overridden_price / 100 WHERE overridden_price IS NOT NULL'))
+    op.execute(
+        sa.text(
+            'UPDATE art_show_application SET default_cost = default_cost / 100 WHERE default_cost IS NOT NULL'
+        )
+    )
+    op.execute(
+        sa.text(
+            'UPDATE art_show_application SET overridden_price = overridden_price / 100 WHERE overridden_price IS NOT NULL'
+        )
+    )
+    op.execute(
+        sa.text(
+            'UPDATE artist_marketplace_application SET overridden_price = overridden_price / 100 WHERE overridden_price IS NOT NULL'
+        )
+    )

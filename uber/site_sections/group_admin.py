@@ -15,7 +15,17 @@ from uber.email import EmailService
 from uber.errors import HTTPRedirect
 from uber.files import FileService
 from uber.forms import load_forms
-from uber.models import AdminAccount, Attendee, Email, DeptMembership, Group, GuestGroup, PageViewTracking, Tracking, Session
+from uber.models import (
+    AdminAccount,
+    Attendee,
+    Email,
+    DeptMembership,
+    Group,
+    GuestGroup,
+    PageViewTracking,
+    Tracking,
+    Session,
+)
 from uber.money import Money
 from uber.utils import check, validate_model, add_opt, SignNowRequest
 from uber.payments import ReceiptManager
@@ -352,8 +362,9 @@ class Root:
         session.add_all(receipt_manager.items_to_add)
         session.commit()
         session.check_receipt_closed(receipt)
-        raise HTTPRedirect('form?id={}&message={}', id,
-                           f"Cash payment of {amount_owed} recorded.")
+        raise HTTPRedirect(
+            'form?id={}&message={}', id, f"Cash payment of {amount_owed} recorded."
+        )
 
     def history(self, session, id):
         group = session.group(id)

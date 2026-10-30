@@ -2,8 +2,16 @@ from uber.config import c
 from uber.custom_tags import email_only, email_to_link
 from uber.models import MagModel
 from uber.decorators import presave_adjustment
-from uber.models.types import (Choice, default_relationship as relationship, DefaultColumn as Column,
-                               DefaultField as Field, DefaultRelationship as Relationship, Money, MoneyType, MoneyField)
+from uber.models.types import (
+    Choice,
+    default_relationship as relationship,
+    DefaultColumn as Column,
+    DefaultField as Field,
+    DefaultRelationship as Relationship,
+    Money,
+    MoneyType,
+    MoneyField,
+)
 
 from datetime import datetime
 from markupsafe import Markup
@@ -77,7 +85,10 @@ class ArtistMarketplaceApplication(MagModel, table=True):
         elif not self.receipt_items or self.was_refunded:
             return self.default_cost
 
-        return sum((item.amount for item in self.receipt_items if not item.closed), Money.zero())
+        return sum(
+            (item.amount for item in self.receipt_items if not item.closed),
+            Money.zero(),
+        )
 
     @property
     def was_refunded(self) -> bool:
@@ -89,8 +100,12 @@ class ArtistMarketplaceApplication(MagModel, table=True):
     def amount_paid(self) -> Money:
         if self.receipt_items:
             return sum(
-                (item.amount for item in self.receipt_items if item.closed and (
-                    not item.receipt_txn or not item.receipt_txn.refunded)),
+                (
+                    item.amount
+                    for item in self.receipt_items
+                    if item.closed
+                    and (not item.receipt_txn or not item.receipt_txn.refunded)
+                ),
                 Money.zero(),
             )
         return Money.zero()

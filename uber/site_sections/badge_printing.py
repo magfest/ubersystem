@@ -155,19 +155,23 @@ class Root:
 
         if print_id:
             if reprint_fee:
-                receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
-                session.add(ReceiptItem(purchaser_id=attendee.purchaser_id,
-                                        receipt_id=receipt.id,
-                                        department=c.REG_RECEIPT_ITEM,
-                                        category=c.BADGE_REPRINT,
-                                        desc="Badge reprint fee (${})".format(reprint_fee),
-                                        amount=Money.from_dollars(reprint_fee),
-                                        fk_id=print_id,
-                                        fk_model="PrintJob",
-                                        count=1,
-                                        who=AdminAccount.admin_name() or 'non-admin',
-                                        )
-                            )
+                receipt = session.get_receipt_by_model(
+                    attendee, create_if_none="DEFAULT"
+                )
+                session.add(
+                    ReceiptItem(
+                        purchaser_id=attendee.purchaser_id,
+                        receipt_id=receipt.id,
+                        department=c.REG_RECEIPT_ITEM,
+                        category=c.BADGE_REPRINT,
+                        desc="Badge reprint fee (${})".format(reprint_fee),
+                        amount=Money.from_dollars(reprint_fee),
+                        fk_id=print_id,
+                        fk_model="PrintJob",
+                        count=1,
+                        who=AdminAccount.admin_name() or 'non-admin',
+                    )
+                )
 
             session.add(attendee)
             session.commit()
@@ -227,15 +231,17 @@ class Root:
             if job.print_fee and job.attendee:
                 receipt = session.get_receipt_by_model(job.attendee)
                 if receipt:
-                    session.add(ReceiptItem(receipt_id=receipt.id,
-                                            department=c.REG_RECEIPT_ITEM,
-                                            category=c.BADGE_REPRINT,
-                                            desc="Badge reprint cancelled (${})".format(job.print_fee),
-                                            amount=Money.from_dollars(-job.print_fee),
-                                            count=1,
-                                            who=AdminAccount.admin_name() or 'non-admin',
-                                            )
-                                )
+                    session.add(
+                        ReceiptItem(
+                            receipt_id=receipt.id,
+                            department=c.REG_RECEIPT_ITEM,
+                            category=c.BADGE_REPRINT,
+                            desc="Badge reprint cancelled (${})".format(job.print_fee),
+                            amount=Money.from_dollars(-job.print_fee),
+                            count=1,
+                            who=AdminAccount.admin_name() or 'non-admin',
+                        )
+                    )
             session.add(job)
             session.commit()
 

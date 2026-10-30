@@ -10,8 +10,20 @@ from typing import Iterable, Any
 from uber.config import c
 from uber.decorators import all_renderable, log_pageview, csv_file
 from uber.errors import HTTPRedirect
-from uber.models import (ArbitraryCharge, Attendee, AttendeeAccount, Group, ModelReceipt, MPointsForCash, Sale, PromoCodeGroup,
-                         ReceiptTransaction, ReceiptItem, Money, Session)
+from uber.models import (
+    ArbitraryCharge,
+    Attendee,
+    AttendeeAccount,
+    Group,
+    ModelReceipt,
+    MPointsForCash,
+    Sale,
+    PromoCodeGroup,
+    ReceiptTransaction,
+    ReceiptItem,
+    Money,
+    Session,
+)
 from uber.server import redirect_site_section
 from uber.utils import localized_now, Order
 
@@ -55,11 +67,24 @@ class Root:
     @log_pageview
     def index(self, session: Session) -> dict[str, Any]:
         receipt_items = session.query(ReceiptItem)
-        receipt_total = sum([item.amount for item in receipt_items.filter_by(txn_type=c.PAYMENT).all()], Money.zero()) - sum(
-            [item.amount for item in receipt_items.filter_by(txn_type=c.REFUND).all()], Money.zero()
+        receipt_total = sum(
+            [item.amount for item in receipt_items.filter_by(txn_type=c.PAYMENT).all()],
+            Money.zero(),
+        ) - sum(
+            [item.amount for item in receipt_items.filter_by(txn_type=c.REFUND).all()],
+            Money.zero(),
         )
-        sales_total = sum([Money.from_dollars(sale.cash) for sale in session.query(Sale).all()], Money.zero())
-        arbitrary_charge_total = sum([Money.from_dollars(charge.amount) for charge in session.query(ArbitraryCharge).all()], Money.zero())
+        sales_total = sum(
+            [Money.from_dollars(sale.cash) for sale in session.query(Sale).all()],
+            Money.zero(),
+        )
+        arbitrary_charge_total = sum(
+            [
+                Money.from_dollars(charge.amount)
+                for charge in session.query(ArbitraryCharge).all()
+            ],
+            Money.zero(),
+        )
         return {
             'receipt_items': receipt_items.filter_by(txn_type=c.REFUND),
             'arbitrary_charges': session.query(ArbitraryCharge),

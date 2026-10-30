@@ -22,9 +22,25 @@ from uber.decorators import ajax, ajax_gettable, all_renderable, credit_card, pu
 from uber.email import EmailService
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
-from uber.models import AdminAccount, ArtShowApplication, ArtShowBidder, ArtShowPayment, ArtShowPiece, ArtShowReceipt, ArtShowPanel, \
-                        ArtPanelAssignment, Attendee, BadgeInfo, Email, Tracking, PageViewTracking, ReceiptItem, ReceiptTransaction, \
-                        Session, WorkstationAssignment
+from uber.models import (
+    AdminAccount,
+    ArtShowApplication,
+    ArtShowBidder,
+    ArtShowPayment,
+    ArtShowPiece,
+    ArtShowReceipt,
+    ArtShowPanel,
+    ArtPanelAssignment,
+    Attendee,
+    BadgeInfo,
+    Email,
+    Tracking,
+    PageViewTracking,
+    ReceiptItem,
+    ReceiptTransaction,
+    Session,
+    WorkstationAssignment,
+)
 from uber.money import Money
 from uber.utils import check, get_static_file_path, localized_now, Order, validate_model
 from uber.payments import TransactionRequest, ReceiptManager
@@ -1172,7 +1188,13 @@ class Root:
                                receipt.id,
                                'Piece {} successfully unclaimed'.format(piece.artist_and_piece_id))
 
-    def record_payment(self, session: Session, id: str, amount: str | int | float | Money = '', type: int = c.CASH) -> None:
+    def record_payment(
+        self,
+        session: Session,
+        id: str,
+        amount: str | int | float | Money = '',
+        type: int = c.CASH,
+    ) -> None:
         receipt = session.art_show_receipt(id)
 
         if receipt.closed:
@@ -1190,11 +1212,13 @@ class Root:
         else:
             message = f'Refund of {payment_amount} recorded'
 
-        session.add(ArtShowPayment(
-            receipt=receipt,
-            amount=payment_amount,
-            type=type,
-        ))
+        session.add(
+            ArtShowPayment(
+                receipt=receipt,
+                amount=payment_amount,
+                type=type,
+            )
+        )
 
         raise HTTPRedirect('pieces_bought?id={}&message={}', receipt.id, message)
 
@@ -1242,7 +1266,9 @@ class Root:
         raise HTTPRedirect('pieces_bought?id={}&message={}', receipt.id, "Receipt re-opened.")
 
 
-    def print_receipt(self, session: Session, id: str, close: bool = False, **params: Any) -> None:
+    def print_receipt(
+        self, session: Session, id: str, close: bool = False, **params: Any
+    ) -> None:
         receipt = session.art_show_receipt(id)
 
         if close and not receipt.closed:
@@ -1379,18 +1405,20 @@ class Root:
                 amount = Money.from_dollars(amount)
 
             description = '{}ayment for Art Show Invoice #{}'.format(
-                'P' if amount == receipt.total else 'Partial p',
-                receipt.invoice_num)
+                'P' if amount == receipt.total else 'Partial p', receipt.invoice_num
+            )
             model_id = receipt.attendee.id
 
         c.REDIS_STORE.delete(c.REDIS_PREFIX + 'spin_terminal_txns:' + terminal_id)
-        process_terminal_sale.delay(workstation_num=cherrypy.session.get('reg_station'),
-                                    terminal_id=terminal_id,
-                                    model_id=model_id,
-                                    description=description,
-                                    use_account_info=False,
-                                    amount=amount.cents,
-                                    who=AdminAccount.admin_name())
+        process_terminal_sale.delay(
+            workstation_num=cherrypy.session.get('reg_station'),
+            terminal_id=terminal_id,
+            model_id=model_id,
+            description=description,
+            use_account_info=False,
+            amount=amount.cents,
+            who=AdminAccount.admin_name(),
+        )
         return {'success': True}
 
     @ajax
@@ -1434,5 +1462,6 @@ class Root:
         session.add_all(receipt_manager.items_to_add)
         session.commit()
         session.check_receipt_closed(receipt)
-        raise HTTPRedirect('form?id={}&message={}', id,
-                           f"Cash payment of {amount_owed} recorded.")
+        raise HTTPRedirect(
+            'form?id={}&message={}', id, f"Cash payment of {amount_owed} recorded."
+        )

@@ -10,15 +10,23 @@ from uber.utils import extract_urls
 @all_renderable()
 class Root:
     @log_pageview
-    def dealer_receipt_discrepancies(self, session: Session, only_dealers: bool = False) -> dict[str, Any]:
+    def dealer_receipt_discrepancies(
+        self, session: Session, only_dealers: bool = False
+    ) -> dict[str, Any]:
         if only_dealers:
             filters = [Group.is_dealer == True, Group.status.in_(c.DEALER_ACCEPTED_STATUSES)]  # noqa: E712
         else:
             filters = [or_(Group.is_dealer == False, Group.status.in_(c.DEALER_ACCEPTED_STATUSES))]
 
-        groups = session.query(Group).filter(*filters).join(Group.active_receipt).outerjoin(
-            ModelReceipt.receipt_items).group_by(ModelReceipt.id).group_by(Group.id).having(
-                Group.cost != ModelReceipt.fkless_item_total_sql)
+        groups = (
+            session.query(Group)
+            .filter(*filters)
+            .join(Group.active_receipt)
+            .outerjoin(ModelReceipt.receipt_items)
+            .group_by(ModelReceipt.id)
+            .group_by(Group.id)
+            .having(Group.cost != ModelReceipt.fkless_item_total_sql)
+        )
 
         return {
             'groups': groups,
@@ -26,10 +34,21 @@ class Root:
         }
 
     @log_pageview
-    def dealers_nonzero_balance(self, session: Session, include_no_receipts: bool = False, include_discrepancies: bool = False) -> dict[str, Any]:
-        item_subquery = session.query(ModelReceipt.owner_id, ModelReceipt.item_total_sql.label('item_total')
-                                      ).join(ModelReceipt.receipt_items).group_by(ModelReceipt.owner_id).subquery()
-        
+    def dealers_nonzero_balance(
+        self,
+        session: Session,
+        include_no_receipts: bool = False,
+        include_discrepancies: bool = False,
+    ) -> dict[str, Any]:
+        item_subquery = (
+            session.query(
+                ModelReceipt.owner_id, ModelReceipt.item_total_sql.label('item_total')
+            )
+            .join(ModelReceipt.receipt_items)
+            .group_by(ModelReceipt.owner_id)
+            .subquery()
+        )
+
         if include_discrepancies:
             filter = True
         else:
@@ -102,25 +121,27 @@ class Root:
         for group in dealer_groups:
             if group.status in c.DEALER_ACCEPTED_STATUSES:
                 full_name = group.leader.full_name if group.leader else ''
-                out.writerow([
-                    group.name,
-                    group.description,
-                    group.website,
-                    full_name,
-                    group.leader.legal_name if group.leader else '',
-                    group.email,
-                    group.phone if group.phone else group.leader.cellphone,
-                    group.address1,
-                    group.address2,
-                    group.city,
-                    group.region,
-                    str(group.zip_code),
-                    group.country,
-                    group.tables,
-                    group.amount_paid,
-                    group.cost,
-                    group.badges
-                ])
+                out.writerow(
+                    [
+                        group.name,
+                        group.description,
+                        group.website,
+                        full_name,
+                        group.leader.legal_name if group.leader else '',
+                        group.email,
+                        group.phone if group.phone else group.leader.cellphone,
+                        group.address1,
+                        group.address2,
+                        group.city,
+                        group.region,
+                        str(group.zip_code),
+                        group.country,
+                        group.tables,
+                        group.amount_paid,
+                        group.cost,
+                        group.badges,
+                    ]
+                )
 
     @xlsx_file
     def all_sellers_application_info(self, out, session):

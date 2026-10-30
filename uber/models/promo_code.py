@@ -470,7 +470,9 @@ class PromoCode(MagModel, table=True):
         # Always make expiration_date 11:59pm of the given date
         self.expiration_date = self.normalize_expiration_date(self.expiration_date)
 
-    def calculate_discounted_price(self, price: Money, credit_type: int = c.BASE_BADGE) -> Money:
+    def calculate_discounted_price(
+        self, price: Money, credit_type: int = c.BASE_BADGE
+    ) -> Money:
         """
         Returns the discounted price based on the promo code's `discount_type`.
 

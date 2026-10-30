@@ -223,19 +223,23 @@ class Root:
                  and a.worked_hours < c.HOURS_FOR_REFUND and a.weighted_hours >= c.HOURS_FOR_REFUND]
 
         return {
-            'attendees': [(
-                'Volunteers Owed Refunds',
-                owed,
-                sum([a.badge_cost or Money.zero() for a in owed], Money.zero())
-            ), (
-                'Volunteers Already Refunded',
-                refunded,
-                sum([a.badge_cost or Money.zero() for a in refunded], Money.zero())
-            ), (
-                'Volunteers Who Can Be Refunded Once Their Shifts Are Marked',
-                maybe,
-                sum([a.badge_cost or Money.zero() for a in maybe], Money.zero())
-            )]
+            'attendees': [
+                (
+                    'Volunteers Owed Refunds',
+                    owed,
+                    sum([a.badge_cost or Money.zero() for a in owed], Money.zero()),
+                ),
+                (
+                    'Volunteers Already Refunded',
+                    refunded,
+                    sum([a.badge_cost or Money.zero() for a in refunded], Money.zero()),
+                ),
+                (
+                    'Volunteers Who Can Be Refunded Once Their Shifts Are Marked',
+                    maybe,
+                    sum([a.badge_cost or Money.zero() for a in maybe], Money.zero()),
+                ),
+            ]
         }
 
     @csv_file

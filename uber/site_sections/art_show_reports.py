@@ -7,7 +7,15 @@ from sqlalchemy import func, or_, and_
 from sqlalchemy.orm import joinedload, lazyload
 
 from uber.custom_tags import format_currency
-from uber.models import ArtShowApplication, ArtShowBidder, ArtShowPiece, ArtShowReceipt, Attendee, ModelReceipt, Session
+from uber.models import (
+    ArtShowApplication,
+    ArtShowBidder,
+    ArtShowPiece,
+    ArtShowReceipt,
+    Attendee,
+    ModelReceipt,
+    Session,
+)
 from uber.utils import localized_now
 
 
@@ -249,22 +257,39 @@ class Root:
 
     @log_pageview
     def artist_receipt_discrepancies(self, session: Session) -> dict[str, Any]:
-        apps = session.query(ArtShowApplication).filter(
-            ArtShowApplication.status == c.APPROVED
-            ).join(ArtShowApplication.active_receipt).outerjoin(ModelReceipt.receipt_items).group_by(
-                ModelReceipt.id).group_by(ArtShowApplication.id).having(
-                    ArtShowApplication.true_default_cost != ModelReceipt.fkless_item_total_sql).options(
-                        lazyload("*")
-                    )
+        apps = (
+            session.query(ArtShowApplication)
+            .filter(ArtShowApplication.status == c.APPROVED)
+            .join(ArtShowApplication.active_receipt)
+            .outerjoin(ModelReceipt.receipt_items)
+            .group_by(ModelReceipt.id)
+            .group_by(ArtShowApplication.id)
+            .having(
+                ArtShowApplication.true_default_cost
+                != ModelReceipt.fkless_item_total_sql
+            )
+            .options(lazyload("*"))
+        )
 
         return {
             'apps': apps,
         }
 
     @log_pageview
-    def artists_nonzero_balance(self, session: Session, include_no_receipts: bool = False, include_discrepancies: bool = False) -> dict[str, Any]:
-        item_subquery = session.query(ModelReceipt.owner_id, ModelReceipt.item_total_sql.label('item_total')
-                                      ).join(ModelReceipt.receipt_items).group_by(ModelReceipt.owner_id).subquery()
+    def artists_nonzero_balance(
+        self,
+        session: Session,
+        include_no_receipts: bool = False,
+        include_discrepancies: bool = False,
+    ) -> dict[str, Any]:
+        item_subquery = (
+            session.query(
+                ModelReceipt.owner_id, ModelReceipt.item_total_sql.label('item_total')
+            )
+            .join(ModelReceipt.receipt_items)
+            .group_by(ModelReceipt.owner_id)
+            .subquery()
+        )
 
         if include_discrepancies:
             filter = True

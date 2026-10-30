@@ -760,7 +760,10 @@ Attendee.required = [('first_name', 'First Name'),
 @prereg_validation.Attendee
 def reasonable_total_cost(attendee: Attendee) -> tuple[str, str] | None:
     if attendee.total_cost > MAX_CHARGE:
-        return ('', f'We cannot charge {attendee.total_cost}. Please reduce extras so the total is below $9,999.')
+        return (
+            '',
+            f'We cannot charge {attendee.total_cost}. Please reduce extras so the total is below $9,999.',
+        )
 
 
 @prereg_validation.Attendee

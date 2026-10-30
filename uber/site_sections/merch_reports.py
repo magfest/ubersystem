@@ -139,15 +139,17 @@ class Root:
                                                          Attendee.badge_type.in_(c.BADGE_TYPE_PRICES)),
                                                      Attendee.got_merch == False)  # noqa: E712
         for attendee in attendees:
-            out.writerow([
-                attendee.full_name,
-                attendee.legal_name,
-                attendee.email,
-                attendee.merch,
-                attendee.extra_merch,
-                attendee.shirt_label,
-                attendee.badge_num,
-                attendee.amount_unpaid,
-                datetime_local_filter(attendee.checked_in),
-                attendee.admin_notes,
-            ])
+            out.writerow(
+                [
+                    attendee.full_name,
+                    attendee.legal_name,
+                    attendee.email,
+                    attendee.merch,
+                    attendee.extra_merch,
+                    attendee.shirt_label,
+                    attendee.badge_num,
+                    attendee.amount_unpaid,
+                    datetime_local_filter(attendee.checked_in),
+                    attendee.admin_notes,
+                ]
+            )

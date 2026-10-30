@@ -24,8 +24,22 @@ from uber.decorators import ajax, ajax_gettable, all_renderable, credit_card, cs
     redirect_if_at_con_to_kiosk, render, requires_account
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
-from uber.models import AdminAccount, Attendee, AttendeeAccount, Attraction, BadgePickupGroup, Email, Group, PromoCode, PromoCodeGroup, \
-                        PasswordReset, ReceiptItem, ReceiptTransaction, Tracking, Session
+from uber.models import (
+    AdminAccount,
+    Attendee,
+    AttendeeAccount,
+    Attraction,
+    BadgePickupGroup,
+    Email,
+    Group,
+    PromoCode,
+    PromoCodeGroup,
+    PasswordReset,
+    ReceiptItem,
+    ReceiptTransaction,
+    Tracking,
+    Session,
+)
 from uber.money import Money
 from uber.utils import add_opt, remove_opt, check, localized_now, normalize_email, normalize_email_legacy, genpasswd, valid_email, \
     valid_password, SignNowRequest, validate_model, create_new_hash, get_age_conf_from_birthday, RegistrationCode, listify
@@ -1286,13 +1300,16 @@ class Root:
 
         receipt = session.get_receipt_by_model(group.buyer)
         if receipt:
-            session.add(ReceiptManager().create_receipt_item(receipt,
-                                                             c.REG_RECEIPT_ITEM,
-                                                             c.GROUP_BADGE,
-                                                             f'{count} extra badge{"s" if count > 1 else ""} '
-                                                             f'for {group.name}',
-                                                             Money.from_dollars(count * c.GROUP_PRICE)))
-        
+            session.add(
+                ReceiptManager().create_receipt_item(
+                    receipt,
+                    c.REG_RECEIPT_ITEM,
+                    c.GROUP_BADGE,
+                    f'{count} extra badge{"s" if count > 1 else ""} for {group.name}',
+                    Money.from_dollars(count * c.GROUP_PRICE),
+                )
+            )
+
         session.add_codes_to_pc_group(group, count)
         session.commit()
 
@@ -2205,7 +2222,14 @@ class Root:
     @id_required(Attendee)
     @requires_account(Attendee)
     @log_pageview
-    def confirm(self, session: Session, message: str = '', return_to: str = 'confirm', undoing_extra: str = '', **params: Any) -> dict[str, Any]:
+    def confirm(
+        self,
+        session: Session,
+        message: str = '',
+        return_to: str = 'confirm',
+        undoing_extra: str = '',
+        **params: Any,
+    ) -> dict[str, Any]:
         if params.get('id') not in [None, '', 'None']:
             attendee = session.get(Attendee, params.get('id'), options=[
                 selectinload(Attendee.dept_membership_requests),
@@ -2277,11 +2301,17 @@ class Root:
             'return_to':     return_to,
             'attendee':      attendee,
             'homepage_account': session.get_attendee_account_by_attendee(attendee),
-            'message':       message,
-            'attractions':   session.query(Attraction).filter_by(is_public=True).all(),
-            'badge_cost':    attendee.badge_cost if attendee.paid != c.PAID_BY_GROUP else Money.zero(),
-            'receipt':       session.get_receipt_by_model(attendee) if attendee.is_valid else None,
-            'incomplete_txn':  receipt.get_last_incomplete_txn() if receipt else None,
+            'message': message,
+            'attractions': session.query(Attraction).filter_by(is_public=True).all(),
+            'badge_cost': (
+                attendee.badge_cost
+                if attendee.paid != c.PAID_BY_GROUP
+                else Money.zero()
+            ),
+            'receipt': (
+                session.get_receipt_by_model(attendee) if attendee.is_valid else None
+            ),
+            'incomplete_txn': receipt.get_last_incomplete_txn() if receipt else None,
             'forms': forms,
             'locked_fields': [item for sublist in
                               [form.get_non_admin_locked_fields(attendee) for form in forms.values()

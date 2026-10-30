@@ -21,10 +21,32 @@ from uber.custom_tags import safe_string, time_day_local, readable_join
 from uber.decorators import presave_adjustment, render, cached_property, classproperty
 from uber.models import MagModel
 from uber.models.group import Group
-from uber.models.types import default_relationship as relationship, Choice, DefaultColumn as Column, \
-    MultiChoice, TakesPaymentMixin, DefaultField as Field, DefaultRelationship as Relationship, Money, MoneyType, MoneyField
-from uber.utils import add_opt, get_age_from_birthday, get_age_conf_from_birthday, hour_day_format, \
-    localized_now, mask_string, normalize_email, normalize_email_legacy, remove_opt, RegistrationCode, listify, groupify
+from uber.models.types import (
+    default_relationship as relationship,
+    Choice,
+    DefaultColumn as Column,
+    MultiChoice,
+    TakesPaymentMixin,
+    DefaultField as Field,
+    DefaultRelationship as Relationship,
+    Money,
+    MoneyType,
+    MoneyField,
+)
+from uber.utils import (
+    add_opt,
+    get_age_from_birthday,
+    get_age_conf_from_birthday,
+    hour_day_format,
+    localized_now,
+    mask_string,
+    normalize_email,
+    normalize_email_legacy,
+    remove_opt,
+    RegistrationCode,
+    listify,
+    groupify,
+)
 
 log = logging.getLogger(__name__)
 
@@ -1091,7 +1113,9 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     def badge_cost_with_promo_code(self) -> Money:
         return self.calculate_badge_cost(use_promo_code=True)
 
-    def calculate_badge_cost(self, use_promo_code: bool = False, include_price_override: bool = True) -> Money:
+    def calculate_badge_cost(
+        self, use_promo_code: bool = False, include_price_override: bool = True
+    ) -> Money:
         if self.paid == c.NEED_NOT_PAY or self.badge_status == c.NOT_ATTENDING:
             return Money.zero()
         elif self.overridden_price is not None and include_price_override:
@@ -1194,7 +1218,9 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     @property
     def amount_unpaid(self) -> Money:
         if self.paid == c.PAID_BY_GROUP and not self.active_receipt:
-            personal_cost = max(Money.zero(), self.total_cost - (self.badge_cost or Money.zero()))
+            personal_cost = max(
+                Money.zero(), self.total_cost - (self.badge_cost or Money.zero())
+            )
         else:
             personal_cost = self.total_cost
         return max(Money.zero(), personal_cost - self.amount_paid)
@@ -1222,7 +1248,9 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
 
     @property
     def amount_pending(self) -> Money:
-        return self.active_receipt.pending_total if self.active_receipt else Money.zero()
+        return (
+            self.active_receipt.pending_total if self.active_receipt else Money.zero()
+        )
 
     @property
     def is_paid(self) -> bool:
@@ -1230,7 +1258,9 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
 
     @hybrid_property
     def amount_paid(self) -> Money:
-        return self.active_receipt.payment_total if self.active_receipt else Money.zero()
+        return (
+            self.active_receipt.payment_total if self.active_receipt else Money.zero()
+        )
 
     @amount_paid.expression
     def amount_paid(cls):

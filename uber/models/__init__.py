@@ -38,10 +38,30 @@ from sqlmodel import SQLModel
 import uber
 from uber.config import c, create_namespace_uuid
 from uber.errors import HTTPRedirect
-from uber.decorators import presave_adjustment, suffix_property, cached_classproperty, classproperty
-from uber.models.types import Choice, MultiChoice, utcnow, UniqueList, DefaultField as Field, Money, MoneyType, MoneyField
-from uber.utils import check_csrf, normalize_email_legacy, create_new_hash, DeptChecklistConf, \
-    RegistrationCode, listify
+from uber.decorators import (
+    presave_adjustment,
+    suffix_property,
+    cached_classproperty,
+    classproperty,
+)
+from uber.models.types import (
+    Choice,
+    MultiChoice,
+    utcnow,
+    UniqueList,
+    DefaultField as Field,
+    Money,
+    MoneyType,
+    MoneyField,
+)
+from uber.utils import (
+    check_csrf,
+    normalize_email_legacy,
+    create_new_hash,
+    DeptChecklistConf,
+    RegistrationCode,
+    listify,
+)
 from uber.payments import ReceiptManager
 
 log = logging.getLogger(__name__)
@@ -366,7 +386,8 @@ class MagModel(SQLModel):
             Money.zero(),
             sum(
                 [
-                    (cost if isinstance(cost, Money) else Money.from_cents(cost)) * count
+                    (cost if isinstance(cost, Money) else Money.from_cents(cost))
+                    * count
                     for desc, cost, count in receipt_items
                 ],
                 Money.zero(),
@@ -624,9 +645,12 @@ class MagModel(SQLModel):
             cost = cost_calc[1]
             if hasattr(cost, 'items'):
                 return sum(
-                    [(price if isinstance(price, Money) else Money.from_cents(price)) * count
-                     for price, count in cost.items()],
-                    Money.zero()
+                    [
+                        (price if isinstance(price, Money) else Money.from_cents(price))
+                        * count
+                        for price, count in cost.items()
+                    ],
+                    Money.zero(),
                 )
             if isinstance(cost, Money):
                 if len(cost_calc) > 3:
@@ -678,7 +702,10 @@ class MagModel(SQLModel):
             if value is None:
                 return  # Totally fine for value to be None
 
-            elif value == '' and isinstance(column.type, (Uuid, Float, Numeric, Choice, Integer, DateTime, Date, MoneyType)):
+            elif value == '' and isinstance(
+                column.type,
+                (Uuid, Float, Numeric, Choice, Integer, DateTime, Date, MoneyType),
+            ):
                 return None
 
             elif isinstance(column.type, MoneyType):
@@ -2454,6 +2481,7 @@ class HybridSessionProxy:
     """
     A smart proxy that mimics the old Session class behavior.
     """
+
     def __getattr__(self, name: str) -> Any:
         """
         Return thread-scoped session as expected by modern sqlalchemy usage on 'Session.query()'

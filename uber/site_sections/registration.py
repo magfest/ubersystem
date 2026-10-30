@@ -27,10 +27,30 @@ from uber.decorators import ajax, ajax_gettable, any_admin_access, all_renderabl
     requires_account, site_mappable, public
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
-from uber.models import (Attendee, AttendeeAccount, AdminAccount, BadgeInfo, Email, EscalationTicket, Group, Job, PageViewTracking,
-                         TxnRequestTracking, PasswordReset,
-                         PrintJob, PromoCode, PromoCodeGroup, ReportTracking, Sale, Session, Shift, Tracking, ReceiptTransaction,
-                         WorkstationAssignment, Money)
+from uber.models import (
+    Attendee,
+    AttendeeAccount,
+    AdminAccount,
+    BadgeInfo,
+    Email,
+    EscalationTicket,
+    Group,
+    Job,
+    PageViewTracking,
+    TxnRequestTracking,
+    PasswordReset,
+    PrintJob,
+    PromoCode,
+    PromoCodeGroup,
+    ReportTracking,
+    Sale,
+    Session,
+    Shift,
+    Tracking,
+    ReceiptTransaction,
+    WorkstationAssignment,
+    Money,
+)
 from uber.site_sections.preregistration import check_if_can_reg
 from uber.utils import add_opt, check, check_pii_consent, get_page, hour_day_format, \
     localized_now, Order, validate_model, normalize_email_legacy
@@ -230,7 +250,9 @@ class Root:
         return {"success": True}
 
     @ajax
-    def validate_attendee_checkin(self, session: Session, form_list: Any, **params: Any) -> dict[str, Any]:
+    def validate_attendee_checkin(
+        self, session: Session, form_list: Any, **params: Any
+    ) -> dict[str, Any]:
         if params.get('id') in [None, '', 'None']:
             attendee = Attendee()
         else:
@@ -247,12 +269,20 @@ class Root:
 
         if attendee.group and attendee.paid == c.PAID_BY_GROUP and attendee.group.amount_unpaid:
             return {
-                "error": {'': [f"This attendee's group has an outstanding balance of {attendee.group.amount_unpaid}."]}
+                "error": {
+                    '': [
+                        f"This attendee's group has an outstanding balance of {attendee.group.amount_unpaid}."
+                    ]
+                }
             }
 
         if attendee.amount_unpaid_if_valid:
             return {
-                "error": {'': [f"This attendee has an outstanding balance of {attendee.amount_unpaid_if_valid}."]}
+                "error": {
+                    '': [
+                        f"This attendee has an outstanding balance of {attendee.amount_unpaid_if_valid}."
+                    ]
+                }
             }
 
         return {"success": True}
@@ -620,13 +650,18 @@ class Root:
                     receipt = session.get_receipt_by_model(group.buyer)
                     if receipt and cost_per_badge:
                         session.add(
-                            ReceiptManager().create_receipt_item(receipt,
-                                                                 c.REG_RECEIPT_ITEM,
-                                                                 c.GROUP_BADGE,
-                                                                 f'Adding {badges} Badge{"s" if badges > 1 else ""}',
-                                                                 Money.from_dollars(badges * int(cost_per_badge)),
-                                                                 purchaser_id=buyer.purchaser_id))
-                raise HTTPRedirect('promo_code_group_form?id={}&message={}', group.id, "Group saved")
+                            ReceiptManager().create_receipt_item(
+                                receipt,
+                                c.REG_RECEIPT_ITEM,
+                                c.GROUP_BADGE,
+                                f'Adding {badges} Badge{"s" if badges > 1 else ""}',
+                                Money.from_dollars(badges * int(cost_per_badge)),
+                                purchaser_id=buyer.purchaser_id,
+                            )
+                        )
+                raise HTTPRedirect(
+                    'promo_code_group_form?id={}&message={}', group.id, "Group saved"
+                )
 
         return {
             'group': group,
@@ -1414,13 +1449,31 @@ class Root:
 
             params['sales'] = sales
             params['attendees'] = attendees
-            params['total_cash'] = (
-                sum((a.amount_paid for a in attendees if a.payment_method == c.CASH), Money.zero())
-                + sum((Money.from_dollars(s.cash) for s in sales if s.payment_method == c.CASH), Money.zero())
+            params['total_cash'] = sum(
+                (a.amount_paid for a in attendees if a.payment_method == c.CASH),
+                Money.zero(),
+            ) + sum(
+                (
+                    Money.from_dollars(s.cash)
+                    for s in sales
+                    if s.payment_method == c.CASH
+                ),
+                Money.zero(),
             )
-            params['total_credit'] = (
-                sum((a.amount_paid for a in attendees if a.payment_method in [c.STRIPE, c.SQUARE, c.MANUAL]), Money.zero())
-                + sum((Money.from_dollars(s.cash) for s in sales if s.payment_method == c.CREDIT), Money.zero())
+            params['total_credit'] = sum(
+                (
+                    a.amount_paid
+                    for a in attendees
+                    if a.payment_method in [c.STRIPE, c.SQUARE, c.MANUAL]
+                ),
+                Money.zero(),
+            ) + sum(
+                (
+                    Money.from_dollars(s.cash)
+                    for s in sales
+                    if s.payment_method == c.CREDIT
+                ),
+                Money.zero(),
             )
         else:
             params['endday'] = localized_now().strftime('%Y-%m-%d')
@@ -1538,7 +1591,9 @@ class Root:
                                     .order_by(Attendee.full_name).all()}
 
     @site_mappable
-    def discount(self, session: Session, message: str = '', **params: Any) -> dict[str, Any]:
+    def discount(
+        self, session: Session, message: str = '', **params: Any
+    ) -> dict[str, Any]:
         attendee = session.attendee(params)
         if 'first_name' in params:
             try:

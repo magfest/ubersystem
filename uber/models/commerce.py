@@ -15,8 +15,17 @@ from uber.config import c
 from uber.decorators import presave_adjustment, classproperty
 from uber.models import MagModel
 from uber.models.attendee import Attendee
-from uber.models.types import (DefaultColumn as Column, default_relationship as relationship, Choice, MultiChoice,
-                               DefaultField as Field, DefaultRelationship as Relationship, Money, MoneyType, MoneyField)
+from uber.models.types import (
+    DefaultColumn as Column,
+    default_relationship as relationship,
+    Choice,
+    MultiChoice,
+    DefaultField as Field,
+    DefaultRelationship as Relationship,
+    Money,
+    MoneyType,
+    MoneyField,
+)
 from uber.payments import ReceiptManager
 
 log = logging.getLogger(__name__)
@@ -150,11 +159,17 @@ class ModelReceipt(MagModel, table=True):
 
     @property
     def total_processing_fees(self) -> Money:
-        return sum([txn.calc_processing_fee(txn.amount) for txn in self.refundable_txns], Money.zero())
+        return sum(
+            [txn.calc_processing_fee(txn.amount) for txn in self.refundable_txns],
+            Money.zero(),
+        )
 
     @property
     def remaining_processing_fees(self) -> Money:
-        return sum([txn.calc_processing_fee(txn.amount_left) for txn in self.refundable_txns], Money.zero())
+        return sum(
+            [txn.calc_processing_fee(txn.amount_left) for txn in self.refundable_txns],
+            Money.zero(),
+        )
 
     @property
     def open_receipt_items(self):
@@ -186,20 +201,39 @@ class ModelReceipt(MagModel, table=True):
 
     @property
     def pending_total(self) -> Money:
-        return sum([txn.amount for txn in self.receipt_txns if txn.is_pending_charge], Money.zero())
+        return sum(
+            [txn.amount for txn in self.receipt_txns if txn.is_pending_charge],
+            Money.zero(),
+        )
 
     @property
     def payment_total(self) -> Money:
-        return sum([txn.amount for txn in self.receipt_txns
-                    if not txn.cancelled and txn.amount > 0 and (txn.charge_id or txn.intent_id == '')], Money.zero())
+        return sum(
+            [
+                txn.amount
+                for txn in self.receipt_txns
+                if not txn.cancelled
+                and txn.amount > 0
+                and (txn.charge_id or txn.intent_id == '')
+            ],
+            Money.zero(),
+        )
 
     @classproperty
     def payment_total_sql(cls):
-        return coalesce(func.sum(ReceiptTransaction.amount, type_=MoneyType).filter(
-            ReceiptTransaction.amount > 0, ReceiptTransaction.cancelled == None).filter(
-                or_(ReceiptTransaction.charge_id != '',
-                    ReceiptTransaction.intent_id == '')), 0, type_=MoneyType)
-    
+        return coalesce(
+            func.sum(ReceiptTransaction.amount, type_=MoneyType)
+            .filter(ReceiptTransaction.amount > 0, ReceiptTransaction.cancelled == None)
+            .filter(
+                or_(
+                    ReceiptTransaction.charge_id != '',
+                    ReceiptTransaction.intent_id == '',
+                )
+            ),
+            0,
+            type_=MoneyType,
+        )
+
     @property
     def manual_payments(self):
         return [txn for txn in self.receipt_txns
@@ -212,35 +246,57 @@ class ModelReceipt(MagModel, table=True):
 
     @property
     def refund_total(self) -> Money:
-        return -sum([txn.amount for txn in self.receipt_txns if txn.amount < 0], Money.zero())
+        return -sum(
+            [txn.amount for txn in self.receipt_txns if txn.amount < 0], Money.zero()
+        )
 
     @classproperty
     def refund_total_sql(cls):
-        return coalesce(func.sum(ReceiptTransaction.amount, type_=MoneyType).filter(
-            ReceiptTransaction.amount < 0) * -1, 0, type_=MoneyType)
-    
+        return coalesce(
+            func.sum(ReceiptTransaction.amount, type_=MoneyType).filter(
+                ReceiptTransaction.amount < 0
+            )
+            * -1,
+            0,
+            type_=MoneyType,
+        )
+
     @property
     def item_total(self) -> Money:
         return sum([item.total_amount for item in self.receipt_items], Money.zero())
 
     @classproperty
     def item_total_sql(cls):
-        return coalesce(func.sum(ReceiptItem.amount * ReceiptItem.count, type_=MoneyType), 0, type_=MoneyType)
-    
+        return coalesce(
+            func.sum(ReceiptItem.amount * ReceiptItem.count, type_=MoneyType),
+            0,
+            type_=MoneyType,
+        )
+
     @classproperty
     def fkless_item_total_sql(cls):
-        return coalesce(func.sum(ReceiptItem.amount * ReceiptItem.count, type_=MoneyType).filter(
-            ReceiptItem.fk_id == None
-        ), 0, type_=MoneyType)
-    
+        return coalesce(
+            func.sum(ReceiptItem.amount * ReceiptItem.count, type_=MoneyType).filter(
+                ReceiptItem.fk_id == None
+            ),
+            0,
+            type_=MoneyType,
+        )
+
     @property
     def discount_total(self) -> Money:
-        return Money.from_dollars(sum([discount.applicable_discount for discount in self.receipt_discounts]))
-    
+        return Money.from_dollars(
+            sum([discount.applicable_discount for discount in self.receipt_discounts])
+        )
+
     @classproperty
     def discount_total_sql(cls):
-        return coalesce(func.sum(ReceiptDiscount.applicable_discount * 100, type_=MoneyType), 0, type_=MoneyType)
-    
+        return coalesce(
+            func.sum(ReceiptDiscount.applicable_discount * 100, type_=MoneyType),
+            0,
+            type_=MoneyType,
+        )
+
     @property
     def txn_total(self) -> Money:
         return self.payment_total - self.refund_total
@@ -260,10 +316,13 @@ class ModelReceipt(MagModel, table=True):
     @property
     def total_str(self):
         if self.closed:
-            return "{} in {}".format(abs(self.txn_total),
-                                     "Payments" if self.txn_total >= 0 else "Refunds")
+            return "{} in {}".format(
+                abs(self.txn_total), "Payments" if self.txn_total >= 0 else "Refunds"
+            )
 
-        discount_str = f", plus {self.discount_total} in discounts" if self.discount_total else ''
+        discount_str = (
+            f", plus {self.discount_total} in discounts" if self.discount_total else ''
+        )
         return "{} in {} and {} in {}{} = {} owe {}".format(
             abs(self.item_total),
             "Purchases" if self.item_total >= 0 else "Credit",
@@ -271,8 +330,9 @@ class ModelReceipt(MagModel, table=True):
             "Payments" if self.txn_total >= 0 else "Refunds",
             discount_str,
             "They" if self.current_receipt_amount >= 0 else "We",
-            abs(self.current_receipt_amount))
-    
+            abs(self.current_receipt_amount),
+        )
+
     @property
     def default_department(self):
         from uber.models import Session, Attendee, Group
@@ -467,7 +527,9 @@ class ReceiptTransaction(MagModel, table=True):
         if not intent.latest_charge.balance_transaction:
             return Money.zero()
 
-        return Money.from_cents(intent.latest_charge.balance_transaction.fee_details[0].amount)
+        return Money.from_cents(
+            intent.latest_charge.balance_transaction.fee_details[0].amount
+        )
 
     def calc_processing_fee(self, amount: Money | None = None) -> Money:
         if not amount:
@@ -624,7 +686,11 @@ class ReceiptDiscount(MagModel, table=True):
             elif attendee.promo_code_groups:
                 num_codes = 0
                 for code in attendee.promo_code_groups[0].promo_codes:
-                    base_cost += int(code.cost.dollars) if isinstance(code.cost, Money) else int(code.cost or 0)
+                    base_cost += (
+                        int(code.cost.dollars)
+                        if isinstance(code.cost, Money)
+                        else int(code.cost or 0)
+                    )
                     num_codes += 1
                 discount_label = f"group badge (x{num_codes})"
         elif self.discount_on in list(c.BADGE_TYPE_PRICES) and attendee.badge_type in c.BADGE_TYPE_PRICES:
@@ -643,8 +709,10 @@ class ReceiptDiscount(MagModel, table=True):
         self.applicable_discount, self.discount_str, self.category = self.get_discount_info(base_cost, discount_label, real_base_cost)
         if self.category is None:
             self.category = category
-    
-    def get_discount_info(self, base_cost: int, discount_label: str, real_base_cost: int | None = None) -> tuple[int, str, int | None]:
+
+    def get_discount_info(
+        self, base_cost: int, discount_label: str, real_base_cost: int | None = None
+    ) -> tuple[int, str, int | None]:
         # Returns a tuple for the applicable discount amount, the string for the descriptor,
         # and the category (or None if the category should not be changed)
 
@@ -681,9 +749,18 @@ class ReceiptDiscount(MagModel, table=True):
         # Override in event plugins to support custom discount categories
         return 0, ''
 
-    def get_upgrade_discount(self, update_col: str, preview_attendee: 'Attendee') -> tuple[int, str, int | None]:
-        if update_col == 'badge_type' and self.discount_on in list(c.BADGE_TYPE_PRICES) and preview_attendee.badge_type in c.BADGE_TYPE_PRICES:
-            base_cost = c.BADGE_TYPE_PRICES[preview_attendee.badge_type] - preview_attendee.new_badge_cost
+    def get_upgrade_discount(
+        self, update_col: str, preview_attendee: 'Attendee'
+    ) -> tuple[int, str, int | None]:
+        if (
+            update_col == 'badge_type'
+            and self.discount_on in list(c.BADGE_TYPE_PRICES)
+            and preview_attendee.badge_type in c.BADGE_TYPE_PRICES
+        ):
+            base_cost = (
+                c.BADGE_TYPE_PRICES[preview_attendee.badge_type]
+                - preview_attendee.new_badge_cost
+            )
             discount_label = f"{preview_attendee.badge_type_label} badge upgrade"
             if self.discount_on in c.BADGE_TYPE_PRICES:
                 real_base_cost = c.BADGE_TYPE_PRICES[self.discount_on] - preview_attendee.new_badge_cost
