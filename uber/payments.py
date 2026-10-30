@@ -760,7 +760,7 @@ class AuthNetRequestMixin:
 
 
 class TransactionRequest(AuthNetRequestMixin if c.AUTHORIZENET_LOGIN_ID else StripeRequestMixin):
-    def __init__(self, session, receipt=None, receipt_email='', description='', amount=0,
+    def __init__(self, session=None, receipt=None, receipt_email='', description='', amount=0,
                  method=c.STRIPE, customer_id=None, **kwargs):
         self.session = session
         self.amount = int(amount)
@@ -769,7 +769,7 @@ class TransactionRequest(AuthNetRequestMixin if c.AUTHORIZENET_LOGIN_ID else Str
         # OR to force using the receipt_email by passing account=None
         if 'account' in kwargs:
             self.account = kwargs['account']
-        elif c.ATTENDEE_ACCOUNTS_ENABLED:
+        elif c.ATTENDEE_ACCOUNTS_ENABLED and session is not None:
             self.account = session.current_attendee_account()
         else:
             self.account = None

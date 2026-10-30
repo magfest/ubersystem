@@ -572,11 +572,17 @@ def check_shutdown(func):
 
 
 def credit_card(func):
+    takes_session = 'session' in inspect.getfullargspec(inspect.unwrap(func)).args
+
     @wraps(func)
-    def charge(self, session, id=None, **kwargs):
+    def charge(self, session=None, id=None, **kwargs):
         try:
             try:
-                return func(self, session=session, id=id, **kwargs)
+                if takes_session:
+                    return func(self, session=session, id=id, **kwargs)
+                if session is not None:
+                    kwargs['session'] = session
+                return func(self, id=id, **kwargs)
             except HTTPRedirect:
                 # Paranoia: we want to try commiting while we're INSIDE of the
                 # @credit_card decorator to ensure that we catch any database
@@ -584,7 +590,8 @@ def credit_card(func):
                 # this try-except inside another try-except because we want
                 # to re-raise the HTTPRedirect, and also have unexpected DB
                 # exceptions caught by the outermost exception handler.
-                session.commit()
+                if session is not None:
+                    session.commit()
                 raise
         except HTTPRedirect:
             raise
