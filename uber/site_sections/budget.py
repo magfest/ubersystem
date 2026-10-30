@@ -68,21 +68,21 @@ class Root:
     def index(self, session: Session) -> dict[str, Any]:
         receipt_items = session.query(ReceiptItem)
         receipt_total = sum(
-            [item.amount for item in receipt_items.filter_by(txn_type=c.PAYMENT).all()],
+            (item.amount for item in receipt_items.filter_by(txn_type=c.PAYMENT).all()),
             Money.zero(),
         ) - sum(
-            [item.amount for item in receipt_items.filter_by(txn_type=c.REFUND).all()],
+            (item.amount for item in receipt_items.filter_by(txn_type=c.REFUND).all()),
             Money.zero(),
         )
         sales_total = sum(
-            [Money.from_dollars(sale.cash) for sale in session.query(Sale).all()],
+            (Money.from_dollars(sale.cash) for sale in session.query(Sale).all()),
             Money.zero(),
         )
         arbitrary_charge_total = sum(
-            [
+            (
                 Money.from_dollars(charge.amount)
                 for charge in session.query(ArbitraryCharge).all()
-            ],
+            ),
             Money.zero(),
         )
         return {

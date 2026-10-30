@@ -227,17 +227,17 @@ class Root:
                 (
                     'Volunteers Owed Refunds',
                     owed,
-                    sum([a.badge_cost or Money.zero() for a in owed], Money.zero()),
+                    sum((a.badge_cost or Money.zero() for a in owed), Money.zero()),
                 ),
                 (
                     'Volunteers Already Refunded',
                     refunded,
-                    sum([a.badge_cost or Money.zero() for a in refunded], Money.zero()),
+                    sum((a.badge_cost or Money.zero() for a in refunded), Money.zero()),
                 ),
                 (
                     'Volunteers Who Can Be Refunded Once Their Shifts Are Marked',
                     maybe,
-                    sum([a.badge_cost or Money.zero() for a in maybe], Money.zero()),
+                    sum((a.badge_cost or Money.zero() for a in maybe), Money.zero()),
                 ),
             ]
         }

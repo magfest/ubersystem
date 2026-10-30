@@ -160,14 +160,14 @@ class ModelReceipt(MagModel, table=True):
     @property
     def total_processing_fees(self) -> Money:
         return sum(
-            [txn.calc_processing_fee(txn.amount) for txn in self.refundable_txns],
+            (txn.calc_processing_fee(txn.amount) for txn in self.refundable_txns),
             Money.zero(),
         )
 
     @property
     def remaining_processing_fees(self) -> Money:
         return sum(
-            [txn.calc_processing_fee(txn.amount_left) for txn in self.refundable_txns],
+            (txn.calc_processing_fee(txn.amount_left) for txn in self.refundable_txns),
             Money.zero(),
         )
 
@@ -202,20 +202,20 @@ class ModelReceipt(MagModel, table=True):
     @property
     def pending_total(self) -> Money:
         return sum(
-            [txn.amount for txn in self.receipt_txns if txn.is_pending_charge],
+            (txn.amount for txn in self.receipt_txns if txn.is_pending_charge),
             Money.zero(),
         )
 
     @property
     def payment_total(self) -> Money:
         return sum(
-            [
+            (
                 txn.amount
                 for txn in self.receipt_txns
                 if not txn.cancelled
                 and txn.amount > 0
                 and (txn.charge_id or txn.intent_id == '')
-            ],
+            ),
             Money.zero(),
         )
 
@@ -247,7 +247,7 @@ class ModelReceipt(MagModel, table=True):
     @property
     def refund_total(self) -> Money:
         return -sum(
-            [txn.amount for txn in self.receipt_txns if txn.amount < 0], Money.zero()
+            (txn.amount for txn in self.receipt_txns if txn.amount < 0), Money.zero()
         )
 
     @classproperty
@@ -263,7 +263,7 @@ class ModelReceipt(MagModel, table=True):
 
     @property
     def item_total(self) -> Money:
-        return sum([item.total_amount for item in self.receipt_items], Money.zero())
+        return sum((item.total_amount for item in self.receipt_items), Money.zero())
 
     @classproperty
     def item_total_sql(cls):
@@ -286,7 +286,7 @@ class ModelReceipt(MagModel, table=True):
     @property
     def discount_total(self) -> Money:
         return Money.from_dollars(
-            sum([discount.applicable_discount for discount in self.receipt_discounts])
+            sum(discount.applicable_discount for discount in self.receipt_discounts)
         )
 
     @classproperty
