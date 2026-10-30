@@ -286,16 +286,31 @@ class Root:
             except NoResultFound:
                 model = session.art_show_application(id)
 
-        options = [joinedload(ModelReceipt.receipt_items),
-                   joinedload(ModelReceipt.receipt_txns).joinedload(ReceiptTransaction.receipt_info)]
+        options = [
+            joinedload(ModelReceipt.receipt_items),  # type: ignore[arg-type]
+            joinedload(ModelReceipt.receipt_txns).joinedload(
+                ReceiptTransaction.receipt_info
+            ),  # type: ignore[arg-type]
+        ]
 
         receipt = session.get_receipt_by_model(model, options=options)
         if receipt:
-            receipt.changes = session.query(Tracking).filter(
-                or_(Tracking.links.like('%model_receipt({})%'
-                                        .format(receipt.id)),
-                    and_(Tracking.model == 'ModelReceipt',
-                    Tracking.fk_id == receipt.id))).order_by(Tracking.when).all()
+            receipt.changes = (
+                session.query(Tracking)
+                .filter(
+                    or_(
+                        Tracking.links.like(
+                            '%model_receipt({})%'.format(receipt.id)  # type: ignore[attr-defined]
+                        ),
+                        and_(
+                            Tracking.model == 'ModelReceipt',  # type: ignore[arg-type]
+                            Tracking.fk_id == receipt.id,
+                        ),
+                    )
+                )
+                .order_by(Tracking.when)
+                .all()
+            )  # type: ignore[arg-type]
             if receipt.current_receipt_amount < 0:
                 refund_amount = receipt.current_receipt_amount * -1
                 for txn in receipt.refundable_txns:
@@ -306,11 +321,22 @@ class Root:
         if isinstance(model, Attendee):
             other_receipt = session.get_receipt_by_model(model.art_show_application, options=options)
             if other_receipt:
-                other_receipt.changes = session.query(Tracking).filter(
-                    or_(Tracking.links.like('%model_receipt({})%'
-                                            .format(other_receipt.id)),
-                        and_(Tracking.model == 'ModelReceipt',
-                        Tracking.fk_id == other_receipt.id))).order_by(Tracking.when).all()
+                other_receipt.changes = (
+                    session.query(Tracking)
+                    .filter(
+                        or_(
+                            Tracking.links.like(
+                                '%model_receipt({})%'.format(other_receipt.id)  # type: ignore[attr-defined]
+                            ),
+                            and_(
+                                Tracking.model == 'ModelReceipt',  # type: ignore[arg-type]
+                                Tracking.fk_id == other_receipt.id,
+                            ),
+                        )
+                    )
+                    .order_by(Tracking.when)
+                    .all()
+                )  # type: ignore[arg-type]
                 other_receipts.add(other_receipt)
 
         closed_receipts = set()
@@ -318,11 +344,22 @@ class Root:
                                                              ModelReceipt.owner_model == model.__class__.__name__,
                                                              ModelReceipt.closed != None).options(*options)  # noqa: E711
         for closed_receipt in closed_receipt_query:
-            closed_receipt.changes = session.query(Tracking).filter(
-                or_(Tracking.links.like('%model_receipt({})%'
-                                        .format(closed_receipt.id)),
-                    and_(Tracking.model == 'ModelReceipt',
-                    Tracking.fk_id == closed_receipt.id))).order_by(Tracking.when).all()
+            closed_receipt.changes = (
+                session.query(Tracking)
+                .filter(
+                    or_(
+                        Tracking.links.like(
+                            '%model_receipt({})%'.format(closed_receipt.id)  # type: ignore[attr-defined]
+                        ),
+                        and_(
+                            Tracking.model == 'ModelReceipt',  # type: ignore[arg-type]
+                            Tracking.fk_id == closed_receipt.id,
+                        ),
+                    )
+                )
+                .order_by(Tracking.when)
+                .all()
+            )  # type: ignore[arg-type]
             closed_receipts.add(closed_receipt)
 
         return {
@@ -389,7 +426,9 @@ class Root:
         raise HTTPRedirect('../reg_admin/receipt_items?id={}&message={}', model.id, message)
 
     @ajax
-    def add_receipt_item(self, session, id='', **params):
+    def add_receipt_item(
+        self, session: Session, id: str = '', **params: Any
+    ) -> dict[str, Any]:
         from decimal import Decimal
 
         receipt = session.model_receipt(id)
@@ -600,7 +639,9 @@ class Root:
         return {'message': "Item reverted{}".format(message_add)}
 
     @ajax
-    def add_receipt_txn(self, session, id='', **params):
+    def add_receipt_txn(
+        self, session: Session, id: str = '', **params: Any
+    ) -> dict[str, Any]:
         from decimal import Decimal
 
         receipt = session.model_receipt(id)
@@ -622,7 +663,7 @@ class Root:
             receipt_id=receipt.id,
             department=receipt.default_department,
             amount=Money.from_dollars(amount),
-            method=params.get('method'),
+            method=int(params.get('method') or c.STRIPE),
             desc=params['desc'],
             who=AdminAccount.admin_name() or 'non-admin',
         )
@@ -759,7 +800,7 @@ class Root:
             refund = RefundRequest(session, txn, amount=refund_amount,
                                    method=txn.method, who=AdminAccount.admin_name())
         except ValueError as e:
-            error = e
+            error = str(e)
 
         if not error:
             error = refund.process_refund(department=txn.department)
@@ -830,8 +871,16 @@ class Root:
             else:
                 error_start = "This attendee's"
 
-            txn = sorted([txn for txn in group_leader_receipt.refundable_txns
-                          if txn.amount_left >= group_refund_amount], key=lambda x: x.added)[0]
+            refundable = (
+                [
+                    txn
+                    for txn in group_leader_receipt.refundable_txns
+                    if txn.amount_left >= group_refund_amount
+                ]
+                if group_leader_receipt
+                else []
+            )
+            txn = sorted(refundable, key=lambda x: x.added)[0] if refundable else None
             if not txn:
                 message = f"{error_start} group leader could not be refunded because "\
                     f"there wasn't a transaction with enough money left on it for {model.full_name}'s badge."

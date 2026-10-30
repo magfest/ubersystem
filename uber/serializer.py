@@ -2,6 +2,7 @@ import datetime
 import json
 
 from decimal import Decimal
+from typing import Any
 from sqlalchemy.ext import associationproxy
 from sqlmodel import SQLModel
 
@@ -14,7 +15,7 @@ class serializer(json.JSONEncoder):
     they are expected to call serializer.register() for new data types.
     """
 
-    _registry = {}
+    _registry: dict[Any, Any] = {}
     _datetime_format = '%Y-%m-%d %H:%M:%S.%f'
 
     def default(self, o):

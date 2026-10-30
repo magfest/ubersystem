@@ -1,16 +1,17 @@
 import checkdigit.verhoeff as verhoeff
 import pytz
+from pytz import UTC
 from decimal import Decimal
-from typing import Iterable, Any, TYPE_CHECKING
+from typing import Iterable, Any, TYPE_CHECKING, overload
 from collections import OrderedDict, defaultdict
+from collections.abc import Mapping
 from datetime import datetime, timedelta
 from dateutil.parser import parse
 from uuid import uuid4
 from sqlalchemy.orm import selectinload
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-    from uber.models import MagModel, ModelReceipt, ReceiptItem
+    from uber.models import MagModel, ModelReceipt, ReceiptItem, Session
 
 import logging
 import cherrypy
@@ -415,7 +416,7 @@ class StripeRequestMixin:
     def generate_payment_intent(self, intent_id=''):
         log.debug(
             f'Transaction {self.tracking_id}: creating Stripe Intent to charge '
-            f'{self.amount.cents} cents for {self.description}'
+            f'{self.amount} for {self.description}'
         )
 
         return stripe.PaymentIntent.create(
@@ -777,8 +778,17 @@ class AuthNetRequestMixin:
 
 
 class TransactionRequest(AuthNetRequestMixin if c.AUTHORIZENET_LOGIN_ID else StripeRequestMixin):
-    def __init__(self, session, receipt=None, receipt_email='', description='', amount=0,
-                 method=c.STRIPE, customer_id=None, **kwargs):
+    def __init__(
+        self,
+        session: 'Session',
+        receipt: 'ModelReceipt | None' = None,
+        receipt_email: str | list[str] = '',
+        description: str = '',
+        amount: Money | int = 0,
+        method: int = c.STRIPE,
+        customer_id: str | None = None,
+        **kwargs: Any,
+    ) -> None:
         self.session = session
         if isinstance(amount, Money):
             self.amount = amount
@@ -807,8 +817,10 @@ class TransactionRequest(AuthNetRequestMixin if c.AUTHORIZENET_LOGIN_ID else Str
         self.method = method
         self.tracking_id = str(uuid4())
 
-        log.debug(f"Transaction {self.tracking_id} started with {amount} amount, {receipt_email} "
-                  f"receipt email, {description} description, and {customer_id} customer ID.")
+        log.debug(
+            f"Transaction {self.tracking_id} started with {self.amount} amount, {receipt_email} "
+            f"receipt email, {description} description, and {customer_id} customer ID."
+        )
 
         if receipt:
             log.debug(f"Transaction {self.tracking_id} initialized with receipt id {receipt.id}, "
@@ -959,11 +971,9 @@ class RefundRequest(TransactionRequest):
         self.txns.append(txn)
         self.total_refundable += txn.amount - already_refunded
 
-    def process_txn_refund(self, department=None):
+    def process_txn_refund(self, department: int | None = None) -> str | None:
         log.debug(
-            'REFUND: attempting to refund card transaction with ID {} {} cents.',
-            self.charge_id,
-            str(self.amount.cents),
+            f'REFUND: attempting to refund card transaction with ID {self.charge_id} {self.amount}.'
         )
 
         message = self.send_refund_request(self.session, self.amount, self.charge_id, self.txns[0].intent_id)
@@ -979,6 +989,7 @@ class RefundRequest(TransactionRequest):
                                                       method=txn.method, department=department)
             receipt_manager.update_transaction_refund(txn, txn_refund_amt)
             self.items_to_add.update(receipt_manager.items_to_add)
+        return None
 
     def spin_refund_cleanup(f):
         from functools import wraps
@@ -1017,7 +1028,7 @@ class RefundRequest(TransactionRequest):
         self.items_to_add.add(refund_txn.receipt_info)
 
     @spin_refund_cleanup
-    def process_spin_refund(self, department=None):
+    def process_spin_refund(self, department: int | None = None) -> str | None:
         from uber.models import TxnRequestTracking, AdminAccount, Session
         from uber.tasks.registration import process_terminal_sale
 
@@ -1034,8 +1045,9 @@ class RefundRequest(TransactionRequest):
         else:
             model_id = None
 
-        log.debug('REFUND: attempting to refund card transaction with ID {} {} cents',
-                  self.charge_id, str(self.amount))
+        log.debug(
+            f'REFUND: attempting to refund card transaction with ID {self.charge_id} {self.amount}'
+        )
 
         self.tracker = TxnRequestTracking(workstation_num=cherrypy.session.get('reg_station', '0'), fk_id=model_id,
                                           terminal_id=terminal_id, who=AdminAccount.admin_name())
@@ -1078,7 +1090,7 @@ class RefundRequest(TransactionRequest):
                 self.tracker.success = True
 
                 if self.amount == txn_total:
-                    return
+                    return None
                 
                 # This is a partial refund, so we now run a sale on the CURRENTLY connected terminal
                 # We also now know we're only dealing with one transaction at this point
@@ -1137,6 +1149,7 @@ class RefundRequest(TransactionRequest):
                     self.update_txn_receipt_info(txn, return_response_json)
 
                 self.tracker.success = True
+        return None
 
 
 class SpinTerminalRequest(TransactionRequest):
@@ -1591,7 +1604,11 @@ class ReceiptManager:
         from uber.models import Attendee, AdminAccount, ModelReceipt, ReceiptItem, Group
         calc_items = uber.receipt_items.receipt_calculation.items
         receipt_items: list[Any] = []
-        receipt = ModelReceipt(owner_id=model.id, owner_model=model.__class__.__name__) if create_model else None
+        receipt = (
+            ModelReceipt(owner_id=model.id or '', owner_model=model.__class__.__name__)
+            if create_model
+            else None
+        )
         if not purchaser_id:
             purchaser_id = ReceiptManager.get_purchaser_id(model=model)
 
@@ -1631,7 +1648,7 @@ class ReceiptManager:
             elif col_or_category:
                 revert_change, category = handle_col_name(model, col_or_category, category)
 
-            if isinstance(cost, Iterable):
+            if isinstance(cost, (dict, Mapping)):
                 # A list of the same item at different prices, e.g., group badges
                 for price in cost:
                     try:
@@ -1691,6 +1708,33 @@ class ReceiptManager:
         return receipt, receipt_items
 
 
+    @overload
+    @classmethod
+    def process_receipt_change(
+        cls,
+        model: 'MagModel',
+        col_name: str,
+        new_model: 'MagModel',
+        receipt: 'ModelReceipt',
+        who: str = '',
+        count: int = 1,
+        revert_change: dict[str, Any] | None = None,
+    ) -> list['ReceiptItem'] | None: ...
+
+    @overload
+    @classmethod
+    def process_receipt_change(
+        cls,
+        model: 'MagModel',
+        col_name: str,
+        new_model: 'MagModel',
+        receipt: None = None,
+        who: str = '',
+        count: int = 1,
+        revert_change: dict[str, Any] | None = None,
+    ) -> list[tuple[str, Any, int]] | None: ...
+
+    @overload
     @classmethod
     def process_receipt_change(
         cls,
@@ -1701,7 +1745,19 @@ class ReceiptManager:
         who: str = '',
         count: int = 1,
         revert_change: dict[str, Any] | None = None,
-    ) -> list['ReceiptItem'] | None:
+    ) -> list['ReceiptItem'] | list[tuple[str, Any, int]] | None: ...
+
+    @classmethod
+    def process_receipt_change(
+        cls,
+        model: 'MagModel',
+        col_name: str,
+        new_model: 'MagModel',
+        receipt: 'ModelReceipt | None' = None,
+        who: str = '',
+        count: int = 1,
+        revert_change: dict[str, Any] | None = None,
+    ) -> list['ReceiptItem'] | list[tuple[str, Any, int]] | None:
         from uber.models import AdminAccount, ReceiptItem, Group
         from uber.models.types import Choice
 
@@ -1716,7 +1772,7 @@ class ReceiptManager:
         cost_change_func, category = model.receipt_changes.get(col_name, (None, None))
 
         if not cost_change_func:
-            return
+            return None
 
         try:
             cost_desc, cost_change, maybe_category, count = cost_change_func(model, new_model)
@@ -1725,7 +1781,7 @@ class ReceiptManager:
             cost_desc, cost_change, maybe_category = cost_change_func(model, new_model)
         except TypeError as e:
             log.error(str(e))
-            return
+            return None
 
         if isinstance(maybe_category, int):
             category = maybe_category
@@ -1746,7 +1802,7 @@ class ReceiptManager:
                     pass
                 revert_change = {col_name: old_val}
 
-        if isinstance(cost_change, Iterable):
+        if isinstance(cost_change, (dict, Mapping)):
             # A list of the same item at different prices, e.g., group badges
             receipt_items: list[Any] = []
             for price in cost_change:
@@ -1779,7 +1835,14 @@ class ReceiptManager:
             return [(cost_desc, cost_change, count)]
 
     @classmethod
-    def auto_update_receipt(self, session, model, receipt, params, who=''):
+    def auto_update_receipt(
+        self,
+        session: 'Session',
+        model: 'MagModel',
+        receipt: 'ModelReceipt | None',
+        params: dict[str, Any],
+        who: str = '',
+    ) -> list['ReceiptItem']:
         from uber.models import Attendee, Group, ArtShowApplication, Session
         if not receipt:
             return []
@@ -1795,8 +1858,10 @@ class ReceiptManager:
         if params.get('auto_recalc') or not isinstance(model, Group):
             params.pop('cost', None)
 
-        if params.get('power_fee', None) is not None and c.POWER_PRICES.get(int(params.get('power'), 0),
-                                                                            None) is None:
+        if (
+            params.get('power_fee', None) is not None
+            and c.POWER_PRICES.get(int(params.get('power') or 0), None) is None
+        ):
             new_model.power_fee = int(params.get('power_fee') or 0)
             new_model.power = int(params.get('power') or 0)
             items = self.process_receipt_change(model, 'power_fee', new_model, receipt, who=who)

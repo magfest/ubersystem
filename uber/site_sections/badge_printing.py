@@ -1,5 +1,6 @@
 import cherrypy
 import math
+from typing import Any
 
 from datetime import datetime
 
@@ -7,7 +8,7 @@ from uber.config import c
 from uber.custom_tags import time_day_local
 from uber.decorators import ajax, ajax_gettable, all_renderable, not_site_mappable
 from uber.errors import HTTPRedirect
-from uber.models import AdminAccount, Attendee, PrintJob, ReceiptItem, Money
+from uber.models import AdminAccount, Attendee, PrintJob, ReceiptItem, Money, Session
 from uber.utils import localized_now
 
 
@@ -141,7 +142,9 @@ class Root:
         }
 
     @ajax
-    def add_job_to_queue(self, session, id, printer_id='', **params):
+    def add_job_to_queue(
+        self, session: Session, id: str, printer_id: str = '', **params: Any
+    ) -> dict[str, Any]:
         attendee = session.attendee(id)
         reprint_fee = 0 if params.get('free_reprint') else int(params.get('fee_amount', 0))
         new_name = params.get('badge_printed_name', '')
@@ -219,7 +222,7 @@ class Root:
         }
 
     @ajax_gettable
-    def mark_as_invalid(self, session, id):
+    def mark_as_invalid(self, session: Session, id: str) -> dict[str, Any]:
         job = session.print_job(id)
         if job.errors:
             success = False

@@ -12,7 +12,7 @@ from itertools import chain
 from pydantic import ConfigDict
 from uuid import uuid4
 from types import MethodType
-from typing import Any, ClassVar
+from typing import Any, ClassVar, TYPE_CHECKING
 
 import cherrypy
 import six
@@ -225,7 +225,7 @@ class MagModel(SQLModel):
 
     required: ClassVar = ()
 
-    _repr_attr_names: ClassVar = ()
+    _repr_attr_names: ClassVar[tuple[str, ...] | list[str]] = ()
 
     def __repr__(self):
         """
@@ -386,9 +386,9 @@ class MagModel(SQLModel):
             Money.zero(),
             sum(
                 [
-                    (cost if isinstance(cost, Money) else Money.from_cents(cost))
+                    (cost if isinstance(cost, Money) else Money.from_cents(cost))  # type: ignore[arg-type,operator]
                     * count
-                    for desc, cost, count in receipt_items
+                    for desc, cost, count in receipt_items  # type: ignore[misc]
                 ],
                 Money.zero(),
             ),
@@ -620,7 +620,7 @@ class MagModel(SQLModel):
         super().__setattr__(name, value)
 
     def __getattr__(self, name: str) -> Any:
-        suffixed = suffix_property.check(self, name)
+        suffixed = suffix_property.check(self, name)  # type: ignore[attr-defined]
         if suffixed is not None:
             return suffixed
 
@@ -662,18 +662,18 @@ class MagModel(SQLModel):
         except Exception:
             pass
 
-        return super().__getattr__(name)
+        return super().__getattr__(name)  # type: ignore[misc]
 
     def get_tracking_by_instance(self, instance, action, last_only=True):
         from uber.models.tracking import Tracking
         query = self.session.query(Tracking).filter_by(fk_id=instance.id, action=action).order_by(Tracking.when.desc())
         return query.first() if last_only else query.all()
 
-    def coerce_column_data(self, column, value):
+    def coerce_column_data(self, column: Any, value: Any) -> Any:
         if isinstance(value, six.string_types):
             value = value.strip()
 
-        def _is_string_like_column(col_type):
+        def _is_string_like_column(col_type: Any) -> bool:
             # Plain `isinstance(col_type, String)` misses SQLModel's
             # `AutoString` (a TypeDecorator wrapping String) and any
             # other TypeDecorator over String/Text. Walk the impl chain
@@ -2494,7 +2494,11 @@ class HybridSessionProxy:
         """
         return SessionFactory(*args, **kwargs)
 
-Session = HybridSessionProxy()
+
+if TYPE_CHECKING:
+    Session: Any
+else:
+    Session = HybridSessionProxy()
 
 def initialize_db():
     """Explicitly create tables."""

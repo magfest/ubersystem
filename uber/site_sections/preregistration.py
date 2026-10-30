@@ -1279,7 +1279,13 @@ class Root:
                 raise HTTPRedirect('group_promo_codes?id={}&message={}'.format(group_id, message))
 
     @requires_account(PromoCodeGroup)
-    def add_promo_codes(self, session, id, count, estimated_cost):
+    def add_promo_codes(
+        self,
+        session: Session,
+        id: str,
+        count: int | str,
+        estimated_cost: int | str,
+    ) -> list[str] | None:
         errors = check_if_can_reg()
         if errors:
             return errors
@@ -2231,14 +2237,18 @@ class Root:
         **params: Any,
     ) -> dict[str, Any]:
         if params.get('id') not in [None, '', 'None']:
-            attendee = session.get(Attendee, params.get('id'), options=[
-                selectinload(Attendee.dept_membership_requests),
-                selectinload(Attendee.art_agent_apps),
-                selectinload(Attendee.promo_code_groups),
-                selectinload(Attendee.shifts),
-                joinedload(Attendee.lottery_application),
-                joinedload(Attendee.art_show_application),
-                joinedload(Attendee.marketplace_application)]
+            attendee = session.get(
+                Attendee,
+                params.get('id'),
+                options=[
+                    selectinload(Attendee.dept_membership_requests),  # type: ignore[arg-type]
+                    selectinload(Attendee.art_agent_apps),  # type: ignore[arg-type]
+                    selectinload(Attendee.promo_code_groups),  # type: ignore[arg-type]
+                    selectinload(Attendee.shifts),  # type: ignore[arg-type]
+                    joinedload(Attendee.lottery_application),
+                    joinedload(Attendee.art_show_application),
+                    joinedload(Attendee.marketplace_application),
+                ],
             )
             receipt = session.get_receipt_by_model(attendee)
             if cherrypy.request.method == 'POST':

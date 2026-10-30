@@ -254,7 +254,7 @@ class Root:
         self, session: Session, form_list: Any, **params: Any
     ) -> dict[str, Any]:
         if params.get('id') in [None, '', 'None']:
-            attendee = Attendee()
+            attendee = Attendee()  # type: ignore[call-arg]
         else:
             attendee = session.attendee(params.get('id'))
 
@@ -606,15 +606,30 @@ class Root:
         }
 
     @log_pageview
-    def promo_code_group_form(self, session, message='',
-                              badges=0, cost_per_badge=0,
-                              first_name='', last_name='', email='', **params):
+    def promo_code_group_form(
+        self,
+        session: Session,
+        message: str = '',
+        badges: int | str = 0,
+        cost_per_badge: int | str = 0,
+        first_name: str = '',
+        last_name: str = '',
+        email: str = '',
+        **params: Any,
+    ) -> dict[str, Any]:
         group = session.promo_code_group(params)
         badges_are_free = params.get('badges_are_free')
         buyer_id = params.get('buyer_id')
-        attendee_attrs = session.query(Attendee.id, Attendee.last_first, Attendee.badge_type, BadgeInfo.ident) \
-            .outerjoin(Attendee.active_badge).filter(Attendee.first_name != '',
-                                                     Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]))
+        attendee_attrs = (
+            session.query(
+                Attendee.id, Attendee.last_first, Attendee.badge_type, BadgeInfo.ident
+            )
+            .outerjoin(Attendee.active_badge)
+            .filter(
+                Attendee.first_name != '',
+                Attendee.badge_status.in_([c.NEW_STATUS, c.COMPLETED_STATUS]),
+            )
+        )  # type: ignore[attr-defined]
         attendees = [
             (id, '{} - {}{}'.format(name.title(), c.BADGES[badge_type], ' #{}'.format(badge_num) if badge_num else ''))
             for id, name, badge_type, badge_num in attendee_attrs]
@@ -637,7 +652,9 @@ class Root:
             if not message:
                 badges = int(badges)
                 if buyer_id == "None":
-                    buyer = Attendee(first_name=first_name, last_name=last_name, email=email)
+                    buyer = Attendee(
+                        first_name=first_name, last_name=last_name, email=email
+                    )  # type: ignore[call-arg]
                     buyer.placeholder = True
                     session.add(buyer)
                     group.buyer = buyer
@@ -1443,9 +1460,16 @@ class Root:
             sales = session.query(Sale).filter(
                 Sale.reg_station == params['reg_station'], Sale.when > start, Sale.when <= end).all()
 
-            attendees = session.query(Attendee).filter(
-                Attendee.reg_station == params['reg_station'], Attendee.amount_paid > 0,
-                Attendee.registered > start, Attendee.registered <= end).all()
+            attendees = (
+                session.query(Attendee)
+                .filter(
+                    Attendee.reg_station == params['reg_station'],
+                    Attendee.amount_paid > 0,  # type: ignore[operator]
+                    Attendee.registered > start,
+                    Attendee.registered <= end,
+                )
+                .all()
+            )
 
             params['sales'] = sales
             params['attendees'] = attendees
@@ -1482,10 +1506,14 @@ class Root:
 
         # list all reg stations associated with attendees and sales
         stations_attendees = session.query(Attendee.reg_station).filter(
-            Attendee.reg_station != None, Attendee.reg_station > 0)  # noqa: E711
+            Attendee.reg_station != None,  # noqa: E711  # type: ignore[operator]
+            Attendee.reg_station > 0,  # type: ignore[operator]
+        )
 
         stations_sales = session.query(Sale.reg_station).filter(
-            Sale.reg_station != None, Sale.reg_station > 0)  # noqa: E711
+            Sale.reg_station != None,  # noqa: E711  # type: ignore[operator]
+            Sale.reg_station > 0,  # type: ignore[operator]
+        )
 
         stations = [r for (r,) in stations_attendees.union(stations_sales).distinct().order_by(Attendee.reg_station)]
         params['reg_stations'] = stations

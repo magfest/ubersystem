@@ -764,6 +764,7 @@ def reasonable_total_cost(attendee: Attendee) -> tuple[str, str] | None:
             '',
             f'We cannot charge {attendee.total_cost}. Please reduce extras so the total is below $9,999.',
         )
+    return None
 
 
 @prereg_validation.Attendee
@@ -815,6 +816,7 @@ def age_discount_after_paid(attendee: Attendee) -> tuple[str, str] | None:
                 and attendee.age_group_conf['discount'] > 0:
             return ('birthdate', 'The date of birth you entered incurs a discount; \
                                 please email {} to change your badge and receive a refund'.format(c.REGDESK_EMAIL))
+    return None
 
 
 @prereg_validation.Attendee

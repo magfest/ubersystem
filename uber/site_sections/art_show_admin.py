@@ -11,6 +11,7 @@ import logging
 
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.exc import NoResultFound
@@ -1268,7 +1269,7 @@ class Root:
 
     def print_receipt(
         self, session: Session, id: str, close: bool = False, **params: Any
-    ) -> None:
+    ) -> dict[str, Any]:
         receipt = session.art_show_receipt(id)
 
         if close and not receipt.closed:
@@ -1329,7 +1330,7 @@ class Root:
                     credit_note += f" ({credit_num} payments)"
                 admin_notes.append(credit_note)
 
-            sales_item.receipt_txn = main_txn
+            sales_item.receipt_txn = main_txn  # type: ignore[assignment]
             sales_item.admin_notes = "; ".join(admin_notes)
             sales_item.closed = datetime.now()
             session.add(sales_item)
@@ -1381,7 +1382,13 @@ class Root:
             }
 
     @ajax
-    def start_terminal_payment(self, session, model_id='', amount=0, **params):
+    def start_terminal_payment(
+        self,
+        session: Session,
+        model_id: str = '',
+        amount: Money | str | int | float = 0,
+        **params: Any,
+    ) -> dict[str, Any]:
         from uber.tasks.registration import process_terminal_sale
 
         error, terminal_id = session.get_assigned_terminal_id()
@@ -1397,15 +1404,24 @@ class Root:
             except NoResultFound:
                 return {'error': f"Could not find sale receipt or art show app {model_id}"}
             else:
+                if not amount:
+                    charge_amount = app.amount_unpaid
+                elif isinstance(amount, Money):
+                    charge_amount = amount
+                else:
+                    charge_amount = Money.from_dollars(amount)
                 description = f"Payment for {app.attendee.full_name}'s Art Show Application"
         else:
             if not amount:
-                amount = receipt.owed
+                charge_amount = receipt.owed
+            elif isinstance(amount, Money):
+                charge_amount = amount
             else:
-                amount = Money.from_dollars(amount)
+                charge_amount = Money.from_dollars(amount)
 
             description = '{}ayment for Art Show Invoice #{}'.format(
-                'P' if amount == receipt.total else 'Partial p', receipt.invoice_num
+                'P' if charge_amount == receipt.total else 'Partial p',
+                receipt.invoice_num,
             )
             model_id = receipt.attendee.id
 
@@ -1416,7 +1432,7 @@ class Root:
             model_id=model_id,
             description=description,
             use_account_info=False,
-            amount=amount.cents,
+            amount=charge_amount.cents,
             who=AdminAccount.admin_name(),
         )
         return {'success': True}

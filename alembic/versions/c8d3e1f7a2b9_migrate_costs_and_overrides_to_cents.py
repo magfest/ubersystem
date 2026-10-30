@@ -12,11 +12,11 @@ down_revision = '3c9e2a7f41d8'
 branch_labels = None
 depends_on = None
 
-from alembic import op
+from alembic import op  # type: ignore[attr-defined]
 import sqlalchemy as sa
 
 
-def upgrade():
+def upgrade() -> None:
     op.execute(
         sa.text(
             'UPDATE attendee SET badge_cost = badge_cost * 100 WHERE badge_cost IS NOT NULL'
@@ -50,7 +50,7 @@ def upgrade():
     )
 
 
-def downgrade():
+def downgrade() -> None:
     op.execute(
         sa.text(
             'UPDATE attendee SET badge_cost = badge_cost / 100 WHERE badge_cost IS NOT NULL'

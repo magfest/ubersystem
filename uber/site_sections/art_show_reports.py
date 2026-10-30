@@ -296,18 +296,39 @@ class Root:
         else:
             filter = ArtShowApplication.true_default_cost == item_subquery.c.item_total
 
-        apps_and_totals = session.query(
-            ArtShowApplication, ModelReceipt.payment_total_sql, ModelReceipt.refund_total_sql, item_subquery.c.item_total
-            ).filter(ArtShowApplication.status == c.APPROVED).join(ArtShowApplication.active_receipt).outerjoin(
-                ModelReceipt.receipt_txns).join(item_subquery, ArtShowApplication.id == item_subquery.c.owner_id).group_by(
-                    ModelReceipt.id).group_by(ArtShowApplication.id).group_by(item_subquery.c.item_total).having(
-                        and_((ModelReceipt.payment_total_sql - ModelReceipt.refund_total_sql) != item_subquery.c.item_total,
-                             filter)).options(lazyload("*"))
+        apps_and_totals = (
+            session.query(
+                ArtShowApplication,
+                ModelReceipt.payment_total_sql,
+                ModelReceipt.refund_total_sql,
+                item_subquery.c.item_total,
+            )
+            .filter(ArtShowApplication.status == c.APPROVED)
+            .join(ArtShowApplication.active_receipt)
+            .outerjoin(ModelReceipt.receipt_txns)
+            .join(item_subquery, ArtShowApplication.id == item_subquery.c.owner_id)
+            .group_by(ModelReceipt.id)
+            .group_by(ArtShowApplication.id)
+            .group_by(item_subquery.c.item_total)
+            .having(
+                and_(
+                    (ModelReceipt.payment_total_sql - ModelReceipt.refund_total_sql)
+                    != item_subquery.c.item_total,
+                    filter,
+                )
+            )
+            .options(lazyload("*"))
+        )  # type: ignore[arg-type]
 
         if include_no_receipts:
-            apps_no_receipts = session.query(ArtShowApplication).outerjoin(
-                ModelReceipt, ArtShowApplication.active_receipt).filter(ArtShowApplication.true_default_cost > 0,
-                                                                        ModelReceipt.id == None)
+            apps_no_receipts = (
+                session.query(ArtShowApplication)
+                .outerjoin(ModelReceipt, ArtShowApplication.active_receipt)
+                .filter(
+                    ArtShowApplication.true_default_cost > 0,  # type: ignore[operator]
+                    ModelReceipt.id == None,
+                )
+            )
         else:
             apps_no_receipts = []
 

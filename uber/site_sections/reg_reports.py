@@ -95,8 +95,11 @@ class Root:
     def attendee_receipt_discrepancies(
         self, session: Session, include_pending: bool = False
     ) -> dict[str, Any]:
+        filter: Any
         if include_pending:
-            filter = or_(Attendee.badge_status == c.PENDING_STATUS, Attendee.is_valid == True)  # noqa: E712
+            filter = or_(
+                Attendee.badge_status == c.PENDING_STATUS, Attendee.is_valid == True
+            )  # type: ignore[arg-type]  # noqa: E712
         else:
             filter = Attendee.is_valid == True  # noqa: E712
 
@@ -137,17 +140,36 @@ class Root:
         else:
             filter = Attendee.default_cost == item_subquery.c.item_total
 
-        attendees_and_totals = session.query(
-            Attendee, ModelReceipt.payment_total_sql, ModelReceipt.refund_total_sql, item_subquery.c.item_total
-            ).filter(Attendee.is_valid == True).join(Attendee.active_receipt).outerjoin(
-                ModelReceipt.receipt_txns).join(item_subquery, Attendee.id == item_subquery.c.owner_id).group_by(
-                    ModelReceipt.id).group_by(Attendee.id).group_by(item_subquery.c.item_total).having(
-                        and_((ModelReceipt.payment_total_sql - ModelReceipt.refund_total_sql) != item_subquery.c.item_total,
-                             filter)).options(lazyload("*"))
-        
+        attendees_and_totals = (
+            session.query(
+                Attendee,
+                ModelReceipt.payment_total_sql,
+                ModelReceipt.refund_total_sql,
+                item_subquery.c.item_total,
+            )
+            .filter(Attendee.is_valid == True)
+            .join(Attendee.active_receipt)
+            .outerjoin(ModelReceipt.receipt_txns)
+            .join(item_subquery, Attendee.id == item_subquery.c.owner_id)
+            .group_by(ModelReceipt.id)
+            .group_by(Attendee.id)
+            .group_by(item_subquery.c.item_total)
+            .having(
+                and_(
+                    (ModelReceipt.payment_total_sql - ModelReceipt.refund_total_sql)
+                    != item_subquery.c.item_total,
+                    filter,
+                )
+            )
+            .options(lazyload("*"))
+        )  # type: ignore[arg-type]
+
         if include_no_receipts:
-            attendees_no_receipts = session.query(Attendee).outerjoin(
-                ModelReceipt, Attendee.active_receipt).filter(Attendee.default_cost > 0, ModelReceipt.id == None)
+            attendees_no_receipts = (
+                session.query(Attendee)
+                .outerjoin(ModelReceipt, Attendee.active_receipt)
+                .filter(Attendee.default_cost > 0, ModelReceipt.id == None)
+            )  # type: ignore[operator]
         else:
             attendees_no_receipts = []
 

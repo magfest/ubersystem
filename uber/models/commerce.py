@@ -42,7 +42,7 @@ class ArbitraryCharge(MagModel, table=True):
     when: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
     reg_station: int | None = Field(default=0, nullable=True)
 
-    _repr_attr_names: ClassVar = ['what']
+    _repr_attr_names: ClassVar = ('what',)
 
 
 class MerchDiscount(MagModel, table=True):
@@ -706,9 +706,12 @@ class ReceiptDiscount(MagModel, table=True):
         else:
             base_cost, discount_label = self.set_other_discount(attendee)
 
-        self.applicable_discount, self.discount_str, self.category = self.get_discount_info(base_cost, discount_label, real_base_cost)
-        if self.category is None:
-            self.category = category
+        new_discount, discount_str, new_category = self.get_discount_info(
+            base_cost, discount_label, real_base_cost
+        )
+        self.applicable_discount = new_discount
+        self.discount_str = discount_str
+        self.category = category if new_category is None else new_category
 
     def get_discount_info(
         self, base_cost: int, discount_label: str, real_base_cost: int | None = None
@@ -744,6 +747,7 @@ class ReceiptDiscount(MagModel, table=True):
                 return (discount, f"{int(self.discount)}% off {discount_label} price (${discount})", None)
             else:
                 return (0, '', None)
+        return (0, '', None)
     
     def set_other_discount(self, attendee: 'Attendee') -> tuple[int, str]:
         # Override in event plugins to support custom discount categories

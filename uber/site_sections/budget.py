@@ -215,16 +215,16 @@ class Root:
                                               Group.attendees_have_badges == True, Group.cost > 0)  # noqa: E712
 
         paid_total = 0
-        paid_custom = defaultdict(int)
-        paid_tables = defaultdict(int)
-        paid_table_sums = defaultdict(int)
-        paid_badges = defaultdict(int)
+        paid_custom: defaultdict[str, int] = defaultdict(int)
+        paid_tables: defaultdict[int, int] = defaultdict(int)
+        paid_table_sums: defaultdict[int, int] = defaultdict(int)
+        paid_badges: defaultdict[int, int] = defaultdict(int)
 
         unpaid_total = 0
-        unpaid_custom = defaultdict(int)
-        unpaid_tables = defaultdict(int)
-        unpaid_table_sums = defaultdict(int)
-        unpaid_badges = defaultdict(int)
+        unpaid_custom: defaultdict[str, int] = defaultdict(int)
+        unpaid_tables: defaultdict[int, int] = defaultdict(int)
+        unpaid_table_sums: defaultdict[int, int] = defaultdict(int)
+        unpaid_badges: defaultdict[int, int] = defaultdict(int)
 
         for group in dealers:
             if group.is_paid:

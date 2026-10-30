@@ -2,6 +2,7 @@ import cherrypy
 import logging
 
 from datetime import datetime
+from typing import Any
 
 from uber.email import EmailService
 from uber.config import c
@@ -214,7 +215,7 @@ class Root:
     @ajax
     @credit_card
     @requires_account(ArtistMarketplaceApplication)
-    def process_marketplace_payment(self, session, id):
+    def process_marketplace_payment(self, session: Session, id: str) -> dict[str, Any]:
         app = session.artist_marketplace_application(id)
 
         receipt = session.get_receipt_by_model(app.attendee, create_if_none="DEFAULT")
