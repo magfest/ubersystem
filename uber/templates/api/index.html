@@ -72,6 +72,11 @@
                 </div>
               </div>
             </div>
+            {{ macros.form_group(
+                ApiToken,
+                'oidc_client_id',
+                label='OIDC Client ID',
+                help='Required for Self tokens. The client your app\'s users log in through.') }}
           </div>
           <div class="modal-footer">
             <button type="submit" class="btn btn-primary">Save</button>
@@ -122,6 +127,7 @@
             <th>Name</th>
             <th>Description</th>
             <th>Access</th>
+            <th>Client</th>
             <th>Token</th>
             <th>Issued</th>
             <th>Revoked</th>
@@ -140,6 +146,7 @@
               <td>{{ token.name }}</td>
               <td>{{ token.description }}</td>
               <td>{{ token.access_labels|join(', ') }}</td>
+              <td>{{ token.oidc_client_id }}</td>
               <td class="text-nowrap">{{ token.token }}</td>
               <td data-order="{{ token.issued_time }}">
                 {{ token.issued_time|datetime_local('%B %-e, %Y, %-I:%M%p') }}
@@ -149,6 +156,7 @@
                   {{ token.revoked_time|datetime_local('%B %-e, %Y, %-I:%M%p') }}
                 {% else %}
                   <form method="post" action="revoke_api_token" role="form">
+                    {{ csrf_token() }}
                     <input type="hidden" name="id" value="{{ token.id }}"/>
                     <button class="btn btn-sm btn-danger" type="submit">Revoke</button>
                   </form>

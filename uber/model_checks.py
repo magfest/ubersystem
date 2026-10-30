@@ -107,6 +107,12 @@ def admin_has_required_api_access(api_token):
                 return 'You do not have permission to create a token with {} access'.format(c.API_ACCESS[access_level])
 
 
+@validation.ApiToken
+def self_token_has_client(api_token):
+    if c.API_SELF in api_token.access_ints and not api_token.oidc_client_id.strip():
+        return 'A Self token must name the OIDC client its users log in through.'
+
+
 def invalid_phone_number(s):
     try:
         # parse input as a US number, unless a leading + is provided,

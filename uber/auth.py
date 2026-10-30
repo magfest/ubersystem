@@ -170,10 +170,10 @@ class OIDC(cherrypy.Tool):
             traceback.print_exc()
             return None
 
-    def _verify_token(self, token):
+    def _verify_token(self, token, audience=None):
         """
         Cryptographically verifies the JWT signature using Keycloak's public keys.
-        Returns the decoded payload if valid, raises Exception if not.
+        Returns the decoded payload if valid, or None or False if not.
         """
         if not token:
             return None
@@ -191,13 +191,15 @@ class OIDC(cherrypy.Tool):
             public_key = jwk.construct(key_data)
 
             # Verify signature, audience, and expiration
-            # We verify the 'id_token', so the audience must be OUR Client ID.
+            # None means the login client; an empty string is a real value and must not fall back to it.
+            # python-jose skips the audience check when a token has no aud claim, so API callers require one.
             payload = jwt.decode(
                 token,
                 public_key,
                 algorithms=['RS256'],
-                audience=c.OIDC_CLIENT_ID,
-                options={"verify_at_hash": False}
+                audience=audience if audience is not None else c.OIDC_CLIENT_ID,
+                options={"verify_at_hash": False, "require_aud": audience is not None,
+                         "require_exp": audience is not None}
             )
             return payload
         except ExpiredSignatureError:

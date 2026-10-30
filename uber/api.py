@@ -1,6 +1,5 @@
 import re
 import uuid
-from collections import defaultdict
 from datetime import datetime
 from functools import wraps
 
@@ -30,6 +29,7 @@ from uber.models.hotel import (HotelExportLog, HotelRoomInventory, LotteryHotel,
                                RoomAssignment)
 from uber.hotel.queries import shared_room_eligible_query
 from uber.models.badge_printing import PrintJob
+from uber.self_lookup import authenticated_sub, badge_detail, list_badges
 from uber.serializer import serializer
 from uber.utils import check, check_csrf, normalize_email_legacy, normalize_newlines, is_listy
 
@@ -229,36 +229,7 @@ def _prepare_attendees_export(attendees, include_account_ids=False, include_apps
                 d['marketplace_app'] = a.marketplace_application.to_dict(marketplace_import_fields)
 
         if include_depts:
-            assigned_depts = {}
-            checklist_admin_depts = {}
-            dept_head_depts = {}
-            poc_depts = {}
-            roles_depts = defaultdict(list)
-
-            if a.badge_status == c.DEFERRED_STATUS:
-                active_dept_memberships = a.dept_memberships
-            else:
-                active_dept_memberships = [m for m in a.dept_memberships if m.has_inherent_role or 
-                                           m.department in a.depts_where_working]
-
-            for membership in active_dept_memberships:
-                assigned_depts[membership.department_id] = membership.department.name
-                for role in membership.dept_roles:
-                    roles_depts[membership.department_id].append((role.id, role.name))
-                if membership.is_checklist_admin:
-                    checklist_admin_depts[membership.department_id] = membership.department.name
-                if membership.is_dept_head:
-                    dept_head_depts[membership.department_id] = membership.department.name
-                if membership.is_poc:
-                    poc_depts[membership.department_id] = membership.department.name
-
-            d.update({
-                'assigned_depts': assigned_depts,
-                'checklist_admin_depts': checklist_admin_depts,
-                'dept_head_depts': dept_head_depts,
-                'poc_depts': poc_depts,
-                'roles_depts': roles_depts,
-            })
+            d.update(a.dept_summary)
 
         attendee_list.append(d)
     return attendee_list
@@ -347,7 +318,11 @@ def auth_by_token(required_access):
         for access_level in required_access:
             if not getattr(api_token, access_level, None):
                 return (403, 'Insufficient access for auth token: {}'.format(token))
-        cherrypy.session['account_id'] = api_token.admin_account_id
+        if set(api_token.access_ints) == {c.API_SELF}:
+            # Session boundary: Self tokens act for a third-party app, so a Self-only token never creates a session.
+            cherrypy.request.admin_account = api_token.admin_account_id
+        else:
+            cherrypy.session['account_id'] = api_token.admin_account_id
     return None
 
 
@@ -401,6 +376,37 @@ class all_api_auth:
             if hasattr(fn, '__call__'):
                 setattr(cls, name, api_auth(*self.required_access)(fn))
         return cls
+
+
+@all_api_auth('api_self')
+class SelfLookup:
+    """
+    Badges for the signed-in user. Requires a bearer access token issued to the API token's bound client.
+
+    The Try it button on this page sends no API token or access token, so it always returns an error.
+    """
+
+    def badges(self):
+        """
+        Lists the badges linked to the user identified by the bearer access token.
+
+        Send the user's OIDC access token as `Authorization: Bearer <token>`. It must be issued to the
+        client bound to your API token. Returns `linked` and a list of `badges`.
+        """
+        with Session() as session:
+            sub = authenticated_sub(session, cherrypy.request.headers)
+            return list_badges(session, sub)
+
+    def badge(self, id):
+        """
+        Returns one of the user's badges with department details.
+
+        `id` is the badge UUID. Requires the same bearer access token as `badges`. Badges that belong to
+        other users return 404.
+        """
+        with Session() as session:
+            sub = authenticated_sub(session, cherrypy.request.headers)
+            return badge_detail(session, sub, id)
 
 
 @all_api_auth('api_read')
@@ -2174,3 +2180,4 @@ if c.API_ENABLED:
     register_jsonrpc(HotelLookup(), 'hotel')
     register_jsonrpc(ScheduleLookup(), 'schedule')
     register_jsonrpc(PrintJobLookup(), 'print_job')
+    register_jsonrpc(SelfLookup(), 'self_lookup')

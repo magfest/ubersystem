@@ -261,6 +261,13 @@ class AdminAccount(MagModel, table=True):
         return any([group.has_full_access('api') for group in self.access_groups])
 
     @property
+    def api_self(self):
+        # Permission boundary: Self tokens return only the logged-in person's own badge records through self_lookup.
+        # Granting api_create_api_token at Limited or higher widens who may mint them.
+        return self.api_read or any([group.has_access_level('api_create_api_token', AccessGroup.LIMITED)
+                                     for group in self.access_groups])
+
+    @property
     def full_dept_admin(self):
         return any([group.has_full_access('dept_admin') for group in self.access_groups])
 
