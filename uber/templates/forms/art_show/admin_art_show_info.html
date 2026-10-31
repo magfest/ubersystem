@@ -44,7 +44,7 @@ get showDeclineReason() { return this.status == {{ c.DECLINED|tojson }} },
     <div class="form-text">Paid?</div>
     {% if app.status == c.APPROVED %}
         <p id="amount_paid" class="form-control-static">
-            {{ (app.amount_paid / 100)|format_currency }} out of {{ app.total_cost|format_currency }}
+            {{ app.amount_paid }} out of {{ app.total_cost }}
         </p>
         {% if app.amount_unpaid %}
             {% if not app.is_new and c.ONLINE_PAYMENT_AVAILABLE %}
@@ -67,7 +67,7 @@ get showDeclineReason() { return this.status == {{ c.DECLINED|tojson }} },
     {% endif %}
 </div>
 <div class="col-sm">
-    {% call form_macros.input(art_show_info.overridden_price, placeholder=app.potential_cost, admin_text="This fee will NOT include any mail-in fees.") %}
+    {% call form_macros.input(art_show_info.overridden_price, placeholder=app.potential_cost.dollars, admin_text="This fee will NOT include any mail-in fees.") %}
     <div class="form-text">
         {% if app.status != c.APPROVED %}Attendees are only asked to pay once their {{ c.ART_SHOW_APP_TERM }}s are approved.{% endif %}
     </div>

@@ -41,9 +41,9 @@
         &nbsp; / &nbsp;
         Total Fees Taken: {{ sales|length }}
         &nbsp; / &nbsp;
-        Total Cash: {{ total_cash|format_currency }}
+        Total Cash: {{ total_cash }}
         &nbsp; / &nbsp;
-        Total Credit: {{ total_credit|format_currency }}
+        Total Credit: {{ total_credit }}
     </div>
     <table class="list">
     <tr class="header">
@@ -75,7 +75,7 @@
         <tr>
             <td><a href="#attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a></td>
             <td>{{ attendee.badge }}</td>
-            <td>{{ (attendee.amount_paid / 100)|format_currency }}</td>
+            <td>{{ attendee.amount_paid }}</td>
             <td>{{ attendee.registered }}</td>
         </tr>
     {% endfor %}

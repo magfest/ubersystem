@@ -5,13 +5,15 @@ import re
 from collections import defaultdict, OrderedDict
 from datetime import timedelta
 from dateutil import parser as dateparser
+from typing import Any
 
 from sqlalchemy import and_
 from sqlalchemy.orm import subqueryload, selectinload
 
 from uber.config import c
 from uber.decorators import all_renderable, csv_file, render
-from uber.models import Attendee, Department, DeptMembership, Job
+from uber.models import Attendee, Department, DeptMembership, Job, Session
+from uber.money import Money
 
 
 def volunteer_checklists(session):
@@ -212,7 +214,7 @@ class Root:
             ]
         }
 
-    def volunteers_owed_refunds(self, session):
+    def volunteers_owed_refunds(self, session: Session) -> dict[str, Any]:
         attendees = session.all_attendees(only_staffing=True).all()
         owed = [a for a in attendees if a.paid_for_badge and not a.has_been_refunded
                 and a.worked_hours >= c.HOURS_FOR_REFUND]
@@ -221,23 +223,27 @@ class Root:
                  and a.worked_hours < c.HOURS_FOR_REFUND and a.weighted_hours >= c.HOURS_FOR_REFUND]
 
         return {
-            'attendees': [(
-                'Volunteers Owed Refunds',
-                owed,
-                sum([a.badge_cost for a in owed])
-            ), (
-                'Volunteers Already Refunded',
-                refunded,
-                sum([a.badge_cost for a in refunded])
-            ), (
-                'Volunteers Who Can Be Refunded Once Their Shifts Are Marked',
-                maybe,
-                sum([a.badge_cost for a in maybe])
-            )]
+            'attendees': [
+                (
+                    'Volunteers Owed Refunds',
+                    owed,
+                    sum((a.badge_cost or Money.zero() for a in owed), Money.zero()),
+                ),
+                (
+                    'Volunteers Already Refunded',
+                    refunded,
+                    sum((a.badge_cost or Money.zero() for a in refunded), Money.zero()),
+                ),
+                (
+                    'Volunteers Who Can Be Refunded Once Their Shifts Are Marked',
+                    maybe,
+                    sum((a.badge_cost or Money.zero() for a in maybe), Money.zero()),
+                ),
+            ]
         }
 
     @csv_file
-    def volunteers_owed_refunds_csv(self, out, session):
+    def volunteers_owed_refunds_csv(self, out: Any, session: Session) -> None:
         attendees = session.all_attendees(only_staffing=True).all()
         out.writerow(['Volunteer', 'Departments', 'Hours Worked', 'Hours Taken',
                       'Badge Cost', 'Owed/Refunded/Maybe'])

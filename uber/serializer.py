@@ -2,8 +2,11 @@ import datetime
 import json
 
 from decimal import Decimal
+from typing import Any
 from sqlalchemy.ext import associationproxy
 from sqlmodel import SQLModel
+
+from uber.money import Money
 
 class serializer(json.JSONEncoder):
     """
@@ -12,7 +15,7 @@ class serializer(json.JSONEncoder):
     they are expected to call serializer.register() for new data types.
     """
 
-    _registry = {}
+    _registry: dict[Any, Any] = {}
     _datetime_format = '%Y-%m-%d %H:%M:%S.%f'
 
     def default(self, o):
@@ -54,3 +57,4 @@ serializer.register(set, lambda s: sorted(list(s)))
 serializer.register(Decimal, lambda n: float(n))
 serializer.register(associationproxy._AssociationList, list)
 serializer.register(SQLModel, lambda m: m.to_dict())
+serializer.register(Money, lambda m: m.cents)

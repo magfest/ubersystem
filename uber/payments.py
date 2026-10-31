@@ -1,11 +1,17 @@
 import checkdigit.verhoeff as verhoeff
 import pytz
-from typing import Iterable
+from pytz import UTC
+from decimal import Decimal
+from typing import Iterable, Any, TYPE_CHECKING, overload
 from collections import OrderedDict, defaultdict
+from collections.abc import Mapping
 from datetime import datetime, timedelta
 from dateutil.parser import parse
 from uuid import uuid4
 from sqlalchemy.orm import selectinload
+
+if TYPE_CHECKING:
+    from uber.models import MagModel, ModelReceipt, ReceiptItem, Session
 
 import logging
 import cherrypy
@@ -14,13 +20,16 @@ import stripe
 
 import uber
 from uber.config import c
-from uber.custom_tags import format_currency, email_only
+from uber.custom_tags import email_only
+from uber.money import Money
 from uber.utils import report_critical_exception, listify, is_listy
 import uber.spin_rest_utils as spin_rest_utils
 from uber.decorators import cached_property, classproperty
 from uber.serializer import serializer
 
 log = logging.getLogger(__name__)
+
+MAX_CHARGE = Money.from_cents(999_999)
 
 if c.AUTHORIZENET_LOGIN_ID:
     # Importing this library takes ~150MB ram, so we only do it if we need it.
@@ -269,12 +278,12 @@ class PreregCart:
             self._current_cost += sum([(item[1] * item[2]) for item in group[1]])
 
     @cached_property
-    def total_cost(self):
-        return self._current_cost
+    def total_cost(self) -> Money:
+        return Money.from_cents(self._current_cost)
 
     @cached_property
-    def dollar_amount(self):
-        return self.total_cost // 100
+    def dollar_amount(self) -> int:
+        return int(self.total_cost.dollars)
     
     def prereg_cart_checks(self, session):
         # Runs validations that take into account the entire prereg cart
@@ -354,11 +363,15 @@ class StripeRequestMixin:
             return
         return self.response.id
 
-    def send_refund_request(self, session, amount, charge_id, intent_id):
+    def send_refund_request(
+        self, session: 'Session', amount: Money, charge_id: str, intent_id: str
+    ) -> str | None:
         try:
-            self.response = stripe.Refund.create(payment_intent=intent_id,
-                                                 amount=amount,
-                                                 reason='requested_by_customer')
+            self.response = stripe.Refund.create(
+                payment_intent=intent_id,
+                amount=amount.cents,
+                reason='requested_by_customer',
+            )
         except Exception as e:
             error_txt = 'Error while refunding via Stripe' \
                         '(self, stripeID={!r})'.format(charge_id)
@@ -366,6 +379,7 @@ class StripeRequestMixin:
                 msg=error_txt,
                 subject='ERROR: MAGFest Stripe invalid request error')
             return 'An unexpected problem occurred: ' + str(e)
+        return None
 
     def get_or_create_customer(self, customer_id=''):
         if not self.receipt_email:
@@ -400,12 +414,14 @@ class StripeRequestMixin:
         self.customer_id = customer.id if customer else None
 
     def generate_payment_intent(self, intent_id=''):
-        log.debug(f'Transaction {self.tracking_id}: creating Stripe Intent to charge '
-                    f'{self.amount} cents for {self.description}')
+        log.debug(
+            f'Transaction {self.tracking_id}: creating Stripe Intent to charge '
+            f'{self.amount} for {self.description}'
+        )
 
         return stripe.PaymentIntent.create(
             payment_method_types=['card'],
-            amount=self.amount,
+            amount=self.amount.cents,
             currency='usd',
             description=self.description,
             receipt_email=self.receipt_email,
@@ -435,14 +451,16 @@ class AuthNetRequestMixin:
             intent_id=intent_id
         )
 
-    def send_refund_request(self, session, amount, charge_id, intent_id):
+    def send_refund_request(
+        self, session: 'Session', amount: Money, charge_id: str, intent_id: str
+    ) -> str | None:
         error = self.get_authorizenet_txn(charge_id)
 
         if error:
             return error
 
         if self.response.transactionStatus == "capturedPendingSettlement":
-            if amount != int(self.response.authAmount * 100):
+            if amount != Money.from_dollars(self.response.authAmount):
                 return "This transaction cannot be partially refunded until it's settled."
             self.refund_str = "voided"
             error = self.send_authorizenet_txn(session, txn_type=c.VOID, txn_id=charge_id)
@@ -454,16 +472,16 @@ class AuthNetRequestMixin:
                     < datetime.now(pytz.UTC) - timedelta(days=180):
                 return "This transaction is more than 180 days old and cannot be refunded automatically."
 
-            if self.response.settleAmount * 100 < amount:
-                return "This transaction was only for {} so it cannot be refunded {}.".format(
-                    format_currency(self.response.settleAmount),
-                    format_currency(amount / 100))
+            settle_amount = Money.from_dollars(self.response.settleAmount)
+            if settle_amount < amount:
+                return f"This transaction was only for {settle_amount} so it cannot be refunded {amount}."
             cc_num = str(self.response.payment.creditCard.cardNumber)[-4:]
             zip = str(self.response.billTo.zip)
             error = self.send_authorizenet_txn(session, txn_type=c.REFUND, amount=amount, cc_num=cc_num,
                                                 zip=zip, txn_id=charge_id)
         if error:
             return 'An unexpected problem occurred: ' + str(error)
+        return None
 
     def get_or_create_customer(self, customer_id=''):
         if not self.receipt_email:
@@ -760,10 +778,24 @@ class AuthNetRequestMixin:
 
 
 class TransactionRequest(AuthNetRequestMixin if c.AUTHORIZENET_LOGIN_ID else StripeRequestMixin):
-    def __init__(self, session, receipt=None, receipt_email='', description='', amount=0,
-                 method=c.STRIPE, customer_id=None, **kwargs):
+    def __init__(
+        self,
+        session: 'Session',
+        receipt: 'ModelReceipt | None' = None,
+        receipt_email: str | list[str] = '',
+        description: str = '',
+        amount: Money | int = 0,
+        method: int = c.STRIPE,
+        customer_id: str | None = None,
+        **kwargs: Any,
+    ) -> None:
         self.session = session
-        self.amount = int(amount)
+        if isinstance(amount, Money):
+            self.amount = amount
+        elif amount:
+            self.amount = Money.from_cents(int(amount))
+        else:
+            self.amount = Money.zero()
 
         # The account should be passed to this function if a transaction is handled by an admin
         # OR to force using the receipt_email by passing account=None
@@ -785,8 +817,10 @@ class TransactionRequest(AuthNetRequestMixin if c.AUTHORIZENET_LOGIN_ID else Str
         self.method = method
         self.tracking_id = str(uuid4())
 
-        log.debug(f"Transaction {self.tracking_id} started with {amount} amount, {receipt_email} "
-                  f"receipt email, {description} description, and {customer_id} customer ID.")
+        log.debug(
+            f"Transaction {self.tracking_id} started with {self.amount} amount, {receipt_email} "
+            f"receipt email, {description} description, and {customer_id} customer ID."
+        )
 
         if receipt:
             log.debug(f"Transaction {self.tracking_id} initialized with receipt id {receipt.id}, "
@@ -797,9 +831,8 @@ class TransactionRequest(AuthNetRequestMixin if c.AUTHORIZENET_LOGIN_ID else Str
                 self.amount = receipt.current_amount_owed
 
     @cached_property
-    def dollar_amount(self):
-        from decimal import Decimal
-        return Decimal(int(self.amount)) / Decimal(100)
+    def dollar_amount(self) -> Decimal:
+        return self.amount.dollars
 
     def get_receipt_items_to_add(self):
         if not self.receipt_manager:
@@ -819,9 +852,11 @@ class TransactionRequest(AuthNetRequestMixin if c.AUTHORIZENET_LOGIN_ID else Str
             log.error('Was asked for a Stripe Intent but the currently owed amount is invalid: {}'.format(self.amount))
             return "There was an error calculating the amount. Please refresh the page or contact the system admin."
 
-        if self.amount > 999999:
-            return (f"We cannot charge {format_currency(self.amount / 100)}. "
-                    "Please make sure your total is below $9,999.")
+        if self.amount > MAX_CHARGE:
+            return (
+                f"We cannot charge {self.amount}. "
+                "Please make sure your total is below $9,999."
+            )
         try:
             if not self.customer_id:
                 self.get_or_create_customer()
@@ -860,8 +895,8 @@ class RefundRequest(TransactionRequest):
 
         self.txns = []
         self.items_to_add = set()
-        self.total_refundable = 0
-        self.all_txns_totals = 0
+        self.total_refundable = Money.zero()
+        self.all_txns_totals = Money.zero()
         self.refund_str = "refunded"  # Set to "voided" when applicable to better inform admins
         self.who = who
         self.spin_request = None
@@ -884,11 +919,17 @@ class RefundRequest(TransactionRequest):
         if errors and not skip_errors:
             raise ValueError(f"Invalid refund request: {'; '.join(errors)}.")
 
-        self.amount = int(amount) or self.total_refundable
+        if isinstance(amount, Money):
+            self.amount = amount
+        elif amount:
+            self.amount = Money.from_cents(int(amount))
+        else:
+            self.amount = self.total_refundable
 
         if self.total_refundable < self.amount:
-            raise ValueError(f"Invalid refund request: not enough left on given transaction(s) to refund {format_currency(
-                self.amount / 100)}.")
+            raise ValueError(
+                f"Invalid refund request: not enough left on given transaction(s) to refund {self.amount}."
+            )
 
         if txns[0].method == c.SQUARE and c.SPIN_TERMINAL_AUTH_KEY:
             if not all([txn.receipt_info for txn in self.txns]):
@@ -930,9 +971,10 @@ class RefundRequest(TransactionRequest):
         self.txns.append(txn)
         self.total_refundable += txn.amount - already_refunded
 
-    def process_txn_refund(self, department=None):
-        log.debug('REFUND: attempting to refund card transaction with ID {} {} cents.',
-                  self.charge_id, str(self.amount))
+    def process_txn_refund(self, department: int | None = None) -> str | None:
+        log.debug(
+            f'REFUND: attempting to refund card transaction with ID {self.charge_id} {self.amount}.'
+        )
 
         message = self.send_refund_request(self.session, self.amount, self.charge_id, self.txns[0].intent_id)
         if message:
@@ -947,6 +989,7 @@ class RefundRequest(TransactionRequest):
                                                       method=txn.method, department=department)
             receipt_manager.update_transaction_refund(txn, txn_refund_amt)
             self.items_to_add.update(receipt_manager.items_to_add)
+        return None
 
     def spin_refund_cleanup(f):
         from functools import wraps
@@ -985,7 +1028,7 @@ class RefundRequest(TransactionRequest):
         self.items_to_add.add(refund_txn.receipt_info)
 
     @spin_refund_cleanup
-    def process_spin_refund(self, department=None):
+    def process_spin_refund(self, department: int | None = None) -> str | None:
         from uber.models import TxnRequestTracking, AdminAccount, Session
         from uber.tasks.registration import process_terminal_sale
 
@@ -1002,8 +1045,9 @@ class RefundRequest(TransactionRequest):
         else:
             model_id = None
 
-        log.debug('REFUND: attempting to refund card transaction with ID {} {} cents',
-                  self.charge_id, str(self.amount))
+        log.debug(
+            f'REFUND: attempting to refund card transaction with ID {self.charge_id} {self.amount}'
+        )
 
         self.tracker = TxnRequestTracking(workstation_num=cherrypy.session.get('reg_station', '0'), fk_id=model_id,
                                           terminal_id=terminal_id, who=AdminAccount.admin_name())
@@ -1046,7 +1090,7 @@ class RefundRequest(TransactionRequest):
                 self.tracker.success = True
 
                 if self.amount == txn_total:
-                    return
+                    return None
                 
                 # This is a partial refund, so we now run a sale on the CURRENTLY connected terminal
                 # We also now know we're only dealing with one transaction at this point
@@ -1105,6 +1149,7 @@ class RefundRequest(TransactionRequest):
                     self.update_txn_receipt_info(txn, return_response_json)
 
                 self.tracker.success = True
+        return None
 
 
 class SpinTerminalRequest(TransactionRequest):
@@ -1246,10 +1291,17 @@ class SpinTerminalRequest(TransactionRequest):
 
         self.tracker.success = True
 
-        approval_amount = Decimal(str(spin_rest_utils.approved_amount(response_json))) * 100  # don't @ me
-        if approval_amount != self.amount and abs(approval_amount - self.amount) > 5:
-            c.REDIS_STORE.hset(c.REDIS_PREFIX + 'spin_terminal_txns:' + self.terminal_id,
-                               'last_error', "Partial approval")
+        approval_amount = Money.from_dollars(
+            spin_rest_utils.approved_amount(response_json)
+        )
+        if approval_amount != self.amount and abs(
+            approval_amount - self.amount
+        ) > Money.from_cents(5):
+            c.REDIS_STORE.hset(
+                c.REDIS_PREFIX + 'spin_terminal_txns:' + self.terminal_id,
+                'last_error',
+                "Partial approval",
+            )
 
         matching_txns = session.query(ReceiptTransaction).filter_by(intent_id=intent_id).all()
         if not matching_txns:
@@ -1533,7 +1585,16 @@ class ReceiptManager:
         return receipt_refunds
 
     @classmethod
-    def create_new_receipt(cls, model, who='', create_model=False, purchaser_id=None, include_discounts=True):
+    def create_new_receipt(
+        cls,
+        model: 'MagModel',
+        who: str = '',
+        create_model: bool = False,
+        purchaser_id: str | None = None,
+        include_discounts: bool = True,
+    ) -> tuple[
+        'ModelReceipt | None', list['ReceiptItem'] | list[tuple[str, Money, int]]
+    ]:
         """
         Iterates through the cost_calculations for this model and returns a list containing
         all non-null cost and credit items.
@@ -1542,8 +1603,12 @@ class ReceiptManager:
         """
         from uber.models import Attendee, AdminAccount, ModelReceipt, ReceiptItem, Group
         calc_items = uber.receipt_items.receipt_calculation.items
-        receipt_items = []
-        receipt = ModelReceipt(owner_id=model.id, owner_model=model.__class__.__name__) if create_model else None
+        receipt_items: list[Any] = []
+        receipt = (
+            ModelReceipt(owner_id=model.id or '', owner_model=model.__class__.__name__)
+            if create_model
+            else None
+        )
         if not purchaser_id:
             purchaser_id = ReceiptManager.get_purchaser_id(model=model)
 
@@ -1583,26 +1648,35 @@ class ReceiptManager:
             elif col_or_category:
                 revert_change, category = handle_col_name(model, col_or_category, category)
 
-            if isinstance(cost, Iterable):
+            if isinstance(cost, (dict, Mapping)):
                 # A list of the same item at different prices, e.g., group badges
                 for price in cost:
                     try:
-                        price = int(price)
-                    except ValueError:
-                        log.exception(f"The price for {desc} ({price}) isn't a number!")
+                        amt = (
+                            price
+                            if isinstance(price, Money)
+                            else Money.from_cents(int(price))
+                        )
+                    except (ValueError, TypeError):
+                        log.exception(
+                            f"The price for {desc} ({price}) isn't a valid money amount!"
+                        )
                     else:
-                        if receipt and price:
-                            receipt_items.append(ReceiptItem(purchaser_id=purchaser_id if price > 0 else None,
-                                                             receipt_id=receipt.id,
-                                                             department=department,
-                                                             category=category,
-                                                             desc=desc,
-                                                             amount=price,
-                                                             count=cost[price],
-                                                             revert_change=revert_change,
-                                                             ))
-                        elif price:
-                            receipt_items.append((desc, price, cost[price]))
+                        if receipt and amt:
+                            receipt_items.append(
+                                ReceiptItem(
+                                    purchaser_id=purchaser_id if amt > 0 else None,
+                                    receipt_id=receipt.id,
+                                    department=department,
+                                    category=category,
+                                    desc=desc,
+                                    amount=amt,
+                                    count=cost[price],
+                                    revert_change=revert_change,
+                                )
+                            )
+                        elif amt:
+                            receipt_items.append((desc, amt, cost[price]))
             elif receipt and cost:
                 receipt_items.append(ReceiptItem(purchaser_id=purchaser_id if cost > 0 else None,
                                                  receipt_id=receipt.id,
@@ -1634,8 +1708,56 @@ class ReceiptManager:
         return receipt, receipt_items
 
 
+    @overload
     @classmethod
-    def process_receipt_change(cls, model, col_name, new_model, receipt=None, who='', count=1, revert_change=None):
+    def process_receipt_change(
+        cls,
+        model: 'MagModel',
+        col_name: str,
+        new_model: 'MagModel',
+        receipt: 'ModelReceipt',
+        who: str = '',
+        count: int = 1,
+        revert_change: dict[str, Any] | None = None,
+    ) -> list['ReceiptItem'] | None: ...
+
+    @overload
+    @classmethod
+    def process_receipt_change(
+        cls,
+        model: 'MagModel',
+        col_name: str,
+        new_model: 'MagModel',
+        receipt: None = None,
+        who: str = '',
+        count: int = 1,
+        revert_change: dict[str, Any] | None = None,
+    ) -> list[tuple[str, Any, int]] | None: ...
+
+    @overload
+    @classmethod
+    def process_receipt_change(
+        cls,
+        model: 'MagModel',
+        col_name: str,
+        new_model: 'MagModel',
+        receipt: 'ModelReceipt | None' = None,
+        who: str = '',
+        count: int = 1,
+        revert_change: dict[str, Any] | None = None,
+    ) -> list['ReceiptItem'] | list[tuple[str, Any, int]] | None: ...
+
+    @classmethod
+    def process_receipt_change(
+        cls,
+        model: 'MagModel',
+        col_name: str,
+        new_model: 'MagModel',
+        receipt: 'ModelReceipt | None' = None,
+        who: str = '',
+        count: int = 1,
+        revert_change: dict[str, Any] | None = None,
+    ) -> list['ReceiptItem'] | list[tuple[str, Any, int]] | None:
         from uber.models import AdminAccount, ReceiptItem, Group
         from uber.models.types import Choice
 
@@ -1650,7 +1772,7 @@ class ReceiptManager:
         cost_change_func, category = model.receipt_changes.get(col_name, (None, None))
 
         if not cost_change_func:
-            return
+            return None
 
         try:
             cost_desc, cost_change, maybe_category, count = cost_change_func(model, new_model)
@@ -1659,7 +1781,7 @@ class ReceiptManager:
             cost_desc, cost_change, maybe_category = cost_change_func(model, new_model)
         except TypeError as e:
             log.error(str(e))
-            return
+            return None
 
         if isinstance(maybe_category, int):
             category = maybe_category
@@ -1680,9 +1802,9 @@ class ReceiptManager:
                     pass
                 revert_change = {col_name: old_val}
 
-        if isinstance(cost_change, Iterable):
+        if isinstance(cost_change, (dict, Mapping)):
             # A list of the same item at different prices, e.g., group badges
-            receipt_items = []
+            receipt_items: list[Any] = []
             for price in cost_change:
                 if receipt:
                     receipt_items.append(ReceiptItem(purchaser_id=ReceiptManager.get_purchaser_id(receipt) if price > 0 else None,
@@ -1713,12 +1835,19 @@ class ReceiptManager:
             return [(cost_desc, cost_change, count)]
 
     @classmethod
-    def auto_update_receipt(self, session, model, receipt, params, who=''):
+    def auto_update_receipt(
+        self,
+        session: 'Session',
+        model: 'MagModel',
+        receipt: 'ModelReceipt | None',
+        params: dict[str, Any],
+        who: str = '',
+    ) -> list['ReceiptItem']:
         from uber.models import Attendee, Group, ArtShowApplication, Session
         if not receipt:
             return []
 
-        receipt_items = []
+        receipt_items: list[Any] = []
         new_model = model.__class__(**model.to_dict())
         params = model.auto_update_receipt(params)
 
@@ -1729,8 +1858,10 @@ class ReceiptManager:
         if params.get('auto_recalc') or not isinstance(model, Group):
             params.pop('cost', None)
 
-        if params.get('power_fee', None) is not None and c.POWER_PRICES.get(int(params.get('power'), 0),
-                                                                            None) is None:
+        if (
+            params.get('power_fee', None) is not None
+            and c.POWER_PRICES.get(int(params.get('power') or 0), None) is None
+        ):
             new_model.power_fee = int(params.get('power_fee') or 0)
             new_model.power = int(params.get('power') or 0)
             items = self.process_receipt_change(model, 'power_fee', new_model, receipt, who=who)
@@ -1781,14 +1912,23 @@ class ReceiptManager:
                         if receipt_item.amount != 0:
                             receipt_items += [receipt_item]
 
-        if not params.get('no_override') and params.get('overridden_price', None) not in [None, '']:
-            new_model.overridden_price = int(params.get('overridden_price') or 0)
-            items = self.process_receipt_change(model, 'overridden_price', new_model, receipt, who=who) or []
+        if not params.get('no_override') and params.get(
+            'overridden_price', None
+        ) not in [None, '']:
+            new_model.overridden_price = Money.from_dollars(
+                params.get('overridden_price') or 0
+            )
+            items = (
+                self.process_receipt_change(
+                    model, 'overridden_price', new_model, receipt, who=who
+                )
+                or []
+            )
             session.add_all(items)
             return items
 
         if not params.get('auto_recalc') and isinstance(model, Group):
-            new_model.cost = int(params.get('cost') or 0)
+            new_model.cost = Money.from_dollars(params.get('cost') or 0)
             new_model.auto_recalc = False
             items = self.process_receipt_change(model, 'cost', new_model, receipt, who=who) or []
             session.add_all(items)

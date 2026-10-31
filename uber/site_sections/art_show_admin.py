@@ -11,6 +11,7 @@ import logging
 
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 from sqlalchemy import or_, and_
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.exc import NoResultFound
@@ -22,9 +23,26 @@ from uber.decorators import ajax, ajax_gettable, all_renderable, credit_card, pu
 from uber.email import EmailService
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
-from uber.models import AdminAccount, ArtShowApplication, ArtShowBidder, ArtShowPayment, ArtShowPiece, ArtShowReceipt, ArtShowPanel, \
-                        ArtPanelAssignment, Attendee, BadgeInfo, Email, Tracking, PageViewTracking, ReceiptItem, ReceiptTransaction, \
-                        WorkstationAssignment
+from uber.models import (
+    AdminAccount,
+    ArtShowApplication,
+    ArtShowBidder,
+    ArtShowPayment,
+    ArtShowPiece,
+    ArtShowReceipt,
+    ArtShowPanel,
+    ArtPanelAssignment,
+    Attendee,
+    BadgeInfo,
+    Email,
+    Tracking,
+    PageViewTracking,
+    ReceiptItem,
+    ReceiptTransaction,
+    Session,
+    WorkstationAssignment,
+)
+from uber.money import Money
 from uber.utils import check, get_static_file_path, localized_now, Order, validate_model
 from uber.payments import TransactionRequest, ReceiptManager
 
@@ -1171,30 +1189,37 @@ class Root:
                                receipt.id,
                                'Piece {} successfully unclaimed'.format(piece.artist_and_piece_id))
 
-    def record_payment(self, session, id, amount='', type=c.CASH):
+    def record_payment(
+        self,
+        session: Session,
+        id: str,
+        amount: str | int | float | Money = '',
+        type: int = c.CASH,
+    ) -> None:
         receipt = session.art_show_receipt(id)
 
         if receipt.closed:
             raise HTTPRedirect('pieces_bought?id={}&message={}', receipt.id,
                                "This receipt is closed and cannot be altered.")
 
-        if amount:
-            amount = int(Decimal(amount) * 100)
-
         is_payment = type == str(c.CASH)
+        if amount:
+            payment_amount = Money.from_dollars(amount)
+        else:
+            payment_amount = receipt.owed if is_payment else receipt.paid
 
         if is_payment:
-            amount = amount or receipt.owed
-            message = 'Cash payment of {} recorded'.format(format_currency(amount / 100))
+            message = f'Cash payment of {payment_amount} recorded'
         else:
-            amount = amount or receipt.paid
-            message = 'Refund of {} recorded'.format(format_currency(amount / 100))
+            message = f'Refund of {payment_amount} recorded'
 
-        session.add(ArtShowPayment(
-            receipt=receipt,
-            amount=amount,
-            type=type,
-        ))
+        session.add(
+            ArtShowPayment(
+                receipt=receipt,
+                amount=payment_amount,
+                type=type,
+            )
+        )
 
         raise HTTPRedirect('pieces_bought?id={}&message={}', receipt.id, message)
 
@@ -1242,7 +1267,9 @@ class Root:
         raise HTTPRedirect('pieces_bought?id={}&message={}', receipt.id, "Receipt re-opened.")
 
 
-    def print_receipt(self, session, id, close=False, **params):
+    def print_receipt(
+        self, session: Session, id: str, close: bool = False, **params: Any
+    ) -> dict[str, Any]:
         receipt = session.art_show_receipt(id)
 
         if close and not receipt.closed:
@@ -1283,7 +1310,8 @@ class Root:
             )
 
             main_txn = None
-            cash_total, credit_total, credit_num = 0, 0, 0
+            cash_total, credit_total = Money.zero(), Money.zero()
+            credit_num = 0
             for txn in [txn for txn in attendee_receipt.receipt_txns if f"Art Show Invoice #{receipt.invoice_num}" in txn.desc]:
                 if not main_txn or txn.amount > main_txn.amount:
                     main_txn = txn
@@ -1295,14 +1323,14 @@ class Root:
 
             admin_notes = []
             if cash_total:
-                admin_notes.append(f"Cash: {format_currency(cash_total / 100)}")
+                admin_notes.append(f"Cash: {cash_total}")
             if credit_total:
-                credit_note = f"Credit: {format_currency(credit_total / 100)}"
+                credit_note = f"Credit: {credit_total}"
                 if credit_num > 1:
                     credit_note += f" ({credit_num} payments)"
                 admin_notes.append(credit_note)
 
-            sales_item.receipt_txn = main_txn
+            sales_item.receipt_txn = main_txn  # type: ignore[assignment]
             sales_item.admin_notes = "; ".join(admin_notes)
             sales_item.closed = datetime.now()
             session.add(sales_item)
@@ -1354,7 +1382,13 @@ class Root:
             }
 
     @ajax
-    def start_terminal_payment(self, session, model_id='', amount=0, **params):
+    def start_terminal_payment(
+        self,
+        session: Session,
+        model_id: str = '',
+        amount: Money | str | int | float = 0,
+        **params: Any,
+    ) -> dict[str, Any]:
         from uber.tasks.registration import process_terminal_sale
 
         error, terminal_id = session.get_assigned_terminal_id()
@@ -1370,26 +1404,37 @@ class Root:
             except NoResultFound:
                 return {'error': f"Could not find sale receipt or art show app {model_id}"}
             else:
+                if not amount:
+                    charge_amount = app.amount_unpaid
+                elif isinstance(amount, Money):
+                    charge_amount = amount
+                else:
+                    charge_amount = Money.from_dollars(amount)
                 description = f"Payment for {app.attendee.full_name}'s Art Show Application"
         else:
             if not amount:
-                amount = receipt.owed
+                charge_amount = receipt.owed
+            elif isinstance(amount, Money):
+                charge_amount = amount
             else:
-                amount = int(Decimal(amount) * 100)
+                charge_amount = Money.from_dollars(amount)
 
             description = '{}ayment for Art Show Invoice #{}'.format(
-                'P' if int(float(amount)) == receipt.total else 'Partial p',
-                receipt.invoice_num)
+                'P' if charge_amount == receipt.total else 'Partial p',
+                receipt.invoice_num,
+            )
             model_id = receipt.attendee.id
 
         c.REDIS_STORE.delete(c.REDIS_PREFIX + 'spin_terminal_txns:' + terminal_id)
-        process_terminal_sale.delay(workstation_num=cherrypy.session.get('reg_station'),
-                                    terminal_id=terminal_id,
-                                    model_id=model_id,
-                                    description=description,
-                                    use_account_info=False,
-                                    amount=amount,
-                                    who=AdminAccount.admin_name())
+        process_terminal_sale.delay(
+            workstation_num=cherrypy.session.get('reg_station'),
+            terminal_id=terminal_id,
+            model_id=model_id,
+            description=description,
+            use_account_info=False,
+            amount=charge_amount.cents,
+            who=AdminAccount.admin_name(),
+        )
         return {'success': True}
 
     @ajax
@@ -1413,7 +1458,7 @@ class Root:
         session.commit()
         return {'success': True}
 
-    def paid_with_cash(self, session, id):
+    def paid_with_cash(self, session: Session, id: str) -> None:
         if not cherrypy.session.get('reg_station'):
             raise HTTPRedirect('form?id={}&message={}', id, 'You must set a workstation ID to take payments.')
 
@@ -1433,5 +1478,6 @@ class Root:
         session.add_all(receipt_manager.items_to_add)
         session.commit()
         session.check_receipt_closed(receipt)
-        raise HTTPRedirect('form?id={}&message={}', id,
-                           f"Cash payment of {format_currency(amount_owed / 100)} recorded.")
+        raise HTTPRedirect(
+            'form?id={}&message={}', id, f"Cash payment of {amount_owed} recorded."
+        )

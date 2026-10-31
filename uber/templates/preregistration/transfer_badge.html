@@ -92,7 +92,7 @@
 
     {% if receipt and receipt.current_amount_owed %}
     <div class="alert alert-danger" role="alert">
-      This badge currently has an outstanding balance of <strong>{{ (receipt.current_amount_owed / 100)|format_currency }}</strong>.
+      This badge currently has an outstanding balance of <strong>{{ receipt.current_amount_owed }}</strong>.
       You will be prompted for payment after transferring the badge.
     </div>
     {% endif %}

@@ -132,7 +132,7 @@
                 <td>{{ txn.method_label }}</td>
                 <td>{{ txn.department_label }}</td>
                 <td data-order="{{ txn.amount }}">
-                  {{ (txn.amount / 100)|format_currency }}{% if txn.txn_total and txn.txn_total != txn.amount %} ({{ (txn.txn_total / 100)|format_currency }} Total){% endif %}
+                  {{ txn.amount }}{% if txn.txn_total and txn.txn_total != txn.amount %} ({{ txn.txn_total }} Total){% endif %}
                 </td>
                 <td data-order="{{ txn.added }}">{{ txn.added|datetime_local('%-I:%M%p %A, %b %-e') }}{% if txn.on_hold %} <em>(On Hold)</em>{% endif %}</td>
                 <td data-order="{{ txn.cancelled|default('', true) }}">

@@ -11,8 +11,16 @@ from pytz import UTC
 from uber.config import c
 from uber.models import MagModel
 from uber.decorators import presave_adjustment, classproperty
-from uber.models.types import (Choice, DefaultColumn as Column, default_relationship as relationship,
-                               DefaultField as Field, DefaultRelationship as Relationship)
+from uber.models.types import (
+    Choice,
+    DefaultColumn as Column,
+    default_relationship as relationship,
+    DefaultField as Field,
+    DefaultRelationship as Relationship,
+    Money,
+    MoneyType,
+    MoneyField,
+)
 from uber.utils import RegistrationCode, get_static_file_path
 
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -87,14 +95,14 @@ class ArtShowApplication(MagModel, table=True):
     us_only: bool = False
     admin_notes: str = ''
     check_in_notes: str = ''
-    overridden_price: int | None = None
+    overridden_price: Money | None = MoneyField(None)
     active_receipt: 'ModelReceipt' = Relationship(sa_relationship=relationship(
         'ModelReceipt',
         primaryjoin='and_(remote(ModelReceipt.owner_id) == foreign(ArtShowApplication.id),'
         'ModelReceipt.owner_model == "ArtShowApplication",'
         'ModelReceipt.closed == None)',
         lazy='select'))
-    default_cost: int | None = Field(nullable=True)
+    default_cost: Money | None = MoneyField(None)
 
     agents: list['Attendee'] = Relationship(
         back_populates="art_agent_apps",
@@ -219,7 +227,7 @@ class ArtShowApplication(MagModel, table=True):
         return self.status != c.DECLINED
 
     @hybrid_property
-    def true_default_cost(self):
+    def true_default_cost(self) -> Money:
         # why did I do this
         if self.overridden_price is None:
             return self.default_cost if self.default_cost is not None else self.calc_default_cost()
@@ -231,30 +239,25 @@ class ArtShowApplication(MagModel, table=True):
             (cls.overridden_price == None, cls.default_cost),  # noqa: E711
             else_=cls.overridden_price)
 
-    @hybrid_property
-    def true_default_cost_cents(self):
-        return self.true_default_cost * 100
-
     @property
-    def panels_and_tables_cost(self):
+    def panels_and_tables_cost(self) -> int:
         # Mail-in fees are applied on top of this price
         return c.COST_PER_PANEL * (self.panels + self.panels_ad) + c.COST_PER_TABLE * (self.tables + self.tables_ad)
 
     @property
-    def total_cost(self):
+    def total_cost(self) -> Money:
         if self.status != c.APPROVED:
-            return 0
-        else:
-            if self.active_receipt:
-                return (self.active_receipt.item_total - self.active_receipt.discount_total) / 100
-            return self.true_default_cost or self.calc_default_cost()
+            return Money.zero()
+        if self.active_receipt:
+            return self.active_receipt.item_total - self.active_receipt.discount_total
+        return self.true_default_cost or self.calc_default_cost()
 
     @property
-    def potential_cost(self):
-        return self.true_default_cost or 0
+    def potential_cost(self) -> Money:
+        return self.true_default_cost or Money.zero()
     
     @property
-    def mailing_fee(self):
+    def mailing_fee(self) -> int:
         if self.delivery_method != c.BY_MAIL:
             return 0
         if not c.EXTRA_ART_MAILING_FEE or not c.EXTRA_ART_MAILING_INCREMENT:
@@ -294,20 +297,24 @@ class ArtShowApplication(MagModel, table=True):
         return not self.amount_paid and (self.total_cost or self.status != c.APPROVED and self.potential_cost)
 
     @property
-    def amount_unpaid(self):
-        return max(0, ((self.total_cost * 100) - self.amount_paid) / 100)
+    def amount_paid(self) -> Money:
+        return (
+            self.active_receipt.payment_total if self.active_receipt else Money.zero()
+        )
 
     @property
-    def amount_pending(self):
-        return self.active_receipt.pending_total if self.active_receipt else 0
+    def amount_refunded(self) -> Money:
+        return self.active_receipt.refund_total if self.active_receipt else Money.zero()
 
     @property
-    def amount_paid(self):
-        return self.active_receipt.payment_total if self.active_receipt else 0
+    def amount_pending(self) -> Money:
+        return (
+            self.active_receipt.pending_total if self.active_receipt else Money.zero()
+        )
 
     @property
-    def amount_refunded(self):
-        return self.active_receipt.refund_total if self.active_receipt else 0
+    def amount_unpaid(self) -> Money:
+        return max(Money.zero(), self.total_cost - self.amount_paid)
 
     @property
     def has_general_space(self):
@@ -426,20 +433,23 @@ class ArtShowApplication(MagModel, table=True):
             return 0
 
     @property
-    def total_sales(self):
-        cost = 0
-        for piece in self.art_show_pieces:
-            if piece.status in [c.SOLD, c.PAID]:
-                cost += piece.sale_price * 100
-        return cost
+    def total_sales(self) -> Money:
+        return sum(
+            (
+                Money.from_dollars(piece.sale_price)
+                for piece in self.art_show_pieces
+                if piece.status in [c.SOLD, c.PAID] and piece.sale_price
+            ),
+            Money.zero(),
+        )
 
     @property
-    def commission(self):
-        return self.total_sales * (c.COMMISSION_PCT / 10000)
+    def commission(self) -> Money:
+        return self.total_sales * c.COMMISSION_PCT / 10000
 
     @property
-    def check_total(self):
-        return round(self.total_sales - self.commission)
+    def check_total(self) -> Money:
+        return self.total_sales - self.commission
 
 
 class ArtShowPiece(MagModel, table=True):
@@ -665,7 +675,7 @@ class ArtShowPayment(MagModel, table=True):
     receipt_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='art_show_receipt.id', ondelete='CASCADE')
     receipt: 'ArtShowReceipt' = Relationship(back_populates="art_show_payments", sa_relationship_kwargs={'lazy': 'joined'})
     
-    amount: int = 0
+    amount: Money = MoneyField()
     type: int = Field(sa_column=Column(Choice(c.ART_SHOW_PAYMENT_OPTS)), default=c.STRIPE)
     when: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
 
@@ -694,46 +704,72 @@ class ArtShowReceipt(MagModel, table=True):
             self.invoice_num = 1 if not highest_num[0] else highest_num[0] + 1
 
     @property
-    def subtotal(self):
-        cost = 0
-        for piece in self.pieces:
-            cost += piece.sale_price * 100 if piece.sale_price else 0
-        return cost
+    def subtotal(self) -> Money:
+        return sum(
+            (
+                Money.from_dollars(piece.sale_price)
+                for piece in self.pieces
+                if piece.sale_price
+            ),
+            Money.zero(),
+        )
 
     @property
-    def tax(self):
-        return self.subtotal * (c.SALES_TAX / 10000)
+    def tax(self) -> Money:
+        return self.subtotal * c.SALES_TAX / 10000
 
     @property
-    def total(self):
-        return round(self.subtotal + self.tax)
+    def total(self) -> Money:
+        return self.subtotal + self.tax
 
     @property
-    def paid(self):
-        paid = 0
+    def paid(self) -> Money:
+        total = Money.zero()
         for payment in self.art_show_payments:
             if payment.type == c.REFUND:
-                paid -= payment.amount
+                total -= payment.amount
             else:
-                paid += payment.amount
-        return paid
+                total += payment.amount
+        return total
 
     @property
-    def owed(self):
-        return max(0, self.total - self.paid)
+    def owed(self) -> Money:
+        return max(Money.zero(), self.total - self.paid)
 
     @property
-    def card_payments(self):
+    def card_payments(self) -> list['ArtShowPayment']:
         return [payment for payment in self.art_show_payments if payment.type in [c.STRIPE, c.SQUARE]]
 
     @property
-    def card_total(self):
-        return sum([payment.amount for payment in self.art_show_payments if payment.type in [c.STRIPE, c.SQUARE]])
+    def card_total(self) -> Money:
+        return sum(
+            (
+                payment.amount
+                for payment in self.art_show_payments
+                if payment.type in [c.STRIPE, c.SQUARE]
+            ),
+            Money.zero(),
+        )
 
     @property
-    def cash_total(self):
-        return sum([payment.amount for payment in self.art_show_payments if payment.type == c.CASH]) - sum(
-            [payment.amount for payment in self.art_show_payments if payment.type == c.REFUND])
+    def cash_total(self) -> Money:
+        cash = sum(
+            (
+                payment.amount
+                for payment in self.art_show_payments
+                if payment.type == c.CASH
+            ),
+            Money.zero(),
+        )
+        refund = sum(
+            (
+                payment.amount
+                for payment in self.art_show_payments
+                if payment.type == c.REFUND
+            ),
+            Money.zero(),
+        )
+        return cash - refund
 
 
 class ArtShowBidder(MagModel, table=True):

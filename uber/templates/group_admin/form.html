@@ -41,7 +41,7 @@
     </div>
     {% if (c.AT_THE_CON or c.AFTER_PREREG_TAKEDOWN) and group.amount_unpaid %}
       <div class="alert alert-warning center" role="alert">
-        <h4>{{ group.name }} currently owes <strong>{{ group.amount_unpaid|format_currency }}</strong>.</h4>
+        <h4>{{ group.name }} currently owes <strong>{{ group.amount_unpaid }}</strong>.</h4>
         {% if payment_enabled %}
           {% if c.SPIN_TERMINAL_AUTH_KEY %}
             <a href="paid_with_cash?id={{ group.id }}" class="btn btn-success" type="submit">Paid with Cash</a>

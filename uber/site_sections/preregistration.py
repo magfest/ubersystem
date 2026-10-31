@@ -3,6 +3,7 @@ import json
 import six
 import uuid
 import logging
+from typing import Any
 from datetime import datetime, timedelta
 from functools import wraps
 from urllib.parse import urlparse
@@ -23,8 +24,23 @@ from uber.decorators import ajax, ajax_gettable, all_renderable, credit_card, cs
     redirect_if_at_con_to_kiosk, render, requires_account
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
-from uber.models import AdminAccount, Attendee, AttendeeAccount, Attraction, BadgePickupGroup, Email, Group, PromoCode, PromoCodeGroup, \
-                        PasswordReset, ReceiptItem, ReceiptTransaction, Tracking
+from uber.models import (
+    AdminAccount,
+    Attendee,
+    AttendeeAccount,
+    Attraction,
+    BadgePickupGroup,
+    Email,
+    Group,
+    PromoCode,
+    PromoCodeGroup,
+    PasswordReset,
+    ReceiptItem,
+    ReceiptTransaction,
+    Tracking,
+    Session,
+)
+from uber.money import Money
 from uber.utils import add_opt, remove_opt, check, localized_now, normalize_email, normalize_email_legacy, genpasswd, valid_email, \
     valid_password, SignNowRequest, validate_model, create_new_hash, get_age_conf_from_birthday, RegistrationCode, listify
 from uber.payments import PreregCart, TransactionRequest, ReceiptManager, RefundRequest
@@ -1263,7 +1279,13 @@ class Root:
                 raise HTTPRedirect('group_promo_codes?id={}&message={}'.format(group_id, message))
 
     @requires_account(PromoCodeGroup)
-    def add_promo_codes(self, session, id, count, estimated_cost):
+    def add_promo_codes(
+        self,
+        session: Session,
+        id: str,
+        count: int | str,
+        estimated_cost: int | str,
+    ) -> list[str] | None:
         errors = check_if_can_reg()
         if errors:
             return errors
@@ -1284,13 +1306,16 @@ class Root:
 
         receipt = session.get_receipt_by_model(group.buyer)
         if receipt:
-            session.add(ReceiptManager().create_receipt_item(receipt,
-                                                             c.REG_RECEIPT_ITEM,
-                                                             c.GROUP_BADGE,
-                                                             f'{count} extra badge{"s" if count > 1 else ""} '
-                                                             f'for {group.name}',
-                                                             count * c.GROUP_PRICE * 100))
-        
+            session.add(
+                ReceiptManager().create_receipt_item(
+                    receipt,
+                    c.REG_RECEIPT_ITEM,
+                    c.GROUP_BADGE,
+                    f'{count} extra badge{"s" if count > 1 else ""} for {group.name}',
+                    Money.from_dollars(count * c.GROUP_PRICE),
+                )
+            )
+
         session.add_codes_to_pc_group(group, count)
         session.commit()
 
@@ -2035,8 +2060,7 @@ class Root:
 
     @csrf_protected
     @requires_account(Attendee)
-    def abandon_badge(self, session, id):
-        from uber.custom_tags import format_currency
+    def abandon_badge(self, session: Session, id: str) -> None:
         attendee = session.attendee(id)
         if attendee.amount_paid and not attendee.is_group_leader:
             failure_message = "Something went wrong with your refund. Please contact us at {}."\
@@ -2066,8 +2090,7 @@ class Root:
             receipt.closed = datetime.now()
             session.add(receipt)
 
-            success_message = "Your badge has been successfully cancelled. Your refund of {} should appear on your credit card in 7-10 days."\
-                .format(format_currency(refund_total / 100))
+            success_message = f"Your badge has been successfully cancelled. Your refund of {Money.from_cents(refund_total)} should appear on your credit card in 7-10 days."
             if attendee.paid == c.HAS_PAID:
                 attendee.paid = c.REFUNDED
 
@@ -2205,16 +2228,27 @@ class Root:
     @id_required(Attendee)
     @requires_account(Attendee)
     @log_pageview
-    def confirm(self, session, message='', return_to='confirm', undoing_extra='', **params):
+    def confirm(
+        self,
+        session: Session,
+        message: str = '',
+        return_to: str = 'confirm',
+        undoing_extra: str = '',
+        **params: Any,
+    ) -> dict[str, Any]:
         if params.get('id') not in [None, '', 'None']:
-            attendee = session.get(Attendee, params.get('id'), options=[
-                selectinload(Attendee.dept_membership_requests),
-                selectinload(Attendee.art_agent_apps),
-                selectinload(Attendee.promo_code_groups),
-                selectinload(Attendee.shifts),
-                joinedload(Attendee.lottery_application),
-                joinedload(Attendee.art_show_application),
-                joinedload(Attendee.marketplace_application)]
+            attendee = session.get(
+                Attendee,
+                params.get('id'),
+                options=[
+                    selectinload(Attendee.dept_membership_requests),  # type: ignore[arg-type]
+                    selectinload(Attendee.art_agent_apps),  # type: ignore[arg-type]
+                    selectinload(Attendee.promo_code_groups),  # type: ignore[arg-type]
+                    selectinload(Attendee.shifts),  # type: ignore[arg-type]
+                    joinedload(Attendee.lottery_application),
+                    joinedload(Attendee.art_show_application),
+                    joinedload(Attendee.marketplace_application),
+                ],
             )
             receipt = session.get_receipt_by_model(attendee)
             if cherrypy.request.method == 'POST':
@@ -2277,11 +2311,17 @@ class Root:
             'return_to':     return_to,
             'attendee':      attendee,
             'homepage_account': session.get_attendee_account_by_attendee(attendee),
-            'message':       message,
-            'attractions':   session.query(Attraction).filter_by(is_public=True).all(),
-            'badge_cost':    attendee.badge_cost if attendee.paid != c.PAID_BY_GROUP else 0,
-            'receipt':       session.get_receipt_by_model(attendee) if attendee.is_valid else None,
-            'incomplete_txn':  receipt.get_last_incomplete_txn() if receipt else None,
+            'message': message,
+            'attractions': session.query(Attraction).filter_by(is_public=True).all(),
+            'badge_cost': (
+                attendee.badge_cost
+                if attendee.paid != c.PAID_BY_GROUP
+                else Money.zero()
+            ),
+            'receipt': (
+                session.get_receipt_by_model(attendee) if attendee.is_valid else None
+            ),
+            'incomplete_txn': receipt.get_last_incomplete_txn() if receipt else None,
             'forms': forms,
             'locked_fields': [item for sublist in
                               [form.get_non_admin_locked_fields(attendee) for form in forms.values()

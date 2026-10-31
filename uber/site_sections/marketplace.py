@@ -2,6 +2,7 @@ import cherrypy
 import logging
 
 from datetime import datetime
+from typing import Any
 
 from uber.email import EmailService
 from uber.config import c
@@ -9,7 +10,7 @@ from uber.custom_tags import email_only
 from uber.decorators import ajax, all_renderable, render, credit_card, requires_account, public
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
-from uber.models import Attendee, ArtistMarketplaceApplication
+from uber.models import Attendee, ArtistMarketplaceApplication, Session
 from uber.utils import check, validate_model, SignNowRequest
 from uber.payments import TransactionRequest, ReceiptManager, RefundRequest
 
@@ -214,25 +215,32 @@ class Root:
     @ajax
     @credit_card
     @requires_account(ArtistMarketplaceApplication)
-    def process_marketplace_payment(self, session, id):
+    def process_marketplace_payment(self, session: Session, id: str) -> dict[str, Any]:
         app = session.artist_marketplace_application(id)
 
         receipt = session.get_receipt_by_model(app.attendee, create_if_none="DEFAULT")
         if not app.receipt_items or app.was_refunded:
-            receipt_item = ReceiptManager().create_receipt_item(receipt,
-                                                                c.ARTIST_ALLEY_RECEIPT_ITEM,
-                                                                c.MARKETPLACE,
-                                                                "Artist Marketplace Application",
-                                                                app.amount_unpaid * 100,
-                                                                purchaser_id=app.attendee.purchaser_id)
+            receipt_item = ReceiptManager().create_receipt_item(
+                receipt,
+                c.ARTIST_ALLEY_RECEIPT_ITEM,
+                c.MARKETPLACE,
+                "Artist Marketplace Application",
+                app.amount_unpaid,
+                purchaser_id=app.attendee.purchaser_id,
+            )
             receipt_item.fk_id = app.id
             receipt_item.fk_model = "ArtistMarketplaceApplication"
             session.add(receipt_item)
             session.commit()
             session.refresh(receipt)
-        
-        charge = TransactionRequest(session, receipt, receipt_email=app.email_address,
-                                    description="Artist Marketplace Application Payment", amount=app.amount_unpaid * 100)
+
+        charge = TransactionRequest(
+            session,
+            receipt,
+            receipt_email=app.email_address,
+            description="Artist Marketplace Application Payment",
+            amount=app.amount_unpaid,
+        )
         incomplete_txn = receipt.get_last_incomplete_txn()
 
         if incomplete_txn and incomplete_txn.desc == "Artist Marketplace Application Payment":

@@ -75,14 +75,14 @@ app, c.PAGE_PATH,
             </td>
             <td>{{ item.desc }}{{ " (" ~ processors[item.method] ~ " ID: " ~ item.stripe_id ~ ")" if item.stripe_id else "" }}</td>
             <td>
-                {{ (item.amount / 100)|format_currency(true) }}
+                {{ item.amount|abs }}
                 {% if item.count and item.count > 1 %}
-                   x{{ item.count }}: {{ (item.count * item.amount / 100)|format_currency }}
+                   x{{ item.count }}: {{ item.total_amount }}
                 {% endif %}
             </td>
             <td>
                 {% if item.refunded %}
-                <em>{{ (item.refunded / 100)|format_currency }} Refunded</em>{% if item.refundable and item.amount_left %} ({{ (item.amount_left / 100)|format_currency }} left){% endif %}
+                <em>{{ item.refunded }} Refunded</em>{% if item.refundable and item.amount_left %} ({{ item.amount_left }} left){% endif %}
                 {% endif %}
             </td>
         </tr>
