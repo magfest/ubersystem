@@ -1,0 +1,130 @@
+---
+name: Lint & Type Check
+
+on:
+  push:
+    branches: [touhoufest*, main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  compile:
+    name: Bytecode Compilation
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Bytecode Compilation Check
+        run: |
+          python3 -m compileall -q uber/ alembic/ run_server.py sep.py make_config.py plugins/ .pythonstartup.py test_solver.py docs/
+
+  lint:
+    name: Ruff Lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Reviewdog
+        uses: reviewdog/action-setup@v1
+        with:
+          reviewdog_version: latest
+
+      - name: Install Ruff
+        run: |
+          pip install ruff
+
+      - name: Ruff Lint (PR Diff)
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ruff check --output-format=rdjson . | reviewdog -f=rdjson -name="ruff-lint" -reporter=github-pr-review -filter-mode=added -fail-level=any
+
+  format:
+    name: Format Check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Reviewdog
+        uses: reviewdog/action-setup@v1
+        with:
+          reviewdog_version: latest
+
+      - name: Install Darker
+        run: |
+          pip install "darker[ruff]"
+
+      - name: Format Check (PR Diff)
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BASE_REF="origin/${{ github.base_ref || 'main' }}"
+          if ! git rev-parse --verify "$BASE_REF" >/dev/null 2>&1; then
+            BASE_REF="origin/main"
+          fi
+          darker --formatter ruff -S --diff -r "$BASE_REF" . | reviewdog -f=diff -f.diff.strip=0 -name="ruff-format" -reporter=github-pr-review -filter-mode=added -fail-level=any
+
+  typecheck:
+    name: Mypy Type Check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Reviewdog
+        uses: reviewdog/action-setup@v1
+        with:
+          reviewdog_version: latest
+
+      - name: Install Mypy
+        run: |
+          pip install mypy
+
+      - name: Mypy Type Check (PR Diff)
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mypy --ignore-missing-imports . | reviewdog -f=mypy -name="mypy" -reporter=github-pr-review -filter-mode=added -fail-level=any
