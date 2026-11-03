@@ -164,6 +164,18 @@ class Root:
                 out.writerow([a.full_name, a.email, a.cellphone, label])
 
     @csv_file
+    def assigned_non_staff_volunteers(self, out, session):
+        """List volunteers without a Staff badge who hold at least one department assignment."""
+        out.writerow(['First Name', 'Last Name', 'Email', 'Badge Type', 'Placeholder', 'Assigned Depts'])
+        volunteers = session.staffers().filter(
+            Attendee.badge_type != c.STAFF_BADGE,
+            Attendee.dept_memberships.any()
+        ).options(selectinload(Attendee.assigned_depts))
+        for a in volunteers:
+            out.writerow([a.first_name, a.last_name, a.email, a.badge_type_label,
+                          'Yes' if a.placeholder else 'No', ', '.join(a.assigned_depts_labels)])
+
+    @csv_file
     def volunteers_with_worked_hours(self, out, session):
         out.writerow(['Badge #', 'Full Name', 'Email Address', 'Weighted Hours Scheduled', 'Weighted Hours Worked'])
         for a in session.staffers():
