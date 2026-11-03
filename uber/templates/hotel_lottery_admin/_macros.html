@@ -335,7 +335,7 @@
     <input type="hidden" name="attendee_id" class="attendee-search-id"
            value="{{ selected_id or '' }}" />
     <input type="text" class="form-control attendee-search-query"
-           placeholder="Search by name, legal name, email, badge number, or UUID - same fields as the regular attendee search"
+           placeholder="Search by name, legal name, email, badge number, or UUID"
            autocomplete="off"
            {% if selected_id %}style="display: none;"{% endif %} />
     <div class="list-group position-absolute w-100 shadow-sm attendee-search-results"

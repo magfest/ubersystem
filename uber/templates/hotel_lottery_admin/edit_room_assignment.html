@@ -100,6 +100,77 @@
   </div>
 </div>
 
+{% set _cap = inv.capacity if inv else 0 %}
+{% set _occupants = ra.effective_occupants %}
+{% set _taken = _occupants|length + pending_invites|length %}
+<div class="card mb-3">
+  <div class="card-header py-2 d-flex justify-content-between align-items-center">
+    <strong>Roommates</strong>
+    <span class="small {% if _cap and _taken > _cap %}text-danger fw-bold{% else %}text-muted{% endif %}">
+      {{ _taken }}{% if _cap %} / {{ _cap }}{% endif %} spots used
+      {%- if pending_invites %} ({{ pending_invites|length }} invited){% endif %}
+    </span>
+  </div>
+  <div class="card-body py-2">
+    <table class="table table-sm align-middle mb-2">
+      <tbody>
+        {% for occ in _occupants|sort(attribute='full_name') %}
+        <tr>
+          <td>{{ hotel_macros.attendee_cell(occ) }}</td>
+          <td class="text-end">
+            {% if occ.id == ra.attendee_id %}
+              <span class="badge bg-secondary">Booker</span>
+            {% else %}
+              <form method="post" action="remove_room_occupant" class="d-inline"
+                    data-confirm-message="Remove this roommate from the room?">
+                {{ csrf_token() }}
+                <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
+                <input type="hidden" name="attendee_id" value="{{ occ.id }}" />
+                <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+              </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td class="text-muted"><em>No occupants.</em></td></tr>
+        {% endfor %}
+        {% for invite in pending_invites %}
+        <tr class="text-muted">
+          <td>{{ invite.email or 'Invite code ' ~ invite.invite_token }}</td>
+          <td class="text-end">
+            <span class="badge bg-light text-dark me-1">Invite pending</span>
+            <form method="post" action="cancel_room_occupant_invite" class="d-inline"
+                  data-confirm-message="Cancel this invite? Its link and code will stop working.">
+              {{ csrf_token() }}
+              <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
+              <input type="hidden" name="invite_id" value="{{ invite.id }}" />
+              <button type="submit" class="btn btn-sm btn-outline-danger">Cancel Invite</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if _cap and _taken >= _cap %}
+    <div class="text-muted small">
+      This room is full. Remove a roommate or cancel an invite to add someone else.
+    </div>
+    {% else %}
+    <form method="post" action="add_room_occupant" class="row g-2 align-items-end">
+      {{ csrf_token() }}
+      <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
+      <div class="col-md-9">
+        {{ hotel_macros.attendee_search_widget(label='Add Roommate') }}
+      </div>
+      <div class="col-md-3">
+        <button type="submit" class="btn btn-outline-primary w-100">Add Roommate</button>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
 <form method="post" action="save_room_assignment">
   {{ csrf_token() }}
   <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
@@ -213,5 +284,6 @@
 
 {{ "js/hotel-room-picker.js"|serve_static_content }}
 {{ "js/hotel-confirm-submit.js"|serve_static_content }}
+{{ "js/hotel-attendee-search.js"|serve_static_content }}
 
 {% endblock content %}
