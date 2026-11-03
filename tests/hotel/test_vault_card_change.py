@@ -114,6 +114,68 @@ def test_webhook_same_token_only_updates_metadata(session, monkeypatch):
     assert ra.cc_last_four == '1111'
 
 
+def test_webhook_same_token_from_newer_session_bumps_capture_time(session, monkeypatch):
+    # Updating only the expiry re-captures the same card, so the vault
+    # hands back the same token; the poll keys off cc_captured_at instead.
+    before = _now() - timedelta(minutes=10)
+    ra = _room(session, cc_token='tok-old', cc_card_expiry='01/26', cc_captured_at=before)
+
+    _call_webhook(session, monkeypatch, {
+        'metadata': {'assignment_id': ra.id, 'capture_started_at': _iso(_now())},
+        'token_info': {'token': 'tok-old', 'safe_data': json.dumps({'expiry': '01/29'})},
+    })
+
+    assert ra.cc_token == 'tok-old'
+    assert ra.cc_card_expiry == '01/29'
+    assert ra.cc_captured_at > before
+
+
+def test_webhook_same_token_from_older_session_keeps_capture_time(session, monkeypatch):
+    captured = _now()
+    ra = _room(session, cc_token='tok-old', cc_captured_at=captured)
+
+    _call_webhook(session, monkeypatch, {
+        'metadata': {'assignment_id': ra.id,
+                     'capture_started_at': _iso(captured - timedelta(minutes=10))},
+        'token_info': {'token': 'tok-old'},
+    })
+
+    assert ra.cc_captured_at == captured
+
+
+def _unwrapped(name):
+    from uber.site_sections.hotel_lottery import Root
+    func = getattr(Root, name)
+    while hasattr(func, '__wrapped__'):
+        func = func.__wrapped__
+    return lambda session, **kw: func(Root(), session, **kw)
+
+
+def test_card_status_reports_capture_time(session, monkeypatch):
+    captured = _now()
+    ra = _room(session, cc_token='tok-old', cc_captured_at=captured)
+    result = _unwrapped('card_status')(session, assignment_id=ra.id)
+    assert result['captured_at'] == captured.isoformat()
+
+    ra.cc_captured_at = None
+    assert _unwrapped('card_status')(session, assignment_id=ra.id)['captured_at'] == ''
+
+
+def test_vault_session_reports_capture_time_baseline(session, monkeypatch):
+    import uber.vault
+    monkeypatch.setattr(uber.vault, 'create_capture_session',
+                        lambda **kw: {'unique_id': 'ep', 'secret': 's'})
+    monkeypatch.setattr(uber.vault, 'get_capture_iframe_url',
+                        lambda **kw: 'https://vault.example/capture')
+    captured = _now()
+    ra = _room(session, cc_token='tok-old', cc_captured_at=captured)
+
+    result = _unwrapped('create_vault_session')(session, assignment_id=ra.id)
+
+    assert result['success']
+    assert result['captured_at'] == captured.isoformat()
+
+
 @pytest.mark.parametrize('started', [None, '', 'not a date'])
 def test_webhook_treats_undated_different_token_as_stale(session, monkeypatch, started):
     ra = _room(session, cc_token='tok-old', cc_captured_at=_now())
