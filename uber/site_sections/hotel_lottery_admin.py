@@ -2641,8 +2641,19 @@ class Root:
             func.coalesce(func.sum(HotelRoomInventory.quantity), 0)).filter(
             HotelRoomInventory.active.is_(True)).scalar()
 
+        admin = session.current_admin_account()
+        if admin and is_lottery_admin(admin):
+            openable_ids = {str(p.id) for p in partitions}
+        elif admin:
+            openable_ids = {str(g.partition_id) for g in session.query(PartitionOwner).filter(
+                PartitionOwner.admin_account_id == admin.id,
+                or_(PartitionOwner.can_view_assignments, PartitionOwner.can_view_inventory))}
+        else:
+            openable_ids = set()
+
         return {
             'partitions': partitions,
+            'openable_ids': openable_ids,
             'assigned_per_partition': assigned_per_partition,
             'non_partitioned_capacity': max(0, total_inventory - total_partition_alloc),
             'message': message,
