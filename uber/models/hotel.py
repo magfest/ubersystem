@@ -11,7 +11,7 @@ from sqlalchemy import Sequence, inspect as sa_inspect
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict, MutableList
-from sqlalchemy.orm import object_session
+from sqlalchemy.orm import declared_attr, deferred, object_session
 from sqlalchemy.types import Date, Integer, DateTime, Numeric, Uuid
 from typing import Any, ClassVar
 
@@ -668,6 +668,12 @@ class LotteryHotel(MagModel, table=True):
     # at upload time. Empty = no map.
     map_yaml: str = ''
     map_svg: str = ''
+
+    # Deferr loading map yaml/svg unless requested explicitly
+    @declared_attr.directive
+    def __mapper_args__(cls):
+        return {'properties': {name: deferred(cls.__table__.c[name])
+                               for name in ('map_yaml', 'map_svg')}}
 
     # Preselected when parsing this hotel's room-list uploads.
     default_import_template_id: str | None = Field(

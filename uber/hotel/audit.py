@@ -17,13 +17,16 @@ POST handlers in uber.site_sections.hotel_lottery_admin.
 from collections import defaultdict
 
 import sqlalchemy as sa
+from sqlalchemy.orm import lazyload, selectinload
+from sqlalchemy.orm.attributes import set_committed_value
 
 from uber.config import c
 from uber.hotel.queries import occupancy_by_block_night, overlaps
-from uber.models import LotteryApplication
+from uber.models import Attendee, LotteryApplication
 from uber.models.hotel import (HotelRoomInventory, HotelRoomIssueNote,
                                InventoryPartition, InventoryPartitionBlock,
-                               LotteryHotel, LotteryRoomType, RoomAssignment)
+                               LotteryHotel, LotteryRoomType, RoomAssignment,
+                               room_assignment_occupant)
 
 
 def _room_issue(severity, kind, label, assignment, fix_url=None, extra=None):
@@ -59,6 +62,7 @@ def build_audit_context(session):
         (partition_unconfigured, insufficient_connectors_at_hotel).
       live - all live assignments; these are what we audit.
       by_id - {assignment_id: RoomAssignment} over the live set.
+      occupant_ids - {assignment_id: {attendee_id}} from the occupant M2M.
       children_of - group-by-parent for childless-parent detection.
       room_type_parents / room_type_children_needed - connector config:
         room_type_id -> (parent_type_id, qty) it must follow, and the
@@ -77,12 +81,22 @@ def build_audit_context(session):
       mismatched_apps / awarded_apps - the status_mismatch populations.
       ci_start / co_end - the event window bounds (dates or None).
     """
-    # All live assignments - these are what we audit.
     live = (session.query(RoomAssignment)
             .filter(RoomAssignment.is_live)
+            .options(lazyload(RoomAssignment.attendee),
+                     lazyload(RoomAssignment.occupants))
             .all())
 
     by_id = {ra.id: ra for ra in live}
+
+    occupant_ids = defaultdict(set)
+    for ra_id, attendee_id in session.execute(
+            sa.select(room_assignment_occupant.c.room_assignment_id,
+                      room_assignment_occupant.c.attendee_id)
+            .join(RoomAssignment,
+                  RoomAssignment.id == room_assignment_occupant.c.room_assignment_id)
+            .where(RoomAssignment.is_live)):
+        occupant_ids[ra_id].add(attendee_id)
 
     # Build group-by-parent for childless-parent detection.
     children_of = defaultdict(list)
@@ -109,7 +123,9 @@ def build_audit_context(session):
     # inventory_id so the per-partition oversubscription check is a
     # constant-time lookup per row.
     all_inventory = (session.query(HotelRoomInventory)
-                     .filter_by(active=True).all())
+                     .filter_by(active=True)
+                     .options(selectinload(HotelRoomInventory.night_quantities))
+                     .all())
     partition_blocks_by_inv = defaultdict(list)
     for pb in session.query(InventoryPartitionBlock).all():
         partition_blocks_by_inv[str(pb.inventory_id)].append(pb)
@@ -135,7 +151,11 @@ def build_audit_context(session):
                            .filter(LotteryApplication.status != c.PROCESSED)
                            .all())
     awarded_apps = (session.query(LotteryApplication)
-                    .filter(LotteryApplication.status == c.AWARDED).all())
+                    .filter(LotteryApplication.status == c.AWARDED)
+                    .filter(~sa.exists().where(
+                        RoomAssignment.lottery_application_id == LotteryApplication.id,
+                        RoomAssignment.is_live, RoomAssignment.is_released))
+                    .all())
 
     ci_start = c.HOTEL_LOTTERY_CHECKIN_START.date() if c.HOTEL_LOTTERY_CHECKIN_START else None
     co_end = c.HOTEL_LOTTERY_CHECKOUT_END.date() if c.HOTEL_LOTTERY_CHECKOUT_END else None
@@ -153,6 +173,7 @@ def build_audit_context(session):
         'session': session,
         'live': live,
         'by_id': by_id,
+        'occupant_ids': occupant_ids,
         'children_of': children_of,
         'room_type_parents': room_type_parents,
         'room_type_children_needed': room_type_children_needed,
@@ -326,7 +347,7 @@ def check_occupancy(ctx):
         if not inv:
             continue
         fix = _fix_url_for(ra)
-        occupant_ids = {o.id for o in (getattr(ra, 'occupants', None) or [])}
+        occupant_ids = set(ctx['occupant_ids'].get(ra.id, ()))
         if ra.attendee_id:
             occupant_ids.add(ra.attendee_id)
         occupant_count = len(occupant_ids)
@@ -445,8 +466,8 @@ def check_double_booked(ctx):
     for ra in ctx['live']:
         if not ra.assigned_check_in_date or not ra.assigned_check_out_date:
             continue
-        for occ in (getattr(ra, 'occupants', None) or []):
-            occupant_rooms[occ.id].append(ra)
+        for occ_id in ctx['occupant_ids'].get(ra.id, ()):
+            occupant_rooms[occ_id].append(ra)
     for occ_id, ras in occupant_rooms.items():
         if len(ras) < 2:
             continue
@@ -1020,6 +1041,24 @@ def annotate_issues(issue_list, notes_by_key):
         iss['note'] = note
         iss['admin_notes'] = note.admin_notes if note else ''
         iss['hidden'] = bool(note and note.hidden)
+
+
+def prefetch_issue_relations(session, issue_list, attendees=False):
+    """Bulk-load the applications (and, for search, the bookers) that
+    grouping and display read off each issue's assignment, so those
+    many-to-one lookups don't issue one query per row."""
+    ras = [iss['assignment'] for iss in issue_list if iss.get('assignment') is not None]
+    relations = [('lottery_application', 'lottery_application_id', LotteryApplication)]
+    if attendees:
+        relations.append(('attendee', 'attendee_id', Attendee))
+    for attr, fk, model in relations:
+        ids = {getattr(ra, fk) for ra in ras if getattr(ra, fk)}
+        if not ids:
+            continue
+        by_id = {row.id: row for row in session.query(model).filter(model.id.in_(ids))}
+        for ra in ras:
+            if getattr(ra, fk) in by_id:
+                set_committed_value(ra, attr, by_id[getattr(ra, fk)])
 
 
 def issue_haystack(iss):

@@ -60,7 +60,7 @@ from uber.hotel.solver import (LOTTERY_TYPE_BOTH,
 from uber.hotel.audit import (annotate_issues, collect_issues,
                                    filter_issues, get_or_make_issue_note,
                                    group_inventory_issues, group_room_issues,
-                                   load_issue_notes)
+                                   load_issue_notes, prefetch_issue_relations)
 from uber.hotel.queries import (attendee_name_filter, attendee_search_results,
                                 block_availability, build_room_assignment_query,
                                 clamp_page_size, paginate)
@@ -540,7 +540,7 @@ def _queue_waitlist_fulfilled_email(session, ra):
 
 
 def _room_issues_url(message='', severity='all', kind='all', search='',
-                     show_hidden=''):
+                     show_hidden='', page='', hidden_page=''):
     """Build a room_issues URL preserving the active filters, so the
     hide/unhide/note POST handlers redirect back to the same view (see
     redirect_with_params for the HTTPRedirect footgun this avoids).
@@ -551,6 +551,8 @@ def _room_issues_url(message='', severity='all', kind='all', search='',
         kind=kind if kind != 'all' else '',
         search=search,
         show_hidden='1' if show_hidden else '',
+        page=page if str(page) != '1' else '',
+        hidden_page=hidden_page if str(hidden_page) != '1' else '',
         message=message)
 
 
@@ -4386,11 +4388,10 @@ class Root:
     # surfaced as a flat list, each one carrying severity (error/warning),
     # a human label, and a deep-link to wherever the admin can fix it
     # (usually the application's edit form). The checks themselves live
-    # in uber.hotel.audit (all in Python - no SQL view - so it's
-    # easy to add new ones); this section keeps the routes.
+    # in uber.hotel.audit
 
     def room_issues(self, session, message='', severity='all', kind='all',
-                    search='', show_hidden=''):
+                    search='', show_hidden='', page='1', hidden_page='1'):
         """Cross-check every live RoomAssignment and produce a list of
         validation issues.
 
@@ -4425,22 +4426,19 @@ class Root:
         """
         issues, inv_issues = collect_issues(session)
 
-        # Issues are recomputed every load, so admin hide-flags + notes
-        # live in HotelRoomIssueNote keyed to each issue's STABLE identity
-        # (kind, target_type, target_id). Annotate every issue with its
-        # note + hidden flag, then split shown vs hidden.
         notes_by_key = load_issue_notes(session)
         annotate_issues(issues, notes_by_key)
         annotate_issues(inv_issues, notes_by_key)
+
+        search = (search or '').strip()
+        needle = search.lower()
+        prefetch_issue_relations(session, issues, attendees=bool(needle))
 
         shown_room = [i for i in issues if not i['hidden']]
         hidden_room = [i for i in issues if i['hidden']]
         shown_inv = [i for i in inv_issues if not i['hidden']]
         hidden_inv = [i for i in inv_issues if i['hidden']]
 
-        # Tab + kind counts reflect the SHOWN (non-hidden) issues, since
-        # hidden ones are acknowledged; the hidden total gets its own
-        # count. Filters then narrow the working lists before grouping.
         counts = {'error': 0, 'warning': 0}
         for iss in shown_room:
             counts[iss['severity']] = counts.get(iss['severity'], 0) + 1
@@ -4456,11 +4454,6 @@ class Root:
             kind_counts[k] = kind_counts.get(k, 0) + 1
         kind_options = sorted(kind_counts.items())
 
-        # Free-text search matches on the lowercased needle; keep the
-        # original-case string for redisplay.
-        search = (search or '').strip()
-        needle = search.lower()
-
         shown_room = filter_issues(shown_room, severity, kind, needle)
         shown_inv = filter_issues(shown_inv, severity, kind, needle)
         hidden_room = filter_issues(hidden_room, severity, kind, needle)
@@ -4471,15 +4464,37 @@ class Root:
         hidden_groups = group_room_issues(hidden_room)
         hidden_inv_groups = group_inventory_issues(hidden_inv)
 
+        show_hidden = str(show_hidden).lower() in ('1', 'true', 'on', 'yes')
+
+        group_total = len(groups)
+        groups, _, page, page_count = paginate(groups, page, default_size=100)
+        hidden_groups, _, hidden_page, hidden_page_count = paginate(
+            hidden_groups, hidden_page, default_size=100)
+        base_url = 'room_issues'
+        filter_qs = urlencode([(k, v) for k, v in (
+            ('severity', severity if severity != 'all' else ''),
+            ('kind', kind if kind not in ('all', None) else ''),
+            ('search', search),
+            ('show_hidden', '1' if show_hidden else '')) if v])
+        if filter_qs:
+            base_url += '?' + filter_qs
+
         return {
             'groups': groups,
+            'group_total': group_total,
+            'page': page,
+            'page_count': page_count,
+            'page_size': 100,
+            'hidden_page': hidden_page,
+            'hidden_page_count': hidden_page_count,
+            'base_url': base_url,
             'counts': counts,
             'inv_groups': inv_groups,
             'inv_counts': inv_counts,
             'hidden_groups': hidden_groups,
             'hidden_inv_groups': hidden_inv_groups,
             'hidden_count': hidden_count,
-            'show_hidden': str(show_hidden).lower() in ('1', 'true', 'on', 'yes'),
+            'show_hidden': show_hidden,
             'severity': severity,
             'kind': kind,
             'kind_options': kind_options,
@@ -4489,7 +4504,7 @@ class Root:
 
     def hide_issue(self, session, issue_kind='', target_type='',
                    target_id='', admin_notes='', severity='all', kind='all',
-                   search='', show_hidden='', csrf_token=None):
+                   search='', show_hidden='', page='', hidden_page='', csrf_token=None):
         """Hide a single issue (by its stable identity) from the active
         report and optionally attach a note. Idempotent."""
         if cherrypy.request.method != 'POST':
@@ -4498,7 +4513,7 @@ class Root:
         if not (issue_kind and target_type and target_id):
             raise HTTPRedirect(_room_issues_url(
                 'Could not identify which issue to hide.',
-                severity, kind, search, show_hidden))
+                severity, kind, search, show_hidden, page, hidden_page))
         note = get_or_make_issue_note(
             session, issue_kind, target_type, target_id)
         note.hidden = True
@@ -4506,11 +4521,11 @@ class Root:
         session.add(note)
         session.commit()
         raise HTTPRedirect(_room_issues_url(
-            'Issue hidden.', severity, kind, search, show_hidden))
+            'Issue hidden.', severity, kind, search, show_hidden, page, hidden_page))
 
     def unhide_issue(self, session, issue_kind='', target_type='',
                      target_id='', admin_notes='', severity='all', kind='all', search='',
-                     show_hidden='1', csrf_token=None):
+                     show_hidden='1', page='', hidden_page='', csrf_token=None):
         """Un-hide an issue so it returns to the active report. The note
         text is preserved (the row stays, just `hidden=False`); `admin_notes`
         is accepted from the shared form but intentionally ignored here."""
@@ -4527,12 +4542,12 @@ class Root:
             session.commit()
         raise HTTPRedirect(_room_issues_url(
             'Issue restored to the active report.',
-            severity, kind, search, show_hidden))
+            severity, kind, search, show_hidden, page, hidden_page))
 
     def save_issue_note(self, session, issue_kind='', target_type='',
                         target_id='', admin_notes='', severity='all',
                         kind='all', search='', show_hidden='',
-                        csrf_token=None):
+                        page='', hidden_page='', csrf_token=None):
         """Save (or update) an issue's admin note without changing its
         hidden state. An empty note on a not-hidden issue deletes the
         row so we don't accumulate empty records."""
@@ -4542,7 +4557,7 @@ class Root:
         if not (issue_kind and target_type and target_id):
             raise HTTPRedirect(_room_issues_url(
                 'Could not identify which issue to annotate.',
-                severity, kind, search, show_hidden))
+                severity, kind, search, show_hidden, page, hidden_page))
         notes = (admin_notes or '').strip()
         existing = (session.query(HotelRoomIssueNote)
                     .filter_by(issue_kind=issue_kind, target_type=target_type,
@@ -4554,11 +4569,11 @@ class Root:
                 session.delete(existing)
                 session.commit()
             raise HTTPRedirect(_room_issues_url(
-                'Note cleared.', severity, kind, search, show_hidden))
+                'Note cleared.', severity, kind, search, show_hidden, page, hidden_page))
         note = existing or get_or_make_issue_note(
             session, issue_kind, target_type, target_id)
         note.admin_notes = notes
         session.add(note)
         session.commit()
         raise HTTPRedirect(_room_issues_url(
-            'Note saved.', severity, kind, search, show_hidden))
+            'Note saved.', severity, kind, search, show_hidden, page, hidden_page))
