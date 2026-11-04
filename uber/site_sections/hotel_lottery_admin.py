@@ -250,6 +250,25 @@ def _event_nights():
     return nights
 
 
+def _required_nights():
+    """Nights every lottery stay covers: check-in can be no later than
+    HOTEL_LOTTERY_CHECKIN_END and check-out no earlier than
+    HOTEL_LOTTERY_CHECKOUT_START."""
+    nights = []
+    day = c.HOTEL_LOTTERY_CHECKIN_END.date()
+    end = c.HOTEL_LOTTERY_CHECKOUT_START.date()
+    while day < end:
+        nights.append(day)
+        day += timedelta(days=1)
+    return nights
+
+
+def _required_night_capacity(inv, nights):
+    """Rooms in a block free for a whole required-nights stay: its
+    smallest night, or the default quantity when no night is required."""
+    return min((inv.quantity_for_night(n) for n in nights), default=inv.quantity)
+
+
 def _parse_price(raw):
     """One submitted price box. '' means "not set"; anything unparseable or
     negative raises so the admin sees it rather than losing the value.
@@ -2353,6 +2372,7 @@ class Root:
     def hotel_inventory(self, session, message='', partition='all'):
         # Build event night dates
         event_nights = _event_nights()
+        required_nights = _required_nights()
 
         partitions = session.query(InventoryPartition).filter_by(active=True).order_by(InventoryPartition.name).all()
 
@@ -2433,7 +2453,8 @@ class Root:
                 info = {
                     'inventory': inv,
                     'room_type': inv.suite_type if is_suite else inv.room_type,
-                    'quantity': effective_capacity(block_id, inv.quantity),
+                    'quantity': effective_capacity(
+                        block_id, _required_night_capacity(inv, required_nights)),
                     'nights': night_data,
                     'total_assigned': total_assigned,
                     'awaiting_card': status_per_block.get(
@@ -2478,6 +2499,7 @@ class Root:
             'summary': summary,
             'hotel_totals': hotel_totals,
             'event_nights': event_nights,
+            'required_nights': required_nights,
             'partitions': partitions,
             'now': localized_now(),
             'current_partition': partition,
@@ -2633,13 +2655,16 @@ class Root:
             key = str(partition_id) if partition_id else '_none'
             assigned_per_partition[key] += n
 
-        # Compute total allocation and non-partitioned capacity
-        total_partition_alloc = sum(
-            b.quantity for p in partitions for b in p.blocks)
-
-        total_inventory = session.query(
-            func.coalesce(func.sum(HotelRoomInventory.quantity), 0)).filter(
-            HotelRoomInventory.active.is_(True)).scalar()
+        partitioned_per_block = defaultdict(int)
+        for p in partitions:
+            for b in p.blocks:
+                partitioned_per_block[str(b.inventory_id)] += b.quantity
+        required_nights = _required_nights()
+        non_partitioned_capacity = sum(
+            max(0, _required_night_capacity(inv, required_nights) - partitioned_per_block[str(inv.id)])
+            for inv in session.query(HotelRoomInventory).options(
+                selectinload(HotelRoomInventory.night_quantities)).filter(
+                HotelRoomInventory.active.is_(True)))
 
         admin = session.current_admin_account()
         if admin and is_lottery_admin(admin):
@@ -2655,7 +2680,7 @@ class Root:
             'partitions': partitions,
             'openable_ids': openable_ids,
             'assigned_per_partition': assigned_per_partition,
-            'non_partitioned_capacity': max(0, total_inventory - total_partition_alloc),
+            'non_partitioned_capacity': non_partitioned_capacity,
             'message': message,
         }
 
