@@ -45,6 +45,9 @@
       <td>{{ partition.blocks|sum(attribute='quantity') }}</td>
       <td>{{ assigned_per_partition.get(partition.id|string, 0) }}</td>
       <td>
+        {% if partition.id|string in openable_ids %}
+        <a href="../partition_admin/dashboard?partition_id={{ partition.id }}" class="btn btn-sm btn-primary">Open</a>
+        {% endif %}
         <a href="edit_partition?id={{ partition.id }}" class="btn btn-sm btn-outline-primary">Edit</a>
         {{ hotel_macros.delete_button('partition', partition, 'manage_partitions') }}
         <a href="partition_owners?partition_id={{ partition.id }}" class="btn btn-sm btn-outline-secondary">Owners</a>

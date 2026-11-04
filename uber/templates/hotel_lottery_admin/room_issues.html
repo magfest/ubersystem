@@ -143,6 +143,8 @@
   <input type="hidden" name="kind" value="{{ kind }}" />
   <input type="hidden" name="search" value="{{ search }}" />
   <input type="hidden" name="show_hidden" value="{{ '1' if (show_hidden or hidden_mode) else '' }}" />
+  <input type="hidden" name="page" value="{{ page }}" />
+  <input type="hidden" name="hidden_page" value="{{ hidden_page }}" />
   <input type="text" class="form-control form-control-sm" name="admin_notes"
          value="{{ iss.admin_notes }}" placeholder="Admin note (optional)"
          style="max-width: 320px;" />
@@ -181,8 +183,12 @@
 {% else %}
 <p class="text-muted small">
   Issues are grouped by the room assignment they apply to -
-  <strong>{{ groups|length }}</strong> affected.
+  <strong>{{ group_total }}</strong> affected.
 </p>
+{% set _sep = '&' if '?' in base_url else '?' %}
+{% set _rooms_url = base_url ~ (_sep ~ 'hidden_page=' ~ hidden_page if hidden_page > 1 else '') %}
+{{ hotel_macros.pagination(page, page_count, _rooms_url, total=group_total, page_size=page_size,
+                           current_count=groups|length, label='affected room') }}
 {% for group in groups %}
 {% set ra = group.assignment %}
 {% set app = group.application %}
@@ -249,6 +255,7 @@
   </ul>
 </div>
 {% endfor %}
+{{ hotel_macros.pagination(page, page_count, _rooms_url, show_summary=False) }}
 {% endif %}
 </div>
 
@@ -382,7 +389,13 @@
 {% endfor %}
 {% endmacro %}
 
+{% set _sep = '&' if '?' in base_url else '?' %}
+{% set _hidden_url = base_url ~ (_sep ~ 'page=' ~ page if page > 1 else '') %}
+{{ hotel_macros.pagination(hidden_page, hidden_page_count, _hidden_url, show_summary=False,
+                           page_param='hidden_page') }}
 {{ hidden_block(hidden_groups, is_inv=False) }}
+{{ hotel_macros.pagination(hidden_page, hidden_page_count, _hidden_url, show_summary=False,
+                           page_param='hidden_page') }}
 {{ hidden_block(hidden_inv_groups, is_inv=True) }}
 {% endif %}
 {% endif %}

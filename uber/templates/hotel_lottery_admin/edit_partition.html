@@ -28,7 +28,7 @@
 
   <div class="mb-3">
     <label class="form-label">Block Allocations</label>
-    <div class="form-text mb-2">Set how many rooms from each inventory block this partition can use. Leave blank or 0 to exclude a block.</div>
+    <div class="form-text mb-2">Set how many rooms from each block are in this partition.</div>
     <table class="table table-sm">
       <thead>
         <tr>
@@ -69,7 +69,8 @@
             <input type="number" class="form-control form-control-sm" style="width: 80px;"
                    name="block_qty_{{ inv.id }}"
                    value="{{ existing_blocks.get(inv.id|string, '') }}"
-                   min="0" placeholder="0" />
+                   min="{{ min_qty_by_block.get(inv.id|string, 0) }}" max="{{ max_qty_by_block.get(inv.id|string, 0) }}" placeholder="0" />
+            <div class="form-text small mb-0">{{ available_by_block.get(inv.id|string, 0) }} available</div>
             {% if _use %}
             <div class="form-text small mb-0">>= {{ _use }} in use</div>
             {% endif %}

@@ -26,6 +26,7 @@ var cardToken = secureWizardConfig.cardToken || null;
 var cardLastFour = secureWizardConfig.cardLastFour || '';
 var cardType = secureWizardConfig.cardType || '';
 var vaultOrigin = null;  // Set when vault iframe URL is loaded
+var cardCapturedAt = null;  // Server's cc_captured_at when the capture session opened
 
 function loadVaultSession(callback) {
   if (iframeUrl) {
@@ -48,6 +49,7 @@ function loadVaultSession(callback) {
       $('#vault-loading').hide();
       if (json.success) {
         iframeUrl = json.iframe_url;
+        cardCapturedAt = json.captured_at || '';
         try { vaultOrigin = new URL(iframeUrl).origin; } catch(e) {
           console.warn('[secure-wizard] could not parse vault iframe URL origin:', e);
         }
@@ -165,11 +167,16 @@ function startCardPolling() {
           console.warn('[secure-wizard] card_status poll returned error:', json.error);
           return;
         }
-        // Only adopt a token that differs from what we already have, so
-        // the change-card flow isn't cancelled by its own old card.
-        if (json.has_card && json.token && json.token !== cardToken) {
+        // Only adopt a card captured since this capture session opened, so
+        // the change-card flow isn't cancelled by its own old card. A
+        // re-capture can return the same token (e.g. only the expiry
+        // changed), so a newer captured_at counts too.
+        var recaptured = cardCapturedAt !== null && json.captured_at
+            && json.captured_at !== cardCapturedAt;
+        if (json.has_card && json.token && (json.token !== cardToken || recaptured)) {
           console.log('[secure-wizard] card token arrived server-side (via webhook); securing room');
           cardToken = json.token;
+          cardCapturedAt = json.captured_at;
           cardLastFour = json.last_four || '';
           cardType = json.card_type || '';
           $('#vault-iframe-container').data('showIframe', false);

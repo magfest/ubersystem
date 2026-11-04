@@ -335,7 +335,7 @@
     <input type="hidden" name="attendee_id" class="attendee-search-id"
            value="{{ selected_id or '' }}" />
     <input type="text" class="form-control attendee-search-query"
-           placeholder="Search by name, legal name, email, badge number, or UUID - same fields as the regular attendee search"
+           placeholder="Search by name, legal name, email, badge number, or UUID"
            autocomplete="off"
            {% if selected_id %}style="display: none;"{% endif %} />
     <div class="list-group position-absolute w-100 shadow-sm attendee-search-results"
@@ -380,6 +380,108 @@
   {%- if show_email and attendee.email %}
     <br/><small class="text-muted">{{ attendee.email }}</small>
   {%- endif -%}
+{% endmacro %}
+
+
+{# Roommates card
+
+   Lists a room's occupants and pending invites with remove / cancel
+   buttons, plus an add-roommate search, for the lottery admin's
+   edit_room_assignment page and the partition dashboard's edit modal.
+
+   Arguments:
+     ra             - the RoomAssignment
+     invites        - its pending RoomAssignmentInvite rows
+     actions        - {'add': url, 'remove': url, 'cancel': url}
+     hidden         - OPTIONAL extra {name: value} posted with every form
+     can_view_names - Allowed to show attendee hotel names
+     search_params  - OPTIONAL extra_params for the attendee search
+     size           - '' or 'sm' for compact controls
+#}
+{% macro roommates_card(ra, invites, actions, hidden={}, can_view_names=None,
+                        search_params='', size='') %}
+  {%- set _btn = 'btn-sm' if size == 'sm' else '' -%}
+  {%- set _cap = ra.inventory.capacity if ra.inventory else 0 -%}
+  {%- set _occupants = ra.effective_occupants -%}
+  {%- set _taken = _occupants|length + invites|length -%}
+  {%- set _full_names = can_view_names is none -%}
+  <div class="card mb-3">
+    <div class="card-header py-2 d-flex justify-content-between align-items-center">
+      <strong>Roommates</strong>
+      <span class="small {% if _cap and _taken > _cap %}text-danger fw-bold{% else %}text-muted{% endif %}">
+        {{ _taken }}{% if _cap %} / {{ _cap }}{% endif %} spots used
+        {%- if invites %} ({{ invites|length }} invited){% endif %}
+      </span>
+    </div>
+    <div class="card-body py-2">
+      <table class="table table-sm align-middle mb-2">
+        <tbody>
+          {% for occ in _occupants|sort(attribute='full_name') %}
+          <tr>
+            <td>
+              {% if _full_names %}{{ attendee_cell(occ) }}
+              {% else %}{{ masked_attendee_cell(occ, can_view_names=can_view_names, show_email=can_view_names) }}{% endif %}
+            </td>
+            <td class="text-end">
+              {% if occ.id == ra.attendee_id %}
+                <span class="badge bg-secondary">Booker</span>
+              {% else %}
+                <form method="post" action="{{ actions.remove }}" class="d-inline"
+                      data-confirm-message="Remove this roommate from the room?">
+                  {{ csrf_token() }}
+                  <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
+                  <input type="hidden" name="attendee_id" value="{{ occ.id }}" />
+                  {% for name, value in hidden.items() %}<input type="hidden" name="{{ name }}" value="{{ value }}" />{% endfor %}
+                  <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td class="text-muted"><em>No occupants.</em></td></tr>
+          {% endfor %}
+          {% for invite in invites %}
+          <tr class="text-muted">
+            <td>
+              {% if _full_names %}{{ invite.email or 'Invite code ' ~ invite.invite_token }}
+              {% elif can_view_names and invite.email %}{{ invite.email }}
+              {% else %}<em>Invited guest</em>{% endif %}
+            </td>
+            <td class="text-end">
+              <span class="badge bg-light text-dark me-1">Invite pending</span>
+              <form method="post" action="{{ actions.cancel }}" class="d-inline"
+                    data-confirm-message="Cancel this invite? Its link and code will stop working.">
+                {{ csrf_token() }}
+                <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
+                <input type="hidden" name="invite_id" value="{{ invite.id }}" />
+                {% for name, value in hidden.items() %}<input type="hidden" name="{{ name }}" value="{{ value }}" />{% endfor %}
+                <button type="submit" class="btn btn-sm btn-outline-danger">Cancel Invite</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      {% if _cap and _taken >= _cap %}
+      <div class="text-muted small">
+        This room is full. Remove a roommate or cancel an invite to add someone else.
+      </div>
+      {% else %}
+      <form method="post" action="{{ actions.add }}" class="row g-2 align-items-end">
+        {{ csrf_token() }}
+        <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
+        {% for name, value in hidden.items() %}<input type="hidden" name="{{ name }}" value="{{ value }}" />{% endfor %}
+        <div class="col-md-9">
+          {{ attendee_search_widget(label='Add Roommate', extra_params=search_params) }}
+        </div>
+        <div class="col-md-3">
+          <button type="submit" class="btn {{ _btn }} btn-outline-primary w-100">Add Roommate</button>
+        </div>
+      </form>
+      {% endif %}
+    </div>
+  </div>
 {% endmacro %}
 
 

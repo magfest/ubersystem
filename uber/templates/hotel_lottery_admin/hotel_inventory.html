@@ -117,10 +117,17 @@
   <tr>
     <th rowspan="2" class="align-bottom">Hotel</th>
     <th rowspan="2" class="align-bottom">Room / Suite Type</th>
+    {% if required_nights %}
+    <th rowspan="2" class="align-bottom text-center"
+        title="Fewest rooms offered on any required night ({{ required_nights[0].strftime('%a %-m/%-d') }} - {{ required_nights[-1].strftime('%a %-m/%-d') }}), so rooms available for a full lottery stay">
+      Rooms<br/><small class="fw-normal text-muted">all core nights</small>
+    </th>
+    {% else %}
     <th rowspan="2" class="align-bottom text-center"
         title="Rooms offered per night (default; per-night overrides apply in the night columns)">
       Rooms<br/><small class="fw-normal text-muted">per night</small>
     </th>
+    {% endif %}
     <th colspan="3" class="text-center border-bottom-0">Bookings by status</th>
     <th colspan="{{ event_nights|length }}" class="text-center border-bottom-0">
       Assigned / available by night

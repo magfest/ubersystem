@@ -298,6 +298,10 @@ def _secure_flow_assignment(session, assignment_id, *, token=None,
     return ra, None
 
 
+def _captured_at(ra):
+    return ra.cc_captured_at.isoformat() if ra.cc_captured_at else ''
+
+
 def _render_room_detail(session, assignment_id, attendee_id, message):
     """Per-room editor context. Module-level so the @all_renderable
     machinery doesn't wrap it as a renderable handler (which would
@@ -2281,7 +2285,8 @@ class Root:
             secret=capture['secret'],
             reference=vault_reference,
         )
-        return {'success': True, 'iframe_url': iframe_url}
+        return {'success': True, 'iframe_url': iframe_url,
+                'captured_at': _captured_at(ra)}
 
     @ajax
     def save_card_token(self, session, token, assignment_id=None, id=None,
@@ -2321,6 +2326,7 @@ class Root:
             'token': ra.cc_token or '',
             'last_four': ra.cc_last_four or '',
             'card_type': ra.cc_card_type or '',
+            'captured_at': _captured_at(ra),
         }
 
     @ajax
@@ -2465,21 +2471,29 @@ class Root:
         # drop the old card's metadata. A different token from an older
         # (or undated) session is a late retry for a card that has since
         # been replaced, and must not clobber the newer one.
+        started = None
+        if metadata.get('capture_started_at'):
+            try:
+                started = dateparser.parse(metadata['capture_started_at'])
+            except (ValueError, OverflowError, TypeError):
+                started = None
+            if started is not None and started.tzinfo is None:
+                started = started.replace(tzinfo=UTC)
+        is_newer_capture = started is not None and (
+            not ra.cc_captured_at or started > ra.cc_captured_at)
+
         if not ra.cc_token:
             log.info("vault_webhook: bootstrapping card token onto assignment %s "
                      "(browser postMessage never saved one)", assignment_id)
             ra.cc_token = token
             ra.cc_captured_at = datetime.now(UTC)
-        elif ra.cc_token != token:
-            started = None
-            if metadata.get('capture_started_at'):
-                try:
-                    started = dateparser.parse(metadata['capture_started_at'])
-                except (ValueError, OverflowError, TypeError):
-                    started = None
-                if started is not None and started.tzinfo is None:
-                    started = started.replace(tzinfo=UTC)
-            if started is None or (ra.cc_captured_at and started <= ra.cc_captured_at):
+        elif ra.cc_token == token:
+            if is_newer_capture:
+                log.info("vault_webhook: same card re-captured on assignment %s "
+                         "(newer capture session)", assignment_id)
+                ra.cc_captured_at = datetime.now(UTC)
+        else:
+            if not is_newer_capture:
                 log.info("vault_webhook: ignoring stale token for assignment %s "
                          "(a different token is already stored)", assignment_id)
                 return {'success': True}

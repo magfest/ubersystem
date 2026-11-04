@@ -33,7 +33,7 @@ from uber.hotel.perms import is_lottery_admin, record_partition_audit
 from uber.hotel.config import GROUPS as LOTTERY_GROUPS, hotel_lottery_config, late_run_open
 from uber.models.hotel import (HotelRoomInventory, InventoryNightQuantity, InventoryPartition,
                                InventoryPartitionBlock, LotteryRun, HotelExportLog, LotteryHotel, LotteryRoomType,
-                               PartitionOwner, RoomAssignment,
+                               PartitionOwner, RoomAssignment, RoomAssignmentInvite,
                                OverflowReveal, OverflowRevealLink, HotelRoomIssueNote,
                                HotelImportFile, room_assignment_occupant)
 from uber.email import EmailService
@@ -47,8 +47,9 @@ from uber.hotel.exports import (booking_columns, booking_export_data,
 from uber.hotel.imports import (apply_cancellation_rows, apply_confirmation_rows,
                                 match_assignments, parse_confirmation_rows,
                                 parse_iso_date, parse_spreadsheet)
-from uber.hotel.service import (RoomAssignmentError, apply_room_assignment_edits,
-                                assign_physical_room, create_room_assignment,
+from uber.hotel.service import (RoomAssignmentError, add_room_occupant, apply_room_assignment_edits,
+                                assign_physical_room, cancel_room_occupant_invite,
+                                create_room_assignment, remove_room_occupant,
                                 validate_physical_room)
 from uber.hotel.solver import (LOTTERY_TYPE_BOTH,
                                        adjust_available_rooms,
@@ -60,10 +61,10 @@ from uber.hotel.solver import (LOTTERY_TYPE_BOTH,
 from uber.hotel.audit import (annotate_issues, collect_issues,
                                    filter_issues, get_or_make_issue_note,
                                    group_inventory_issues, group_room_issues,
-                                   load_issue_notes)
+                                   load_issue_notes, prefetch_issue_relations)
 from uber.hotel.queries import (attendee_name_filter, attendee_search_results,
                                 block_availability, build_room_assignment_query,
-                                clamp_page_size, paginate)
+                                clamp_page_size, occupancy_by_block_night, paginate)
 from uber.hotel.run_stats import lottery_run_stats
 from uber.hotel.waitlist import (WaitlistError, accept_waitlist_entry,
                                  sweep_eligible, fulfill_waitlist)
@@ -248,6 +249,25 @@ def _event_nights():
         nights.append(day)
         day += timedelta(days=1)
     return nights
+
+
+def _required_nights():
+    """Nights every lottery stay covers: check-in can be no later than
+    HOTEL_LOTTERY_CHECKIN_END and check-out no earlier than
+    HOTEL_LOTTERY_CHECKOUT_START."""
+    nights = []
+    day = c.HOTEL_LOTTERY_CHECKIN_END.date()
+    end = c.HOTEL_LOTTERY_CHECKOUT_START.date()
+    while day < end:
+        nights.append(day)
+        day += timedelta(days=1)
+    return nights
+
+
+def _required_night_capacity(inv, nights):
+    """Rooms in a block free for a whole required-nights stay: its
+    smallest night, or the default quantity when no night is required."""
+    return min((inv.quantity_for_night(n) for n in nights), default=inv.quantity)
 
 
 def _parse_price(raw):
@@ -539,8 +559,24 @@ def _queue_waitlist_fulfilled_email(session, ra):
         })
 
 
+def _roommate_action(session, assignment_id, csrf_token, action, target_id):
+    """Run a uber.hotel.service roommate helper for the edit_room_assignment page."""
+    if cherrypy.request.method != 'POST':
+        raise HTTPRedirect('edit_room_assignment?id={}', assignment_id)
+    check_csrf(csrf_token)
+    ra = session.query(RoomAssignment).get(assignment_id)
+    if not ra:
+        raise HTTPRedirect('rooms?message={}', 'Assignment not found.')
+    try:
+        result = action(session, ra, target_id, audit_prefix='Lottery admin')
+    except RoomAssignmentError as e:
+        raise HTTPRedirect('edit_room_assignment?id={}&message={}', assignment_id, e.message)
+    session.commit()
+    return result
+
+
 def _room_issues_url(message='', severity='all', kind='all', search='',
-                     show_hidden=''):
+                     show_hidden='', page='', hidden_page=''):
     """Build a room_issues URL preserving the active filters, so the
     hide/unhide/note POST handlers redirect back to the same view (see
     redirect_with_params for the HTTPRedirect footgun this avoids).
@@ -551,6 +587,8 @@ def _room_issues_url(message='', severity='all', kind='all', search='',
         kind=kind if kind != 'all' else '',
         search=search,
         show_hidden='1' if show_hidden else '',
+        page=page if str(page) != '1' else '',
+        hidden_page=hidden_page if str(hidden_page) != '1' else '',
         message=message)
 
 
@@ -2351,6 +2389,7 @@ class Root:
     def hotel_inventory(self, session, message='', partition='all'):
         # Build event night dates
         event_nights = _event_nights()
+        required_nights = _required_nights()
 
         partitions = session.query(InventoryPartition).filter_by(active=True).order_by(InventoryPartition.name).all()
 
@@ -2431,7 +2470,8 @@ class Root:
                 info = {
                     'inventory': inv,
                     'room_type': inv.suite_type if is_suite else inv.room_type,
-                    'quantity': effective_capacity(block_id, inv.quantity),
+                    'quantity': effective_capacity(
+                        block_id, _required_night_capacity(inv, required_nights)),
                     'nights': night_data,
                     'total_assigned': total_assigned,
                     'awaiting_card': status_per_block.get(
@@ -2476,6 +2516,7 @@ class Root:
             'summary': summary,
             'hotel_totals': hotel_totals,
             'event_nights': event_nights,
+            'required_nights': required_nights,
             'partitions': partitions,
             'now': localized_now(),
             'current_partition': partition,
@@ -2631,18 +2672,32 @@ class Root:
             key = str(partition_id) if partition_id else '_none'
             assigned_per_partition[key] += n
 
-        # Compute total allocation and non-partitioned capacity
-        total_partition_alloc = sum(
-            b.quantity for p in partitions for b in p.blocks)
+        partitioned_per_block = defaultdict(int)
+        for p in partitions:
+            for b in p.blocks:
+                partitioned_per_block[str(b.inventory_id)] += b.quantity
+        required_nights = _required_nights()
+        non_partitioned_capacity = sum(
+            max(0, _required_night_capacity(inv, required_nights) - partitioned_per_block[str(inv.id)])
+            for inv in session.query(HotelRoomInventory).options(
+                selectinload(HotelRoomInventory.night_quantities)).filter(
+                HotelRoomInventory.active.is_(True)))
 
-        total_inventory = session.query(
-            func.coalesce(func.sum(HotelRoomInventory.quantity), 0)).filter(
-            HotelRoomInventory.active.is_(True)).scalar()
+        admin = session.current_admin_account()
+        if admin and is_lottery_admin(admin):
+            openable_ids = {str(p.id) for p in partitions}
+        elif admin:
+            openable_ids = {str(g.partition_id) for g in session.query(PartitionOwner).filter(
+                PartitionOwner.admin_account_id == admin.id,
+                or_(PartitionOwner.can_view_assignments, PartitionOwner.can_view_inventory))}
+        else:
+            openable_ids = set()
 
         return {
             'partitions': partitions,
+            'openable_ids': openable_ids,
             'assigned_per_partition': assigned_per_partition,
-            'non_partitioned_capacity': max(0, total_inventory - total_partition_alloc),
+            'non_partitioned_capacity': non_partitioned_capacity,
             'message': message,
         }
 
@@ -3753,9 +3808,83 @@ class Root:
         inventory_blocks = _picker_context(session)['inventory_blocks']
         existing_blocks = {str(pb.inventory_id): pb.quantity for pb in partition.blocks}
 
+        event_nights = _event_nights()
+        unpartitioned = occupancy_by_block_night(session.query(RoomAssignment).filter(
+            RoomAssignment.partition_id == None,  # noqa: E711
+            RoomAssignment.is_live,
+            RoomAssignment.inventory_id.in_([str(inv.id) for inv in inventory_blocks])))
+        block_limit = {}
+        for inv in inventory_blocks:
+            limit = max((inv.quantity_for_night(n) for n in event_nights), default=inv.quantity)
+            reason = f'block has {limit}'
+            for night, booked in sorted(unpartitioned.get(str(inv.id), {}).items()):
+                night_qty = inv.quantity_for_night(night)
+                if night_qty - booked < limit:
+                    limit = night_qty - booked
+                    reason = f'{night:%a %b %-d} has {night_qty}, {booked} booked outside partitions'
+            block_limit[str(inv.id)] = (limit, reason)
+        other_alloc = defaultdict(int)
+        for pb in session.query(InventoryPartitionBlock).filter(
+                InventoryPartitionBlock.partition_id != partition.id):
+            other_alloc[str(pb.inventory_id)] += pb.quantity
+        available_by_block = {
+            bid: max(0, limit - other_alloc[bid]) for bid, (limit, _) in block_limit.items()}
+        # Shrinking an already over-allocated block is still allowed.
+        max_qty_by_block = {
+            bid: max(avail, existing_blocks.get(bid, 0)) for bid, avail in available_by_block.items()}
+
+        usage_by_block = {}
+        rooms_by_block = {}
+        if partition.id:
+            live_ras = (session.query(RoomAssignment)
+                        .filter(RoomAssignment.partition_id == partition.id,
+                                RoomAssignment.is_live,
+                                RoomAssignment.inventory_id.isnot(None))
+                        .all())
+            per_block_night = {}
+            for ra in live_ras:
+                bid = str(ra.inventory_id)
+                rooms_by_block[bid] = rooms_by_block.get(bid, 0) + 1
+                if ra.assigned_check_in_date and ra.assigned_check_out_date:
+                    nights = per_block_night.setdefault(bid, {})
+                    d = ra.assigned_check_in_date
+                    while d < ra.assigned_check_out_date:
+                        nights[d] = nights.get(d, 0) + 1
+                        d += timedelta(days=1)
+            for bid, total in rooms_by_block.items():
+                nights = per_block_night.get(bid)
+                usage_by_block[bid] = max(nights.values()) if nights else total
+
+        # An allocation that's already below its usage can stay where it is.
+        min_qty_by_block = {
+            bid: min(use, existing_blocks.get(bid, 0)) for bid, use in usage_by_block.items()}
+
         forms = load_forms(params, partition, ['InventoryPartitionConfig'])
 
+        requested = {}
+        errors = []
         if cherrypy.request.method == 'POST':
+            for inv in inventory_blocks:
+                bid = str(inv.id)
+                qty_str = params.get(f'block_qty_{inv.id}', '').strip()
+                try:
+                    requested[bid] = int(qty_str) if qty_str else 0
+                except ValueError:
+                    errors.append(f"{inv.name or 'inventory'}: quantity must be a whole number.")
+                    continue
+                if requested[bid] > max_qty_by_block[bid]:
+                    errors.append(f"{inv.name or 'inventory'}: only {available_by_block[bid]} rooms "
+                                  f"available ({block_limit[bid][1]}, "
+                                  f"{other_alloc[bid]} allocated to other partitions).")
+                elif requested[bid] < min_qty_by_block.get(bid, 0):
+                    errors.append(f"{inv.name or 'inventory'}: can't go below {min_qty_by_block[bid]} "
+                                  f"({usage_by_block[bid]} rooms booked in this partition on its "
+                                  f"busiest night).")
+            if errors:
+                message = ' '.join(errors)
+                existing_blocks = {bid: qty for bid, qty in requested.items() if qty > 0}
+
+        if cherrypy.request.method == 'POST' and not errors:
             # Not is_admin=True: bill_reference is locked for anyone who is not
             # a full lottery admin, and that lock only applies when the form is
             # populated as a non-admin.
@@ -3767,10 +3896,9 @@ class Root:
             existing_pb = {str(pb.inventory_id): pb for pb in partition.blocks}
             change_lines = []
             for inv in inventory_blocks:
-                qty_str = params.get(f'block_qty_{inv.id}', '')
+                qty = requested[str(inv.id)]
                 inv_label = inv.name or 'inventory'
-                if qty_str != '' and int(qty_str) > 0:
-                    qty = int(qty_str)
+                if qty > 0:
                     if str(inv.id) in existing_pb:
                         old_qty = existing_pb[str(inv.id)].quantity
                         if old_qty != qty:
@@ -3817,45 +3945,15 @@ class Root:
                             if a.id not in granted_account_ids and a.attendee]
         ungranted_admins.sort(key=lambda a: a.attendee.full_name if a.attendee else '')
 
-        # Current usage per block within THIS partition, so admins can
-        # see how much is already committed before changing the
-        # allocation. `usage_by_block` is the PEAK per-night count of
-        # live (ASSIGNED/SECURED) RoomAssignments tagged with this
-        # partition for each inventory block - that's the number the
-        # per-night `quantity` allocation has to cover, so reducing
-        # below it would over-commit the busiest night.
-        # `rooms_by_block` is the total distinct live rooms (handy
-        # context, not the binding constraint).
-        usage_by_block = {}
-        rooms_by_block = {}
-        if partition.id:
-            live_ras = (session.query(RoomAssignment)
-                        .filter(RoomAssignment.partition_id == partition.id,
-                                RoomAssignment.is_live,
-                                RoomAssignment.inventory_id.isnot(None))
-                        .all())
-            per_block_night = {}
-            for ra in live_ras:
-                bid = str(ra.inventory_id)
-                rooms_by_block[bid] = rooms_by_block.get(bid, 0) + 1
-                if ra.assigned_check_in_date and ra.assigned_check_out_date:
-                    nights = per_block_night.setdefault(bid, {})
-                    d = ra.assigned_check_in_date
-                    while d < ra.assigned_check_out_date:
-                        nights[d] = nights.get(d, 0) + 1
-                        d += timedelta(days=1)
-            for bid, total in rooms_by_block.items():
-                nights = per_block_night.get(bid)
-                # Peak per-night usage; fall back to the room count for
-                # rows with no dates so they still register as in-use.
-                usage_by_block[bid] = max(nights.values()) if nights else total
-
         return {
             'partition': partition,
             'forms': forms,
             'inventory_blocks': inventory_blocks,
             'existing_blocks': existing_blocks,
             'usage_by_block': usage_by_block,
+            'available_by_block': available_by_block,
+            'max_qty_by_block': max_qty_by_block,
+            'min_qty_by_block': min_qty_by_block,
             'rooms_by_block': rooms_by_block,
             'grants': grants,
             'ungranted_admins': ungranted_admins,
@@ -4000,6 +4098,9 @@ class Root:
             'inventory_blocks': picker['inventory_blocks'],
             'inventory_partitions_map': inventory_partitions_map,
             'assignable_rooms': hotel_physical.assignable_rooms(session, ra),
+            'pending_invites': (session.query(RoomAssignmentInvite)
+                                .filter_by(room_assignment_id=ra.id)
+                                .order_by(RoomAssignmentInvite.created).all()),
             'map_hotel': map_hotel,
             'map_rooms': hotel_physical.floor_map_rooms(
                 hotel_physical.rooms_by_floor(session, map_hotel.id),
@@ -4032,6 +4133,21 @@ class Root:
         session.commit()
         raise HTTPRedirect('edit_room_assignment?id={}&message={}',
                            assignment_id, msg)
+
+    def add_room_occupant(self, session, assignment_id, attendee_id='', csrf_token=None):
+        attendee = _roommate_action(session, assignment_id, csrf_token, add_room_occupant, attendee_id)
+        raise HTTPRedirect('edit_room_assignment?id={}&message={}', assignment_id,
+                           f'Added {attendee.full_name} as a roommate.')
+
+    def remove_room_occupant(self, session, assignment_id, attendee_id='', csrf_token=None):
+        attendee = _roommate_action(session, assignment_id, csrf_token, remove_room_occupant, attendee_id)
+        raise HTTPRedirect('edit_room_assignment?id={}&message={}', assignment_id,
+                           f'Removed {attendee.full_name} from the room.')
+
+    def cancel_room_occupant_invite(self, session, assignment_id, invite_id='', csrf_token=None):
+        label = _roommate_action(session, assignment_id, csrf_token, cancel_room_occupant_invite, invite_id)
+        raise HTTPRedirect('edit_room_assignment?id={}&message={}', assignment_id,
+                           f'Cancelled the invite for {label}.')
 
     # Cross-application view: every RoomAssignment in the system,
     # paginated. Useful when an admin knows the room (hotel + date) but
@@ -4386,11 +4502,10 @@ class Root:
     # surfaced as a flat list, each one carrying severity (error/warning),
     # a human label, and a deep-link to wherever the admin can fix it
     # (usually the application's edit form). The checks themselves live
-    # in uber.hotel.audit (all in Python - no SQL view - so it's
-    # easy to add new ones); this section keeps the routes.
+    # in uber.hotel.audit
 
     def room_issues(self, session, message='', severity='all', kind='all',
-                    search='', show_hidden=''):
+                    search='', show_hidden='', page='1', hidden_page='1'):
         """Cross-check every live RoomAssignment and produce a list of
         validation issues.
 
@@ -4425,22 +4540,19 @@ class Root:
         """
         issues, inv_issues = collect_issues(session)
 
-        # Issues are recomputed every load, so admin hide-flags + notes
-        # live in HotelRoomIssueNote keyed to each issue's STABLE identity
-        # (kind, target_type, target_id). Annotate every issue with its
-        # note + hidden flag, then split shown vs hidden.
         notes_by_key = load_issue_notes(session)
         annotate_issues(issues, notes_by_key)
         annotate_issues(inv_issues, notes_by_key)
+
+        search = (search or '').strip()
+        needle = search.lower()
+        prefetch_issue_relations(session, issues, attendees=bool(needle))
 
         shown_room = [i for i in issues if not i['hidden']]
         hidden_room = [i for i in issues if i['hidden']]
         shown_inv = [i for i in inv_issues if not i['hidden']]
         hidden_inv = [i for i in inv_issues if i['hidden']]
 
-        # Tab + kind counts reflect the SHOWN (non-hidden) issues, since
-        # hidden ones are acknowledged; the hidden total gets its own
-        # count. Filters then narrow the working lists before grouping.
         counts = {'error': 0, 'warning': 0}
         for iss in shown_room:
             counts[iss['severity']] = counts.get(iss['severity'], 0) + 1
@@ -4456,11 +4568,6 @@ class Root:
             kind_counts[k] = kind_counts.get(k, 0) + 1
         kind_options = sorted(kind_counts.items())
 
-        # Free-text search matches on the lowercased needle; keep the
-        # original-case string for redisplay.
-        search = (search or '').strip()
-        needle = search.lower()
-
         shown_room = filter_issues(shown_room, severity, kind, needle)
         shown_inv = filter_issues(shown_inv, severity, kind, needle)
         hidden_room = filter_issues(hidden_room, severity, kind, needle)
@@ -4471,15 +4578,37 @@ class Root:
         hidden_groups = group_room_issues(hidden_room)
         hidden_inv_groups = group_inventory_issues(hidden_inv)
 
+        show_hidden = str(show_hidden).lower() in ('1', 'true', 'on', 'yes')
+
+        group_total = len(groups)
+        groups, _, page, page_count = paginate(groups, page, default_size=100)
+        hidden_groups, _, hidden_page, hidden_page_count = paginate(
+            hidden_groups, hidden_page, default_size=100)
+        base_url = 'room_issues'
+        filter_qs = urlencode([(k, v) for k, v in (
+            ('severity', severity if severity != 'all' else ''),
+            ('kind', kind if kind not in ('all', None) else ''),
+            ('search', search),
+            ('show_hidden', '1' if show_hidden else '')) if v])
+        if filter_qs:
+            base_url += '?' + filter_qs
+
         return {
             'groups': groups,
+            'group_total': group_total,
+            'page': page,
+            'page_count': page_count,
+            'page_size': 100,
+            'hidden_page': hidden_page,
+            'hidden_page_count': hidden_page_count,
+            'base_url': base_url,
             'counts': counts,
             'inv_groups': inv_groups,
             'inv_counts': inv_counts,
             'hidden_groups': hidden_groups,
             'hidden_inv_groups': hidden_inv_groups,
             'hidden_count': hidden_count,
-            'show_hidden': str(show_hidden).lower() in ('1', 'true', 'on', 'yes'),
+            'show_hidden': show_hidden,
             'severity': severity,
             'kind': kind,
             'kind_options': kind_options,
@@ -4489,7 +4618,7 @@ class Root:
 
     def hide_issue(self, session, issue_kind='', target_type='',
                    target_id='', admin_notes='', severity='all', kind='all',
-                   search='', show_hidden='', csrf_token=None):
+                   search='', show_hidden='', page='', hidden_page='', csrf_token=None):
         """Hide a single issue (by its stable identity) from the active
         report and optionally attach a note. Idempotent."""
         if cherrypy.request.method != 'POST':
@@ -4498,7 +4627,7 @@ class Root:
         if not (issue_kind and target_type and target_id):
             raise HTTPRedirect(_room_issues_url(
                 'Could not identify which issue to hide.',
-                severity, kind, search, show_hidden))
+                severity, kind, search, show_hidden, page, hidden_page))
         note = get_or_make_issue_note(
             session, issue_kind, target_type, target_id)
         note.hidden = True
@@ -4506,11 +4635,11 @@ class Root:
         session.add(note)
         session.commit()
         raise HTTPRedirect(_room_issues_url(
-            'Issue hidden.', severity, kind, search, show_hidden))
+            'Issue hidden.', severity, kind, search, show_hidden, page, hidden_page))
 
     def unhide_issue(self, session, issue_kind='', target_type='',
                      target_id='', admin_notes='', severity='all', kind='all', search='',
-                     show_hidden='1', csrf_token=None):
+                     show_hidden='1', page='', hidden_page='', csrf_token=None):
         """Un-hide an issue so it returns to the active report. The note
         text is preserved (the row stays, just `hidden=False`); `admin_notes`
         is accepted from the shared form but intentionally ignored here."""
@@ -4527,12 +4656,12 @@ class Root:
             session.commit()
         raise HTTPRedirect(_room_issues_url(
             'Issue restored to the active report.',
-            severity, kind, search, show_hidden))
+            severity, kind, search, show_hidden, page, hidden_page))
 
     def save_issue_note(self, session, issue_kind='', target_type='',
                         target_id='', admin_notes='', severity='all',
                         kind='all', search='', show_hidden='',
-                        csrf_token=None):
+                        page='', hidden_page='', csrf_token=None):
         """Save (or update) an issue's admin note without changing its
         hidden state. An empty note on a not-hidden issue deletes the
         row so we don't accumulate empty records."""
@@ -4542,7 +4671,7 @@ class Root:
         if not (issue_kind and target_type and target_id):
             raise HTTPRedirect(_room_issues_url(
                 'Could not identify which issue to annotate.',
-                severity, kind, search, show_hidden))
+                severity, kind, search, show_hidden, page, hidden_page))
         notes = (admin_notes or '').strip()
         existing = (session.query(HotelRoomIssueNote)
                     .filter_by(issue_kind=issue_kind, target_type=target_type,
@@ -4554,11 +4683,11 @@ class Root:
                 session.delete(existing)
                 session.commit()
             raise HTTPRedirect(_room_issues_url(
-                'Note cleared.', severity, kind, search, show_hidden))
+                'Note cleared.', severity, kind, search, show_hidden, page, hidden_page))
         note = existing or get_or_make_issue_note(
             session, issue_kind, target_type, target_id)
         note.admin_notes = notes
         session.add(note)
         session.commit()
         raise HTTPRedirect(_room_issues_url(
-            'Note saved.', severity, kind, search, show_hidden))
+            'Note saved.', severity, kind, search, show_hidden, page, hidden_page))

@@ -370,6 +370,16 @@
                 <button type="submit" class="btn btn-primary btn-sm">Save changes</button>
               </div>
             </form>
+
+            {% if ra.partition_id == partition.id %}
+            <div class="mt-3">
+              {{ hotel_macros.roommates_card(ra, invites_by_room.get(ra.id, []), {
+                    'add': 'add_occupant', 'remove': 'remove_occupant',
+                    'cancel': 'cancel_occupant_invite'},
+                    hidden={'page': page}, can_view_names=can_view_guest_names,
+                    search_params='partition_id=' ~ partition.id, size='sm') }}
+            </div>
+            {% endif %}
           </div>
         </div>
         {% endfor %}
@@ -386,6 +396,15 @@
 
 {% if can_edit_assignments %}
 {{ "js/hotel-attendee-search.js"|serve_static_content }}
+{{ "js/hotel-confirm-submit.js"|serve_static_content }}
+{% if edit %}
+<script>
+  $(function () {
+    var modal = document.getElementById({{ ('edit-modal-' ~ edit)|tojson }});
+    if (modal) bootstrap.Modal.getOrCreateInstance(modal).show();
+  });
+</script>
+{% endif %}
 {% endif %}
 
 {% endblock %}
