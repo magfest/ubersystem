@@ -22,8 +22,9 @@ from uber.errors import HTTPRedirect
 from uber.hotel.queries import (attendee_search_results,
                                 build_room_assignment_query, paginate)
 from uber.hotel.service import (
-    RoomAssignmentError, apply_room_assignment_edits, create_room_assignment,
-    notify_guest_of_room_change, parse_payment_type,
+    RoomAssignmentError, add_room_occupant, apply_room_assignment_edits,
+    cancel_room_occupant_invite, create_room_assignment,
+    notify_guest_of_room_change, parse_payment_type, remove_room_occupant,
 )
 from uber.hotel.perms import (
     can_edit_assignments_in,
@@ -41,7 +42,7 @@ from uber.hotel.perms import (
 from uber.models import AdminAccount
 from uber.models.hotel import (
     HotelRoomInventory, InventoryPartition, InventoryPartitionBlock,
-    PartitionAuditLog, PartitionOwner, RoomAssignment,
+    PartitionAuditLog, PartitionOwner, RoomAssignment, RoomAssignmentInvite,
 )
 from uber.utils import check_csrf
 
@@ -84,6 +85,23 @@ def _partition_block_inventory_ids(session, partition_id):
             if b.inventory_id}
 
 
+def _roommate_action(session, assignment_id, csrf_token, page, action, target_id, done):
+    """Run a uber.hotel.service roommate helper from the dashboard's edit
+    modal, then reopen that modal."""
+    if cherrypy.request.method != 'POST':
+        raise HTTPRedirect('index')
+    check_csrf(csrf_token)
+    ra = session.query(RoomAssignment).get(assignment_id)
+    try:
+        action(session, ra, target_id)
+        session.commit()
+        message = done
+    except RoomAssignmentError as e:
+        message = e.message
+    raise HTTPRedirect('dashboard?partition_id={}&tab=assignments&page={}&edit={}&message={}',
+                       ra.partition_id, page, ra.attendee_id, message)
+
+
 @all_renderable()
 class Root:
     def index(self, session, message=''):
@@ -123,7 +141,7 @@ class Root:
 
     @requires_partition_capability('view')
     def dashboard(self, session, partition_id, tab='inventory',
-                  page='1', activity_page='1', message=''):
+                  page='1', activity_page='1', edit='', message=''):
         """Per-partition view, tabbed: inventory / assignments / activity.
 
         Inventory tab - all blocks with allocated/assigned/secured/unassigned
@@ -220,6 +238,13 @@ class Root:
         modal_groups = defaultdict(list)
         for ra in modal_assignments:
             modal_groups[ra.attendee_id].append(ra)
+        invites_by_room = defaultdict(list)
+        if modal_assignments:
+            for invite in (session.query(RoomAssignmentInvite)
+                           .filter(RoomAssignmentInvite.room_assignment_id.in_(
+                               [ra.id for ra in modal_assignments]))
+                           .order_by(RoomAssignmentInvite.created)):
+                invites_by_room[invite.room_assignment_id].append(invite)
 
         # Eager-load the actor and subject so the activity table doesn't
         # issue a query per row.
@@ -269,6 +294,8 @@ class Root:
             'page': page,
             'last_page': last_page,
             'modal_groups': dict(modal_groups),
+            'invites_by_room': invites_by_room,
+            'edit': edit,
             'all_inventory': all_inventory,
             'activity': activity,
             'activity_total': activity_total,
@@ -418,6 +445,21 @@ class Root:
         raise HTTPRedirect(
             'dashboard?partition_id={}&tab=assignments&message={}',
             partition_id, 'Assignment removed.')
+
+    @requires_partition_capability('can_edit_assignments')
+    def add_occupant(self, session, assignment_id, attendee_id='', page='1', csrf_token=None):
+        _roommate_action(session, assignment_id, csrf_token, page,
+                         add_room_occupant, attendee_id, 'Roommate added.')
+
+    @requires_partition_capability('can_edit_assignments')
+    def remove_occupant(self, session, assignment_id, attendee_id='', page='1', csrf_token=None):
+        _roommate_action(session, assignment_id, csrf_token, page,
+                         remove_room_occupant, attendee_id, 'Roommate removed.')
+
+    @requires_partition_capability('can_edit_assignments')
+    def cancel_occupant_invite(self, session, assignment_id, invite_id='', page='1', csrf_token=None):
+        _roommate_action(session, assignment_id, csrf_token, page,
+                         cancel_room_occupant_invite, invite_id, 'Invite cancelled.')
 
     @ajax_gettable
     def search_attendees(self, session, partition_id, q='', **params):

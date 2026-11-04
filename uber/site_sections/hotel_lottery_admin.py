@@ -47,8 +47,9 @@ from uber.hotel.exports import (booking_columns, booking_export_data,
 from uber.hotel.imports import (apply_cancellation_rows, apply_confirmation_rows,
                                 match_assignments, parse_confirmation_rows,
                                 parse_iso_date, parse_spreadsheet)
-from uber.hotel.service import (RoomAssignmentError, apply_room_assignment_edits,
-                                assign_physical_room, create_room_assignment,
+from uber.hotel.service import (RoomAssignmentError, add_room_occupant, apply_room_assignment_edits,
+                                assign_physical_room, cancel_room_occupant_invite,
+                                create_room_assignment, remove_room_occupant,
                                 validate_physical_room)
 from uber.hotel.solver import (LOTTERY_TYPE_BOTH,
                                        adjust_available_rooms,
@@ -556,6 +557,22 @@ def _queue_waitlist_fulfilled_email(session, ra):
             if ra.assigned_check_out_date else '',
             'still_waitlisted': bool(ra.is_waitlisted),
         })
+
+
+def _roommate_action(session, assignment_id, csrf_token, action, target_id):
+    """Run a uber.hotel.service roommate helper for the edit_room_assignment page."""
+    if cherrypy.request.method != 'POST':
+        raise HTTPRedirect('edit_room_assignment?id={}', assignment_id)
+    check_csrf(csrf_token)
+    ra = session.query(RoomAssignment).get(assignment_id)
+    if not ra:
+        raise HTTPRedirect('rooms?message={}', 'Assignment not found.')
+    try:
+        result = action(session, ra, target_id, audit_prefix='Lottery admin')
+    except RoomAssignmentError as e:
+        raise HTTPRedirect('edit_room_assignment?id={}&message={}', assignment_id, e.message)
+    session.commit()
+    return result
 
 
 def _room_issues_url(message='', severity='all', kind='all', search='',
@@ -4117,104 +4134,20 @@ class Root:
         raise HTTPRedirect('edit_room_assignment?id={}&message={}',
                            assignment_id, msg)
 
-    def add_room_occupant(self, session, assignment_id, attendee_id='',
-                          csrf_token=None):
-        if cherrypy.request.method != 'POST':
-            raise HTTPRedirect('edit_room_assignment?id={}', assignment_id)
-        check_csrf(csrf_token)
-        ra = session.query(RoomAssignment).get(assignment_id)
-        if not ra:
-            raise HTTPRedirect('rooms?message={}', 'Assignment not found.')
+    def add_room_occupant(self, session, assignment_id, attendee_id='', csrf_token=None):
+        attendee = _roommate_action(session, assignment_id, csrf_token, add_room_occupant, attendee_id)
+        raise HTTPRedirect('edit_room_assignment?id={}&message={}', assignment_id,
+                           f'Added {attendee.full_name} as a roommate.')
 
-        def back(msg):
-            raise HTTPRedirect('edit_room_assignment?id={}&message={}',
-                               assignment_id, msg)
+    def remove_room_occupant(self, session, assignment_id, attendee_id='', csrf_token=None):
+        attendee = _roommate_action(session, assignment_id, csrf_token, remove_room_occupant, attendee_id)
+        raise HTTPRedirect('edit_room_assignment?id={}&message={}', assignment_id,
+                           f'Removed {attendee.full_name} from the room.')
 
-        attendee = session.get(Attendee, attendee_id) if attendee_id else None
-        if not attendee:
-            back('Pick an attendee to add as a roommate.')
-
-        current = ra.effective_occupants
-        if attendee in current:
-            back(f'{attendee.full_name} is already in this room.')
-        cap = ra.inventory.capacity if ra.inventory else 0
-        invites = session.query(RoomAssignmentInvite).filter_by(room_assignment_id=ra.id).count()
-        if cap and len(current) + invites >= cap:
-            msg = f'This room is full (capacity {cap}'
-            msg += f', including {invites} pending invite(s)).' if invites else ').'
-            back(msg)
-
-        if not ra.occupants:
-            ra.occupants.extend(current)
-        ra.occupants.append(attendee)
-        if ra.partition_id:
-            record_partition_audit(
-                session, ra.partition_id,
-                action='assignment.updated',
-                description=f"Lottery admin added roommate {attendee.full_name}: "
-                            f"{ra.room_summary}",
-                target_type='assignment', target_id=ra.id,
-                attendee_id=attendee.id)
-        session.commit()
-        back(f'Added {attendee.full_name} as a roommate.')
-
-    def remove_room_occupant(self, session, assignment_id, attendee_id='',
-                             csrf_token=None):
-        if cherrypy.request.method != 'POST':
-            raise HTTPRedirect('edit_room_assignment?id={}', assignment_id)
-        check_csrf(csrf_token)
-        ra = session.query(RoomAssignment).get(assignment_id)
-        if not ra:
-            raise HTTPRedirect('rooms?message={}', 'Assignment not found.')
-
-        def back(msg):
-            raise HTTPRedirect('edit_room_assignment?id={}&message={}',
-                               assignment_id, msg)
-
-        if attendee_id == ra.attendee_id:
-            back('The room booker cannot be removed.')
-        if not ra.occupants:
-            ra.occupants.extend(ra.effective_occupants)
-        attendee = next((o for o in ra.occupants if o.id == attendee_id), None)
-        if not attendee:
-            back('That attendee is not in this room.')
-
-        ra.occupants.remove(attendee)
-        if ra.partition_id:
-            record_partition_audit(
-                session, ra.partition_id,
-                action='assignment.updated',
-                description=f"Lottery admin removed roommate {attendee.full_name}: "
-                            f"{ra.room_summary}",
-                target_type='assignment', target_id=ra.id,
-                attendee_id=attendee.id)
-        session.commit()
-        back(f'Removed {attendee.full_name} from the room.')
-
-    def cancel_room_occupant_invite(self, session, assignment_id, invite_id='',
-                                    csrf_token=None):
-        if cherrypy.request.method != 'POST':
-            raise HTTPRedirect('edit_room_assignment?id={}', assignment_id)
-        check_csrf(csrf_token)
-        invite = session.get(RoomAssignmentInvite, invite_id) if invite_id else None
-        if not invite or invite.room_assignment_id != assignment_id:
-            raise HTTPRedirect('edit_room_assignment?id={}&message={}',
-                               assignment_id, 'That invite no longer exists.')
-
-        ra = invite.room_assignment
-        label = invite.email or f'code {invite.invite_token}'
-        if ra.partition_id:
-            record_partition_audit(
-                session, ra.partition_id,
-                action='assignment.updated',
-                description=f"Lottery admin cancelled roommate invite ({label}): "
-                            f"{ra.room_summary}",
-                target_type='assignment', target_id=ra.id,
-                attendee_id=ra.attendee_id)
-        session.delete(invite)
-        session.commit()
-        raise HTTPRedirect('edit_room_assignment?id={}&message={}',
-                           assignment_id, f'Cancelled the invite for {label}.')
+    def cancel_room_occupant_invite(self, session, assignment_id, invite_id='', csrf_token=None):
+        label = _roommate_action(session, assignment_id, csrf_token, cancel_room_occupant_invite, invite_id)
+        raise HTTPRedirect('edit_room_assignment?id={}&message={}', assignment_id,
+                           f'Cancelled the invite for {label}.')
 
     # Cross-application view: every RoomAssignment in the system,
     # paginated. Useful when an admin knows the room (hotel + date) but

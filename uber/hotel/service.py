@@ -423,3 +423,76 @@ def apply_room_assignment_edits(session, ra, params, *, audit_prefix, fail,
         session.flush()
         return f"Updated {', '.join(changes)}."
     return 'No changes.'
+
+
+def _pending_invite_count(session, ra):
+    from uber.models.hotel import RoomAssignmentInvite
+    return session.query(RoomAssignmentInvite).filter_by(room_assignment_id=ra.id).count()
+
+
+def _audit_roommate_change(session, ra, audit_prefix, verb, attendee_id):
+    if ra.partition_id:
+        description = f"{audit_prefix} {verb}" if audit_prefix else verb.capitalize()
+        record_partition_audit(
+            session, ra.partition_id,
+            action='assignment.updated',
+            description=f"{description}: {ra.room_summary}",
+            target_type='assignment', target_id=ra.id,
+            attendee_id=attendee_id)
+
+
+def add_room_occupant(session, ra, attendee_id, *, audit_prefix=''):
+    """Add a roommate. Returns the added Attendee."""
+    from uber.models import Attendee
+
+    attendee = session.get(Attendee, attendee_id) if attendee_id else None
+    if not attendee:
+        raise RoomAssignmentError('Pick an attendee to add as a roommate.')
+    current = ra.effective_occupants
+    if attendee in current:
+        raise RoomAssignmentError(f'{attendee.full_name} is already in this room.')
+    cap = ra.inventory.capacity if ra.inventory else 0
+    invites = _pending_invite_count(session, ra)
+    if cap and len(current) + invites >= cap:
+        msg = f'This room is full (capacity {cap}'
+        raise RoomAssignmentError(
+            msg + (f', including {invites} pending invite(s)).' if invites else ').'))
+
+    if not ra.occupants:
+        ra.occupants.extend(current)
+    ra.occupants.append(attendee)
+    _audit_roommate_change(session, ra, audit_prefix, "added roommate", attendee.id)
+    session.flush()
+    return attendee
+
+
+def remove_room_occupant(session, ra, attendee_id, *, audit_prefix=''):
+    """Remove a roommate other than the booker. Returns the removed Attendee."""
+    if attendee_id == ra.attendee_id:
+        raise RoomAssignmentError('The room booker cannot be removed.')
+    current = ra.effective_occupants
+    attendee = next((o for o in current if o.id == attendee_id), None)
+    if not attendee:
+        raise RoomAssignmentError('That attendee is not in this room.')
+
+    if not ra.occupants:
+        ra.occupants.extend(current)
+    ra.occupants.remove(attendee)
+    _audit_roommate_change(session, ra, audit_prefix, "removed roommate", attendee.id)
+    session.flush()
+    return attendee
+
+
+def cancel_room_occupant_invite(session, ra, invite_id, *, audit_prefix=''):
+    """Delete a pending roommate invite on this room. Returns a label for it."""
+    from uber.models.hotel import RoomAssignmentInvite
+
+    invite = session.get(RoomAssignmentInvite, invite_id) if invite_id else None
+    if not invite or invite.room_assignment_id != ra.id:
+        raise RoomAssignmentError('That invite no longer exists.')
+
+    label = invite.email or f'code {invite.invite_token}'
+    _audit_roommate_change(session, ra, audit_prefix, "cancelled roommate invite", ra.attendee_id)
+    session.delete(invite)
+    session.flush()
+    return label
