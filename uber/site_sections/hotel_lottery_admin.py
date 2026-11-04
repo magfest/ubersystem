@@ -63,7 +63,7 @@ from uber.hotel.audit import (annotate_issues, collect_issues,
                                    load_issue_notes, prefetch_issue_relations)
 from uber.hotel.queries import (attendee_name_filter, attendee_search_results,
                                 block_availability, build_room_assignment_query,
-                                clamp_page_size, paginate)
+                                clamp_page_size, occupancy_by_block_night, paginate)
 from uber.hotel.run_stats import lottery_run_stats
 from uber.hotel.waitlist import (WaitlistError, accept_waitlist_entry,
                                  sweep_eligible, fulfill_waitlist)
@@ -3766,9 +3766,83 @@ class Root:
         inventory_blocks = _picker_context(session)['inventory_blocks']
         existing_blocks = {str(pb.inventory_id): pb.quantity for pb in partition.blocks}
 
+        event_nights = _event_nights()
+        unpartitioned = occupancy_by_block_night(session.query(RoomAssignment).filter(
+            RoomAssignment.partition_id == None,  # noqa: E711
+            RoomAssignment.is_live,
+            RoomAssignment.inventory_id.in_([str(inv.id) for inv in inventory_blocks])))
+        block_limit = {}
+        for inv in inventory_blocks:
+            limit = max((inv.quantity_for_night(n) for n in event_nights), default=inv.quantity)
+            reason = f'block has {limit}'
+            for night, booked in sorted(unpartitioned.get(str(inv.id), {}).items()):
+                night_qty = inv.quantity_for_night(night)
+                if night_qty - booked < limit:
+                    limit = night_qty - booked
+                    reason = f'{night:%a %b %-d} has {night_qty}, {booked} booked outside partitions'
+            block_limit[str(inv.id)] = (limit, reason)
+        other_alloc = defaultdict(int)
+        for pb in session.query(InventoryPartitionBlock).filter(
+                InventoryPartitionBlock.partition_id != partition.id):
+            other_alloc[str(pb.inventory_id)] += pb.quantity
+        available_by_block = {
+            bid: max(0, limit - other_alloc[bid]) for bid, (limit, _) in block_limit.items()}
+        # Shrinking an already over-allocated block is still allowed.
+        max_qty_by_block = {
+            bid: max(avail, existing_blocks.get(bid, 0)) for bid, avail in available_by_block.items()}
+
+        usage_by_block = {}
+        rooms_by_block = {}
+        if partition.id:
+            live_ras = (session.query(RoomAssignment)
+                        .filter(RoomAssignment.partition_id == partition.id,
+                                RoomAssignment.is_live,
+                                RoomAssignment.inventory_id.isnot(None))
+                        .all())
+            per_block_night = {}
+            for ra in live_ras:
+                bid = str(ra.inventory_id)
+                rooms_by_block[bid] = rooms_by_block.get(bid, 0) + 1
+                if ra.assigned_check_in_date and ra.assigned_check_out_date:
+                    nights = per_block_night.setdefault(bid, {})
+                    d = ra.assigned_check_in_date
+                    while d < ra.assigned_check_out_date:
+                        nights[d] = nights.get(d, 0) + 1
+                        d += timedelta(days=1)
+            for bid, total in rooms_by_block.items():
+                nights = per_block_night.get(bid)
+                usage_by_block[bid] = max(nights.values()) if nights else total
+
+        # An allocation that's already below its usage can stay where it is.
+        min_qty_by_block = {
+            bid: min(use, existing_blocks.get(bid, 0)) for bid, use in usage_by_block.items()}
+
         forms = load_forms(params, partition, ['InventoryPartitionConfig'])
 
+        requested = {}
+        errors = []
         if cherrypy.request.method == 'POST':
+            for inv in inventory_blocks:
+                bid = str(inv.id)
+                qty_str = params.get(f'block_qty_{inv.id}', '').strip()
+                try:
+                    requested[bid] = int(qty_str) if qty_str else 0
+                except ValueError:
+                    errors.append(f"{inv.name or 'inventory'}: quantity must be a whole number.")
+                    continue
+                if requested[bid] > max_qty_by_block[bid]:
+                    errors.append(f"{inv.name or 'inventory'}: only {available_by_block[bid]} rooms "
+                                  f"available ({block_limit[bid][1]}, "
+                                  f"{other_alloc[bid]} allocated to other partitions).")
+                elif requested[bid] < min_qty_by_block.get(bid, 0):
+                    errors.append(f"{inv.name or 'inventory'}: can't go below {min_qty_by_block[bid]} "
+                                  f"({usage_by_block[bid]} rooms booked in this partition on its "
+                                  f"busiest night).")
+            if errors:
+                message = ' '.join(errors)
+                existing_blocks = {bid: qty for bid, qty in requested.items() if qty > 0}
+
+        if cherrypy.request.method == 'POST' and not errors:
             # Not is_admin=True: bill_reference is locked for anyone who is not
             # a full lottery admin, and that lock only applies when the form is
             # populated as a non-admin.
@@ -3780,10 +3854,9 @@ class Root:
             existing_pb = {str(pb.inventory_id): pb for pb in partition.blocks}
             change_lines = []
             for inv in inventory_blocks:
-                qty_str = params.get(f'block_qty_{inv.id}', '')
+                qty = requested[str(inv.id)]
                 inv_label = inv.name or 'inventory'
-                if qty_str != '' and int(qty_str) > 0:
-                    qty = int(qty_str)
+                if qty > 0:
                     if str(inv.id) in existing_pb:
                         old_qty = existing_pb[str(inv.id)].quantity
                         if old_qty != qty:
@@ -3830,45 +3903,15 @@ class Root:
                             if a.id not in granted_account_ids and a.attendee]
         ungranted_admins.sort(key=lambda a: a.attendee.full_name if a.attendee else '')
 
-        # Current usage per block within THIS partition, so admins can
-        # see how much is already committed before changing the
-        # allocation. `usage_by_block` is the PEAK per-night count of
-        # live (ASSIGNED/SECURED) RoomAssignments tagged with this
-        # partition for each inventory block - that's the number the
-        # per-night `quantity` allocation has to cover, so reducing
-        # below it would over-commit the busiest night.
-        # `rooms_by_block` is the total distinct live rooms (handy
-        # context, not the binding constraint).
-        usage_by_block = {}
-        rooms_by_block = {}
-        if partition.id:
-            live_ras = (session.query(RoomAssignment)
-                        .filter(RoomAssignment.partition_id == partition.id,
-                                RoomAssignment.is_live,
-                                RoomAssignment.inventory_id.isnot(None))
-                        .all())
-            per_block_night = {}
-            for ra in live_ras:
-                bid = str(ra.inventory_id)
-                rooms_by_block[bid] = rooms_by_block.get(bid, 0) + 1
-                if ra.assigned_check_in_date and ra.assigned_check_out_date:
-                    nights = per_block_night.setdefault(bid, {})
-                    d = ra.assigned_check_in_date
-                    while d < ra.assigned_check_out_date:
-                        nights[d] = nights.get(d, 0) + 1
-                        d += timedelta(days=1)
-            for bid, total in rooms_by_block.items():
-                nights = per_block_night.get(bid)
-                # Peak per-night usage; fall back to the room count for
-                # rows with no dates so they still register as in-use.
-                usage_by_block[bid] = max(nights.values()) if nights else total
-
         return {
             'partition': partition,
             'forms': forms,
             'inventory_blocks': inventory_blocks,
             'existing_blocks': existing_blocks,
             'usage_by_block': usage_by_block,
+            'available_by_block': available_by_block,
+            'max_qty_by_block': max_qty_by_block,
+            'min_qty_by_block': min_qty_by_block,
             'rooms_by_block': rooms_by_block,
             'grants': grants,
             'ungranted_admins': ungranted_admins,

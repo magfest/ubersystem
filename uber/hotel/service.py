@@ -12,7 +12,7 @@ never commit - the calling route handler / API method / background task owns the
 transaction.
 """
 
-from datetime import date
+from datetime import date, timedelta
 
 from uber.config import c
 from uber.hotel.perms import record_partition_audit
@@ -136,6 +136,43 @@ def assign_physical_room(session, ra, room, auto=False):
     return placed, None
 
 
+def _held_nights(ra):
+    """(inventory_id, partition_id, nights) the row currently counts against."""
+    nights = set()
+    if ra.is_live and ra.assigned_check_in_date and ra.assigned_check_out_date:
+        night = ra.assigned_check_in_date
+        while night < ra.assigned_check_out_date:
+            nights.add(night)
+            night += timedelta(days=1)
+    return ra.inventory_id, ra.partition_id, nights
+
+
+def check_partition_capacity(session, ra, held=None):
+    """Raise RoomAssignmentError when a live partitioned row would put a
+    night of its stay over the partition's allocation of its block.
+
+    `held` is _held_nights(ra) from before an edit; nights the row already
+    held in the same block and partition aren't rechecked, so shrinking a
+    stay in an over-allocated partition still works.
+    """
+    from uber.hotel.queries import capacity_for
+    from uber.models.hotel import HotelRoomInventory
+
+    inventory_id, partition_id, nights = _held_nights(ra)
+    if not (partition_id and inventory_id and nights):
+        return
+    if held and held[:2] == (inventory_id, partition_id):
+        nights -= held[2]
+    inv = session.query(HotelRoomInventory).get(inventory_id)
+    for night in sorted(nights):
+        capacity, assigned, _ = capacity_for(session, inv, night, partition_id,
+                                             exclude_assignment_id=ra.id)
+        if assigned >= capacity:
+            raise RoomAssignmentError(
+                f"No {inv.name or 'room'} rooms left in this partition on "
+                f"{night:%a %b %-d} ({assigned} of {capacity} booked).")
+
+
 def create_room_assignment(session, *, attendee_id, inventory_id,
                            partition_id=None, lottery_application_id=None,
                            assignment_reason=None, status=None,
@@ -199,6 +236,7 @@ def create_room_assignment(session, *, attendee_id, inventory_id,
         room_number=((room_number or '').strip() or None) if allow_room_number else None,
         admin_notes=(admin_notes or '').strip(),
     )
+    check_partition_capacity(session, ra)
     session.add(ra)
     session.flush()
 
@@ -267,6 +305,7 @@ def apply_room_assignment_edits(session, ra, params, *, audit_prefix, fail,
     room block, or billing also calls notify_guest_of_room_change.
     """
     changes = []
+    held = _held_nights(ra)
 
     if 'inventory_id' in params:
         new_inv = params.get('inventory_id', '').strip()
@@ -361,6 +400,13 @@ def apply_room_assignment_edits(session, ra, params, *, audit_prefix, fail,
             changes.append(field.replace('_', ' '))
             # NOT NULL string columns clear to '' rather than None.
             setattr(ra, field, raw or (None if nullable else ''))
+
+    if changes:
+        try:
+            check_partition_capacity(session, ra, held)
+        except RoomAssignmentError as e:
+            session.expire(ra)
+            fail(e.message)
 
     if changes:
         session.add(ra)
