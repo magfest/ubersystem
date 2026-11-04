@@ -5,7 +5,7 @@
 <div class="modal-body">
     {% if total_cost %}
     <div class="center text-center check-in">
-        <h4>These attendees currently owe <strong>{{ (total_cost / 100)|format_currency }}</strong>.</h4>
+        <h4>These attendees currently owe <strong>{{ total_cost }}</strong>.</h4>
         {% if c.SPIN_TERMINAL_AUTH_KEY %}
             <form method="post" action="mark_as_paid">
                 {{ csrf_token() }}
@@ -89,7 +89,7 @@
                 <input class="form-control" form="update-form-{{ attendee.id }}" id="badge_printed_name-{{ attendee.id }}" maxlength="30" name="badge_printed_name" type="text" value="{{ attendee.badge_printed_name }}">
             </td>
             <td>
-                {{ attendee.amount_unpaid_if_valid|format_currency }}
+                {{ attendee.amount_unpaid_if_valid }}
             </td>
             <td>
                 <form id="update-form-{{ attendee.id }}">

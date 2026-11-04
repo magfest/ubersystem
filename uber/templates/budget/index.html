@@ -10,7 +10,7 @@
 </style>
 
 <div class="jumbotron">
-    <h1 class="text-center">({{ (total / 100)|format_currency }} total)</h1>
+    <h1 class="text-center">({{ total }} total)</h1>
 </div>
 
 <div class="card">
@@ -29,7 +29,7 @@
       <tr>
         <td>{{ item.attendee|form_link }}</td>
         <td>{{ item.item_type_label }}</td>
-        <td>{{ (item.amount / 100)|format_currency }}</td>
+        <td>{{ item.amount }}</td>
         <td>{{ item.desc }}</td>
       </tr>
     {% endfor %}

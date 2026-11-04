@@ -5,7 +5,7 @@
 <ul>
     {% for txn in txns %}
     <li>
-        "{{ txn.desc }}" for {{ (txn.amount / 100)|format_currency }}
+        "{{ txn.desc }}" for {{ txn.amount }}
         (<a href="{{ c.URL_BASE }}/reg_admin/receipt_items?id={{ txn.receipt.owner_id }}&highlight_id={{ txn.id }}" target="_blank">View</a>)
     </li>
     {% endfor %}

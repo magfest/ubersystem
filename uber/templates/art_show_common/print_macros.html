@@ -33,18 +33,18 @@
   </tr>
   {% endfor %}
   <tr><td colspan="6"></td></tr>
-  <tr><td colspan="4"></td><td><strong>TOTAL Pretax</strong></td><td>{{ (receipt.subtotal / 100)|format_currency }}</td></tr>
-  <tr><td colspan="4"></td><td><strong>Tax</strong></td><td>{{ (receipt.tax / 100)|format_currency }}</td></tr>
-  <tr><td colspan="4"></td><td><strong>Grand Total</strong></td><td>{{ (receipt.total / 100)|format_currency }}</td></tr>
+  <tr><td colspan="4"></td><td><strong>TOTAL Pretax</strong></td><td>{{ receipt.subtotal }}</td></tr>
+  <tr><td colspan="4"></td><td><strong>Tax</strong></td><td>{{ receipt.tax }}</td></tr>
+  <tr><td colspan="4"></td><td><strong>Grand Total</strong></td><td>{{ receipt.total }}</td></tr>
   <tr></tr>
   {% for payment in receipt.card_payments %}
   <tr>
-    <td colspan="4"></td><td><strong>Total Card {{ loop.index }}</strong></td><td>{{ (payment.amount / 100)|format_currency }}</td>
+    <td colspan="4"></td><td><strong>Total Card {{ loop.index }}</strong></td><td>{{ payment.amount }}</td>
   </tr>
   {% endfor %}
-  <tr><td colspan="4"></td><td><strong>Total Paid Credit</strong></td><td>{{ (receipt.card_total / 100)|format_currency }}</td></tr>
-  <tr><td colspan="4"></td><td><strong>Total Paid Cash</strong></td><td>{{ (receipt.cash_total / 100)|format_currency }}</td></tr>
-  <tr><td colspan="4"></td><td><strong>Amount Due:</strong></td><td>{{ (receipt.owed / 100)|format_currency }}</td></tr>
+  <tr><td colspan="4"></td><td><strong>Total Paid Credit</strong></td><td>{{ receipt.card_total }}</td></tr>
+  <tr><td colspan="4"></td><td><strong>Total Paid Cash</strong></td><td>{{ receipt.cash_total }}</td></tr>
+  <tr><td colspan="4"></td><td><strong>Amount Due:</strong></td><td>{{ receipt.owed }}</td></tr>
 </table>
 <br/>
 <div class="text-end">
@@ -87,7 +87,7 @@
   {% endif %}
   {% endfor %}
   <tr><td colspan="5"></td></tr>
-  <tr><td colspan="4"><strong>Total Payment from Bids</strong></td><td>{{ (app.total_sales / 100)|format_currency }}</td></tr>
+  <tr><td colspan="4"><strong>Total Payment from Bids</strong></td><td>{{ app.total_sales }}</td></tr>
 </table>
 <table class="table table-bordered" style="margin: 20px; width: calc(100% - 40px);">
   <tr><td width="25%"><strong>Fees</strong></td></tr>
@@ -102,16 +102,16 @@
     <td>Total Table Fee</td><td>{{ ((app.tables + app.tables_ad) * c.COST_PER_TABLE)|format_currency }}</td>
   </tr>
   {% if app.mailing_fee %}<tr><td colspan="4"></td><td>Total Mail-In Fee</td><td>{{ app.mailing_fee|format_currency }}</td></tr>{% endif %}
-  <tr><td colspan="4"></td><td><strong>Total Fees</strong></td><td>{{ app.total_cost|format_currency }}</td></tr>
-  <tr><td colspan="4"></td><td>Prepaid</td><td>{{ (app.amount_paid / 100)|format_currency }}</td></tr>
+  <tr><td colspan="4"></td><td><strong>Total Fees</strong></td><td>{{ app.total_cost }}</td></tr>
+  <tr><td colspan="4"></td><td>Prepaid</td><td>{{ app.amount_paid }}</td></tr>
 </table>
 <table class="table table-bordered" style="margin: 20px; width: calc(100% - 40px);">
   <tr>
     <td width="25%"><strong>Commission Rate</strong></td><td>{{ (c.COMMISSION_PCT // 100) if (c.COMMISSION_PCT // 100) == (c.COMMISSION_PCT / 100) else "%.2f"|format(c.COMMISSION_PCT / 100) }}%</td>
-    <td><strong>Commission</strong></td><td>{{ (app.commission / 100)|format_currency }}</td>
+    <td><strong>Commission</strong></td><td>{{ app.commission }}</td>
   </tr>
   <tr><td><strong>Name on Check</strong></td><td>{{ app.check_payable or app.attendee.legal_first_name ~ " " ~ app.attendee.legal_last_name }}</td></tr>
-  <tr><td><strong>Check Total</strong></td><td>{{ (app.check_total / 100)|format_currency }}</td></tr>
+  <tr><td><strong>Check Total</strong></td><td>{{ app.check_total }}</td></tr>
 </table>
 <div class="form-group">
   <label class="col-sm-3 control-label optional-field">Artist Signature</label>

@@ -53,8 +53,8 @@ get showNewBadgeFields() { return this.is_new || this.badges > {{ group_or_table
 <div class="row g-3 mb-3">
 {% block cost %}
 {% set cost_warning %}
-{% if group.cost and receipt and (receipt.item_total / 100) != group.cost %}
-<span class="text-danger">This group's receipt has been altered. Their current receipt total is {{ (receipt.item_total / 100)|format_currency }}.</span>
+{% if group.cost and receipt and receipt.item_total != group.cost %}
+<span class="text-danger">This group's receipt has been altered. Their current receipt total is {{ receipt.item_total }}.</span>
 {% endif %}
 {% endset %}
     <div class="col-sm">
