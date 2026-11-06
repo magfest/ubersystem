@@ -1167,7 +1167,9 @@ class Config(_Overridable):
                     .options(
                         joinedload(Attendee.admin_account),
                         selectinload(Attendee.assigned_depts)).one()
-                return admin_attendee.to_dict(attrs)
+                admin_attendee_dict = admin_attendee.to_dict(attrs)
+                admin_attendee_dict['full_registration_admin'] = admin_attendee.admin_account.full_registration_admin
+                return admin_attendee_dict
         except Exception:
             return {}
 

@@ -289,7 +289,7 @@ class Root:
                 if attendee.is_new and c.ADMIN_BADGES_NEED_APPROVAL and not session.current_admin_account().full_registration_admin:
                     attendee.badge_status = c.PENDING_STATUS
                     message += ' as a pending badge'
-                elif attendee.create_account:
+                elif attendee.create_account and not attendee.managers:
                     create_new_account(session, attendee)
 
                 stay_on_form = params.get('save_return_to_search', False) is False
@@ -1692,6 +1692,8 @@ class Root:
             if attendee.is_new and c.ADMIN_BADGES_NEED_APPROVAL and not session.current_admin_account().full_registration_admin:
                 attendee.badge_status = c.PENDING_STATUS
                 message += ' as a pending badge'
+            elif attendee.create_account and not attendee.managers:
+                create_new_account(session, attendee)
 
             session.add(attendee)
             session.commit()
