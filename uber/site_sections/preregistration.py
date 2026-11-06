@@ -1752,8 +1752,7 @@ class Root:
         if old.lottery_application:
             session.delete(old.lottery_application)
 
-        EmailService.queue_email(session, 'code_badge_transfer_new_badge',
-                                 to=[transfer_badge.email_to_address, c.BADGE_TRANSFERS_EMAIL],
+        EmailService.queue_email(session, 'code_badge_transfer_new_badge', to=transfer_badge.email_to_address,
                                  data={'transferee_code': transfer_badge.transfer_code, 'transferer_code': old.transfer_code,
                                        'attendee': transfer_badge, 'consent_form': transfer_badge.age_group_conf['consent_form']})
         
@@ -1848,8 +1847,7 @@ class Root:
                 if old.lottery_application:
                     session.delete(old.lottery_application)
 
-                EmailService.queue_email(session, 'link_badge_transfer',
-                                         to=[attendee.email_to_address, c.BADGE_TRANSFERS_EMAIL],
+                EmailService.queue_email(session, 'link_badge_transfer', to=attendee.email_to_address,
                                          data={'new': attendee, 'old': old, 'include_link': True,
                                                'old_badge_type': old.badge_type_label,
                                                'new_consent_form': attendee.age_group_conf['consent_form']})
