@@ -41,6 +41,8 @@ __all__ = ['LotteryApplication',
 # is the booker (legal name on the reservation); the M2M tracks *who's sleeping
 # in the room*. The solver pre-populates this with the room group's members
 # (leader + valid_group_members); the leader can edit per-room afterwards.
+# The dates are set only for staff crash space, where roommates can stay
+# different nights; NULL means the assignment's own dates.
 room_assignment_occupant = sa.Table(
     'room_assignment_occupant',
     MagModel.metadata,
@@ -50,6 +52,8 @@ room_assignment_occupant = sa.Table(
     sa.Column('attendee_id', Uuid(as_uuid=False),
               sa.ForeignKey('attendee.id', ondelete='CASCADE'),
               primary_key=True),
+    sa.Column('check_in_date', Date, nullable=True),
+    sa.Column('check_out_date', Date, nullable=True),
     sa.Index('ix_room_assignment_occupant_attendee_id', 'attendee_id'),
 )
 
@@ -1164,6 +1168,28 @@ class RoomAssignment(MagModel, table=True):
                                LotteryRun.status == c.LOTTERY_PENDING))
 
     @hybrid_property
+    def shift_requirements_apply(self):
+        """Only staff crash space (assigned in tuber, imported over the API)
+        is held to the staff rooming shift requirements."""
+        return self.assignment_reason == c.STAFF_CRASH_SPACE
+
+    @shift_requirements_apply.expression
+    def shift_requirements_apply(cls):
+        return cls.assignment_reason == c.STAFF_CRASH_SPACE
+
+    @property
+    def source_label(self):
+        """How the booker came to hold this room, for admin listings."""
+        if self.lottery_run_id or self.assignment_reason in (c.LOTTERY_AWARD, c.SUITE_CONNECTOR):
+            if not self.lottery_run:
+                return 'Lottery'
+            return 'Staff lottery' if self.lottery_run.lottery_group == 'staff' else 'Attendee lottery'
+        return {
+            c.PARTITION_GRANT: 'Partition owner',
+            c.MANUAL: 'Hotel admin',
+        }.get(self.assignment_reason, self.assignment_reason_label)
+
+    @hybrid_property
     def in_hotel_export(self):
         """Sent to the hotel: live rooms, plus any room the hotel has confirmed,
         so it hears about cancellations and other changes."""
@@ -1197,7 +1223,12 @@ class RoomAssignment(MagModel, table=True):
     @property
     def changes_locked(self):
         """Attendees and staff can view this room but not edit or cancel it."""
-        return self.export_locked or self.room_changes_locked
+        return self.export_locked or self.room_changes_locked or self.staff_managed
+
+    @property
+    def staff_managed(self):
+        """Staff crash space is assigned in tuber, so staffers only view it."""
+        return self.assignment_reason == c.STAFF_CRASH_SPACE
 
     @property
     def effective_occupants(self):
@@ -2100,6 +2131,17 @@ def _ra_after_update_sync_app(mapper, connection, target):
         _demote_app_if_no_live_rooms(connection, target.lottery_application_id)
     elif was_live and target.status == c.CANCELLED and target.cancellation_confirmation_number:
         _cancel_app_if_no_live_rooms(connection, target.lottery_application_id)
+
+
+@_sa_event.listens_for(RoomAssignment, 'after_update')
+def _ra_after_update_clear_occupant_dates(mapper, connection, target):
+    # Only staff crash space keeps per-occupant dates.
+    if (target.assignment_reason != c.STAFF_CRASH_SPACE
+            and sa.inspect(target).attrs.assignment_reason.history.has_changes()):
+        connection.execute(
+            room_assignment_occupant.update()
+            .where(room_assignment_occupant.c.room_assignment_id == target.id)
+            .values(check_in_date=None, check_out_date=None))
 
 
 @_sa_event.listens_for(RoomAssignment, 'after_delete')

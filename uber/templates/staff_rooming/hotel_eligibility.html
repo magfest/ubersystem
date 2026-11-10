@@ -166,17 +166,17 @@
           {% endif %}
         </td>
         <td>
-          {% set _kind = a.hotel_room_kind %}
-          {% if _kind == 'lottery' %}
-            <span class="badge bg-primary">Lottery</span>
-          {% elif _kind == 'shared' %}
-            <span class="badge bg-info text-dark">Shared</span>
-          {% elif _kind == 'mixed' %}
-            <span class="badge bg-warning text-dark" title="This staffer holds more than one kind of room.">Mixed</span>
-          {% elif _kind %}
-            <span class="badge bg-secondary">Other</span>
+          {% set _chips = {'lottery': ('bg-primary', 'Lottery'), 'shared': ('bg-info text-dark', 'Shared'),
+                           'other': ('bg-secondary', 'Other')} %}
+          {% for _kind, _ra in a.hotel_rooms_by_kind %}
+            <a href="../hotel_lottery_admin/assign_room?id={{ _ra.id }}"
+               class="badge {{ _chips[_kind][0] }} text-decoration-none"
+               title="{{ _ra.room_summary }}">{{ _chips[_kind][1] }}</a>
           {% else %}
             <span class="text-muted">-</span>
+          {% endfor %}
+          {% if a.hotel_room_kind == 'mixed' %}
+            <span class="badge bg-warning text-dark" title="This staffer holds more than one kind of room.">Mixed</span>
           {% endif %}
         </td>
         {% if shared_enabled %}

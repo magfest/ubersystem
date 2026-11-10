@@ -9,9 +9,11 @@
   {% if department %}{{ department.name }}: Non-Compliant Staffers{% else %}Non-Compliant Staffers{% endif %}
 </h1>
 <p class="text-muted">
-  Staff with hotel rooms who don't meet the shift requirements defined on the
-  <a href="index">Staff Rooming Requirements</a> page. Per-date rules apply
-  to each night the staffer's room covers.
+  Staff with crash space imported from tuber who don't meet the shift
+  requirements defined on the <a href="index">Staff Rooming Requirements</a>
+  page. Per-date rules apply to each night the staffer's room covers. Rooms
+  won in a lottery or assigned directly by a hotel admin or partition owner
+  are exempt.
 </p>
 
 {# Filter form: department picker + free-text search in one card.
@@ -46,7 +48,7 @@
 
 {% if total_unfiltered == 0 %}
 <div class="alert alert-success">
-  Everyone with a hotel room is currently in compliance.
+  Everyone with staff crash space is currently in compliance.
 </div>
 {% elif total == 0 %}
 {# Some non-compliant staffers exist, but none match the active

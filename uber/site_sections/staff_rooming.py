@@ -8,7 +8,7 @@ weighted-hour minimum across the whole con.
 The page auto-populates with sensible defaults on first visit
 """
 
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 
 import cherrypy
 
@@ -19,8 +19,9 @@ from uber.config import c
 from uber.decorators import all_renderable
 from uber.errors import HTTPRedirect
 from uber.hotel.queries import (build_room_assignment_query, clamp_page_size,
-                                paginate, shared_room_eligible_query,
-                                staff_rooming_query)
+                                occupant_stay_dates, paginate,
+                                shared_room_eligible_query, staff_rooming_query)
+from uber.hotel.service import RoomAssignmentError, set_occupant_stay_dates
 from uber.models import (Attendee, Department, NightShiftRequirement,
                          RoomAssignment, Shift)
 from uber.models.hotel import LotteryHotel
@@ -236,7 +237,7 @@ class Root:
         }
 
     def staffer_rooms(self, session, message='', page='1', page_size='50',
-                      billing='all', hotel_id='', search=''):
+                      billing='all', hotel_id='', search='', source='all'):
         ps = clamp_page_size(page_size)
         staff_badges = [c.STAFF_BADGE, c.CONTRACTOR_BADGE]
 
@@ -254,8 +255,20 @@ class Root:
         elif billing == 'parking':
             q = q.filter(RoomAssignment.payment_type.in_(c.HOTEL_PAYMENT_TYPES_WITH_PARKING))
 
+        # Same split as RoomAssignment.source_label.
+        from_lottery = or_(RoomAssignment.lottery_run_id.isnot(None),
+                           RoomAssignment.assignment_reason.in_([c.LOTTERY_AWARD, c.SUITE_CONNECTOR]))
+        if source == 'crash_space':
+            q = q.filter(RoomAssignment.shift_requirements_apply, ~from_lottery)
+        elif source == 'lottery':
+            q = q.filter(from_lottery)
+        elif source == 'other':
+            q = q.filter(~RoomAssignment.shift_requirements_apply, ~from_lottery)
+
         q = q.order_by(RoomAssignment.assigned_check_in_date.asc().nullsfirst(),
                        Attendee.last_name.asc())
+        q = q.options(selectinload(RoomAssignment.lottery_run),
+                      selectinload(RoomAssignment.occupants))
         assignments, total, page_num, page_count = paginate(q, page, ps)
 
         # Aggregates ignore page / billing filter so the badges always
@@ -273,17 +286,44 @@ class Root:
         return {
             'message': message,
             'assignments': assignments,
+            'stay_dates': occupant_stay_dates(session, [ra.id for ra in assignments]),
             'page': page_num,
             'page_size': ps,
             'total': total,
             'page_count': page_count,
             'billing': billing,
+            'source': source,
             'hotel_id': hotel_id,
             'search': search,
             'hotels': hotels,
             'total_self': total_self,
             'total_master': total_master,
         }
+
+    def set_occupant_dates(self, session, id, csrf_token=None, return_url='', **params):
+        """Save each roommate's own stay dates on a staff crash space room;
+        a blank date means the room's own."""
+        if cherrypy.request.method != 'POST':
+            raise HTTPRedirect('staffer_rooms')
+        check_csrf(csrf_token)
+
+        ra = session.query(RoomAssignment).get(id)
+        if not ra:
+            _redirect_back(return_url, 'staffer_rooms', 'Room not found.')
+        try:
+            dates = {
+                attendee_id: tuple(
+                    date.fromisoformat(params[key]) if params.get(key) else None
+                    for key in (f'check_in_{attendee_id}', f'check_out_{attendee_id}'))
+                for attendee_id in {key.split('_')[-1] for key in params if key.startswith('check_')}}
+            changed = set_occupant_stay_dates(session, ra, dates)
+        except ValueError:
+            _redirect_back(return_url, 'staffer_rooms', 'Dates must look like 2027-01-07.')
+        except RoomAssignmentError as e:
+            session.rollback()
+            _redirect_back(return_url, 'staffer_rooms', str(e))
+        session.commit()
+        _redirect_back(return_url, 'staffer_rooms', f'Stay dates updated for {changed} roommate(s).')
 
     # List all staff with toggleable `hotel_eligible` flag. Default
     # filter shows currently-eligible staff so the admin can scan who
@@ -330,6 +370,7 @@ class Root:
         # The template reads both per row, and without these it is one query
         # per staffer for each.
         q = q.options(selectinload(Attendee.room_assignments),
+                      selectinload(Attendee.occupied_rooms),
                       selectinload(Attendee.assigned_depts))
         staffers, total, page_num, page_count = paginate(q, page, ps)
 

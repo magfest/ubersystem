@@ -949,6 +949,12 @@ if c.SHIFTS_CREATED:
         when=[days_after(1, c.ESCHATON)],
         allow_post_con=True)
 
+    StopsEmailFixture(
+        f'Shifts needed to keep your {c.EVENT_NAME} staff crash space',
+        'staffing/shift_compliance_nag.html',
+        "lambda a: c.AFTER_SHIFTS_CREATED and not a.is_shift_compliant",
+        'staff_crash_space_shift_requirements')
+
 
 # For events with customized badges, these emails remind people to let us know what we want on their badges.  We have
 # one email for our volunteers who haven't bothered to confirm they're coming yet (bleh) and one for everyone else.

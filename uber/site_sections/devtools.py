@@ -512,7 +512,7 @@ def _seed_curated_scenarios(session, ctx):
         session.add(RoomAssignment(
             attendee_id=att.id, inventory_id=inv_blocks[0].id,
             lottery_application_id=app.id, lottery_run_id=run.id,
-            assignment_reason=c.STAFF_AUTO, status=c.SECURED, payment_type='masterbill',
+            assignment_reason=c.STAFF_CRASH_SPACE, status=c.SECURED, payment_type='masterbill',
             assigned_check_in_date=event_start, assigned_check_out_date=event_end))
         curated_created += 1
 

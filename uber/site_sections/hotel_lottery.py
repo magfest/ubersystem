@@ -17,6 +17,7 @@ from uber.forms import load_forms
 from uber.models import Attendee, LotteryApplication, RoomAssignment
 from uber.models.hotel import (RoomAssignmentInvite, OverflowReveal,
                                OverflowRevealLink)
+from uber.hotel.queries import occupant_stay_dates
 from uber.hotel.waitlist import WaitlistError, resize_assignment
 from uber.email import EmailService
 from uber.utils import (RegistrationCode, check_csrf, redirect_with_params,
@@ -55,6 +56,8 @@ def _require_post_csrf(params, redirect):
 
 
 def _lock_message(ra):
+    if ra.staff_managed:
+        return 'This room is assigned by staffing and cannot be changed here.'
     if ra.export_locked:
         return 'Your booking has been sent to the hotel. Please contact your hotel to make changes.'
     return 'Your room is now locked. Please contact your hotel to make changes.'
@@ -385,6 +388,7 @@ def _render_room_detail(session, assignment_id, attendee_id, message):
         'card_source_rooms': card_source_rooms,
         'message': message,
         'vault_enabled': c.VAULT_ENABLED,
+        'stay_dates': occupant_stay_dates(session, [ra.id])[ra.id] if ra.staff_managed else {},
     }
 
 
@@ -918,10 +922,13 @@ class Root:
 
         # Expired and cancelled rooms stay on file as a record but no longer
         # hold inventory, so they get their own read-only section.
+        # Staff crash space has no leader, so it is listed the same for
+        # the booker and for every roommate.
         return {
             'attendee': attendee,
-            'primaries': [ra for ra in top_level if ra.is_live],
-            'guest_in': [ra for ra in guest_rooms if ra.is_live],
+            'primaries': [ra for ra in top_level if ra.is_live and not ra.staff_managed],
+            'guest_in': [ra for ra in guest_rooms if ra.is_live and not ra.staff_managed],
+            'crash_rooms': [ra for ra in top_level + guest_rooms if ra.is_live and ra.staff_managed],
             'inactive_rooms': ([ra for ra in top_level if not ra.is_live]
                                + [ra for ra in guest_rooms if not ra.is_live]),
             'message': message,

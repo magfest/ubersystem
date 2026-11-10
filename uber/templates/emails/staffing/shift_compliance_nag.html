@@ -1,22 +1,29 @@
-{{ attendee.first_name }},
+<html>
+<head></head>
+<body>
 
-Our records show you have a hotel room assignment for {{ c.EVENT_NAME_AND_YEAR }}, but you haven't yet met the shift requirements that come with it.
+<p>{{ attendee.first_name }},</p>
 
-To keep your hotel space, please address the following before the convention starts:
+<p>You have staff crash space for {{ c.EVENT_NAME_AND_YEAR }}, but you haven't yet met the shift requirements that come with it.</p>
+
+<p>To keep your space, please take care of the following before the convention starts:</p>
 
 <ul>
-{% for req in attendee.shift_compliance_violations %}
-  {% if req.kind == c.CORE %}
-  <li>Reach at least {{ req.required_weighted_hours }} weighted shift hours by {{ req.night_date|date("%A, %B %-d") }} (you currently have {{ attendee.weighted_hours }}).</li>
-  {% else %}
-  <li>Pick up a shift overlapping {{ req.shift_window_start|datetime_local("%A, %B %-d %-I:%M%p") }} - {{ req.shift_window_end|datetime_local("%-I:%M%p") }} ({{ req.kind_label }}).</li>
-  {% endif %}
+{% set violations = attendee.shift_compliance_violations %}
+{# One line per hours target, however many core nights share it. #}
+{% for hours, reqs in violations|selectattr('kind', 'equalto', c.CORE)|groupby('required_weighted_hours') %}
+  <li>Reach at least {{ hours }} weighted shift hours (you currently have {{ attendee.weighted_hours }}), needed for the night{{ reqs|length|pluralize }} of {% for req in reqs %}{{ req.night_date|date("%A, %B %-d") }}{% if not loop.last %}{{ ' and ' if loop.revindex == 2 else ', ' }}{% endif %}{% endfor %}.</li>
+{% endfor %}
+{% for req in violations if req.kind != c.CORE %}
+  <li>Pick up a shift overlapping {{ req.shift_window_start|datetime_local("%A, %B %-d %-I:%M%p") }} - {{ req.shift_window_end|datetime_local("%-I:%M%p") }} ({{ req.kind_label }}), needed for the night of {{ req.night_date|date("%A, %B %-d") }}.</li>
 {% endfor %}
 </ul>
 
-You can sign up for shifts here: <a href="{{ c.URL_BASE }}/staffing/shifts">{{ c.URL_BASE }}/staffing/shifts</a>
+<p>You can sign up for shifts here: <a href="{{ c.URL_BASE }}/staffing/shifts">{{ c.URL_BASE }}/staffing/shifts</a></p>
 
-If you can no longer fulfil these requirements, please reply to this email so we can release the room to someone else.
+<p>If you can no longer meet these requirements, please reply to this email so we can give the space to someone else.</p>
 
-Thanks,<br/>
-{{ c.EVENT_NAME }} Staff
+<p>{{ email_signature|linebreaksbr }}</p>
+
+</body>
+</html>

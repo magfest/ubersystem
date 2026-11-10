@@ -159,6 +159,19 @@ def build_room_assignment_query(session, *, status='live', hotel_id='',
     return q
 
 
+def occupant_stay_dates(session, assignment_ids):
+    """Return {assignment_id: {attendee_id: (check_in, check_out)}} from the
+    occupant rows; a date is None where the occupant has the room's own."""
+    from uber.models.hotel import room_assignment_occupant as occupant
+
+    dates = defaultdict(dict)
+    if assignment_ids:
+        for row in session.execute(occupant.select().where(
+                occupant.c.room_assignment_id.in_(list(assignment_ids)))):
+            dates[row.room_assignment_id][row.attendee_id] = (row.check_in_date, row.check_out_date)
+    return dates
+
+
 def attendee_search_results(session, q, limit=25):
     """JSON-ready rows for the admin attendee-picker widgets
     (`attendee_search_widget` + static/js/hotel-attendee-search.js).
