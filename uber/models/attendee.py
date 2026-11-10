@@ -1988,6 +1988,16 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         return localized_now() > self.shift_signups_start
 
     @property
+    def awaiting_dept_assignment(self):
+        """Return True if this event requires a department for the checklist and shifts, and the attendee has no
+        assigned department.
+
+        Also True for attendees who are not volunteering, which keeps them off the staffing pages. Pair it with
+        staffing when only volunteers should match.
+        """
+        return c.SHIFTS_CREATED != c.VOLUNTEER_SIGNUPS_START and not self.assigned_depts
+
+    @property
     def handles_cash(self):
         return bool(self.staffing and any(d.handles_cash for d in self.assigned_depts))
 
