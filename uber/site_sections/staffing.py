@@ -28,6 +28,18 @@ def _convert_urls(desc):
     return desc
 
 
+def _dept_assignment_message():
+    action = 'completing your volunteer checklist' if c.VOLUNTEER_CHECKLIST_OPEN else 'signing up for shifts'
+    return f"You must be assigned to a department before {action}."
+
+
+def _require_dept_assignment(attendee):
+    """Redirect to the homepage if the volunteer cannot use the checklist or shifts until assigned a department."""
+    if attendee.awaiting_dept_assignment:
+        redirect = '../preregistration/homepage' if c.ATTENDEE_ACCOUNTS_ENABLED else '../landing/index'
+        raise HTTPRedirect('{}?message={}', redirect, _dept_assignment_message())
+
+
 @all_renderable(public=True)
 class Root:
     @requires_account(Attendee)
@@ -35,17 +47,20 @@ class Root:
         attendee = session.volunteer_from_id(id)
         if c.UBER_SHUT_DOWN:
             return render('staffing/printable.html', {'attendee': attendee})
-        else:
-            if not c.VOLUNTEER_CHECKLIST_OPEN or attendee.shift_prereqs_complete:
-                raise HTTPRedirect('shifts?id={}&message={}', attendee.id, message)
-            raise HTTPRedirect('checklist?id={}&message={}', attendee.id, message)
+
+        _require_dept_assignment(attendee)
+        if not c.VOLUNTEER_CHECKLIST_OPEN or attendee.shift_prereqs_complete:
+            raise HTTPRedirect('shifts?id={}&message={}', attendee.id, message)
+        raise HTTPRedirect('checklist?id={}&message={}', attendee.id, message)
 
     @requires_account(Attendee)
     def checklist(self, session, id, message=''):
         attendee = session.volunteer_from_id(id)
         if c.UBER_SHUT_DOWN:
             return render('staffing/printable.html', {'attendee': attendee})
-        elif not c.VOLUNTEER_CHECKLIST_OPEN:
+
+        _require_dept_assignment(attendee)
+        if not c.VOLUNTEER_CHECKLIST_OPEN:
             raise HTTPRedirect('shifts?id={}&message={}', attendee.id, message)
         else:
             return {
@@ -60,6 +75,9 @@ class Root:
     @requires_account(Attendee)
     def food_restrictions(self, session, id, message='', **params):
         attendee = session.volunteer_from_id(params.get('attendee_id', id))
+        # Guests reach this page from preregistration/guest_food and have no department.
+        if attendee.badge_type != c.GUEST_BADGE:
+            _require_dept_assignment(attendee)
         restrictions = attendee.food_restrictions or FoodRestrictions(attendee_id=attendee.id)
         forms = load_forms(params, restrictions, ["DietaryRestrictions"])
 
@@ -106,6 +124,7 @@ class Root:
     @check_shutdown
     def shirt_size(self, session, id, message='', **params):
         attendee = session.volunteer_from_id(id)
+        _require_dept_assignment(attendee)
         if cherrypy.request.method == "POST":
             check_csrf(params.get('csrf_token'))
             test_attendee = Attendee(**attendee.to_dict())
@@ -133,6 +152,7 @@ class Root:
     def volunteer_agreement(self, session, id, message='', agreed_to_terms=None, agreed_to_terms_1=None,
                             agreed_to_terms_2=None, csrf_token=None):
         attendee = session.volunteer_from_id(id)
+        _require_dept_assignment(attendee)
         if csrf_token is not None:
             check_csrf(csrf_token)
             if agreed_to_terms or (agreed_to_terms_1 and agreed_to_terms_2):
@@ -156,6 +176,7 @@ class Root:
     @check_shutdown
     def emergency_procedures(self, session, id, message='', reviewed_procedures=None, csrf_token=None):
         attendee = session.volunteer_from_id(id)
+        _require_dept_assignment(attendee)
         if csrf_token is not None:
             check_csrf(csrf_token)
             if reviewed_procedures:
@@ -174,6 +195,7 @@ class Root:
     @check_shutdown
     def cash_handling(self, session, id, message='', reviewed_cash_handling=None, csrf_token=None):
         attendee = session.volunteer_from_id(id)
+        _require_dept_assignment(attendee)
         if csrf_token is not None:
             check_csrf(csrf_token)
             if reviewed_cash_handling:
@@ -192,6 +214,7 @@ class Root:
     @check_shutdown
     def credits(self, session, id, message='', name_in_credits='', csrf_token=None):
         attendee = session.volunteer_from_id(id)
+        _require_dept_assignment(attendee)
         if csrf_token is not None:
             check_csrf(csrf_token)
             attendee.name_in_credits = name_in_credits
@@ -209,6 +232,7 @@ class Root:
     @check_shutdown
     def shifts(self, session, id, **params):
         volunteer = session.volunteer_from_id(id)
+        _require_dept_assignment(volunteer)
 
         # Covers the case when signups are only available for staff
         # If the checklist isn't open at all or no one can sign up for shifts, we redirect in decorators.py/restricted
@@ -258,9 +282,11 @@ class Root:
     @requires_account(Attendee)
     @ajax_gettable
     def get_available_jobs(self, session, id, all=False, highlight=False, **params):
-        joblist = session.jobs_for_signups(id=id, all=all)
-
         volunteer = session.volunteer_from_id(id)
+        if volunteer.awaiting_dept_assignment:
+            return []
+
+        joblist = session.jobs_for_signups(id=id, all=all)
         assigned_dept_ids = set(volunteer.assigned_depts_ids)
         event_list = []
 
@@ -362,6 +388,9 @@ class Root:
     @ajax
     def sign_up(self, session, id, job_id, **params):
         volunteer = session.volunteer_from_id(id)
+
+        if volunteer.awaiting_dept_assignment:
+            return {'success': False, 'message': _dept_assignment_message()}
 
         # These match the conditions under which signup_base.html shows the Shifts link.
         if not volunteer.shift_signups_available:
