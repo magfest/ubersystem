@@ -133,7 +133,8 @@
     </li>
   {% endif %}
   {% endif %}
-  {% if attendee.has_badge and attendee.staffing and attendee.badge_type != c.CONTRACTOR_BADGE and c.CHECKLIST_OR_SIGNUPS_OPEN %}
+  {% if attendee.has_badge and attendee.staffing and attendee.badge_type != c.CONTRACTOR_BADGE and c.CHECKLIST_OR_SIGNUPS_OPEN
+        and not attendee.awaiting_dept_assignment %}
   <li class="nav-item">
     <a class="p-0 pe-1" href="../staffing/index?id={{ attendee.id }}" target="_blank">
       {% if not c.VOLUNTEER_CHECKLIST_OPEN %}
