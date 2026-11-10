@@ -176,6 +176,25 @@ class Root:
                           'Yes' if a.placeholder else 'No', ', '.join(a.assigned_depts_labels)])
 
     @csv_file
+    def unassigned_volunteers_with_shifts(self, out, session):
+        """List shifts held by volunteers who have no department assignment.
+
+        At events where awaiting_dept_assignment applies, these volunteers can no longer open the shifts page.
+        Signed Up is when the shift row was created, which is the assignment time for shifts an admin added.
+        """
+        out.writerow(['First Name', 'Last Name', 'Email', 'Department', 'Job', 'Start', 'Signed Up'])
+        volunteers = session.staffers().filter(
+            ~Attendee.dept_memberships.any(),
+            Attendee.shifts.any()
+        )
+        for a in volunteers:
+            for shift in sorted(a.shifts, key=lambda s: s.job.start_time):
+                job = shift.job
+                out.writerow([a.first_name, a.last_name, a.email, job.department_name, job.name,
+                              job.start_time_local.strftime('%Y-%m-%d %H:%M'),
+                              shift.created.astimezone(c.EVENT_TIMEZONE).strftime('%Y-%m-%d %H:%M')])
+
+    @csv_file
     def volunteers_with_worked_hours(self, out, session):
         out.writerow(['Badge #', 'Full Name', 'Email Address', 'Weighted Hours Scheduled', 'Weighted Hours Worked'])
         for a in session.staffers():
