@@ -35,6 +35,10 @@ class Root:
         attendee = session.volunteer_from_id(id)
         if c.UBER_SHUT_DOWN:
             return render('staffing/printable.html', {'attendee': attendee})
+        elif c.SHIFTS_CREATED != c.VOLUNTEER_SIGNUPS_START and not attendee.assigned_depts:
+            redirect = '../preregistration/homepage' if c.ATTENDEE_ACCOUNTS_ENABLED else '../landing/index'
+            action = 'completing your volunteer checklist' if c.VOLUNTEER_CHECKLIST_OPEN else 'signing up for shifts'
+            raise HTTPRedirect('{}?message={}', redirect, f"You must be assigned to a department before {action}.")
         else:
             if not c.VOLUNTEER_CHECKLIST_OPEN or attendee.shift_prereqs_complete:
                 raise HTTPRedirect('shifts?id={}&message={}', attendee.id, message)
@@ -210,14 +214,21 @@ class Root:
     def shifts(self, session, id, **params):
         volunteer = session.volunteer_from_id(id)
 
-        # Covers the case when signups are only available for staff
+        # Redirects if shifts signups are only available for staff, which also blocks assigned volunteers from the checklist
         # If the checklist isn't open at all or no one can sign up for shifts, we redirect in decorators.py/restricted
-        if not volunteer.shift_signups_available:
+        if c.SHIFTS_CREATED != c.VOLUNTEER_SIGNUPS_START and not volunteer.assigned_depts:
+            action = 'completing your volunteer checklist' if c.VOLUNTEER_CHECKLIST_OPEN else 'signing up for shifts'
+            message = f"You must be assigned to a department before {action}."
+            redirect = f'../preregistration/homepage?' if c.ATTENDEE_ACCOUNTS_ENABLED else f'../landing/index?'
+
+        if not message and not volunteer.shift_signups_available:
             message = "Shift signups are not available yet."
             if c.VOLUNTEER_CHECKLIST_OPEN:
                 redirect = f'index?id={id}&'
             else:
                 redirect = f'../preregistration/homepage?' if c.ATTENDEE_ACCOUNTS_ENABLED else f'../landing/index?'
+
+        if message:
             raise HTTPRedirect(redirect + "message={}", message)
 
         total_duration = 0
