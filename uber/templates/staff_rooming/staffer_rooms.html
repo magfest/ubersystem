@@ -8,8 +8,7 @@
 <h2>Staffer Rooms</h2>
 <p class="text-muted">
   Every live <code>RoomAssignment</code> whose booker is a Staff or
-  Contractor badge holder. Filter by billing model to gauge how many
-  staff rooms MAGFest is paying for vs. self-pay.
+  Contractor badge holder, however they got it.
 </p>
 
 <div class="d-flex gap-2 align-items-center mb-3 flex-wrap">
@@ -20,12 +19,20 @@
 
 <form method="get" action="staffer_rooms" class="card card-body mb-3">
   <div class="row g-2 align-items-end">
-    <div class="col-md-3">
+    <div class="col-md-2">
       <label class="form-label small mb-1">Search</label>
       <input type="text" class="form-control form-control-sm" name="search"
              value="{{ search }}" placeholder="name, email, hotel conf #" />
     </div>
-    <div class="col-md-3">
+    <div class="col-md-2">
+      <label class="form-label small mb-1" for="source">Room source</label>
+      <select class="form-select form-select-sm" name="source" id="source">
+        {% for value, label in [('all', 'All'), ('crash_space', 'Staff crash space'), ('lottery', 'Lottery'), ('other', 'Other')] %}
+        <option value="{{ value }}" {% if source == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
       <label class="form-label small mb-1">Billing</label>
       <select class="form-select form-select-sm" name="billing">
         <option value="all" {% if billing == 'all' %}selected{% endif %}>All</option>
@@ -52,6 +59,17 @@
 <div class="card card-body text-center text-muted">No staff rooms match these filters.</div>
 {% else %}
 
+{% set _qs = 'search=' ~ search|urlencode ~ '&billing=' ~ billing ~ '&source=' ~ source ~ '&hotel_id=' ~ hotel_id ~ '&page_size=' ~ page_size %}
+{% set _return_url = 'staffer_rooms?' ~ _qs ~ '&page=' ~ page %}
+
+{# A roommate's own dates, shown only where they differ from the room's. #}
+{% macro own_stay(ra, stay, prefix='') %}
+  {%- if stay and (stay[0] or stay[1]) -%}
+    <br/><small class="text-muted">{{ prefix }}{{ (stay[0] or ra.assigned_check_in_date)|date("%a %b %-d") }}
+    &rarr; {{ (stay[1] or ra.assigned_check_out_date)|date("%a %b %-d") }}</small>
+  {%- endif -%}
+{% endmacro %}
+
 <table class="table table-sm table-hover align-middle">
   <thead>
     <tr>
@@ -59,6 +77,8 @@
       <th>Department(s)</th>
       <th>Hotel / Room Type</th>
       <th>Dates</th>
+      <th>Roommates</th>
+      <th>Source</th>
       <th>Status</th>
       <th>Billing</th>
       <th>Hotel Conf #</th>
@@ -67,6 +87,7 @@
   <tbody>
     {% for ra in assignments %}
     {% set a = ra.attendee %}
+    {% set own_dates = stay_dates.get(ra.id, {}) %}
     <tr>
       <td>
         {# Link straight to the staffer's lottery-application edit
@@ -90,7 +111,47 @@
         {% endif %}
       </td>
       <td>{{ hotel_macros.hotel_room_cell(ra=ra) }}</td>
-      <td>{{ hotel_macros.room_dates_cell(ra) }}</td>
+      <td>
+        {{ hotel_macros.room_dates_cell(ra) }}
+        {{ own_stay(ra, own_dates.get(ra.attendee_id), 'Booker: ') }}
+      </td>
+      <td>
+        {% for o in ra.effective_occupants if o.id != ra.attendee_id %}
+          <div>{{ o.full_name }}{{ own_stay(ra, own_dates.get(o.id)) }}</div>
+        {% else %}
+          <span class="text-muted">-</span>
+        {% endfor %}
+        {# Only staff crash space has per-roommate dates. #}
+        {% if ra.shift_requirements_apply and ra.occupants %}
+        <details class="mt-1">
+          <summary class="small">Edit stay dates</summary>
+          <form method="post" action="set_occupant_dates" class="small">
+            {{ csrf_token() }}
+            <input type="hidden" name="id" value="{{ ra.id }}" />
+            <input type="hidden" name="return_url" value="{{ _return_url }}" />
+            {% for o in ra.occupants|sort(attribute='full_name') %}
+            {% set stay = own_dates.get(o.id) or (none, none) %}
+            <div class="mt-1">{{ o.full_name }}</div>
+            <div class="d-flex gap-1">
+              {% for field, value in [('check_in', stay[0]), ('check_out', stay[1])] %}
+              <input type="date" class="form-control form-control-sm" name="{{ field }}_{{ o.id }}"
+                     aria-label="{{ o.full_name }} {{ field|replace('_', ' ') }}"
+                     value="{{ value.isoformat() if value else '' }}"
+                     {% if ra.assigned_check_in_date %}min="{{ ra.assigned_check_in_date.isoformat() }}"{% endif %}
+                     {% if ra.assigned_check_out_date %}max="{{ ra.assigned_check_out_date.isoformat() }}"{% endif %} />
+              {% endfor %}
+            </div>
+            {% endfor %}
+            <div class="text-muted mt-1">Leave a date blank to use the room's.</div>
+            <button type="submit" class="btn btn-sm btn-primary mt-1">Save dates</button>
+          </form>
+        </details>
+        {% endif %}
+      </td>
+      <td>
+        {{ ra.source_label }}
+        {% if ra.shift_requirements_apply %}<br/><small class="text-muted">shift requirements apply</small>{% endif %}
+      </td>
       <td>{{ hotel_macros.room_status_chip(ra) }}</td>
       <td>{{ hotel_macros.billing_chip(ra) }}</td>
       <td>{{ hotel_macros.hotel_conf_cell(ra) }}</td>
@@ -99,7 +160,6 @@
   </tbody>
 </table>
 
-{% set _qs = 'search=' ~ search|urlencode ~ '&billing=' ~ billing ~ '&hotel_id=' ~ hotel_id ~ '&page_size=' ~ page_size %}
 {{ hotel_macros.pagination(page, page_count, 'staffer_rooms?' ~ _qs,
                            total=total, page_size=page_size,
                            current_count=assignments|length,

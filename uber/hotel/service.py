@@ -441,6 +441,36 @@ def _audit_roommate_change(session, ra, audit_prefix, verb, attendee_id):
             attendee_id=attendee_id)
 
 
+def set_occupant_stay_dates(session, ra, dates):
+    """Set roommates' own stay dates on a staff crash space room. `dates`
+    maps attendee id to (check_in, check_out); None means the room's own.
+    Returns how many roommates changed."""
+    from uber.models.hotel import room_assignment_occupant as occupant
+
+    if not ra.shift_requirements_apply:
+        raise RoomAssignmentError('Only staff crash space rooms have per-roommate dates.')
+    current = {row.attendee_id: (row.check_in_date, row.check_out_date) for row in session.execute(
+        occupant.select().where(occupant.c.room_assignment_id == ra.id))}
+    names = {o.id: o.full_name for o in ra.occupants}
+    changed = {attendee_id: stay for attendee_id, stay in dates.items()
+               if attendee_id in current and tuple(stay) != current[attendee_id]}
+    for attendee_id, (check_in, check_out) in changed.items():
+        starts = check_in or ra.assigned_check_in_date
+        ends = check_out or ra.assigned_check_out_date
+        if starts and ends and starts >= ends:
+            raise RoomAssignmentError(f"{names.get(attendee_id, 'A roommate')} would check out before checking in.")
+        if ((check_in and ra.assigned_check_in_date and check_in < ra.assigned_check_in_date)
+                or (check_out and ra.assigned_check_out_date and check_out > ra.assigned_check_out_date)):
+            raise RoomAssignmentError(
+                f"{names.get(attendee_id, 'A roommate')}'s dates fall outside the room's own dates.")
+    for attendee_id, (check_in, check_out) in changed.items():
+        session.execute(occupant.update().where(
+            occupant.c.room_assignment_id == ra.id, occupant.c.attendee_id == attendee_id
+        ).values(check_in_date=check_in, check_out_date=check_out))
+        _audit_roommate_change(session, ra, '', 'changed stay dates for roommate', attendee_id)
+    return len(changed)
+
+
 def add_room_occupant(session, ra, attendee_id, *, audit_prefix=''):
     """Add a roommate. Returns the added Attendee."""
     from uber.models import Attendee

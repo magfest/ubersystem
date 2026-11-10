@@ -1,6 +1,6 @@
 {% extends "./preregistration/preregbase.html" %}
 {% import 'hotel_lottery/_macros.html' as room_macros with context %}
-{% set title_text = "Edit Room" if is_leader and assignment.is_live else "Your Room" %}
+{% set title_text = "Edit Room" if is_leader and assignment.is_live and not assignment.staff_managed else "Your Room" %}
 {% block content %}
 
 {# Outer card wrapper matches /hotel_lottery/index and /hotel_lottery/rooms
@@ -43,7 +43,15 @@
 {# `message` is rendered by base.html into the global `#message-alert`
    element via JS; do NOT re-render it inline here or it shows up twice. #}
 
-{% if ra.export_locked or locked %}
+{% if ra.staff_managed and not ra.export_locked %}
+<div class="alert alert-info d-flex align-items-start gap-2">
+  <i class="fa fa-lock fa-lg mt-1"></i>
+  <div>
+    <strong>This is a staff crash space room.</strong>
+    Questions? Contact {{ c.STAFF_EMAIL|email_only|email_to_link }}.
+  </div>
+</div>
+{% elif ra.export_locked or locked %}
 <div class="alert alert-warning d-flex align-items-start gap-2">
   <i class="fa fa-lock fa-lg mt-1"></i>
   <div>
@@ -195,7 +203,8 @@
       </div>
     {% endif %}
 
-    {% if is_leader %}
+    {# Staff crash space has no leader, so no one's rewards number is shown. #}
+    {% if is_leader and not ra.staff_managed %}
     <hr class="my-3"/>
     {% if not read_only %}
     <form method="post" action="save_rewards_number">
@@ -229,7 +238,7 @@
   </div>
 </div>
 
-{% if is_leader %}
+{% if is_leader or ra.staff_managed %}
 <div class="card mb-3">
   <div class="card-header py-2"><strong>Special requests</strong></div>
   <div class="card-body py-2">
@@ -250,7 +259,7 @@
 {% endif %}
 
 {# A released room takes no card, so its past-due deadline is not shown. #}
-{% if is_leader and ra.require_cc and not inactive %}
+{% if is_leader and ra.require_cc and not inactive and not ra.staff_managed %}
 <div class="card mb-3">
   <div class="card-header py-2"><strong>Card on file</strong></div>
   <div class="card-body py-2">
@@ -330,6 +339,7 @@
         <tr>
           <th>Name</th>
           <th>Email</th>
+          {% if ra.staff_managed %}<th>Staying</th>{% endif %}
           <th></th>
         </tr>
       </thead>
@@ -338,9 +348,18 @@
         <tr>
           <td>
             {{ occ.first_name }} {{ occ.last_name }}
-            {% if occ.id == ra.attendee_id %}<span class="badge bg-primary">Booker</span>{% endif %}
+            {% if occ.id == ra.attendee_id and not ra.staff_managed %}<span class="badge bg-primary">Booker</span>{% endif %}
           </td>
           <td><small class="text-muted">{{ occ.email }}</small></td>
+          {% if ra.staff_managed %}
+          {% set stay = stay_dates.get(occ.id) or (none, none) %}
+          <td>
+            {% if (stay[0] or ra.assigned_check_in_date) and (stay[1] or ra.assigned_check_out_date) %}
+              {{ (stay[0] or ra.assigned_check_in_date)|date("%a %b %-d") }}
+              &rarr; {{ (stay[1] or ra.assigned_check_out_date)|date("%a %b %-d") }}
+            {% endif %}
+          </td>
+          {% endif %}
           <td class="text-end">
             {# Leaving stays available on an inactive room so occupants can
                take themselves off it; leader actions do not. #}

@@ -2475,19 +2475,29 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         room signup, but not both, so the eligibility page needs to show which
         one happened rather than just yes or no.
         """
-        kinds = set()
-        for ra in self.active_room_assignments:
-            if ra.lottery_run_id or ra.assignment_reason == c.LOTTERY_AWARD:
-                kinds.add('lottery')
-            elif ra.assignment_reason in (c.STAFF_AUTO, c.PARTITION_GRANT):
-                kinds.add('shared')
-            else:
-                kinds.add('other')
+        kinds = {kind for kind, ra in self.hotel_rooms_by_kind}
         if not kinds:
             return ''
         if len(kinds) > 1:
             return 'mixed'
         return kinds.pop()
+
+    @property
+    def hotel_rooms_by_kind(self):
+        """(kind, RoomAssignment) for each live room behind hotel_room_kind."""
+        rooms = {}
+        for ra in self.active_room_assignments:
+            if ra.lottery_run_id or ra.assignment_reason == c.LOTTERY_AWARD:
+                rooms[ra.id] = ('lottery', ra)
+            elif ra.assignment_reason in (c.STAFF_CRASH_SPACE, c.PARTITION_GRANT):
+                rooms[ra.id] = ('shared', ra)
+            else:
+                rooms[ra.id] = ('other', ra)
+        # Crash space roommates other than the booker.
+        for ra in self.occupied_rooms:
+            if ra.is_live and ra.shift_requirements_apply:
+                rooms[ra.id] = ('shared', ra)
+        return list(rooms.values())
 
     @property
     def active_room_assignments(self):
@@ -2501,6 +2511,12 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         """RoomAssignments that have been released to the attendee, i.e.
         they aren't temporary assignments from a lottery run."""
         return [ra for ra in (self.room_assignments or []) if ra.is_released]
+
+    @property
+    def live_released_rooms(self):
+        """Live rooms this attendee booked or sleeps in, each listed once."""
+        rooms = {ra.id: ra for ra in self.released_room_assignments + self.released_occupied_rooms if ra.is_live}
+        return list(rooms.values())
 
     @property
     def released_occupied_rooms(self):

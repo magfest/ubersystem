@@ -92,11 +92,11 @@
 {# Hotel Rooms tab: the rooms the attendee has been assigned, decoupled
    from the lottery. Always visible so even attendees with no rooms
    yet can reach the page to redeem an invite code from a friend. #}
-{% if c.HOTEL_LOTTERY_FORM_START and c.VAULT_ENABLED and (c.BEFORE_HOTEL_LOTTERY_SHUTDOWN or attendee.active_room_assignments|length > 1) %}
+{% if c.HOTEL_LOTTERY_FORM_START and c.VAULT_ENABLED and (c.BEFORE_HOTEL_LOTTERY_SHUTDOWN or attendee.live_released_rooms) %}
 <li class="nav-item" role="presentation">
   <a href="../hotel_lottery/rooms?attendee_id={{ attendee.id }}" class="nav-link{% if _on_rooms %} active{% endif %}">
     <span class="fa fa-bed"></span> Hotel Rooms
-    {% set _room_count = attendee.released_room_assignments|selectattr('is_live')|list|length %}
+    {% set _room_count = attendee.live_released_rooms|length %}
     {% if _room_count %}
       <span class="badge bg-primary ms-1">{{ _room_count }}</span>
     {% endif %}

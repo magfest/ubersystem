@@ -142,7 +142,7 @@ def test_lottery_email_lifecycles(session, no_cherrypy_session, email_world):
 
     # Manual rooms exist before the lottery nag window ever opens.
     make_assignment(session, staffer, inv, status=c.ASSIGNED,
-                    assignment_reason=c.STAFF_AUTO, payment_type='masterbill',
+                    assignment_reason=c.STAFF_CRASH_SPACE, payment_type='masterbill',
                     check_in=N[1], check_out=N[3])
     make_assignment(session, guest, inv, status=c.ASSIGNED,
                     assignment_reason=c.MANUAL, payment_type='masterbill',

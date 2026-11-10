@@ -1,7 +1,7 @@
 import re
 import uuid
 from collections import defaultdict
-from datetime import datetime
+from datetime import date, datetime
 from functools import wraps
 
 import cherrypy
@@ -27,7 +27,7 @@ from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, Attr
                          DeptRole, Event, IndieJudge, IndieStudio, Job, Session, Shift, Group,
                          GuestGroup, LotteryApplication)
 from uber.models.hotel import (HotelExportLog, HotelRoomInventory, LotteryHotel,
-                               RoomAssignment)
+                               RoomAssignment, room_assignment_occupant)
 from uber.hotel.queries import shared_room_eligible_query
 from uber.models.badge_printing import PrintJob
 from uber.serializer import serializer
@@ -1645,12 +1645,19 @@ class HotelLookup:
             return app.to_dict()
 
     @api_auth('api_update')
-    def update_assignment(self, id=None, acting_user=None, **kwargs):
+    def update_assignment(self, id=None, acting_user=None, create_missing=False, **kwargs):
         """
         Create or update a RoomAssignment. Replaces the legacy endpoint of
         the same name (which assigned to the now-deleted staff hotel Room).
         If `id` is supplied, that assignment is updated; otherwise a new
-        one is created.
+        one is created. With `create_missing`, an `id` that does not exist
+        yet is created under that id, so a client that picks its own UUIDs
+        can retry a call without making a second room. A new assignment
+        defaults to the "API Created"
+        reason; tuber's crash space import passes
+        assignment_reason="Staff Crash Space", which is what makes a room
+        subject to the staff rooming shift requirements. `assignment_reason`
+        and `status` take either the label or the stored integer.
 
         `acting_user` is the portal username of whoever made this change,
         shown as `api:<name>` in the change log's Who column. Optional, so
@@ -1662,7 +1669,14 @@ class HotelLookup:
         status, payment_type, assigned_check_in_date, assigned_check_out_date,
         deposit_cutoff_date, booking_url, hotel_confirmation_number,
         cancellation_confirmation_number, room_number, special_requests,
-        hotel_rewards_number, admin_notes.
+        hotel_rewards_number, admin_notes, occupants.
+
+        `occupants`, when given, replaces the room's occupant list. Each
+        entry is an attendee id, or a dict of attendee_id plus optional
+        check_in_date / check_out_date for a roommate staying only part of
+        the assignment's dates. The booker belongs in the list too. Only
+        staff crash space keeps per-occupant dates; on any other room they
+        are dropped.
 
         `payment_type` is a [[payment_types]] config key; the response carries
         the hotel-facing payment_code alongside the stored columns. It replaced
@@ -1679,13 +1693,50 @@ class HotelLookup:
             # Stashed on the request so change tracking attributes this
             # request's writes to the named portal user.
             cherrypy.request.api_acting_user = acting_user
+        # Accept the label as well as the stored int.
+        for attr, opts in [('assignment_reason', c.HOTEL_ASSIGNMENT_REASON_OPTS),
+                           ('status', c.HOTEL_ASSIGNMENT_STATUS_OPTS)]:
+            if attr in kwargs:
+                given = str(kwargs[attr]).strip()
+                by_label = {label.lower(): val for val, label in opts}
+                try:
+                    kwargs[attr] = by_label[given.lower()] if given.lower() in by_label else int(given)
+                except ValueError:
+                    kwargs[attr] = None
+                if kwargs[attr] not in dict(opts):
+                    raise HTTPError(400, "Unknown {} {!r}".format(attr, given))
+        create_missing = str(create_missing).lower() in ('true', '1')
+        try:
+            if id and create_missing:
+                id = str(uuid.UUID(str(id)))
+            for attr in ['assigned_check_in_date', 'assigned_check_out_date', 'deposit_cutoff_date']:
+                if isinstance(kwargs.get(attr), str):
+                    kwargs[attr] = date.fromisoformat(kwargs[attr]) if kwargs[attr] else None
+            occupant_rows = None
+            if kwargs.get('occupants') is not None:
+                occupant_rows = {}
+                for entry in kwargs['occupants']:
+                    entry = entry if isinstance(entry, dict) else {'attendee_id': entry}
+                    occupant_rows[str(entry['attendee_id'])] = {
+                        key: date.fromisoformat(entry[key]) if entry.get(key) else None
+                        for key in ('check_in_date', 'check_out_date')}
+        except (KeyError, TypeError, ValueError) as e:
+            raise HTTPError(400, "Invalid id, dates or occupants: {}".format(e))
         with Session() as session:
+            if occupant_rows:
+                found = {row.id for row in session.query(Attendee.id).filter(Attendee.id.in_(list(occupant_rows)))}
+                missing = sorted(set(occupant_rows) - found)
+                if missing:
+                    raise HTTPError(404, "Could not locate occupants {}".format(', '.join(missing)))
+            assignment = None
             if id:
                 assignment = session.query(RoomAssignment).filter(RoomAssignment.id == id).one_or_none()
-                if not assignment:
-                    return HTTPError(404, "Could not locate room assignment {}".format(id))
-            else:
-                assignment = RoomAssignment()
+                if not assignment and not create_missing:
+                    raise HTTPError(404, "Could not locate room assignment {}".format(id))
+            if not assignment:
+                assignment = RoomAssignment(assignment_reason=c.API_CREATED)
+                if id:
+                    assignment.id = id
             for attr in ['attendee_id', 'inventory_id', 'lottery_application_id',
                          'lottery_run_id', 'parent_assignment_id', 'partition_id',
                          'assignment_reason', 'status', 'payment_type',
@@ -1697,8 +1748,21 @@ class HotelLookup:
                 if attr in kwargs:
                     setattr(assignment, attr, kwargs[attr])
             session.add(assignment)
+            if occupant_rows is not None:
+                session.flush()
+                session.execute(room_assignment_occupant.delete().where(
+                    room_assignment_occupant.c.room_assignment_id == assignment.id))
+                if occupant_rows:
+                    no_dates = dict(check_in_date=None, check_out_date=None)
+                    session.execute(room_assignment_occupant.insert(), [
+                        dict(room_assignment_id=assignment.id, attendee_id=attendee_id,
+                             **(dates if assignment.shift_requirements_apply else no_dates))
+                        for attendee_id, dates in occupant_rows.items()])
+                session.expire(assignment, ['occupants'])
             session.commit()
-            return dict(assignment.to_dict(), payment_code=assignment.payment_code)
+            return dict(assignment.to_dict(), payment_code=assignment.payment_code,
+                        is_live=assignment.is_live,
+                        occupant_ids=[occ.id for occ in assignment.occupants])
 
     def nights(self):
         """

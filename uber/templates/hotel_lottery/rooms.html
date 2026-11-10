@@ -45,9 +45,10 @@
 
 {% set _rooms = primaries|default([]) %}
 {% set _guest_rooms = guest_in|default([]) %}
+{% set _crash_rooms = crash_rooms|default([]) %}
 {% set _inactive_rooms = inactive_rooms|default([]) %}
 
-{% if not _rooms and not _guest_rooms %}
+{% if not _rooms and not _guest_rooms and not _crash_rooms %}
 <div class="alert alert-secondary mb-3">
   {% if _inactive_rooms %}
     You don't have any active room assignments.
@@ -161,10 +162,11 @@
 {% endfor %}
 {% endif %}
 
-{% if _guest_rooms %}
-<h2 class="h4 mt-4">Rooms you're a guest in</h2>
+{% for _heading, _shared_rooms in [('Staff crash space', _crash_rooms), ("Rooms you're a guest in", _guest_rooms)] %}
+{% if _shared_rooms %}
+<h2 class="h4 mt-4">{{ _heading }}</h2>
 
-{% for room in _guest_rooms %}
+{% for room in _shared_rooms %}
 <div class="card mb-3">
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-start">
@@ -174,7 +176,7 @@
         </h3>
         <p class="text-muted mb-2">
           {{ room_macros.room_dates(room) }}
-          {% if room.attendee %}
+          {% if room.attendee and not room.staff_managed %}
             - Booked by {{ room.attendee.first_name }} {{ room.attendee.last_name }}
           {% endif %}
         </p>
@@ -204,6 +206,7 @@
 </div>
 {% endfor %}
 {% endif %}
+{% endfor %}
 
 {# Expired and cancelled rooms, booked or occupied. They no longer hold
    inventory, so each card is a read-only record with a View link. #}
@@ -227,7 +230,7 @@
         </h3>
         <p class="text-muted mb-1">
           {{ room_macros.room_dates(room) }}
-          {% if room.attendee_id != attendee.id and room.attendee %}
+          {% if room.attendee_id != attendee.id and room.attendee and not room.staff_managed %}
             - Booked by {{ room.attendee.first_name }} {{ room.attendee.last_name }}
           {% endif %}
         </p>

@@ -7,6 +7,7 @@ import uuid
 from datetime import timedelta
 
 import cherrypy
+import pytest
 from pytz import UTC
 
 from uber.hotel.exports import (changed_rooms_between, hotel_activity_timeline,
@@ -354,9 +355,9 @@ def test_update_assignment_caps_acting_user_length(session, monkeypatch):
     from cherrypy import HTTPError
 
     try:
-        result = _api_call(session, monkeypatch, 'update_assignment',
-                           id=str(uuid.uuid4()), acting_user='x' * 300)
-        assert isinstance(result, HTTPError)
+        with pytest.raises(HTTPError):
+            _api_call(session, monkeypatch, 'update_assignment',
+                      id=str(uuid.uuid4()), acting_user='x' * 300)
         assert cherrypy.request.api_acting_user == 'x' * 255
     finally:
         _clear_acting_user()

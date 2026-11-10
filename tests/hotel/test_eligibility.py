@@ -112,7 +112,7 @@ def test_hotel_room_kind_lottery_by_run(session):
 
 
 def test_hotel_room_kind_shared(session):
-    staffer = _staffer_with_room(session, assignment_reason=c.STAFF_AUTO)
+    staffer = _staffer_with_room(session, assignment_reason=c.STAFF_CRASH_SPACE)
     assert staffer.hotel_room_kind == 'shared'
 
 
@@ -127,7 +127,7 @@ def test_hotel_room_kind_mixed(session):
     make_assignment(session, staffer, inv, check_in=N[1], check_out=N[3],
                     assignment_reason=c.LOTTERY_AWARD)
     make_assignment(session, staffer, inv, check_in=N[1], check_out=N[3],
-                    assignment_reason=c.STAFF_AUTO)
+                    assignment_reason=c.STAFF_CRASH_SPACE)
     assert staffer.hotel_room_kind == 'mixed'
 
 
@@ -261,3 +261,25 @@ def test_eligibility_page_shows_shared_controls_with_checklist(
     head, _sep, body = text.partition('</title>')
     assert 'tuber-status.js' not in head
     assert 'tuber-status.js' in body
+
+
+def test_eligibility_page_links_each_room_chip_to_its_room(session, no_cherrypy_session):
+    from uber.decorators import render
+
+    inv = make_inventory(session, make_hotel(session))
+    staffer = make_attendee(session, badge_type=c.STAFF_BADGE)
+    lottery = make_assignment(session, staffer, inv, check_in=N[1], check_out=N[3], assignment_reason=c.LOTTERY_AWARD)
+    crash = make_assignment(session, make_attendee(session), inv, check_in=N[1], check_out=N[3],
+                            assignment_reason=c.STAFF_CRASH_SPACE)
+    crash.occupants.append(staffer)
+    session.flush()
+    session.expire_all()
+
+    html = render('staff_rooming/hotel_eligibility.html', {
+        'message': '', 'staffers': [staffer], 'page': 1, 'page_size': 50, 'total': 1, 'page_count': 1,
+        'show': 'all', 'search': '', 'shared_enabled': True, 'total_staff': 1, 'total_eligible': 0,
+        'total_ineligible': 1, 'total_staff_lottery': 1, 'total_not_staff_lottery': 0})
+    text = html.decode('utf-8') if isinstance(html, bytes) else html
+    for ra in (lottery, crash):
+        assert f'assign_room?id={ra.id}' in text
+    assert '>Lottery</a>' in text and '>Shared</a>' in text and 'Mixed' in text
