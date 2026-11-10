@@ -344,3 +344,35 @@ def test_set_occupant_dates_page(session, monkeypatch, inv, no_cherrypy_session)
             f'check_in_{booker.id}': '', f'check_out_{booker.id}': ''})
     assert 'updated%20for%201' in redirect.value.urls[0]
     assert _occupant_rows(session, ra) == {booker.id: (None, None), mate.id: (N[1], N[2])}
+
+
+# ---------------------------------------------------------------------------
+# The shift requirement email goes to crash space holders only
+# ---------------------------------------------------------------------------
+
+def test_shift_requirement_email_goes_to_crash_space_only(session, monkeypatch, inv, core_nights):
+    from datetime import datetime, timedelta
+
+    from pytz import UTC
+
+    from uber.decorators import render
+    from uber.models import AutomatedEmail
+
+    fixture = AutomatedEmail._fixtures['staff_crash_space_shift_requirements']
+    booker, mate, winner = (make_attendee(session, badge_type=c.STAFF_BADGE, staffing=True) for _ in range(3))
+    _crash_room(session, monkeypatch, inv, booker, [booker.id, mate.id])
+    make_assignment(session, winner, inv, check_in=N[0], check_out=N[3], assignment_reason=c.LOTTERY_AWARD)
+    session.flush()
+
+    # Nothing goes out before shifts exist.
+    monkeypatch.setattr(c, 'SHIFTS_CREATED', None)
+    assert not fixture.filter(booker)
+
+    monkeypatch.setattr(c, 'SHIFTS_CREATED', datetime.now(UTC) - timedelta(days=1))
+    assert fixture.filter(booker) and fixture.filter(mate)
+    assert not fixture.filter(winner), 'a lottery room carries no shift requirements'
+
+    body = render('emails/' + fixture.template, {'attendee': mate, 'email_signature': 'Staffing'}, encoding=None)
+    assert 'staff crash space' in body
+    # Three core nights share one hours target, so one line covers them.
+    assert len(compliance_violations(mate)) == 3 and body.count('<li>') == 1
