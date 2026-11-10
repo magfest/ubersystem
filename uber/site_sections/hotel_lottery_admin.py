@@ -418,6 +418,15 @@ def _search(session, text):
     return applications.filter(or_(*check_list)), ''
 
 
+def _parse_event_datetime(text):
+    """Admin-typed datetime as event time. pytz zones need localize();
+    replace(tzinfo=) attaches the zone's LMT offset (-4:56 for New York)."""
+    parsed = dateparser.parse(text)
+    if parsed.tzinfo is None:
+        return c.EVENT_TIMEZONE.localize(parsed)
+    return parsed.astimezone(c.EVENT_TIMEZONE)
+
+
 def _require_post_csrf(params, redirect='lottery_runs'):
     """Guard for destructive endpoints: mutations must never fire on a
     bare GET (a crawler or prefetch would silently run them), and every
@@ -979,7 +988,6 @@ class Root:
         the new deadline to RoomAssignments produced by this run that
         haven't been individually overridden.
         """
-        from dateutil import parser as dateparser
         if cherrypy.request.method != 'POST':
             raise HTTPRedirect('lottery_run_detail?id={}', id)
         check_csrf(csrf_token)
@@ -991,7 +999,7 @@ class Root:
         new_deadline = None
         if card_deadline.strip():
             try:
-                new_deadline = dateparser.parse(card_deadline).replace(tzinfo=c.EVENT_TIMEZONE)
+                new_deadline = _parse_event_datetime(card_deadline)
             except (ValueError, TypeError):
                 raise HTTPRedirect(
                     'lottery_run_detail?id={}&message={}',
@@ -2267,12 +2275,11 @@ class Root:
             return {'error': f'Invalid lottery type: {lottery_type}'}
         cutoff = None
         if params.get('cutoff', ''):
-            cutoff = dateparser.parse(params['cutoff']).replace(tzinfo=c.EVENT_TIMEZONE)
+            cutoff = _parse_event_datetime(params['cutoff'])
 
         confirmation_window_start = None
         if params.get('confirmation_window_start', ''):
-            confirmation_window_start = dateparser.parse(
-                params['confirmation_window_start']).replace(tzinfo=c.EVENT_TIMEZONE)
+            confirmation_window_start = _parse_event_datetime(params['confirmation_window_start'])
 
         # Eligibility (status, cutoff, optional re-confirmation gate,
         # entry-type + staff/attendee scoping) lives with the solver.
