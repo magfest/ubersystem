@@ -1,0 +1,168 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Partition Matrix{% endblock %}
+{% block content %}
+
+{% include 'hotel_lottery_admin/inventory_subnav.html' %}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <h2 class="mb-0">
+    Partition Matrix -- {{ now_localized()|datetime("%m/%d/%Y, %-I:%M%p") }}
+  </h2>
+  <div class="d-flex gap-2">
+    <div class="btn-group" role="group" aria-label="Matrix view">
+      <a href="partition_matrix?view=allocation"
+         class="btn btn-outline-primary{% if view == 'allocation' %} active{% endif %}">Allocation</a>
+      <a href="partition_matrix?view=remaining"
+         class="btn btn-outline-primary{% if view == 'remaining' %} active{% endif %}">Remaining</a>
+    </div>
+    <a href="partition_matrix_xlsx" class="btn btn-outline-secondary">Download .xlsx</a>
+  </div>
+</div>
+
+{% set core_label = required_nights[0].strftime('%a %-m/%-d') ~ ' - ' ~ required_nights[-1].strftime('%a %-m/%-d')
+                    if required_nights else 'all nights' %}
+<p class="text-muted small mb-2">
+  {% if view == 'allocation' %}
+  Each cell is the number of rooms from that block given to the partition.
+  <strong>Default</strong> is what is left for the general lottery;
+  <span class="badge text-dark border" style="background-color: #f8d7da;">red</span> means the block has given out more rooms than it has.
+  {% else %}
+  Each cell is the partition's rooms minus rooms assigned, on its tightest core night ({{ core_label }}):
+  <span class="badge text-dark border" style="background-color: #e2e3e5;">0</span> = used up,
+  <span class="badge text-dark border" style="background-color: #f8d7da;">negative</span> = over.
+  Click a number for the night-by-night breakdown.
+  {% endif %}
+  Blank means the partition has no rooms and no bookings in that block.
+</p>
+
+{# the column names run vertically so each column is only as wide as its numbers, and the block labels, Rooms, and
+Default stay pinned while the grid scrolls in both directions. #}
+<style>
+  .partition-matrix-wrap { max-height: 78vh; overflow: auto; }
+  .partition-matrix { border-collapse: separate; border-spacing: 0; }
+  .partition-matrix th, .partition-matrix td { border-bottom: 1px solid #dee2e6; }
+  .partition-matrix thead th { position: sticky; top: 0; z-index: 2; background-color: #fff; }
+  .partition-matrix .pin { position: sticky; z-index: 1; }
+  .partition-matrix .pin:not([class*="table-"]) { background-color: #fff; }
+  .partition-matrix thead th.pin { z-index: 3; }
+  .partition-matrix .pin-label { left: 0; min-width: 18rem; max-width: 18rem; }
+  .partition-matrix .pin-rooms { left: 18rem; min-width: 4.5rem; }
+  .partition-matrix .pin-default { left: 22.5rem; min-width: 5rem; border-right: 2px solid #adb5bd; }
+  .partition-matrix .partition-name { writing-mode: vertical-rl; transform: rotate(180deg);
+                                      white-space: nowrap; max-height: 11rem; margin: 0 auto; }
+  .partition-matrix td.cell { min-width: 2.75rem; }
+  .partition-matrix .group-label { position: sticky; left: .5rem; }
+</style>
+
+{% macro matrix_cell(cell, title, extra_class='') %}
+  {% if cell is none %}
+  <td class="cell {{ extra_class }}" title="{{ title }}"></td>
+  {% elif view == 'allocation' %}
+  <td class="cell text-center {{ extra_class }}{% if cell.allocated < 0 %} table-danger{% endif %}"
+      title="{{ title }}">{{ cell.allocated }}</td>
+  {% else %}
+  <td class="cell text-center {{ extra_class }}{% if cell.remaining < 0 %} table-danger{% elif cell.remaining == 0 %} table-secondary{% endif %}"
+      title="{{ title }}">
+    <a href="#" class="matrix-breakdown-link text-decoration-none" data-title="{{ title }}">{{ cell.remaining }}</a>
+    <template>
+      {% for n in cell.nights %}
+      <tr{% if required_nights and n.night not in required_nights %} class="text-muted"{% endif %}>
+        <td>{{ n.night.strftime('%a %-m/%-d') }}{% if required_nights and n.night not in required_nights %} <small>(shoulder)</small>{% endif %}</td>
+        <td class="text-center">{{ n.capacity }}</td>
+        <td class="text-center">{{ n.assigned }}</td>
+        <td class="text-center{% if n.remaining < 0 %} table-danger{% elif n.remaining == 0 %} table-secondary{% endif %}">{{ n.remaining }}</td>
+      </tr>
+      {% endfor %}
+    </template>
+  </td>
+  {% endif %}
+{% endmacro %}
+
+{% set column_count = 3 + partitions|length %}
+<div class="partition-matrix-wrap border">
+<table class="table table-bordered table-sm table-hover mb-0 partition-matrix">
+  <thead>
+    <tr>
+      <th class="align-bottom pin pin-label">Room / Suite Type</th>
+      <th class="align-bottom text-center pin pin-rooms"
+          title="Fewest rooms offered on any core night ({{ core_label }})">
+        Rooms<br/><small class="fw-normal text-muted">core nights</small>
+      </th>
+      <th class="align-bottom text-center pin pin-default">Default<br/><small class="fw-normal text-muted">non-<br/>partitioned</small></th>
+      {% for partition in partitions %}
+      <th class="align-bottom" title="{{ partition.name }}"><div class="partition-name">{{ partition.name }}</div></th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for title, rows in sections %}
+    <tr class="table-secondary"><th colspan="{{ column_count }}" class="fs-6"><span class="group-label">{{ title }}</span></th></tr>
+    {% for hotel_name, hotel_rows in rows|groupby('hotel.name', default='') %}
+    <tr class="table-light"><th colspan="{{ column_count }}"><span class="group-label">{{ hotel_name or 'Unknown hotel' }}</span></th></tr>
+    {% for row in hotel_rows %}
+    {% set row_title = (hotel_name ~ ' - ' if hotel_name else '') ~ row.label %}
+    <tr>
+      <td class="pin pin-label">
+        <a href="edit_inventory_item?id={{ row.inventory.id }}">{{ row.label }}</a>
+        {% if row.block_name %}<div class="small text-muted text-truncate" title="{{ row.block_name }}">{{ row.block_name }}</div>{% endif %}
+      </td>
+      <td class="text-center pin pin-rooms">{{ row.rooms }}</td>
+      {{ matrix_cell(row.default, row_title ~ ' / Default', 'pin pin-default') }}
+      {% for partition in partitions %}
+      {{ matrix_cell(row.cells[partition.id|string], row_title ~ ' / ' ~ partition.name) }}
+      {% endfor %}
+    </tr>
+    {% endfor %}
+    {% endfor %}
+    {% else %}
+    <tr><td colspan="{{ column_count }}" class="text-muted">No active inventory blocks.</td></tr>
+    {% endfor %}
+  </tbody>
+  {% if view == 'allocation' and sections %}
+  <tfoot>
+    <tr class="fw-bold">
+      <td class="pin pin-label">Total</td>
+      <td class="text-center pin pin-rooms">{{ totals.rooms }}</td>
+      <td class="text-center pin pin-default{% if totals.default < 0 %} table-danger{% endif %}">{{ totals.default }}</td>
+      {% for partition in partitions %}
+      <td class="text-center">{{ totals.partitions.get(partition.id|string, 0) }}</td>
+      {% endfor %}
+    </tr>
+  </tfoot>
+  {% endif %}
+</table>
+</div>
+
+{% if view == 'remaining' %}
+<div class="modal fade" id="matrixBreakdownModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="matrix-breakdown-title"></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <table class="table table-sm table-bordered mb-0">
+          <thead>
+            <tr><th>Night</th><th class="text-center">Rooms</th><th class="text-center">Assigned</th><th class="text-center">Remaining</th></tr>
+          </thead>
+          <tbody id="matrix-breakdown-rows"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<script type="text/javascript">
+document.querySelectorAll('.matrix-breakdown-link').forEach(function(link) {
+  link.addEventListener('click', function(event) {
+    event.preventDefault();
+    document.getElementById('matrix-breakdown-title').textContent = link.dataset.title;
+    var rows = document.getElementById('matrix-breakdown-rows');
+    rows.replaceChildren(link.nextElementSibling.content.cloneNode(true));
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('matrixBreakdownModal')).show();
+  });
+});
+</script>
+{% endif %}
+
+{% endblock content %}
