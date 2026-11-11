@@ -415,10 +415,11 @@ def build_partition_matrix(session, partitions, nights, core_nights):
 
     Returns {'sections': [(title, rows), ...], 'totals': {...}}.
     """
-    from sqlalchemy.orm import load_only, raiseload, selectinload
+    from sqlalchemy.orm import lazyload, load_only, raiseload, selectinload
 
     inventories = (session.query(HotelRoomInventory)
-                   .options(selectinload(HotelRoomInventory.night_quantities))
+                   .options(selectinload(HotelRoomInventory.night_quantities),
+                            lazyload(HotelRoomInventory.prices))
                    .filter(HotelRoomInventory.active.is_(True)).all())
 
     # Allotments from inactive partitions still come out of the Default
