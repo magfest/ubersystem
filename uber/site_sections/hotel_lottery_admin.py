@@ -38,7 +38,8 @@ from uber.models.hotel import (HotelRoomInventory, InventoryNightQuantity, Inven
                                HotelImportFile, room_assignment_occupant)
 from uber.email import EmailService
 from uber.hotel.exports import (booking_columns, booking_export_data,
-                                build_waitlist_xlsx, changed_rooms_between,
+                                build_partition_matrix_xlsx, build_waitlist_xlsx,
+                                changed_rooms_between,
                                 compute_export_tracking, derive_sync_status,
                                 hotel_activity_timeline, import_changes,
                                 read_stored_file, render_booking_export,
@@ -63,7 +64,8 @@ from uber.hotel.audit import (annotate_issues, collect_issues,
                                    group_inventory_issues, group_room_issues,
                                    load_issue_notes, prefetch_issue_relations)
 from uber.hotel.queries import (attendee_name_filter, attendee_search_results,
-                                block_availability, build_room_assignment_query,
+                                block_availability, build_partition_matrix,
+                                build_room_assignment_query,
                                 clamp_page_size, occupancy_by_block_night, paginate)
 from uber.hotel.run_stats import lottery_run_stats
 from uber.hotel.waitlist import (WaitlistError, accept_waitlist_entry,
@@ -2700,6 +2702,31 @@ class Root:
             'non_partitioned_capacity': non_partitioned_capacity,
             'message': message,
         }
+
+    def partition_matrix(self, session, message='', view='allocation'):
+        partitions = session.query(InventoryPartition).filter_by(
+            active=True).order_by(InventoryPartition.name).all()
+        return {
+            **build_partition_matrix(session, partitions, _event_nights(), _required_nights()),
+            'partitions': partitions,
+            'view': 'remaining' if view == 'remaining' else 'allocation',
+            'required_nights': _required_nights(),
+            'now': localized_now(),
+            'message': message,
+        }
+
+    def partition_matrix_xlsx(self, session, set_headers=True):
+        partitions = session.query(InventoryPartition).filter_by(
+            active=True).order_by(InventoryPartition.name).all()
+        output = build_partition_matrix_xlsx(partitions, build_partition_matrix(
+            session, partitions, _event_nights(), _required_nights()))
+        if set_headers:
+            cherrypy.response.headers['Content-Type'] = (
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            stamp = datetime.now().strftime('%Y%m%d_%H%M')
+            cherrypy.response.headers['Content-Disposition'] = (
+                f'attachment; filename="partition_matrix_{stamp}.xlsx"')
+        return output
 
     def request_confirmation(self, session, id=None, clear='', csrf_token=None):
         """Set or clear LotteryApplication.confirmation_requested_at.

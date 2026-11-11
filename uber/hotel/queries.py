@@ -8,8 +8,8 @@ This module is the single definition of:
     attendee-picker widgets (hotel_lottery_admin + partition_admin).
   * clamp_page_size / paginate - the shared pagination behavior.
   * occupancy_by_block_night / capacity_for / capacity_night_map /
-    block_availability - the capacity math. "How many rooms exist /
-    are taken for (inventory, night, partition)" is the system's core
+    build_partition_matrix / block_availability - the capacity math. "How many
+    rooms exist / are taken for (inventory, night, partition)" is the system's core
     invariant; every consumer (solver prep, admin pages, the attendee
     editor, the audit, exports) must go through these so the answer
     can't drift. Nights are always checkout-day EXCLUSIVE
@@ -400,6 +400,101 @@ def capacity_night_map(session, inventories, nights, partition_id=None):
             result[(iid, night)] = (capacity, assigned,
                                     max(0, capacity - assigned))
     return result
+
+
+def build_partition_matrix(session, partitions, nights, core_nights):
+    """Every active block against every given partition, for the partition
+    matrix page and its download.
+
+    Each cell carries the raw allotment, the per-night breakdown, and
+    `remaining`: rooms left on the tightest core night, negative when the
+    partition is over. A partition cell is None when it has neither an
+    allotment nor bookings in that block. The `default` cell is the
+    unpartitioned pool, so its allotment goes negative when a block's
+    partition allotments exceed its rooms.
+
+    Returns {'sections': [(title, rows), ...], 'totals': {...}}.
+    """
+    from sqlalchemy.orm import load_only, raiseload, selectinload
+
+    inventories = (session.query(HotelRoomInventory)
+                   .options(selectinload(HotelRoomInventory.night_quantities))
+                   .filter(HotelRoomInventory.active.is_(True)).all())
+
+    # Allotments from inactive partitions still come out of the Default
+    # pool, matching capacity_for.
+    allotments = {}
+    allotted_total = defaultdict(int)
+    for block in session.query(InventoryPartitionBlock):
+        allotments[(str(block.inventory_id), str(block.partition_id))] = block.quantity
+        allotted_total[str(block.inventory_id)] += block.quantity
+
+    hist = occupancy_by_block_night(
+        session.query(RoomAssignment).options(
+            load_only(RoomAssignment.inventory_id, RoomAssignment.partition_id,
+                      RoomAssignment.assigned_check_in_date,
+                      RoomAssignment.assigned_check_out_date),
+            raiseload('*')).filter(
+            RoomAssignment.is_live,
+            RoomAssignment.inventory_id.isnot(None)),
+        by_partition=True)
+
+    tightest_nights = set(core_nights or nights)
+
+    def make_cell(block_id, scope, allocated, capacity_for_night):
+        counts = hist.get((block_id, scope), {})
+        breakdown = []
+        for night in nights:
+            capacity = capacity_for_night(night)
+            assigned = counts.get(night, 0)
+            breakdown.append({'night': night, 'capacity': capacity,
+                              'assigned': assigned, 'remaining': capacity - assigned})
+        remaining = min((n['remaining'] for n in breakdown if n['night'] in tightest_nights),
+                        default=allocated)
+        return {'allocated': allocated, 'remaining': remaining, 'nights': breakdown}
+
+    totals = {'rooms': 0, 'default': 0, 'partitions': defaultdict(int)}
+    sections = {False: [], True: []}
+    for inv in inventories:
+        block_id = str(inv.id)
+        rooms = min((inv.quantity_for_night(n) for n in core_nights), default=inv.quantity)
+        row = {
+            'inventory': inv,
+            'hotel': inv.hotel,
+            'label': inv.display_name,
+            'block_name': inv.name if inv.name != inv.display_name else '',
+            'rooms': rooms,
+            'default': make_cell(
+                block_id, None, rooms - allotted_total[block_id],
+                lambda n, inv=inv, block_id=block_id: max(
+                    0, inv.quantity_for_night(n) - allotted_total[block_id])),
+            'cells': {},
+        }
+        for partition in partitions:
+            pid = str(partition.id)
+            allotment = allotments.get((block_id, pid))
+            if allotment is None and (block_id, pid) not in hist:
+                row['cells'][pid] = None
+                continue
+            row['cells'][pid] = make_cell(
+                block_id, pid, allotment or 0,
+                lambda n, inv=inv, allotment=allotment: min(
+                    allotment or 0, inv.quantity_for_night(n)))
+            totals['partitions'][pid] += allotment or 0
+        totals['rooms'] += rooms
+        totals['default'] += row['default']['allocated']
+        sections[inv.is_suite].append(row)
+
+    def order(row):
+        return ((row['hotel'].name if row['hotel'] else '').lower(),
+                row['label'].lower(), row['block_name'].lower())
+
+    return {
+        'sections': [(title, sorted(sections[is_suite], key=order))
+                     for title, is_suite in (('Standard Rooms', False), ('Suites', True))
+                     if sections[is_suite]],
+        'totals': totals,
+    }
 
 
 def block_availability(session, inventory_blocks):

@@ -963,6 +963,46 @@ def write_hotel_inventory_xlsx(out, session, hotel_id):
     out.writerows(header_row, rows)
 
 
+def build_partition_matrix_xlsx(partitions, matrix):
+    """Return workbook bytes for the partition matrix: an Allocation sheet
+    and a Remaining sheet, each one row per block and one column per
+    partition. `matrix` is the result of queries.build_partition_matrix."""
+    headers = (['Hotel', 'Room / Suite Type', 'Block', 'Rooms', 'Default']
+               + [p.name for p in partitions])
+
+    rawoutput = BytesIO()
+    with xlsxwriter.Workbook(rawoutput, {'in_memory': True}) as workbook:
+        header_fmt = workbook.add_format({'bold': True, 'bg_color': '#EFEFEF', 'border': 1})
+        section_fmt = workbook.add_format({'bold': True})
+        total_fmt = workbook.add_format({'bold': True, 'top': 1})
+
+        for sheet_name, field in (('Allocation', 'allocated'), ('Remaining', 'remaining')):
+            ws = workbook.add_worksheet(sheet_name)
+            ws.write_row(0, 0, headers, header_fmt)
+            ws.freeze_panes(1, 5)
+            row_index = 1
+            for title, rows in matrix['sections']:
+                ws.write(row_index, 0, title, section_fmt)
+                row_index += 1
+                for row in rows:
+                    cells = [row['default']] + [row['cells'][str(p.id)] for p in partitions]
+                    ws.write_row(row_index, 0, [
+                        row['hotel'].name if row['hotel'] else '', row['label'],
+                        row['block_name'], row['rooms'],
+                    ] + [cell[field] if cell else None for cell in cells])
+                    row_index += 1
+            # Remaining sums would net overages against spare rooms, so only
+            # the Allocation sheet gets a totals row.
+            if field == 'allocated':
+                totals = matrix['totals']
+                ws.write_row(row_index, 0, [
+                    'Total', '', '', totals['rooms'], totals['default'],
+                ] + [totals['partitions'].get(str(p.id), 0) for p in partitions], total_fmt)
+            ws.set_column(0, 2, 22)
+            ws.set_column(3, len(headers) - 1, 12)
+    return rawoutput.getvalue()
+
+
 def build_waitlist_xlsx(session):
     """Build the waitlist-demand workbook and return its bytes: one
     worksheet per hotel that has any waitlisted rooms.
