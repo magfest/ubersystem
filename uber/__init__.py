@@ -24,6 +24,7 @@ from uber import server  # noqa: F401
 from uber import tasks  # noqa: F401
 from uber import validations  # noqa: F401
 from uber import files  # noqa: F401
+from uber.money import Money, MoneyType  # noqa: F401
 from uber.serializer import serializer # noqa: F401
 
 

@@ -1,5 +1,6 @@
 import cherrypy
 import math
+from typing import Any
 
 from datetime import datetime
 
@@ -7,7 +8,7 @@ from uber.config import c
 from uber.custom_tags import time_day_local
 from uber.decorators import ajax, ajax_gettable, all_renderable, not_site_mappable
 from uber.errors import HTTPRedirect
-from uber.models import AdminAccount, Attendee, PrintJob, ReceiptItem
+from uber.models import AdminAccount, Attendee, PrintJob, ReceiptItem, Money, Session
 from uber.utils import localized_now
 
 
@@ -141,7 +142,9 @@ class Root:
         }
 
     @ajax
-    def add_job_to_queue(self, session, id, printer_id='', **params):
+    def add_job_to_queue(
+        self, session: Session, id: str, printer_id: str = '', **params: Any
+    ) -> dict[str, Any]:
         attendee = session.attendee(id)
         reprint_fee = 0 if params.get('free_reprint') else int(params.get('fee_amount', 0))
         new_name = params.get('badge_printed_name', '')
@@ -155,19 +158,23 @@ class Root:
 
         if print_id:
             if reprint_fee:
-                receipt = session.get_receipt_by_model(attendee, create_if_none="DEFAULT")
-                session.add(ReceiptItem(purchaser_id=attendee.purchaser_id,
-                                        receipt_id=receipt.id,
-                                        department=c.REG_RECEIPT_ITEM,
-                                        category=c.BADGE_REPRINT,
-                                        desc="Badge reprint fee (${})".format(reprint_fee),
-                                        amount=reprint_fee * 100,
-                                        fk_id=print_id,
-                                        fk_model="PrintJob",
-                                        count=1,
-                                        who=AdminAccount.admin_name() or 'non-admin',
-                                        )
-                            )
+                receipt = session.get_receipt_by_model(
+                    attendee, create_if_none="DEFAULT"
+                )
+                session.add(
+                    ReceiptItem(
+                        purchaser_id=attendee.purchaser_id,
+                        receipt_id=receipt.id,
+                        department=c.REG_RECEIPT_ITEM,
+                        category=c.BADGE_REPRINT,
+                        desc="Badge reprint fee (${})".format(reprint_fee),
+                        amount=Money.from_dollars(reprint_fee),
+                        fk_id=print_id,
+                        fk_model="PrintJob",
+                        count=1,
+                        who=AdminAccount.admin_name() or 'non-admin',
+                    )
+                )
 
             session.add(attendee)
             session.commit()
@@ -215,7 +222,7 @@ class Root:
         }
 
     @ajax_gettable
-    def mark_as_invalid(self, session, id):
+    def mark_as_invalid(self, session: Session, id: str) -> dict[str, Any]:
         job = session.print_job(id)
         if job.errors:
             success = False
@@ -227,15 +234,17 @@ class Root:
             if job.print_fee and job.attendee:
                 receipt = session.get_receipt_by_model(job.attendee)
                 if receipt:
-                    session.add(ReceiptItem(receipt_id=receipt.id,
-                                            department=c.REG_RECEIPT_ITEM,
-                                            category=c.BADGE_REPRINT,
-                                            desc="Badge reprint cancelled (${})".format(job.print_fee),
-                                            amount=job.print_fee * 100 * -1,
-                                            count=1,
-                                            who=AdminAccount.admin_name() or 'non-admin',
-                                            )
-                                )
+                    session.add(
+                        ReceiptItem(
+                            receipt_id=receipt.id,
+                            department=c.REG_RECEIPT_ITEM,
+                            category=c.BADGE_REPRINT,
+                            desc="Badge reprint cancelled (${})".format(job.print_fee),
+                            amount=Money.from_dollars(-job.print_fee),
+                            count=1,
+                            who=AdminAccount.admin_name() or 'non-admin',
+                        )
+                    )
             session.add(job)
             session.commit()
 

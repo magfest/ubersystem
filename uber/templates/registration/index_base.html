@@ -335,7 +335,7 @@
                         <td>Can't checkin ({{ attendee.cannot_check_in_reason }})</td>
                     {% else %}
                       {% if not reg_station_id and attendee.amount_unpaid %}
-                        <td>Set workstation ID to check in (Attendee owes {{ attendee.amount_unpaid|format_currency }})</td>
+                        <td>Set workstation ID to check in (Attendee owes {{ attendee.amount_unpaid }})</td>
                       {% elif c.BADGE_PRINTING_ENABLED and (not workstation_assignment or not workstation_assignment.printer_id) %}
                         <td>Set {{ "workstation" if not reg_station_id else "printer" }} ID to check in</td>
                       {% else %}

@@ -208,7 +208,7 @@ get noBadgeNumText() { return this.preassignedBadge() ? 'Use next available badg
             This attendee is the buyer/group leader for <strong><a href="../registration/promo_code_group_form?id={{ group.id }}" target="_blank">{{ group.name }}</a></strong>.
             {% endfor %}
             {% if attendee.promo_code and attendee.promo_code.group %}
-            This attendee used promo code <strong>{{ attendee.promo_code.code }}</strong> to claim a {{ attendee.promo_code.cost|format_currency }} badge in promo code group <strong><a href="../registration/promo_code_group_form?id={{ attendee.promo_code.group.id }}" target="_blank">{{ attendee.promo_code_group_name }}</a></strong>.
+            This attendee used promo code <strong>{{ attendee.promo_code.code }}</strong> to claim a {{ attendee.promo_code.cost }} badge in promo code group <strong><a href="../registration/promo_code_group_form?id={{ attendee.promo_code.group.id }}" target="_blank">{{ attendee.promo_code_group_name }}</a></strong>.
             {% endif %}
             {% if not attendee.promo_code_groups and (not attendee.promo_code or not attendee.promo_code.group) %}
             This attendee is not in a promo code group.
@@ -236,7 +236,7 @@ get noBadgeNumText() { return this.preassignedBadge() ? 'Use next available badg
 
 {% block paid_status %}
 {% set paid_admin_text %}
-{{ (attendee.amount_paid / 100)|format_currency }} paid / {{ (attendee.amount_refunded / 100)|format_currency }} refunded
+{{ attendee.amount_paid }} paid / {{ attendee.amount_refunded }} refunded
 {% endset %}
     <div class="col-sm">
         {{ form_macros.input(badge_flags.paid, admin_text=paid_admin_text, alpine_model="paid") }}
@@ -276,7 +276,7 @@ get noBadgeNumText() { return this.preassignedBadge() ? 'Use next available badg
         </div>
     {% endif %}
     <div class="col-sm">
-        {% call form_macros.input(badge_flags.overridden_price, value=attendee.overridden_price or attendee.badge_cost or 0) %}
+        {% call form_macros.input(badge_flags.overridden_price, value=int(attendee.overridden_price.dollars) if attendee.overridden_price else (int(attendee.badge_cost.dollars) if attendee.badge_cost else 0)) %}
         {{ form_macros.input(badge_flags.no_override, checked=not attendee.overridden_price) }}
         {% endcall %}
     </div>

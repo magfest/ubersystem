@@ -1,4 +1,5 @@
 import six
+from typing import Any
 import calendar
 from collections import defaultdict
 from sqlalchemy import or_, and_
@@ -7,9 +8,18 @@ from sqlalchemy.sql import func
 from sqlalchemy.sql.expression import literal
 
 from uber.config import c
-from uber.custom_tags import datetime_local_filter, format_currency
+from uber.custom_tags import datetime_local_filter
 from uber.decorators import all_renderable, log_pageview, csv_file
-from uber.models import Attendee, Group, PromoCode, ReceiptTransaction, ModelReceipt, ReceiptItem, Tracking
+from uber.models import (
+    Attendee,
+    Group,
+    PromoCode,
+    ReceiptTransaction,
+    ModelReceipt,
+    ReceiptItem,
+    Tracking,
+    Session,
+)
 from uber.utils import localize_datetime
 
 
@@ -82,16 +92,27 @@ class Root:
             key=lambda s: s.lower())}
 
     @log_pageview
-    def attendee_receipt_discrepancies(self, session, include_pending=False):
+    def attendee_receipt_discrepancies(
+        self, session: Session, include_pending: bool = False
+    ) -> dict[str, Any]:
+        filter: Any
         if include_pending:
-            filter = or_(Attendee.badge_status == c.PENDING_STATUS, Attendee.is_valid == True)  # noqa: E712
+            filter = or_(
+                Attendee.badge_status == c.PENDING_STATUS, Attendee.is_valid == True
+            )  # type: ignore[arg-type]  # noqa: E712
         else:
             filter = Attendee.is_valid == True  # noqa: E712
 
-        attendees = session.query(Attendee).filter(
-            filter).join(Attendee.active_receipt).outerjoin(ModelReceipt.receipt_items).group_by(
-                ModelReceipt.id).group_by(Attendee.id).having(
-                    Attendee.default_cost_cents != ModelReceipt.fkless_item_total_sql).options(lazyload("*"))
+        attendees = (
+            session.query(Attendee)
+            .filter(filter)
+            .join(Attendee.active_receipt)
+            .outerjoin(ModelReceipt.receipt_items)
+            .group_by(ModelReceipt.id)
+            .group_by(Attendee.id)
+            .having(Attendee.default_cost != ModelReceipt.fkless_item_total_sql)
+            .options(lazyload("*"))
+        )
 
         return {
             'attendees': attendees,
@@ -99,26 +120,56 @@ class Root:
         }
 
     @log_pageview
-    def attendees_nonzero_balance(self, session, include_no_receipts=False, include_discrepancies=False):
-        item_subquery = session.query(ModelReceipt.owner_id, ModelReceipt.item_total_sql.label('item_total')
-                                      ).join(ModelReceipt.receipt_items).group_by(ModelReceipt.owner_id).subquery()
+    def attendees_nonzero_balance(
+        self,
+        session: Session,
+        include_no_receipts: bool = False,
+        include_discrepancies: bool = False,
+    ) -> dict[str, Any]:
+        item_subquery = (
+            session.query(
+                ModelReceipt.owner_id, ModelReceipt.item_total_sql.label('item_total')
+            )
+            .join(ModelReceipt.receipt_items)
+            .group_by(ModelReceipt.owner_id)
+            .subquery()
+        )
 
         if include_discrepancies:
             filter = True
         else:
-            filter = Attendee.default_cost_cents == item_subquery.c.item_total
+            filter = Attendee.default_cost == item_subquery.c.item_total
 
-        attendees_and_totals = session.query(
-            Attendee, ModelReceipt.payment_total_sql, ModelReceipt.refund_total_sql, item_subquery.c.item_total
-            ).filter(Attendee.is_valid == True).join(Attendee.active_receipt).outerjoin(
-                ModelReceipt.receipt_txns).join(item_subquery, Attendee.id == item_subquery.c.owner_id).group_by(
-                    ModelReceipt.id).group_by(Attendee.id).group_by(item_subquery.c.item_total).having(
-                        and_((ModelReceipt.payment_total_sql - ModelReceipt.refund_total_sql) != item_subquery.c.item_total,
-                             filter)).options(lazyload("*"))
-        
+        attendees_and_totals = (
+            session.query(
+                Attendee,
+                ModelReceipt.payment_total_sql,
+                ModelReceipt.refund_total_sql,
+                item_subquery.c.item_total,
+            )
+            .filter(Attendee.is_valid == True)
+            .join(Attendee.active_receipt)
+            .outerjoin(ModelReceipt.receipt_txns)
+            .join(item_subquery, Attendee.id == item_subquery.c.owner_id)
+            .group_by(ModelReceipt.id)
+            .group_by(Attendee.id)
+            .group_by(item_subquery.c.item_total)
+            .having(
+                and_(
+                    (ModelReceipt.payment_total_sql - ModelReceipt.refund_total_sql)
+                    != item_subquery.c.item_total,
+                    filter,
+                )
+            )
+            .options(lazyload("*"))
+        )  # type: ignore[arg-type]
+
         if include_no_receipts:
-            attendees_no_receipts = session.query(Attendee).outerjoin(
-                ModelReceipt, Attendee.active_receipt).filter(Attendee.default_cost > 0, ModelReceipt.id == None)
+            attendees_no_receipts = (
+                session.query(Attendee)
+                .outerjoin(ModelReceipt, Attendee.active_receipt)
+                .filter(Attendee.default_cost > 0, ModelReceipt.id == None)
+            )  # type: ignore[operator]
         else:
             attendees_no_receipts = []
 
@@ -151,7 +202,7 @@ class Root:
         }
 
     @csv_file
-    def self_service_refunds_csv(self, out, session):
+    def self_service_refunds_csv(self, out: Any, session: Session) -> None:
         refunds = session.query(ReceiptTransaction).filter(ReceiptTransaction.amount < 0,
                                                            ReceiptTransaction.who == 'non-admin').all()
         out.writerow(['Transaction ID', 'Model Type', 'Model ID', 'Model Name', 'Refunded Date', 'Amount', 'Desc'])
@@ -170,8 +221,17 @@ class Root:
             else:
                 model_name = getattr(model, 'name', '???')
 
-            out.writerow([refund.refund_id, model_type, model.id, model_name, datetime_local_filter(refund.added),
-                          format_currency(refund.amount * -1 / 100), refund.desc])
+            out.writerow(
+                [
+                    refund.refund_id,
+                    model_type,
+                    model.id,
+                    model_name,
+                    datetime_local_filter(refund.added),
+                    (-refund.amount),
+                    refund.desc,
+                ]
+            )
 
     def checkins_by_hour(self, session):
         query_result = checkins_by_hour_query(session).all()

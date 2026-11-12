@@ -14,7 +14,7 @@ You ({{ attendee.full_name }}) have preregistered for {{ c.EVENT_NAME_AND_YEAR }
 {% elif attendee.paid == c.NEED_NOT_PAY %}
     by claiming your free badge.
 {% else %}
-    and your payment of {{ (attendee.amount_paid / 100)|format_currency }} has been received.
+    and your payment of {{ attendee.amount_paid }} has been received.
 {% endif %}
 Your registration confirmation number is {{ attendee.id }}, and you can update your 
 {% if c.ADDONS_ENABLED and c.COLLECT_EXTRA_DONATION %}

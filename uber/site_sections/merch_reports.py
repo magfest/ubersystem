@@ -1,12 +1,13 @@
 from collections import defaultdict, OrderedDict
 from datetime import datetime
+from typing import Any
 from pytz import UTC
 from sqlalchemy import or_
 
 from uber.config import c
-from uber.custom_tags import format_currency, datetime_local_filter
+from uber.custom_tags import datetime_local_filter
 from uber.decorators import all_renderable, csv_file
-from uber.models import Attendee
+from uber.models import Attendee, Session
 
 
 def sort(d, label_list):
@@ -121,7 +122,7 @@ class Root:
         }
 
     @csv_file
-    def owed_merch_csv(self, out, session):
+    def owed_merch_csv(self, out: Any, session: Session) -> None:
         out.writerow([
             'Name',
             'Name on ID',
@@ -138,15 +139,17 @@ class Root:
                                                          Attendee.badge_type.in_(c.BADGE_TYPE_PRICES)),
                                                      Attendee.got_merch == False)  # noqa: E712
         for attendee in attendees:
-            out.writerow([
-                attendee.full_name,
-                attendee.legal_name,
-                attendee.email,
-                attendee.merch,
-                attendee.extra_merch,
-                attendee.shirt_label,
-                attendee.badge_num,
-                format_currency(attendee.amount_unpaid),
-                datetime_local_filter(attendee.checked_in),
-                attendee.admin_notes,
-            ])
+            out.writerow(
+                [
+                    attendee.full_name,
+                    attendee.legal_name,
+                    attendee.email,
+                    attendee.merch,
+                    attendee.extra_merch,
+                    attendee.shirt_label,
+                    attendee.badge_num,
+                    attendee.amount_unpaid,
+                    datetime_local_filter(attendee.checked_in),
+                    attendee.admin_notes,
+                ]
+            )

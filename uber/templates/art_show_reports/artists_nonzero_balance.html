@@ -43,16 +43,16 @@
                 {{ app.deliver_method_label }}
             </td>
             <td>
-                {{ (item_total / 100)|format_currency }}
+                {{ item_total }}
             </td>
             <td>
-                {{ (payment_total / 100)|format_currency }}
+                {{ payment_total }}
             </td>
             <td>
-                {{ (refund_total / 100)|format_currency }}
+                {{ refund_total }}
             </td>
             <td>
-                {{ ((item_total - txn_total) / 100)|format_currency }}
+                {{ item_total - txn_total }}
             </td>
             {% if c.HAS_REG_ADMIN_ACCESS %}
             <td>
@@ -73,12 +73,12 @@
                 {{ app.deliver_method_label }}
             </td>
             <td>
-                {{ app.true_default_cost|format_currency }}
+                {{ app.true_default_cost }}
             </td>
             <td>No Receipt</td>
             <td>No Receipt</td>
             <td>
-                {{ app.true_default_cost|format_currency }}
+                {{ app.true_default_cost }}
             </td>
             {% if c.HAS_REG_ADMIN_ACCESS %}
             <td>

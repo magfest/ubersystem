@@ -41,7 +41,7 @@
 
 <p>
 {% if app.amount_unpaid %}
-  In order to complete your application, you must pay the {{ app.amount_unpaid|format_currency }} marketplace fee 
+  In order to complete your application, you must pay the {{ app.amount_unpaid }} marketplace fee 
   <a href="{{ c.URL_BASE }}/marketplace/edit?id={{ app.id }}" target="_blank">here</a>.
 Payment is expected by {{ c.MARKETPLACE_PAYMENT_DUE|datetime_local }} or your application may be removed and your space
 filled by another applicant.{% endif %}

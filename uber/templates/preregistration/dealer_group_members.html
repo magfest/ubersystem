@@ -21,11 +21,11 @@
             <li>{{ group.default_badge_cost|format_currency }} for {{ group.badges_purchased }} badge{{ group.badges_purchased|pluralize }}</li>
           {% endif %}
         {% else %}
-          <li>{{ group.cost|format_currency }} total cost</li>
+          <li>{{ group.cost }} total cost</li>
         {% endif %}
-        <li>{{ (group.amount_paid / 100)|format_currency or '$0' }} paid{% if group.amount_unpaid %} so far{% endif %}</li>
+        <li>{{ group.amount_paid }} paid{% if group.amount_unpaid %} so far{% endif %}</li>
         {% if group.amount_unpaid %}
-          <li>{{ group.amount_unpaid|format_currency }} unpaid</li>
+          <li>{{ group.amount_unpaid }} unpaid</li>
         {% endif %}
         </ul>
         {% if c.SIGNNOW_DEALER_FOLDER_ID and not c.SIGNNOW_DEALER_TEMPLATE_ID %}
@@ -40,7 +40,7 @@
             {% elif not c.ONLINE_PAYMENT_AVAILABLE %}
               <p>We are not able to take online payments at this time. You will be able to pay your balance at the Registration help desk on-site.</p>
             {% elif incomplete_txn %}
-              <p>You currently have an incomplete payment of {{ (incomplete_txn.amount / 100)|format_currency }}.</p>
+              <p>You currently have an incomplete payment of {{ incomplete_txn.amount }}.</p>
               <p>Click here to complete your payment: {{ stripe_form('finish_pending_group_payment', group, txn_id=incomplete_txn.id, stripe_button_id="complete_txn") }}</p>
             {% else %}
               <p>{{ stripe_form('process_group_payment', group) }}</p>

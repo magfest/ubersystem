@@ -10,11 +10,21 @@ from sqlalchemy.types import DateTime, Uuid
 from typing import ClassVar
 
 from uber.config import c
-from uber.custom_tags import format_currency, email_only
+from uber.custom_tags import email_only
 from uber.decorators import presave_adjustment
 from uber.models import MagModel
-from uber.models.types import (Choice, default_relationship as relationship, DefaultColumn as Column, MultiChoice, TakesPaymentMixin,
-                               DefaultField as Field, DefaultRelationship as Relationship)
+from uber.models.types import (
+    Choice,
+    default_relationship as relationship,
+    DefaultColumn as Column,
+    MultiChoice,
+    TakesPaymentMixin,
+    DefaultField as Field,
+    DefaultRelationship as Relationship,
+    Money,
+    MoneyType,
+    MoneyField,
+)
 from uber.utils import add_opt
 
 
@@ -53,7 +63,7 @@ class Group(MagModel, TakesPaymentMixin, table=True):
     description: str = ''
     special_needs: str = ''
 
-    cost: int = 0
+    cost: Money = MoneyField()
     auto_recalc: bool = True
 
     can_add: bool = False
@@ -91,7 +101,7 @@ class Group(MagModel, TakesPaymentMixin, table=True):
         if self.auto_recalc:
             self.cost = self.calc_default_cost()
         elif not self.cost:
-            self.cost = 0
+            self.cost = Money.zero()
         if self.status == c.APPROVED and not self.approved:
             self.approved = datetime.now(UTC)
         if self.leader and self.is_dealer and self.leader.paid == c.PAID_BY_GROUP:
@@ -106,10 +116,6 @@ class Group(MagModel, TakesPaymentMixin, table=True):
         if self.is_new and not self.creator_id:
             self.creator_id = self.session.admin_attendee().id if self.session.admin_attendee() else None
 
-    @hybrid_property
-    def cost_cents(self):
-        return self.cost * 100
-    
     @property
     def purchaser_id(self):
         if self.leader:
@@ -360,67 +366,77 @@ class Group(MagModel, TakesPaymentMixin, table=True):
         return exists().where(and_(Attendee.group_id == cls.id, Attendee.first_name == ''))
 
     @property
-    def current_badge_cost(self):
-        total_badge_cost = 0
-
+    def current_badge_cost(self) -> Money:
         if not self.auto_recalc:
-            return 0
+            return Money.zero()
 
-        for attendee in self.attendees:
-            if attendee.paid == c.PAID_BY_GROUP and attendee.badge_cost:
-                total_badge_cost += attendee.badge_cost
-
-        return total_badge_cost
+        return sum(
+            (
+                attendee.badge_cost
+                for attendee in self.attendees
+                if attendee.paid == c.PAID_BY_GROUP and attendee.badge_cost
+            ),
+            Money.zero(),
+        )
 
     @property
-    def new_badge_cost(self):
+    def new_badge_cost(self) -> int:
         return c.DEALER_BADGE_PRICE if self.is_dealer else c.get_group_price()
 
     @property
-    def amount_extra(self):
+    def amount_extra(self) -> Money:
         if self.is_new:
-            return sum(a.total_cost - a.badge_cost for a in self.attendees if a.paid == c.PAID_BY_GROUP and a.badge_cost) / 100
-        else:
-            return 0
+            return sum(
+                (
+                    max(Money.zero(), a.total_cost - (a.badge_cost or Money.zero()))
+                    for a in self.attendees
+                    if a.paid == c.PAID_BY_GROUP and a.badge_cost
+                ),
+                Money.zero(),
+            )
+        return Money.zero()
 
     @property
-    def total_cost(self):
+    def total_cost(self) -> Money:
         if not self.is_valid:
-            return 0
+            return Money.zero()
 
         if self.active_receipt:
-            return (self.active_receipt.item_total - self.active_receipt.discount_total) / 100
+            return self.active_receipt.item_total - self.active_receipt.discount_total
         return (self.cost or self.calc_default_cost()) + self.amount_extra
 
     @property
-    def is_paid(self):
+    def is_paid(self) -> bool:
         return self.active_receipt and self.active_receipt.current_amount_owed == 0
 
     @property
-    def amount_unpaid(self):
+    def amount_unpaid(self) -> Money:
         if self.is_dealer and self.status not in c.DEALER_ACCEPTED_STATUSES:
-            return 0
+            return Money.zero()
 
         if self.registered:
-            return max(0, ((self.total_cost * 100) - self.amount_paid) / 100)
-        else:
-            return self.total_cost
+            return max(Money.zero(), self.total_cost - self.amount_paid)
+        return self.total_cost
 
     @property
-    def amount_pending(self):
-        return self.active_receipt.pending_total if self.active_receipt else 0
+    def amount_pending(self) -> Money:
+        return (
+            self.active_receipt.pending_total if self.active_receipt else Money.zero()
+        )
 
     @property
-    def amount_paid_repr(self):
-        return format_currency(self.amount_paid / 100)
+    def amount_paid_repr(self) -> str:
+        return str(self.amount_paid)
 
     @property
-    def amount_refunded_repr(self):
-        return format_currency(self.amount_refunded / 100)
+    def amount_refunded_repr(self) -> str:
+        return str(self.amount_refunded)
 
     @hybrid_property
-    def amount_paid(self):
-        return self.active_receipt.payment_total if self.active_receipt else 0
+    def amount_paid(self) -> Money:
+        return (
+            self.active_receipt.payment_total if self.active_receipt else Money.zero()
+        )
 
     @amount_paid.expression
     def amount_paid(cls):
@@ -432,8 +448,8 @@ class Group(MagModel, TakesPaymentMixin, table=True):
                                    ModelReceipt.closed == None)).label('amount_paid')  # noqa: E711
 
     @hybrid_property
-    def amount_refunded(self):
-        return self.active_receipt.refund_total if self.active_receipt else 0
+    def amount_refunded(self) -> Money:
+        return self.active_receipt.refund_total if self.active_receipt else Money.zero()
 
     @amount_refunded.expression
     def amount_refunded(cls):

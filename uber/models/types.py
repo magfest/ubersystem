@@ -1,6 +1,7 @@
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from collections import OrderedDict
 from datetime import datetime, time, timedelta
+from typing import Any
 from PIL import Image
 import re
 import shutil
@@ -15,12 +16,25 @@ from sqlalchemy.types import Boolean, Integer, TypeDecorator, String, DateTime, 
 from sqlmodel import Field, Relationship
 
 from uber.config import c, _config as config
+from uber.money import Money, MoneyType
 from uber.utils import listify
 
 __all__ = [
-    'default_relationship', 'relationship', 'utcmin', 'utcnow', 'Choice',
-    'Column', 'DefaultColumn', 'DefaultField', 'DefaultRelationship', 'MultiChoice',
-    'TakesPaymentMixin']
+    'default_relationship',
+    'relationship',
+    'utcmin',
+    'utcnow',
+    'Choice',
+    'Column',
+    'DefaultColumn',
+    'DefaultField',
+    'DefaultRelationship',
+    'MultiChoice',
+    'Money',
+    'MoneyType',
+    'MoneyField',
+    'TakesPaymentMixin',
+]
 
 
 def DefaultColumn(*args, admin_only=False, private=False, **kwargs):
@@ -93,6 +107,39 @@ def DefaultField(*args, admin_only=False, private=False, **kwargs):
     col.admin_only = admin_only
     col.private = private
     return col
+
+
+def MoneyField(
+    default: Money | Callable[[], Money] | None = Money.zero,
+    *,
+    admin_only: bool = False,
+    private: bool = False,
+    **kwargs: Any,
+) -> Any:
+    """
+    Returns a SQLModel Field pre-configured for a Money column backed by MoneyType.
+
+    - If default is None: sets default=None and nullable=True.
+    - If default_factory is in kwargs: preserves it and sets nullable=False.
+    - If default is Money.zero or a zero Money instance or callable: sets default_factory=Money.zero and nullable=False.
+    - Otherwise sets default=default and nullable=False.
+    """
+    kwargs.setdefault('sa_type', MoneyType)
+    if 'default_factory' in kwargs:
+        kwargs.setdefault('nullable', False)
+    elif default is None:
+        kwargs.setdefault('default', None)
+        kwargs.setdefault('nullable', True)
+    elif default is Money.zero or (isinstance(default, Money) and default == 0):
+        kwargs.setdefault('default_factory', Money.zero)
+        kwargs.setdefault('nullable', False)
+    elif callable(default):
+        kwargs.setdefault('default_factory', default)
+        kwargs.setdefault('nullable', False)
+    else:
+        kwargs.setdefault('default', default)
+        kwargs.setdefault('nullable', False)
+    return DefaultField(admin_only=admin_only, private=private, **kwargs)
 
 
 def default_relationship(*args, **kwargs):

@@ -61,7 +61,7 @@
           <td>{{ app.website|url_to_link(target="_blank", is_relative=False) }}</td>
           <td>{{ app.tax_number }}</td>
           <td>{{ app.admin_notes }}</td>
-          <td>{{ (app.amount_paid / 100)|format_currency }}</td>
+          <td>{{ app.amount_paid }}</td>
           {% if c.SIGNNOW_MARKETPLACE_TEMPLATE_ID %}
           <td>
             {% if app.status != c.ACCEPTED %}N/A
