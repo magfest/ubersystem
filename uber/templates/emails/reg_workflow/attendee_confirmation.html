@@ -16,17 +16,16 @@ You ({{ attendee.full_name }}) have preregistered for {{ c.EVENT_NAME_AND_YEAR }
 {% else %}
     and your payment of {{ (attendee.amount_paid / 100)|format_currency }} has been received.
 {% endif %}
-Your registration confirmation number is {{ attendee.id }}, and you can update your 
-{% if c.ADDONS_ENABLED and c.COLLECT_EXTRA_DONATION %}
-    information, preorder merch, or donate extra money
-{% elif c.ADDONS_ENABLED %}
-    information, or preorder merch
-{% elif c.COLLECT_EXTRA_DONATION %}
-    information, or donate extra money
+
+Your registration confirmation number is <strong>{{ attendee.id }}</strong>. {% if c.ATTENDEE_ACCOUNTS_ENABLED and attendee.managers %}
+{% if attendee.email != attendee.managers[0].email %}
+Your account holder can {{ attendee.reg_page_possibilites|readable_join }} by <a href="{{ c.URL_BASE }}/preregistration/homepage" target="_blank">logging into their account</a>.
 {% else %}
-    information
+You can {{ attendee.reg_page_possibilites|readable_join }} by <a href="{{ c.URL_BASE }}/preregistration/homepage" target="_blank">logging into your{% if c.OIDC_ENABLED %} {{ c.OIDC_ACCOUNT_NAME }}{% endif %} account</a>{% if not c.LOCAL_ACCOUNTS_DISABLED %} using the account email address {{ attendee.managers[0].email }}{% endif %}.
 {% endif %}
-<a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}">here</a>.
+{% else %}
+You can {{ attendee.reg_page_possibilites|readable_join }} by clicking <a href="{{ c.URL_BASE }}/preregistration/confirm?id={{ attendee.id }}">here</a>.
+{% endif %}
 
 {% if attendee.is_group_leader %}
     If you don't remember claiming a badge, it may have been created for you by {{ c.EVENT_NAME }} staff. Please
