@@ -1283,6 +1283,27 @@ class Root:
         except Exception as e:
             return {'success': False, 'error': str(e)}
 
+    @ajax
+    def vault_aoc(self, session):
+        """Link to PCI Vault's current PCI DSS Attestation of Compliance.
+
+        Fetched on demand (not on page load) because the document is
+        confidential; the link is returned to the admin's browser and never
+        logged or stored.
+        """
+        if not c.VAULT_ENABLED:
+            return {'error': 'Vault integration is not enabled.'}
+
+        from uber.vault import get_certificate_url
+
+        try:
+            url = get_certificate_url()
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+        if not url:
+            return {'success': False, 'error': 'PCI Vault did not return a certificate link.'}
+        return {'success': True, 'url': url}
+
     def manage_hotels(self, session, message=''):
         hotels = session.query(LotteryHotel).order_by(LotteryHotel.name).all()
         return {

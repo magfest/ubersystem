@@ -168,8 +168,53 @@
   </div>
 </div>
 
+<div class="card card-body mb-3">
+  <h4>PCI Vault Compliance</h4>
+  <p class="mb-2">
+    PCI Vault's current PCI DSS Attestation of Compliance (AOC), retrieved from the connected vault.
+    <strong>Confidential</strong> &mdash; for MAGFest compliance records only; do not forward it to hotels or attendees.
+  </p>
+  <div>
+    <button type="button" class="btn btn-sm btn-outline-primary" id="vault-aoc-button" onclick="loadVaultAoc()">Get AOC link</button>
+    <a id="vault-aoc-link" class="btn btn-sm btn-primary" target="_blank" rel="noopener noreferrer" style="display: none;">Open PCI Vault AOC</a>
+  </div>
+  <div id="vault-aoc-error" class="alert alert-danger mt-2 mb-0" style="display: none;"></div>
+</div>
+
 {{ "js/json-table.js"|serve_static_content }}
 <script>
+function loadVaultAoc() {
+    var button = document.getElementById('vault-aoc-button');
+    var link = document.getElementById('vault-aoc-link');
+    var error = document.getElementById('vault-aoc-error');
+    button.disabled = true;
+    link.style.display = 'none';
+    error.style.display = 'none';
+
+    function fail(message) {
+        error.textContent = message;
+        error.style.display = '';
+    }
+
+    $.ajax({
+        method: 'POST',
+        url: 'vault_aoc',
+        dataType: 'json',
+        data: { csrf_token: csrf_token },
+        success: function(json) {
+            // Only ever follow an https link returned by the vault.
+            if (json.success && /^https:\/\//.test(json.url || '')) {
+                link.href = json.url;
+                link.style.display = '';
+            } else {
+                fail(json.error || 'Failed to load the PCI Vault AOC link.');
+            }
+        },
+        error: function() { fail('Failed to connect to vault service.'); },
+        complete: function() { button.disabled = false; }
+    });
+}
+
 function loadVaultUsage() {
     var month = document.getElementById('usage-month').value;
     document.getElementById('vault-usage-loading').style.display = '';
