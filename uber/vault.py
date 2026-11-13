@@ -112,3 +112,34 @@ def get_billing():
         dict with billing data from PCI Vault.
     """
     return _invoke_lambda({"method": "get_billing"})
+
+
+def _find_https_url(value):
+    """Return the first https:// URL found in a (possibly nested) response."""
+    if isinstance(value, str):
+        value = value.strip()
+        return value if value.startswith("https://") else ""
+    if isinstance(value, dict):
+        value = list(value.values())
+    if isinstance(value, (list, tuple)):
+        for item in value:
+            url = _find_https_url(item)
+            if url:
+                return url
+    return ""
+
+
+def get_certificate_url():
+    """Get the link to PCI Vault's latest signed PCI DSS certificate (its AOC).
+
+    PCI Vault publishes its current Attestation of Compliance only through its
+    authenticated API; uber-vault proxies it as the `get_certificate` method.
+    PCI Vault's documentation does not specify the response shape, so the first
+    https:// URL in the response is used.
+
+    The certificate is CONFIDENTIAL: only show the link to admins, never log it.
+
+    Returns:
+        The https:// URL, or "" if the response did not contain one.
+    """
+    return _find_https_url(_invoke_lambda({"method": "get_certificate"}))
