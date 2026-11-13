@@ -1,0 +1,16 @@
+<html>
+<head></head>
+<body>
+
+<p>
+    {{ attendee.first_name }},
+    <br/>Your badge (confirmation number {{ attendee.id }}) was successfully refunded {{ refund_total|format_currency }} via the {{ c.EVENT_NAME }} badge waitlist.
+    You should see the refund on your credit card in the next few days.
+</p>
+
+<p>
+    Please contact us at {{ c.BADGE_WAITLIST_EMAIL|email_only|email_to_link }} if you have any questions. We hope to see you next year!
+</p>
+
+</body>
+</html>

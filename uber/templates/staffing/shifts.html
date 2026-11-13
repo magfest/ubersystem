@@ -509,7 +509,7 @@
     if (eventInfo.extendedProps.assigned == false) {
       button = `<button type="button" class="btn btn-sm btn-success"
                 onClick="signUp('${eventInfo.id}', \`${eventInfo.title}\`, \`${eventInfo.extendedProps.department_name}\`,
-                '${moment(eventInfo.start).format("h:mma [on] dddd, MMM Do")})')">Sign Up</button>`
+                '${moment(eventInfo.start).format("h:mma [on] dddd, MMM Do")}')">Sign Up</button>`
     } else if (eventInfo.extendedProps.can_drop) {
       button = `<button type="button" class="btn btn-sm btn-warning" 
                 onClick="dropShift('${eventInfo.id}', \`${eventInfo.title}\`, \`${eventInfo.extendedProps.department_name}\`,

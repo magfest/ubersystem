@@ -40,7 +40,7 @@
             <div>
                 {% if other_purchased_badges %}
                     <strong>Note</strong>: This account is also listed as the purchaser for the following badges:
-                    {% for badge in other_purchased_badges %}
+                    {% for badge in other_purchased_badges|rejectattr('name','==','') %}
                     {% if not loop.first %}, {% endif %}
                     {{ badge|form_link }}
                     {% endfor %}
@@ -146,6 +146,90 @@
         </table>
     </div>
 </div>
+{% if c.BADGE_WAITLIST_ENABLED %}
+<div class="card mt-3">
+    <div class="card-header">
+        Waitlist Signups
+    </div>
+    <div class="card-body">
+        <div class="d-flex gap-1 justify-content-end">
+            <form id="waitlist-reoffer" action="refresh_waitlist_offers">
+                {{ csrf_token() }}
+                <input type="hidden" name="account_id" value="{{ account.id }}" />
+                <button class="btn btn-primary">Refresh Badge Offers on Selected Signups</button>
+            </form>
+            <form id="waitlist-remove" action="remove_waitlist_signups">
+                {{ csrf_token() }}
+                <input type="hidden" name="account_id" value="{{ account.id }}" />
+                <button class="btn btn-danger">Cancel Selected Signups</button>
+            </form>
+        </div>
+        <div class="form-text text-end mb-3">
+            Signups with purchased badges and cancelled or removed signups cannot be altered.
+        </div>
+        <table class="table table-hover datatable" data-order="[[ 1, &quot;desc&quot; ]]" x-data="{ selectall: false, }">
+        <thead>
+            <tr>
+                <th data-orderable="false">
+                    <label class="d-block"><input type="checkbox" class="form-check-input" @click="selectall=!selectall"></label>
+                </th>
+                <th>Signed Up</th>
+                <th>Status</th>
+                <th>Name</th>
+                <th>Waitlist</th>
+                <th>Position</th>
+                <th>Refund Badge</th>
+                <th>Offer Without Adult</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for signup in account.waitlist_signups %}
+            <tr>
+                <td>
+                    {% if not signup.attendee and signup.status not in [c.CANCELLED, c.REMOVED] %}
+                    <label class="d-block">
+                        <input type="checkbox" class="form-check-input signup_id" name="signup_ids" value="{{ signup.id }}" x-bind:checked="selectall" />
+                    </label>
+                    {% endif %}
+                </td>
+                <td data-sort="{{ signup.signup_time }}">{{ signup.signup_time|datetime_local("%-I:%M%p %b %-d") }}</td>
+                <td>
+                    {% if signup.attendee and signup.attendee.badge_status != c.PENDING_STATUS %}
+                    Purchased {{ signup.attendee.registered|datetime_local("%-I:%M%p %b %-d") }}
+                    {% elif signup.offered_badge and signup.status == c.PENDING %}
+                    Offered {{ signup.offered_badge|datetime_local("%-I:%M%p %b %-d") }}
+                    {% if signup.attendee and signup.attendee.badge_status == c.PENDING_STATUS %} (Payment Pending){% endif %}
+                    {% else %}
+                    {{ signup.status_label }}
+                    {% endif %}
+                </td>
+                <td>
+                    {% if signup.attendee %}
+                        {{ signup.attendee|form_link(new_window=True) }}{% if signup.attendee.legal_name %} ({{ signup.attendee.legal_name }}){% endif %}
+                        {% if signup.full_name != signup.attendee.full_name or signup.legal_name != signup.attendee.legal_name %}
+                        <a class="text-danger" data-bs-toggle="tooltip" data-bs-placement="top" title="Name changed from {{ signup.full_name }}{% if signup.attendee.legal_name %} ({{ signup.legal_name }}){% endif %}">
+                        <i class="fa fa-exclamation-circle"></i>
+                        </button>
+                        {% endif %}
+                    {% else %}
+                    {{ signup.full_name }}{% if signup.legal_name %} ({{ signup.legal_name }}){% endif %}
+                    {% endif %}
+                </td>
+                <td>{{ c.WAITLIST_BADGE_LABELS[signup.waitlist_type] }}</td>
+                <td>{{ signup.current_waitlist_position if not signup.offered_badge else 'N/A' }}</td>
+                <td>{{ signup.refund_badge|form_link(new_window=True) if signup.refund_badge else 'None' }}</td>
+                <td>
+                    {% if signup.waitlist_type != c.CHILD_BADGE %}N/A{% else %}
+                    {{ signup.offer_without_adult|yesno("Yes,No") }}
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
 <script type="text/javascript">
     $(function() {
         $('.set_owner').on('submit', function(event) {
@@ -215,6 +299,52 @@
           callback: function (result) {
             if (result) {
               $toSubmit[0].submit();
+            }
+          }
+        });
+      });
+      $('#waitlist-reoffer').on('submit', function(event) {
+        event.preventDefault();
+        var $toSubmit = $(this);
+        bootbox.confirm({
+          backdrop: true,
+          title: 'Reset Badge Offers?',
+          message: '<p>This will reset the expiration time for this signup\'s badge offer to now. ' + 
+                   'If the badge offer has expired, it will be reset. Signups with no badge offer will be ignored.</p>' +
+                   '<p>Note that badge offers never expire before 11:59pm in the event\'s timezone, so resetting may not always be necessary.</p>',
+          buttons: {
+            confirm: { label: 'Reset Badge Offers', className: 'btn-primary' },
+            cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+          },
+          callback: function (result) {
+            if (result) {
+                $('.signup_id:input[type=checkbox]').each(function () {
+                    $(this).attr('form', 'waitlist-reoffer')
+                });
+                $toSubmit[0].submit();
+            }
+          }
+        });
+      });
+      $('#waitlist-remove').on('submit', function(event) {
+        event.preventDefault();
+        var $toSubmit = $(this);
+        bootbox.confirm({
+          backdrop: true,
+          title: 'Remove Waitlist Signup?',
+          message: '<p>Are you sure you want to cancel these waitlist signups?</p>' +
+                   '<p><strong>This cannot be undone under any circumstances.</strong></p>' +
+                   '<p>Expired waitlist signups will be ignored.</p>',
+          buttons: {
+            confirm: { label: 'Cancel Signups', className: 'btn-danger' },
+            cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+          },
+          callback: function (result) {
+            if (result) {
+                $('.signup_id:input[type=checkbox]').each(function () {
+                    $(this).attr('form', 'waitlist-remove')
+                });
+                $toSubmit[0].submit();
             }
           }
         });

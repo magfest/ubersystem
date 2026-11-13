@@ -164,6 +164,9 @@ class MagModel(SQLModel):
                 disabled_fields = [x for x in fields.keys() if fields[x] is False]
 
         for field in (enabled_fields or self.to_dict_default_attrs):
+            if not hasattr(self, field):
+                continue
+
             val = getattr(self, field)
             if isinstance(val, (datetime, date)):
                 val = val.isoformat()

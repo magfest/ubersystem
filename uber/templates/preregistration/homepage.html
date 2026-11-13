@@ -120,14 +120,73 @@
     </div>
     {% endfor %}
 {% endif %}
+{% if c.BADGE_WAITLIST_ENABLED and c.AFTER_BADGE_WAITLIST_START and c.BEFORE_BADGE_WAITLIST_CLOSED %}
+<h2 class="text-center fst-italic mt-3{% if c.THEMED_BG_DARK %} text-white{% endif %}">{{ c.EVENT_NAME_AND_YEAR }} Badge Waitlist</h2>
+<div class="card card-body pb-0 mb-3">
+    {% if c.BEFORE_BADGE_WAITLIST_END %}
+    <p>
+        <strong>The {{ c.EVENT_NAME }} Badge Waitlist is now available!</strong>
+        You can request up to {{ c.BADGE_WAITLIST_LIMIT_DESC }} from the waitlist.
+    </p>
+    {% if account.has_waitlist_signups_available %}<p><a href="waitlist_signup" target="_blank" class="btn btn-primary">Sign Up for Waitlist</a></p>{% endif %}
+    {% endif %}
+    {% if account.pending_waitlist_signups %}
+    You can view your current waitlist signups below. Waitlist positions are set within {{ c.WAITLIST_RESERVE_MINUTES * 3 }} minutes of signing up and updated once a day.
+    {% if c.AFTER_BADGE_WAITLIST_END %}The waitlist will close at {{ c.BADGE_WAITLIST_CLOSED|datetime_local }}, after which no more badges will be taken off the waitlist.{% endif %}
+    <div class="d-flex flex-wrap mb-2">
+    {% for signup, position in account.pending_waitlist_signups_positions.items() %}
+        {% set display_pos = c.WAITLIST_MAX_POSITION ~ '+' if c.WAITLIST_MAX_POSITION and position >= c.WAITLIST_MAX_POSITION else position %}
+        <div class="card card-body m-2 pb-0" id="signup-{{ signup.id }}">
+            <div class="d-flex justify-content-between">
+            <strong>{{ signup.full_name }}</strong>
+                <button type="button" class="btn btn-sm btn-warning"
+                onClick="confirmWaitlistCancel('{{ signup.id }}', '{{ signup.full_name }}', '{{ display_pos }}', '{% if c.WAITLIST_BADGE_TYPES|length > 1 %}{{ c.WAITLIST_BADGE_LABELS[signup.waitlist_type] }} {% endif %}')"
+                >Cancel Signup</button>
+            </div>
+            <p>
+            {% if signup.legal_name %}<br/><strong>Name on Photo ID</strong>: {{ signup.legal_name }}{% endif %}
+            <br/><strong>Email</strong>: {{ signup.email }}
+            <br/><strong>Birthdate</strong>: {{ signup.birthdate|datetime('%m/%d/%Y') }}
+            <br/><strong>Signed Up</strong>: {{ signup.signup_time|datetime_local('%-I:%M%p %b %-m') }}
+            <br/><strong>Badge Cost</strong>: {{ signup.estimated_badge_cost|format_currency if signup.estimated_badge_cost else 'Free!' }}
+            </p>
+            <span class="mt-auto ms-auto mb-2">
+                <em>{% if c.WAITLIST_BADGE_TYPES|length > 1 %}{{ c.WAITLIST_BADGE_LABELS[signup.waitlist_type] }} {% endif %}Waitlist Position: {{ display_pos or 'Not Set' }}</em>
+            </span>
+        </div>
+    {% endfor %}
+    </div>
+    {% endif %}
+    {% if account.offered_waitlist_signups %}
+    {% set multi_signup_offers = account.offered_waitlist_signups|length > 1 %}
+        <strong>
+            Congratulations!
+            {% if multi_signup_offers %}The following badges are now available for purchase:
+            {% else %}You have been selected from the waitlist. You can confirm your attendance and purchase your badge <a href="{{ c.URL_BASE }}/preregistration/waitlist_purchase{% if not c.ATTENDEE_ACCOUNTS_ENABLED %}?id={{ signup.id }}{% endif %}">here</a>.
+            {% endif %}
+        </strong>
+        {% if multi_signup_offers %}
+            <ul>
+            {% for signup in account.offered_waitlist_signups %}
+            <li>{{ signup.full_name }}</li>
+            {% endfor %}
+            </ul>
+            <p><a href="{{ c.URL_BASE }}/preregistration/waitlist_purchase" class="btn btn-success" target="_blank">View and Purchase Pending Badges</a></p>
+        {% endif %}
+        {% if c.AFTER_BADGE_WAITLIST_END %}
+        <p>You have until <strong>{{ c.BADGE_WAITLIST_CLOSED|datetime_local }}</strong> to purchase the above badges, after which the badge waitlist will be closed.</p>
+        {% endif %}
+    {% endif %}
+</div>
+{% endif %}
 {% if not account.valid_attendees and (not c.AT_THE_CON or not account.at_door_pending_attendees) %}
     {% set empty_account_help_tooltip %}
         If you bought a badge for {{ c.EVENT_NAME_AND_YEAR }}, make sure you are logged into the same {{ c.OIDC_ACCOUNT_NAME }} account you bought your badge with.
         <br/><br/>If someone else bought your badge, they can manage your badge under their {{ c.OIDC_ACCOUNT_NAME }} account{% if c.TRANSFERABLE_BADGE_TYPES %} or transfer your badge to your account with a transfer code{% endif %}.
     {% endset %}
-    <div class="text-center">
+    <div class="text-center mt-3">
         <span class="h2 text-uppercase{% if c.THEMED_BG_DARK %} text-white{% endif %}">You have no current registrations</span>
-        <h4 class="text-center"><span class="fw-normal fst-italic mb-2 badge bg-secondary">{{ prereg_message }}</span></h4>
+        <h4 class="text-center mt-2"><span class="fw-normal fst-italic mb-2 badge bg-secondary">{{ prereg_message }}</span></h4>
         <p>
             {% if c.OIDC_ACCOUNT_NAME and c.AFTER_PREREG_OPEN %}
             <button type="button" class="btn btn-sm btn-warning" data-bs-html="true" data-bs-container="body" data-bs-toggle="popover" data-bs-placement="top" data-bs-content="{{ empty_account_help_tooltip }}">
@@ -239,8 +298,13 @@
                 </table>
                 {% block multi_cancel_modal_text scoped %}
                 <p>
+                    {% if c.BADGE_WAITLIST_OPEN and not c.SELF_SERVICE_REFUNDS_OPEN %}
+                    Pressing the "Cancel Selected Registration(s)" button will request a refund for all checked registrations via the badge waitlist.
+                    Any free registrations will be cancelled immediately.
+                    {% else %}
                     Pressing the "Cancel Selected Registration(s)" button will <strong>immediately and irreversibly</strong> cancel all checked registrations.
                     Any registration fees and any upgrades purchased will be refunded to the original payment method.
+                    {% endif %}
                 </p>
                 {% endblock %}
             </div>
@@ -389,6 +453,49 @@
 {% endif %}
 {% endfor %}
 <script type="text/javascript">
+    var confirmWaitlistCancel = function (id, signupName, position, waitlistType) {
+        let posInfo = ''
+        if (position != 0) {
+            posInfo = `<strong>You are currently in position ${position} on the ${waitlistType}waitlist.</strong> `
+        }
+        bootbox.confirm({
+            backdrop: true,
+            title: "Cancel Waitlist Signup for " + signupName + "?",
+            message: `<p>Are you sure you want to cancel your waitlist signup for ${signupName}?</p>
+                        <p>${posInfo}If you cancel, you will lose your current position on the waitlist and need to sign up again.</p>`,
+            buttons: {
+                confirm: { label: 'Yes, Cancel Signup', className: 'btn-warning' },
+                cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+            },
+            callback: function (result) {
+                if (result) {
+                    $.ajax({
+                    method: 'POST',
+                    url: 'cancel_waitlist_signups',
+                    dataType: 'json',
+                    data: {
+                        signup_ids: id,
+                        csrf_token: csrf_token,
+                    },
+                    success: function (json) {
+                        hideMessageBox();
+                        var message = json.message;
+                        if (json.success) {
+                            $("#message-alert").addClass("alert-info").show().children('span').html(message);
+                            window.scrollTo(0,0); setTimeout(() => { window.scrollTo(0, 0); }, 100);
+                            $('#signup-' + id).remove()
+                        } else {
+                            showErrorMessage(message);
+                        }
+                    },
+                    error: function () {
+                        showErrorMessage('Unable to connect to server, please try again.');
+                    }
+                });
+                }
+            }
+        });
+    }
     $(function() {
       $('.new-account-form').on('submit', function(event) {
         event.preventDefault();

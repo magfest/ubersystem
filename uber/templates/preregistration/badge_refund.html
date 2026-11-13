@@ -1,5 +1,5 @@
 {% set abandon_hover_text = attendee.cannot_abandon_badge_reason %}
-{% if c.REFUND_CUTOFF or not attendee.amount_paid %}
+{% if attendee.badge_status != c.WAITLIST_REFUND_STATUS and (c.BADGE_WAITLIST_OPEN or c.REFUND_CUTOFF or not attendee.amount_paid) %}
     <span class="tooltip-wrapper" tabindex="0" data-bs-toggle="tooltip" data-placement="top"{% if abandon_hover_text %} title="{{ abandon_hover_text }}"{% endif %}>
     {% if cancel_shortcut or not is_card %}
         <button type="submit" form="abandon_badge" alt="{{ abandon_hover_text }}" id="abandon_button_{{ attendee.id }}" class="btn btn-danger{% if is_card %} btn-sm{% endif %}"
@@ -13,8 +13,15 @@
     {% endif %}
 {% if abandon_hover_text %}</span>{% endif %}
 
-{% set cancel_modal_title %}Cancel {% if is_card %}{{ attendee.full_name }}'s {% endif %} Registration?{% endset %}
-{% set cancel_modal_text %}{{ "Refunding" if attendee.amount_paid else "Abandoning" }} your badge will <strong>immediately</strong> cancel your registration.{% if attendee.amount_paid %}<br/><br/>The registration fee and any upgrades purchased will be refunded to the original payment method.{% endif %}<br/><br/>You will need to purchase a new badge if you wish to attend {{ c.EVENT_NAME }}.<br/><br/>Do you wish to proceed?{% endset %}
+{% if c.BADGE_WAITLIST_OPEN and attendee.amount_paid and not c.SELF_SERVICE_REFUNDS_OPEN %}
+    {% set cancel_modal_title %}Request Refund{% if is_card %} for {{ attendee.full_name }}'s Registration{% endif %}?{% endset %}
+    {% set cancel_modal_text %}You can currently request a refund using the badge waitlist.<br/><br/>If someone on the waitlist is waiting for a badge, your spot will be offered to them. Once they complete their purchase, your registration fee and any upgrades purchased will be refunded to the original payment method. You will receive an email if and when this happens.<br/><br/>If no one is waiting for a badge, you can cancel this request. Do you wish to proceed?{% endset %}
+    {% set cancel_button_text %}Yes, Request a Refund{% endset %}
+{% else %}
+    {% set cancel_modal_title %}Cancel {% if is_card %}{{ attendee.full_name }}'s {% endif %}Registration?{% endset %}
+    {% set cancel_modal_text %}{{ "Refunding" if attendee.amount_paid else "Abandoning" }} your badge will <strong>immediately</strong> cancel your registration.{% if attendee.amount_paid %}<br/><br/>The registration fee and any upgrades purchased will be refunded to the original payment method.{% endif %}<br/><br/>You will need to purchase a new badge if you wish to attend {{ c.EVENT_NAME }}.<br/><br/>Do you wish to proceed?{% endset %}
+    {% set cancel_button_text %}Yes, Cancel My Registration{% endset %}
+{% endif %}
 
 {% if is_card and cancel_shortcut %}
 <form method="post" action="abandon_badge" id="abandon_badge_{{ attendee.id }}">
@@ -34,7 +41,7 @@
                 message: '{{ cancel_modal_text }}',
                 buttons: {
                     confirm: {
-                        label: "Yes, Cancel My Registration",
+                        label: "{{ cancel_button_text }}",
                         className: 'btn-danger'
                     },
                     cancel: {

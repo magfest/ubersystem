@@ -746,6 +746,10 @@ def get_age_from_birthday(birthdate, today=None):
     if isinstance(today, six.string_types):
         today = Attendee.coerce_column_data(Attendee, birthdate_col, today)
 
+    if isinstance(birthdate, six.string_types) or isinstance(today, six.string_types):
+        log.error(f"get_age_from_birthday called with malformed birthdate ({birthdate}) or today ({today}) value")
+        return
+
     # int(True) == 1 and int(False) == 0
     upcoming_birthday = int(
         (today.month, today.day) < (birthdate.month, birthdate.day))

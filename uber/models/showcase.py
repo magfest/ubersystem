@@ -332,6 +332,8 @@ class IndieStudio(MagModel, table=True):
 
     @property
     def unclaimed_badges(self):
+        # TODO: We use this to tell people how many extra badges they're getting on the confirmation page
+        # But if they have a pre-existing badge we actually tell them the wrong #
         claimed_count = len(
             [d for d in self.developers if not d.attendee])
         return max(0, self.comped_badges - claimed_count)
@@ -472,6 +474,14 @@ class IndieGame(MagModel, ReviewMixin, table=True):
     @property
     def email(self):
         return self.studio.email if self.studio else ''
+
+    @property
+    def gets_emails(self):
+        return self.is_valid
+
+    @property
+    def is_valid(self):
+        return self.status not in [c.CANCELLED, c.DECLINED]
     
     @property
     def admin_email(self):

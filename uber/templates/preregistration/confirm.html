@@ -4,23 +4,6 @@
 {% set title_text = "Confirm Your Details" %}
 {% block content %}
 
-<script type="text/javascript">
-  $(function(){
-      {% if attendee.has_personalized_badge %}
-          $('.badge-row').show();
-      {% endif %}
-      {% if attendee.amount_extra and not attendee.amount_unpaid %}
-          setTimeout(function () {  // make sure this happens after jQuery.select2
-              $.field('amount_extra').find('option').each(function(){
-                  if ($(this).val() < {{ attendee.amount_extra }}) {
-                      $(this).remove();
-                  }
-              });
-          }, 1);
-      {% endif %}
-  });
-</script>
-
 <div class="card">
   <div class="card-header">
     Registration Information
@@ -45,6 +28,29 @@
         This registration does not include attendance to the event.
         Please contact us at {{ c.CONTACT_EMAIL|email_only|email_to_link }} if you have any questions.
       </div>
+      {% elif attendee.badge_status == c.WAITLIST_REFUND_STATUS %}
+        {% set page_ro = True %}
+        {% if attendee.locked_by_waitlist %}
+        <div class="alert alert-warning" role="alert">
+          Your registration is currently pending a refund via the badge waitlist. You cannot cancel your refund request at this time.
+        </div>
+        {% elif homepage_account and homepage_account.available_badge_waitlist_signups(attendee.badge_type) < 1 %}
+        <div class="alert alert-info" role="alert">
+          Your badge is currently pending a refund via the badge waitlist.
+          To cancel this refund request, first cancel one of your pending {% if c.WAITLIST_BADGE_TYPES|length > 1 %}{{ c.WAITLIST_BADGE_LABELS[attendee.badge_type] }} {% endif %}Waitlist signups.
+        </div>
+        {% else %}
+        <div class="alert alert-info" role="alert">
+          Your badge is currently pending a refund via the badge waitlist.
+          Your spot has not been offered to anyone on the waitlist yet, so you can still cancel your refund request.
+          <br/><br/>
+          <form method="post" action="cancel_refund">
+            {{ csrf_token() }}
+            <input type="hidden" name="id" value="{{ attendee.id }}" />
+            <button class="btn btn-primary">Cancel Refund Request</button>
+          </form>
+        </div>
+        {% endif %}
       {% else %}
         {% if not attendee.placeholder and receipt and receipt.current_amount_owed %}
             {% if incomplete_txn %}
@@ -164,15 +170,16 @@
           {% if not page_ro %}
           <div class="flex-grow-1">
           <button type="submit" class="btn btn-primary" id="updateButton">
-            {% if attendee.placeholder %}Register{% else %}Update My Info{% endif %}
+            {% if attendee.placeholder and homepage_account and homepage_account.placeholder_badges|length > 1 %}Save & Register Next
+            {% elif attendee.placeholder %}Register{% else %}Update My Info{% endif %}
           </button>
           </div>
           {% if c.TRANSFERABLE_BADGE_TYPES or attendee.is_transferable %}
             {% if attendee.is_transferable %}
-            <a href="transfer_badge?id={{ attendee.id }}" class="btn btn-outline-primary">Transfer My Badge</a>
+            <a href="transfer_badge?id={{ attendee.id }}" class="btn btn-secondary">Transfer My Badge</a>
             {% else %}
-            <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" title="This badge is not transferable. Please{% if attendee.transferable_actions %} {{ attendee.transferable_actions|readable_join }} first, or{% endif %} contact us at {{ c.REGDESK_EMAIL|email_only }} if you have any questions.">
-            <a class="btn btn-outline-primary disabled" aria-disabled="true">Transfer My Badge</a>
+            <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" title="This badge is not transferable.{% if not attendee.cannot_transfer_reason %} Please{% if attendee.transferable_actions %} {{ attendee.transferable_actions|readable_join }} first, or{% endif %} contact us at {{ c.BADGE_TRANSFERS_EMAIL|email_only }} if you have any questions.{% endif %}">
+            <a class="btn btn-secondary disabled" aria-disabled="true">Transfer My Badge</a>
             </span>
             {% endif %}
           {% endif %}

@@ -1,11 +1,13 @@
 import contextlib
 import json
+import math
 import six
 import uuid
 import logging
 from datetime import datetime, timedelta
 from functools import wraps
-from urllib.parse import urlparse
+from pytz import UTC
+from uuid import uuid4
 
 import bcrypt
 import cherrypy
@@ -23,11 +25,12 @@ from uber.decorators import ajax, ajax_gettable, all_renderable, credit_card, cs
     redirect_if_at_con_to_kiosk, render, requires_account
 from uber.errors import HTTPRedirect
 from uber.forms import load_forms
-from uber.models import AdminAccount, Attendee, AttendeeAccount, Attraction, BadgePickupGroup, Email, Group, PromoCode, PromoCodeGroup, \
-                        PasswordReset, ReceiptItem, ReceiptTransaction, Tracking
-from uber.utils import add_opt, remove_opt, check, localized_now, normalize_email, normalize_email_legacy, genpasswd, valid_email, \
-    valid_password, SignNowRequest, validate_model, create_new_hash, get_age_conf_from_birthday, RegistrationCode, listify
+from uber.models import Attendee, AttendeeAccount, Attraction, BadgePickupGroup, BadgeWaitlistSignup, Email, Group, PromoCode, \
+    PromoCodeGroup, PasswordReset, ReceiptItem, ReceiptTransaction, Tracking
+from uber.utils import add_opt, remove_opt, check, localized_now, normalize_email, normalize_email_legacy, valid_email, \
+    valid_password, SignNowRequest, validate_model, create_new_hash, get_age_conf_from_birthday, get_age_from_birthday, RegistrationCode
 from uber.payments import PreregCart, TransactionRequest, ReceiptManager, RefundRequest
+from uber.tasks.redis import check_task_progress
 
 log = logging.getLogger(__name__)
 
@@ -63,6 +66,17 @@ def check_post_con(klass):
         if not name.startswith('_') and hasattr(method, '__call__'):
             setattr(klass, name, wrapper(method))
     return klass
+
+
+def check_waitlist_access(allow_after_end=False):
+    if not c.BADGE_WAITLIST_ENABLED:
+        return ''
+    if c.BEFORE_BADGE_WAITLIST_START:
+        return "The badge waitlist is not open yet."
+    if not allow_after_end and c.AFTER_BADGE_WAITLIST_END:
+        return "Unfortunately, signups for the badge waitlist are now closed."
+    if c.AFTER_BADGE_WAITLIST_CLOSED:
+        return "Unfortunately, the badge waitlist is now closed."
 
 
 def _add_promo_code(session, attendee, submitted_promo_code):
@@ -317,6 +331,311 @@ class Root:
             raise HTTPRedirect('homepage?message={}', "Registration cancelled.")
         raise HTTPRedirect('../landing/index?message={}', "Registration cancelled.")
 
+    @requires_account(BadgeWaitlistSignup)
+    def waitlist_purchase(self, session, message='', **params):
+        access_message = check_waitlist_access(allow_after_end=True)
+        if access_message:
+            redirect = 'homepage' if c.ATTENDEE_ACCOUNTS_ENABLED else '../landing/index'
+            raise HTTPRedirect('{}?message={}', redirect, access_message)
+
+        account = None
+        signups = None
+        if c.ATTENDEE_ACCOUNTS_ENABLED:
+            account = session.current_attendee_account()
+        
+        if 'id' in params:
+            signup = session.get(BadgeWaitlistSignup, params['id'])
+            if not signup:
+                message = "Waitlist signup not found!"
+            else:
+                message = signup.cannot_purchase_reason
+
+            if not message:
+                signups = [signup]
+        elif account:
+            signups = account.offered_waitlist_signups
+            if not signups:
+                message = "You have no badges from the waitlist currently available for purchase."
+        else:
+            message = "Missing waitlist signup ID."
+
+        if message and not signups:
+            redirect = 'homepage' if c.ATTENDEE_ACCOUNTS_ENABLED else '../landing/index'
+            raise HTTPRedirect('{}?message={}', redirect, message)
+
+        return {
+                'signups': signups,
+                'message': message,
+                'logged_in_account': account,
+            }
+
+    @ajax
+    @credit_card
+    @requires_account()
+    def purchase_waitlist_signups(self, session, signup_ids, **params):
+        access_message = check_waitlist_access(allow_after_end=True)
+        if access_message:
+            return {'error': access_message}
+
+        signup_errors = []
+        new_badges = []
+        receipts = []
+        purchaser = None
+        fallback_purchaser = None
+        account = None
+
+        if c.ATTENDEE_ACCOUNTS_ENABLED:
+            account = session.current_attendee_account()
+
+        signup_id_list = signup_ids.split(',')
+        multi_signup = len(signup_id_list) > 1
+
+        for signup_id in signup_id_list:
+            signup_error = ''
+            signup = session.get(BadgeWaitlistSignup, signup_id)
+            if not signup:
+                signup_error = "Waitlist signup not found."
+            else:
+                signup_error = signup.cannot_purchase_reason
+
+            if signup_error:
+                if multi_signup:
+                    signup_errors.append(f"{signup.full_name} - {signup_error.lower()}")
+                else:
+                    signup_errors.append({signup_error})
+            else:
+                if signup.attendee:
+                    new_badge = signup.attendee
+                else:
+                    signup_dict = signup.to_dict(c.UNTRANSFERABLE_ATTRS)
+                    del signup_dict['id']
+                    new_badge = Attendee(**signup_dict)
+                    new_badge.badge_status = c.PENDING_STATUS
+                    new_badge.paid = c.PENDING
+                    new_badge.badge_type = signup.waitlist_type
+                    new_badge.placeholder = True
+                    signup.attendee_id = new_badge.id
+
+                    if c.ATTENDEE_ACCOUNTS_ENABLED:
+                        session.add_attendee_to_account(new_badge, account)
+
+                if not purchaser and new_badge.age_now_or_at_con >= 18:
+                    purchaser = new_badge
+                elif not fallback_purchaser:
+                    fallback_purchaser = new_badge
+
+                new_badges.append(new_badge)
+
+        if signup_errors:
+            session.rollback()
+            error_prepend = "Could not purchase the following badges: " if multi_signup else ""
+            return {'error': f"{error_prepend}{' '.join(signup_errors)}"}
+
+        purchase_description = f"Waitlist purchase for {', '.join([badge.full_name for badge in new_badges])}"
+
+        for attendee in new_badges:
+            session.add(attendee)
+            if attendee.active_receipt:
+                # We don't expect the costs to change, so we can re-use the receipt of any pending badges
+                receipts.append(attendee.active_receipt)
+            else:
+                purchaser = purchaser or fallback_purchaser
+                charge_receipt, charge_receipt_items = ReceiptManager.create_new_receipt(
+                    attendee, who='non-admin', create_model=True, purchaser_id=account.id if account else purchaser.id)
+                session.add(charge_receipt)
+                for item in charge_receipt_items:
+                    session.add(item)
+                session.flush()
+                receipts.append(charge_receipt)
+
+        total_cost = sum([receipt.current_amount_owed for receipt in receipts])
+
+        if total_cost:
+            receipt_email = account.email if c.ATTENDEE_ACCOUNTS_ENABLED else purchaser.email
+            charge = TransactionRequest(session, receipt_email=receipt_email,
+                                        description=purchase_description,
+                                        amount=total_cost,
+                                        who='non-admin')
+            message = charge.create_payment_intent()
+            if message:
+                return {'error': message}
+
+            for receipt in receipts:
+                receipt_manager = ReceiptManager(receipt)
+                if receipt.current_amount_owed != 0:
+                    receipt_manager.create_payment_transaction(charge.description, charge.intent,
+                                                                receipt.current_amount_owed)
+                    session.add_all(receipt_manager.items_to_add)
+        else:
+            for attendee in new_badges:
+                attendee.badge_status = c.COMPLETE_STATUS
+                attendee.paid = c.NEED_NOT_PAY
+        
+        session.commit()
+        
+        if c.ATTENDEE_ACCOUNTS_ENABLED:
+            account.set_account_owner()
+            session.commit()
+
+        return {'stripe_intent': charge.intent if total_cost else None,
+                'success_url': 'confirm?id={}&message={}'.format(
+                    new_badges[0].id, f'{"Payment accepted!" if total_cost else "Free badge claimed successfully!"} Please fill out your badge details below.'),
+                'cancel_url': 'cancel_payment'}
+
+    @requires_account()
+    def waitlist_signup(self, session, message='', **params):
+        access_message = check_waitlist_access()
+        if access_message:
+            redirect = 'homepage' if c.ATTENDEE_ACCOUNTS_ENABLED else '../landing/index'
+            raise HTTPRedirect('{}?message={}', redirect, access_message)
+
+        account = None
+        max_badges_for_type = {}
+        num_badge_type_signups = {}
+
+        if c.ATTENDEE_ACCOUNTS_ENABLED:
+            account = session.current_attendee_account()
+            reserve_id = account.id
+        else:
+            reserve_id = cherrypy.session.setdefault('waitlist_reserve_id', str(uuid4()))
+
+        signup_start_time = c.REDIS_STORE.hget(c.REDIS_PREFIX + 'waitlist_signup_reserved', reserve_id)
+        if not signup_start_time:
+            signup_start_time = datetime.now(UTC)
+            expire_time = signup_start_time + timedelta(minutes=c.WAITLIST_RESERVE_MINUTES + 1)
+            c.REDIS_STORE.hset(c.REDIS_PREFIX + 'waitlist_signup_reserved', reserve_id, signup_start_time.timestamp())
+            c.REDIS_STORE.hpexpireat(c.REDIS_PREFIX + 'waitlist_signup_reserved', math.floor(expire_time.timestamp() * 1000), reserve_id)
+        else:
+            signup_start_time = datetime.fromtimestamp(float(signup_start_time))
+            expire_time = datetime.fromtimestamp(float(c.REDIS_STORE.hexpiretime(c.REDIS_PREFIX + 'waitlist_signup_reserved', reserve_id)[0]))
+
+        forms = defaultdict(dict)
+        for badge_type_name in c.WAITLIST_BADGE_TYPE_NAMES:
+            badge_type = getattr(c, badge_type_name.upper())
+            max_badges_for_type[badge_type] = max(0, account.available_badge_waitlist_signups(badge_type)) if account else c.BADGE_WAITLIST_LIMITS[badge_type]
+            for num in range(1, max_badges_for_type[badge_type] + 1):
+                forms[badge_type][num] = load_forms(params, BadgeWaitlistSignup(),
+                                                    ['BadgeWaitlistInfo'], field_prefix=f'{badge_type_name}_{num}')
+
+        if cherrypy.request.method == 'POST':
+            pending_signup_adult = False
+            for badge_type_name in c.WAITLIST_BADGE_TYPE_NAMES:
+                badge_type = getattr(c, badge_type_name.upper())
+                num_badge_type_signups[badge_type] = int(params.get(f'{badge_type_name}_signup_select', 0))
+
+                if num_badge_type_signups[badge_type] > max_badges_for_type[badge_type]:
+                    message = f"You only have {max_badges_for_type[badge_type]} {c.WAITLIST_BADGE_LABELS[badge_type]} signups available."
+
+                if account and not account.valid_adults:
+                    # Prevent signups for attendees under ACCOMPANYING_ADULT_AGE unless there's also a signup for an adult
+                    for signup in account.pending_waitlist_signups + account.offered_waitlist_signups:
+                        if signup.birthdate and signup.age_now_or_at_con >= 18:
+                            pending_signup_adult = True
+
+                    if not pending_signup_adult:
+                        for num in range(1, num_badge_type_signups[badge_type] + 1):
+                            for form in forms[badge_type][num].values():
+                                if hasattr(form, 'birthdate') and form.birthdate.data and \
+                                        get_age_from_birthday(form.birthdate.data, c.NOW_OR_AT_CON) >= 18:
+                                    pending_signup_adult = True
+
+                    if not pending_signup_adult:
+                        message = f"You cannot sign up for a badge under {c.ACCOMPANYING_ADULT_AGE} without an adult."
+
+            if not message:
+                for badge_type in c.WAITLIST_BADGE_TYPES:
+                    for num in range(1, num_badge_type_signups[badge_type] + 1):
+                        signup = BadgeWaitlistSignup(
+                            waitlist_type=badge_type,
+                            signup_time=signup_start_time)
+                        if account:
+                            signup.attendee_account = account
+                            signup.signup_order = account.used_waitlist_signups(badge_type) + num
+                        else:
+                            signup.signup_order = num
+
+                        for form in forms[badge_type][num].values():
+                            form.populate_obj(signup)
+                        session.add(signup)
+
+                redirect = 'homepage' if c.ATTENDEE_ACCOUNTS_ENABLED else '../landing/index'
+                raise HTTPRedirect('{}?message={}', redirect, "Thanks for signing up for the waitlist!")
+
+        return {
+            'forms': forms,
+            'message': message,
+            'expire_time': expire_time - timedelta(minutes=1),
+            'logged_in_account': account,
+            'selected_signups': num_badge_type_signups
+        }
+
+    @ajax
+    def validate_waitlist_signups(self, session, form_list=[], **params):
+        if not form_list:
+            form_list = ['BadgeWaitlistInfo']
+        elif isinstance(form_list, str):
+            form_list = [form_list]
+
+        all_errors = {}
+
+        for badge_type_name in c.WAITLIST_BADGE_TYPE_NAMES:
+            badge_type = getattr(c, badge_type_name.upper())
+            num_badge_type_signups = int(params.get(f'{badge_type_name}_signup_select', 0))
+            for num in range(1, num_badge_type_signups + 1):
+                signup = BadgeWaitlistSignup(waitlist_type=badge_type)
+                loaded_forms = load_forms(params, signup, form_list, field_prefix=f'{badge_type_name}_{num}')
+                errors = validate_model(session, loaded_forms, signup)
+                if errors:
+                    all_errors.update(errors)
+
+        if all_errors:
+            return {"error": all_errors}
+
+        return {"success": True}
+
+    @ajax
+    def cancel_waitlist_signups(self, session, signup_ids, **params):
+        access_message = check_waitlist_access()
+        if access_message:
+            return {'success': False, 'message': access_message}
+        
+        signup_errors = []
+        cancelled_names = []
+
+        try:
+            signup_id_list = signup_ids.split(',')
+        except AttributeError:
+            signup_id_list = signup_ids
+
+        multi_signup = len(signup_id_list) > 1
+
+        for signup_id in signup_id_list:
+            signup_error = ''
+            signup = session.get(BadgeWaitlistSignup, signup_id)
+            if not signup:
+                signup_error = "Waitlist signup not found."
+            elif signup.status != c.PENDING:
+                signup_error = "Waitlist signup was already cancelled or expired."
+
+            if signup_error:
+                if multi_signup:
+                    signup_errors.append(f"{signup.full_name} - {signup_error.lower()}")
+                else:
+                    signup_errors.append({signup_error})
+            else:
+                signup.status = c.CANCELLED
+                session.add(signup)
+                cancelled_names.append(signup.full_name)
+
+        if signup_errors:
+            session.rollback()
+            error_prepend = "Could not cancel the following signups: " if multi_signup else ""
+            return {'success': False, 'message': f"{error_prepend}{' '.join(signup_errors)}"}
+        session.commit()
+        success_plural = "s" if multi_signup else ""
+        return {'success': True, 'message': f"Successfully cancelled waitlist signup{success_plural} for {readable_join(cancelled_names)}."}
+        
+
     @requires_account(Attendee)
     def resume_pending(self, session, id=None, account_id=None, **params):
         if account_id:
@@ -509,10 +828,16 @@ class Root:
         return {"success": True}
 
     @ajax_gettable
-    def _check_consent_form(self, session, birthdate):
+    def check_consent_form(self, session, birthdate):
         age_conf = get_age_conf_from_birthday(birthdate, c.NOW_OR_AT_CON)
 
         return {"consent_form": age_conf['consent_form']}
+
+    @ajax_gettable
+    def check_accompanying_adult(self, session, birthdate):
+        age = get_age_from_birthday(birthdate, c.NOW_OR_AT_CON)
+
+        return {"needs_accompanying_adult": age < c.ACCOMPANYING_ADULT_AGE}
 
     @cherrypy.expose('post_form')
     @redirect_if_at_con_to_kiosk
@@ -641,7 +966,8 @@ class Root:
 
                 if not message:
                     if session.attendees_with_badges().filter_by(
-                            first_name=attendee.first_name, last_name=attendee.last_name, email=attendee.email).count():
+                            first_name=attendee.first_name, last_name=attendee.last_name,
+                            normalize_email=normalize_email_legacy(attendee.email)).count():
 
                         raise HTTPRedirect('duplicate?{}'.format(url_string))
 
@@ -724,7 +1050,8 @@ class Root:
 
         attendee, group = self._get_attendee_or_group(params)
         orig = session.query(Attendee).filter_by(
-            first_name=attendee.first_name, last_name=attendee.last_name, email=attendee.email).first()
+            first_name=attendee.first_name, last_name=attendee.last_name,
+            normalized_email=normalize_email_legacy(attendee.email)).first()
 
         if not orig:
             raise HTTPRedirect('index')
@@ -1670,9 +1997,9 @@ class Root:
                 }
             
             if not params.get('duplicate_bypass', None):
-                duplicate = session.attendees_with_badges().filter_by(first_name=attendee.first_name,
-                                                                      last_name=attendee.last_name,
-                                                                      email=attendee.email).first()
+                duplicate = session.attendees_with_badges().filter_by(
+                    first_name=attendee.first_name, last_name=attendee.last_name,
+                    normalized_email=normalize_email_legacy(attendee.email)).first()
                 if duplicate and duplicate.transfer_code != transfer_code:
                     return {
                         'message': message,
@@ -1763,7 +2090,7 @@ class Root:
         session.add(transfer_badge)
         transfer_badge.transfer_code = ''
         session.commit()
-        session.close()
+        session.expire_all()
 
         if receipt:
             session.add(receipt)
@@ -1821,9 +2148,9 @@ class Root:
                 }
             
             if not params.get('duplicate_bypass', None):
-                duplicate = session.attendees_with_badges().filter_by(first_name=attendee.first_name,
-                                                                      last_name=attendee.last_name,
-                                                                      email=attendee.email).first()
+                duplicate = session.attendees_with_badges().filter_by(
+                    first_name=attendee.first_name, last_name=attendee.last_name,
+                    normalized_email=normalize_email_legacy(attendee.email)).first()
                 if duplicate:
                     return {
                         'forms': forms,
@@ -1859,7 +2186,7 @@ class Root:
 
                 session.add(attendee)
                 session.commit()
-                session.close()
+                session.expire_all()
 
                 if receipt:
                     session.add(receipt)
@@ -1930,6 +2257,7 @@ class Root:
     def abandon_badges(self, session, abandon_ids=[]):
         failed_attendees = set()
         success_names = set()
+        pending_refund_names = set()
         receipt_managers = {}
         txn_attendees = {}  # Dumb, but avoids a lot of DB calls
         all_refunds = defaultdict(lambda: [0, []])
@@ -1950,28 +2278,35 @@ class Root:
             if attendee.cannot_abandon_badge_check(including_last_adult=False):
                 failed_attendees.add(attendee)
             elif attendee.amount_paid:
-                receipt_manager = ReceiptManager(attendee.active_receipt, 'non-admin')
-
-                refunds = receipt_manager.cancel_and_refund(
-                    attendee, exclude_fees=c.EXCLUDE_FEES_FROM_REFUNDS and not c.AUTHORIZENET_LOGIN_ID)
-
-                if receipt_manager.error_message:
-                    failed_attendees.add(attendee)
+                if not c.SELF_SERVICE_REFUNDS_OPEN:
+                    if not c.BADGE_WAITLIST_OPEN:
+                        failed_attendees.add(attendee)
+                    else:
+                        attendee.badge_status = c.WAITLIST_REFUND_STATUS
+                        pending_refund_names.add(attendee.full_name)
                 else:
-                    if not refunds:
-                        # Nothing left to refund, we'll just do the bookkeeping
-                        session.add_all(receipt_manager.items_to_add)
-                        attendee.active_receipt.closed = datetime.now()
-                        attendee.badge_status = c.REFUNDED_STATUS
-                        if attendee.paid != c.NEED_NOT_PAY:
-                            attendee.paid = c.REFUNDED
+                    receipt_manager = ReceiptManager(attendee.active_receipt, 'non-admin')
 
-                    for charge_id, (refund_amount, txns) in refunds.items():
-                        all_refunds[charge_id][0] += refund_amount
-                        all_refunds[charge_id][1].extend(txns)
-                        for txn in txns:
-                            txn_attendees[txn.id] = attendee
-                receipt_managers[attendee] = receipt_manager
+                    refunds = receipt_manager.cancel_and_refund(
+                        attendee, exclude_fees=c.EXCLUDE_FEES_FROM_REFUNDS and not c.AUTHORIZENET_LOGIN_ID)
+
+                    if receipt_manager.error_message:
+                        failed_attendees.add(attendee)
+                    else:
+                        if not refunds:
+                            # Nothing left to refund, we'll just do the bookkeeping
+                            session.add_all(receipt_manager.items_to_add)
+                            attendee.active_receipt.closed = datetime.now()
+                            attendee.badge_status = c.REFUNDED_STATUS
+                            if attendee.paid != c.NEED_NOT_PAY:
+                                attendee.paid = c.REFUNDED
+
+                        for charge_id, (refund_amount, txns) in refunds.items():
+                            all_refunds[charge_id][0] += refund_amount
+                            all_refunds[charge_id][1].extend(txns)
+                            for txn in txns:
+                                txn_attendees[txn.id] = attendee
+                    receipt_managers[attendee] = receipt_manager
             else:
                 # if attendee is part of a group, we must remove them from the group
                 if attendee.group and attendee.group.is_valid:
@@ -2021,6 +2356,9 @@ class Root:
         if success_names:
             messages.append(f"Successfully cancelled registration{'s' if len(success_names) > 1 else ''} for \
                             {readable_join(success_names)}.")
+        if pending_refund_names:
+            messages.append(f"Successfully requested refund{'s' if len(success_names) > 1 else ''} for \
+                            {readable_join(pending_refund_names)}.")
         if failed_attendees:
             messages.append(f"Could not cancel registration{'s' if len(failed_attendees) > 1 else ''} for \
                             {readable_join([a.full_name for a in failed_attendees])}. \
@@ -2030,12 +2368,20 @@ class Root:
 
         raise HTTPRedirect("homepage?&message={}", ' '.join(messages))
 
+    @csrf_protected
+    @requires_account(Attendee)
+    def cancel_refund(self, session, id):
+        attendee = session.get(Attendee, id)
+        if attendee.locked_by_waitlist or check_task_progress('badge_waitlist_processing', 'process_badge_waitlist'):
+            raise HTTPRedirect('confirm?id={}&message={}', id, "You cannot cancel your refund at this time.")
+        attendee.badge_status = c.NEW_STATUS
+        raise HTTPRedirect('confirm?id={}&message={}', id, "Refund request cancelled!")
 
     @csrf_protected
     @requires_account(Attendee)
     def abandon_badge(self, session, id):
         from uber.custom_tags import format_currency
-        attendee = session.attendee(id)
+        attendee = session.get(Attendee, id)
         if attendee.amount_paid and not attendee.is_group_leader:
             failure_message = "Something went wrong with your refund. Please contact us at {}."\
                 .format(email_only(c.REGDESK_EMAIL))
@@ -2052,7 +2398,13 @@ class Root:
                 or (attendee.amount_paid and attendee.cannot_self_service_refund_reason):
             raise HTTPRedirect('confirm?id={}&message={}', id, failure_message)
 
-        if attendee.amount_paid:
+        if attendee.amount_paid or attendee.waitlist_signup:
+            if not c.SELF_SERVICE_REFUNDS_OPEN or attendee.waitlist_signup:
+                if not c.BADGE_WAITLIST_OPEN:
+                    raise HTTPRedirect('confirm?id={}&message={}', id, "Your badge cannot be refunded at this time.")
+                else:
+                    attendee.badge_status = c.WAITLIST_REFUND_STATUS
+                    raise HTTPRedirect('confirm?id={}&message={}', id, "You have successfully requested a refund.")
             receipt = session.get_receipt_by_model(attendee)
             refund_total, error = receipt.process_full_refund(
                 session, attendee, who='non-admin',
@@ -2224,9 +2576,10 @@ class Root:
             raise HTTPRedirect('repurchase?id={}', attendee.id)
 
         placeholder = attendee.placeholder
+        account = session.get_attendee_account_by_attendee(attendee)
 
         form_list = ['PersonalInfo', 'BadgeExtras', 'BadgeFlags', 'OtherInfo', 'StaffingInfo', 'Consents']
-        forms = load_forms(params, attendee, form_list)
+        forms = load_forms(params, attendee, form_list, read_only=attendee.badge_status == c.WAITLIST_REFUND_STATUS)
         if not attendee.is_new and not attendee.placeholder:
             forms['consents'].pii_consent.data = True
 
@@ -2246,6 +2599,10 @@ class Root:
                 message = 'Your information has been updated'
 
             if return_to == 'confirm':
+                if placeholder and account and account.placeholder_badges:
+                    raise HTTPRedirect(
+                        'confirm?id={}&message={}', account.placeholder_badges[0].id,
+                        f'Your registration for {attendee.full_name} has been confirmed and you can fill out your next badge\'s details below.')
                 page = ('badge_updated?id=' + attendee.id + '&')
             else:
                 page = (return_to + '?') if '?' not in return_to else (return_to + '&')
@@ -2274,13 +2631,14 @@ class Root:
             'undoing_extra': undoing_extra,
             'return_to':     return_to,
             'attendee':      attendee,
-            'homepage_account': session.get_attendee_account_by_attendee(attendee),
+            'homepage_account': account,
             'message':       message,
             'attractions':   session.query(Attraction).filter_by(is_public=True).all(),
             'badge_cost':    attendee.badge_cost if attendee.paid != c.PAID_BY_GROUP else 0,
             'receipt':       session.get_receipt_by_model(attendee) if attendee.is_valid else None,
             'incomplete_txn':  receipt.get_last_incomplete_txn() if receipt else None,
             'forms': forms,
+            'read_only': attendee.badge_status == c.WAITLIST_REFUND_STATUS,
             'locked_fields': [item for sublist in
                               [form.get_non_admin_locked_fields(attendee) for form in forms.values()
                                ] for item in sublist]

@@ -271,6 +271,13 @@ class EmailService:
         if not to_model and email.fk_id:
             model_class = email.model_class
             to_model = session.query(model_class).filter(model_class.id == email.fk_id).first()
+
+        if fixture_obj and not fixture_obj.fixture:
+            email.error = f"Fixture {email.ident} is no longer defined and cannot be sent"
+            session.add(email)
+            return
+
+        fixture = fixture_obj.fixture if fixture_obj else None
         
         # Check that the object associated with this email still exists and is still eligible for emails
         if email.fk_id:
@@ -282,16 +289,10 @@ class EmailService:
                 email.error = f"Model {to_model} does not have an email address"
                 session.add(email)
                 return
-            if not to_model.gets_emails:
+            if not to_model.gets_emails and (not fixture or fixture.ignore_gets_emails):
                 session.delete(email)
                 return
 
-        if fixture_obj and not fixture_obj.fixture:
-            email.error = f"Fixture {email.ident} is no longer defined and cannot be sent"
-            session.add(email)
-            return
-
-        fixture = fixture_obj.fixture if fixture_obj else None
         local_now_str = localized_now().strftime('%b %-d %-I:%M%p')
 
         if to_model:

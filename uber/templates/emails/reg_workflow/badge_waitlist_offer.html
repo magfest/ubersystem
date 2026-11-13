@@ -1,0 +1,55 @@
+<html>
+<head></head>
+<body>
+{% set signups = account.waitlist_signups|selectattr('id', 'in', signups_ids)|list %}
+    {% if signups|length == 1 %}
+    {% set signup = signups[0] %}
+    <p>
+        Your badge for {{ signup.full_name }} is now available to purchase from the waitlist!
+        You can confirm your attendance and purchase your badge <a href="{{ c.URL_BASE }}/preregistration/waitlist_purchase{% if not c.ATTENDEE_ACCOUNTS_ENABLED %}?id={{ signup.id }}{% endif %}">here</a>.
+    </p>
+    {% else %}
+        You have the following badges available for purchase from the waitlist:
+        {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
+        <ul>
+            {% for signup in signups %}<li><strong>{{ signup.full_name }}</strong></li>{% endfor %}
+        </ul>
+        {% else %}
+        <div class="d-flex gap-3 mb-3 mt-2">
+        {% for signup in signups %}
+        <div>
+        <strong>{{ signup.full_name }}</strong>
+        <br/><a href="{{ c.URL_BASE }}/preregistration/waitlist_purchase?id={{ signup.id }}" class="btn btn-sm btn-primary" target="_blank">Purchase Badge</a>
+        </div>
+        {% endfor %}
+        </div>
+        {% endif %}
+        {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
+        <p><a href="{{ c.URL_BASE }}/preregistration/waitlist_purchase" class="btn btn-sm btn-primary" target="_blank">View and Purchase Pending Badges</a></p>
+        {% endif %}
+    {% endif %}
+
+<p>
+    You have until <strong>{{ signups[0].badge_offer_expiry_time|datetime }}</strong> to purchase {% if signups_ids|length == 1 %}this badge{% else %}these badges{% endif %}.
+    After that, the offer will expire and you will need to sign up for the waitlist again.
+    <strong>If you experience technical issues, please email us at {{ c.CONTACT_EMAIL|email_only|email_to_link }} AS SOON AS POSSIBLE</strong>
+    so we can help you before your badge offer expires.
+</p>
+
+<p>
+    As a reminder, badges purchased from the waitlist are non-transferable and non-refundable, but can be placed back on the waitlist until {{ c.BADGE_WAITLIST_END|datetime_local }}.
+</p>
+
+{% if account.pending_waitlist_signups %}
+    You still have the following badges on the waitlist:
+    <ul>
+    {% for signup, position in account.pending_waitlist_signups_positions.items() %}
+        {% set display_pos = c.WAITLIST_MAX_POSITION ~ '+' if c.WAITLIST_MAX_POSITION and position >= c.WAITLIST_MAX_POSITION else position %}
+        <li><strong>{{ signup.full_name }}</strong> <em>{% if c.WAITLIST_BADGE_TYPES|length > 1 %}{{ c.WAITLIST_BADGE_LABELS[signup.waitlist_type] }} {% endif %}Waitlist position {{ display_pos }}</em></li>
+    {% endfor %}
+    </ul>
+    The badge waitlist closes {{ c.BADGE_WAITLIST_CLOSED|datetime_local }}, after which no badges will be offered from the waitlist.
+{% endif %}
+
+</body>
+</html>

@@ -360,6 +360,7 @@ class MagForm(Form):
         ufield.kwargs['render_kw'] = render_kw
 
     def get_non_admin_locked_fields(self, model):
+        # TODO: Add read-only setting support
         return []
 
     @classmethod

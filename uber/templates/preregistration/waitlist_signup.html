@@ -1,0 +1,114 @@
+{% extends "./preregistration/preregbase.html" %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set title_text = "Sign Up for Waitlist" %}
+{% block content %}
+
+<div class="card">
+  <div class="card-body">
+    <h2>Badge Waitlist Signup</h2>
+    <p>
+      Thank you for your interest in attending {{ c.EVENT_NAME_AND_YEAR }}. Use the dropdowns below to sign up for the badge waitlist.
+      Badges are pulled from the waitlist in the order you enter them below, e.g., a badge labeled "<strong>Waitlist Signup #1</strong>" will become available
+      before a badge labeled "<strong>Waitlist Signup #2</strong>".
+      {% if c.WAITLIST_BADGE_TYPES|length > 1 %}Each of the badge types below has its own waitlist.{% endif %}
+    </p>
+    <p>
+      Please note that <strong>the names you enter below are final</strong> and cannot be changed when or after purchasing a badge.
+      Badges from the waitlist are non-transferable and non-refundable, but can be placed back on the waitlist if you are no longer able to attend.
+      {% if c.CHILD_BADGE in c.WAITLIST_BADGE_TYPES %}Under 18 badges are reserved for our younger attendees and cannot be promoted to adult badges.{% endif %}
+    </p>
+
+    <div class="reserve-countdown d-flex justify-content-end mb-1">
+          <strong>Waitlist Position Reserved for <span id="minutes">0</span>:<span id="seconds">0</span></strong>
+    </div>
+  
+    {{ form_macros.form_validation('waitlist-signup', 'validate_waitlist_signups') }}
+
+    <form novalidate method="post" action="waitlist_signup" id="waitlist-signup">
+    {{ csrf_token() }}
+
+    {% for badge_type_name in c.WAITLIST_BADGE_TYPE_NAMES %}
+    {% set badge_type = c[badge_type_name.upper()] %}
+    {% set available_badges_for_type = logged_in_account.available_badge_waitlist_signups(badge_type) if logged_in_account else c.BADGE_WAITLIST_LIMITS[badge_type] %}
+    {% if available_badges_for_type > 0 %}
+    <div x-data="{
+      num_{{ badge_type_name }}s: 0,
+      showSignup_{{ badge_type_name }}(num) { return this.num_{{ badge_type_name }}s >= num }
+    }">
+      
+      <div class="row g-3 mb-3">
+          <div class="col-sm">
+              <label for="{{ badge_type_name }}_signup_select">
+                Select the number of <strong>{{ c.WAITLIST_BADGE_LABELS[badge_type] }}</strong> badges you want:
+              </label>
+              <select name="{{ badge_type_name }}_signup_select" id="{{ badge_type_name }}_signup_select" class="form-select" value="{{ selected_signups[badge_type] }}" x-model="num_{{ badge_type_name }}s">
+                  {{ int_options(0, available_badges_for_type, 0) }}
+              </select>
+          </div>
+      </div>
+
+      {% if badge_type == c.CHILD_BADGE %}
+      <div class="alert alert-warning" x-show="showSignup_{{ badge_type_name }}(1)">
+        Attendees under 18 <b>MUST</b> bring a signed (and notarized if not accompanied by parent or guardian during badge pickup)
+        <a class="link-dark" target="_blank" href="{{ c.CONSENT_FORM_URL }}">parental consent form</a>.
+        <br/><br/>By default, badges under 18 are skipped over unless there is a valid adult badge on your account or available for purchase.
+        Badges that are held waiting for an adult badge do not lose their place in line.
+        {% if logged_in_account and logged_in_account.valid_adults %}
+        <strong>Since you already have at least one valid adult on your account, none of the badges below will be held for an adult badge.</strong>
+        This will change if you transfer or cancel all your existing adult badges.
+        {% endif %}
+      </div>
+      {% endif %}
+
+      {% for num in range(1, available_badges_for_type + 1) %}
+        {% set badge_waitlist_info_form = forms[badge_type][num] %}
+        {% set signup = BadgeWaitlistSignup(waitlist_type=badge_type) %}
+        <div class="card card-body pb-0 mb-3" x-show="showSignup_{{ badge_type_name }}({{ num }})">
+          <div class="d-flex justify-content-between">
+            <h3>{{ c.WAITLIST_BADGE_LABELS[badge_type] }} Badge Waitlist Signup #{{ num }}</h3>
+            <div class="text-end">
+              <em>Estimated Badge Price: <span id="badge_cost">{{ signup.estimated_badge_cost|format_currency }}</span></em>
+              {% if badge_type == c.CHILD_BADGE %}
+              <div class="form-text">Estimate does not include age-related discounts.</div>
+              {% endif %}
+            </div>
+          </div>
+          <hr>
+          {% include "forms/attendee/badge_waitlist_info.html" with context %}
+        </div>
+      {% endfor %}
+      {% endif %}
+    {% endfor %}
+
+    <button type="submit" class="btn btn-primary">
+      Sign Up for Waitlist
+    </button>
+      
+  </div>
+</div>
+
+<script type="text/javascript">
+  function updateCountdown() {
+    const now = new Date();
+    const reserveExpire = new Date({{ expire_time.timestamp() * 1000 }});
+    const timeDifference = reserveExpire - now;
+
+    if (timeDifference < 0) {
+        $('.reserve-countdown #minutes').text("0");
+        $('.reserve-countdown #seconds').text("00");
+        return;
+    }
+
+    const minutes = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((timeDifference % (1000 * 60)) / 1000);
+
+    $('.reserve-countdown #minutes').text(minutes);
+    $('.reserve-countdown #seconds').text(seconds.toString().padStart(2, '0'));
+}
+
+$(document).ready(function() {
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
+});
+</script>
+{% endblock %}

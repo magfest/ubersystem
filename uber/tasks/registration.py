@@ -8,7 +8,7 @@ import logging
 import pytz
 import math
 from celery.schedules import crontab
-from sqlalchemy import not_, or_, insert
+from sqlalchemy import and_, not_, or_, insert, update, bindparam
 from sqlalchemy.orm import joinedload, raiseload, subqueryload
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -17,7 +17,7 @@ from uber.email import EmailService
 from uber.config import c
 from uber.custom_tags import readable_join
 from uber.decorators import render
-from uber.models import (ApiJob, Attendee, AttendeeAccount, BadgeInfo, BadgePickupGroup, Email, Group, ModelReceipt,
+from uber.models import (ApiJob, Attendee, AttendeeAccount, BadgeInfo, BadgePickupGroup, BadgeWaitlistSignup, Email,
                          ReceiptInfo, ReceiptItem, ReceiptTransaction, Session, TerminalSettlement)
 from uber.tasks import celery
 from uber.utils import localized_now, TaskUtils, normalize_email, groupify
@@ -309,6 +309,215 @@ def email_pending_attendees():
 
                 if c.ATTENDEE_ACCOUNTS_ENABLED:
                     already_emailed_accounts.append(email_to)
+
+
+if c.BADGE_WAITLIST_ENABLED:
+    @celery.task
+    def set_waitlist_positions(session, badge_type):
+        # When setting a waitlist position, we need to add a buffer based on c.WAITLIST_RESERVE_MINUTES
+        # Otherwise, someone with a reserved time who has not submitted yet will end up
+        # behind people with older signup times who have already submitted
+        minimum_signup_time = datetime.now(pytz.UTC) - timedelta(minutes=c.WAITLIST_RESERVE_MINUTES + 2)
+
+        positionless = session.query(BadgeWaitlistSignup.id).filter(
+            BadgeWaitlistSignup.waitlist_type == badge_type,
+            BadgeWaitlistSignup.waitlist_position == 0,
+            BadgeWaitlistSignup.signup_time < minimum_signup_time).order_by(BadgeWaitlistSignup.signup_time, BadgeWaitlistSignup.signup_order)
+        highest_queue_signup = session.query(BadgeWaitlistSignup.waitlist_position).filter(
+            BadgeWaitlistSignup.waitlist_type == badge_type).order_by(
+            BadgeWaitlistSignup.waitlist_position.desc()).limit(1).first()
+
+        highest_queue_pos = highest_queue_signup[0] if highest_queue_signup else 0
+    
+        update_list = []
+        for signup_id in positionless:
+            highest_queue_pos += 1
+            update_list.append({'id': signup_id[0], 'waitlist_position': highest_queue_pos})
+        
+        session.execute(update(BadgeWaitlistSignup), update_list)
+
+
+    @celery.schedule(timedelta(minutes=5))
+    def update_badge_waitlist():
+        from uber.tasks import redis
+
+        if c.AFTER_BADGE_WAITLIST_CLOSED:
+            return
+
+        # This is skipped if we're in the middle of processing the badge waitlist, as that also calls `set_waitlist_positions`
+        task_in_progress = redis.check_task_progress('badge_waitlist_processing', 'process_badge_waitlist')
+        if task_in_progress:
+            return
+
+        with Session() as session:
+            for badge_type in c.WAITLIST_BADGE_TYPES:
+                set_waitlist_positions(session, badge_type)
+            session.commit()
+
+
+    def nonpending_badges_available(session, badge_type_name):
+        badge_type = getattr(c, badge_type_name.upper())
+        badge_stock = getattr(c, badge_type_name.upper() + '_STOCK')
+
+        # We only count pending offers without a refund pending badge attached
+        # If counting pending badges you need to also exclude badges with `waitlist_refund_id` set
+        pending_offer_count = session.query(BadgeWaitlistSignup).filter(
+                            BadgeWaitlistSignup.refund_badge_id == None, BadgeWaitlistSignup.waitlist_type == badge_type,
+                            BadgeWaitlistSignup.attendee_id == None, BadgeWaitlistSignup.offered_badge != None,
+                            BadgeWaitlistSignup.status == c.PENDING).count()
+        return badge_stock - c.get_stock_count(badge_type_name.upper(), badge_stock) - pending_offer_count
+
+
+    @celery.schedule(crontab(hour=0, minute=30))
+    def process_badge_waitlist():
+        """
+        Processes and offers badge to people on the badge waitlist according to our remaining
+        badge stock and the number of people requesting a refund.
+        
+        We run this process as a single nightly task and use `check_task_progress` to ensure that
+        no other processes -- including someone cancelling their refund request -- change the data
+        while this task is running. New refund requests are not blocked and will be processed the next night.
+        
+        The timing of this task also gives everyone with pending offered badges a generous
+        30-minute grace period from their purchase deadline (11:59pm in the event's timezone).
+        This relies on the `timezone` setting under [celery] being set correctly, which should be default.
+
+        For the badge waitlist, we consider pending refund badges (badge status `WAITLIST_REFUND_STATUS`)
+        as ALWAYS available, even if the overall # of remaining badges for a badge type is over cap.
+        So we match pending refund badges to waitlist signups first, then if we are under cap we offer
+        additional badges. We don't fulfill pending refund requests outside of processing the waitlist;
+        this is by design.
+        """
+        from uber.tasks import redis
+
+        if c.AFTER_BADGE_WAITLIST_CLOSED:
+            return
+        
+        task_in_progress = redis.check_task_progress('badge_waitlist_processing', 'process_badge_waitlist')
+        if task_in_progress:
+            return
+
+        c.REDIS_STORE.hset(c.REDIS_PREFIX + 'badge_waitlist_processing', 'started_timestamp', datetime.now(pytz.UTC).timestamp())
+        
+        with Session() as session:
+            # First, expire offered badges past their expiry date
+            will_have_expired = datetime.now(pytz.UTC) - timedelta(hours=c.WAITLIST_OFFER_HOURS)
+            pending_offers = session.query(BadgeWaitlistSignup).filter(
+                BadgeWaitlistSignup.attendee_id == None, BadgeWaitlistSignup.offered_badge != None,
+                BadgeWaitlistSignup.offered_badge < will_have_expired, BadgeWaitlistSignup.status == c.PENDING)
+            
+            for signup in pending_offers:
+                signup.status = c.EXPIRED
+                signup.refund_badge_id = None
+                session.add(signup)
+
+            accounts_to_email = defaultdict(list)
+
+            for badge_type_name in c.WAITLIST_BADGE_TYPE_NAMES:
+                # Update everyone's waitlist position one last time so we don't skip fulfilling anyone's entry
+                badge_type = getattr(c, badge_type_name.upper())
+                set_waitlist_positions(session, badge_type)
+
+                session.commit()
+                session.expire_all()
+
+                refund_pending = session.query(Attendee).filter(Attendee.waitlist_refund == None,
+                                                                Attendee.badge_status == c.WAITLIST_REFUND_STATUS,
+                                                                Attendee.badge_type == badge_type).all()
+                refund_pending_count = len(refund_pending)
+
+                available_badges = max(nonpending_badges_available(session, badge_type_name), 0) + refund_pending_count
+                if available_badges > 0:
+                    next_on_waitlist = session.query(BadgeWaitlistSignup).filter(BadgeWaitlistSignup.waitlist_position != 0,
+                                                                                 BadgeWaitlistSignup.waitlist_type == badge_type,
+                                                                                 BadgeWaitlistSignup.offered_badge == None,
+                                                                                 BadgeWaitlistSignup.status == c.PENDING)
+                    if badge_type == c.CHILD_BADGE:
+                        #aliased_signup = aliased(BadgeWaitlistSignup)
+                        next_on_waitlist = next_on_waitlist.join(BadgeWaitlistSignup.attendee_account).filter(
+                            or_(BadgeWaitlistSignup.offer_without_adult,
+                                or_(AttendeeAccount.attendees.any(and_(Attendee.has_or_will_have_badge, Attendee.badge_type != c.CHILD_BADGE)),
+                                    AttendeeAccount.waitlist_signups.any(and_(BadgeWaitlistSignup.offered_badge != None,
+                                                                              BadgeWaitlistSignup.status == c.PENDING,
+                                                                              BadgeWaitlistSignup.waitlist_type != c.CHILD_BADGE)))))
+                    next_on_waitlist = next_on_waitlist.options(joinedload(BadgeWaitlistSignup.attendee_account)).order_by(
+                        BadgeWaitlistSignup.waitlist_position).limit(available_badges)
+
+                    for index, next_badge in enumerate(next_on_waitlist):
+                        next_badge.offered_badge = datetime.now(pytz.UTC)
+                        session.add(next_badge)
+                        accounts_to_email[next_badge.attendee_account].append(next_badge.id)
+                        if index < refund_pending_count:
+                            next_badge.refund_badge = refund_pending[index]
+
+                    session.commit()
+
+            for account, signups_ids in accounts_to_email.items():
+                signups_count = len(signups_ids)
+                custom_subject = f'You Have {signups_count} {c.EVENT_NAME} Waitlist Badges Available!' if signups_count > 1 else ''
+                EmailService.queue_email(session, 'badge_waitlist_offer', account, subject=custom_subject,
+                                            data={'signups_ids': signups_ids})
+            session.commit()
+
+        c.REDIS_STORE.delete(c.REDIS_PREFIX + 'badge_waitlist_processing')
+
+
+    @celery.task
+    def refund_badge_from_waitlist(attendee_id):
+        from uber.site_sections.hotel_lottery import _disband_room_group, _clear_application
+
+        with Session() as session:
+            attendee = session.get(Attendee, attendee_id)
+            if not attendee:
+                log.error(f"Tried to refund {attendee_id} via a waitlist signup but could not find anyone with that ID.")
+                return
+            elif not attendee.badge_status == c.WAITLIST_REFUND_STATUS:
+                log.error(f"Tried to refund {attendee_id} via a waitlist signup but they were not marked as pending a refund.")
+                return
+
+            attendee.badge_status = c.REFUNDED_STATUS
+            session.add(attendee)
+            if attendee.amount_paid:
+                receipt = session.get_receipt_by_model(attendee)
+                refund_total, error = receipt.process_full_refund(
+                    session, attendee, who='non-admin',
+                    exclude_fees=c.EXCLUDE_FEES_FROM_REFUNDS and not c.AUTHORIZENET_LOGIN_ID)
+                if error:
+                    log.error(f"Error processing pending refund for badge {attendee.id}: {error}")
+                receipt.closed = datetime.now()
+                session.add(receipt)
+
+                if attendee.paid == c.HAS_PAID:
+                    attendee.paid = c.REFUNDED
+
+                EmailService.queue_email(session, 'waitlist_refund_processed', attendee,
+                                         data={'refund_total': (refund_total / 100)})
+                
+            if attendee.group and attendee.group.is_valid:
+                badge_type = c.ATTENDEE_BADGE if attendee.badge_type in c.BADGE_TYPE_PRICES and attendee.group.cost else attendee.badge_type
+                session.assign_badges(
+                    attendee.group,
+                    attendee.group.badges + 1,
+                    new_badge_type=badge_type,
+                    new_ribbon_type=attendee.ribbon,
+                    registered=attendee.registered,
+                    paid=attendee.paid)
+
+                attendee.group.attendees.remove(attendee)
+
+            for assignment in attendee.room_assignments:
+                session.delete(assignment)
+
+            if attendee.lottery_application:
+                was_room_group = attendee.lottery_application.room_group_name
+                if was_room_group:
+                    _disband_room_group(session, attendee.lottery_application)
+        
+                _clear_application(attendee.lottery_application)
+
+            for shift in attendee.shifts:
+                session.delete(shift)
+            session.commit()
 
 
 @celery.task

@@ -29,7 +29,7 @@ from uber.utils import add_opt, get_age_from_birthday, get_age_conf_from_birthda
 log = logging.getLogger(__name__)
 
 
-__all__ = ['Attendee', 'AttendeeAccount', 'BadgeInfo', 'BadgePickupGroup', 'FoodRestrictions']
+__all__ = ['Attendee', 'AttendeeAccount', 'BadgeInfo', 'BadgePickupGroup', 'BadgeWaitlistSignup', 'FoodRestrictions']
 
 
 RE_NONDIGIT = re.compile(r'\D+')
@@ -147,6 +147,116 @@ name_suffixes = [
 normalized_name_suffixes = [re.sub(r'[,\.]', '', s.lower()) for s in name_suffixes]
 
 
+class BadgeWaitlistSignup(MagModel, table=True):
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
+    attendee: 'Attendee' = Relationship(
+        back_populates="waitlist_signup",
+        sa_relationship_kwargs={'foreign_keys': 'BadgeWaitlistSignup.attendee_id', 'lazy': 'joined', 'single_parent': True})
+    attendee_account_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee_account.id', nullable=True)
+    attendee_account: 'AttendeeAccount' = Relationship(back_populates="waitlist_signups")
+    refund_badge_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
+    refund_badge: 'Attendee' = Relationship(
+        back_populates="waitlist_refund",
+        sa_relationship_kwargs={'foreign_keys': 'BadgeWaitlistSignup.refund_badge_id', 'lazy': 'joined', 'single_parent': True})
+
+    signup_time: datetime = Field(sa_type=DateTime(timezone=True), default_factory=lambda: datetime.now(UTC))
+    offered_badge: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None, index=True)
+    waitlist_type: int = Field(sa_column=Column(Choice(c.BADGE_OPTS)), default=c.ATTENDEE_BADGE)
+    waitlist_position: int = Field(default=0, index=True)
+    status: int = Field(sa_column=Column(Choice(c.WAITLIST_STATUS_OPTS), index=True), default=c.PENDING)
+    signup_order: int = 1
+    first_name: str = ''
+    last_name: str = ''
+    legal_name: str = ''
+    email: str = ''
+    birthdate: date | None = None
+    offer_without_adult: bool = False
+
+    email_model_name: ClassVar = 'signup'
+
+    @presave_adjustment
+    def cant_offer_without_adult(self):
+        if self.birthdate and self.age_now_or_at_con < c.ACCOMPANYING_ADULT_AGE:
+            self.offer_without_adult = False
+
+    @property
+    def email_to_address(self):
+        return self.attendee_account.email if self.attendee_account else self.email
+
+    @property
+    def age_group_conf(self):
+        return get_age_conf_from_birthday(self.birthdate, c.NOW_OR_AT_CON)
+
+    @property
+    def age_now_or_at_con(self):
+        if not self.birthdate:
+            return None
+
+        return get_age_from_birthday(self.birthdate, c.NOW_OR_AT_CON)
+    
+    @hybrid_property
+    def full_name(self):
+        return f'{self.first_name} {self.last_name}'
+
+    @full_name.expression
+    def full_name(cls):
+        return case(
+            (or_(cls.first_name == None, cls.first_name == ''), 'zzz'),  # noqa: E711
+            else_=func.lower(cls.first_name + ' ' + cls.last_name))
+
+    @hybrid_property
+    def normalized_email(self):
+        return normalize_email_legacy(self.email)
+
+    @normalized_email.expression
+    def normalized_email(cls):
+        return func.replace(func.lower(func.trim(cls.email)), '.', '')
+
+    @property
+    def estimated_badge_cost(self):
+        attendee = Attendee(badge_type=self.waitlist_type, birthdate=self.birthdate)
+        badge_cost = attendee.new_badge_cost
+
+        if attendee.age_discount < 1:
+            badge_cost = badge_cost - (attendee.age_discount * 100)
+        elif attendee.age_discount >= 999:
+            badge_cost = None  # Free badge
+        
+        return badge_cost
+
+    @property
+    def current_waitlist_position(self):
+        from uber.models import Session
+        
+        if not self.waitlist_position:
+            return
+
+        with Session() as session:
+            offered_or_cancelled_signups = session.query(BadgeWaitlistSignup).filter(
+                BadgeWaitlistSignup.waitlist_type == self.waitlist_type,
+                BadgeWaitlistSignup.waitlist_position != 0,
+                or_(BadgeWaitlistSignup.offered_badge != None,
+                    BadgeWaitlistSignup.status.in_([c.CANCELLED, c.REMOVED]))).count()
+        return self.waitlist_position - offered_or_cancelled_signups
+
+    @property
+    def badge_offer_expiry_time(self):
+        hours_time = self.offered_badge + timedelta(hours=c.WAITLIST_OFFER_HOURS)
+        return hours_time.astimezone(c.EVENT_TIMEZONE).replace(hour=23, minute=59, second=59, microsecond=59)
+
+    @property
+    def cannot_purchase_reason(self):
+        if self.attendee and self.attendee.badge_status != c.PENDING_STATUS:
+            return "This badge has already been purchased!"
+        if not self.offered_badge:
+            return "This badge is not available to purchase from the waitlist yet."
+        if self.status == c.EXPIRED:
+            return "The offer for this badge is expired and you can no longer purchase it."
+        if self.status in [c.CANCELLED, c.REMOVED]:
+            return "This waitlist signup was cancelled."
+        return ""
+
+
 class BadgeInfo(MagModel, table=True):
     """
     Attendee: joined
@@ -239,6 +349,10 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         'BadgeInfo.active == True)',
         lazy='joined',
         overlaps="allocated_badges,attendee"))
+    waitlist_signup: 'BadgeWaitlistSignup' = Relationship(back_populates="attendee",
+                                                          sa_relationship_kwargs={'foreign_keys': 'BadgeWaitlistSignup.attendee_id'})
+    waitlist_refund: 'BadgeWaitlistSignup' = Relationship(back_populates="refund_badge",
+                                                         sa_relationship_kwargs={'foreign_keys': 'BadgeWaitlistSignup.refund_badge_id'})
 
     # NOTE: The cascade relationships for promo_code do NOT include
     # "save-update". During the preregistration workflow, before an Attendee
@@ -303,7 +417,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     got_merch: bool = False
     got_staff_merch: bool = False
     got_swadge: bool = False
-    can_transfer: bool = False
+    transferable: int = Field(sa_column=Column(Choice(c.BADGE_TRANSFER_OPTS)), default=c.DEFAULT_TRANSFER)
     imported_staff: bool = False
 
     reg_station: int | None
@@ -1322,12 +1436,12 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
 
     @hybrid_property
     def has_badge(self):
-        return self.has_or_will_have_badge and self.badge_status != c.DEFERRED_STATUS
+        return self.has_or_will_have_badge and self.badge_status not in [c.WAITLIST_REFUND_STATUS, c.DEFERRED_STATUS]
 
     @has_badge.expression
     def has_badge(cls):
         return and_(cls.has_or_will_have_badge,
-                    not_(cls.badge_status == c.DEFERRED_STATUS))
+                    not_(cls.badge_status.in_([c.WAITLIST_REFUND_STATUS, c.DEFERRED_STATUS])))
 
     @property
     def volunteering_badge_or_ribbon(self):
@@ -1380,6 +1494,10 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         return "MUST TALK TO MANAGER before picking up badge{}".format(regdesk_info_append)
 
     @property
+    def locked_by_waitlist(self):
+        return self.badge_status == c.WAITLIST_REFUND_STATUS and self.waitlist_refund
+
+    @property
     def cannot_check_in_reason(self):
         """
         Returns None if we are ready for checkin, otherwise a short error
@@ -1391,7 +1509,10 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
                 return self.watchlist_warning
             return self.regdesk_info or "Badge status is {}".format(self.badge_status_label)
 
-        if self.badge_status not in [c.COMPLETED_STATUS, c.NEW_STATUS]:
+        if self.locked_by_waitlist:
+            return "Badge is pending an offer to someone on the waitlist"
+
+        if self.badge_status not in [c.COMPLETED_STATUS, c.NEW_STATUS, c.WAITLIST_REFUND_STATUS]:
             return "Badge status is {}".format(self.badge_status_label)
 
         if self.group and self.paid == c.PAID_BY_GROUP and self.group.is_dealer \
@@ -1443,7 +1564,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
                 reason = "You cannot abandon a comped badge."
             elif self.is_group_leader and self.group.is_valid:
                 reason = f"As a leader of a group, you cannot {'abandon' if not self.group.cost else 'refund'} your badge."
-            elif self.amount_paid:
+            elif self.amount_paid or self.amount_pending:
                 reason = self.cannot_self_service_refund_reason
                 if reason and ("Refunds will open" in reason or "Refunds are no longer" in reason):
                     return reason
@@ -1474,13 +1595,13 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     def cannot_self_service_refund_reason(self):
         from uber.custom_tags import datetime_local_filter
 
-        if not c.REFUND_CUTOFF:
+        if not c.REFUND_CUTOFF and not c.BADGE_WAITLIST_OPEN:
             return "We do not offer refunds."
         if self.has_at_con_payments:
             return "We cannot automatically refund at-the-door payments."
-        if c.AFTER_REFUND_CUTOFF:
+        if c.AFTER_REFUND_CUTOFF and not c.BADGE_WAITLIST_OPEN:
             return "Refunds are no longer available."
-        if c.BEFORE_REFUND_START:
+        if c.BEFORE_REFUND_START and not c.BADGE_WAITLIST_OPEN:
             return f"Refunds will open at {datetime_local_filter(c.REFUND_START)}."
         if not self.active_receipt:
             return "We cannot automatically refund your payments."
@@ -1686,16 +1807,13 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     @property
     def is_inherently_transferable(self):
         return self.badge_status == c.COMPLETED_STATUS \
+            and not self.cannot_transfer_reason \
             and not self.checked_in \
             and (self.paid in [c.HAS_PAID, c.PAID_BY_GROUP] or self.in_promo_code_group) \
-            and self.badge_type in c.TRANSFERABLE_BADGE_TYPES \
             and not self.overridden_price \
-            and not self.admin_account \
-            and not self.dept_memberships_with_inherent_role \
             and (not self.art_show_application or not self.art_show_application.is_valid) \
+            and (not self.marketplace_application or not self.marketplace_application.is_valid) \
             and (not self.art_agent_apps or not any(app.is_valid for app in self.art_agent_apps)) \
-            and (not self.lottery_application or self.lottery_application.status not in self.dq_lottery_statuses) \
-            and not self.room_assignments
 
     @property
     def transferable_actions(self):
@@ -1708,19 +1826,24 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
             can_do.append("cancel or leave your hotel room")
         if self.art_show_application and self.art_show_application.is_valid:
             can_do.append(f"contact {email_only(c.ART_SHOW_EMAIL)} to cancel your art show application")
+        if self.marketplace_application and self.marketplace_application.is_valid:
+            can_do.append("cancel your artist marketplace application")
         if self.art_agent_apps and any(app.is_valid for app in self.art_agent_apps):
             can_do.append("ask the artist you're agenting for to {} first.".format(
-                "assign a new agent" if c.ONE_AGENT_PER_APP else "unassign you as an agent."
+                "assign a new agent" if c.ONE_AGENT_PER_APP else "unassign you as an agent"
             ))
+        if self.badge_status == c.WAITLIST_REFUND_STATUS:
+            can_do.append("cancel your refund request")
 
         return can_do
 
     @property
     def is_transferable(self):
-        return self.is_inherently_transferable or self.can_transfer
+        return self.transferable != c.CANNOT_TRANSFER and (self.is_inherently_transferable or self.transferable == c.CAN_TRANSFER)
 
     @property
     def cannot_transfer_reason(self):
+        # Admins cannot override transferability if the attendee matches any of these conditions
         reasons = []
         if self.admin_account:
             reasons.append("they have an admin account")
@@ -1734,12 +1857,15 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
             reasons.append(f"they have a {self.lottery_application.status_label.lower()} hotel lottery application")
         if self.room_assignments:
             reasons.append("they have a hotel room assignment")
+        if self.waitlist_signup:
+            reasons.append("their badge was bought from the badge waitlist")
         return reasons
 
     @presave_adjustment
     def force_no_transfer(self):
-        if self.admin_account or self.badge_type not in c.TRANSFERABLE_BADGE_TYPES or self.dept_memberships_with_inherent_role:
-            self.can_transfer = False
+        if self.admin_account or self.badge_type not in c.TRANSFERABLE_BADGE_TYPES or \
+                self.dept_memberships_with_inherent_role or self.waitlist_signup:
+            self.transferable = c.CANNOT_TRANSFER
 
     # TODO: delete this after Super MAGFest 2018
     @property
@@ -2147,7 +2273,8 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
                 # rows in the dept_membership_dept_role table are deleted.
                 self.dept_memberships.remove(membership)
         from uber.models.department import Department
-        self._set_relation_ids('assigned_depts', Department, list(values))
+        if set(value) != set(self.assigned_depts_ids):
+            self._set_relation_ids('assigned_depts', Department, list(values))
 
     @property
     def requestable_public_depts(self):
@@ -2445,6 +2572,8 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     def hotel_lottery_ineligible_reason(self):
         if not self.is_valid:
             return "This badge is invalid and cannot enter the hotel lottery."
+        elif self.badge_status == c.WAITLIST_REFUND_STATUS:
+            return "Please cancel you refund request to enter the hotel lottery."
         elif self.badge_status in [c.REFUNDED_STATUS, c.NOT_ATTENDING, c.DEFERRED_STATUS]:
             return f'You cannot enter the hotel lottery with a badge status of "{self.badge_status_label}".'
         else:
@@ -2454,7 +2583,8 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
     @hybrid_property
     def hotel_lottery_eligible(self):
         return (self.is_valid and not self.placeholder and not self.is_unassigned
-                and self.badge_status not in [c.REFUNDED_STATUS,
+                and self.badge_status not in [c.WAITLIST_REFUND_STATUS,
+                                              c.REFUNDED_STATUS,
                                               c.NOT_ATTENDING,
                                               c.DEFERRED_STATUS,
                                               c.WATCHED_STATUS])
@@ -2734,6 +2864,10 @@ class AttendeeAccount(MagModel, table=True):
     email: str = ''
     sso_id: str = ''
     hashed: str = Field(default='', private=True)
+    imported: bool = False
+    unused_years: int = 0
+    last_signed_in: str | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
+
     password_reset: 'PasswordReset' = Relationship(
         back_populates="attendee_account",
         sa_relationship_kwargs={'lazy': 'select', 'cascade': 'all,delete-orphan', 'passive_deletes': True})
@@ -2745,9 +2879,9 @@ class AttendeeAccount(MagModel, table=True):
     panel_applications: list['PanelApplication'] = Relationship(back_populates="attendee_account")
     indie_studios: list['IndieStudio'] = Relationship(back_populates="attendee_account")
     mits_teams: list['MITSTeam'] = Relationship(back_populates="attendee_account")
-    imported: bool = False
-    unused_years: int = 0
-    last_signed_in: str | None = Field(sa_type=DateTime(timezone=True), nullable=True, default=None)
+    waitlist_signups: list['BadgeWaitlistSignup'] = Relationship(
+        back_populates="attendee_account",
+        sa_relationship_kwargs={'order_by': '(BadgeWaitlistSignup.waitlist_type, BadgeWaitlistSignup.waitlist_position, BadgeWaitlistSignup.signup_order)'})
 
     email_model_name: ClassVar = 'account'
 
@@ -2858,7 +2992,7 @@ class AttendeeAccount(MagModel, table=True):
     @property
     def valid_adults(self):
         return [attendee for attendee in self.valid_attendees if attendee.birthdate and attendee.age_now_or_at_con >= 17]
-    
+
     @property
     def badges_needing_adults(self):
         return [a for a in self.valid_attendees if a.birthdate and a.age_now_or_at_con < c.ACCOMPANYING_ADULT_AGE]
@@ -2908,6 +3042,10 @@ class AttendeeAccount(MagModel, table=True):
                        key=lambda a: a.first_name)
 
     @property
+    def placeholder_badges(self):
+        return [attendee for attendee in self.attendees if attendee.placeholder and attendee.is_valid]
+
+    @property
     def volunteering_attendees(self):
         return [attendee for attendee in self.attendees if attendee.has_badge
                 and attendee.staffing and attendee.badge_type != c.CONTRACTOR_BADGE]
@@ -2922,6 +3060,59 @@ class AttendeeAccount(MagModel, table=True):
         return [attendee for attendee in self.attendees
                 if attendee.badge_status in [c.REFUNDED_STATUS, c.DEFERRED_STATUS]
                 and not attendee.current_attendee]
+
+    def used_waitlist_signups(self, badge_type):
+        used_count = 0
+        for signup in self.waitlist_signups:
+            if signup.waitlist_type == badge_type:
+                if not signup.attendee_id and signup.status == c.PENDING:
+                    used_count += 1
+                elif signup.attendee and signup.attendee.has_badge:
+                    used_count += 1
+        return used_count
+
+    @property
+    def has_waitlist_signups_available(self):
+        for badge_type in c.WAITLIST_BADGE_TYPES:
+            if badge_type not in c.BADGE_WAITLIST_LIMITS:
+                return True
+            elif self.available_badge_waitlist_signups(badge_type) > 0:
+                return True
+        return False
+
+    def available_badge_waitlist_signups(self, badge_type):
+        return c.BADGE_WAITLIST_LIMITS[badge_type] - self.used_waitlist_signups(badge_type)
+
+    @property
+    def pending_waitlist_signups(self):
+        return [signup for signup in self.waitlist_signups if signup.attendee_id == None 
+                and signup.offered_badge == None and signup.status == c.PENDING]
+    
+    @property
+    def offered_waitlist_signups(self):
+        return [signup for signup in self.waitlist_signups if signup.offered_badge != None and 
+                (signup.attendee is None or signup.attendee.badge_status == c.PENDING_STATUS)
+                and signup.status == c.PENDING]
+
+    @property
+    def pending_waitlist_signups_positions(self):
+        from uber.models import Session
+        waitlist_positions = {}
+        offered_or_cancelled_signups = {}
+
+        with Session() as session:
+            for badge_type in c.WAITLIST_BADGE_TYPES:
+                offered_or_cancelled_signups[badge_type] = session.query(BadgeWaitlistSignup).filter(
+                    BadgeWaitlistSignup.waitlist_type == badge_type,
+                    BadgeWaitlistSignup.waitlist_position != 0,
+                    or_(BadgeWaitlistSignup.offered_badge != None,
+                        BadgeWaitlistSignup.status.in_([c.CANCELLED, c.REMOVED]))).count()
+
+        for signup in self.pending_waitlist_signups:
+            if not signup.offered_badge:
+                waitlist_positions[signup] = max(signup.waitlist_position - offered_or_cancelled_signups[signup.waitlist_type], 0)
+        
+        return waitlist_positions
 
 
 # Index normalized_email for basic search performance gains

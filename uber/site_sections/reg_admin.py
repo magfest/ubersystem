@@ -2,7 +2,9 @@ from itertools import chain
 from uber.models.attendee import AttendeeAccount
 
 import cherrypy
+import logging
 import math
+import pytz
 import re
 from collections import defaultdict
 from datetime import datetime
@@ -15,12 +17,15 @@ from uber.config import c
 from uber.custom_tags import datetime_local_filter, time_day_local, pluralize, format_currency, readable_join
 from uber.decorators import ajax, all_renderable, csv_file, not_site_mappable, site_mappable
 from uber.errors import HTTPRedirect
-from uber.models import AdminAccount, ApiJob, ArtShowApplication, Attendee, Group, ModelReceipt, ReceiptItem, \
+from uber.models import AdminAccount, ApiJob, ArtShowApplication, Attendee, BadgeWaitlistSignup, Group, ModelReceipt, ReceiptItem, \
     ReceiptInfo, ReceiptTransaction, Tracking, WorkstationAssignment, EscalationTicket
 from uber.site_sections import devtools
 from uber.utils import check, get_api_service_from_server, normalize_email, normalize_email_legacy, valid_email, \
     TaskUtils, Order, groupify
 from uber.payments import ReceiptManager, RefundRequest
+
+
+log = logging.getLogger(__name__)
 
 
 def _search(all_processor_txns, text):
@@ -901,7 +906,7 @@ class Root:
         all_refunds = defaultdict(lambda: [0, []])
 
         for id in refund_ids:
-            attendee = session.attendee(id)
+            attendee = session.get(Attendee, id)
             if attendee.active_receipt:
                 receipt_manager = ReceiptManager(attendee.active_receipt,
                                                  AdminAccount.admin_name() or 'non-admin')
@@ -966,6 +971,50 @@ class Root:
 
         raise HTTPRedirect("../reg_admin/attendee_account_form?id={}&message={}",
                            account_id, ' '.join(messages))
+
+    def refresh_waitlist_offers(self, session, account_id, signup_ids=[], message='', **params):
+        if isinstance(signup_ids, str):
+            signup_ids = [signup_ids]
+
+        signup_count = 0
+
+        for id in signup_ids:
+            signup = session.get(BadgeWaitlistSignup, id)
+            if not signup.attendee and signup.offered_badge and signup.status in [c.PENDING, c.EXPIRED]:
+                signup.offered_badge = datetime.now(pytz.UTC)
+                signup.status = c.PENDING
+                session.add(signup)
+                signup_count += 1
+
+        if not signup_count:
+            message = "None of the signups selected had a badge offer to refresh."
+        else:
+            message = f"Refreshed {signup_count} badge offers."
+
+        raise HTTPRedirect("../reg_admin/attendee_account_form?id={}&message={}",
+                           account_id, message)
+
+    def remove_waitlist_signups(self, session, account_id, signup_ids=[], message='', **params):
+        if isinstance(signup_ids, str):
+            signup_ids = [signup_ids]
+
+        signup_count = 0
+
+        for id in signup_ids:
+            signup = session.get(BadgeWaitlistSignup, id)
+            log.error(signup)
+            if not signup.attendee and signup.status == c.PENDING:
+                signup.status = c.REMOVED
+                session.add(signup)
+                signup_count += 1
+
+        if not signup_count:
+            message = "None of the signups selected could be cancelled."
+        else:
+            message = f"Cancelled {signup_count} signups."
+
+        raise HTTPRedirect("../reg_admin/attendee_account_form?id={}&message={}",
+                        account_id, message)
 
     @ajax
     def refresh_model_receipt(self, session, id=''):

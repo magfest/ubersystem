@@ -1,0 +1,130 @@
+{% extends "./preregistration/preregbase.html" %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set multi_signup = signups|length > 1 %}
+{% set title_text = "Purchase Badges from Waitlist" if multi_signup else "Purchase Badge from Waitlist" %}
+{% block content %}
+
+<div class="card">
+    <div class="card-body">
+    <h2>Purchase Badge{% if multi_signup %}s{% endif %} from Waitlist</h2>
+    {% if multi_signup %}
+    <p>
+        Congratulations, you have badges available from the waitlist! Please select the badges below that you would like to purchase.
+        
+        <table class="table" x-data="{ selectall: false, }">
+            <thead>
+                <tr>
+                    <th>
+                        <label class="d-block"><input type="checkbox" class="form-check-input" @click="selectall=!selectall"></label>
+                    </th>
+                    <th>Name</th>
+                    <th>Price</th>
+                    <th>Available Until</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for signup in signups %}
+                <tr id="signup-{{ signup.id }}">
+                <td>
+                    <label class="d-block">
+                        <input type="checkbox" form="waitlist-cancel" class="form-check-input" name="signup_ids" value="{{ signup.id }}" x-bind:checked="selectall" />
+                    </label>
+                </td>
+                <td>{{ signup.full_name }}</td>
+                <td>{{ signup.estimated_badge_cost|format_currency }}</td>
+                <td>{{ signup.badge_offer_expiry_time|datetime }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </p>
+    {% else %}
+    {% set signup = signups[0] %}
+    <p>
+        Congratulations, {{ signup.full_name }}'s badge is now available to purchase from the waitlist!
+        You have until <strong>{{ signup.badge_offer_expiry_time|datetime }}</strong> to purchase this badge.
+        After that, the offer will expire and you will need to sign up for the waitlist again.
+    </p>
+    {% endif %}
+    {% set each_or_your = 'each' if multi_signup else 'your' %}
+    <p>
+    Once you pay for {% if multi_signup %}these badges{% else %}this badge{% endif %} using the button below,
+    you will be brought to a page to fill out {{ each_or_your }} badge's details.
+    This is required to be able to pick up {{ each_or_your }} badge during the event, but your badge{% if multi_signup %}s{% endif %}
+    will be valid from time of purchase{% if c.ATTENDEE_ACCOUNTS_ENABLED %} and you will be able to view or edit your badge{% if multi_signup %}s{% endif %} from your homepage{% endif %}.
+    </p>
+    <p>
+        {% if multi_signup %}If someone in the list above{% else %}If you{% endif %} cannot attend,
+        you can instead cancel{% if multi_signup %} the selected waitlist signups{% endif %} using the button below.
+    </p>
+    <div class="d-flex gap-3 align-items-center">
+        {% if multi_signup %}
+        {{ stripe_form('purchase_waitlist_signups', text="Purchase Selected Badges") }}
+        {% else %}
+        {{ stripe_form('purchase_waitlist_signups', text="Purchase Badge", signup_ids=signups[0].id) }}
+        {% endif %}
+        OR
+        <form id="waitlist-cancel" action="cancel_waitlist_signups" method="post">
+            {{ csrf_token() }}
+            <button class="btn btn-danger">Cancel {% if multi_signup %}Selected {% endif %} Signup{% if multi_signup %}s{% endif %}</button>
+        </form>
+    </div>
+    </div>
+</div>
+{% if multi_signup %}
+<script type="text/javascript">
+    var resumeStripeAction = callStripeAction;
+    var callStripeAction = function() {
+        var signup_ids = $('input[name="signup_ids"]:checked').map(function() {
+            return $(this).val();
+        }).get().join(',');
+            stripe_action_params.signup_ids = signup_ids
+        resumeStripeAction();
+    }
+    $('#waitlist-cancel').on('submit', function(event) {
+        event.preventDefault();
+        var $toSubmit = $(this);
+        var signup_ids = $('input[name="signup_ids"]:checked').map(function() {
+            return $(this).val();
+        }).get()
+
+        console.log(signup_ids)
+        bootbox.confirm({
+            backdrop: true,
+            title: "Cancel Waitlist Signup{% if multi_signup %}(s){% endif %}?",
+            message: `<p>Are you sure you want to cancel {% if multi_signup %}the selected{% else %}your{% endif %} waitlist signup{% if multi_signup %}s{% endif %}?</p>
+                    <p>Cancelled waitlist signups lose their current position on the waitlist. This cannot be undone.</p>`,
+            buttons: {
+                confirm: { label: 'Yes, Cancel Signup{% if multi_signup %}(s){% endif %}', className: 'btn-danger' },
+                cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+            },
+            callback: function (result) {
+                if (result) {
+                    $.ajax({
+                    method: 'POST',
+                    url: 'cancel_waitlist_signups',
+                    dataType: 'json',
+                    data: $toSubmit.serialize(),
+                    success: function (json) {
+                        hideMessageBox();
+                        var message = json.message;
+                        if (json.success) {
+                            $("#message-alert").addClass("alert-info").show().children('span').html(message);
+                            window.scrollTo(0,0); setTimeout(() => { window.scrollTo(0, 0); }, 100);
+                            signup_ids.forEach((id) => { $('#signup-' + id).remove() });
+                            
+                        } else {
+                            showErrorMessage(message);
+                        }
+                    },
+                    error: function () {
+                        showErrorMessage('Unable to connect to server, please try again.');
+                    }
+                });
+                }
+            }
+        });
+    });
+</script>
+{% endif %}
+{% endblock %}

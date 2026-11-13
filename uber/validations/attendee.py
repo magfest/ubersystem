@@ -182,6 +182,38 @@ def not_same_cellphone_ec(form, field):
     if field.data and field.data == form.ec_phone.data:
         raise ValidationError("Your phone number cannot be the same as your emergency contact number.")
 
+
+# BadgeWaitlistInfo uses a subset of PersonalInfo fields, plus one custom field
+# This setup is fine since validations are not inheritable, but in the future we'll want to restructure the forms
+def signup_must_confirm_email(form):
+    if c.PREREG_CONFIRM_EMAIL_ENABLED and not form.is_admin and form.model.is_new:
+        return True
+
+for field_name in ['first_name', 'last_name', 'legal_name', 'birthdate']:
+    BadgeWaitlistInfo.field_validation.validations[field_name].update(PersonalInfo.field_validation.validations[field_name])
+    if PersonalInfo.field_validation.required_fields.get(field_name):
+        BadgeWaitlistInfo.field_validation.required_fields[field_name] = PersonalInfo.field_validation.required_fields[field_name]
+
+BadgeWaitlistInfo.field_validation.validations['email'].update(PersonalInfo.field_validation.validations['email'])
+BadgeWaitlistInfo.field_validation.required_fields['confirm_email'] = ("Please confirm your email address.",
+                                                                       'confirm_email', lambda x: signup_must_confirm_email(x.form))
+BadgeWaitlistInfo.field_validation.validations['confirm_email']['optional'] = validators.Optional()
+
+
+@BadgeWaitlistInfo.field_validation('birthdate')
+def badge_age_matches_type(form, field):
+    from uber.utils import get_age_from_birthday
+    if not field.data or not form.model.waitlist_type or not form.birthdate.data:
+        return
+
+    age = get_age_from_birthday(form.birthdate.data, c.NOW_OR_AT_CON)
+    if form.model.waitlist_type == c.CHILD_BADGE and age > 18:
+        raise ValidationError(f"This person will be {age} years old by the start of {c.EVENT_NAME} and will need an adult badge.")
+    if form.model.waitlist_type != c.CHILD_BADGE and age < 18:
+        raise ValidationError(f"This person will be {age} year(s) old by the start of {c.EVENT_NAME} and will need an under-18 badge.")
+
+
+
 # =============================
 # BadgeExtras
 # =============================

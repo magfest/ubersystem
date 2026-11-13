@@ -18,8 +18,22 @@ from uber.utils import get_age_conf_from_birthday
 
 
 __all__ = ['AdminBadgeExtras', 'AdminBadgeFlags', 'AdminConsents', 'AdminStaffingInfo', 'BadgeExtras',
-           'BadgeFlags', 'BadgeAdminNotes', 'PersonalInfo', 'PreregOtherInfo', 'OtherInfo', 'StaffingInfo',
+           'BadgeFlags', 'BadgeAdminNotes', 'BadgeWaitlistInfo', 'PersonalInfo', 'PreregOtherInfo', 'OtherInfo', 'StaffingInfo',
            'Consents', 'CheckInForm', 'DietaryRestrictions']
+
+
+class BadgeWaitlistInfo(MagForm):
+    first_name = StringField('First Name', render_kw={'autocomplete': "fname"})
+    last_name = StringField('Last Name', render_kw={'autocomplete': "lname"})
+    same_legal_name = BooleanField('The above name is exactly what appears on my Legal Photo ID.')
+    legal_name = StringField('Name as appears on Legal Photo ID',
+                                render_kw={'placeholder': 'First and last name exactly as they appear on Photo ID'})
+    email = EmailField('Email Address', render_kw={'placeholder': 'test@example.com'})
+    confirm_email = EmailField('Confirm Email Address')
+    birthdate = StringField('Date of Birth', widget=DateMaskInput())
+    offer_without_adult = BooleanField(
+        f'I\'m okay with purchasing this badge even if no adult badges are available.',
+        description="If checked, this badge will be come up on the waitlist even if there are no adult badges avalable. Avoiding purchasing it will make it lose its place in line.")
 
 
 class PersonalInfo(AddressForm):
@@ -52,9 +66,13 @@ class PersonalInfo(AddressForm):
     def get_non_admin_locked_fields(self, attendee):
         locked_fields = []
 
+        # Badges from the waitlist have these fields locked even if they're pending or placeholder
+        if attendee.waitlist_signup:
+            locked_fields.extend(['first_name', 'last_name', 'legal_name', 'same_legal_name', 'birthdate'])
+
         if attendee.is_new or attendee.badge_status == c.PENDING_STATUS or attendee.paid == c.PENDING:
             return locked_fields
-        elif not attendee.is_valid or attendee.badge_status == c.REFUNDED_STATUS:
+        elif not attendee.is_valid or attendee.badge_status == c.REFUNDED_STATUS or attendee.locked_by_waitlist:
             return list(self._fields.keys())
 
         if attendee.valid_placeholder or attendee.unassigned_group_reg:
@@ -249,7 +267,7 @@ class AdminBadgeFlags(BadgeFlags):
 
     create_account = BooleanField('Create an account and send this person an email to claim their badge.',
                                   description="If checked, this takes effect immediately on badge creation.")
-    can_transfer = BooleanField('Make this attendee\'s badge always transferable.')
+    transferable = SelectField('Badge Transferability', coerce=int, choices=c.BADGE_TRANSFER_OPTS)
     transfer_code = StringField('Transfer Code')
     badge_status = SelectField('Badge Status', coerce=int, choices=c.BADGE_STATUS_OPTS)
     badge_type = SelectField('Badge Type', coerce=int, choices=c.BADGE_OPTS)

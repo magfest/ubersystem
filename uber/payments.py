@@ -1922,6 +1922,7 @@ class ReceiptManager:
     def mark_paid_from_ids(session, intent_id, charge_id, put_on_hold=False):
         from uber.models import Attendee, ArtShowApplication, Group, ReceiptTransaction, Session
         from uber.email import EmailService
+        from uber.tasks.registration import refund_badge_from_waitlist
 
         matching_txns = session.query(ReceiptTransaction).filter(
             ReceiptTransaction.intent_id == intent_id,
@@ -1961,6 +1962,8 @@ class ReceiptManager:
                     model.badge_status = c.NEW_STATUS
                 if model.paid in [c.NOT_PAID, c.PENDING]:
                     model.paid = c.HAS_PAID
+                if model.waitlist_signup and model.waitlist_signup.refund_badge:
+                    refund_badge_from_waitlist.delay(model.waitlist_signup.refund_badge.id)
             if isinstance(model, Group) and model.is_paid:
                 for attendee in model.attendees:
                     if attendee.paid == c.PAID_BY_GROUP and attendee.badge_status == c.NEW_STATUS and \
