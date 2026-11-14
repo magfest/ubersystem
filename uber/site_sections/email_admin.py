@@ -379,7 +379,6 @@ class Root:
         email.status_text = new_status
         session.commit()
         sent_email = EmailService.send_email(session, email, email.automated_email)
-        sent_email = None
         if not sent_email:
             if email in session.deleted:
                 session.commit()
@@ -392,6 +391,7 @@ class Root:
             elif email.status_text and email.status_text != new_status:
                 return {'success': False, 'message': f"Email was not sent: {email.status_text.split(':')[-1].strip()}."}
             return {'success': False, 'message': f'Email "{email.subject}" to {email.readable_to} could not be sent.'}
+        session.commit()
         return {'success': True, 'message': f'Email "{email.subject}" successfully sent to {email.readable_to}.'}
 
     @any_admin_access
