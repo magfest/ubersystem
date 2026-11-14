@@ -291,6 +291,12 @@ def _secure_flow_assignment(session, assignment_id, *, token=None,
           if assignment_id else None)
     if not ra or not ra.is_released:
         return None, {'error': 'Assignment not found.'}
+    # Ownership gate: every other room read/write path enforces this
+    # (see _require_room_access and _require_view_as_attendee). Without it
+    # any visitor holding an assignment UUID could read or overwrite the
+    # card on file for a booking that is not theirs.
+    if not _can_view_as_attendee(session, ra.attendee_id):
+        return None, {'error': 'You do not have access to that room.'}
     if ra.export_locked:
         return None, {'error': 'This booking has been transferred to the hotel '
                                'and the card on file cannot be changed here.'}
