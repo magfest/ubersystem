@@ -666,7 +666,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         if self.badge_status == c.NEW_STATUS and self.banned:
             self.badge_status = c.WATCHED_STATUS
             EmailService.queue_email(self.session, 'watchlist_match_admin', to=[c.REGDESK_EMAIL, c.SECURITY_EMAIL],
-                                     data={'attendee': self})
+                                     data={'full_name': self.full_name, 'attendee_id': self.id})
 
         elif self.badge_status == c.NEW_STATUS and not self.placeholder and self.first_name and (
                     self.paid in [c.HAS_PAID, c.NEED_NOT_PAY, c.REFUNDED]
