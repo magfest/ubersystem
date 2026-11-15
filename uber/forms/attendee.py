@@ -263,10 +263,12 @@ class AdminBadgeFlags(BadgeFlags):
 
     def get_valid_groups():
         from uber.models import Group
+        status_labels = Group.get_field('status').type.choices
         with Session() as session:
-            groups_list = [(g.id, g.name + (f" ({g.status_label})" if g.is_dealer else ""))
-                           for g in session.query(Group).filter(Group.status != c.IMPORTED).order_by(Group.name).all()]
-            return [('', "No Group")] + groups_list
+            groups = session.query(Group.id, Group.name, Group.is_dealer, Group.status).filter(
+                Group.status != c.IMPORTED).order_by(Group.name).all()
+        return [('', "No Group")] + [(group_id, name + (f" ({status_labels.get(status, '')})" if is_dealer else ""))
+                                     for group_id, name, is_dealer, status in groups]
 
 
 class BadgeAdminNotes(MagForm):
