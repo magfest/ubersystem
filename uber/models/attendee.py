@@ -1684,6 +1684,19 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
         return lottery_statuses
 
     @property
+    def reg_page_possibilites(self):
+        can_do = ['update your information']
+        if c.BADGE_TYPE_PRICES:
+            can_do.append('upgrade your registration level')
+        if len(c.PREREG_DONATION_OPTS) > 1:
+            can_do.append('preorder merch')
+        if c.COLLECT_EXTRA_DONATION:
+            can_do.append('donate extra money')
+        if c.ATTENDEE_BADGE_AVAILABLE:
+            can_do.append('add additional registrations')
+        return can_do
+
+    @property
     def is_inherently_transferable(self):
         return self.badge_status == c.COMPLETED_STATUS \
             and not self.checked_in \
