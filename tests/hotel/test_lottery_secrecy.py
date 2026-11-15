@@ -64,6 +64,7 @@ def world(session, monkeypatch, no_cherrypy_session):
         monkeypatch.setattr(module, 'check_csrf', lambda *a, **k: None, raising=False)
         monkeypatch.setattr(module, '_require_post_csrf', lambda *a, **k: None, raising=False)
     monkeypatch.setattr(attendee_site, '_require_view_as_attendee', lambda *a, **k: None)
+    monkeypatch.setattr(attendee_site, '_can_view_as_attendee', lambda *a, **k: True)
     monkeypatch.setattr(session, 'commit', session.flush)
 
     # The card-deadline cron opens its own Session; hand it ours.

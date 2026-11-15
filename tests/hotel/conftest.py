@@ -124,3 +124,24 @@ def post_request(monkeypatch, session, no_cherrypy_session):
     monkeypatch.setattr(hotel_lottery, '_require_view_as_attendee', lambda *a, **k: None)
     monkeypatch.setattr(session, 'commit', session.flush)
     return hotel_lottery
+
+
+@pytest.fixture
+def login_as(monkeypatch, no_cherrypy_session):
+    """Log in as an AttendeeAccount (OIDC-style, ids on cherrypy.request)
+    with no lottery-admin access, so ownership gates run for real."""
+    import cherrypy
+
+    from uber.config import c
+    from uber.models import initialize_db
+
+    initialize_db()
+    monkeypatch.setattr(c, 'HAS_HOTEL_LOTTERY_ADMIN_ACCESS', False, raising=False)
+    monkeypatch.setattr(cherrypy.request, 'admin_account', None, raising=False)
+
+    def login(attendee_account):
+        monkeypatch.setattr(cherrypy.request, 'attendee_account',
+                            attendee_account.id if attendee_account else None,
+                            raising=False)
+    login(None)
+    return login

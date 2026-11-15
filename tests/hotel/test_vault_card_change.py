@@ -19,7 +19,8 @@ from uber.config import c
 from uber.models import AutomatedEmail, Email
 
 from tests.hotel.factories import (N, make_assignment, make_attendee,
-                                   make_hotel, make_inventory)
+                                   make_attendee_account, make_hotel,
+                                   make_inventory)
 
 SECRET = 'test-webhook-secret'
 
@@ -151,9 +152,14 @@ def _unwrapped(name):
     return lambda session, **kw: func(Root(), session, **kw)
 
 
-def test_card_status_reports_capture_time(session, monkeypatch):
+def _log_in_booker(login_as, session, ra):
+    login_as(make_attendee_account(session, ra.attendee))
+
+
+def test_card_status_reports_capture_time(session, login_as):
     captured = _now()
     ra = _room(session, cc_token='tok-old', cc_captured_at=captured)
+    _log_in_booker(login_as, session, ra)
     result = _unwrapped('card_status')(session, assignment_id=ra.id)
     assert result['captured_at'] == captured.isoformat()
 
@@ -161,7 +167,7 @@ def test_card_status_reports_capture_time(session, monkeypatch):
     assert _unwrapped('card_status')(session, assignment_id=ra.id)['captured_at'] == ''
 
 
-def test_vault_session_reports_capture_time_baseline(session, monkeypatch):
+def test_vault_session_reports_capture_time_baseline(session, monkeypatch, login_as):
     import uber.vault
     monkeypatch.setattr(uber.vault, 'create_capture_session',
                         lambda **kw: {'unique_id': 'ep', 'secret': 's'})
@@ -169,6 +175,7 @@ def test_vault_session_reports_capture_time_baseline(session, monkeypatch):
                         lambda **kw: 'https://vault.example/capture')
     captured = _now()
     ra = _room(session, cc_token='tok-old', cc_captured_at=captured)
+    _log_in_booker(login_as, session, ra)
 
     result = _unwrapped('create_vault_session')(session, assignment_id=ra.id)
 
@@ -235,9 +242,10 @@ def _secure(session, ra, token):
 
 
 def test_changing_card_on_secured_room_does_not_resend_confirmation(
-        session, no_cherrypy_session, secured_email_fixture, monkeypatch):
+        session, login_as, secured_email_fixture, monkeypatch):
     monkeypatch.setattr(session, 'commit', session.flush)
     ra = _room(session, status=c.ASSIGNED)
+    _log_in_booker(login_as, session, ra)
 
     assert _secure(session, ra, 'tok-first') == {'success': True}
     session.flush()
@@ -254,3 +262,29 @@ def test_changing_card_on_secured_room_does_not_resend_confirmation(
     assert ra.cc_last_four is None, 'a changed card drops the old metadata'
     assert ra.status == c.SECURED
     assert emails() == 1, 'a card change is not a new secure'
+
+
+CARD_ENDPOINTS = {
+    'card_status': {},
+    'create_vault_session': {},
+    'save_card_token': {'token': 'tok-evil'},
+    'secure_room_callback': {'token': 'tok-evil', 'address1': '1 Main St', 'city': 'Town',
+                             'region': 'MD', 'zip_code': '20001', 'country': 'United States'},
+}
+
+
+@pytest.mark.parametrize('logged_in', ['stranger', 'nobody'])
+@pytest.mark.parametrize('endpoint', CARD_ENDPOINTS)
+def test_card_endpoints_refuse_non_owner(session, monkeypatch, login_as, endpoint, logged_in):
+    import uber.vault
+    monkeypatch.setattr(uber.vault, 'create_capture_session',
+                        lambda **kw: pytest.fail('vault session opened for a non-owner'))
+    monkeypatch.setattr(session, 'commit', session.flush)
+    ra = _room(session, status=c.ASSIGNED, cc_token='tok-owner', cc_last_four='1111')
+    if logged_in == 'stranger':
+        login_as(make_attendee_account(session, make_attendee(session)))
+
+    result = _unwrapped(endpoint)(session, assignment_id=ra.id, **CARD_ENDPOINTS[endpoint])
+
+    assert result == {'error': 'Assignment not found.'}
+    assert (ra.cc_token, ra.cc_last_four, ra.status) == ('tok-owner', '1111', c.ASSIGNED)

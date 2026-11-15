@@ -35,7 +35,8 @@
                     $('.group-name').text(json.room_group_name);
                     $('.leader-name').text(json.leader_name);
                     $('.conf-num').text(json.invite_code);
-                    $('#room_group_id').val(json.room_group_id)
+                    $('#room_group_id').val(json.room_group_id);
+                    $('#room_group_confirmation_num').val(json.invite_code);
                 } else {
                     showErrorMessage(json.error);
                 }
@@ -244,6 +245,7 @@
                 <input type="hidden" name="id" value="{{ application.id }}">
                 {{ csrf_token() }}
                 <input type="hidden" id="room_group_id" name="room_group_id" value="">
+                <input type="hidden" id="room_group_confirmation_num" name="confirmation_num" value="">
                 <div class="row g-3 mb-3">
                     <div class="col-12 col-sm-6">
                         <button type="button" class="btn btn-outline-secondary" onClick="setStep('#group-lookup')">

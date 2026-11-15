@@ -289,7 +289,8 @@ def _secure_flow_assignment(session, assignment_id, *, token=None,
     """
     ra = (session.query(RoomAssignment).get(assignment_id)
           if assignment_id else None)
-    if not ra or not ra.is_released:
+    # Same booker gate as the secure_room page; reported as not-found so the id isn't confirmed.
+    if not ra or not ra.is_released or not _can_view_as_attendee(session, ra.attendee_id):
         return None, {'error': 'Assignment not found.'}
     if ra.export_locked:
         return None, {'error': 'This booking has been transferred to the hotel '
@@ -487,6 +488,10 @@ def _stamp_entry_started(application):
         'referer': cherrypy.request.headers.get('Referer', '')}
 
 
+# Admin-only forms (LotteryAdminInfo) go through hotel_lottery_admin's own validator.
+ATTENDEE_LOTTERY_FORMS = {'LotteryInfo', 'RoomLottery', 'SuiteLottery', 'LotteryConfirm', 'LotteryRoomGroup'}
+
+
 def _join_room_group(session, application, group_id):
     message, got_new_conf_num = '', None
 
@@ -495,7 +500,9 @@ def _join_room_group(session, application, group_id):
     except NoResultFound:
         message = f"No {c.HOTEL_LOTTERY_GROUP_TERM.lower()} found!"
     else:
-        if len(room_group.valid_group_members) >= _max_room_capacity_for_group(session, room_group):
+        if not room_group.room_group_name or room_group.parent_application_id:
+            message = f"No {c.HOTEL_LOTTERY_GROUP_TERM.lower()} found!"
+        elif len(room_group.valid_group_members) >= _max_room_capacity_for_group(session, room_group):
             message = f"This {c.HOTEL_LOTTERY_GROUP_TERM.lower()} is full."
         elif room_group.is_staff_entry and not application.qualifies_for_staff_lottery:
             message = f"You are not eligible to join this {c.HOTEL_LOTTERY_GROUP_TERM.lower()}."
@@ -1398,7 +1405,9 @@ class Root:
                 group_id = params.get('group_id')
                 if application.status not in [c.PARTIAL, c.WITHDRAWN]:
                     message = "Application status has changed, please view your new options below."
-                elif not group_id:
+                elif not group_id or str(group_id) not in {
+                        str(a.lottery_application.id) for account in attendee.managers
+                        for a in account.get_room_group_owners(staff=attendee.staff_hotel_lottery_eligible)}:
                     message = f'Group lookup failed. Please use the "Join {c.HOTEL_LOTTERY_GROUP_TERM}" button to try again.'
                 else:
                     message, _ = _join_room_group(session, application, group_id)
@@ -1730,6 +1739,9 @@ class Root:
             application = session.lottery_application(params.get('id'))
             attendee = application.attendee
 
+        if not _can_view_as_attendee(session, attendee.id):
+            return {"error": "You do not have permission to edit that entry."}
+
         if not application.is_new and application.locked:
             return {"error": "You cannot edit your lottery entry at this time."}
 
@@ -1737,6 +1749,8 @@ class Root:
             form_list = ["LotteryInfo"]
         elif isinstance(form_list, str):
             form_list = [form_list]
+        if not set(form_list) <= ATTENDEE_LOTTERY_FORMS:
+            return {"error": "There was an issue with the form. Please refresh and try again."}
         forms = load_forms(params, application, form_list)
 
         all_errors = validate_model(session, forms, application)
@@ -1906,6 +1920,9 @@ class Root:
                                "You cannot remove group members at this time.")
 
         member = session.lottery_application(member_id)
+        if member.parent_application_id != application.id:
+            raise HTTPRedirect('room_group?id={}&message={}', application.id,
+                               f"That person is not a member of your {c.HOTEL_LOTTERY_GROUP_TERM.lower()}.")
         if application.status == c.PROCESSED or application.finalized:
             member = _clear_application(member)
         else:
@@ -2029,7 +2046,11 @@ class Root:
                                f"You cannot join a {c.HOTEL_LOTTERY_GROUP_TERM.lower()} at this time.")
         got_new_conf_num = False
 
-        if not params.get('room_group_id'):
+        # Re-check the confirmation number room_group_search verified; the id alone isn't a secret.
+        room_group = (session.query(LotteryApplication).filter_by(id=params['room_group_id']).first()
+                      if params.get('room_group_id') else None)
+        if not room_group or not params.get('confirmation_num') \
+                or room_group.confirmation_num != params.get('confirmation_num'):
             message = "Group ID invalid!"
         elif application.valid_group_members or application.room_group_name:
             message = "Please disband your own group before joining another group."
@@ -2043,8 +2064,6 @@ class Root:
         # fall off the end of the handler into a template that isn't there.
         if message:
             raise HTTPRedirect('room_group?id={}&message={}', application.id, message)
-
-        room_group = session.lottery_application(params.get('room_group_id'))
 
         session.commit()
         session.refresh(application)
@@ -2129,6 +2148,8 @@ class Root:
         if not ra:
             raise HTTPRedirect('index?id={}&message={}', id,
                                f"{you_str} entry does not have a room or suite award.")
+        # make_room_leader moves the room without relinking its application.
+        _require_room_access(session, ra, application.attendee_id)
         # Booking links are per-assignment (there is no hotel-wide link).
         booking_url = ra.booking_url
         if not booking_url:
@@ -2616,12 +2637,12 @@ class Root:
                     'index?attendee_id={}&message={}', application.attendee.id,
                     "Your entry does not have a room award to edit.")
         else:
-            # With no application, requires_account checks only attendee_id,
-            # so confirm the viewer leads this room.
             ra = _resolve_assignment(session, assignment_id)
             if not ra:
                 raise HTTPRedirect('rooms?message={}', 'Room not found.')
-            _require_room_access(session, ra, attendee_id)
+        # requires_account only vouches for `id`/`attendee_id`, and make_room_leader
+        # moves a room without relinking its application, so check the room's leader.
+        _require_room_access(session, ra, attendee_id or (application.attendee_id if application else ''))
 
         viewer_id = attendee_id or ra.attendee_id
 

@@ -166,3 +166,14 @@ def make_assignment(session, attendee, inventory=None, status=None,
     session.add(ra)
     session.flush()
     return ra
+
+
+def make_attendee_account(session, *attendees):
+    from uber.models import AttendeeAccount
+
+    account = AttendeeAccount(email=f'{_tag("acct")}@example.com')
+    session.add(account)
+    session.flush()
+    account.attendees.extend(attendees)
+    session.flush()
+    return account
