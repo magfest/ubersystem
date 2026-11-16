@@ -1750,6 +1750,7 @@ class Root:
         transfer_badge.badge_status = c.NEW_STATUS
         transfer_badge.append_admin_note(f"Automatic transfer from attendee {old.id}.")
         if old.lottery_application:
+            old.lottery_application.release_invites(session)
             session.delete(old.lottery_application)
 
         EmailService.queue_email(session, 'code_badge_transfer_new_badge', to=transfer_badge.email_to_address,
@@ -1845,6 +1846,7 @@ class Root:
                 attendee.admin_notes = f"Automatic transfer from attendee {old.id}"
 
                 if old.lottery_application:
+                    old.lottery_application.release_invites(session)
                     session.delete(old.lottery_application)
 
                 EmailService.queue_email(session, 'link_badge_transfer', to=attendee.email_to_address,

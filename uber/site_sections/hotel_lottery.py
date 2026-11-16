@@ -587,7 +587,8 @@ def _disband_room_group(session, application):
             subject=f'{c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM} "{old_room_group_name}" Disbanded',
             data={
             'parent': application, 'old_room_group_name': old_room_group_name})
-    
+
+    application.release_invites(session)
     session.commit()
 
 
@@ -1580,6 +1581,7 @@ class Root:
         if was_room_group:
             _disband_room_group(session, application)
 
+        application.release_invites(session)
         _clear_application(application)
 
         if old_room_group:
