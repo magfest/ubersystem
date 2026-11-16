@@ -131,46 +131,26 @@
     {% if account.has_waitlist_signups_available %}<p><a href="waitlist_signup" target="_blank" class="btn btn-primary">Sign Up for Waitlist</a></p>{% endif %}
     {% endif %}
     {% if account.pending_waitlist_signups %}
-    You can view your current waitlist signups below. Waitlist positions are set within {{ c.WAITLIST_RESERVE_MINUTES * 3 }} minutes of signing up and updated once a day.
-    {% if c.AFTER_BADGE_WAITLIST_END %}The waitlist will close at {{ c.BADGE_WAITLIST_CLOSED|datetime_local }}, after which no more badges will be taken off the waitlist.{% endif %}
-    <div class="d-flex flex-wrap mb-2">
-    {% for signup, position in account.pending_waitlist_signups_positions.items() %}
-        {% set display_pos = c.WAITLIST_MAX_POSITION ~ '+' if c.WAITLIST_MAX_POSITION and position >= c.WAITLIST_MAX_POSITION else position %}
-        <div class="card card-body m-2 pb-0" id="signup-{{ signup.id }}">
-            <div class="d-flex justify-content-between">
-            <strong>{{ signup.full_name }}</strong>
-                <button type="button" class="btn btn-sm btn-warning"
-                onClick="confirmWaitlistCancel('{{ signup.id }}', '{{ signup.full_name }}', '{{ display_pos }}', '{% if c.WAITLIST_BADGE_TYPES|length > 1 %}{{ c.WAITLIST_BADGE_LABELS[signup.waitlist_type] }} {% endif %}')"
-                >Cancel Signup</button>
-            </div>
-            <p>
-            {% if signup.legal_name %}<br/><strong>Name on Photo ID</strong>: {{ signup.legal_name }}{% endif %}
-            <br/><strong>Email</strong>: {{ signup.email }}
-            <br/><strong>Birthdate</strong>: {{ signup.birthdate|datetime('%m/%d/%Y') }}
-            <br/><strong>Signed Up</strong>: {{ signup.signup_time|datetime_local('%-I:%M%p %b %-m') }}
-            <br/><strong>Badge Cost</strong>: {{ signup.estimated_badge_cost|format_currency if signup.estimated_badge_cost else 'Free!' }}
-            </p>
-            <span class="mt-auto ms-auto mb-2">
-                <em>{% if c.WAITLIST_BADGE_TYPES|length > 1 %}{{ c.WAITLIST_BADGE_LABELS[signup.waitlist_type] }} {% endif %}Waitlist Position: {{ display_pos or 'Not Set' }}</em>
-            </span>
-        </div>
-    {% endfor %}
-    </div>
+        You can view your current waitlist signups below. Waitlist positions are set within {{ c.WAITLIST_RESERVE_MINUTES * 3 }} minutes of signing up and updated once a day.
+        {% if c.AFTER_BADGE_WAITLIST_END %}The waitlist will close at {{ c.BADGE_WAITLIST_CLOSED|datetime_local }}, after which no more badges will be taken off the waitlist.{% endif %}
+        {% set waitlist_signups = account.pending_waitlist_signups_positions %}
+        {% set signups_include_positions = True %}
+        {% set include_cancel_button = True %}
+        {% include 'preregistration/waitlist_signups_grid.html' with context %}
     {% endif %}
     {% if account.offered_waitlist_signups %}
     {% set multi_signup_offers = account.offered_waitlist_signups|length > 1 %}
         <strong>
             Congratulations!
             {% if multi_signup_offers %}The following badges are now available for purchase:
-            {% else %}You have been selected from the waitlist. You can confirm your attendance and purchase your badge <a href="{{ c.URL_BASE }}/preregistration/waitlist_purchase{% if not c.ATTENDEE_ACCOUNTS_ENABLED %}?id={{ signup.id }}{% endif %}">here</a>.
+            {% else %}You have been selected from the waitlist. You can confirm your attendance and purchase your badge <a href="{{ c.URL_BASE }}/preregistration/waitlist_purchase{% if not c.ATTENDEE_ACCOUNTS_ENABLED %}?id={{ signup.id }}{% endif %}">here</a>.<br/>
             {% endif %}
         </strong>
         {% if multi_signup_offers %}
-            <ul>
-            {% for signup in account.offered_waitlist_signups %}
-            <li>{{ signup.full_name }}</li>
-            {% endfor %}
-            </ul>
+            {% set waitlist_signups = account.offered_waitlist_signups %}
+            {% set signups_include_positions = False %}
+            {% set include_cancel_button = False %}
+            {% include 'preregistration/waitlist_signups_grid.html' with context %}
             <p><a href="{{ c.URL_BASE }}/preregistration/waitlist_purchase" class="btn btn-success" target="_blank">View and Purchase Pending Badges</a></p>
         {% endif %}
         {% if c.AFTER_BADGE_WAITLIST_END %}

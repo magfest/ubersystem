@@ -70,7 +70,7 @@ def check_post_con(klass):
 
 def check_waitlist_access(allow_after_end=False):
     if not c.BADGE_WAITLIST_ENABLED:
-        return ''
+        return f"{c.EVENT_NAME} does not have a badge waitlist."
     if c.BEFORE_BADGE_WAITLIST_START:
         return "The badge waitlist is not open yet."
     if not allow_after_end and c.AFTER_BADGE_WAITLIST_END:
@@ -383,6 +383,7 @@ class Root:
         purchaser = None
         fallback_purchaser = None
         account = None
+        pickup_group_id = None
 
         if c.ATTENDEE_ACCOUNTS_ENABLED:
             account = session.current_attendee_account()
@@ -390,11 +391,19 @@ class Root:
         signup_id_list = signup_ids.split(',')
         multi_signup = len(signup_id_list) > 1
 
+        selected_signups = dict(session.query(BadgeWaitlistSignup.id, BadgeWaitlistSignup).filter(BadgeWaitlistSignup.id.in_(signup_id_list)))
+
+        if account and not account.valid_adults:
+            if BadgeWaitlistSignup.signups_need_accompanying_adult(selected_signups.values()):
+                return {'error': f"You cannot purchase a badge under {c.ACCOMPANYING_ADULT_AGE} without an adult."}
+
         for signup_id in signup_id_list:
             signup_error = ''
-            signup = session.get(BadgeWaitlistSignup, signup_id)
+            signup = selected_signups.get(signup_id, None)
             if not signup:
                 signup_error = "Waitlist signup not found."
+            elif account and signup.attendee_account != account:
+                signup_error = "This waitlist signup is not under your account."
             else:
                 signup_error = signup.cannot_purchase_reason
 
@@ -434,9 +443,23 @@ class Root:
         purchase_description = f"Waitlist purchase for {', '.join([badge.full_name for badge in new_badges])}"
 
         for attendee in new_badges:
+            if attendee.badge_pickup_group_id:
+                pickup_group_id = attendee.badge_pickup_group_id
+
+        if pickup_group_id:
+            pickup_group = session.badge_pickup_group(pickup_group_id)
+        else:
+            pickup_group = BadgePickupGroup()
+            session.add(pickup_group)
+
+        if account:
+            pickup_group.account_id = account.id
+
+        for attendee in new_badges:
+            attendee.badge_pickup_group = pickup_group
             session.add(attendee)
             if attendee.active_receipt:
-                # We don't expect the costs to change, so we can re-use the receipt of any pending badges
+                # It shouldn't be possible to change the badge price, so we can re-use the receipt of any pending badges
                 receipts.append(attendee.active_receipt)
             else:
                 purchaser = purchaser or fallback_purchaser
@@ -486,8 +509,9 @@ class Root:
     def waitlist_signup(self, session, message='', **params):
         access_message = check_waitlist_access()
         if access_message:
-            redirect = 'homepage' if c.ATTENDEE_ACCOUNTS_ENABLED else '../landing/index'
-            raise HTTPRedirect('{}?message={}', redirect, access_message)
+            return {
+                'access_message': access_message,
+            }
 
         account = None
         max_badges_for_type = {}
@@ -514,7 +538,7 @@ class Root:
             badge_type = getattr(c, badge_type_name.upper())
             max_badges_for_type[badge_type] = max(0, account.available_badge_waitlist_signups(badge_type)) if account else c.BADGE_WAITLIST_LIMITS[badge_type]
             for num in range(1, max_badges_for_type[badge_type] + 1):
-                forms[badge_type][num] = load_forms(params, BadgeWaitlistSignup(),
+                forms[badge_type][num] = load_forms(params, BadgeWaitlistSignup(waitlist_type=badge_type),
                                                     ['BadgeWaitlistInfo'], field_prefix=f'{badge_type_name}_{num}')
 
         if cherrypy.request.method == 'POST':
@@ -527,10 +551,9 @@ class Root:
                     message = f"You only have {max_badges_for_type[badge_type]} {c.WAITLIST_BADGE_LABELS[badge_type]} signups available."
 
                 if account and not account.valid_adults:
-                    # Prevent signups for attendees under ACCOMPANYING_ADULT_AGE unless there's also a signup for an adult
-                    for signup in account.pending_waitlist_signups + account.offered_waitlist_signups:
-                        if signup.birthdate and signup.age_now_or_at_con >= 18:
-                            pending_signup_adult = True
+                    # Prevent signups for attendees under ACCOMPANYING_ADULT_AGE unless there's also a signup for an adult,
+                    # either in the account's other waitlist signups or in the submitted form
+                    pending_signup_adult = not BadgeWaitlistSignup.signups_need_accompanying_adult(account.pending_waitlist_signups + account.offered_waitlist_signups)
 
                     if not pending_signup_adult:
                         for num in range(1, num_badge_type_signups[badge_type] + 1):
@@ -542,8 +565,16 @@ class Root:
                     if not pending_signup_adult:
                         message = f"You cannot sign up for a badge under {c.ACCOMPANYING_ADULT_AGE} without an adult."
 
+                for num in range(1, num_badge_type_signups[badge_type] + 1):
+                    errors = validate_model(session, forms[badge_type][num], BadgeWaitlistSignup(waitlist_type=badge_type), create_preview_model=False)
+                    if errors:
+                        message = ""
+
             if not message:
                 for badge_type in c.WAITLIST_BADGE_TYPES:
+                    if message:
+                        break
+
                     for num in range(1, num_badge_type_signups[badge_type] + 1):
                         signup = BadgeWaitlistSignup(
                             waitlist_type=badge_type,
@@ -556,7 +587,20 @@ class Root:
 
                         for form in forms[badge_type][num].values():
                             form.populate_obj(signup)
-                        session.add(signup)
+
+                        errors = validate_model(session, forms[badge_type][num], signup, create_preview_model=False)
+                        if errors:
+                            session.rollback()
+                            message = "There was an issue saving one or more of your waitlist signups. Please try again."
+                            break
+                        else:
+                            session.add(signup)
+
+            if not message:
+                if account:
+                    session.commit()
+                    session.refresh(account)
+                    EmailService.queue_email(session, 'badge_waitlist_account_confirm', account)
 
                 redirect = 'homepage' if c.ATTENDEE_ACCOUNTS_ENABLED else '../landing/index'
                 raise HTTPRedirect('{}?message={}', redirect, "Thanks for signing up for the waitlist!")
@@ -601,6 +645,10 @@ class Root:
         
         signup_errors = []
         cancelled_names = []
+        account = None
+        
+        if c.ATTENDEE_ACCOUNTS_ENABLED:
+            account = session.current_attendee_account()
 
         try:
             signup_id_list = signup_ids.split(',')
@@ -609,11 +657,22 @@ class Root:
 
         multi_signup = len(signup_id_list) > 1
 
+        selected_signups = dict(session.query(BadgeWaitlistSignup.id, BadgeWaitlistSignup).filter(BadgeWaitlistSignup.id.in_(signup_id_list)))
+        
+        if account and not account.valid_adults:
+            unselected_signups = [signup for signup in (account.pending_waitlist_signups + account.offered_waitlist_signups)
+                                  if signup.id not in selected_signups]
+            if BadgeWaitlistSignup.signups_need_accompanying_adult(unselected_signups):
+                return {'success': False,
+                        'message': f"You cannot leave pending waitlist signups under {c.ACCOMPANYING_ADULT_AGE} without an adult."}
+
         for signup_id in signup_id_list:
             signup_error = ''
-            signup = session.get(BadgeWaitlistSignup, signup_id)
+            signup = selected_signups.get(signup_id, None)
             if not signup:
                 signup_error = "Waitlist signup not found."
+            elif account and signup.attendee_account != account:
+                            signup_error = "This waitlist signup is not under your account."
             elif signup.status != c.PENDING:
                 signup_error = "Waitlist signup was already cancelled or expired."
 

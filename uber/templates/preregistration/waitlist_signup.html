@@ -5,7 +5,13 @@
 
 <div class="card">
   <div class="card-body">
-    <h2>Badge Waitlist Signup</h2>
+    {% if access_message %}
+    <div class="text-center">
+    <h2>{{ c.EVENT_NAME }} Badge Waitlist Unavailable</h2>
+    {{ access_message }}
+    </div>
+    {% else %}
+    <h2>{{ c.EVENT_NAME }} Badge Waitlist Signup</h2>
     <p>
       Thank you for your interest in attending {{ c.EVENT_NAME_AND_YEAR }}. Use the dropdowns below to sign up for the badge waitlist.
       Badges are pulled from the waitlist in the order you enter them below, e.g., a badge labeled "<strong>Waitlist Signup #1</strong>" will become available
@@ -14,7 +20,7 @@
     </p>
     <p>
       Please note that <strong>the names you enter below are final</strong> and cannot be changed when or after purchasing a badge.
-      Badges from the waitlist are non-transferable and non-refundable, but can be placed back on the waitlist if you are no longer able to attend.
+      Badges from the waitlist are non-transferable and non-refundable, but you can request a refund via the waitlist if you are no longer able to attend.
       {% if c.CHILD_BADGE in c.WAITLIST_BADGE_TYPES %}Under 18 badges are reserved for our younger attendees and cannot be promoted to adult badges.{% endif %}
     </p>
 
@@ -83,10 +89,10 @@
     <button type="submit" class="btn btn-primary">
       Sign Up for Waitlist
     </button>
-      
+    {% endif %}
   </div>
 </div>
-
+{% if not access_message %}
 <script type="text/javascript">
   function updateCountdown() {
     const now = new Date();
@@ -111,4 +117,5 @@ $(document).ready(function() {
     setInterval(updateCountdown, 1000);
 });
 </script>
+{% endif %}
 {% endblock %}

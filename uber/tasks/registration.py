@@ -32,6 +32,7 @@ if c.AUTHORIZENET_LOGIN_ID:
 
 __all__ = ['check_duplicate_registrations', 'check_placeholder_registrations', 'check_pending_badges', 'create_sso_accounts',
            'check_unassigned_volunteers', 'check_near_cap', 'check_missed_stripe_payments', 'process_api_queue',
+           'set_waitlist_positions', 'update_badge_waitlist', 'nonpending_badges_available', 'process_badge_waitlist', 'refund_badge_from_waitlist',
            'process_terminal_sale', 'send_receipt_email', 'create_badge_nums', 'create_badge_pickup_groups', 'update_receipt']
 
 

@@ -61,4 +61,10 @@
     });
 </script>
 {% endif %}
+{% elif attendee.badge_status == c.WAITLIST_REFUND_STATUS and is_card %}
+    {% if attendee.locked_by_waitlist %}
+    <span class="badge bg-danger">Refund Pending</span>
+    {% else %}
+    <span class="badge bg-warning text-dark">Refund Requested</span>
+    {% endif %}
 {% endif %}

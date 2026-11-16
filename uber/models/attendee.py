@@ -180,10 +180,6 @@ class BadgeWaitlistSignup(MagModel, table=True):
             self.offer_without_adult = False
 
     @property
-    def email_to_address(self):
-        return self.attendee_account.email if self.attendee_account else self.email
-
-    @property
     def age_group_conf(self):
         return get_age_conf_from_birthday(self.birthdate, c.NOW_OR_AT_CON)
 
@@ -218,7 +214,7 @@ class BadgeWaitlistSignup(MagModel, table=True):
         badge_cost = attendee.new_badge_cost
 
         if attendee.age_discount < 1:
-            badge_cost = badge_cost - (attendee.age_discount * 100)
+            badge_cost = badge_cost - int(attendee.age_discount * badge_cost)
         elif attendee.age_discount >= 999:
             badge_cost = None  # Free badge
         
@@ -239,6 +235,15 @@ class BadgeWaitlistSignup(MagModel, table=True):
                     BadgeWaitlistSignup.status.in_([c.CANCELLED, c.REMOVED]))).count()
         return self.waitlist_position - offered_or_cancelled_signups
 
+    def waitlist_position_trunc(self, position=None):
+        # If a position is not passed, we fall back to our own current_waitlist_position
+        # This may involve extra roundtrips to the DB
+        position = position or self.current_waitlist_position or 0
+
+        if c.WAITLIST_MAX_POSITION and position > c.WAITLIST_MAX_POSITION:
+            return f'{c.WAITLIST_MAX_POSITION}+'
+        return position
+
     @property
     def badge_offer_expiry_time(self):
         hours_time = self.offered_badge + timedelta(hours=c.WAITLIST_OFFER_HOURS)
@@ -255,6 +260,16 @@ class BadgeWaitlistSignup(MagModel, table=True):
         if self.status in [c.CANCELLED, c.REMOVED]:
             return "This waitlist signup was cancelled."
         return ""
+
+    @classmethod
+    def signups_need_accompanying_adult(cls, signups):
+        if not signups:
+            return False
+
+        for signup in signups:
+            if signup.birthdate and signup.age_now_or_at_con >= 18:
+                return False
+        return True
 
 
 class BadgeInfo(MagModel, table=True):

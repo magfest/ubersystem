@@ -43,7 +43,6 @@ class AutomatedEmailFixture:
         ArtShowApplication: [subqueryload(ArtShowApplication.attendee)],
         ArtShowBidder: [subqueryload(ArtShowBidder.attendee), subqueryload(ArtShowBidder.art_show_pieces)],
         ArtistMarketplaceApplication: [subqueryload(ArtistMarketplaceApplication.attendee)],
-        BadgeWaitlistSignup: [BadgeWaitlistSignup.attendee_account],
         Group: [subqueryload(Group.attendees)],
         LotteryApplication: [subqueryload(LotteryApplication.attendee)],
         PromoCodeGroup: [subqueryload(PromoCodeGroup.buyer)],
@@ -278,10 +277,57 @@ if c.GROUPS_ENABLED:
 if c.BADGE_WAITLIST_ENABLED:
     AutomatedEmailFixture(
         AttendeeAccount,
+        f'{c.EVENT_NAME} Badge Waitlist Signup Confirmation',
+        'reg_workflow/badge_waitlist_confirm.html', None,
+        'badge_waitlist_account_confirm',
+        send_filter="lambda a: a.pending_waitlist_signups",
+        sender=c.BADGE_WAITLIST_EMAIL,
+    )
+
+    AutomatedEmailFixture(
+        BadgeWaitlistSignup,
+        f'You Are Now Signed Up For the {c.EVENT_NAME} Badge Waitlist!',
+        'reg_workflow/badge_waitlist_position.html',
+        "lambda s: s.status == c.PENDING and s.waitlist_position != 0 and s.normalized_email != s.attendee_account.normalized_email \
+            and not s.attendee_id and not s.offered_badge",
+        'badge_waitlist_confirm',
+        sender=c.BADGE_WAITLIST_EMAIL,
+    )
+
+    AutomatedEmailFixture(
+        BadgeWaitlistSignup,
+        f'{c.EVENT_NAME} Badge Waitlist Signup Cancelled',
+        'reg_workflow/badge_waitlist_cancelled.html',
+        "lambda s: s.status == c.CANCELLED and s.waitlist_position != 0 and s.normalized_email != s.attendee_account.normalized_email",
+        'badge_waitlist_cancel',
+        sender=c.BADGE_WAITLIST_EMAIL,
+    )
+
+    AutomatedEmailFixture(
+        BadgeWaitlistSignup,
+        f'{c.EVENT_NAME} Badge Waitlist Signup Expired',
+        'reg_workflow/badge_waitlist_expired.html',
+        "lambda s: s.status == c.EXPIRED and s.waitlist_position != 0",
+        'badge_waitlist_expire',
+        sender=c.BADGE_WAITLIST_EMAIL,
+    )
+
+    AutomatedEmailFixture(
+        AttendeeAccount,
         f'Your {c.EVENT_NAME} Waitlist Badge Is Available!',
         'reg_workflow/badge_waitlist_offer.html', None,
         'badge_waitlist_offer',
         send_filter="lambda a: a.offered_waitlist_signups",
+        sender=c.BADGE_WAITLIST_EMAIL,
+    )
+
+    AutomatedEmailFixture(
+        BadgeWaitlistSignup,
+        f'Your {c.EVENT_NAME} Waitlist Badge Is Available!',
+        'reg_workflow/badge_waitlist_offered.html',
+        "lambda s: s.offered_badge and not s.attendee_id and s.status == c.PENDING and s.waitlist_position != 0 and \
+            s.normalized_email != s.attendee_account.normalized_email",
+        'badge_waitlist_offered',
         sender=c.BADGE_WAITLIST_EMAIL,
     )
 
