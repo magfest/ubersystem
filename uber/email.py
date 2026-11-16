@@ -289,7 +289,7 @@ class EmailService:
                 email.error = f"Model {to_model} does not have an email address"
                 session.add(email)
                 return
-            if not to_model.gets_emails and (not fixture or fixture.ignore_gets_emails):
+            if not to_model.gets_emails and (not fixture or not fixture.ignore_gets_emails):
                 session.delete(email)
                 return
 
