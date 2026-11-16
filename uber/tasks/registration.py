@@ -481,15 +481,16 @@ if c.BADGE_WAITLIST_ENABLED:
                 log.error(f"Tried to refund {attendee_id} via a waitlist signup but they were not marked as pending a refund.")
                 return
 
-            attendee.badge_status = c.REFUNDED_STATUS
-            session.add(attendee)
             if attendee.amount_paid:
                 receipt = session.get_receipt_by_model(attendee)
                 refund_total, error = receipt.process_full_refund(
                     session, attendee, who='non-admin',
                     exclude_fees=c.EXCLUDE_FEES_FROM_REFUNDS and not c.AUTHORIZENET_LOGIN_ID)
                 if error:
-                    log.error(f"Error processing pending refund for badge {attendee.id}: {error}")
+                    log.error(f"Error processing pending refund for badge {attendee.id} "
+                              f"after refunding {refund_total} cents: {error}")
+                    session.commit()
+                    return
                 receipt.closed = datetime.now()
                 session.add(receipt)
 
@@ -498,7 +499,10 @@ if c.BADGE_WAITLIST_ENABLED:
 
                 EmailService.queue_email(session, 'waitlist_refund_processed', attendee,
                                          data={'refund_total': (refund_total / 100)})
-                
+
+            attendee.badge_status = c.REFUNDED_STATUS
+            session.add(attendee)
+
             if attendee.group and attendee.group.is_valid:
                 badge_type = c.ATTENDEE_BADGE if attendee.badge_type in c.BADGE_TYPE_PRICES and attendee.group.cost else attendee.badge_type
                 session.assign_badges(
