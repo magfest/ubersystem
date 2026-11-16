@@ -491,7 +491,7 @@ class Root:
                     session.add_all(receipt_manager.items_to_add)
         else:
             for attendee in new_badges:
-                attendee.badge_status = c.COMPLETE_STATUS
+                attendee.badge_status = c.COMPLETED_STATUS
                 attendee.paid = c.NEED_NOT_PAY
         
         session.commit()
