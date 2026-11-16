@@ -10,9 +10,10 @@ from uber.email import EmailService
 from uber.config import c
 from uber.decorators import ajax, all_renderable, csrf_protected, csv_file, render
 from uber.errors import HTTPRedirect
-from uber.models import AssignedPanelist, Attendee, AutomatedEmail, Event, EventFeedback, EventLocation, Department, \
-    PanelApplicant, PanelApplication, GuestGroup
-from uber.utils import add_opt, check, localized_now, validate_model, groupify
+from uber.models import AssignedPanelist, Attendee, AttendeeAccount, AutomatedEmail, Event, EventFeedback, \
+    EventLocation, Department, PanelApplicant, PanelApplication, GuestGroup
+from uber.site_sections.registration import create_new_account
+from uber.utils import add_opt, check, localized_now, validate_model, groupify, normalize_email_legacy
 from uber.forms import load_forms
 
 log = logging.getLogger(__name__)
@@ -346,17 +347,18 @@ class Root:
                 ids.append(applicant.id)
                 applicant.attendee_id = attendee.id
             if c.ATTENDEE_ACCOUNTS_ENABLED and pa.accepted_applications:
-                # It's difficult to assign the 'correct' attendee account due to PanelApplicant's tenuous connection to reality
-                # If people don't like how this works, the solution is to rework panel applicants
-                account = None
-                for app in pa.accepted_applications:
-                    account = app.attendee_account
-                    if app.submitter_id == pa.id:
-                        break
+                # An application's account belongs to whoever submitted it, not to every panelist on it.
+                account = next((app.attendee_account for app in pa.accepted_applications
+                                if app.submitter_id == pa.id and app.attendee_account), None)
+                if not account and pa.email:
+                    account = session.query(AttendeeAccount).filter(
+                        AttendeeAccount.normalized_email == normalize_email_legacy(pa.email)).first()
                 if account:
                     session.add_attendee_to_account(attendee, account)
                     EmailService.queue_email(session, 'attendee_account_attendee_added', account,
                                              data={'attendee': attendee})
+                elif pa.email:
+                    create_new_account(session, attendee)
             session.commit()
         except Exception:
             log.error('unexpected error adding new panelist', exc_info=True)
