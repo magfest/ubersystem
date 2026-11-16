@@ -1705,7 +1705,9 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
 
         if self.lottery_application and self.lottery_application.status == c.COMPLETE:
             can_do.append("withdraw your hotel lottery entry")
-        if self.room_assignments or self.live_released_rooms:
+        if any(ra.changes_locked for ra in self.live_released_rooms):
+            can_do.append(f"contact {email_only(c.HOTEL_LOTTERY_EMAIL)} to be removed from your hotel room")
+        elif self.room_assignments or self.live_released_rooms:
             can_do.append("cancel or leave your hotel room")
         if self.art_show_application and self.art_show_application.is_valid:
             can_do.append(f"contact {email_only(c.ART_SHOW_EMAIL)} to cancel your art show application")
