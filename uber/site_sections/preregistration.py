@@ -1026,7 +1026,7 @@ class Root:
                 if not message:
                     if session.attendees_with_badges().filter_by(
                             first_name=attendee.first_name, last_name=attendee.last_name,
-                            normalize_email=normalize_email_legacy(attendee.email)).count():
+                            normalized_email=normalize_email_legacy(attendee.email)).count():
 
                         raise HTTPRedirect('duplicate?{}'.format(url_string))
 
