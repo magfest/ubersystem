@@ -2431,7 +2431,10 @@ class Root:
     @requires_account(Attendee)
     def cancel_refund(self, session, id):
         attendee = session.get(Attendee, id)
-        if attendee.locked_by_waitlist or check_task_progress('badge_waitlist_processing', 'process_badge_waitlist'):
+        # locked_by_waitlist only catches refund requests already matched to a waitlist signup.
+        # The status check makes sure this handler only resets badges that have a refund pending.
+        if attendee.badge_status != c.WAITLIST_REFUND_STATUS or attendee.locked_by_waitlist or \
+                check_task_progress('badge_waitlist_processing', 'process_badge_waitlist'):
             raise HTTPRedirect('confirm?id={}&message={}', id, "You cannot cancel your refund at this time.")
         attendee.badge_status = c.NEW_STATUS
         raise HTTPRedirect('confirm?id={}&message={}', id, "Refund request cancelled!")
