@@ -263,13 +263,8 @@ class BadgeWaitlistSignup(MagModel, table=True):
 
     @classmethod
     def signups_need_accompanying_adult(cls, signups):
-        if not signups:
-            return False
-
-        for signup in signups:
-            if signup.birthdate and signup.age_now_or_at_con >= 18:
-                return False
-        return True
+        ages = [signup.age_now_or_at_con for signup in signups if signup.birthdate]
+        return any(age < c.ACCOMPANYING_ADULT_AGE for age in ages) and not any(age >= 18 for age in ages)
 
 
 class BadgeInfo(MagModel, table=True):
