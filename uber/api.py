@@ -26,7 +26,7 @@ from uber.models import (AdminAccount, ApiToken, Attendee, AttendeeAccount, Attr
                          ArtShowApplication, ArtistMarketplaceApplication, BadgeInfo, Department, DeptMembership,
                          DeptRole, Event, IndieJudge, IndieStudio, Job, Session, Shift, Group,
                          GuestGroup, LotteryApplication)
-from uber.models.hotel import (HotelExportLog, HotelRoomInventory, LotteryHotel,
+from uber.models.hotel import (HotelExportLog, HotelRoomInventory, InventoryPartition, LotteryHotel,
                                RoomAssignment, room_assignment_occupant)
 from uber.hotel.queries import shared_room_eligible_query
 from uber.models.badge_printing import PrintJob
@@ -1573,6 +1573,52 @@ class HotelLookup:
                 'staff_lottery_eligible': a.staff_lottery_eligible,
                 'has_live_room': bool(a.active_room_assignments),
             } for a in query.all()]
+
+    def inventory(self):
+        """
+        Returns every hotel room inventory block, inactive ones included, for
+        a client (tuber's room export) that needs to pick the `inventory_id`
+        it passes to `update_assignment`.
+
+        Each entry has the block's id, name (its own, or its room/suite
+        type's when it has none), hotel_id, hotel_name, room_type_name,
+        capacity, quantity, is_suite and active.
+        """
+        with Session() as session:
+            blocks = session.query(HotelRoomInventory).all()
+            return sorted([{
+                'id': str(inv.id),
+                'name': inv.name or inv.display_name,
+                'hotel_id': str(inv.hotel_id) if inv.hotel_id else None,
+                'hotel_name': inv.hotel.name if inv.hotel else '',
+                'room_type_name': inv.room_or_suite_type.name if inv.room_or_suite_type else '',
+                'capacity': inv.capacity,
+                'quantity': inv.quantity,
+                'is_suite': inv.is_suite,
+                'active': inv.active,
+            } for inv in blocks], key=lambda entry: (entry['hotel_name'], entry['name']))
+
+    def partitions(self):
+        """
+        Returns every inventory partition, inactive ones included, for a
+        client that needs to pick the `partition_id` it passes to
+        `update_assignment`.
+
+        Each entry has the partition's id, name, description and active
+        flag, plus `blocks`: the inventory blocks it draws from, as dicts of
+        inventory_id and quantity. The bill reference is left out.
+        """
+        with Session() as session:
+            partitions = session.query(InventoryPartition).options(
+                selectinload(InventoryPartition.blocks)).order_by(InventoryPartition.name).all()
+            return [{
+                'id': str(partition.id),
+                'name': partition.name,
+                'description': partition.description,
+                'active': partition.active,
+                'blocks': [{'inventory_id': str(block.inventory_id), 'quantity': block.quantity}
+                           for block in partition.blocks],
+            } for partition in partitions]
 
     @api_auth('api_update')
     def update_inventory(self, id=None, **kwargs):
