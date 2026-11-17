@@ -329,6 +329,16 @@ class Root:
         ids = []
         try:
             pa = session.panel_applicant(applicant_id)
+            # One person has an applicant row per panel they are listed on; all of them share one badge.
+            # An invalid badge does not count, so the new badge replaces it on every row.
+            applicants = session.query(PanelApplicant).filter_by(
+                first_name=pa.first_name, last_name=pa.last_name, email=pa.email).all()
+            if pa.attendee and pa.attendee.is_valid:
+                return {'error': f'{pa.full_name} already has a badge. Reload the page to see the current list.'}
+            if any(applicant.attendee and applicant.attendee.is_valid for applicant in applicants):
+                return {'error': f'{pa.full_name} already has a badge from another panel. '
+                                 'Use the Link button next to it instead.'}
+
             attendee = Attendee(
                 placeholder=True,
                 paid=c.NEED_NOT_PAY,
@@ -341,8 +351,6 @@ class Root:
             )
             session.add(attendee)
 
-            applicants = session.query(PanelApplicant).filter_by(
-                first_name=pa.first_name, last_name=pa.last_name, email=pa.email)
             for applicant in applicants:
                 ids.append(applicant.id)
                 applicant.attendee_id = attendee.id

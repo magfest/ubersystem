@@ -2,10 +2,11 @@ import inspect
 import uuid
 
 import pytest
+from sqlalchemy import func
 
 from uber.config import c
 from uber.email import EmailService
-from uber.models import AttendeeAccount, PanelApplicant, PanelApplication, PasswordReset, Session
+from uber.models import Attendee, AttendeeAccount, PanelApplicant, PanelApplication, PasswordReset, Session
 from uber.site_sections.panels_admin import Root
 
 # The undecorated handler body; the ajax and access decorators need a live request.
@@ -60,14 +61,16 @@ def _delete_panel(ids, emails):
         app = session.get(PanelApplication, ids['app'])
         app.submitter_id = None
         session.flush()
-        applicants = session.query(PanelApplicant).filter(
-            PanelApplicant.id.in_([ids['submitter'], ids['cohost']])).all()
-        attendees = [applicant.attendee for applicant in applicants if applicant.attendee]
-        accounts = session.query(AttendeeAccount).filter(AttendeeAccount.email.in_(list(emails.values()))).all()
+        applicants = list(app.applicants)
+        # A failing run can leave badges no applicant points to, so badges are also found by email.
+        attendees = {applicant.attendee for applicant in applicants if applicant.attendee}
+        attendees |= set(session.query(Attendee).filter(func.lower(Attendee.email).in_(list(emails.values()))))
+        accounts = set(session.query(AttendeeAccount).filter(AttendeeAccount.email.in_(list(emails.values()))))
+        accounts |= {account for attendee in attendees for account in attendee.managers}
         for account in accounts:
             session.query(PasswordReset).filter(PasswordReset.attendee_id == account.id).delete()
             account.attendees.clear()
-        for obj in applicants + [app] + accounts + attendees:
+        for obj in applicants + [app] + list(accounts) + list(attendees):
             session.delete(obj)
         session.commit()
 
@@ -85,6 +88,11 @@ def _managers(applicant_id):
 def _accounts_for(email):
     with Session() as session:
         return session.query(AttendeeAccount).filter(AttendeeAccount.email == email).all()
+
+
+def _badge_count(email):
+    with Session() as session:
+        return session.query(Attendee).filter(func.lower(Attendee.email) == email.lower()).count()
 
 
 def test_submitter_badge_goes_on_submitter_account(panel, queued):
@@ -133,3 +141,72 @@ def test_copanelist_with_existing_account_is_added_to_it(panel, queued):
     assert _managers(ids['cohost']) == [emails['cohost']]
     assert queued == [('attendee_account_attendee_added', emails['cohost'])]
     assert len(_accounts_for(emails['cohost'])) == 1
+
+
+def test_copanelist_without_email_gets_a_badge_but_no_account(panel, queued):
+    ids, _ = panel
+    with Session() as session:
+        session.get(PanelApplicant, ids['cohost']).email = ''
+        session.commit()
+    blank_accounts = len(_accounts_for(''))
+
+    assert 'added' in _create(ids['cohost'])
+
+    assert _managers(ids['cohost']) == []
+    assert queued == []
+    assert len(_accounts_for('')) == blank_accounts
+
+
+def _add_earlier_row(ids, emails, badge_status=c.NEW_STATUS):
+    """Give the co-panelist a second applicant row, as for a second panel, already linked to a badge."""
+    with Session() as session:
+        badge = Attendee(first_name='Priya', last_name='Raman', email=emails['cohost'], paid=c.NEED_NOT_PAY,
+                         placeholder=True, badge_status=badge_status)
+        session.add(badge)
+        session.flush()
+        earlier = PanelApplicant(first_name='Priya', last_name='Raman', email=emails['cohost'], attendee_id=badge.id,
+                                 applications=[session.get(PanelApplication, ids['app'])])
+        session.add(earlier)
+        session.commit()
+        return badge.id, earlier.id
+
+
+def _linked_badge(applicant_id):
+    with Session() as session:
+        return session.get(PanelApplicant, applicant_id).attendee_id
+
+
+def test_second_press_does_not_make_another_badge(panel, queued):
+    ids, emails = panel
+    assert 'added' in _create(ids['cohost'])
+
+    result = _create(ids['cohost'])
+
+    assert 'Reload the page' in result['error']
+    assert _badge_count(emails['cohost']) == 1
+    assert queued == [('sso_account_setup', emails['cohost'])]
+
+
+def test_badge_on_another_applicant_row_is_not_replaced(panel, queued):
+    ids, emails = panel
+    badge_id, earlier_id = _add_earlier_row(ids, emails)
+
+    result = _create(ids['cohost'])
+
+    # The row stays listed after a reload, so the admin needs Link, not Reload.
+    assert 'Link' in result['error']
+    assert _linked_badge(earlier_id) == badge_id
+    assert _badge_count(emails['cohost']) == 1
+    assert queued == []
+
+
+def test_invalid_badge_on_another_applicant_row_does_not_block(panel, queued):
+    ids, emails = panel
+    invalid_id, earlier_id = _add_earlier_row(ids, emails, badge_status=c.INVALID_STATUS)
+
+    assert 'added' in _create(ids['cohost'])
+
+    new_id = _linked_badge(ids['cohost'])
+    assert new_id != invalid_id
+    assert _linked_badge(earlier_id) == new_id
+    assert queued == [('sso_account_setup', emails['cohost'])]
