@@ -148,7 +148,6 @@ def test_staffer_rooms_lists_every_source(session, inv, no_cherrypy_session):
     text = html.decode('utf-8') if isinstance(html, bytes) else html
     for source in ('Staff lottery', 'Staff Crash Space', 'Hotel admin'):
         assert source in text
-    assert text.count('shift requirements apply') == 1
 
 
 def test_api_create_rejects_unknown_reason(session, monkeypatch, inv):
@@ -321,13 +320,31 @@ def test_staffer_rooms_lists_roommates(session, monkeypatch, inv, no_cherrypy_se
     html = render('staff_rooming/staffer_rooms.html', data)
     text = html.decode('utf-8') if isinstance(html, bytes) else html
     assert late.full_name in text and friend.full_name in text
-    # Only the crash space room offers the date editor.
-    assert text.count('action="set_occupant_dates"') == 1
+    # Only the crash space room's dates dialog offers per-roommate dates.
+    assert text.count('Roommate stay dates') == 1
     assert f'name="check_in_{late.id}"' in text
     assert f'name="check_in_{friend.id}"' not in text
 
 
-def test_set_occupant_dates_page(session, monkeypatch, inv, no_cherrypy_session):
+def test_staffer_rooms_roommate_modal_handlers(session, monkeypatch, inv, no_cherrypy_session):
+    from uber.errors import HTTPRedirect
+    from uber.site_sections import staff_rooming
+
+    monkeypatch.setattr(cherrypy.request, 'method', 'POST')
+    monkeypatch.setattr(staff_rooming, 'check_csrf', lambda *a, **k: None)
+    monkeypatch.setattr(session, 'commit', session.flush)
+    booker, mate = _staffer(session), _staffer(session)
+    ra = make_assignment(session, booker, inv, check_in=N[0], check_out=N[3])
+    root = staff_rooming.Root()
+
+    for handler, expected in [('add_occupant', True), ('remove_occupant', False)]:
+        with pytest.raises(HTTPRedirect):
+            inspect.unwrap(getattr(staff_rooming.Root, handler))(
+                root, session, assignment_id=ra.id, attendee_id=mate.id)
+        assert (mate in ra.occupants) is expected
+
+
+def test_update_room_sets_occupant_dates(session, monkeypatch, inv, no_cherrypy_session):
     from uber.errors import HTTPRedirect
     from uber.site_sections import staff_rooming
 
@@ -336,7 +353,7 @@ def test_set_occupant_dates_page(session, monkeypatch, inv, no_cherrypy_session)
     monkeypatch.setattr(session, 'commit', session.flush)
     booker, mate = _staffer(session), _staffer(session)
     ra = _crash_room(session, monkeypatch, inv, booker, [booker.id, mate.id])
-    save = inspect.unwrap(staff_rooming.Root.set_occupant_dates)
+    save = inspect.unwrap(staff_rooming.Root.update_room)
 
     with pytest.raises(HTTPRedirect) as redirect:
         save(staff_rooming.Root(), session, id=ra.id, **{

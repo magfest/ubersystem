@@ -173,6 +173,40 @@ def check_partition_capacity(session, ra, held=None):
                 f"{night:%a %b %-d} ({assigned} of {capacity} booked).")
 
 
+def partition_overages(session, edited):
+    """Capacity problems after a batch of flushed edits, as a list of
+    messages. `edited` is (ra, held) pairs, `held` being _held_nights(ra)
+    from before the batch. The batch is judged as a whole, so rooms can
+    swap partitions; nights a row already held are not rechecked.
+    Unpartitioned pools are limited too."""
+    from uber.hotel.queries import capacity_for
+    from uber.models.hotel import HotelRoomInventory, InventoryPartition
+
+    gained = {}
+    for ra, held in edited:
+        inventory_id, partition_id, nights = _held_nights(ra)
+        if inventory_id:
+            if held[:2] == (inventory_id, partition_id):
+                nights = nights - held[2]
+            gained.setdefault((inventory_id, partition_id), set()).update(nights)
+
+    problems = []
+    for (inventory_id, partition_id), nights in gained.items():
+        inv = session.query(HotelRoomInventory).get(inventory_id)
+        partition = session.query(InventoryPartition).get(partition_id) if partition_id else None
+        over = [(night, assigned, capacity) for night in sorted(nights)
+                for capacity, assigned, _ in [capacity_for(session, inv, night, partition_id)]
+                if assigned > capacity]
+        if over:
+            worst = max(over, key=lambda o: o[1] - o[2])
+            who = partition.name if partition else 'The unpartitioned pool'
+            problems.append(
+                f"{who} is over its {inv.name or 'room'} allocation on "
+                f"{', '.join(f'{night:%a %b %-d}' for night, _, _ in over)} "
+                f"(up to {worst[1]} of {worst[2]} booked).")
+    return problems
+
+
 def create_room_assignment(session, *, attendee_id, inventory_id,
                            partition_id=None, lottery_application_id=None,
                            assignment_reason=None, status=None,
@@ -277,7 +311,7 @@ def notify_guest_of_room_change(session, ra):
 
 def apply_room_assignment_edits(session, ra, params, *, audit_prefix, fail,
                                 allowed_inventory_ids=None,
-                                allow_room_number=True):
+                                allow_room_number=True, check_capacity=True):
     """Shared save path for the RoomAssignment edit surfaces (the
     application form's per-room modal, the standalone edit page, the
     assign-room page's edit mode, and the partition dashboard modal).
@@ -285,7 +319,8 @@ def apply_room_assignment_edits(session, ra, params, *, audit_prefix, fail,
     Only touches fields actually present in `params`, so each surface
     keeps its own field set: the modal posts inventory / partition /
     billing / dates; the standalone page additionally posts status,
-    deposit cutoff, confirmation numbers, and special requests.
+    deposit cutoff, confirmation numbers, and special requests; the staff
+    room grid also posts assignment_reason.
 
     `fail(message)` is called on invalid input and must raise (callers
     redirect back to their own page with the message).
@@ -298,6 +333,9 @@ def apply_room_assignment_edits(session, ra, params, *, audit_prefix, fail,
     physical_room_id. Both, because linking a physical room re-stamps
     room_number via a presave, so dropping only the text field would
     still let the caller set the number indirectly.
+
+    `check_capacity=False` skips the partition capacity check, for batch
+    callers that judge the whole batch with partition_overages instead.
 
     Returns the user-facing result message; flushes (never commits - the
     caller owns the transaction) and writes one partition audit row
@@ -326,6 +364,16 @@ def apply_room_assignment_edits(session, ra, params, *, audit_prefix, fail,
             fail(e.message)
         if new_payment_type != ra.payment_type:
             changes.append('billing'); ra.payment_type = new_payment_type
+
+    if 'assignment_reason' in params:
+        try:
+            new_reason = int(params.get('assignment_reason'))
+        except (TypeError, ValueError):
+            new_reason = None
+        if new_reason not in dict(c.HOTEL_ASSIGNMENT_REASON_OPTS):
+            fail('Invalid room source.')
+        if new_reason != ra.assignment_reason:
+            changes.append('source'); ra.assignment_reason = new_reason
 
     # Collected first, then validated as a set, because a surface may post
     # only one of the two stay dates and the pair has to be checked against
@@ -401,7 +449,7 @@ def apply_room_assignment_edits(session, ra, params, *, audit_prefix, fail,
             # NOT NULL string columns clear to '' rather than None.
             setattr(ra, field, raw or (None if nullable else ''))
 
-    if changes:
+    if changes and check_capacity:
         try:
             check_partition_capacity(session, ra, held)
         except RoomAssignmentError as e:
@@ -511,6 +559,29 @@ def remove_room_occupant(session, ra, attendee_id, *, audit_prefix=''):
     _audit_roommate_change(session, ra, audit_prefix, "removed roommate", attendee.id)
     session.flush()
     return attendee
+
+
+def set_room_leader(session, ra, attendee_id, *, audit_prefix=''):
+    """Hand the booker (room leader) role to another occupant; the old
+    leader stays in the room. Connector children follow. Any card on file
+    is the outgoing leader's, so it comes off and a SECURED room drops back
+    to ASSIGNED. Returns (new leader, whether a card was removed)."""
+    target = next((o for o in ra.occupants if o.id == attendee_id), None)
+    if not target:
+        raise RoomAssignmentError('The room leader must be one of the roommates.')
+    if target.id == ra.attendee_id:
+        raise RoomAssignmentError(f'{target.full_name} is already the room leader.')
+
+    card_removed = False
+    for room in [ra] + list(ra.child_assignments):
+        card_removed = room.clear_card() or card_removed
+        # The relationship too, or ensure_booker_is_occupant keeps seeing the old leader.
+        room.attendee = target
+        room.attendee_id = target.id
+        session.add(room)
+    _audit_roommate_change(session, ra, audit_prefix, "changed room leader", target.id)
+    session.flush()
+    return target, card_removed
 
 
 def cancel_room_occupant_invite(session, ra, invite_id, *, audit_prefix=''):

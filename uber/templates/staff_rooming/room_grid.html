@@ -1,0 +1,210 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% import 'hotel_lottery_admin/_macros.html' as hotel_macros with context %}
+{% block title %}Room Grid{% endblock %}
+{% block content %}
+
+{% include 'staff_rooming/staffing_subnav.html' %}
+
+<style>
+  /* Literal colors: the site's Bootstrap predates the 5.3 theme variables. */
+  .rg-filters .form-control, .rg-filters .form-select { width: auto; }
+  .rg-wrap { max-height: calc(100vh - 15rem); overflow: auto; border: 1px solid #dee2e6; }
+  .rg-wrap:focus { outline: none; }
+
+  /* Fixed layout: only the rows on screen are drawn, so widths cannot depend on cell contents;
+     they come from the script's stylesheet. */
+  .rg { font-size: 12.5px; border-collapse: separate; border-spacing: 0; table-layout: fixed; margin: 0; }
+  .rg th, .rg td { border-right: 1px solid #dee2e6; border-bottom: 1px solid #dee2e6; box-sizing: border-box;
+                   height: 26px; padding: 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+                   vertical-align: middle; }
+  .rg th { position: sticky; top: 0; z-index: 3; background: #f8f9fa; font-weight: 600; padding-right: 20px; }
+  .rg th[data-sort] { cursor: pointer; user-select: none; }
+  .rg td { background: #fff; }
+  .rg tr:hover td { background: #f8f9fa; }
+  .rg .rg-hidden { display: none; }
+  .rg tr.rg-spacer td { padding: 0; border: 0; background: none; }
+
+  .rg-grip { position: absolute; top: 0; right: 0; bottom: 0; width: 7px; cursor: col-resize; }
+  .rg-grip:hover { background: #0d6efd; opacity: .4; }
+  .rg-filter-btn { position: absolute; top: 0; right: 8px; bottom: 0; border: 0; background: none; padding: 0 2px;
+                   font-size: 9px; color: #adb5bd; }
+  .rg-filter-btn:hover { color: #212529; }
+  .rg th.rg-filtered .rg-filter-btn { color: #0d6efd; }
+  .rg th.rg-filtered { background: #e7f1ff; }
+  .rg th.rg-drop-before { box-shadow: inset 3px 0 0 #0d6efd; }
+  .rg th.rg-drop-after { box-shadow: inset -3px 0 0 #0d6efd; }
+
+  /* The row number and Roommates name the row, so they stay put sideways. */
+  .rg .rg-num { position: sticky; left: 0; z-index: 2; padding: 0 4px; text-align: right; color: #6c757d;
+                cursor: pointer; user-select: none; }
+  .rg th.rg-num { z-index: 5; cursor: default; }
+  .rg td.rg-mates { position: sticky; left: 40px; z-index: 2; padding: 0 4px; }
+  .rg th[data-col="mates"] { left: 40px; z-index: 5; }
+
+  .rg td.rg-edit { cursor: cell; user-select: none; position: relative; }
+  .rg td.rg-readonly { color: #6c757d; cursor: default; }
+  .rg td.rg-locked { color: #6c757d; cursor: default; }
+  .rg td.rg-dirty, .rg tr:hover td.rg-dirty { background: #fff3cd; }
+  .rg td.rg-sel, .rg tr:hover td.rg-sel { background: #e7f1ff; }
+  .rg td.rg-sel.rg-dirty, .rg tr:hover td.rg-sel.rg-dirty { background: #e2ecd9; }
+  .rg td.rg-invalid, .rg tr:hover td.rg-invalid, .rg td.rg-sel.rg-invalid { background: #f8d7da; color: #842029; }
+  .rg td.rg-invalid:empty::after { content: 'required'; font-style: italic; opacity: .7; }
+  .rg td.rg-found { box-shadow: inset 0 -2px 0 #fd7e14; }
+  .rg td.rg-fill-target { outline: 1px dashed #0d6efd; outline-offset: -1px; }
+  .rg td.rg-active, .rg td.rg-editing { outline: 2px solid #0d6efd; outline-offset: -2px; }
+  .rg-chip:focus { outline: 2px solid #0d6efd; }
+  .rg td.rg-editing { padding: 0; overflow: visible; }
+  .rg td.rg-editing input { font-size: inherit; width: 100%; height: 24px; border: 0; padding: 0 5px; background: #fff;
+                            color: inherit; outline: none; }
+  .rg-fill-handle { position: absolute; right: 0; bottom: 0; width: 7px; height: 7px; background: #0d6efd;
+                    cursor: crosshair; }
+  .rg tr.rg-has-warning td.rg-num { box-shadow: inset 3px 0 0 #ffc107; }
+  .rg tr.rg-has-error td.rg-num { box-shadow: inset 3px 0 0 #dc3545; }
+
+  .rg-mates-inner { display: flex; align-items: center; gap: 3px; height: 25px; }
+  .rg-chips { display: flex; align-items: center; gap: 3px; flex: 1 1 auto; min-width: 0; overflow: hidden; }
+  /* Roommates that don't fit on one line wrap; the script sets each such row's height. */
+  .rg tr.rg-tall td { height: var(--rg-h); }
+  .rg tr.rg-tall .rg-mates-inner { height: calc(var(--rg-h) - 1px); }
+  .rg tr.rg-tall .rg-chips { flex-wrap: wrap; align-content: center; row-gap: 2px; max-height: calc(var(--rg-h) - 2px); }
+  .rg-chip { display: inline-flex; align-items: center; gap: 2px; flex: none; border-radius: 10px; padding: 0 3px 0 7px;
+             height: 20px; background: #e9ecef; }
+  .rg-chip.rg-leader { background: #cfe2ff; font-weight: 600; padding-right: 7px; }
+  .rg-chip.rg-new { outline: 1px dashed #6c757d; }
+  .rg-chip button { border: 0; background: none; padding: 0 2px; line-height: 1; color: #6c757d; opacity: .35;
+                    font-size: 12px; }
+  .rg-chip:hover button, .rg-chip button:focus { opacity: 1; }
+  .rg-chip button:hover { color: #212529; }
+  .rg-add { flex: none; border: 0; background: none; font-size: inherit; width: 6.5em; height: 20px; padding: 0 4px;
+            color: inherit; }
+  .rg-add:focus { width: 12em; outline: 1px solid #0d6efd; border-radius: 3px; background: #fff; }
+  .rg-count { flex: none; color: #6c757d; font-size: 11px; }
+  .rg-count.rg-over { color: #dc3545; font-weight: 600; }
+
+  .rg-menu, .rg-pop { position: fixed; z-index: 1080; font-size: 12.5px; background: #fff; border: 1px solid #dee2e6;
+                      border-radius: 4px; box-shadow: 0 4px 12px rgba(0, 0, 0, .15); }
+  .rg-menu { min-width: 12rem; max-height: 16rem; overflow-y: auto; }
+  .rg-menu div { padding: 3px 8px; cursor: pointer; white-space: nowrap; }
+  .rg-menu div.rg-active { background: #cfe2ff; }
+  .rg-menu small { color: #6c757d; margin-left: 6px; }
+  .rg-pop { padding: 8px; min-width: 15rem; max-width: 24rem; }
+  .rg-pop-values { max-height: 15rem; overflow-y: auto; margin: 4px 0; }
+  .rg-pop label { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rg-pop input[type=text], .rg-pop input[type=date], .rg-pop select { font-size: inherit; width: 100%; margin-bottom: 4px; }
+
+  .rg-issues { max-height: 7.5rem; overflow-y: auto; font-size: 12.5px; border: 1px solid #dee2e6; border-radius: 4px;
+               padding: 2px 8px; }
+  .rg-issues li { cursor: pointer; padding: 1px 0; }
+  .rg-issues li::before { content: '\25cf'; margin-right: 6px; color: #ffc107; }
+  .rg-issues li.rg-error::before { color: #dc3545; }
+  #rg-find input[type=text], #rg-find select { font-size: 12.5px; width: 12rem; }
+  #rg-find[hidden] { display: none !important; }
+</style>
+
+{% if not grid.rows %}
+<div class="card card-body text-center text-muted">There are no live staff rooms yet.</div>
+{% else %}
+
+<form id="rg-filters" class="rg-filters d-flex flex-wrap gap-2 align-items-center mb-2">
+  <strong class="me-1">Room Grid</strong>
+  <input type="search" class="form-control form-control-sm" name="search" value="{{ search }}"
+         placeholder="name, email, conf #" aria-label="Search" />
+  <select class="form-select form-select-sm" name="source" aria-label="Room source">
+    {% for value, label in [('', 'All sources'), ('crash_space', 'Staff crash space'), ('lottery', 'Lottery'), ('other', 'Other')] %}
+    <option value="{{ value }}">{{ label }}</option>
+    {% endfor %}
+  </select>
+  <select class="form-select form-select-sm" name="billing" aria-label="Billing">
+    {% for value, label in [('', 'All billing'), ('self_pay', 'Self-pay'), ('master_bill', 'Master bill')] %}
+    <option value="{{ value }}">{{ label }}</option>
+    {% endfor %}
+    {% if c.HOTEL_PAYMENT_TYPES_WITH_PARKING %}<option value="parking">Parking covered</option>{% endif %}
+  </select>
+  <select class="form-select form-select-sm" name="hotel" aria-label="Hotel">
+    <option value="">All hotels</option>
+    {% for h in hotels %}<option value="{{ h.id }}">{{ h.name }}</option>{% endfor %}
+  </select>
+  <label class="form-check-label small"><input type="checkbox" class="form-check-input" name="unsaved" /> Unsaved only</label>
+  <button type="reset" class="btn btn-outline-secondary btn-sm">Reset filters</button>
+  <span id="rg-shown" class="small text-muted"></span>
+</form>
+
+<div class="d-flex align-items-center gap-2 mb-1">
+  <button type="button" id="rg-save" class="btn btn-sm btn-success" disabled>Save</button>
+  <button type="button" id="rg-discard" class="btn btn-sm btn-outline-secondary" disabled>Discard</button>
+  <button type="button" id="rg-undo" class="btn btn-sm btn-outline-secondary" disabled title="Undo (Ctrl+Z)">Undo</button>
+  <button type="button" id="rg-redo" class="btn btn-sm btn-outline-secondary" disabled title="Redo (Ctrl+Shift+Z)">Redo</button>
+  <span id="rg-count" class="small text-muted">No unsaved changes</span>
+  <span id="rg-status" role="status" aria-live="polite"></span>
+  <button type="button" id="rg-find-open" class="btn btn-sm btn-outline-secondary ms-auto" title="Find and replace (Ctrl+F)">Find</button>
+  <button type="button" id="rg-summary-open" class="btn btn-sm btn-outline-secondary" title="Totals for the rows shown">Summary</button>
+  <button type="button" id="rg-export" class="btn btn-sm btn-outline-secondary" title="Download the rows and columns on screen">Export CSV</button>
+  <div class="dropdown">
+    <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown"
+            data-bs-auto-close="outside" aria-expanded="false">Columns</button>
+    <div class="dropdown-menu dropdown-menu-end px-3 py-2 small" id="rg-columns"></div>
+  </div>
+</div>
+
+<div id="rg-find" class="d-flex flex-wrap align-items-center gap-2 mb-1" hidden>
+  <input type="text" name="find" class="form-control form-control-sm" placeholder="Find" aria-label="Find" />
+  <input type="text" name="replace" class="form-control form-control-sm" placeholder="Replace with" aria-label="Replace with" />
+  <select name="column" class="form-select form-select-sm" aria-label="Column to search"></select>
+  <button type="button" data-find="prev" class="btn btn-sm btn-outline-secondary">Previous</button>
+  <button type="button" data-find="next" class="btn btn-sm btn-outline-secondary">Next</button>
+  <button type="button" data-find="replace" class="btn btn-sm btn-outline-secondary">Replace</button>
+  <button type="button" data-find="all" class="btn btn-sm btn-outline-secondary">Replace all</button>
+  <span id="rg-find-count" class="small text-muted"></span>
+  <button type="button" data-find="close" class="btn-close btn-sm ms-auto" aria-label="Close find"></button>
+</div>
+
+<ul id="rg-issues" class="rg-issues list-unstyled mb-1" hidden></ul>
+
+<div class="rg-wrap" tabindex="0" aria-label="Room grid">
+  <table class="rg" id="room-grid">
+    <thead>
+      <tr></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+<div class="small text-muted mt-1">
+  Drag, Shift-click or Ctrl-click to select &middot; type or press Enter to edit every selected cell &middot;
+  Tab and Enter move on &middot; drag the corner or Ctrl+D to fill &middot; Ctrl+C / Ctrl+V &middot; Ctrl+F
+  &middot; in Roommates: type to add, &larr; to reach a chip, Delete removes, L makes leader
+</div>
+
+<div class="modal fade" id="rg-room-modal" tabindex="-1" aria-label="Edit room" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h5 class="modal-title">Edit Room</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-0">
+        <iframe title="Room form" style="width: 100%; height: 78vh; border: 0; display: block;"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="rg-summary-modal" tabindex="-1" aria-label="Summary" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h5 class="modal-title">Summary <small class="text-muted rg-summary-scope"></small></h5>
+        <label class="form-check-label small ms-auto me-3">
+          <input type="checkbox" class="form-check-input" name="split" /> Break down by partition
+        </label>
+        <button type="button" class="btn-close ms-0" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body"></div>
+    </div>
+  </div>
+</div>
+
+<script type="application/json" id="room-grid-data">{{ grid|tojson }}</script>
+{{ "js/staff-room-grid.js"|serve_static_content }}
+{% endif %}
+
+{% endblock content %}

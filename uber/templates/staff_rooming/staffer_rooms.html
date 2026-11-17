@@ -22,7 +22,7 @@
     <div class="col-md-2">
       <label class="form-label small mb-1">Search</label>
       <input type="text" class="form-control form-control-sm" name="search"
-             value="{{ search }}" placeholder="name, email, hotel conf #" />
+             value="{{ search }}" placeholder="name, roommate, email, hotel conf #" />
     </div>
     <div class="col-md-2">
       <label class="form-label small mb-1" for="source">Room source</label>
@@ -63,16 +63,24 @@
 {% set _return_url = 'staffer_rooms?' ~ _qs ~ '&page=' ~ page %}
 
 {# A roommate's own dates, shown only where they differ from the room's. #}
-{% macro own_stay(ra, stay, prefix='') %}
+{% macro own_stay(ra, stay, prefix='', inline=False) %}
   {%- if stay and (stay[0] or stay[1]) -%}
-    <br/><small class="text-muted">{{ prefix }}{{ (stay[0] or ra.assigned_check_in_date)|date("%a %b %-d") }}
+    {% if not inline %}<br/>{% endif %} <small class="text-muted">{{ prefix }}{{ (stay[0] or ra.assigned_check_in_date)|date("%a %b %-d") }}
     &rarr; {{ (stay[1] or ra.assigned_check_out_date)|date("%a %b %-d") }}</small>
   {%- endif -%}
 {% endmacro %}
 
+{# Pencil that opens one of the shared edit modals; `attrs` carries the row's values. #}
+{% macro edit_button(ra, target, label) %}
+  <button type="button" class="btn btn-link btn-sm p-0 lh-1" title="{{ label }}" aria-label="{{ label }}"
+          data-bs-toggle="modal" data-bs-target="{{ target }}"
+          data-id="{{ ra.id }}" data-name="{{ ra.attendee.full_name if ra.attendee else '' }}"
+          {{ caller() if caller else '' }}><i class="fa fa-pencil"></i></button>
+{% endmacro %}
+
 <table class="table table-sm table-hover align-middle">
   <thead>
-    <tr>
+    <tr class="text-nowrap">
       <th>Staffer</th>
       <th>Department(s)</th>
       <th>Hotel / Room Type</th>
@@ -81,7 +89,7 @@
       <th>Source</th>
       <th>Status</th>
       <th>Billing</th>
-      <th>Hotel Conf #</th>
+      <th></th>
     </tr>
   </thead>
   <tbody>
@@ -89,16 +97,15 @@
     {% set a = ra.attendee %}
     {% set own_dates = stay_dates.get(ra.id, {}) %}
     <tr>
-      <td>
+      <td class="text-nowrap">
         {# Link straight to the staffer's lottery-application edit
            page so the admin can manage their hotel state in context.
            Staffers with no lottery application on file fall back to
            the shared attendee cell (registration link + muted email). #}
         {% if a and a.lottery_application %}
           <a href="../hotel_lottery_admin/form?id={{ a.lottery_application.id }}">{{ a.first_name }} {{ a.last_name }}</a>
-          {% if a.email %}<br/><small class="text-muted">{{ a.email }}</small>{% endif %}
         {% else %}
-          {{ hotel_macros.attendee_cell(a) }}
+          {{ hotel_macros.attendee_cell(a, show_email=False) }}
         {% endif %}
       </td>
       <td>
@@ -110,51 +117,55 @@
           <span class="text-muted">-</span>
         {% endif %}
       </td>
-      <td>{{ hotel_macros.hotel_room_cell(ra=ra) }}</td>
       <td>
-        {{ hotel_macros.room_dates_cell(ra) }}
-        {{ own_stay(ra, own_dates.get(ra.attendee_id), 'Booker: ') }}
+        <div class="d-flex align-items-start gap-2">
+          <div>
+            {{ ra.inventory.hotel.name if ra.inventory and ra.inventory.hotel else '?' }}
+            <small class="text-muted">
+              {% if ra.inventory %}{{ ra.inventory.display_name }}{% endif %}
+              {% if ra.is_connector %}{{ hotel_macros.connector_chip() }}{% endif %}
+            </small>
+          </div>
+          {% call edit_button(ra, '#room-type-modal', 'Edit room type') -%}
+            data-partition="{{ ra.partition_id or '' }}" data-inventory="{{ ra.inventory_id or '' }}"
+            data-inventory-label="{% if ra.inventory %}{{ ra.inventory.hotel.name if ra.inventory.hotel else '?' }} - {{ ra.inventory.display_name }}{% endif %}"
+          {%- endcall %}
+        </div>
       </td>
       <td>
-        {% for o in ra.effective_occupants if o.id != ra.attendee_id %}
-          <div>{{ o.full_name }}{{ own_stay(ra, own_dates.get(o.id)) }}</div>
-        {% else %}
-          <span class="text-muted">-</span>
-        {% endfor %}
-        {# Only staff crash space has per-roommate dates. #}
-        {% if ra.shift_requirements_apply and ra.occupants %}
-        <details class="mt-1">
-          <summary class="small">Edit stay dates</summary>
-          <form method="post" action="set_occupant_dates" class="small">
-            {{ csrf_token() }}
-            <input type="hidden" name="id" value="{{ ra.id }}" />
-            <input type="hidden" name="return_url" value="{{ _return_url }}" />
-            {% for o in ra.occupants|sort(attribute='full_name') %}
-            {% set stay = own_dates.get(o.id) or (none, none) %}
-            <div class="mt-1">{{ o.full_name }}</div>
-            <div class="d-flex gap-1">
-              {% for field, value in [('check_in', stay[0]), ('check_out', stay[1])] %}
-              <input type="date" class="form-control form-control-sm" name="{{ field }}_{{ o.id }}"
-                     aria-label="{{ o.full_name }} {{ field|replace('_', ' ') }}"
-                     value="{{ value.isoformat() if value else '' }}"
-                     {% if ra.assigned_check_in_date %}min="{{ ra.assigned_check_in_date.isoformat() }}"{% endif %}
-                     {% if ra.assigned_check_out_date %}max="{{ ra.assigned_check_out_date.isoformat() }}"{% endif %} />
-              {% endfor %}
-            </div>
+        <div class="d-flex align-items-start gap-2">
+          <div>
+            {% if ra.assigned_check_in_date and ra.assigned_check_out_date %}
+            <span class="text-nowrap">{{ ra.assigned_check_in_date|date("%a %b %-d") }} &rarr; {{ ra.assigned_check_out_date|date("%a %b %-d") }}</span>
+            {% else %}
+            <span class="text-warning text-nowrap">- dates missing -</span>
+            {% endif %}
+            {{ own_stay(ra, own_dates.get(ra.attendee_id), 'Booker: ') }}
+          </div>
+          {{ edit_button(ra, '#room-dates-modal-' ~ ra.id, 'Edit dates') }}
+        </div>
+      </td>
+      <td>
+        <div class="d-flex align-items-start gap-2">
+          <div>
+            {% for o in ra.effective_occupants if o.id != ra.attendee_id %}
+              <span class="text-nowrap">{{ o.full_name }}{{ own_stay(ra, own_dates.get(o.id), inline=True) }}{% if not loop.last %},{% endif %}</span>
+            {% else %}
+              <span class="text-muted">-</span>
             {% endfor %}
-            <div class="text-muted mt-1">Leave a date blank to use the room's.</div>
-            <button type="submit" class="btn btn-sm btn-primary mt-1">Save dates</button>
-          </form>
-        </details>
-        {% endif %}
+          </div>
+          {{ edit_button(ra, '#roommates-modal-' ~ ra.id, 'Edit roommates') }}
+        </div>
       </td>
       <td>
         {{ ra.source_label }}
-        {% if ra.shift_requirements_apply %}<br/><small class="text-muted">shift requirements apply</small>{% endif %}
       </td>
       <td>{{ hotel_macros.room_status_chip(ra) }}</td>
       <td>{{ hotel_macros.billing_chip(ra) }}</td>
-      <td>{{ hotel_macros.hotel_conf_cell(ra) }}</td>
+      <td class="text-end">
+        <a href="../hotel_lottery_admin/edit_room_assignment?id={{ ra.id }}"
+           class="btn btn-sm btn-outline-secondary">Edit</a>
+      </td>
     </tr>
     {% endfor %}
   </tbody>
@@ -164,6 +175,145 @@
                            total=total, page_size=page_size,
                            current_count=assignments|length,
                            label='staff room') }}
+
+{# With `ra` the modal is that row's own; without, the pencil's JS fills in id and name. #}
+{% macro modal_form_open(id, title, ra=None) %}
+<div class="modal fade" id="{{ id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" action="update_room">
+        {{ csrf_token() }}
+        <input type="hidden" name="id" value="{{ ra.id if ra else '' }}" />
+        <input type="hidden" name="return_url" value="{{ _return_url }}" />
+        <div class="modal-header">
+          <h5 class="modal-title">{{ title }} <small class="text-muted room-edit-name">{{ ra.attendee.full_name if ra and ra.attendee else '' }}</small></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          {{ caller() }}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endmacro %}
+
+{% call modal_form_open('room-type-modal', 'Edit Room Type') %}
+  {{ hotel_macros.room_assignment_fields(
+        partitions=partitions, inventory_rows=inventory_blocks,
+        inventory_partitions_map=inventory_partitions_map,
+        show_dates=False, show_payment_type=False) }}
+{% endcall %}
+
+{% set _dmin = c.HOTEL_LOTTERY_CHECKIN_START|datetime_local('%Y-%m-%d') if c.HOTEL_LOTTERY_CHECKIN_START else '' %}
+{% set _dmax = c.HOTEL_LOTTERY_CHECKOUT_END|datetime_local('%Y-%m-%d') if c.HOTEL_LOTTERY_CHECKOUT_END else '' %}
+{% for ra in assignments %}
+{% call modal_form_open('room-dates-modal-' ~ ra.id, 'Edit Dates', ra) %}
+  <div class="row g-2">
+    {% for field, label, value in [('assigned_check_in_date', 'Check-in', ra.assigned_check_in_date),
+                                   ('assigned_check_out_date', 'Check-out', ra.assigned_check_out_date)] %}
+    <div class="col">
+      <label class="form-label" for="{{ field }}_{{ ra.id }}">{{ label }}</label>
+      <input type="date" class="form-control room-date" name="{{ field }}" id="{{ field }}_{{ ra.id }}"
+             value="{{ value or '' }}"
+             {% if _dmin %}min="{{ _dmin }}"{% endif %} {% if _dmax %}max="{{ _dmax }}"{% endif %} />
+    </div>
+    {% endfor %}
+  </div>
+  {# Only staff crash space has per-roommate dates. #}
+  {% if ra.shift_requirements_apply and ra.occupants %}
+  {% set own_dates = stay_dates.get(ra.id, {}) %}
+  <hr/>
+  <div class="fw-bold">Roommate stay dates</div>
+  <div class="form-text mt-0">Leave a date blank to use the room's.</div>
+  {% for o in ra.occupants|sort(attribute='full_name') %}
+  {% set stay = own_dates.get(o.id) or (none, none) %}
+  <div class="row g-2 mt-1 align-items-center">
+    <div class="col-4 small">{{ o.full_name }}</div>
+    {% for field, value in [('check_in', stay[0]), ('check_out', stay[1])] %}
+    <div class="col-4">
+      <input type="date" class="form-control form-control-sm occupant-date" name="{{ field }}_{{ o.id }}"
+             aria-label="{{ o.full_name }} {{ field|replace('_', ' ') }}"
+             value="{{ value.isoformat() if value else '' }}"
+             {% if ra.assigned_check_in_date %}min="{{ ra.assigned_check_in_date.isoformat() }}"{% endif %}
+             {% if ra.assigned_check_out_date %}max="{{ ra.assigned_check_out_date.isoformat() }}"{% endif %} />
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+  {% endif %}
+{% endcall %}
+{% endfor %}
+
+{% for ra in assignments %}
+<div class="modal fade" id="roommates-modal-{{ ra.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit Roommates
+          <small class="text-muted">{{ ra.attendee.full_name if ra.attendee else '' }}</small></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        {{ hotel_macros.roommates_card(ra, invites_by_room.get(ra.id, []), {
+              'add': 'add_occupant', 'remove': 'remove_occupant',
+              'cancel': 'cancel_occupant_invite'},
+              hidden={'return_url': _return_url}) }}
+      </div>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+{{ "js/hotel-room-picker.js"|serve_static_content }}
+{{ "js/hotel-attendee-search.js"|serve_static_content }}
+{{ "js/hotel-confirm-submit.js"|serve_static_content }}
+<script type="text/javascript">
+(function () {
+  // The room type and dates modals are shared; fill them from the clicked row's pencil.
+  function onOpen(modalId, fill) {
+    var modal = document.getElementById(modalId);
+    modal.addEventListener('show.bs.modal', function (event) {
+      var data = event.relatedTarget.dataset;
+      modal.querySelector('[name=id]').value = data.id;
+      modal.querySelector('.room-edit-name').textContent = data.name;
+      fill(modal, data);
+    });
+  }
+
+  onOpen('room-type-modal', function (modal, data) {
+    var partition = modal.querySelector('.room-picker-partition');
+    var inventory = modal.querySelector('.room-picker-inventory');
+    var stale = inventory.querySelector('option[data-current]');
+    if (stale) stale.remove();
+    // A room on a since-deactivated block still needs its block selectable.
+    if (data.inventory && !inventory.querySelector('option[value="' + data.inventory + '"]')) {
+      var opt = new Option(data.inventoryLabel + ' (current)', data.inventory);
+      opt.setAttribute('data-current', '');
+      opt.setAttribute('data-partitions', data.partition);
+      inventory.add(opt);
+    }
+    partition.value = data.partition;
+    inventory.value = data.inventory;
+    partition.dispatchEvent(new Event('change'));
+  });
+
+  // Roommate dates must stay inside the room's, including while those are being edited.
+  document.querySelectorAll('.room-date').forEach(function (input) {
+    input.addEventListener('change', function () {
+      var form = input.form;
+      form.querySelectorAll('.occupant-date').forEach(function (occ) {
+        occ.min = form.elements.assigned_check_in_date.value;
+        occ.max = form.elements.assigned_check_out_date.value;
+      });
+    });
+  });
+})();
+</script>
 
 {% endif %}
 

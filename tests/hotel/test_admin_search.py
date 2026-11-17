@@ -69,3 +69,12 @@ def test_rooms_search_matches_full_name(session, zelda, text):
 def test_rooms_search_excludes_non_matches(session, zelda):
     _, _, ra = zelda
     assert ra not in build_room_assignment_query(session, search='Ganondorf').all()
+
+
+def test_rooms_search_roommates_is_opt_in(session, zelda):
+    _, _, ra = zelda
+    ra.occupants.append(make_attendee(session, first='Navi', last='Fairweather'))
+    session.flush()
+    assert ra in build_room_assignment_query(session, search='Fairweather', search_roommates=True).all()
+    assert ra not in build_room_assignment_query(session, search='Fairweather').all()
+    assert ra not in build_room_assignment_query(session, search='Ganondorf', search_roommates=True).all()
