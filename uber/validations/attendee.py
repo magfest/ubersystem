@@ -198,6 +198,7 @@ BadgeWaitlistInfo.field_validation.validations['email'].update(PersonalInfo.fiel
 BadgeWaitlistInfo.field_validation.required_fields['confirm_email'] = ("Please confirm your email address.",
                                                                        'confirm_email', lambda x: signup_must_confirm_email(x.form))
 BadgeWaitlistInfo.field_validation.validations['confirm_email']['optional'] = validators.Optional()
+BadgeWaitlistInfo.field_validation.validations['confirm_email']['match_email'] = match_email
 
 
 @BadgeWaitlistInfo.field_validation('birthdate')
