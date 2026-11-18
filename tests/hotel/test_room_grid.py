@@ -56,6 +56,8 @@ def test_grid_lists_every_staff_room_leader_first(session, grid, inv):
     assert [o['name'] for o in row['occupants']] == ['Lena Leader', 'Aaron Aardvark']
     assert (row['check_in'], row['check_out']) == (N[0].isoformat(), N[3].isoformat())
     assert row['hotel_id'] == inv.hotel_id and not row['source_locked']
+    assert row['inventory_label'] == inv.name
+    assert row['room_type'] == f'{inv.hotel.name} - {inv.display_name}'
     assert row['leader_badge'] == room.attendee.badge_type_label == row['occupants'][0]['badge']
 
 

@@ -1127,6 +1127,8 @@ class RoomAssignment(MagModel, table=True):
     last_modified_at: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     last_confirmed_at: datetime | None = Field(sa_type=DateTime(timezone=True), nullable=True)
     admin_notes: str = ''
+    # Shown to a staff crash space room's occupants; tuber's room `messages`.
+    occupant_message: str = ''
 
     # Occupants (who's sleeping in the room). Distinct from `attendee` which
     # is the booker / name on the reservation. Group leaders edit this per

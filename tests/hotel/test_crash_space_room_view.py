@@ -40,12 +40,15 @@ def _room_page(session, ra, viewer):
 def test_booker_and_roommate_see_the_room_read_only(session, post_request, crash):
     ra, booker, mate = crash
     ra.special_requests = 'Near the elevator'
+    ra.admin_notes = 'Internal only'
+    ra.occupant_message = 'Keys are at the staff suite'
     ra.hotel_rewards_number = 'REWARDS-123'
     session.flush()
     for viewer in (booker, mate):
         html = _room_page(session, ra, viewer)
         # No one is the leader: the same sections show for everyone.
-        assert 'Near the elevator' in html
+        assert 'Keys are at the staff suite' in html
+        assert 'Near the elevator' not in html and 'Internal only' not in html
         assert 'Booker' not in html and 'REWARDS-123' not in html and 'Card on file' not in html
         assert 'staff crash space room' in html
         assert '<form' not in html

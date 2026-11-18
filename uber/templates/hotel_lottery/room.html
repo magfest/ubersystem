@@ -43,6 +43,12 @@
 {# `message` is rendered by base.html into the global `#message-alert`
    element via JS; do NOT re-render it inline here or it shows up twice. #}
 
+{% if ra.staff_managed and ra.occupant_message %}
+<div class="card mb-3">
+  <div class="card-header py-2"><strong>Message from the staff rooming team</strong></div>
+  <div class="card-body py-2" style="white-space: pre-wrap;">{{ ra.occupant_message }}</div>
+</div>
+{% endif %}
 {% if ra.staff_managed and not ra.export_locked %}
 <div class="alert alert-info d-flex align-items-start gap-2">
   <i class="fa fa-lock fa-lg mt-1"></i>
@@ -238,7 +244,8 @@
   </div>
 </div>
 
-{% if is_leader or ra.staff_managed %}
+{# Crash space special requests are the rooming team's notes to the hotel, not the staffer's. #}
+{% if is_leader and not ra.staff_managed %}
 <div class="card mb-3">
   <div class="card-header py-2"><strong>Special requests</strong></div>
   <div class="card-body py-2">
