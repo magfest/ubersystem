@@ -16,7 +16,7 @@
             <a href="{{ c.URL_BASE }}/preregistration/homepage">logging into your{% if c.OIDC_ENABLED %} {{ c.OIDC_ACCOUNT_NAME }}{% endif %} account</a>.
         </p>
     {% else %}
-    {% set signup = waitlist_signups[0] %}
+    {% set signup = signups[0] %}
     <p>
         {{ signup.first_name }},
         <br/>You have successfully signed up for the {{ c.EVENT_NAME }} badge waitlist! You can view your signup information below.
