@@ -148,13 +148,13 @@ normalized_name_suffixes = [re.sub(r'[,\.]', '', s.lower()) for s in name_suffix
 
 
 class BadgeWaitlistSignup(MagModel, table=True):
-    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True, index=True)
     attendee: 'Attendee' = Relationship(
         back_populates="waitlist_signup",
         sa_relationship_kwargs={'foreign_keys': 'BadgeWaitlistSignup.attendee_id', 'lazy': 'joined', 'single_parent': True})
-    attendee_account_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee_account.id', nullable=True)
+    attendee_account_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee_account.id', nullable=True, index=True)
     attendee_account: 'AttendeeAccount' = Relationship(back_populates="waitlist_signups")
-    refund_badge_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
+    refund_badge_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True, index=True)
     refund_badge: 'Attendee' = Relationship(
         back_populates="waitlist_refund",
         sa_relationship_kwargs={'foreign_keys': 'BadgeWaitlistSignup.refund_badge_id', 'lazy': 'joined', 'single_parent': True})
@@ -223,20 +223,33 @@ class BadgeWaitlistSignup(MagModel, table=True):
         
         return badge_cost
 
-    @property
-    def current_waitlist_position(self):
-        from uber.models import Session
-        
+    @classmethod
+    def position_offsets(cls, session=None):
+        """Count offered or cancelled signups per waitlist type, keyed by badge type.
+
+        The count covers every position in the type, including signups behind the one being
+        displayed.
+        """
+        if session is None:
+            from uber.models import Session
+            with Session() as session:
+                return cls.position_offsets(session)
+
+        return dict(session.query(cls.waitlist_type, func.count(cls.id)).filter(
+            cls.waitlist_position != 0,
+            or_(cls.offered_badge != None, cls.status.in_([c.CANCELLED, c.REMOVED]))  # noqa: E711
+        ).group_by(cls.waitlist_type))
+
+    def current_waitlist_position_from(self, position_offsets):
         if not self.waitlist_position:
             return
+        return self.waitlist_position - position_offsets.get(self.waitlist_type, 0)
 
-        with Session() as session:
-            offered_or_cancelled_signups = session.query(BadgeWaitlistSignup).filter(
-                BadgeWaitlistSignup.waitlist_type == self.waitlist_type,
-                BadgeWaitlistSignup.waitlist_position != 0,
-                or_(BadgeWaitlistSignup.offered_badge != None,
-                    BadgeWaitlistSignup.status.in_([c.CANCELLED, c.REMOVED]))).count()
-        return self.waitlist_position - offered_or_cancelled_signups
+    @property
+    def current_waitlist_position(self):
+        if not self.waitlist_position:
+            return
+        return self.current_waitlist_position_from(BadgeWaitlistSignup.position_offsets(self.session))
 
     def waitlist_position_trunc(self, position=None):
         # If a position is not passed, we fall back to our own current_waitlist_position
@@ -3121,22 +3134,14 @@ class AttendeeAccount(MagModel, table=True):
 
     @property
     def pending_waitlist_signups_positions(self):
-        from uber.models import Session
         waitlist_positions = {}
-        offered_or_cancelled_signups = {}
-
-        with Session() as session:
-            for badge_type in c.WAITLIST_BADGE_TYPES:
-                offered_or_cancelled_signups[badge_type] = session.query(BadgeWaitlistSignup).filter(
-                    BadgeWaitlistSignup.waitlist_type == badge_type,
-                    BadgeWaitlistSignup.waitlist_position != 0,
-                    or_(BadgeWaitlistSignup.offered_badge != None,
-                        BadgeWaitlistSignup.status.in_([c.CANCELLED, c.REMOVED]))).count()
+        position_offsets = BadgeWaitlistSignup.position_offsets(self.session)
 
         for signup in self.pending_waitlist_signups:
             if not signup.offered_badge:
-                waitlist_positions[signup] = max(signup.waitlist_position - offered_or_cancelled_signups[signup.waitlist_type], 0)
-        
+                waitlist_positions[signup] = max(
+                    signup.waitlist_position - position_offsets.get(signup.waitlist_type, 0), 0)
+
         return waitlist_positions
 
 
