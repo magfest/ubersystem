@@ -408,10 +408,10 @@ class Root:
                 signup_error = signup.cannot_purchase_reason
 
             if signup_error:
-                if multi_signup:
+                if multi_signup and signup:
                     signup_errors.append(f"{signup.full_name} - {signup_error.lower()}")
                 else:
-                    signup_errors.append({signup_error})
+                    signup_errors.append(signup_error)
             else:
                 if signup.attendee:
                     new_badge = signup.attendee
@@ -669,10 +669,10 @@ class Root:
                 signup_error = "Waitlist signup was already cancelled or expired."
 
             if signup_error:
-                if multi_signup:
+                if multi_signup and signup:
                     signup_errors.append(f"{signup.full_name} - {signup_error.lower()}")
                 else:
-                    signup_errors.append({signup_error})
+                    signup_errors.append(signup_error)
             else:
                 signup.status = c.CANCELLED
                 session.add(signup)
