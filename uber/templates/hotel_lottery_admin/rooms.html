@@ -15,7 +15,7 @@
 {% if scoped_attendee %}
 <div class="alert alert-secondary d-flex justify-content-between align-items-center">
   <span>
-    Showing all rooms (every status) for
+    Showing all rooms (every status), booked or shared, for
     {{ hotel_macros.attendee_cell(scoped_attendee, show_email=False) }}
     {%- if scoped_attendee.hotel_status %} &mdash; {{ scoped_attendee.hotel_status }}{% endif %}
   </span>
@@ -101,6 +101,9 @@
                 can_view_names=c.HAS_HOTEL_LOTTERY_ADMIN_ACCESS, link=True,
                 show_email=False) }}
         {% else %}<em>(no attendee)</em>{% endif %}
+        {% if scoped_attendee and ra.attendee_id != scoped_attendee.id %}
+          <span class="badge bg-info text-dark" title="{{ scoped_attendee.full_name }} is a roommate in this room, not its booker">Roommate</span>
+        {% endif %}
         {% if app %}
           <br/><small class="text-muted">
             App <a href="form?id={{ app.id }}">{{ app.confirmation_num or app.id }}</a>

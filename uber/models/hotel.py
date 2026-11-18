@@ -1233,18 +1233,21 @@ class RoomAssignment(MagModel, table=True):
         return self.assignment_reason == c.STAFF_CRASH_SPACE
 
     @property
-    def effective_occupants(self):
-        """Attendees sleeping in this room: the managed occupants list when
-        set, else the booker plus their group members (the solver's default
-        before anyone edits the list). Always a list of Attendee records."""
-        if self.occupants:
-            return list(self.occupants)
+    def implied_occupants(self):
+        """The booker plus their lottery group's valid members: who is in the
+        room when it has no occupant list of its own."""
         occupants = [self.attendee] if self.attendee else []
         app = self.lottery_application
         if app:
             occupants.extend(m.attendee for m in (app.valid_group_members or [])
-                             if m.attendee)
+                             if m.attendee and m.attendee not in occupants)
         return occupants
+
+    @property
+    def effective_occupants(self):
+        """Attendees sleeping in this room: the occupants list, else the
+        implied occupants. Always a list of Attendee records."""
+        return list(self.occupants) if self.occupants else self.implied_occupants
 
     @property
     def payment_type_config(self):
@@ -1505,6 +1508,9 @@ class RoomAssignment(MagModel, table=True):
         the hotel's record of who's checking in doesn't match anyone in
         the room.
         """
+        if not self.is_new and not self.occupants:
+            # Without this, saving a room that had no list would drop its implied group members.
+            self.occupants.extend(self.implied_occupants)
         if not self.attendee_id:
             return
         attendee = self.attendee

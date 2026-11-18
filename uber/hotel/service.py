@@ -520,6 +520,21 @@ def set_occupant_stay_dates(session, ra, dates):
     return len(changed)
 
 
+def materialize_implied_occupants(session):
+    """Give every room without an occupant list its implied occupants (the
+    booker and their lottery group). Returns how many rooms were filled in."""
+    from uber.models import RoomAssignment
+
+    filled = 0
+    for ra in session.query(RoomAssignment).filter(~RoomAssignment.occupants.any()):
+        implied = ra.implied_occupants
+        if implied:
+            ra.occupants.extend(implied)
+            filled += 1
+    session.flush()
+    return filled
+
+
 def add_room_occupant(session, ra, attendee_id, *, audit_prefix=''):
     """Add a roommate. Returns the added Attendee."""
     from uber.models import Attendee

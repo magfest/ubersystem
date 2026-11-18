@@ -169,6 +169,20 @@ def resave_all_attendees_and_groups():
 
 
 @entry_point
+def materialize_room_occupants():
+    """
+    Write an occupant list for every hotel room assignment that has none, from
+    its booker and their lottery group. Safe to run more than once.
+    """
+    from uber.hotel.service import materialize_implied_occupants
+
+    with Session() as session:
+        filled = materialize_implied_occupants(session)
+        session.commit()
+    print(f"Filled in the occupant list of {filled} room(s).")
+
+
+@entry_point
 def insert_admin():
     with Session() as session:
         if session.insert_test_admin_account():
