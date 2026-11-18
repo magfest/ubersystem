@@ -78,7 +78,7 @@ class AdminAccount(MagModel, table=True):
     view_guest_legal_names: bool = False
 
     def __repr__(self):
-        return f"<Admin full_name='{self.attendee.full_name}'>"
+        return f"<AdminAccount full_name='{self.attendee.full_name}'>"
     
     @property
     def email(self):

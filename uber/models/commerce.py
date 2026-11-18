@@ -328,7 +328,10 @@ class ModelReceipt(MagModel, table=True):
             if not refunds:
                 session.add_all(receipt_manager.items_to_add)
             for _, (refund_amount, txns) in refunds.items():
-                refund = RefundRequest(session, txns, refund_amount, skip_errors=True)
+                try:
+                    refund = RefundRequest(session, txns, refund_amount, skip_errors=True)
+                except ValueError as e:
+                    return refund_total, e
 
                 error = refund.process_refund()
                 if error:

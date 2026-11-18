@@ -214,6 +214,10 @@ class ArtShowApplication(MagModel, table=True):
         if self.attendee.placeholder and self.attendee.badge_status != c.NOT_ATTENDING:
             return "Missing registration info"
 
+    @property
+    def gets_emails(self):
+        return self.is_valid
+
     @hybrid_property
     def is_valid(self):
         return self.status != c.DECLINED

@@ -21,7 +21,9 @@ celery.conf.update(result_backend_transport_options={
 })
 celery.conf.update(broker_url=broker_url)
 celery.conf.update(result_backend=broker_url.replace("amqps://", "rpc://").replace("amqp://", "rpc://"))
-celery.conf.update(task_ignore_result=True)
+
+if config_dict['dev_box'] == False:
+    celery.conf.update(task_ignore_result=True)
 
 
 def celery_on_startup(fn, *args, **kwargs):

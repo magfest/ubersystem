@@ -1961,6 +1961,9 @@ class ReceiptManager:
                     model.badge_status = c.NEW_STATUS
                 if model.paid in [c.NOT_PAID, c.PENDING]:
                     model.paid = c.HAS_PAID
+                if c.BADGE_WAITLIST_ENABLED and model.waitlist_signup and model.waitlist_signup.refund_badge:
+                    from uber.tasks.registration import refund_badge_from_waitlist
+                    refund_badge_from_waitlist.delay(model.waitlist_signup.refund_badge.id)
             if isinstance(model, Group) and model.is_paid:
                 for attendee in model.attendees:
                     if attendee.paid == c.PAID_BY_GROUP and attendee.badge_status == c.NEW_STATUS and \

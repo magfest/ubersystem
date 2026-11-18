@@ -331,7 +331,7 @@ class Group(MagModel, TakesPaymentMixin, table=True):
 
     @property
     def gets_emails(self):
-        return self.status != c.IMPORTED and (
+        return self.is_valid and (
             not self.leader or self.leader.badge_status not in [
                 c.PENDING_STATUS, c.INVALID_STATUS, c.IMPORTED_STATUS, c.REFUNDED_STATUS])
 

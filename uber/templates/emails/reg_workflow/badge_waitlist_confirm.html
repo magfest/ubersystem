@@ -1,0 +1,42 @@
+<html>
+<head></head>
+<body>
+    {% set signups = account.pending_waitlist_signups %}
+    {% set multi_signup = signups|length > 1 %}
+    {% if multi_signup %}
+        You have successfully signed up for the {{ c.EVENT_NAME }} badge waitlist! You currently have the following pending signups:
+        {% set signups_include_positions = False %}
+        {% set include_cancel_button = False %}
+        {% set waitlist_signups = account.pending_waitlist_signups_positions %}
+        {% include 'preregistration/waitlist_signups_grid.html' with context %}
+        <p>
+            Waitlist positions are set within {{ c.WAITLIST_RESERVE_MINUTES * 3 }} minutes of signing up.
+            You can view all your current waitlist signups and their positions, or cancel a signup, by
+            <a href="{{ c.URL_BASE }}/preregistration/homepage">logging into your{% if c.OIDC_ENABLED %} {{ c.OIDC_ACCOUNT_NAME }}{% endif %} account</a>.
+            If you signed someone else up for the waitlist using a different email address than yours, they will also receive a confirmation email once their waitlist position is set.
+            However, as the account owner for the original request, only you can purchase requested badges if and when they become available.
+        </p>
+    {% else %}
+    {% set signup = signups[0] %}
+    <p>
+        {{ signup.first_name }},
+        <br/>You have successfully signed up for the {{ c.EVENT_NAME }} badge waitlist! You can view your signup information below.
+        <br/><strong>Full Name</strong>: {{ signup.full_name }}
+        {% if signup.legal_name %}<br/><strong>Name on Photo ID</strong>: {{ signup.legal_name }}{% endif %}
+        <br/><strong>Email</strong>: {{ signup.email }}
+        <br/><strong>Birthdate</strong>: {{ signup.birthdate|datetime('%m/%d/%Y') }}
+        <br/><strong>Signed Up</strong>: {{ signup.signup_time|datetime_local('%-I:%M%p %b %-d') }}
+        <br/><strong>Badge Cost</strong>: {{ signup.estimated_badge_cost|format_currency if signup.estimated_badge_cost else 'Free!' }}
+    </p>
+    <p>
+        You can request up to {{ c.BADGE_WAITLIST_LIMIT_DESC }} from the waitlist. You can request additional badges or cancel your current waitlist signup by
+        <a href="{{ c.URL_BASE }}/preregistration/homepage">logging into your{% if c.OIDC_ENABLED %} {{ c.OIDC_ACCOUNT_NAME }}{% endif %} account</a>.
+    </p>
+    {% endif %}
+    {% if c.BADGE_WAITLIST_FAQ_URL %}
+    <p>
+        For more details and frequently asked questions about the waitlist process, please visit <a href="{{ c.BADGE_WAITLIST_FAQ_URL }}" target="_blank">{{ c.BADGE_WAITLIST_FAQ_URL }}</a>.
+    </p>
+    {% endif %}
+</body>
+</html>

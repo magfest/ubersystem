@@ -1,0 +1,22 @@
+<html>
+<head></head>
+<body>
+<p>
+    {{ signup.first_name }},
+    <br/>You have been signed up for the {{ c.EVENT_NAME }} badge waitlist! You can view your signup information below.
+</p>
+<p>
+    <strong>Full Name</strong>: {{ signup.full_name }}
+    {% if signup.legal_name %}<br/><strong>Name on Photo ID</strong>: {{ signup.legal_name }}{% endif %}
+    <br/><strong>Email</strong>: {{ signup.email }}
+    <br/><strong>Birthdate</strong>: {{ signup.birthdate|datetime('%m/%d/%Y') }}
+    <br/><strong>Signed Up</strong>: {{ signup.signup_time|datetime_local('%-I:%M%p %b %-d') }}
+    <br/><strong>{% if c.WAITLIST_BADGE_TYPES|length > 1 %}{{ c.WAITLIST_BADGE_LABELS[signup.waitlist_type] }} {% endif %}Waitlist Position</strong>: {{ signup.waitlist_position_trunc() or 'Not Set' }}
+</p>
+<p>
+    Your{% if c.OIDC_ENABLED %} {{ c.OIDC_ACCOUNT_NAME }}{% endif %} account holder can view or cancel your waitlist signup, and will
+    be emailed if and when your badge is available to purchase from the waitlist. If you believe this was a mistake,
+    please contact us at {{ c.BADGE_WAITLIST_EMAIL|email_only|email_to_link }} to cancel your waitlist signup.
+</p>
+</body>
+</html>

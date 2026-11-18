@@ -1,0 +1,31 @@
+<div class="d-flex flex-wrap mb-2">
+{% for signup in waitlist_signups %}
+    <div class="card card-body m-2 pb-0" id="signup-{{ signup.id }}">
+        <div class="d-flex justify-content-between">
+        <strong>{{ signup.full_name }}</strong>
+        {% if signups_include_positions and include_cancel_button %}
+            <button type="button" class="btn btn-sm btn-warning"
+            onClick="confirmWaitlistCancel('{{ signup.id }}', '{{ signup.full_name }}', '{{ signup.waitlist_position_trunc(waitlist_signups[signup]) }}', '{% if c.WAITLIST_BADGE_TYPES|length > 1 %}{{ c.WAITLIST_BADGE_LABELS[signup.waitlist_type] }} {% endif %}')"
+            >Cancel Signup</button>
+        {% endif %}
+        </div>
+        <p>
+        {% if signup.legal_name %}<br/><strong>Name on Photo ID</strong>: {{ signup.legal_name }}{% endif %}
+        <br/><strong>Email</strong>: {{ signup.email }}
+        <br/><strong>Birthdate</strong>: {{ signup.birthdate|datetime('%m/%d/%Y') }}
+        <br/><strong>Signed Up</strong>: {{ signup.signup_time|datetime_local('%-I:%M%p %b %-d') }}
+        <br/><strong>Badge Cost</strong>: {{ signup.estimated_badge_cost|format_currency if signup.estimated_badge_cost else 'Free!' }}
+        </p>
+        {% if signups_include_positions %}
+        <span class="mt-auto ms-auto mb-2">
+            <em>{% if c.WAITLIST_BADGE_TYPES|length > 1 %}{{ c.WAITLIST_BADGE_LABELS[signup.waitlist_type] }} {% endif %}Waitlist Position: {{ signup.waitlist_position_trunc(waitlist_signups[signup]) or 'Not Set' }}</em>
+        </span>
+        {% endif %}
+        {% if include_purchase_button %}
+        <span class="mt-auto ms-auto mb-2">
+            <a href="{{ c.URL_BASE }}/preregistration/waitlist_purchase?id={{ signup.id }}" class="btn btn-sm btn-primary" target="_blank">Purchase Badge</a>
+        </span>
+        {% endif %}
+    </div>
+{% endfor %}
+</div>

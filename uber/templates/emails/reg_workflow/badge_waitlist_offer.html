@@ -1,0 +1,42 @@
+<html>
+<head></head>
+<body>
+{% set waitlist_signups = account.offered_waitlist_signups %}
+{% set signups_include_positions = False %}
+{% set include_cancel_button = False %}
+
+{% set waitlist_signups = account.waitlist_signups|selectattr('id', 'in', signups_ids)|list %}
+    {% if waitlist_signups|length == 1 %}
+    {% set signup = waitlist_signups[0] %}
+    <p>
+        Your badge for {{ signup.full_name }} is now available to purchase from the waitlist!
+        You can confirm your attendance and purchase your badge <a href="{{ c.URL_BASE }}/preregistration/waitlist_purchase{% if not c.ATTENDEE_ACCOUNTS_ENABLED %}?id={{ signup.id }}{% endif %}">here</a>.
+    </p>
+    {% else %}
+        You have the following badges available for purchase from the waitlist:
+            {% set include_purchase_button = not c.ATTENDEE_ACCOUNTS_ENABLED %}
+            {% include 'preregistration/waitlist_signups_grid.html' with context %}
+        {% if c.ATTENDEE_ACCOUNTS_ENABLED %}
+        <p><a href="{{ c.URL_BASE }}/preregistration/waitlist_purchase" class="btn btn-primary" target="_blank">View and Purchase Pending Badges</a></p>
+        {% endif %}
+    {% endif %}
+
+<p>
+    <strong>You have until {{ waitlist_signups[0].badge_offer_expiry_time|datetime }} to purchase {% if waitlist_signups|length == 1 %}this badge{% else %}these badges{% endif %}.</strong>
+    After that, the offer will expire and you will need to sign up again at the back of the queue.
+    <strong>If you experience technical issues, please email us at {{ c.BADGE_WAITLIST_EMAIL|email_only|email_to_link }} AS SOON AS POSSIBLE</strong>
+    so we can help you before your badge offer expires.
+</p>
+
+{% include 'preregistration/waitlist_refund_reminder.html' %}
+
+{% if account.pending_waitlist_signups %}
+    You still have the following badges on the waitlist:
+    {% set signups_include_positions = True %}
+    {% set waitlist_signups = account.pending_waitlist_signups_positions %}
+    {% include 'preregistration/waitlist_signups_grid.html' with context %}
+    The badge waitlist closes {{ c.BADGE_WAITLIST_CLOSED|datetime_local }}, after which no badges will be offered from the waitlist.
+{% endif %}
+
+</body>
+</html>

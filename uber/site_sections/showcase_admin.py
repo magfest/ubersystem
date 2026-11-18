@@ -165,7 +165,8 @@ class Root:
 
                 if not attendee:
                     attendee = Attendee(first_name=first_name, last_name=last_name, email=email,
-                                        placeholder=True, badge_type=c.ATTENDEE_BADGE, paid=c.NEED_NOT_PAY)
+                                        badge_status=c.NOT_ATTENDING, placeholder=True,
+                                        badge_type=c.ATTENDEE_BADGE, paid=c.NEED_NOT_PAY)
                     session.add(attendee)
 
                 attendee.admin_account, password = session.create_admin_account(attendee, judge=judge)
@@ -541,7 +542,7 @@ class Root:
                 old_attendee.pop('id', '')
                 old_attendee.pop('badge_num', '')
                 attendee = Attendee().apply(old_attendee, restricted=False)
-                attendee.badge_status = c.NEW_STATUS
+                attendee.badge_status = c.NOT_ATTENDING
                 attendee.placeholder = True
                 attendee.badge_type = c.ATTENDEE_BADGE
                 attendee.paid = c.NEED_NOT_PAY

@@ -8,8 +8,9 @@ from uber.models.types import (Choice, default_relationship as relationship, Def
 from datetime import datetime
 from markupsafe import Markup
 from pytz import UTC
-from sqlalchemy.orm import backref
+from sqlalchemy import not_
 from sqlalchemy.types import Uuid, DateTime
+from sqlalchemy.ext.hybrid import hybrid_property
 from typing import ClassVar
 
 
@@ -57,6 +58,18 @@ class ArtistMarketplaceApplication(MagModel, table=True):
     @property
     def email(self):
         return self.email_address or self.attendee.email
+
+    @property
+    def gets_emails(self):
+        return self.is_valid
+
+    @hybrid_property
+    def is_valid(self):
+        return self.status not in [c.CANCELLED, c.DECLINED]
+
+    @is_valid.expression
+    def is_valid(cls):
+        return not_(cls.status.in_([c.CANCELLED, c.DECLINED]))
     
     @property
     def default_cost(self):

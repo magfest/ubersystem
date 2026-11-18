@@ -2,25 +2,31 @@ from itertools import chain
 from uber.models.attendee import AttendeeAccount
 
 import cherrypy
+import logging
 import math
+import pytz
 import re
+import six
 from collections import defaultdict
 from datetime import datetime
 from sqlalchemy import or_, func, and_
 from sqlalchemy.types import String
-from sqlalchemy.orm import joinedload, raiseload, subqueryload
+from sqlalchemy.orm import joinedload, selectinload, subqueryload
 from sqlalchemy.orm.exc import NoResultFound
 
 from uber.config import c
 from uber.custom_tags import datetime_local_filter, time_day_local, pluralize, format_currency, readable_join
 from uber.decorators import ajax, all_renderable, csv_file, not_site_mappable, site_mappable
 from uber.errors import HTTPRedirect
-from uber.models import AdminAccount, ApiJob, ArtShowApplication, Attendee, Group, ModelReceipt, ReceiptItem, \
+from uber.models import AdminAccount, ApiJob, ArtShowApplication, Attendee, BadgeWaitlistSignup, Group, ModelReceipt, ReceiptItem, \
     ReceiptInfo, ReceiptTransaction, Tracking, WorkstationAssignment, EscalationTicket
 from uber.site_sections import devtools
 from uber.utils import check, get_api_service_from_server, normalize_email, normalize_email_legacy, valid_email, \
     TaskUtils, Order, groupify
 from uber.payments import ReceiptManager, RefundRequest
+
+
+log = logging.getLogger(__name__)
 
 
 def _search(all_processor_txns, text):
@@ -901,7 +907,7 @@ class Root:
         all_refunds = defaultdict(lambda: [0, []])
 
         for id in refund_ids:
-            attendee = session.attendee(id)
+            attendee = session.get(Attendee, id)
             if attendee.active_receipt:
                 receipt_manager = ReceiptManager(attendee.active_receipt,
                                                  AdminAccount.admin_name() or 'non-admin')
@@ -966,6 +972,50 @@ class Root:
 
         raise HTTPRedirect("../reg_admin/attendee_account_form?id={}&message={}",
                            account_id, ' '.join(messages))
+
+    def refresh_waitlist_offers(self, session, account_id, signup_ids=[], message='', **params):
+        if isinstance(signup_ids, str):
+            signup_ids = [signup_ids]
+
+        signup_count = 0
+
+        for id in signup_ids:
+            signup = session.get(BadgeWaitlistSignup, id)
+            if not signup.attendee and signup.offered_badge and signup.status in [c.PENDING, c.EXPIRED]:
+                signup.offered_badge = datetime.now(pytz.UTC)
+                signup.status = c.PENDING
+                session.add(signup)
+                signup_count += 1
+
+        if not signup_count:
+            message = "None of the signups selected had a badge offer to refresh."
+        else:
+            message = f"Refreshed {signup_count} badge offers."
+
+        raise HTTPRedirect("../reg_admin/attendee_account_form?id={}&message={}",
+                           account_id, message)
+
+    def remove_waitlist_signups(self, session, account_id, signup_ids=[], message='', **params):
+        if isinstance(signup_ids, str):
+            signup_ids = [signup_ids]
+
+        signup_count = 0
+
+        for id in signup_ids:
+            signup = session.get(BadgeWaitlistSignup, id)
+            log.error(signup)
+            if not signup.attendee and signup.status == c.PENDING:
+                signup.status = c.REMOVED
+                session.add(signup)
+                signup_count += 1
+
+        if not signup_count:
+            message = "None of the signups selected could be cancelled."
+        else:
+            message = f"Cancelled {signup_count} signups."
+
+        raise HTTPRedirect("../reg_admin/attendee_account_form?id={}&message={}",
+                        account_id, message)
 
     @ajax
     def refresh_model_receipt(self, session, id=''):
@@ -1035,7 +1085,7 @@ class Root:
             elif not message:
                 message = 'No matches found.'
         if not count:
-            accounts = session.query(AttendeeAccount).outerjoin(AttendeeAccount.attendees).filter(*filter)
+            accounts = session.query(AttendeeAccount).filter(*filter).options(selectinload(AttendeeAccount.attendees))
             count = accounts.count()
         
         accounts = accounts.order(order)
@@ -1187,6 +1237,56 @@ class Root:
             messages.append("{} attendee(s) were assigned to existing accounts.".format(assigned))
 
         raise HTTPRedirect('orphaned_attendees?show_all={}&message={}', show_all, ' '.join(messages))
+
+    def waitlist_signups(self, session, message='', page='1', search_text='', order='waitlist_position', all=''):
+        filter = [BadgeWaitlistSignup.status == c.PENDING, BadgeWaitlistSignup.attendee == None] if not all else []
+        total_count = session.query(BadgeWaitlistSignup.id).filter(*filter).count()
+
+        count = 0
+        search_text = search_text.strip()
+        if search_text:
+            search_results = session.query(BadgeWaitlistSignup).filter(*filter).filter(or_(
+                BadgeWaitlistSignup.email.ilike('%' + search_text + '%'),
+                BadgeWaitlistSignup.first_name.ilike('%' + search_text + '%'),
+                BadgeWaitlistSignup.last_name.ilike('%' + search_text + '%'),
+                BadgeWaitlistSignup.legal_name.ilike('%' + search_text + '%'),
+                BadgeWaitlistSignup.email.ilike('%' + search_text + '%'),
+            ))
+            if search_results and search_results.count():
+                signups = search_results
+                count = signups.count()
+                if count == total_count:
+                    message = 'Every waitlist signup matched this search.'
+            elif not message:
+                message = 'No matches found.'
+        if not count:
+            signups = session.query(BadgeWaitlistSignup).filter(*filter).options(joinedload(BadgeWaitlistSignup.attendee),
+                                                                                 joinedload(BadgeWaitlistSignup.refund_badge),
+                                                                                 joinedload(BadgeWaitlistSignup.attendee_account))
+            count = signups.count()
+
+        if isinstance(order, six.string_types) and '&order=' in order:
+            order = order.split('&order=')
+
+        signups = signups.order(order)
+
+        page = int(page)
+            
+        pages = range(1, int(math.ceil(count / 100)) + 1)
+        signups = signups[-100 + 100*page: 100*page] if page else []
+
+        return {
+            'message': message,
+            'page':           page,
+            'pages':          pages,
+            'search_text':    search_text,
+            'search_results': bool(search_text),
+            'signups':      signups,
+            'order':          Order(order),
+            'all': all,
+            'search_count':   count,
+            'account_count': total_count,
+        }
 
     def payment_pending_attendees(self, session):
         possibles = session.possible_match_list()

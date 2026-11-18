@@ -120,6 +120,8 @@ var callStripeAction = function (autoTrigger=false) {
             {% else %}
                 collectStripePayment(result.stripe_intent.client_secret, result.stripe_intent.id, result.success_url, cancel_url);
             {% endif %}
+        } else if (result.success_url) {
+            window.location = result.success_url;
         }
         });
 };

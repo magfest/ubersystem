@@ -1,0 +1,102 @@
+{% import 'macros.html' as macros with context %}
+{% import 'forms/macros.html' as form_macros with context %}
+{% set badge_waitlist_info = badge_waitlist_info or badge_waitlist_info_form['badge_waitlist_info'] %}
+
+{# BLOCK NAMES in this form:
+  x_data
+  name
+  contact_info
+  age
+
+  Use these to add or rearrange fields. Remember to use {{ super() }} to print the original fields as-is.
+#}
+
+<script>
+  function personalInfo() {
+      return {
+        {% block x_data %}
+          same_legal_name: {{ (signup.first_name != '' and signup.legal_name == '')|boolean|jsonize }},
+          first_name: '{{ badge_waitlist_info.first_name.data }}',
+          last_name: '{{ badge_waitlist_info.last_name.data }}',
+          birthdate: '{{ badge_waitlist_info.birthdate.data|default('', true) }}',
+          needs_accompanying_adult: {{ (signup.birthdate and signup.age_now_or_at_con < c.ACCOMPANYING_ADULT_AGE or signup.is_new)|boolean|jsonize }},
+          get legalNameRequired() { return !this.same_legal_name },
+          togglePurchaseWithoutAdult(data) {
+            if(data.birthdate.match(/\d{2}\/\d{2}\/\d{4}/)) {
+              $.ajax({
+                method: 'GET',
+                url: '../preregistration/check_accompanying_adult',
+                dataType: 'json',
+                data: {
+                    birthdate: data.birthdate
+                },
+                success: function (json) {
+                  data.needs_accompanying_adult = json.needs_accompanying_adult
+                }
+            });
+            }
+            return false;
+          },
+        {% endblock %}
+      }
+    }
+</script>
+
+<div x-data="personalInfo()">
+
+<div class="row g-3 mb-3">
+{% block name %}
+  <div class="col-sm">{{ form_macros.input(badge_waitlist_info.first_name, alpine_model="first_name") }}</div>
+  <div class="col-sm">{{ form_macros.input(badge_waitlist_info.last_name, alpine_model="last_name") }}</div>
+  {% if not admin_area %}
+  <div class="col-12 form-text">
+    This is the name you go by and will appear on automated emails and other pages in our system.
+  </div>
+  {% endif %}
+
+  
+  {% if signup.legal_name or admin_area or signup.is_new %}
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-sm" x-show="{{ (signup.is_new or admin_area)|boolean|tojson }}">
+        {{ form_macros.input(badge_waitlist_info.same_legal_name, alpine_model='same_legal_name', disabled=not signup.is_new and not admin_area) }}
+    </div>
+    <div class="col-sm">
+      {{ form_macros.input(badge_waitlist_info.legal_name, required_if="legalNameRequired", **{':disabled':'same_legal_name'}) }}
+    </div>
+  {% else %}
+  <input type="hidden" id="same_legal_name" name="same_legal_name"{% if signup.first_name != '' and signup.legal_name == '' %} value="1"{% endif %}/>
+  {% endif %}
+  {% if not admin_area %}
+  <div class="col-12 form-text">
+    Your name <strong>cannot be changed</strong> when purchasing this badge from the waitlist. Please ensure it is accurate.
+  </div>
+  {% endif %}
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block contact_info %}
+  <div class="col-sm">{{ form_macros.input(badge_waitlist_info.email) }}</div>
+  {% if c.PREREG_CONFIRM_EMAIL_ENABLED and not admin_area and signup.is_new %}
+    <div class="col-sm">
+      {{ form_macros.input(badge_waitlist_info.confirm_email) }}
+    </div>
+  {% endif %}
+{% endblock %}
+</div>
+
+<div class="row g-3 mb-3">
+{% block age %}
+  <div class="col-sm"{% if signup.waitlist_type == c.CHILD_BADGE %} x-init="$watch('birthdate', (value) => togglePurchaseWithoutAdult($data))"{% endif %}>
+      {{ form_macros.input(badge_waitlist_info.birthdate, admin_text=signup.age_group_conf.desc if not signup.is_new else '', alpine_model='birthdate') }}
+  </div>
+  {% if signup.waitlist_type == c.CHILD_BADGE %}
+  <div class="col-sm-12" x-show="!needs_accompanying_adult">
+    {{ form_macros.input(badge_waitlist_info.offer_without_adult) }}
+  </div>
+  {% endif %}
+{% endblock %}
+</div>
+
+</div>

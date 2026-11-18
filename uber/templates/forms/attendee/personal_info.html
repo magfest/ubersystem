@@ -49,7 +49,7 @@
 <div class="row g-3 mb-3">
 {% block name %}
   {% set attendee_last_name = attendee.last_name[0] ~ '.' if limited_read else attendee.last_name %}
-  {% set can_change_name = attendee.is_new or attendee.placeholder or attendee.is_unassigned or admin_area %}
+  {% set can_change_name = not attendee.waitlist_signup and (attendee.is_new or attendee.is_unassigned) or admin_area %}
   <div class="col-sm">{{ form_macros.input(personal_info.first_name, alpine_model="first_name", required_if="!unassignedBadge") }}</div>
   <div class="col-sm">{{ form_macros.input(personal_info.last_name, value=attendee_last_name, alpine_model="last_name", required_if="!unassignedBadge") }}</div>
   {% if not admin_area %}
@@ -71,7 +71,7 @@
   {% else %}
   <input type="hidden" id="same_legal_name" name="same_legal_name"{% if attendee.first_name != '' and attendee.legal_name == '' %} value="1"{% endif %}/>
   {% endif %}
-  {% if not can_change_name %}
+  {% if not can_change_name and not attendee.waitlist_signup %}
   <div class="col-12 form-text">
     Please contact us at {% if attendee.badge_type in [c.STAFF_BADGE, c.CONTRACTOR_BADGE] %}{{ c.STAFF_EMAIL|email_only|email_to_link }}{% else %}{{ c.REGDESK_EMAIL|email_only|email_to_link }}{% endif %} to {% if attendee.legal_name %}change your legal name or{% else %}set your legal name or change your{% endif %} first/last name.
   </div>

@@ -1,0 +1,23 @@
+<html>
+<head></head>
+<body>
+<p>
+    {{ signup.first_name }},
+    <br/>Your {{ c.EVENT_NAME }} badge is now available from the waitlist! You can view your signup details below.
+</p>
+<p>
+    <strong>Full Name</strong>: {{ signup.full_name }}
+    {% if signup.legal_name %}<br/><strong>Name on Photo ID</strong>: {{ signup.legal_name }}{% endif %}
+    <br/><strong>Email</strong>: {{ signup.email }}
+    <br/><strong>Birthdate</strong>: {{ signup.birthdate|datetime('%m/%d/%Y') }}
+    <br/><strong>Signed Up</strong>: {{ signup.signup_time|datetime_local('%-I:%M%p %b %-d') }}
+    <br/><strong>Purchase Deadline</strong>: {{ signup.badge_offer_expiry_time|datetime }}
+</p>
+<p>
+    Your{% if c.OIDC_ENABLED %} {{ c.OIDC_ACCOUNT_NAME }}{% endif %} account holder will receive a separate email with a link to
+    purchase your badge from the waitlist. They can also view and purchase your badge by
+    <a href="{{ c.URL_BASE }}/preregistration/homepage">logging into their account</a>.
+    Please contact us at {{ c.BADGE_WAITLIST_EMAIL|email_only|email_to_link }} if you have any questions.
+</p>
+</body>
+</html>

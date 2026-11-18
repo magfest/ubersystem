@@ -175,6 +175,11 @@ if c.ATTENDEE_ACCOUNTS_ENABLED:
                                                      href='../reg_admin/attendee_accounts'), position=1)
 
 
+if c.BADGE_WAITLIST_ENABLED:
+    c.MENU['Registration'].append_menu_item(MenuItem(name='Badge Waitlist Signups',
+                                                     href='../reg_admin/waitlist_signups'))
+
+
 if c.ADMIN_BADGES_NEED_APPROVAL:
     c.MENU['Registration'].append_menu_item(MenuItem(name='Pending Badges',
                                                      href='../registration/pending_badges'), position=1)

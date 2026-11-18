@@ -15,6 +15,9 @@ def is_placeholder_or_unassigned(form):
 def placeholder_unassigned_fields(form):
     field_list = Attendee.skip_placeholder_fields
 
+    if not isinstance(form.model, Attendee):
+        return []
+
     if form.is_admin and form.model.unassigned_group_reg:
         return ['first_name', 'last_name', 'email'] + field_list
 

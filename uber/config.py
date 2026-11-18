@@ -554,7 +554,7 @@ class Config(_Overridable):
 
     @property
     def SELF_SERVICE_REFUNDS_OPEN(self):
-        return self.BEFORE_REFUND_CUTOFF and (self.AFTER_REFUND_START or not self.REFUND_START)
+        return self.REFUND_CUTOFF and self.BEFORE_REFUND_CUTOFF and (self.AFTER_REFUND_START or not self.REFUND_START)
     
     @property
     def DEPT_CHECKLIST_OPEN(self):
@@ -895,6 +895,34 @@ class Config(_Overridable):
                 locked.append(getattr(self, level + "_LEVEL"))
 
         return locked
+
+    @property
+    def BADGE_WAITLIST_OPEN(self):
+        return self.BADGE_WAITLIST_ENABLED and self.AFTER_BADGE_WAITLIST_START and self.BEFORE_BADGE_WAITLIST_END
+
+    @property
+    def BADGE_WAITLIST_LIMIT_DESC(self):
+        from uber.custom_tags import readable_join
+        # Human-readable list of how many badges of each type you can sign up for on the waitlist.
+        if len(c.WAITLIST_BADGE_TYPES) == 1:
+            return f'{list(c.BADGE_WAITLIST_LIMITS.values())[0]} badges'
+        else:
+            list_badges = []
+            for badge_type, limit in c.BADGE_WAITLIST_LIMITS.items():
+                list_badges.append(f'{limit} {self.WAITLIST_BADGE_LABELS[badge_type]} badges')
+            return readable_join(list_badges)
+
+    @property
+    def WAITLIST_BADGE_LABELS(self):
+        label_dict = {}
+        for badge_type in c.WAITLIST_BADGE_TYPES:
+            if badge_type == c.CHILD_BADGE:
+                label_dict[badge_type] = 'Under 18'
+            elif not c.BADGE_TYPE_PRICES and c.CHILD_BADGE in c.WAITLIST_BADGE_TYPES and badge_type == c.ATTENDEE_BADGE:
+                label_dict[badge_type] = 'Adult'
+            else:
+                label_dict[badge_type] = c.BADGES[badge_type]
+        return label_dict
 
     @property
     def kickin_availability_matrix(self):
@@ -2227,6 +2255,8 @@ c.STAFF_SHIRT_OPTS = sorted(c.STAFF_SHIRT_OPTS if len(c.STAFF_SHIRT_OPTS) > 1 el
 c.SHIRT_OPTS = sorted(c.SHIRT_OPTS)
 shirt_label_lookup = {val: key for key, val in c.SHIRT_OPTS}
 c.SHIRT_SIZE_STOCKS = {shirt_label_lookup[val]: key for key, val in c.SHIRT_STOCK_OPTS}
+c.WAITLIST_BADGE_TYPE_NAMES = sorted(c.WAITLIST_BADGE_TYPE_NAMES, key=lambda x: x == 'child_badge')
+c.WAITLIST_BADGE_TYPES = [getattr(c, badge_type_name.upper()) for badge_type_name in c.WAITLIST_BADGE_TYPE_NAMES]
 
 from uber.custom_tags import format_currency
 if c.MERCH_TAX and c.INCLUDE_MERCH_TAX:
