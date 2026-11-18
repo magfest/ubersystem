@@ -396,71 +396,76 @@ if c.BADGE_WAITLIST_ENABLED:
         
         task_in_progress = redis.check_task_progress('badge_waitlist_processing', 'process_badge_waitlist')
         if task_in_progress:
+            log.warning("Skipping process_badge_waitlist because the badge_waitlist_processing lock is held.")
             return
 
         c.REDIS_STORE.hset(c.REDIS_PREFIX + 'badge_waitlist_processing', 'started_timestamp', datetime.now(pytz.UTC).timestamp())
-        
-        with Session() as session:
-            # First, expire offered badges past their expiry date
-            will_have_expired = datetime.now(pytz.UTC) - timedelta(hours=c.WAITLIST_OFFER_HOURS)
-            pending_offers = session.query(BadgeWaitlistSignup).filter(
-                BadgeWaitlistSignup.attendee_id == None, BadgeWaitlistSignup.offered_badge != None,
-                BadgeWaitlistSignup.offered_badge < will_have_expired, BadgeWaitlistSignup.status == c.PENDING)
+
+        c.REDIS_STORE.expire(c.REDIS_PREFIX + 'badge_waitlist_processing', timedelta(hours=2))
+
+        try:
+            with Session() as session:
+                # First, expire offered badges past their expiry date
+                will_have_expired = datetime.now(pytz.UTC) - timedelta(hours=c.WAITLIST_OFFER_HOURS)
+                pending_offers = session.query(BadgeWaitlistSignup).filter(
+                    BadgeWaitlistSignup.attendee_id == None, BadgeWaitlistSignup.offered_badge != None,
+                    BadgeWaitlistSignup.offered_badge < will_have_expired, BadgeWaitlistSignup.status == c.PENDING)
             
-            for signup in pending_offers:
-                signup.status = c.EXPIRED
-                signup.refund_badge_id = None
-                session.add(signup)
+                for signup in pending_offers:
+                    signup.status = c.EXPIRED
+                    signup.refund_badge_id = None
+                    session.add(signup)
 
-            accounts_to_email = defaultdict(list)
+                accounts_to_email = defaultdict(list)
 
-            for badge_type_name in c.WAITLIST_BADGE_TYPE_NAMES:
-                # Update everyone's waitlist position one last time so we don't skip fulfilling anyone's entry
-                badge_type = getattr(c, badge_type_name.upper())
-                set_waitlist_positions(session, badge_type)
-
-                session.commit()
-                session.expire_all()
-
-                refund_pending = session.query(Attendee).filter(Attendee.waitlist_refund == None,
-                                                                Attendee.badge_status == c.WAITLIST_REFUND_STATUS,
-                                                                Attendee.badge_type == badge_type).all()
-                refund_pending_count = len(refund_pending)
-
-                available_badges = max(nonpending_badges_available(session, badge_type_name), 0) + refund_pending_count
-                if available_badges > 0:
-                    next_on_waitlist = session.query(BadgeWaitlistSignup).filter(BadgeWaitlistSignup.waitlist_position != 0,
-                                                                                 BadgeWaitlistSignup.waitlist_type == badge_type,
-                                                                                 BadgeWaitlistSignup.offered_badge == None,
-                                                                                 BadgeWaitlistSignup.status == c.PENDING)
-                    if badge_type == c.CHILD_BADGE:
-                        #aliased_signup = aliased(BadgeWaitlistSignup)
-                        next_on_waitlist = next_on_waitlist.join(BadgeWaitlistSignup.attendee_account).filter(
-                            or_(BadgeWaitlistSignup.offer_without_adult,
-                                or_(AttendeeAccount.attendees.any(and_(Attendee.has_or_will_have_badge, Attendee.badge_type != c.CHILD_BADGE)),
-                                    AttendeeAccount.waitlist_signups.any(and_(BadgeWaitlistSignup.offered_badge != None,
-                                                                              BadgeWaitlistSignup.status == c.PENDING,
-                                                                              BadgeWaitlistSignup.waitlist_type != c.CHILD_BADGE)))))
-                    next_on_waitlist = next_on_waitlist.options(joinedload(BadgeWaitlistSignup.attendee_account)).order_by(
-                        BadgeWaitlistSignup.waitlist_position).limit(available_badges)
-
-                    for index, next_badge in enumerate(next_on_waitlist):
-                        next_badge.offered_badge = datetime.now(pytz.UTC)
-                        session.add(next_badge)
-                        accounts_to_email[next_badge.attendee_account].append(next_badge.id)
-                        if index < refund_pending_count:
-                            next_badge.refund_badge = refund_pending[index]
+                for badge_type_name in c.WAITLIST_BADGE_TYPE_NAMES:
+                    # Update everyone's waitlist position one last time so we don't skip fulfilling anyone's entry
+                    badge_type = getattr(c, badge_type_name.upper())
+                    set_waitlist_positions(session, badge_type)
 
                     session.commit()
+                    session.expire_all()
 
-            for account, signups_ids in accounts_to_email.items():
-                signups_count = len(signups_ids)
-                custom_subject = f'You Have {signups_count} {c.EVENT_NAME} Waitlist Badges Available!' if signups_count > 1 else ''
-                EmailService.queue_email(session, 'badge_waitlist_offer', account, subject=custom_subject,
-                                            data={'signups_ids': signups_ids})
-            session.commit()
+                    refund_pending = session.query(Attendee).filter(Attendee.waitlist_refund == None,
+                                                                    Attendee.badge_status == c.WAITLIST_REFUND_STATUS,
+                                                                    Attendee.badge_type == badge_type).all()
+                    refund_pending_count = len(refund_pending)
 
-        c.REDIS_STORE.delete(c.REDIS_PREFIX + 'badge_waitlist_processing')
+                    available_badges = max(nonpending_badges_available(session, badge_type_name), 0) + refund_pending_count
+                    if available_badges > 0:
+                        next_on_waitlist = session.query(BadgeWaitlistSignup).filter(BadgeWaitlistSignup.waitlist_position != 0,
+                                                                                     BadgeWaitlistSignup.waitlist_type == badge_type,
+                                                                                     BadgeWaitlistSignup.offered_badge == None,
+                                                                                     BadgeWaitlistSignup.status == c.PENDING)
+                        if badge_type == c.CHILD_BADGE:
+                            #aliased_signup = aliased(BadgeWaitlistSignup)
+                            next_on_waitlist = next_on_waitlist.join(BadgeWaitlistSignup.attendee_account).filter(
+                                or_(BadgeWaitlistSignup.offer_without_adult,
+                                    or_(AttendeeAccount.attendees.any(and_(Attendee.has_or_will_have_badge, Attendee.badge_type != c.CHILD_BADGE)),
+                                        AttendeeAccount.waitlist_signups.any(and_(BadgeWaitlistSignup.offered_badge != None,
+                                                                                  BadgeWaitlistSignup.status == c.PENDING,
+                                                                                  BadgeWaitlistSignup.waitlist_type != c.CHILD_BADGE)))))
+                        next_on_waitlist = next_on_waitlist.options(joinedload(BadgeWaitlistSignup.attendee_account)).order_by(
+                            BadgeWaitlistSignup.waitlist_position).limit(available_badges)
+
+                        for index, next_badge in enumerate(next_on_waitlist):
+                            next_badge.offered_badge = datetime.now(pytz.UTC)
+                            session.add(next_badge)
+                            accounts_to_email[next_badge.attendee_account].append(next_badge.id)
+                            if index < refund_pending_count:
+                                next_badge.refund_badge = refund_pending[index]
+
+                        session.commit()
+
+                for account, signups_ids in accounts_to_email.items():
+                    signups_count = len(signups_ids)
+                    custom_subject = f'You Have {signups_count} {c.EVENT_NAME} Waitlist Badges Available!' if signups_count > 1 else ''
+                    EmailService.queue_email(session, 'badge_waitlist_offer', account, subject=custom_subject,
+                                                data={'signups_ids': signups_ids})
+                session.commit()
+            log.info(f"Badge waitlist processed: offered {sum(len(ids) for ids in accounts_to_email.values())} badges.")
+        finally:
+            c.REDIS_STORE.delete(c.REDIS_PREFIX + 'badge_waitlist_processing')
 
 
     @celery.task
@@ -476,15 +481,16 @@ if c.BADGE_WAITLIST_ENABLED:
                 log.error(f"Tried to refund {attendee_id} via a waitlist signup but they were not marked as pending a refund.")
                 return
 
-            attendee.badge_status = c.REFUNDED_STATUS
-            session.add(attendee)
             if attendee.amount_paid:
                 receipt = session.get_receipt_by_model(attendee)
                 refund_total, error = receipt.process_full_refund(
                     session, attendee, who='non-admin',
                     exclude_fees=c.EXCLUDE_FEES_FROM_REFUNDS and not c.AUTHORIZENET_LOGIN_ID)
                 if error:
-                    log.error(f"Error processing pending refund for badge {attendee.id}: {error}")
+                    log.error(f"Error processing pending refund for badge {attendee.id} "
+                              f"after refunding {refund_total} cents: {error}")
+                    session.commit()
+                    return
                 receipt.closed = datetime.now()
                 session.add(receipt)
 
@@ -493,7 +499,10 @@ if c.BADGE_WAITLIST_ENABLED:
 
                 EmailService.queue_email(session, 'waitlist_refund_processed', attendee,
                                          data={'refund_total': (refund_total / 100)})
-                
+
+            attendee.badge_status = c.REFUNDED_STATUS
+            session.add(attendee)
+
             if attendee.group and attendee.group.is_valid:
                 badge_type = c.ATTENDEE_BADGE if attendee.badge_type in c.BADGE_TYPE_PRICES and attendee.group.cost else attendee.badge_type
                 session.assign_badges(

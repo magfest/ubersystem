@@ -337,6 +337,7 @@ if c.BADGE_WAITLIST_ENABLED:
         'reg_workflow/waitlist_refund.html', None,
         'waitlist_refund_processed',
         sender=c.BADGE_WAITLIST_EMAIL,
+        ignore_gets_emails=True,
     )
 
 if c.TRANSFERABLE_BADGE_TYPES:

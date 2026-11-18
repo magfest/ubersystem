@@ -11,7 +11,7 @@
     {% if signup.legal_name %}<br/><strong>Name on Photo ID</strong>: {{ signup.legal_name }}{% endif %}
     <br/><strong>Email</strong>: {{ signup.email }}
     <br/><strong>Birthdate</strong>: {{ signup.birthdate|datetime('%m/%d/%Y') }}
-    <br/><strong>Signed Up</strong>: {{ signup.signup_time|datetime_local('%-I:%M%p %b %-m') }}
+    <br/><strong>Signed Up</strong>: {{ signup.signup_time|datetime_local('%-I:%M%p %b %-d') }}
     <br/><strong>Purchase Deadline</strong>: {{ signup.badge_offer_expiry_time|datetime }}
 </p>
 <p>

@@ -198,6 +198,7 @@ BadgeWaitlistInfo.field_validation.validations['email'].update(PersonalInfo.fiel
 BadgeWaitlistInfo.field_validation.required_fields['confirm_email'] = ("Please confirm your email address.",
                                                                        'confirm_email', lambda x: signup_must_confirm_email(x.form))
 BadgeWaitlistInfo.field_validation.validations['confirm_email']['optional'] = validators.Optional()
+BadgeWaitlistInfo.field_validation.validations['confirm_email']['match_email'] = match_email
 
 
 @BadgeWaitlistInfo.field_validation('birthdate')
@@ -207,7 +208,7 @@ def badge_age_matches_type(form, field):
         return
 
     age = get_age_from_birthday(form.birthdate.data, c.NOW_OR_AT_CON)
-    if form.model.waitlist_type == c.CHILD_BADGE and age > 18:
+    if form.model.waitlist_type == c.CHILD_BADGE and age >= 18:
         raise ValidationError(f"This person will be {age} years old by the start of {c.EVENT_NAME} and will need an adult badge.")
     if form.model.waitlist_type != c.CHILD_BADGE and age < 18:
         raise ValidationError(f"This person will be {age} year(s) old by the start of {c.EVENT_NAME} and will need an under-18 badge.")

@@ -408,10 +408,10 @@ class Root:
                 signup_error = signup.cannot_purchase_reason
 
             if signup_error:
-                if multi_signup:
+                if multi_signup and signup:
                     signup_errors.append(f"{signup.full_name} - {signup_error.lower()}")
                 else:
-                    signup_errors.append({signup_error})
+                    signup_errors.append(signup_error)
             else:
                 if signup.attendee:
                     new_badge = signup.attendee
@@ -491,7 +491,7 @@ class Root:
                     session.add_all(receipt_manager.items_to_add)
         else:
             for attendee in new_badges:
-                attendee.badge_status = c.COMPLETE_STATUS
+                attendee.badge_status = c.COMPLETED_STATUS
                 attendee.paid = c.NEED_NOT_PAY
         
         session.commit()
@@ -542,7 +542,6 @@ class Root:
                                                     ['BadgeWaitlistInfo'], field_prefix=f'{badge_type_name}_{num}')
 
         if cherrypy.request.method == 'POST':
-            pending_signup_adult = False
             for badge_type_name in c.WAITLIST_BADGE_TYPE_NAMES:
                 badge_type = getattr(c, badge_type_name.upper())
                 num_badge_type_signups[badge_type] = int(params.get(f'{badge_type_name}_signup_select', 0))
@@ -550,25 +549,21 @@ class Root:
                 if num_badge_type_signups[badge_type] > max_badges_for_type[badge_type]:
                     message = f"You only have {max_badges_for_type[badge_type]} {c.WAITLIST_BADGE_LABELS[badge_type]} signups available."
 
-                if account and not account.valid_adults:
-                    # Prevent signups for attendees under ACCOMPANYING_ADULT_AGE unless there's also a signup for an adult,
-                    # either in the account's other waitlist signups or in the submitted form
-                    pending_signup_adult = not BadgeWaitlistSignup.signups_need_accompanying_adult(account.pending_waitlist_signups + account.offered_waitlist_signups)
+            if not message and not any(num > 0 for num in num_badge_type_signups.values()):
+                message = "Please select at least one badge to sign up for."
 
-                    if not pending_signup_adult:
-                        for num in range(1, num_badge_type_signups[badge_type] + 1):
-                            for form in forms[badge_type][num].values():
-                                if hasattr(form, 'birthdate') and form.birthdate.data and \
-                                        get_age_from_birthday(form.birthdate.data, c.NOW_OR_AT_CON) >= 18:
-                                    pending_signup_adult = True
+            if not message and account and not account.valid_adults:
+                # Prevent signups for attendees under ACCOMPANYING_ADULT_AGE unless there's also a signup for an adult,
+                # either in the account's other waitlist signups or in the submitted form
+                signups = account.pending_waitlist_signups + account.offered_waitlist_signups
+                for badge_type in c.WAITLIST_BADGE_TYPES:
+                    for num in range(1, num_badge_type_signups[badge_type] + 1):
+                        for form in forms[badge_type][num].values():
+                            if hasattr(form, 'birthdate') and form.birthdate.data:
+                                signups.append(BadgeWaitlistSignup(birthdate=form.birthdate.data))
 
-                    if not pending_signup_adult:
-                        message = f"You cannot sign up for a badge under {c.ACCOMPANYING_ADULT_AGE} without an adult."
-
-                for num in range(1, num_badge_type_signups[badge_type] + 1):
-                    errors = validate_model(session, forms[badge_type][num], BadgeWaitlistSignup(waitlist_type=badge_type), create_preview_model=False)
-                    if errors:
-                        message = ""
+                if BadgeWaitlistSignup.signups_need_accompanying_adult(signups):
+                    message = f"You cannot sign up for a badge under {c.ACCOMPANYING_ADULT_AGE} without an adult."
 
             if not message:
                 for badge_type in c.WAITLIST_BADGE_TYPES:
@@ -677,10 +672,10 @@ class Root:
                 signup_error = "Waitlist signup was already cancelled or expired."
 
             if signup_error:
-                if multi_signup:
+                if multi_signup and signup:
                     signup_errors.append(f"{signup.full_name} - {signup_error.lower()}")
                 else:
-                    signup_errors.append({signup_error})
+                    signup_errors.append(signup_error)
             else:
                 signup.status = c.CANCELLED
                 session.add(signup)
@@ -1026,7 +1021,7 @@ class Root:
                 if not message:
                     if session.attendees_with_badges().filter_by(
                             first_name=attendee.first_name, last_name=attendee.last_name,
-                            normalize_email=normalize_email_legacy(attendee.email)).count():
+                            normalized_email=normalize_email_legacy(attendee.email)).count():
 
                         raise HTTPRedirect('duplicate?{}'.format(url_string))
 
@@ -2431,7 +2426,10 @@ class Root:
     @requires_account(Attendee)
     def cancel_refund(self, session, id):
         attendee = session.get(Attendee, id)
-        if attendee.locked_by_waitlist or check_task_progress('badge_waitlist_processing', 'process_badge_waitlist'):
+        # locked_by_waitlist only catches refund requests already matched to a waitlist signup.
+        # The status check makes sure this handler only resets badges that have a refund pending.
+        if attendee.badge_status != c.WAITLIST_REFUND_STATUS or attendee.locked_by_waitlist or \
+                check_task_progress('badge_waitlist_processing', 'process_badge_waitlist'):
             raise HTTPRedirect('confirm?id={}&message={}', id, "You cannot cancel your refund at this time.")
         attendee.badge_status = c.NEW_STATUS
         raise HTTPRedirect('confirm?id={}&message={}', id, "Refund request cancelled!")
