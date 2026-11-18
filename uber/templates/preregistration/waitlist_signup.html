@@ -14,15 +14,15 @@
     <h2>{{ c.EVENT_NAME }} Badge Waitlist Signup</h2>
     <p>
       Thank you for your interest in attending {{ c.EVENT_NAME_AND_YEAR }}. Use the dropdowns below to sign up for the badge waitlist.
-      Badges are pulled from the waitlist in the order you enter them below, e.g., a badge labeled "<strong>Waitlist Signup #1</strong>" will become available
+      Badges are pulled from the waitlist in the order you enter them, so a badge labeled "<strong>Waitlist Signup #1</strong>" will become available
       before a badge labeled "<strong>Waitlist Signup #2</strong>".
       {% if c.WAITLIST_BADGE_TYPES|length > 1 %}Each of the badge types below has its own waitlist.{% endif %}
     </p>
     <p>
-      Please note that <strong>the names you enter below are final</strong> and cannot be changed when or after purchasing a badge.
-      Badges from the waitlist are non-transferable and non-refundable, but you can request a refund via the waitlist if you are no longer able to attend.
-      {% if c.CHILD_BADGE in c.WAITLIST_BADGE_TYPES %}Under 18 badges are reserved for our younger attendees and cannot be promoted to adult badges.{% endif %}
+      Please note that <strong>the names and dates of birth you enter below are final</strong> and cannot be changed when purchasing or after purchasing a badge.
+      {% if c.CHILD_BADGE in c.WAITLIST_BADGE_TYPES %}Under 18 badges are reserved for our younger attendees and cannot be changed to adult badges.{% endif %}
     </p>
+    {% include 'preregistration/waitlist_refund_reminder.html' %}
 
     <div class="reserve-countdown d-flex justify-content-end mb-1">
           <strong>Waitlist Position Reserved for <span id="minutes">0</span>:<span id="seconds">0</span></strong>

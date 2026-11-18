@@ -57,6 +57,7 @@
         {% if multi_signup %}If someone in the list above{% else %}If you{% endif %} cannot attend,
         you can instead cancel{% if multi_signup %} the selected waitlist signups{% endif %} using the button below.
     </p>
+    {% include 'preregistration/waitlist_refund_reminder.html' %}
     <div class="d-flex gap-3 align-items-center">
         {% if multi_signup %}
         {{ stripe_form('purchase_waitlist_signups', text="Purchase Selected Badges") }}
