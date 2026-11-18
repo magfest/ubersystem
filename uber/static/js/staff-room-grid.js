@@ -48,7 +48,7 @@
   // link: click handler.
   var FIELDS = [
     {label: 'Leader badge', key: 'leader_badge', w: 95},
-    {label: 'Room type', field: 'inventory_id', key: 'inventory_id', w: 220,
+    {label: 'Inventory block', field: 'inventory_id', key: 'inventory_id', w: 220,
      all: function () { return data.blocks.map(function (b) { return [b.id, b.label]; }); },
      // A partitioned room picks from its partition's blocks; others pick from all of them.
      options: function (row) {
@@ -61,6 +61,7 @@
        return options;
      },
      text: function (row) { return row.inventory_label; }},
+    {label: 'Room type', key: 'room_type', off: true, w: 200},
     {label: 'Partition', field: 'partition_id', key: 'partition_id', blank: true, w: 130,
      all: function () { return [['', '(No partition)']].concat(data.partitions.map(function (p) { return [p.id, p.name]; })); },
      text: function (row) { return row.partition_id ? labelOf(this, row.partition_id) : ''; }},
@@ -87,6 +88,8 @@
      locked: function (row) { return row.physical_room && 'The room number follows the linked physical room.'; }},
     {label: 'Special requests', field: 'special_requests', key: 'special_requests', blank: true, off: true, w: 200},
     {label: 'Room notes', field: 'admin_notes', key: 'admin_notes', blank: true, off: true, w: 200},
+    {label: 'Message to roommates', field: 'occupant_message', key: 'occupant_message', blank: true, off: true, w: 200,
+     locked: function (row) { return row.assignment_reason !== String(data.crash_reason) && 'Only crash space rooms show a message.'; }},
     {label: 'Lottery entry', key: 'app_label', off: true, w: 115,
      link: function (row) { openRoom(row.id, '../hotel_lottery_admin/form?id=' + encodeURIComponent(row.app_id)); },
      linkTitle: 'Open the lottery entry'},
@@ -192,8 +195,15 @@
       if (col.field && col.field in out.staged) out[col.key] = out.staged[col.field];
     });
     var block = find(data.blocks, out.inventory_id);
-    if (block) { out.inventory_label = block.label; out.capacity = block.capacity; out.hotel_id = block.hotel_id; }
-    else if ('inventory_id' in out.staged) out.inventory_label = out.inventory_id;
+    if (block) {
+      out.inventory_label = block.label;
+      out.room_type = block.room_type;
+      out.capacity = block.capacity;
+      out.hotel_id = block.hotel_id;
+    } else if ('inventory_id' in out.staged) {
+      out.inventory_label = out.inventory_id;
+      out.room_type = '';
+    }
     out.leader_id = edit.leader || row.leader_id;
     out.occupants = row.occupants.filter(function (o) { return (edit.remove || []).indexOf(o.id) === -1; })
       .concat((edit.add || []).map(function (o) { return {id: o.id, name: o.name, badge: o.badge, staged: true}; }));
@@ -1754,7 +1764,8 @@
 
     var grid = summaryBody.appendChild(el('div', 'd-flex flex-wrap gap-4 align-items-start'));
     var by = function (key) { return function (row) { return [cellText(column(key), row)]; }; };
-    tableOf('Room type', by('inventory_id'), null, true);
+    tableOf('Inventory block', by('inventory_id'), null, true);
+    tableOf('Room type', by('room_type'), null, true);
     if (!split) tableOf('Partition', function (row) { return [partitionOf(row)]; }, null, true);
     tableOf('Night', nightsOf, function (iso) { return fmtDate(iso) + ', ' + iso.slice(0, 4); }, false);
     tableOf('Billing', by('payment_type'), null, true);

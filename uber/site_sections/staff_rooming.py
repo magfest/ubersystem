@@ -60,7 +60,8 @@ INLINE_ROOM_FIELDS = ('partition_id', 'inventory_id',
 # Fields the room_grid may also edit.
 GRID_FIELDS = INLINE_ROOM_FIELDS + (
     'payment_type', 'assignment_reason', 'deposit_cutoff_date', 'hotel_confirmation_number',
-    'cancellation_confirmation_number', 'room_number', 'special_requests', 'admin_notes')
+    'cancellation_confirmation_number', 'room_number', 'special_requests', 'admin_notes',
+    'occupant_message')
 
 # How a hand-set source reads; matches RoomAssignment.source_label.
 SOURCE_LABELS = {c.PARTITION_GRANT: 'Partition owner', c.MANUAL: 'Hotel admin'}
@@ -125,6 +126,14 @@ def _iso(day):
     return day.isoformat() if day else ''
 
 
+def _room_type_label(inv):
+    return f"{inv.hotel.name if inv.hotel else '?'} - {inv.display_name}"
+
+
+def _block_label(inv):
+    return inv.name or _room_type_label(inv)
+
+
 def _grid_row(ra):
     """One room as the room_grid page's JSON row."""
     inv, app = ra.inventory, ra.lottery_application
@@ -137,7 +146,8 @@ def _grid_row(ra):
             ra.effective_occupants, key=lambda o: (o.id != ra.attendee_id, o.full_name.lower()))],
         'capacity': inv.capacity if inv else 0,
         'inventory_id': ra.inventory_id or '',
-        'inventory_label': f"{inv.hotel.name if inv.hotel else '?'} - {inv.display_name}" if inv else '',
+        'inventory_label': _block_label(inv) if inv else '',
+        'room_type': _room_type_label(inv) if inv else '',
         'hotel_id': inv.hotel_id if inv else '',
         'partition_id': ra.partition_id or '',
         'check_in': _iso(ra.assigned_check_in_date),
@@ -158,6 +168,7 @@ def _grid_row(ra):
         'room_number': ra.room_number or '',
         'special_requests': ra.special_requests or '',
         'admin_notes': ra.admin_notes or '',
+        'occupant_message': ra.occupant_message or '',
         'app_id': app.id if app else '',
         'app_label': (app.confirmation_num or 'Open') if app else '',
         'app_notes': app.admin_notes if app else '',
@@ -204,7 +215,7 @@ def _unsavable_grid_fields(session, fields):
     check_date('deposit_cutoff_date', 'Deposit cutoff', False)
 
     choices = {
-        'inventory_id': ('Room type', lambda v: exists(HotelRoomInventory, v)),
+        'inventory_id': ('Inventory block', lambda v: exists(HotelRoomInventory, v)),
         'partition_id': ('Partition', lambda v: not v or exists(InventoryPartition, v)),
         'payment_type': ('Billing', lambda v: v in c.HOTEL_PAYMENT_TYPES),
         'assignment_reason': ('Source', lambda v: v in [str(r) for r, _ in c.HOTEL_ASSIGNMENT_REASON_OPTS]),
@@ -686,7 +697,7 @@ class Root:
             'grid': {
                 'rows': [_grid_row(ra) for ra in rooms],
                 'blocks': [{'id': inv.id, 'capacity': inv.capacity, 'hotel_id': inv.hotel_id,
-                            'label': f"{inv.hotel.name if inv.hotel else '?'} - {inv.display_name}",
+                            'label': _block_label(inv), 'room_type': _room_type_label(inv),
                             'partitions': partitions_map.get(str(inv.id), [])} for inv in blocks],
                 'partitions': [{'id': p.id, 'name': p.name} for p in session.query(InventoryPartition).filter_by(
                     active=True).order_by(InventoryPartition.name)],

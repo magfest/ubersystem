@@ -1715,7 +1715,10 @@ class HotelLookup:
         status, payment_type, assigned_check_in_date, assigned_check_out_date,
         deposit_cutoff_date, booking_url, hotel_confirmation_number,
         cancellation_confirmation_number, room_number, special_requests,
-        hotel_rewards_number, admin_notes, occupants.
+        hotel_rewards_number, admin_notes, occupant_message, occupants.
+
+        `occupant_message` is shown to the occupants of a staff crash space
+        room. `special_requests` and `admin_notes` are never shown to them.
 
         `occupants`, when given, replaces the room's occupant list. Each
         entry is an attendee id, or a dict of attendee_id plus optional
@@ -1790,7 +1793,7 @@ class HotelLookup:
                          'deposit_cutoff_date', 'booking_url',
                          'hotel_confirmation_number', 'cancellation_confirmation_number',
                          'room_number', 'special_requests', 'hotel_rewards_number',
-                         'admin_notes']:
+                         'admin_notes', 'occupant_message']:
                 if attr in kwargs:
                     setattr(assignment, attr, kwargs[attr])
             session.add(assignment)

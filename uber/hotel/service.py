@@ -438,7 +438,8 @@ def apply_room_assignment_edits(session, ra, params, *, audit_prefix, fail,
                             ('cancellation_confirmation_number', True),
                             ('room_number', True),
                             ('special_requests', False),
-                            ('admin_notes', False)):
+                            ('admin_notes', False),
+                            ('occupant_message', False)):
         if field not in params:
             continue
         if field == 'room_number' and not allow_room_number:
