@@ -79,7 +79,8 @@ def roommate_name_filter(term):
 
 def build_room_assignment_query(session, *, status='live', hotel_id='',
                                 partition_id='', search='', attendee_id='',
-                                badge_types=None, search_roommates=False):
+                                badge_types=None, search_roommates=False,
+                                include_roommate_rooms=False):
     """Build the standard RoomAssignment listing query.
 
     Filter semantics (mirrors the hotel_lottery_admin Rooms page):
@@ -107,6 +108,9 @@ def build_room_assignment_query(session, *, status='live', hotel_id='',
       search_roommates - also match `search` against roommates' names
                     and emails, not just the booker's.
 
+      include_roommate_rooms - with attendee_id, also return rooms the
+                    attendee is an occupant of without being the booker.
+
     Ordering is left to the caller. Additional caller-specific filters
     (e.g. staffer_rooms' billing filter) can be chained onto the returned
     query. When badge_types is passed, Attendee is inner-joined, so the
@@ -117,7 +121,12 @@ def build_room_assignment_query(session, *, status='live', hotel_id='',
     # Scope to one attendee's rooms - show every status in that case,
     # since the admin wants the attendee's full history.
     if attendee_id:
-        q = q.filter(RoomAssignment.attendee_id == attendee_id)
+        mine = RoomAssignment.attendee_id == attendee_id
+        if include_roommate_rooms:
+            from uber.models.hotel import room_assignment_occupant as occupant
+            mine = or_(mine, exists().where(occupant.c.room_assignment_id == RoomAssignment.id,
+                                            occupant.c.attendee_id == attendee_id))
+        q = q.filter(mine)
         if status == 'live':
             status = 'all'
 

@@ -78,3 +78,18 @@ def test_rooms_search_roommates_is_opt_in(session, zelda):
     assert ra in build_room_assignment_query(session, search='Fairweather', search_roommates=True).all()
     assert ra not in build_room_assignment_query(session, search='Fairweather').all()
     assert ra not in build_room_assignment_query(session, search='Ganondorf', search_roommates=True).all()
+
+
+def test_attendee_rooms_can_include_rooms_they_share(session, zelda):
+    attendee, _, own = zelda
+    inv = make_inventory(session, make_hotel(session))
+    shared = make_assignment(session, make_attendee(session), inv, check_in=N[0], check_out=N[2])
+    shared.occupants.append(attendee)
+    make_assignment(session, make_attendee(session), inv, check_in=N[0], check_out=N[2])
+    session.flush()
+
+    def ids(**kwargs):
+        return {ra.id for ra in build_room_assignment_query(session, attendee_id=attendee.id, **kwargs)}
+
+    assert ids() == {own.id}
+    assert ids(include_roommate_rooms=True) == {own.id, shared.id}

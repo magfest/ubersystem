@@ -4221,7 +4221,7 @@ class Root:
         q = build_room_assignment_query(
             session, status=status, hotel_id=hotel_id,
             partition_id=partition_id, search=search_term,
-            attendee_id=attendee_id)
+            attendee_id=attendee_id, include_roommate_rooms=True)
 
         # Column sort. Joins use aliases so they can't collide with the
         # joins the shared query layer adds for searching. The default
