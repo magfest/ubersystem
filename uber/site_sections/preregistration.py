@@ -549,11 +549,6 @@ class Root:
                 if num_badge_type_signups[badge_type] > max_badges_for_type[badge_type]:
                     message = f"You only have {max_badges_for_type[badge_type]} {c.WAITLIST_BADGE_LABELS[badge_type]} signups available."
 
-                for num in range(1, num_badge_type_signups[badge_type] + 1):
-                    errors = validate_model(session, forms[badge_type][num], BadgeWaitlistSignup(waitlist_type=badge_type), create_preview_model=False)
-                    if errors:
-                        message = ""
-
             if not message and account and not account.valid_adults:
                 # Prevent signups for attendees under ACCOMPANYING_ADULT_AGE unless there's also a signup for an adult,
                 # either in the account's other waitlist signups or in the submitted form
