@@ -174,6 +174,9 @@ class BadgeWaitlistSignup(MagModel, table=True):
 
     email_model_name: ClassVar = 'signup'
 
+    def __repr__(self):
+        return f"<BadgeWaitlistSignup id='{self.id}' full_name='{self.full_name}'>"
+
     @presave_adjustment
     def cant_offer_without_adult(self):
         if self.birthdate and self.age_now_or_at_con < c.ACCOMPANYING_ADULT_AGE:
@@ -263,8 +266,7 @@ class BadgeWaitlistSignup(MagModel, table=True):
 
     @classmethod
     def signups_need_accompanying_adult(cls, signups):
-        has_child_needing_adult = False
-        has_adult = False
+        has_child = False
 
         for signup in signups:
             age = signup.age_now_or_at_con
@@ -273,11 +275,11 @@ class BadgeWaitlistSignup(MagModel, table=True):
                 continue
 
             if age < c.ACCOMPANYING_ADULT_AGE:
-                has_child_needing_adult = True
+                has_child = True
             if age >= 18:
-                has_adult = True
+                return False
 
-        return has_child_needing_adult and not has_adult
+        return has_child
 
 
 class BadgeInfo(MagModel, table=True):
@@ -1583,7 +1585,7 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
                 reason = f"You cannot cancel the last adult badge on an account with an attendee under {c.ACCOMPANYING_ADULT_AGE}."
 
         if not reason:
-            if self.paid == c.NEED_NOT_PAY and not self.promo_code:
+            if self.paid == c.NEED_NOT_PAY and not self.promo_code and self.age_group_conf['discount'] < 999:
                 reason = "You cannot abandon a comped badge."
             elif self.is_group_leader and self.group.is_valid:
                 reason = f"As a leader of a group, you cannot {'abandon' if not self.group.cost else 'refund'} your badge."

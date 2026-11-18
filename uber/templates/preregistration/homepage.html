@@ -141,9 +141,8 @@
     {% if account.offered_waitlist_signups %}
     {% set multi_signup_offers = account.offered_waitlist_signups|length > 1 %}
         <strong>
-            Congratulations!
-            {% if multi_signup_offers %}The following badges are now available for purchase:
-            {% else %}You have been selected from the waitlist. You can confirm your attendance and purchase your badge <a href="{{ c.URL_BASE }}/preregistration/waitlist_purchase{% if not c.ATTENDEE_ACCOUNTS_ENABLED %}?id={{ signup.id }}{% endif %}">here</a>.<br/>
+            {% if multi_signup_offers %}Congratulations! The following badges are now available for purchase:
+            {% else %}<p>Congratulations! {{ account.offered_waitlist_signups[0].full_name }}'s badge has been selected from the waitlist. You can confirm your attendance and purchase your badge <a href="{{ c.URL_BASE }}/preregistration/waitlist_purchase{% if not c.ATTENDEE_ACCOUNTS_ENABLED %}?id={{ account.offered_waitlist_signups[0].id }}{% endif %}">here</a>.</p>
             {% endif %}
         </strong>
         {% if multi_signup_offers %}
@@ -364,7 +363,7 @@
         {% endif %}
     </div>
 {% endif %}
-{% if not account.valid_attendees %}
+{% if not account.valid_attendees and c.ATTENDEE_BADGE_AVAILABLE and c.AFTER_PREREG_OPEN and c.BEFORE_PREREG_TAKEDOWN %}
     {% for attendee in account.pending_attendees %}
     {% if loop.first %}
         <h2 class="text-center fst-italic mt-3">Pending Registrations</h2>
@@ -376,10 +375,6 @@
     <div class="card card-body mb-3 pb-2">
         {% include "preregistration/attendee_card.html" %}
     </div>
-    {% if loop.last %}
-    </div>
-    </div>
-    {% endif %}
     {% endfor %}
 {% endif %}
 {% for attendee in account.imported_attendees %}
@@ -416,7 +411,7 @@
             </td>
             <td>{{ attendee.email }}</td>
             <td>
-                {% if attendee.badge_status == c.REFUNDED_STATUS %}
+                {% if attendee.badge_status == c.REFUNDED_STATUS and c.ATTENDEE_BADGE_AVAILABLE and c.AFTER_PREREG_OPEN and c.BEFORE_PREREG_TAKEDOWN %}
                 <form method="post" action="repurchase" class="form-horizontal">
                   {{ csrf_token() }}
                   <input type="hidden" name="id" value="{{ attendee.id }}" />

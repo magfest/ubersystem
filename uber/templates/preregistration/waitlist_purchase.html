@@ -66,13 +66,14 @@
         OR
         <form id="waitlist-cancel" action="cancel_waitlist_signups" method="post">
             {{ csrf_token() }}
+            <input type="hidden" name="signup_ids" value="{{ signup.id }}" />
             <button class="btn btn-danger">Cancel {% if multi_signup %}Selected {% endif %} Signup{% if multi_signup %}s{% endif %}</button>
         </form>
     </div>
     </div>
 </div>
-{% if multi_signup %}
 <script type="text/javascript">
+    {% if multi_signup %}
     var resumeStripeAction = callStripeAction;
     var callStripeAction = function() {
         var signup_ids = $('input[name="signup_ids"]:checked').map(function() {
@@ -81,14 +82,11 @@
             stripe_action_params.signup_ids = signup_ids
         resumeStripeAction();
     }
+    {% endif %}
     $('#waitlist-cancel').on('submit', function(event) {
         event.preventDefault();
         var $toSubmit = $(this);
-        var signup_ids = $('input[name="signup_ids"]:checked').map(function() {
-            return $(this).val();
-        }).get()
 
-        console.log(signup_ids)
         bootbox.confirm({
             backdrop: true,
             title: "Cancel Waitlist Signup{% if multi_signup %}(s){% endif %}?",
@@ -126,5 +124,4 @@
         });
     });
 </script>
-{% endif %}
 {% endblock %}

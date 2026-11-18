@@ -1,0 +1,160 @@
+{% extends "base.html" %}{% set admin_area=True %}
+{% block title %}Badge Waitlist Signups{% endblock %}
+{% block content %}
+<script type="text/javascript">
+    var invertShowAll = function() {
+      {% if all %}
+      $('#search_all').val('');
+      {% else %}
+      $('#search_all').val('1');
+      {% endif %}
+      $('#search_form').submit();
+    }
+</script>
+<div class="row g-3 row-cols-auto mb-3">
+    <div class="col-12 col-sm-6 col-md-5">
+      <form role="form" method="get" action="waitlist_signups" id="search_form">
+        <div class="row g-sm-1 row-cols-auto">
+          <div class="col flex-grow-1">
+            <input type="hidden" name="order" value="{{ order }}" />
+            <input type="hidden" name="all" id="search_all" value="{{ all }}" />
+            <div class="input-group">
+                <input class="focus form-control" id="search_bar" type="text" name="search_text" value="{{ search_text }}" />
+                <button class="btn btn-outline-secondary" type="submit">
+                    <i class="fa fa-search"></i>
+                </button>
+            </div>
+          </div>
+          <div class="col col-auto">
+            <button type="button" class="btn btn-info" onClick="invertShowAll()">
+              {% if all %}
+                Hide Non-Pending Signups
+              {% else %}
+                Show All Signups
+              {% endif %}
+            </button>
+          </div>
+        </div>
+        </form>
+    </div>
+</div>
+
+{% if search_results %}
+    <div class="card card-info">
+      <div class="card-body">
+        <a href="waitlist_signups?order={{ order }}&page=1&all={{ all }}">Click here</a> to view the full account list instead of only search results.
+      </div>
+    </div>
+{% endif %}
+
+{% set page_count = pages[-1] if pages else 1 %}
+{% if page_count <= 50 %}
+    {% set skip_pages = 1 %}
+{% else %}
+    {% set skip_pages = 5 if page_count <= 500 else 10 %}
+{% endif %}
+
+<ul class="pagination flex-wrap {% if pages == 1 %} pagination-lg{% elif pages|length > 100 %} pagination-sm{% endif %}">
+  <li class="page-item{% if page == 1 %} disabled{% endif %}">
+    <a class="page-link" href="{% if page == 1 %}#{% else %}waitlist_signups?order={{ order }}&page={{ page - 1 }}&search_text={{ search_text|urlencode }}&all={{ all }}{% endif %}">Previous</a>
+  </li>
+{% for pagenum in pages %}
+    {% if pagenum == page %}
+    <li class="page-item active">
+        <a class="page-link" href="#">{{ pagenum }}</a>
+    </li>
+    {% elif (-10 < (pagenum - page) < 10) or pagenum % skip_pages == 0 or pagenum < 10 %}
+    <li class="page-item">
+        <a class="page-link" href="waitlist_signups?order={{ order }}&page={{ pagenum }}&search_text={{ search_text|urlencode }}&all={{ all }}">{{ pagenum }}</a>
+    </li>
+    {% endif %}
+{% endfor %}
+  <li class="page-item{% if page == pages|length %} disabled{% endif %}">
+    <a class="page-link" href="{% if page == pages|length %}#{% else %}waitlist_signups?order={{ order }}&page={{ pages|length }}&search_text={{ search_text|urlencode }}&all={{ all }}{% endif %}">Next</a>
+  </li>
+</ul>
+<div class="card">
+    <table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Account</th>
+            <th><a href="waitlist_signups?order={{ order.signup_time }}&page={{ page }}&search_text={{ search_text|urlencode }}&all={{ all }}">Signed Up</a></th>
+            <th><a href="waitlist_signups?order={{ order.status }}&order={{ order.offered_badge }}&page={{ page }}&search_text={{ search_text|urlencode }}&all={{ all }}">Status</a></th>
+            <th><a href="waitlist_signups?order={{ order.full_name }}&page={{ page }}&search_text={{ search_text|urlencode }}&all={{ all }}">Name</a></th>
+            <th><a href="waitlist_signups?order={{ order.email }}&page={{ page }}&search_text={{ search_text|urlencode }}&all={{ all }}">Email</a></th>
+            <th><a href="waitlist_signups?order={{ order.birthdate }}&page={{ page }}&search_text={{ search_text|urlencode }}&all={{ all }}">Birthdate</a></th>
+            <th><a href="waitlist_signups?order={{ order.waitlist_type }}&page={{ page }}&search_text={{ search_text|urlencode }}&all={{ all }}">Waitlist Type</a></th>
+            <th><a href="waitlist_signups?order={{ order.waitlist_position }}&page={{ page }}&search_text={{ search_text|urlencode }}&all={{ all }}">Position</a></th>
+            <th>Refund Badge</th>
+            <th>Offer Without Adult?</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for signup in signups %}
+        <tr>
+            <td>{{ signup.attendee_account|form_link }}</td>
+            <td>{{ signup.signup_time|datetime_local("%-I:%M%p %b %-d") }}</td>
+            <td>
+                {% if signup.attendee and signup.attendee.badge_status != c.PENDING_STATUS %}
+                Purchased {{ signup.attendee.registered|datetime_local("%-I:%M%p %b %-d") }}
+                {% elif signup.offered_badge and signup.status == c.PENDING %}
+                Offered {{ signup.offered_badge|datetime_local("%-I:%M%p %b %-d") }}
+                {% if signup.attendee and signup.attendee.badge_status == c.PENDING_STATUS %} <em>(Payment Pending)</em>{% endif %}
+                {% else %}
+                {{ signup.status_label }}
+                {% endif %}
+            </td>
+            <td>
+                {% if signup.attendee %}
+                    {{ signup.attendee|form_link(new_window=True) }}{% if signup.attendee.legal_name %} ({{ signup.attendee.legal_name }}){% endif %}
+                    {% if signup.full_name != signup.attendee.full_name or signup.legal_name != signup.attendee.legal_name %}
+                    <a class="text-danger" data-bs-toggle="tooltip" data-bs-placement="top" title="Name changed from {{ signup.full_name }}{% if signup.attendee.legal_name %} ({{ signup.legal_name }}){% endif %}">
+                    <i class="fa fa-exclamation-circle"></i>
+                    </button>
+                    {% endif %}
+                {% else %}
+                {{ signup.full_name }}{% if signup.legal_name %} ({{ signup.legal_name }}){% endif %}
+                {% endif %}
+            </td>
+            <td>{{ signup.email }}</td>
+            <td>{{ signup.birthdate|datetime('%m/%d/%Y') }}</td>
+            <td>{{ c.WAITLIST_BADGE_LABELS[signup.waitlist_type] }}</td>
+            <td>{{ signup.current_waitlist_position if not signup.offered_badge and signup.status == c.PENDING else 'N/A' }}</td>
+            <td>{{ signup.refund_badge|form_link(new_window=True) if signup.refund_badge else 'None' }}</td>
+            <td>
+                {% if signup.waitlist_type != c.CHILD_BADGE %}N/A{% else %}
+                {{ signup.offer_without_adult|yesno("Yes,No") }}
+                {% endif %}
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+    </table>
+</div>
+{% if signups %}
+{% set start_signup_num = (page * 100) - 100 + 1 %}
+<div class="mb-3">Showing {{ start_signup_num }} to {{ start_signup_num + signups|length - 1 }} out of {{ search_count }} signups</div>
+{% endif %}
+
+{% if signups|length > 15 %}
+<ul class="pagination flex-wrap {% if pages == 1 %} pagination-lg{% elif pages|length > 100 %} pagination-sm{% endif %}">
+  <li class="page-item{% if page == 1 %} disabled{% endif %}">
+    <a class="page-link" href="{% if page == 1 %}#{% else %}waitlist_signups?order={{ order }}&page={{ page - 1 }}&search_text={{ search_text|urlencode }}&all={{ all }}{% endif %}">Previous</a>
+  </li>
+{% for pagenum in pages %}
+    {% if pagenum == page %}
+    <li class="page-item active">
+        <a class="page-link" href="#">{{ pagenum }}</a>
+    </li>
+    {% elif (-10 < (pagenum - page) < 10) or pagenum % skip_pages == 0 or pagenum < 10 %}
+    <li class="page-item">
+        <a class="page-link" href="waitlist_signups?order={{ order }}&page={{ pagenum }}&search_text={{ search_text|urlencode }}&all={{ all }}">{{ pagenum }}</a>
+    </li>
+    {% endif %}
+{% endfor %}
+  <li class="page-item{% if page == pages|length %} disabled{% endif %}">
+    <a class="page-link" href="{% if page == pages|length %}#{% else %}waitlist_signups?order={{ order }}&page={{ pages|length }}&search_text={{ search_text|urlencode }}&all={{ all }}{% endif %}">Next</a>
+  </li>
+</ul>
+{% endif %}
+{% endblock %}

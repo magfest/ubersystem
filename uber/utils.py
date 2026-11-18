@@ -1388,7 +1388,7 @@ class Order:
         return ('-' + field) if field == self.order else field
 
     def __str__(self):
-        return self.order
+        return '&order='.join(listify(self.order))
 
 class RegistrationCode():
     """

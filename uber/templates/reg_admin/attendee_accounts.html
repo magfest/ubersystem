@@ -84,6 +84,7 @@
         <th><a href="attendee_accounts?order={{ order.imported }}&page={{ page }}&search_text={{ search_text|urlencode }}&empty={{ empty }}">Imported?</a></th>
         <th><a href="attendee_accounts?order={{ order.unused_years }}&page={{ page }}&search_text={{ search_text|urlencode }}&empty={{ empty }}"># Years Unused</a></th>
         <th>Attendees</th>
+        {% if c.BADGE_WAITLIST_ENABLED %}<th>Pending Waitlist Signups</th>{% endif %}
         <th></th>
         </tr>
     </thead>
@@ -96,9 +97,18 @@
         </td>
         <td>{{ account.imported|yesno("Yes,No") }}</td>
         <td>{{ account.unused_years }}</td>
-        <td> {% for attendee in account.attendees %} 
-            <nobr>{%- if not loop.first -%}/ {% endif %}<a href="#attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a></nobr>
-            {% endfor %} </td>
+        <td>
+          {% for attendee in account.attendees %} 
+          <nobr>{%- if not loop.first -%}/ {% endif %}<a href="#attendee_form?id={{ attendee.id }}">{{ attendee.full_name }}</a></nobr>
+          {% endfor %}
+        </td>
+        {% if c.BADGE_WAITLIST_ENABLED %}
+        <td>
+          {% for signup in account.pending_waitlist_signups + account.offered_waitlist_signups %}
+          <nobr>{%- if not loop.first -%}/ {% endif %}{{ signup.full_name }}</nobr>
+          {% endfor %}
+        </td>
+        {% endif %}
         <td>
             <div class="d-flex gap-2 align-items-center text-nowrap">
             <form method="post" action="../preregistration/reset_password">
