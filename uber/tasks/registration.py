@@ -438,7 +438,6 @@ if c.BADGE_WAITLIST_ENABLED:
                                                                                      BadgeWaitlistSignup.offered_badge == None,
                                                                                      BadgeWaitlistSignup.status == c.PENDING)
                         if badge_type == c.CHILD_BADGE:
-                            #aliased_signup = aliased(BadgeWaitlistSignup)
                             next_on_waitlist = next_on_waitlist.join(BadgeWaitlistSignup.attendee_account).filter(
                                 or_(BadgeWaitlistSignup.offer_without_adult,
                                     or_(AttendeeAccount.attendees.any(and_(Attendee.has_or_will_have_badge, Attendee.badge_type != c.CHILD_BADGE)),
