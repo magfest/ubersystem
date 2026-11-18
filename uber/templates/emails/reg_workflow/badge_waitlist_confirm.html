@@ -10,10 +10,11 @@
         {% set waitlist_signups = account.pending_waitlist_signups_positions %}
         {% include 'preregistration/waitlist_signups_grid.html' with context %}
         <p>
-            If someone is signed up under a different email address than yours, they will receive a confirmation email once their waitlist position is set.
             Waitlist positions are set within {{ c.WAITLIST_RESERVE_MINUTES * 3 }} minutes of signing up.
             You can view all your current waitlist signups and their positions, or cancel a signup, by
             <a href="{{ c.URL_BASE }}/preregistration/homepage">logging into your{% if c.OIDC_ENABLED %} {{ c.OIDC_ACCOUNT_NAME }}{% endif %} account</a>.
+            If you signed someone else up for the waitlist using a different email address than yours, they will also receive a confirmation email once their waitlist position is set.
+            However, as the account owner for the original request, only you can purchase requested badges if and when they become available.
         </p>
     {% else %}
     {% set signup = signups[0] %}
@@ -30,6 +31,11 @@
     <p>
         You can request up to {{ c.BADGE_WAITLIST_LIMIT_DESC }} from the waitlist. You can request additional badges or cancel your current waitlist signup by
         <a href="{{ c.URL_BASE }}/preregistration/homepage">logging into your{% if c.OIDC_ENABLED %} {{ c.OIDC_ACCOUNT_NAME }}{% endif %} account</a>.
+    </p>
+    {% endif %}
+    {% if c.BADGE_WAITLIST_FAQ_URL %}
+    <p>
+        For more details and frequently asked questions about the waitlist process, please visit <a href="{{ c.BADGE_WAITLIST_FAQ_URL }}" target="_blank">{{ c.BADGE_WAITLIST_FAQ_URL }}</a>.
     </p>
     {% endif %}
 </body>

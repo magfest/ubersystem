@@ -2,8 +2,8 @@
 <head></head>
 <body>
 <p>
-    {{ signup.first_name }}
-    <br/>Unfortunately, your {{ c.EVENT_NAME }} badge waitlist signup has been cancelled. You can view your cancelled signup's details below.
+    {{ signup.first_name }},
+    <br/>Your {{ c.EVENT_NAME }} badge waitlist signup has been cancelled. You can view your cancelled signup's details below.
 </p>
 <p>
     <strong>Full Name</strong>: {{ signup.full_name }}
@@ -14,7 +14,7 @@
 </p>
 <p>
     Your{% if c.OIDC_ENABLED %} {{ c.OIDC_ACCOUNT_NAME }}{% endif %} account holder is able to cancel waitlist signups they made on your behalf.
-    If you believe this was a mistake or an error, please contact us at {{ c.BADGE_WAITLIST_EMAIL|email_only|email_to_link }}.
+    If you believe this was a mistake, please contact us at {{ c.BADGE_WAITLIST_EMAIL|email_only|email_to_link }}.
 </p>
 </body>
 </html>

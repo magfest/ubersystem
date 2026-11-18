@@ -22,15 +22,13 @@
     {% endif %}
 
 <p>
-    You have until <strong>{{ waitlist_signups[0].badge_offer_expiry_time|datetime }}</strong> to purchase {% if waitlist_signups|length == 1 %}this badge{% else %}these badges{% endif %}.
-    After that, the offer will expire and you will need to sign up for the waitlist again.
+    <strong>You have until {{ waitlist_signups[0].badge_offer_expiry_time|datetime }} to purchase {% if waitlist_signups|length == 1 %}this badge{% else %}these badges{% endif %}.</strong>
+    After that, the offer will expire and you will need to sign up again at the back of the queue.
     <strong>If you experience technical issues, please email us at {{ c.BADGE_WAITLIST_EMAIL|email_only|email_to_link }} AS SOON AS POSSIBLE</strong>
     so we can help you before your badge offer expires.
 </p>
 
-<p>
-    As a reminder, badges purchased from the waitlist are non-transferable and non-refundable, but you can request a refund via the waitlist until {{ c.BADGE_WAITLIST_END|datetime_local }}.
-</p>
+{% include 'preregistration/waitlist_refund_reminder.html' %}
 
 {% if account.pending_waitlist_signups %}
     You still have the following badges on the waitlist:

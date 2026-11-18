@@ -14,7 +14,7 @@
     <br/><strong>Purchase Deadline</strong>: {{ signup.badge_offer_expiry_time|datetime }}
 </p>
 <p>
-    Your{% if c.OIDC_ENABLED %} {{ c.OIDC_ACCOUNT_NAME }}{% endif %} account holder will receive an email with a link to
+    Your{% if c.OIDC_ENABLED %} {{ c.OIDC_ACCOUNT_NAME }}{% endif %} account holder will receive a separate email with a link to
     purchase your badge from the waitlist. They can also view and purchase your badge by
     <a href="{{ c.URL_BASE }}/preregistration/homepage">logging into their account</a>.
     Please contact us at {{ c.BADGE_WAITLIST_EMAIL|email_only|email_to_link }} if you have any questions.
