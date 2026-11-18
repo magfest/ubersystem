@@ -542,7 +542,6 @@ class Root:
                                                     ['BadgeWaitlistInfo'], field_prefix=f'{badge_type_name}_{num}')
 
         if cherrypy.request.method == 'POST':
-            pending_signup_adult = False
             for badge_type_name in c.WAITLIST_BADGE_TYPE_NAMES:
                 badge_type = getattr(c, badge_type_name.upper())
                 num_badge_type_signups[badge_type] = int(params.get(f'{badge_type_name}_signup_select', 0))
@@ -550,25 +549,23 @@ class Root:
                 if num_badge_type_signups[badge_type] > max_badges_for_type[badge_type]:
                     message = f"You only have {max_badges_for_type[badge_type]} {c.WAITLIST_BADGE_LABELS[badge_type]} signups available."
 
-                if account and not account.valid_adults:
-                    # Prevent signups for attendees under ACCOMPANYING_ADULT_AGE unless there's also a signup for an adult,
-                    # either in the account's other waitlist signups or in the submitted form
-                    pending_signup_adult = not BadgeWaitlistSignup.signups_need_accompanying_adult(account.pending_waitlist_signups + account.offered_waitlist_signups)
-
-                    if not pending_signup_adult:
-                        for num in range(1, num_badge_type_signups[badge_type] + 1):
-                            for form in forms[badge_type][num].values():
-                                if hasattr(form, 'birthdate') and form.birthdate.data and \
-                                        get_age_from_birthday(form.birthdate.data, c.NOW_OR_AT_CON) >= 18:
-                                    pending_signup_adult = True
-
-                    if not pending_signup_adult:
-                        message = f"You cannot sign up for a badge under {c.ACCOMPANYING_ADULT_AGE} without an adult."
-
                 for num in range(1, num_badge_type_signups[badge_type] + 1):
                     errors = validate_model(session, forms[badge_type][num], BadgeWaitlistSignup(waitlist_type=badge_type), create_preview_model=False)
                     if errors:
                         message = ""
+
+            if not message and account and not account.valid_adults:
+                # Prevent signups for attendees under ACCOMPANYING_ADULT_AGE unless there's also a signup for an adult,
+                # either in the account's other waitlist signups or in the submitted form
+                signups = account.pending_waitlist_signups + account.offered_waitlist_signups
+                for badge_type in c.WAITLIST_BADGE_TYPES:
+                    for num in range(1, num_badge_type_signups[badge_type] + 1):
+                        for form in forms[badge_type][num].values():
+                            if hasattr(form, 'birthdate') and form.birthdate.data:
+                                signups.append(BadgeWaitlistSignup(birthdate=form.birthdate.data))
+
+                if BadgeWaitlistSignup.signups_need_accompanying_adult(signups):
+                    message = f"You cannot sign up for a badge under {c.ACCOMPANYING_ADULT_AGE} without an adult."
 
             if not message:
                 for badge_type in c.WAITLIST_BADGE_TYPES:
