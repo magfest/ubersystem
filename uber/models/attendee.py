@@ -148,13 +148,13 @@ normalized_name_suffixes = [re.sub(r'[,\.]', '', s.lower()) for s in name_suffix
 
 
 class BadgeWaitlistSignup(MagModel, table=True):
-    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
+    attendee_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True, index=True)
     attendee: 'Attendee' = Relationship(
         back_populates="waitlist_signup",
         sa_relationship_kwargs={'foreign_keys': 'BadgeWaitlistSignup.attendee_id', 'lazy': 'joined', 'single_parent': True})
-    attendee_account_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee_account.id', nullable=True)
+    attendee_account_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee_account.id', nullable=True, index=True)
     attendee_account: 'AttendeeAccount' = Relationship(back_populates="waitlist_signups")
-    refund_badge_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True)
+    refund_badge_id: str | None = Field(sa_type=Uuid(as_uuid=False), foreign_key='attendee.id', nullable=True, index=True)
     refund_badge: 'Attendee' = Relationship(
         back_populates="waitlist_refund",
         sa_relationship_kwargs={'foreign_keys': 'BadgeWaitlistSignup.refund_badge_id', 'lazy': 'joined', 'single_parent': True})
