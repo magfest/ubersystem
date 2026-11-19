@@ -1,3 +1,4 @@
+from bisect import bisect_left
 from itertools import chain
 from uber.models.attendee import AttendeeAccount
 
@@ -133,6 +134,29 @@ def assign_account_by_email(session, attendee, account_email):
         session.add_attendee_to_account(attendee, account)
         session.commit()
         return "{} is now being managed by account {}.".format(attendee.full_name, account_email)
+
+
+def _waitlist_signup_search(search_text):
+    return or_(*[column.ilike('%' + search_text + '%') for column in (
+        BadgeWaitlistSignup.email, BadgeWaitlistSignup.first_name,
+        BadgeWaitlistSignup.last_name, BadgeWaitlistSignup.legal_name)])
+
+
+def _waitlist_current_positions(session):
+    """Map each badge type to the sorted queue numbers of signups still waiting.
+
+    A signup's current position is bisect_left(positions, waitlist_position) + 1.
+    BadgeWaitlistSignup.position_offsets also subtracts signups behind the one shown,
+    so its positions can go negative.
+    """
+    waiting = defaultdict(list)
+    for badge_type, position in session.query(BadgeWaitlistSignup.waitlist_type,
+                                              BadgeWaitlistSignup.waitlist_position).filter(
+            BadgeWaitlistSignup.status == c.PENDING,
+            BadgeWaitlistSignup.offered_badge == None,  # noqa: E711
+            BadgeWaitlistSignup.waitlist_position != 0).order_by(BadgeWaitlistSignup.waitlist_position):
+        waiting[badge_type].append(position)
+    return waiting
 
 
 @all_renderable()
@@ -1245,13 +1269,8 @@ class Root:
         count = 0
         search_text = search_text.strip()
         if search_text:
-            search_results = session.query(BadgeWaitlistSignup).filter(*filter).filter(or_(
-                BadgeWaitlistSignup.email.ilike('%' + search_text + '%'),
-                BadgeWaitlistSignup.first_name.ilike('%' + search_text + '%'),
-                BadgeWaitlistSignup.last_name.ilike('%' + search_text + '%'),
-                BadgeWaitlistSignup.legal_name.ilike('%' + search_text + '%'),
-                BadgeWaitlistSignup.email.ilike('%' + search_text + '%'),
-            ))
+            search_results = session.query(BadgeWaitlistSignup).filter(*filter).filter(
+                _waitlist_signup_search(search_text))
             if search_results and search_results.count():
                 signups = search_results
                 count = signups.count()
@@ -1288,6 +1307,66 @@ class Root:
             'account_count': total_count,
             'positions': BadgeWaitlistSignup.current_positions(session, signups),
         }
+
+    @csv_file
+    @not_site_mappable
+    def waitlist_signups_export(self, out, session, search_text='', all=''):
+        """Export the signups the waitlist_signups page would list, across all pages, with full timestamps."""
+        signups = session.query(BadgeWaitlistSignup).options(
+            joinedload(BadgeWaitlistSignup.attendee),
+            joinedload(BadgeWaitlistSignup.refund_badge),
+            joinedload(BadgeWaitlistSignup.attendee_account),
+        ).order_by(BadgeWaitlistSignup.signup_time, BadgeWaitlistSignup.signup_order,
+                   BadgeWaitlistSignup.waitlist_type, BadgeWaitlistSignup.id)
+        if not all:
+            signups = signups.filter(BadgeWaitlistSignup.status == c.PENDING,
+                                     BadgeWaitlistSignup.attendee == None)  # noqa: E711
+        if search_text.strip():
+            signups = signups.filter(_waitlist_signup_search(search_text.strip()))
+
+        waiting = _waitlist_current_positions(session)
+
+        def local_time(dt):
+            return dt.astimezone(c.EVENT_TIMEZONE).strftime('%Y-%m-%d %H:%M:%S.%f') if dt else ''
+
+        out.writerow([
+            'Account Email', f'Signed Up ({c.EVENT_TIMEZONE})', 'Status', 'Offered', 'Purchased', 'Payment Pending',
+            'Name', 'Legal Name', 'Badge Name Now', 'Email', 'Birthdate', 'Waitlist Type', 'Queue Number',
+            'Current Position', 'Refund Badge', 'Offer Without Adult',
+        ])
+        for signup in signups:
+            attendee = signup.attendee
+            purchased = attendee and attendee.badge_status != c.PENDING_STATUS
+            if purchased:
+                status = 'Purchased'
+            elif signup.offered_badge and signup.status == c.PENDING:
+                status = 'Offered'
+            else:
+                status = signup.status_label
+
+            if signup.waitlist_position and not signup.offered_badge and signup.status == c.PENDING:
+                position = bisect_left(waiting[signup.waitlist_type], signup.waitlist_position) + 1
+            else:
+                position = 'N/A'
+
+            out.writerow([
+                signup.attendee_account.email if signup.attendee_account else '',
+                local_time(signup.signup_time),
+                status,
+                local_time(signup.offered_badge),
+                local_time(attendee.registered) if purchased else '',
+                'Yes' if attendee and not purchased else '',
+                signup.full_name,
+                signup.legal_name,
+                attendee.full_name if attendee else '',
+                signup.email,
+                signup.birthdate.isoformat() if signup.birthdate else '',
+                c.WAITLIST_BADGE_LABELS[signup.waitlist_type],
+                signup.waitlist_position or '',
+                position,
+                signup.refund_badge.full_name if signup.refund_badge else '',
+                ('Yes' if signup.offer_without_adult else 'No') if signup.waitlist_type == c.CHILD_BADGE else 'N/A',
+            ])
 
     def payment_pending_attendees(self, session):
         possibles = session.possible_match_list()
