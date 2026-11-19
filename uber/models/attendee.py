@@ -224,38 +224,59 @@ class BadgeWaitlistSignup(MagModel, table=True):
         return badge_cost
 
     @classmethod
-    def position_offsets(cls, session=None):
-        """Count offered or cancelled signups per waitlist type, keyed by badge type.
+    def current_positions(cls, session, signups):
+        """Map each waiting signup's id to its place in line among signups still waiting in its badge type.
 
-        The count covers every position in the type, including signups behind the one being
-        displayed.
+        Signups that were offered a badge, cancelled, or never given a queue number are left out.
         """
-        if session is None:
-            from uber.models import Session
-            with Session() as session:
-                return cls.position_offsets(session)
+        waiting_signup_ids = []
+        waiting_badge_types = set()
+        for signup in signups:
+            has_queue_number = bool(signup.waitlist_position)
+            still_waiting = signup.offered_badge is None and signup.status == c.PENDING
+            if has_queue_number and still_waiting:
+                waiting_signup_ids.append(signup.id)
+                waiting_badge_types.add(signup.waitlist_type)
 
-        return dict(session.query(cls.waitlist_type, func.count(cls.id)).filter(
+        if not waiting_signup_ids:
+            return {}
+
+        # Number every waiting signup 1, 2, 3... etc... in queue order, restarting for each badge type.
+        place_in_line = func.row_number().over(
+            partition_by=cls.waitlist_type,
+            order_by=cls.waitlist_position,
+        ).label('place_in_line')
+
+        everyone_waiting = session.query(cls.id, place_in_line).filter(
+            cls.waitlist_type.in_(waiting_badge_types),
             cls.waitlist_position != 0,
-            or_(cls.offered_badge != None, cls.status.in_([c.CANCELLED, c.REMOVED]))  # noqa: E711
-        ).group_by(cls.waitlist_type))
+            cls.offered_badge == None,  # noqa: E711
+            cls.status == c.PENDING,
+        ).subquery()
 
-    def current_waitlist_position_from(self, position_offsets):
-        if not self.waitlist_position:
-            return
-        return self.waitlist_position - position_offsets.get(self.waitlist_type, 0)
+        # The numbering has to cover everyone waiting so the requested signups are picked out afterward.
+        requested_rows = session.query(everyone_waiting.c.id, everyone_waiting.c.place_in_line).filter(
+            everyone_waiting.c.id.in_(waiting_signup_ids))
+
+        positions = {}
+        for signup_id, position in requested_rows:
+            positions[signup_id] = position
+        return positions
 
     @property
     def current_waitlist_position(self):
-        if not self.waitlist_position:
-            return
-        return self.current_waitlist_position_from(BadgeWaitlistSignup.position_offsets(self.session))
+        if self.session is not None:
+            positions = BadgeWaitlistSignup.current_positions(self.session, [self])
+            return positions.get(self.id)
+
+        from uber.models import Session
+        with Session() as session:
+            positions = BadgeWaitlistSignup.current_positions(session, [self])
+            return positions.get(self.id)
 
     def waitlist_position_trunc(self, position=None):
         # If a position is not passed, we fall back to our own current_waitlist_position
         # This may involve extra roundtrips to the DB
-        return 0
-
         position = position or self.current_waitlist_position or 0
 
         if c.WAITLIST_MAX_POSITION and position > c.WAITLIST_MAX_POSITION:
@@ -3136,15 +3157,13 @@ class AttendeeAccount(MagModel, table=True):
 
     @property
     def pending_waitlist_signups_positions(self):
-        waitlist_positions = {}
-        position_offsets = BadgeWaitlistSignup.position_offsets(self.session)
+        signups = self.pending_waitlist_signups
+        positions_by_id = BadgeWaitlistSignup.current_positions(self.session, signups)
 
-        for signup in self.pending_waitlist_signups:
-            if not signup.offered_badge:
-                waitlist_positions[signup] = max(
-                    signup.waitlist_position - position_offsets.get(signup.waitlist_type, 0), 0)
-
-        return waitlist_positions
+        positions_by_signup = {}
+        for signup in signups:
+            positions_by_signup[signup] = positions_by_id.get(signup.id)
+        return positions_by_signup
 
 
 # Index normalized_email for basic search performance gains
