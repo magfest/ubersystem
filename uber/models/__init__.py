@@ -2,10 +2,12 @@ import json
 import operator
 import os
 import re
+import threading
 import uuid
 import inspect
 import logging
 from collections import defaultdict
+from contextlib import contextmanager
 from datetime import date, datetime, timedelta
 from functools import wraps
 from itertools import chain
@@ -861,6 +863,14 @@ class UberSession(sqlalchemy.orm.Session):
                 assert not hasattr(sqlalchemy.orm.Session, name) and name not in UberSession.__dict__ \
                     and hasattr(self.SessionMixin.__dict__[name], '__call__'), name
             UberSession._checked_mixin_names = mixin_names
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        # Callers rely on a clean exit saving their work, as the previous session manager did
+        try:
+            if exc_type is None:
+                self.commit()
+        finally:
+            self.close()
 
     def __getattr__(self, name):
         val = self.SessionMixin.__dict__.get(name) if not name.startswith('__') else None
@@ -2442,11 +2452,53 @@ class HybridSessionProxy:
         """
         return getattr(_ScopedSession, name)
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, independent=False, **kwargs):
         """
-        Creates a session with an optional savepoint to allow rollbacks. Sessions use the existing DB connection, if there is one.
+        Returns the request's session when a page handler has one open, so helpers share its connection.
+        Pass independent=True for a unit of work that must commit or roll back on its own.
         """
+        shared = getattr(_request_sessions, 'current', None)
+        if shared is not None and not independent and not args and not kwargs:
+            return _JoinedSession(shared)
         return SessionFactory(*args, **kwargs)
+
+    @contextmanager
+    def for_request(self):
+        """Opens the session that Session() calls on this thread join until the block exits."""
+        previous = getattr(_request_sessions, 'current', None)
+        session = SessionFactory()
+        _request_sessions.current = session
+        try:
+            yield session
+            session.commit()
+        finally:
+            _request_sessions.current = previous
+            session.close()
+
+
+_request_sessions = threading.local()
+
+
+class _JoinedSession:
+    """Stands in for a session opened inside a request: same session, but leaving the block keeps it open."""
+    def __init__(self, session):
+        object.__setattr__(self, '_session', session)
+
+    def __enter__(self):
+        return self._session
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def close(self):
+        pass
+
+    def __getattr__(self, name):
+        return getattr(self._session, name)
+
+    def __setattr__(self, name, value):
+        setattr(self._session, name, value)
+
 
 Session = HybridSessionProxy()
 
@@ -2458,6 +2510,17 @@ def initialize_db():
         if not hasattr(Session.SessionMixin, model.__tablename__):
             setattr(Session.SessionMixin, model.__tablename__, _make_getter(model))
 cherrypy.engine.subscribe('start', initialize_db, priority=97)
+
+
+def _check_pool_covers_threads():
+    threads = cherrypy.server.thread_pool
+    if c.SQLALCHEMY_POOL_SIZE < 0 or c.SQLALCHEMY_MAX_OVERFLOW < 0:
+        return
+    capacity = c.SQLALCHEMY_POOL_SIZE + c.SQLALCHEMY_MAX_OVERFLOW
+    if capacity < threads:
+        log.error(f"DB pool allows {capacity} connections for {threads} server threads; "
+                  "requests will queue for a connection under load. Raise sqlalchemy_pool_size in [secret].")
+cherrypy.engine.subscribe('start', _check_pool_covers_threads, priority=97)
 
 
 def _attendee_validity_check():

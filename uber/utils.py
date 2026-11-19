@@ -1609,7 +1609,7 @@ def report_critical_exception(msg, subject="Critical Error"):
 
     # Also attempt to email the admins
     if c.SEND_EMAILS and not c.DEV_BOX:
-        with Session() as session:
+        with Session(independent=True) as session:
             EmailService.queue_email(session, 'critical_exception_admin', to=c.ADMIN_EMAIL, sender=c.ADMIN_EMAIL,
                                      subject=subject, body=msg + f'\n{traceback.format_exc()}')
 
@@ -2143,7 +2143,7 @@ class TaskUtils:
         from uber.models import Attendee, AttendeeAccount, DeptMembership, DeptRole
         from functools import partial
 
-        with uber.models.Session() as session:
+        with uber.models.Session(independent=True) as session:
             service, message, target_url = get_api_service_from_server(import_job.target_server,
                                                                        import_job.api_token)
 
@@ -2314,7 +2314,7 @@ class TaskUtils:
     def attendee_account_import(import_job):
         from uber.models import Attendee, AttendeeAccount, BadgeInfo
 
-        with uber.models.Session() as session:
+        with uber.models.Session(independent=True) as session:
             service, message, target_url = get_api_service_from_server(import_job.target_server,
                                                                        import_job.api_token)
 
@@ -2407,7 +2407,7 @@ class TaskUtils:
 
         from uber.models import AttendeeAccount, Group
 
-        with uber.models.Session() as session:
+        with uber.models.Session(independent=True) as session:
             service, message, target_url = get_api_service_from_server(import_job.target_server,
                                                                        import_job.api_token)
 
