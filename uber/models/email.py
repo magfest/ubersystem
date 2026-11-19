@@ -1,8 +1,10 @@
 import re
+import threading
 import traceback
 import logging
 import pytz
 import json
+import cherrypy
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from dateutil import parser as dateparser
@@ -66,6 +68,10 @@ class BaseEmailMixin(object):
             return Session.resolve_model(self.model)
         else:
             return None
+
+
+_reconcile_lock = threading.Lock()
+
 
 class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
     _fixtures: ClassVar = OrderedDict()
@@ -134,10 +140,19 @@ class AutomatedEmail(MagModel, BaseEmailMixin, table=True):
             or_(cls.active_after == None, cls.active_after <= now)]  # noqa: E711
 
     @staticmethod
+    def ensure_fixtures_reconciled():
+        if AutomatedEmail.initialized:
+            return
+        with _reconcile_lock:
+            if not AutomatedEmail.initialized:
+                AutomatedEmail.reconcile_fixtures()
+                AutomatedEmail.initialized = True
+
+    @staticmethod
     def reconcile_fixtures():
         from uber.models import Session
         from uber.tasks import panels
-        with Session() as session:
+        with Session(independent=True) as session:
             panels.setup_panel_emails(reconcile_fixtures=False)
             c.REDIS_STORE.delete(c.REDIS_PREFIX + 'email_processing')
 
@@ -335,3 +350,14 @@ class Email(MagModel, BaseEmailMixin, table=True):
         
         if not self.send_after or self.send_after < five_minute_delay:
             return five_minute_delay
+
+
+def _reconcile_fixtures_on_start():
+    # Done before serving so the first request to queue an email doesn't pay for it
+    try:
+        AutomatedEmail.ensure_fixtures_reconciled()
+    except Exception:
+        log.error('Could not reconcile automated email fixtures at startup', exc_info=True)
+
+
+cherrypy.engine.subscribe('start', _reconcile_fixtures_on_start, priority=99)

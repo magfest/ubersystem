@@ -365,7 +365,6 @@ def requires_email_admin(inherent_role=None):
                     else:
                         email = session.get(AutomatedEmail, id)
                     if not email:
-                        session.commit()
                         return func(*args, **kwargs)
                     
                     depts_tuples = EmailService.depts_from_email(session, email.sender)
@@ -377,17 +376,14 @@ def requires_email_admin(inherent_role=None):
                         message = ''
                         message = check_can_edit_dept(session, id, inherent_role, 'full_email_admin')
                         if not message:
-                            session.commit()
                             return func(*args, **kwargs)
                     if message:
                         ajax_or_redirect(func, '../accounts/homepage?message=', message, False)
-                    session.close()
                     return func(*args, **kwargs)
                 else:
                     message = check_can_edit_dept(session, department_id, inherent_role, 'full_email_admin')
                     if message:
                         ajax_or_redirect(func, '../accounts/homepage?message=', message, True)
-                    session.close()
                     return func(*args, **kwargs)
         return protected
     return email_admin_decorator
@@ -397,9 +393,7 @@ def reconcile_fixtures(func):
     from uber.models import AutomatedEmail
     @wraps(func)
     def protected(*args, **kwargs):
-        if not AutomatedEmail.initialized:
-            AutomatedEmail.reconcile_fixtures()
-            AutomatedEmail.initialized = True
+        AutomatedEmail.ensure_fixtures_reconciled()
         return func(*args, **kwargs)
     return protected
 
@@ -722,7 +716,7 @@ def sessionized(func):
             retval = func(*args, **kwargs)
             return retval
 
-        with uber.models.Session() as session:
+        with uber.models.Session.for_request() as session:
             try:
                 retval = func(*args, session=session, **kwargs)
                 session.expunge_all()

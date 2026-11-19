@@ -158,9 +158,7 @@ class EmailService:
         if to_model.__class__ not in set([fixture.model for fixture in AutomatedEmail._fixtures.values()]):
             return
         
-        if not AutomatedEmail.initialized:
-            AutomatedEmail.reconcile_fixtures()
-            AutomatedEmail.initialized = True
+        AutomatedEmail.ensure_fixtures_reconciled()
 
         model_str = to_model.__class__.__name__
         active_automated_emails = session.query(AutomatedEmail).filter(

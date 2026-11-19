@@ -222,15 +222,17 @@ class OIDC(cherrypy.Tool):
         login_account = None
 
         with Session() as session:
-            accounts = session.query(AttendeeAccount).filter(AttendeeAccount.sso_id == claims['sub'])
-            if accounts.count() > 1:
+            accounts = session.query(AttendeeAccount).filter(AttendeeAccount.sso_id == claims['sub']).all()
+            if len(accounts) > 1:
+                in_use = [account for account in accounts if account.attendees or account.panel_applications
+                          or account.indie_studios or account.mits_teams]
+                login_account = in_use[-1] if in_use else accounts[0]
                 for account in accounts:
-                    if account.attendees or account.panel_applications or account.indie_studios or account.mits_teams:
-                        login_account = account
-                    else:
+                    if account is not login_account and account not in in_use:
                         session.delete(account)
+                session.commit()
             else:
-                login_account = accounts.first()
+                login_account = accounts[0] if accounts else None
             return login_account.id if login_account else None
 
     def _init_accounts_from_claims(self, claims):
