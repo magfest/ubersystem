@@ -1,4 +1,3 @@
-from bisect import bisect_left
 from itertools import chain
 from uber.models.attendee import AttendeeAccount
 
@@ -140,23 +139,6 @@ def _waitlist_signup_search(search_text):
     return or_(*[column.ilike('%' + search_text + '%') for column in (
         BadgeWaitlistSignup.email, BadgeWaitlistSignup.first_name,
         BadgeWaitlistSignup.last_name, BadgeWaitlistSignup.legal_name)])
-
-
-def _waitlist_current_positions(session):
-    """Map each badge type to the sorted queue numbers of signups still waiting.
-
-    A signup's current position is bisect_left(positions, waitlist_position) + 1.
-    BadgeWaitlistSignup.position_offsets also subtracts signups behind the one shown,
-    so its positions can go negative.
-    """
-    waiting = defaultdict(list)
-    for badge_type, position in session.query(BadgeWaitlistSignup.waitlist_type,
-                                              BadgeWaitlistSignup.waitlist_position).filter(
-            BadgeWaitlistSignup.status == c.PENDING,
-            BadgeWaitlistSignup.offered_badge == None,  # noqa: E711
-            BadgeWaitlistSignup.waitlist_position != 0).order_by(BadgeWaitlistSignup.waitlist_position):
-        waiting[badge_type].append(position)
-    return waiting
 
 
 @all_renderable()
@@ -1324,7 +1306,8 @@ class Root:
         if search_text.strip():
             signups = signups.filter(_waitlist_signup_search(search_text.strip()))
 
-        waiting = _waitlist_current_positions(session)
+        signups = signups.all()
+        positions = BadgeWaitlistSignup.current_positions(session, signups)
 
         def local_time(dt):
             return dt.astimezone(c.EVENT_TIMEZONE).strftime('%Y-%m-%d %H:%M:%S.%f') if dt else ''
@@ -1344,11 +1327,6 @@ class Root:
             else:
                 status = signup.status_label
 
-            if signup.waitlist_position and not signup.offered_badge and signup.status == c.PENDING:
-                position = bisect_left(waiting[signup.waitlist_type], signup.waitlist_position) + 1
-            else:
-                position = 'N/A'
-
             out.writerow([
                 signup.attendee_account.email if signup.attendee_account else '',
                 local_time(signup.signup_time),
@@ -1363,7 +1341,7 @@ class Root:
                 signup.birthdate.isoformat() if signup.birthdate else '',
                 c.WAITLIST_BADGE_LABELS[signup.waitlist_type],
                 signup.waitlist_position or '',
-                position,
+                positions.get(signup.id, 'N/A'),
                 signup.refund_badge.full_name if signup.refund_badge else '',
                 ('Yes' if signup.offer_without_adult else 'No') if signup.waitlist_type == c.CHILD_BADGE else 'N/A',
             ])
