@@ -1286,7 +1286,7 @@ class Root:
             'all': all,
             'search_count':   count,
             'account_count': total_count,
-            'position_offsets': BadgeWaitlistSignup.position_offsets(session),
+            'positions': BadgeWaitlistSignup.current_positions(session, signups),
         }
 
     def payment_pending_attendees(self, session):
@@ -1533,7 +1533,7 @@ class Root:
             'account': account,
             'new_email': new_email,
             'other_purchased_badges': other_purchased_badges,
-            'position_offsets': BadgeWaitlistSignup.position_offsets(session) if account.waitlist_signups else {},
+            'positions': BadgeWaitlistSignup.current_positions(session, account.waitlist_signups),
         }
 
     @site_mappable

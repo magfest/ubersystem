@@ -119,7 +119,7 @@
             <td>{{ signup.email }}</td>
             <td>{{ signup.birthdate|datetime('%m/%d/%Y') }}</td>
             <td>{{ c.WAITLIST_BADGE_LABELS[signup.waitlist_type] }}</td>
-            <td>{{ signup.current_waitlist_position_from(position_offsets) if not signup.offered_badge and signup.status == c.PENDING else 'N/A' }}</td>
+            <td>{{ positions.get(signup.id, 'N/A') }}</td>
             <td>{{ signup.refund_badge|form_link(new_window=True) if signup.refund_badge else 'None' }}</td>
             <td>
                 {% if signup.waitlist_type != c.CHILD_BADGE %}N/A{% else %}
