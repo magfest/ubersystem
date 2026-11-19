@@ -277,8 +277,6 @@ class BadgeWaitlistSignup(MagModel, table=True):
     def waitlist_position_trunc(self, position=None):
         # If a position is not passed, we fall back to our own current_waitlist_position
         # This may involve extra roundtrips to the DB
-        return 0
-
         position = position or self.current_waitlist_position or 0
 
         if c.WAITLIST_MAX_POSITION and position > c.WAITLIST_MAX_POSITION:

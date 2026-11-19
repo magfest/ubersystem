@@ -98,3 +98,20 @@ def test_account_positions_cover_its_pending_signups():
         session.delete(mine)
         session.delete(account)
         session.commit()
+
+
+def test_displayed_position_is_the_current_position(monkeypatch):
+    # The attendee homepage, cancel dialog and confirmation email show waitlist_position_trunc.
+    monkeypatch.setattr(c, 'WAITLIST_MAX_POSITION', 0)
+    with Session() as session:
+        signups = _add_signups(session, c.ATTENDEE_BADGE, ['cancelled', 'waiting', 'waiting'])
+
+        assert [signup.waitlist_position_trunc() for signup in signups[1:]] == [1, 2]
+
+
+def test_displayed_position_is_capped_at_the_configured_maximum(monkeypatch):
+    monkeypatch.setattr(c, 'WAITLIST_MAX_POSITION', 2)
+    with Session() as session:
+        signups = _add_signups(session, c.ATTENDEE_BADGE, ['waiting', 'waiting', 'waiting'])
+
+        assert [signup.waitlist_position_trunc() for signup in signups] == [1, 2, '2+']
