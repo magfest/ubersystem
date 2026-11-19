@@ -753,8 +753,6 @@ def bidder_num_dupe(bidder):
 
 @validation.BadgeWaitlistSignup
 def dupe_check(signup):
-    from uber.utils import normalize_email_legacy
-
     # An unparseable birthdate stays a string; the form rejects it, and comparing it in SQL raises DataError.
     if isinstance(signup.birthdate, str):
         return
