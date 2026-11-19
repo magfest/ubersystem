@@ -14,6 +14,7 @@ from sqlalchemy import Sequence
 from sqlalchemy.types import Boolean, Integer, DateTime, String, Uuid
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.ext.mutable import MutableDict
+from sqlalchemy.orm import object_session
 from sqlalchemy.orm.exc import NoResultFound
 from typing import Any, ClassVar
 
@@ -207,23 +208,42 @@ class Tracking(MagModel, table=True):
 
     @classmethod
     def track_collection_change(cls, action, target, instance):
-        from uber.models import Session
-        if sys.argv == ['']:
-            who = 'server admin'
-        else:
-            who = AdminAccount.acting_name() or (current_thread().name if current_thread().daemon else 'non-admin')
+        """Record an add or remove on a many-to-many collection, such as the badges on an attendee account.
 
-        with Session() as session:
-            session.add(Tracking(
+        The row joins the session that owns the change, so it commits or rolls back with it. A failure here
+        is logged and skipped; tracking must never block the change it records.
+        """
+        session = object_session(target) or object_session(instance)
+        if session is None:
+            log.warning(f"Could not track {target.__class__.__name__} {target.id} collection change: "
+                        f"neither object is attached to a session")
+            return
+
+        try:
+            if sys.argv == ['']:
+                who = 'server admin'
+            else:
+                who = AdminAccount.acting_name() or (current_thread().name if current_thread().daemon else 'non-admin')
+
+            target_email = getattr(target, 'email', '')
+            target_label = f'{repr(target)} ({target_email})' if target_email else repr(target)
+            entry = Tracking(
                 model=target.__class__.__name__,
                 fk_id=target.id,
-                which=repr(target),
+                which=target_label,
                 who=who,
                 supervisor=AdminAccount.supervisor_name() or '',
                 page=c.PAGE_PATH,
+                links=f'{instance.__table__.name}({instance.id})',
                 action=action,
-                data=repr(instance),
-            ))
+                data=f'{repr(instance)} id={instance.id}; {target_label}',
+            )
+        except Exception:
+            log.error(f"Could not track {target.__class__.__name__} {target.id} collection change",
+                      exc_info=True)
+            return
+
+        session.add(entry)
 
     @classmethod
     def track_transfer_code(cls, session, code, instance=None):
