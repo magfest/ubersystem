@@ -79,6 +79,10 @@ def check_waitlist_access(allow_after_end=False):
         return "Unfortunately, the badge waitlist is now closed."
 
 
+def _waitlist_person(signup):
+    return ((signup.first_name or '').strip().lower(), (signup.last_name or '').strip().lower(), signup.birthdate)
+
+
 def _add_promo_code(session, attendee, submitted_promo_code):
     if attendee.promo_code and submitted_promo_code != attendee.promo_code_code:
         attendee.promo_code = None
@@ -520,6 +524,10 @@ class Root:
         if c.ATTENDEE_ACCOUNTS_ENABLED:
             account = session.current_attendee_account()
             reserve_id = account.id
+            if cherrypy.request.method == 'POST':
+                # Lock the account row so a second submit for this account waits, then sees what the first one saved.
+                session.refresh(account, with_for_update=True)
+                session.expire(account, ['waitlist_signups'])
         else:
             reserve_id = cherrypy.session.setdefault('waitlist_reserve_id', str(uuid4()))
 
@@ -530,24 +538,57 @@ class Root:
             c.REDIS_STORE.hset(c.REDIS_PREFIX + 'waitlist_signup_reserved', reserve_id, signup_start_time.timestamp())
             c.REDIS_STORE.hpexpireat(c.REDIS_PREFIX + 'waitlist_signup_reserved', math.floor(expire_time.timestamp() * 1000), reserve_id)
         else:
-            signup_start_time = datetime.fromtimestamp(float(signup_start_time))
+            signup_start_time = datetime.fromtimestamp(float(signup_start_time), UTC)
             expire_time = datetime.fromtimestamp(float(c.REDIS_STORE.hexpiretime(c.REDIS_PREFIX + 'waitlist_signup_reserved', reserve_id)[0]))
 
         forms = defaultdict(dict)
         for badge_type_name in c.WAITLIST_BADGE_TYPE_NAMES:
             badge_type = getattr(c, badge_type_name.upper())
             max_badges_for_type[badge_type] = max(0, account.available_badge_waitlist_signups(badge_type)) if account else c.BADGE_WAITLIST_LIMITS[badge_type]
-            for num in range(1, max_badges_for_type[badge_type] + 1):
+            # Load every slot up to the limit; a resubmitted form repeats slots the first submit already used.
+            for num in range(1, c.BADGE_WAITLIST_LIMITS[badge_type] + 1):
                 forms[badge_type][num] = load_forms(params, BadgeWaitlistSignup(waitlist_type=badge_type),
                                                     ['BadgeWaitlistInfo'], field_prefix=f'{badge_type_name}_{num}')
 
         if cherrypy.request.method == 'POST':
+            submitted = []
             for badge_type_name in c.WAITLIST_BADGE_TYPE_NAMES:
                 badge_type = getattr(c, badge_type_name.upper())
                 num_badge_type_signups[badge_type] = int(params.get(f'{badge_type_name}_signup_select', 0))
 
-                if num_badge_type_signups[badge_type] > max_badges_for_type[badge_type]:
-                    message = f"You only have {max_badges_for_type[badge_type]} {c.WAITLIST_BADGE_LABELS[badge_type]} signups available."
+                for num in range(1, min(num_badge_type_signups[badge_type], len(forms[badge_type])) + 1):
+                    signup = BadgeWaitlistSignup(waitlist_type=badge_type, signup_time=signup_start_time)
+                    for form in forms[badge_type][num].values():
+                        form.populate_obj(signup)
+                    submitted.append((signup, forms[badge_type][num]))
+
+            # Every signup saved in one visit to this form shares signup_start_time, so a person who already
+            # has a signup with that time came from a double-click or a retry, and is skipped without a message.
+            # Redis stores the time as a float, so allow 1 ms of rounding.
+            saved_this_visit = set()
+            if account:
+                for existing in account.waitlist_signups:
+                    same_visit = abs((existing.signup_time - signup_start_time).total_seconds()) < 0.001
+                    if same_visit and existing.status != c.CANCELLED:
+                        saved_this_visit.add(_waitlist_person(existing))
+
+            new_signups = []
+            listed = {}
+            for signup, signup_forms in submitted:
+                person = _waitlist_person(signup)
+                if person in listed:
+                    message = f"{listed[person].full_name} is listed more than once."
+                    break
+                listed[person] = signup
+                if person not in saved_this_visit:
+                    new_signups.append((signup, signup_forms))
+
+            for badge_type in c.WAITLIST_BADGE_TYPES:
+                new_count = sum(1 for signup, _ in new_signups if signup.waitlist_type == badge_type)
+                if new_count > max_badges_for_type[badge_type] or \
+                        num_badge_type_signups[badge_type] > c.BADGE_WAITLIST_LIMITS[badge_type]:
+                    message = message or (f"You only have {max_badges_for_type[badge_type]} "
+                                          f"{c.WAITLIST_BADGE_LABELS[badge_type]} signups available.")
 
             if not message and not any(num > 0 for num in num_badge_type_signups.values()):
                 message = "Please select at least one badge to sign up for."
@@ -556,46 +597,34 @@ class Root:
                 # Prevent signups for attendees under ACCOMPANYING_ADULT_AGE unless there's also a signup for an adult,
                 # either in the account's other waitlist signups or in the submitted form
                 signups = account.pending_waitlist_signups + account.offered_waitlist_signups
-                for badge_type in c.WAITLIST_BADGE_TYPES:
-                    for num in range(1, num_badge_type_signups[badge_type] + 1):
-                        for form in forms[badge_type][num].values():
-                            if hasattr(form, 'birthdate') and form.birthdate.data:
-                                signups.append(BadgeWaitlistSignup(birthdate=form.birthdate.data))
+                signups.extend(signup for signup, _ in new_signups)
 
                 if BadgeWaitlistSignup.signups_need_accompanying_adult(signups):
                     message = f"You cannot sign up for a badge under {c.ACCOMPANYING_ADULT_AGE} without an adult."
 
             if not message:
-                for badge_type in c.WAITLIST_BADGE_TYPES:
-                    if message:
+                signup_order = {badge_type: account.used_waitlist_signups(badge_type) if account else 0
+                                for badge_type in c.WAITLIST_BADGE_TYPES}
+                for signup, signup_forms in new_signups:
+                    signup_order[signup.waitlist_type] += 1
+                    signup.signup_order = signup_order[signup.waitlist_type]
+                    if account:
+                        signup.attendee_account = account
+
+                    errors = validate_model(session, signup_forms, signup, create_preview_model=False)
+                    if errors:
+                        session.rollback()
+                        message = errors[''][0] if errors.get('') else \
+                            "There was an issue saving one or more of your waitlist signups. Please try again."
                         break
-
-                    for num in range(1, num_badge_type_signups[badge_type] + 1):
-                        signup = BadgeWaitlistSignup(
-                            waitlist_type=badge_type,
-                            signup_time=signup_start_time)
-                        if account:
-                            signup.attendee_account = account
-                            signup.signup_order = account.used_waitlist_signups(badge_type) + num
-                        else:
-                            signup.signup_order = num
-
-                        for form in forms[badge_type][num].values():
-                            form.populate_obj(signup)
-
-                        errors = validate_model(session, forms[badge_type][num], signup, create_preview_model=False)
-                        if errors:
-                            session.rollback()
-                            message = "There was an issue saving one or more of your waitlist signups. Please try again."
-                            break
-                        else:
-                            session.add(signup)
+                    session.add(signup)
 
             if not message:
                 if account:
                     session.commit()
-                    session.refresh(account)
-                    EmailService.queue_email(session, 'badge_waitlist_account_confirm', account)
+                    if new_signups:
+                        session.refresh(account)
+                        EmailService.queue_email(session, 'badge_waitlist_account_confirm', account)
 
                 redirect = 'homepage' if c.ATTENDEE_ACCOUNTS_ENABLED else '../landing/index'
                 raise HTTPRedirect('{}?message={}', redirect, "Thanks for signing up for the waitlist!")

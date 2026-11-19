@@ -759,21 +759,35 @@ def dupe_check(signup):
     if isinstance(signup.birthdate, str):
         return
 
-    with Session() as session:
-        dupe_signups = session.query(BadgeWaitlistSignup).filter(
-            BadgeWaitlistSignup.id != signup.id,
-            BadgeWaitlistSignup.first_name == signup.first_name,
-            BadgeWaitlistSignup.last_name == signup.last_name,
-            BadgeWaitlistSignup.birthdate == signup.birthdate)
-        if dupe_signups.count():
-            return ('', f'There is already a waitlist signup for {signup.full_name}.')
+    # Check in the request's own session when there is one. A separate session takes a second
+    # pool connection per signup and cannot see signups this request has added but not committed.
+    if signup.session is None:
+        with Session() as session:
+            return _waitlist_dupe_error(session, signup)
+    return _waitlist_dupe_error(signup.session, signup)
 
-        existing_attendees = session.attendees_with_badges().filter(
-            Attendee.first_name == signup.first_name,
-            Attendee.last_name == signup.last_name,
-            Attendee.birthdate == signup.birthdate)
-        if existing_attendees.count():
-            return ('', f'{signup.full_name} already has a valid badge.')
+
+def _waitlist_dupe_error(session, signup):
+    # Names match ignoring case and surrounding spaces. A cancelled signup does not block signing up again;
+    # the new signup goes to the back of the line.
+    first_name = (signup.first_name or '').strip().lower()
+    last_name = (signup.last_name or '').strip().lower()
+
+    dupe_signup = session.query(BadgeWaitlistSignup).filter(
+        BadgeWaitlistSignup.id != signup.id,
+        BadgeWaitlistSignup.status != c.CANCELLED,
+        func.lower(func.trim(BadgeWaitlistSignup.first_name)) == first_name,
+        func.lower(func.trim(BadgeWaitlistSignup.last_name)) == last_name,
+        BadgeWaitlistSignup.birthdate == signup.birthdate).first()
+    if dupe_signup:
+        return ('', f'There is already a waitlist signup for {dupe_signup.full_name}.')
+
+    existing_attendee = session.attendees_with_badges().filter(
+        func.lower(func.trim(Attendee.first_name)) == first_name,
+        func.lower(func.trim(Attendee.last_name)) == last_name,
+        Attendee.birthdate == signup.birthdate).first()
+    if existing_attendee:
+        return ('', f'{existing_attendee.full_name} already has a valid badge.')
 
 
 # This is still required for creating an attendee from an art show app, will need to refactor later
