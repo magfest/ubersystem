@@ -8,6 +8,7 @@ import pytz
 import re
 import six
 from collections import defaultdict
+from dataclasses import dataclass, field
 from datetime import datetime
 from sqlalchemy import or_, func, and_
 from sqlalchemy.types import String
@@ -158,6 +159,79 @@ def assign_account_by_email(session, attendee, account_email, notify=False):
             message += ' A "New Badge Added" email was queued.'
         session.commit()
         return message
+
+
+# Pages that move badges between accounts, by Tracking.page. Pages missing here show their path.
+MOVE_PAGE_LABELS = {
+    '/reg_admin/orphaned_attendees': 'Reassign, or Attendees Without Accounts',
+    '/reg_admin/add_multiple_accounts': 'Attendees Without Accounts, selected badges',
+    '/reg_admin/add_all_accounts': 'Attendees Without Accounts, all badges',
+    '/registration/add_existing_account': 'Badge form, add to an existing account',
+    '/guest_admin/open_checklist': 'Open Checklist',
+    '/panels_admin/create_badge': 'Panels, Add New Badge',
+    '/mits_admin/create_badge': 'MITS, Add New Badge',
+    '/preregistration/claim_badge': 'Attendee claimed the badge',
+    '/preregistration/start_badge_transfer': 'Badge transfer',
+    '/preregistration/transfer_badge': 'Badge transfer',
+}
+
+
+def move_page_label(page):
+    """Name the action behind a Tracking.page path. Outside a web request, CherryPy reports the path as '/'."""
+    return MOVE_PAGE_LABELS.get(page, page) if page not in ('', '/') else 'Background task or script'
+
+
+@dataclass
+class BadgeMove:
+    when: datetime
+    added: bool
+    badge_name: str
+    who: str
+    supervisor: str
+    page: str
+    badge: Attendee | None = None
+    badge_recorded: bool = True
+    now_on: list = field(default_factory=list)
+
+    @property
+    def how(self):
+        return move_page_label(self.page)
+
+
+def _logged_badge(row):
+    """Return the badge id and name a collection Tracking row recorded.
+
+    Rows logged before February 2026 hold only the repr, with no links and no id. The repr switches to double
+    quotes when a name holds an apostrophe.
+    """
+    badge_id = row.links[len('attendee('):-1] if row.links.startswith('attendee(') else None
+    name = re.match(r"""<Attendee full_name=(['"])(.*?)\1>""", row.data)
+    return badge_id, name.group(2) if name else ''
+
+
+def account_badge_moves(session, account):
+    """List badges added to or removed from an account, newest first.
+
+    Reads the collection Tracking rows filed under the account (indexed by fk_id), not a links search, which
+    scans the whole table. A deleted badge keeps the name its log entry recorded.
+    """
+    rows = session.query(Tracking).filter(Tracking.model == 'AttendeeAccount', Tracking.fk_id == account.id,
+                                          Tracking.action.in_([c.ITEM_ADDED, c.ITEM_REMOVED])
+                                          ).order_by(Tracking.when.desc()).all()
+    logged = {row.id: _logged_badge(row) for row in rows}
+    badge_ids = {badge_id for badge_id, _ in logged.values() if badge_id}
+    badges = {badge.id: badge for badge in session.query(Attendee).filter(Attendee.id.in_(badge_ids)
+                                                                          ).options(selectinload(Attendee.managers))}
+
+    moves = []
+    for row in rows:
+        badge_id, logged_name = logged[row.id]
+        badge = badges.get(badge_id)
+        moves.append(BadgeMove(
+            when=row.when, added=row.action == c.ITEM_ADDED, who=row.who, supervisor=row.supervisor, page=row.page,
+            badge=badge, badge_name=badge.full_name if badge else logged_name, badge_recorded=bool(badge_id),
+            now_on=list(badge.managers) if badge else []))
+    return moves
 
 
 def _waitlist_signup_search(search_text):
@@ -1636,6 +1710,7 @@ class Root:
             'new_email': new_email,
             'other_purchased_badges': other_purchased_badges,
             'positions': BadgeWaitlistSignup.current_positions(session, account.waitlist_signups),
+            'badge_moves': account_badge_moves(session, account),
         }
 
     @site_mappable
