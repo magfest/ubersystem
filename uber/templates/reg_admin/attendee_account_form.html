@@ -128,10 +128,13 @@
                 {{ attendee.paid_label }}
             </td>
             <td>
-                <form class="form form-inline" method="post" action="orphaned_attendees">
+                <form class="form form-inline reassign" method="post" action="orphaned_attendees">
                     <input type="hidden" name="id" value="{{ attendee.id }}" />
                     {{ csrf_token() }}
                     <input type="hidden" name="account_id" value="{{ account.id }}" />
+                    <input type="hidden" name="notify" value="" />
+                    <input type="hidden" class="full_name" value="{{ attendee.full_name }}" />
+                    <input type="hidden" class="badge_num" value="{{ attendee.badge_num or '' }}" />
                     <div class="input-group">
                         <input type="email" name="account_email" class="form-control" placeholder="Account Email Address" required />
                         <button type="submit" class="btn btn-primary">
@@ -230,11 +233,92 @@
     </div>
 </div>
 {% endif %}
+{% include "reg_admin/account_badge_moves.html" %}
 <script type="text/javascript">
+    // Names come from attendees, so escape them before they go into dialog HTML
+    var escapeText = function(text) { return $('<div>').text(text).html(); };
+
+    // Shows where Reassign will send a badge before it moves, so a mistyped email is caught first
+    var showReassignDialog = function($form, email, result) {
+        var name = $form.find('.full_name').val();
+        var badgeNum = $form.find('.badge_num').val();
+        var $body = $('<div>');
+        var $notify = null;
+        var canMove = true;
+
+        $('<p>').append($('<strong>').text(name + (badgeNum ? ' (badge ' + badgeNum + ')' : ''))).appendTo($body);
+        $('<p class="mb-1">').text('From: ' + {{ account.email|tojson }} + ' (this account)').appendTo($body);
+        $('<p>').text('To: ' + email).appendTo($body);
+
+        var $status = $('<div class="alert">').appendTo($body);
+        if (result.lookupFailed) {
+            $status.addClass('alert-warning').text("Could not check whether " + email + " has an account (" +
+                (result.status ? 'error ' + result.status : 'no response from the server') +
+                "). If it has none, a new account will be created.");
+        } else if (!result.success) {
+            canMove = false;
+            $status.addClass('alert-danger').text(result.message ||
+                'The server did not return an account check, which usually means your login expired. ' +
+                'Reload this page and try again. If it keeps happening, report it to DevOps.');
+        } else if (result.same_account) {
+            canMove = false;
+            $status.addClass('alert-info').text('This badge is already on this account.');
+        } else if (result.exists) {
+            $status.addClass('alert-success').text('That email already has an account (' + result.badge_count +
+                (result.badge_count == 1 ? ' badge' : ' badges') + ').');
+        } else {
+            $status.addClass('alert-warning').text('No account uses ' + email +
+                '. A new account will be created. Check the spelling.');
+        }
+
+        if (canMove) {
+            $('<p>').text({{ c.ONE_MANAGER_PER_BADGE|tojson }} ? 'The badge leaves this account.'
+                                                              : 'The badge also stays on this account.').appendTo($body);
+            if (result.success && !result.exists && !result.claim_email) {
+                $('<p>').text('A password setup email will be sent to ' + email + '.').appendTo($body);
+            } else {
+                var label = result.exists ? 'Email ' + email + ' about this badge ("New Badge Added to Your Account")'
+                          : result.claim_email ? 'Email ' + email + ' a "Claim Your Badge" link'
+                          : 'Email ' + email + ' about this badge';
+                $notify = $('<input type="checkbox" class="form-check-input" checked>');
+                $('<label class="form-check-label d-block">').append($notify).append(' ').append(
+                    $('<span>').text(label)).appendTo($body);
+            }
+        }
+
+        if (!canMove) {
+            bootbox.alert({title: 'Cannot Move This Badge', message: $body});
+            return;
+        }
+        // Attendee PII boundary: the receiving account can read and edit everything on the badge
+        $('<div class="alert alert-danger">')
+            .append($('<p class="fw-bold">').text('Moving a badge gives the receiving account full access to it.'))
+            .append($('<p>').text('Whoever signs in to ' + email + ' can see and change everything on this badge, ' +
+                'including the legal name, birthdate, phone number, email, address, and emergency contact.'))
+            .append($('<p class="mb-0">').text('Only move it if you are sure this email belongs to the badge holder, ' +
+                'or to someone they chose to manage it, such as a parent. ' +
+                'If you are not sure, stop and ask Registration or DevOps.'))
+            .prependTo($body);
+        bootbox.confirm({
+            title: 'Move This Badge?',
+            message: $body,
+            buttons: {
+                confirm: { label: 'Move Badge', className: 'btn-danger' },
+                cancel: { label: 'Nevermind', className: 'btn-outline-secondary' }
+            },
+            callback: function (confirmed) {
+                if (confirmed) {
+                    $form.find('[name=notify]').val($notify && $notify.is(':checked') ? 'true' : '');
+                    $form[0].submit();
+                }
+            }
+        });
+    };
+
     $(function() {
         $('.set_owner').on('submit', function(event) {
         var $formToSubmit = $(this);
-        var name = $formToSubmit.find('.full_name').val();
+        var name = escapeText($formToSubmit.find('.full_name').val());
         var validText = "";
         if ($formToSubmit.find('.is_valid').val() != 'True') {
             validText = "</p><p>WARNING: " + name + " does not have a valid badge! Only set them as the account owner if you KNOW you need to do so."
@@ -242,8 +326,8 @@
         event.preventDefault();
         bootbox.confirm({
             title: "Set Account Owner?",
-            message: "<p>This will {% if account.owner %}change the account owner{% else %}set the accont owner{% endif %} for this account to " + name + "." + 
-                    {% if account.owner %}" The current account owner is {{ account.owner.full_name }}, who {% if account.owner.is_valid %}has{% else %}does NOT have{% endif %} a valid badge." +{% endif %}
+            message: "<p>This will {% if account.owner %}change the account owner{% else %}set the account owner{% endif %} for this account to " + name + "." + 
+                    {% if account.owner %}" The current account owner is " + escapeText({{ account.owner.full_name|tojson }}) + ", who {% if account.owner.is_valid %}has{% else %}does NOT have{% endif %} a valid badge." +{% endif %}
                     validText +
                      "</p><p>Are you sure?</p>",
             buttons: {
@@ -263,6 +347,22 @@
             }
         });
     });
+
+        $('.reassign').on('submit', function(event) {
+            event.preventDefault();
+            var $form = $(this);
+            var email = $.trim($form.find('[name=account_email]').val());
+            $.post('reassign_account_lookup', {
+                account_email: email,
+                account_id: {{ account.id|tojson }},
+                csrf_token: $form.find('[name=csrf_token]').val()
+            }).done(function(result) {
+                // An expired login returns the login page as HTML, not JSON
+                showReassignDialog($form, email, $.isPlainObject(result) ? result : {success: false});
+            }).fail(function(xhr) {
+                showReassignDialog($form, email, {lookupFailed: true, status: xhr.status});
+            });
+        });
 
       $('#delete-account').on('submit', function(event) {
         event.preventDefault();

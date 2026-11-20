@@ -8,6 +8,7 @@ import pytz
 import re
 import six
 from collections import defaultdict
+from dataclasses import dataclass, field
 from datetime import datetime
 from sqlalchemy import or_, func, and_
 from sqlalchemy.types import String
@@ -115,24 +116,122 @@ def comped_receipt_item(item):
                        )
 
 
-def assign_account_by_email(session, attendee, account_email):
+def assign_account_by_email(session, attendee, account_email, notify=False):
+    """Move a badge to the account for an email, creating the account if none exists.
+
+    With notify, an existing account gets "New Badge Added" and a new SSO account gets its claim email. A new
+    local account gets its password setup email either way, from set_up_new_account.
+    """
+    from uber.auth import OIDC
+    from uber.email import EmailService
     from uber.site_sections.preregistration import set_up_new_account
 
     account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email_legacy(account_email)).first()
 
-    if c.ONE_MANAGER_PER_BADGE and attendee.managers:
-        # It's too confusing for an admin to move someone to a new account and still see them on their old account
-        # If an admin typoes the new account's email, that's a them problem
-        attendee.managers.clear()
+    # It's too confusing for an admin to move someone to a new account and still see them on their old account
+    leave_old_accounts = c.ONE_MANAGER_PER_BADGE
 
     if not account:
+        if leave_old_accounts:
+            attendee.managers.clear()
         set_up_new_account(session, attendee, account_email)
+        message = "New account made for {} under email {}.".format(attendee.full_name, account_email)
+        # Read from the badge: the new account is not flushed yet, so a query would not find it
+        new_account = next((manager for manager in attendee.managers if manager in session.new), None)
+        if notify and c.OIDC_ENABLED and new_account and new_account.is_sso_account:
+            OIDC.send_claim_token(session, new_account)
+            message += ' A "Claim Your Badge" email was queued.'
         session.commit()
-        return "New account made for {} under email {}.".format(attendee.full_name, account_email)
+        return message
     else:
         session.add_attendee_to_account(attendee, account)
+        if account not in attendee.managers:
+            # add_attendee_to_account refuses when the badge's admin account uses a different login
+            return "{} was not moved to account {}; the server refused the move. Report this to DevOps.".format(
+                attendee.full_name, account_email)
+        # Old accounts are removed after the move, so a refused move leaves the badge where it was
+        if leave_old_accounts:
+            for old_account in [manager for manager in attendee.managers if manager != account]:
+                attendee.managers.remove(old_account)
+        message = "{} is now being managed by account {}.".format(attendee.full_name, account_email)
+        if notify:
+            EmailService.queue_email(session, 'attendee_account_attendee_added', account, data={'attendee': attendee})
+            message += ' A "New Badge Added" email was queued.'
         session.commit()
-        return "{} is now being managed by account {}.".format(attendee.full_name, account_email)
+        return message
+
+
+# Pages that move badges between accounts, by Tracking.page. Pages missing here show their path.
+MOVE_PAGE_LABELS = {
+    '/reg_admin/orphaned_attendees': 'Reassign, or Attendees Without Accounts',
+    '/reg_admin/add_multiple_accounts': 'Attendees Without Accounts, selected badges',
+    '/reg_admin/add_all_accounts': 'Attendees Without Accounts, all badges',
+    '/registration/add_existing_account': 'Badge form, add to an existing account',
+    '/guest_admin/open_checklist': 'Open Checklist',
+    '/panels_admin/create_badge': 'Panels, Add New Badge',
+    '/mits_admin/create_badge': 'MITS, Add New Badge',
+    '/preregistration/claim_badge': 'Attendee claimed the badge',
+    '/preregistration/start_badge_transfer': 'Badge transfer',
+    '/preregistration/transfer_badge': 'Badge transfer',
+}
+
+
+def move_page_label(page):
+    """Name the action behind a Tracking.page path. Outside a web request, CherryPy reports the path as '/'."""
+    return MOVE_PAGE_LABELS.get(page, page) if page not in ('', '/') else 'Background task or script'
+
+
+@dataclass
+class BadgeMove:
+    when: datetime
+    added: bool
+    badge_name: str
+    who: str
+    supervisor: str
+    page: str
+    badge: Attendee | None = None
+    badge_recorded: bool = True
+    now_on: list = field(default_factory=list)
+
+    @property
+    def how(self):
+        return move_page_label(self.page)
+
+
+def _logged_badge(row):
+    """Return the badge id and name a collection Tracking row recorded.
+
+    Rows logged before February 2026 hold only the repr, with no links and no id. The repr switches to double
+    quotes when a name holds an apostrophe.
+    """
+    badge_id = row.links[len('attendee('):-1] if row.links.startswith('attendee(') else None
+    name = re.match(r"""<Attendee full_name=(['"])(.*?)\1>""", row.data)
+    return badge_id, name.group(2) if name else ''
+
+
+def account_badge_moves(session, account):
+    """List badges added to or removed from an account, newest first.
+
+    Reads the collection Tracking rows filed under the account (indexed by fk_id), not a links search, which
+    scans the whole table. A deleted badge keeps the name its log entry recorded.
+    """
+    rows = session.query(Tracking).filter(Tracking.model == 'AttendeeAccount', Tracking.fk_id == account.id,
+                                          Tracking.action.in_([c.ITEM_ADDED, c.ITEM_REMOVED])
+                                          ).order_by(Tracking.when.desc()).all()
+    logged = {row.id: _logged_badge(row) for row in rows}
+    badge_ids = {badge_id for badge_id, _ in logged.values() if badge_id}
+    badges = {badge.id: badge for badge in session.query(Attendee).filter(Attendee.id.in_(badge_ids)
+                                                                          ).options(selectinload(Attendee.managers))}
+
+    moves = []
+    for row in rows:
+        badge_id, logged_name = logged[row.id]
+        badge = badges.get(badge_id)
+        moves.append(BadgeMove(
+            when=row.when, added=row.action == c.ITEM_ADDED, who=row.who, supervisor=row.supervisor, page=row.page,
+            badge=badge, badge_name=badge.full_name if badge else logged_name, badge_recorded=bool(badge_id),
+            now_on=list(badge.managers) if badge else []))
+    return moves
 
 
 def _waitlist_signup_search(search_text):
@@ -1141,6 +1240,25 @@ class Root:
 
         raise HTTPRedirect('attendee_account_form?id={}&message={}', account_id, message or 'Account owner set.')
 
+    @ajax
+    def reassign_account_lookup(self, session, account_email, account_id, **params):
+        """Describe where a Reassign would send a badge, so the confirm dialog can catch a mistyped email."""
+        account_email = account_email.strip()
+        message = valid_email(account_email)
+        if message:
+            return {'success': False, 'message': message}
+
+        account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email_legacy(account_email)).first()
+        # Only SSO accounts get the claim email; a new local account always gets its password setup email
+        claim_email = bool(c.OIDC_ENABLED and AttendeeAccount(email=account_email).is_sso_account)
+        return {
+            'success': True,
+            'exists': bool(account),
+            'same_account': bool(account) and account.id == account_id,
+            'badge_count': len(account.valid_attendees) if account else 0,
+            'claim_email': claim_email,
+        }
+
     @site_mappable
     def orphaned_attendees(self, session, message='', **params):
         attendees = session.query(Attendee).filter(~Attendee.managers.any())
@@ -1168,7 +1286,8 @@ class Root:
             if not message:
                 message = valid_email(account_email)
             if not message:
-                message = assign_account_by_email(session, attendee, account_email)
+                message = assign_account_by_email(session, attendee, account_email,
+                                                  notify=params.get('notify') == 'true')
 
             if 'account_id' in params:
                 raise HTTPRedirect('attendee_account_form?id={}&message={}', params.get('account_id'), message)
@@ -1591,6 +1710,7 @@ class Root:
             'new_email': new_email,
             'other_purchased_badges': other_purchased_badges,
             'positions': BadgeWaitlistSignup.current_positions(session, account.waitlist_signups),
+            'badge_moves': account_badge_moves(session, account),
         }
 
     @site_mappable

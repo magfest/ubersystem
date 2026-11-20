@@ -5,6 +5,7 @@
 badge
 {% endmacro %}
 
+{% set attendee = account.attendees|selectattr('id', 'equalto', attendee.id)|first|default(attendee) %}
 <html>
 <head></head>
 <body>

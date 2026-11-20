@@ -1,0 +1,62 @@
+<div class="card mt-3">
+    <div class="card-header">
+        Badge Moves
+    </div>
+    <div class="card-body">
+        <p class="text-muted">
+            Badges added to or removed from this account, newest first, with who made the change and which page
+            or button they used.
+        </p>
+        {# Shown until account_moves_history_start is cleared in config; see configspec.ini [dates]. #}
+        {% if c.ACCOUNT_MOVES_HISTORY_START and account.created and account.created < c.ACCOUNT_MOVES_HISTORY_START %}
+        <div class="alert alert-info">
+            Badge moves before {{ c.ACCOUNT_MOVES_HISTORY_START|datetime_local("%B %-d, %Y") }} were not reliably
+            recorded, so this list may be missing older moves.
+        </div>
+        {% endif %}
+        {% if badge_moves %}
+        <div class="table-responsive">
+        <table class="table table-striped table-sm">
+        <thead>
+            <tr>
+                <th>When</th>
+                <th>Change</th>
+                <th>Badge</th>
+                <th>Now On</th>
+                <th>Who</th>
+                <th>How</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for move in badge_moves %}
+            <tr>
+                <td class="text-nowrap">{{ move.when|full_datetime_local }}</td>
+                <td>{% if move.added %}Added{% else %}Removed{% endif %}</td>
+                <td>
+                    {% if move.badge %}{{ move.badge|form_link(new_window=True) }}
+                    {% else %}{{ move.badge_name or 'Unknown badge' }}
+                    <span class="text-muted">{% if move.badge_recorded %}(badge deleted){% else %}(older entry; the log did not record which badge){% endif %}</span>{% endif %}
+                </td>
+                <td>
+                    {% if not move.badge %}
+                    {% elif move.now_on %}
+                        {% for manager in move.now_on %}
+                        {% if manager.id == account.id %}This account{% else %}<a href="attendee_account_form?id={{ manager.id }}">{{ manager.email }}</a>{% endif %}{% if not loop.last %}, {% endif %}
+                        {% endfor %}
+                    {% else %}<span class="text-danger">No account</span>{% endif %}
+                </td>
+                <td>{{ move.who }}{% if move.supervisor %}; {{ move.supervisor }} (Supervisor){% endif %}</td>
+                <td>
+                    {{ move.how }}
+                    {% if move.how != move.page and move.page not in ('', '/') %}<div class="form-text">{{ move.page }}</div>{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        </table>
+        </div>
+        {% else %}
+        <p><em>No badges have been moved on or off this account.</em></p>
+        {% endif %}
+    </div>
+</div>
