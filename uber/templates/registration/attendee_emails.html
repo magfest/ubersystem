@@ -1,5 +1,21 @@
 {% import 'macros.html' as macros with context %}
-{{ macros.email_table(emails, table_classes="table-hover datatable", hidden_cols=['action']) }}
+<p class="text-muted">
+  Emails sent about this badge. Emails about its attendee account, hotel lottery entry, waitlist signup, group,
+  or panel application are not listed here.
+</p>
+{% if attendee.is_unassigned %}
+<div class="alert alert-info">This badge has not been assigned to anyone yet, so it has no email address.</div>
+{% elif not attendee.email %}
+<div class="alert alert-warning">
+  This badge has no email address. Most badges have one, so check how it was created.
+</div>
+{% endif %}
 
-{% set email_queue = emails + other_emails %}
+{% if emails %}
+{{ macros.email_table(emails, table_classes="table-hover datatable", hidden_cols=['action']) }}
+{% else %}
+<p><em>No emails have been sent about this badge.</em></p>
+{% endif %}
+
+{% set email_queue = emails %}
 {% include 'email_admin/manage_email.html' with context %}

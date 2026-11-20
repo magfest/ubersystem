@@ -51,16 +51,22 @@ loadForm = function(kw) {
     var glyphicon_class = glyphicon_span.attr('class');
     var old_hash = window.location.hash;
     glyphicon_span.removeClass().addClass('fa fa-repeat gly-spin');
-    $('#attendee' + kw).load('../registration/attendee_' + kw.toLowerCase() + '?id=' + attendeeID, function(response, status){
+    $('#attendee' + kw).load('../registration/attendee_' + kw.toLowerCase() + '?id=' + attendeeID, function(response, status, xhr){
       window.history.replaceState("", document.title, window.location.href.replace(location.hash, "") + old_hash);
       if (status == 'success') {
         $(window).trigger( 'runJavaScript' );
         glyphicon_span.removeClass().addClass(glyphicon_class);
         resolve(status);
       } else {
-        showErrorMessage("Unable to connect to server, please try again.");
+        var reason = xhr.status ? 'error ' + xhr.status : 'no response from the server';
+        var message = "This tab didn't load (" + reason + "). Click the tab to try again. " +
+                      "If it keeps failing, report it to DevOps.";
+        // Added above the tab's old content, not in place of it: the Data tab may hold unsaved edits
+        var pane = $('#attendee' + kw);
+        pane.children('.tab-load-error').remove();
+        pane.prepend($('<div class="alert alert-danger tab-load-error" role="alert"></div>').text(message));
         glyphicon_span.removeClass().addClass(glyphicon_class);
-        reject("Unable to connect to server, please try again.");
+        reject(message);
       }
     });
   });

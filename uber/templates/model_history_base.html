@@ -1,8 +1,22 @@
 {% import 'macros.html' as macros with context %}
 {% set model = attendee if attendee else group %}
 {% set admin_area=True %}
+{% set model_label = 'badge' if attendee else 'group' %}
   <div class="card card-body">
     <h2>Changelog for {{ model.full_name|default(model.name) }} {% if c.AT_THE_CON and model.badge_num %}({{ model.badge_num }}){% endif %}</h2>
+  {% if full_history_url %}
+  <p class="text-muted">
+    Changes made to this badge. Account moves and changes to related records, such as shifts, waitlist signups,
+    and hotel entries, are on the <a href="{{ full_history_url }}" target="_blank">full History page</a>.
+  </p>
+  {# Shown until account_moves_history_start is cleared in config; see configspec.ini [dates]. #}
+  {% elif attendee and c.ACCOUNT_MOVES_HISTORY_START and attendee.created < c.ACCOUNT_MOVES_HISTORY_START %}
+  <div class="alert alert-info">
+    Moves between attendee accounts are listed from {{ c.ACCOUNT_MOVES_HISTORY_START|datetime_local("%B %-d, %Y") }}.
+    Earlier moves for this badge are not shown here.
+  </div>
+  {% endif %}
+  {% if changes %}
   <table class="table table-striped table-bordered table-sm">
     <thead><tr>
       <th>When</th>
@@ -23,11 +37,15 @@
       </tr>
     {% endfor %}
   </table>
+  {% else %}
+  <p><em>No changes have been recorded for this {{ model_label }}.</em></p>
+  {% endif %}
 
   <hr/>
 
   <h2>Page View History for {{ model.full_name|default(model.name) }} {% if c.AT_THE_CON and model.badge_num %}({{ model.badge_num }}){% endif %}</h2>
 
+  {% if pageviews %}
   <table class="table table-striped table-bordered table-sm">
     <thead><tr>
       <th>When</th>
@@ -42,6 +60,9 @@
       </tr>
     {% endfor %}
   </table>
+  {% else %}
+  <p><em>No page views have been recorded for this {{ model_label }}.</em></p>
+  {% endif %}
 
   {% if attendee and attendee.past_years %}
   <hr/>

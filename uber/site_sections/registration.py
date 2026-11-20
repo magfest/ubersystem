@@ -697,8 +697,10 @@ class Root:
         return {
             'attendee':  attendee,
             'emails': session.query(Email).filter(Email.fk_id == id).order_by(Email.generated).all(),
-            'other_emails': session.query(Email).filter(Email.to.icontains(attendee.email),
-                                                        Email.fk_id != id).order_by(Email.generated).all(),
+
+            'other_emails': [] if not attendee.email else session.query(Email).filter(
+                Email.to.icontains(attendee.email), or_(Email.fk_id != id, Email.fk_id == None)  # noqa: E711
+            ).order_by(Email.generated).all(),
         }
 
     def delete(self, session, id, return_to='index?', return_msg=False, **params):
@@ -1618,13 +1620,14 @@ class Root:
 
         return {
             'attendee': attendee,
-            'changes': session.query(Tracking).filter(
-                or_(and_(Tracking.links.like('%attendee({})%'.format(id)),
-                         Tracking.model == 'Attendee', Tracking.fk_id == id))).order_by(Tracking.when).all(),
+            # Not the links search the full History page runs: that scans the whole tracking table
+            'changes': session.query(Tracking).filter(Tracking.model == 'Attendee', Tracking.fk_id == id
+                                                      ).order_by(Tracking.when).all(),
+            'full_history_url': '../registration/history?id={}'.format(id),
             'pageviews': session.query(PageViewTracking).filter(PageViewTracking.which == repr(attendee)
                                                                 ).order_by(PageViewTracking.when).all(),
         }
-    
+
     @log_pageview
     @attendee_view
     def attendee_emails(self, session, id, **params):
@@ -1634,8 +1637,6 @@ class Root:
             'attendee': attendee,
             'emails': session.query(Email).filter(Email.model == 'Attendee',
                                                   Email.fk_id == id).order_by(Email.generated).all(),
-            'other_emails': session.query(Email).filter(Email.to.icontains(attendee.email),
-                                                        Email.fk_id != id).order_by(Email.generated).all(),
         }
 
     @attendee_view
