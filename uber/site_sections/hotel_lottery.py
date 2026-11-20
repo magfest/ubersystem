@@ -587,7 +587,8 @@ def _disband_room_group(session, application):
             subject=f'{c.EVENT_NAME} Lottery {c.HOTEL_LOTTERY_GROUP_TERM} "{old_room_group_name}" Disbanded',
             data={
             'parent': application, 'old_room_group_name': old_room_group_name})
-    
+
+    application.release_invites(session)
     session.commit()
 
 
@@ -1580,6 +1581,7 @@ class Root:
         if was_room_group:
             _disband_room_group(session, application)
 
+        application.release_invites(session)
         _clear_application(application)
 
         if old_room_group:
@@ -2091,9 +2093,10 @@ class Root:
             raise HTTPRedirect('index?id={}&message={}', application.id,
                                f"You cannot leave your {c.HOTEL_LOTTERY_GROUP_TERM.lower()} at this time.")
 
-        # Once a guest has accepted into a group, only the group leader
-        # can remove them. Guests can't self-decline.
-        if application.parent_application and application.invite_status == c.INVITE_ACCEPTED:
+        # While the leader can still edit their entry, only the leader can remove an accepted guest.
+        # Once the leader's entry is locked, usually because the group won a room, the guest may leave on their own.
+        if application.parent_application and application.invite_status == c.INVITE_ACCEPTED \
+                and not application.parent_application.locked:
             raise HTTPRedirect(
                 'index?id={}&message={}', application.id,
                 "Please contact your {} leader to be removed from this room.".format(
