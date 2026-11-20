@@ -115,3 +115,54 @@ def test_new_account_setup_keeps_an_existing_sso_accounts_claim_link(session, mo
     set_up_new_account(session, badge, account.email)
 
     assert [row.token for row in _reset_rows(session, account)] == [claim_token]
+
+
+def test_new_password_setup_rejects_a_blank_token(session, monkeypatch):
+    import cherrypy
+
+    monkeypatch.setattr(c, 'OIDC_ENABLED', True)
+    monkeypatch.setattr(cherrypy, 'session', {}, raising=False)
+    account = _account(session, email=f'{uuid.uuid4().hex}@mailinator.com')
+    OIDC.send_claim_token(session, account)
+
+    original_method = cherrypy.request.method
+    cherrypy.request.method = 'POST'
+    try:
+        with pytest.raises(HTTPRedirect) as redirect:
+            unwrap(Root.new_password_setup)(Root(), session, account_email=account.email, token='',
+                                            account_password='St0ff-Verify-7x2q',
+                                            confirm_password='St0ff-Verify-7x2q')
+    finally:
+        cherrypy.request.method = original_method
+
+    assert 'landing' in str(redirect.value)
+    assert not cherrypy.session.get('attendee_account_id')
+    rows = _reset_rows(session, account)
+    assert len(rows) == 1 and rows[0].hashed == ''
+
+
+def test_new_password_setup_still_sets_a_local_password_with_a_valid_token(session, monkeypatch):
+    import secrets
+
+    import cherrypy
+
+    monkeypatch.setattr(c, 'OIDC_ENABLED', False)
+    monkeypatch.setattr(cherrypy, 'session', {}, raising=False)
+    account = _account(session, email=f'{uuid.uuid4().hex}@mailinator.com')
+    token = secrets.token_urlsafe(32)
+    session.add(PasswordReset(attendee_account=account, hashed=token))
+    session.flush()
+
+    original_method = cherrypy.request.method
+    cherrypy.request.method = 'POST'
+    try:
+        with pytest.raises(HTTPRedirect) as redirect:
+            unwrap(Root.new_password_setup)(Root(), session, account_email=account.email, token=token,
+                                            account_password='St0ff-Verify-7x2q',
+                                            confirm_password='St0ff-Verify-7x2q')
+    finally:
+        cherrypy.request.method = original_method
+
+    assert 'homepage' in str(redirect.value)
+    assert cherrypy.session.get('attendee_account_id') == account.id
+    assert _reset_rows(session, account) == []
