@@ -357,8 +357,10 @@
                 account_id: {{ account.id|tojson }},
                 csrf_token: $form.find('[name=csrf_token]').val()
             }).done(function(result) {
-                // An expired login returns the login page as HTML, not JSON
-                showReassignDialog($form, email, $.isPlainObject(result) ? result : {success: false});
+                // A missing page grant returns "You need access to ..." and an expired login returns the login page
+                var noAccess = typeof result === 'string' && result.match(/You need access to [^<]*/);
+                showReassignDialog($form, email, $.isPlainObject(result) ? result : {success: false, message: noAccess ?
+                    noAccess[0] + ' Ask DevOps to add that page to your access group.' : ''});
             }).fail(function(xhr) {
                 showReassignDialog($form, email, {lookupFailed: true, status: xhr.status});
             });
