@@ -3153,11 +3153,13 @@ class Root:
         else:
             account = session.query(AttendeeAccount).filter_by(
                 normalized_email=normalize_email_legacy(account_email)).first()
-        if not account or not account.password_reset:
+        # A claim link is not a password reset. It stores its secret in token and leaves hashed empty, so
+        # this page treats an empty hashed as no reset link and requires a non-empty token.
+        if not account or not account.password_reset or not account.password_reset.hashed:
             message = 'Invalid link. This link may have already been used or replaced.'
         elif account.password_reset.is_expired:
             message = 'This link has expired. Please use the "forgot password" option to get a new link.'
-        elif token != account.password_reset.hashed:
+        elif not token or token != account.password_reset.hashed:
             message = 'Invalid token. Did you copy the URL correctly?'
 
         if message:
