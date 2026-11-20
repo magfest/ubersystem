@@ -163,3 +163,53 @@ def test_reassign_that_cannot_move_the_badge_says_so_and_sends_nothing(session):
     assert _emails(session, 'attendee_account_attendee_added', to_account) == 0
     assert attendee.managers == [from_account]
     assert 'DevOps' in str(redirect)
+
+
+def _render_badge_flags(monkeypatch, attendee, access, read_only_access=()):
+    from uber.decorators import render
+    from uber.forms import load_forms
+    from uber.utils import request_cached_context
+
+    def get_access_set(id=None, include_read_only=False, full=False):
+        return set(access) | (set(read_only_access) if include_read_only else set())
+
+    monkeypatch.setattr(AdminAccount, 'get_access_set', staticmethod(get_access_set))
+    forms = load_forms({}, attendee, ['AdminBadgeFlags'])
+    # c.ADMIN_*_ACCESS_SET values are cached per request; start and end each render with an empty cache
+    with request_cached_context(clear_cache_on_start=True):
+        return render('forms/attendee/admin_badge_flags.html', {'attendee': attendee, 'forms': forms, **forms},
+                      encoding=None)
+
+
+def test_badge_form_links_to_the_account_page_for_a_page_only_grant(session, monkeypatch):
+    account, attendee = _account_with_badge(session)
+
+    html = _render_badge_flags(monkeypatch, attendee, {'registration', 'reg_admin_attendee_account_form'})
+
+    assert f'attendee_account_form?id={account.id}' in html
+
+
+def test_badge_form_links_to_the_account_page_for_full_reg_admin(session, monkeypatch):
+    account, attendee = _account_with_badge(session)
+
+    html = _render_badge_flags(monkeypatch, attendee, {'registration', 'reg_admin'})
+
+    assert f'attendee_account_form?id={account.id}' in html
+
+
+def test_badge_form_shows_only_the_account_email_without_the_account_page(session, monkeypatch):
+    account, attendee = _account_with_badge(session)
+
+    html = _render_badge_flags(monkeypatch, attendee, {'registration'})
+
+    assert account.email in html
+    assert 'attendee_account_form' not in html
+
+
+def test_badge_form_hides_the_account_link_for_a_read_only_grant(session, monkeypatch):
+    account, attendee = _account_with_badge(session)
+
+    html = _render_badge_flags(monkeypatch, attendee, {'registration'},
+                               read_only_access={'reg_admin_attendee_account_form'})
+
+    assert 'attendee_account_form' not in html

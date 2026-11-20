@@ -111,6 +111,7 @@
         {% endif %}
         <td>
             <div class="d-flex gap-2 align-items-center text-nowrap">
+            {% if not account.is_sso_account %}
             <form method="post" action="../preregistration/reset_password">
                 <input type="hidden" name="account_email" value="{{ account.email }}" />
                 <input type="hidden" name="admin_url" value="reg_admin/attendee_accounts?" />
@@ -119,6 +120,7 @@
                     <i class="fa fa-repeat"></i> Reset Password
                 </button>
             </form>
+            {% endif %}
             <form method="post" action="delete_attendee_account">
                 <input type="hidden" name="id" value="{{ account.id }}" />
                 {{ csrf_token() }}

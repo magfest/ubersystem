@@ -4,6 +4,7 @@
 <h3>{{ account.email }} Attendee Account ({% if account.owner %}{{ account.owner|form_link }}{% else %}No Owner{% endif %})</h3>
 <div class="d-flex gap-1 mb-3">
     <a class="btn btn-sm btn-secondary" href="../preregistration/homepage?id={{ account.id }}" target="_blank">View Homepage&nbsp;<i class="fa fa-external-link"></i></a>
+    {% if not account.is_sso_account %}
     <form method="post" action="../preregistration/reset_password">
         <input type="hidden" name="account_email" value="{{ account.email }}" />
         <input type="hidden" name="admin_url" value="reg_admin/attendee_account_form?id={{ account.id}}&" />
@@ -12,6 +13,7 @@
             <i class="fa fa-repeat"></i> Reset Password
         </button>
     </form>
+    {% endif %}
     <form method="post" id="delete-account" action="delete_attendee_account">
         <input type="hidden" name="id" value="{{ account.id }}" />
         {{ csrf_token() }}
@@ -357,8 +359,10 @@
                 account_id: {{ account.id|tojson }},
                 csrf_token: $form.find('[name=csrf_token]').val()
             }).done(function(result) {
-                // An expired login returns the login page as HTML, not JSON
-                showReassignDialog($form, email, $.isPlainObject(result) ? result : {success: false});
+                // A missing page grant returns "You need access to ..." and an expired login returns the login page
+                var noAccess = typeof result === 'string' && result.match(/You need access to [^<]*/);
+                showReassignDialog($form, email, $.isPlainObject(result) ? result : {success: false, message: noAccess ?
+                    noAccess[0] + ' Ask DevOps to add that page to your access group.' : ''});
             }).fail(function(xhr) {
                 showReassignDialog($form, email, {lookupFailed: true, status: xhr.status});
             });

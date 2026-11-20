@@ -140,7 +140,8 @@ def set_up_new_account(session, attendee, email=None):
     token = secrets.token_urlsafe(64)
     account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email_legacy(email)).first()
     if account:
-        if account.password_reset:
+        # An SSO account's password_reset row holds its unused "Claim Your Badge" token
+        if account.password_reset and not account.is_sso_account:
             session.delete(account.password_reset)
             session.commit()
     else:
@@ -3129,12 +3130,13 @@ class Root:
                 # Avoid letting attendees de facto search for other attendees by email
                 raise HTTPRedirect(success_url)
 
+            # An SSO account's password_reset row holds its unused "Claim Your Badge" token, so leave it alone
+            if account.is_sso_account:
+                raise HTTPRedirect(sso_url)
+
             if account.password_reset:
                 session.delete(account.password_reset)
                 session.commit()
-
-            if account.is_sso_account:
-                raise HTTPRedirect(sso_url)
 
             token = secrets.token_urlsafe(64)
             session.add(PasswordReset(attendee_account=account, hashed=token))
