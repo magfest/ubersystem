@@ -5,15 +5,26 @@
 {% include "registration/menu.html" %}
 <div class="card card-body">
 <h2 class="mb-3">Email Queue for {{ attendee.full_name }}</h2>
+{% if emails %}
 {{ macros.email_table(emails, table_classes="table-hover datatable", hidden_cols=['recipient']) }}
+{% else %}
+<p><em>No emails have been sent about this badge.</em></p>
+{% endif %}
 
-{% if other_emails %}
 <hr/>
-<h2> Other Emails to {{ attendee.email|lower }}</h2>
+{% if attendee.email %}
+<h2>Other Emails to {{ attendee.email|lower }}</h2>
+{% if other_emails %}
 {{ macros.email_table(other_emails, table_classes="table-hover datatable", hidden_cols=['recipient']) }}
+{% else %}
+<p><em>No other emails were sent to {{ attendee.email|lower }}.</em></p>
+{% endif %}
+{% else %}
+<h2>Other Emails to This Address</h2>
+<p><em>This badge has no email address, so there is no address to search.</em></p>
 {% endif %}
 
 {% set email_queue = emails + other_emails %}
 {% include 'email_admin/manage_email.html' with context %}
-{% endblock %}
 </div>
+{% endblock %}
