@@ -115,24 +115,49 @@ def comped_receipt_item(item):
                        )
 
 
-def assign_account_by_email(session, attendee, account_email):
+def assign_account_by_email(session, attendee, account_email, notify=False):
+    """Move a badge to the account for an email, creating the account if none exists.
+
+    With notify, an existing account gets "New Badge Added" and a new SSO account gets its claim email. A new
+    local account gets its password setup email either way, from set_up_new_account.
+    """
+    from uber.auth import OIDC
+    from uber.email import EmailService
     from uber.site_sections.preregistration import set_up_new_account
 
     account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email_legacy(account_email)).first()
 
-    if c.ONE_MANAGER_PER_BADGE and attendee.managers:
-        # It's too confusing for an admin to move someone to a new account and still see them on their old account
-        # If an admin typoes the new account's email, that's a them problem
-        attendee.managers.clear()
+    # It's too confusing for an admin to move someone to a new account and still see them on their old account
+    leave_old_accounts = c.ONE_MANAGER_PER_BADGE
 
     if not account:
+        if leave_old_accounts:
+            attendee.managers.clear()
         set_up_new_account(session, attendee, account_email)
+        message = "New account made for {} under email {}.".format(attendee.full_name, account_email)
+        # Read from the badge: the new account is not flushed yet, so a query would not find it
+        new_account = next((manager for manager in attendee.managers if manager in session.new), None)
+        if notify and c.OIDC_ENABLED and new_account and new_account.is_sso_account:
+            OIDC.send_claim_token(session, new_account)
+            message += ' A "Claim Your Badge" email was queued.'
         session.commit()
-        return "New account made for {} under email {}.".format(attendee.full_name, account_email)
+        return message
     else:
         session.add_attendee_to_account(attendee, account)
+        if account not in attendee.managers:
+            # add_attendee_to_account refuses when the badge's admin account uses a different login
+            return "{} was not moved to account {}; the server refused the move. Report this to DevOps.".format(
+                attendee.full_name, account_email)
+        # Old accounts are removed after the move, so a refused move leaves the badge where it was
+        if leave_old_accounts:
+            for old_account in [manager for manager in attendee.managers if manager != account]:
+                attendee.managers.remove(old_account)
+        message = "{} is now being managed by account {}.".format(attendee.full_name, account_email)
+        if notify:
+            EmailService.queue_email(session, 'attendee_account_attendee_added', account, data={'attendee': attendee})
+            message += ' A "New Badge Added" email was queued.'
         session.commit()
-        return "{} is now being managed by account {}.".format(attendee.full_name, account_email)
+        return message
 
 
 def _waitlist_signup_search(search_text):
@@ -1141,6 +1166,25 @@ class Root:
 
         raise HTTPRedirect('attendee_account_form?id={}&message={}', account_id, message or 'Account owner set.')
 
+    @ajax
+    def reassign_account_lookup(self, session, account_email, account_id, **params):
+        """Describe where a Reassign would send a badge, so the confirm dialog can catch a mistyped email."""
+        account_email = account_email.strip()
+        message = valid_email(account_email)
+        if message:
+            return {'success': False, 'message': message}
+
+        account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email_legacy(account_email)).first()
+        # Only SSO accounts get the claim email; a new local account always gets its password setup email
+        claim_email = bool(c.OIDC_ENABLED and AttendeeAccount(email=account_email).is_sso_account)
+        return {
+            'success': True,
+            'exists': bool(account),
+            'same_account': bool(account) and account.id == account_id,
+            'badge_count': len(account.valid_attendees) if account else 0,
+            'claim_email': claim_email,
+        }
+
     @site_mappable
     def orphaned_attendees(self, session, message='', **params):
         attendees = session.query(Attendee).filter(~Attendee.managers.any())
@@ -1168,7 +1212,8 @@ class Root:
             if not message:
                 message = valid_email(account_email)
             if not message:
-                message = assign_account_by_email(session, attendee, account_email)
+                message = assign_account_by_email(session, attendee, account_email,
+                                                  notify=params.get('notify') == 'true')
 
             if 'account_id' in params:
                 raise HTTPRedirect('attendee_account_form?id={}&message={}', params.get('account_id'), message)
