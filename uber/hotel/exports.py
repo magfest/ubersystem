@@ -631,6 +631,23 @@ def _clean_change_value(value):
     return '(empty)' if value in ('None', '') else value
 
 
+_STAMP_RE = re.compile(r"last_modified_at='(.*?) -> (.*?)'(?:, |$)")
+
+
+def _needs_resend(action, data):
+    """Whether a change-feed entry is one the hotel has yet to see: a new
+    or removed room, or an edit that moved last_modified_at forward.
+    Edits to fields the hotel never gets, and its own uploads, do not."""
+    if action != c.UPDATED:
+        return True
+    stamp = _STAMP_RE.search(data or '')
+    if not stamp:
+        return False
+    # "datetime.datetime(2026, 1, 2, 3, 4, 5, 678, tzinfo=<UTC>)", or None.
+    old, new = [tuple(int(n) for n in re.findall(r'\d+', text.split('tzinfo')[0])) for text in stamp.groups()]
+    return new + (0,) * (7 - len(new)) > old + (0,) * (7 - len(old)) if new else False
+
+
 def import_windows(session, hotel_id):
     """(from, to) for every import's applied writes at this hotel.
 
@@ -665,7 +682,8 @@ def changed_rooms_between(session, hotel_id, start, end,
     Reads the admin change feed (Tracking) rather than the assignments
     themselves, so it reports what changed while a hotel was holding a
     given export - including for rooms that have since changed again.
-    `exclude_imports` drops the changes an import file applied, which is
+    `exclude_imports` keeps only what the hotel has yet to see (see
+    _needs_resend) and drops the changes an import file applied, which is
     what the timeline's gap rows want: those are reported on the import
     row itself.
 
@@ -689,6 +707,8 @@ def changed_rooms_between(session, hotel_id, start, end,
                                     import_windows(session, hotel_id))
 
     entries = q.order_by(Tracking.when.desc()).all()
+    if exclude_imports:
+        entries = [e for e in entries if _needs_resend(e.action, e.data)]
     if not entries:
         return []
 
@@ -709,7 +729,10 @@ def changed_rooms_between(session, hotel_id, start, end,
             'changes': [
                 (field, _clean_change_value(old), _clean_change_value(new))
                 for field, old, new in _CHANGE_RE.findall(entry.data or '')
-                if field not in _CHANGE_NOISE],
+                if field not in _CHANGE_NOISE]
+            # A stamp with no field of the room's own behind it.
+            or ([('roommates or guest details', '', 'changed')]
+                if exclude_imports and entry.action == c.UPDATED else []),
         })
     return out
 
@@ -820,13 +843,14 @@ def hotel_activity_timeline(session, hotel_id, limit=100):
         reported on that import's row instead."""
         if not ids:
             return 0
-        q = session.query(func.count(func.distinct(Tracking.fk_id))).filter(
+        q = session.query(Tracking.fk_id, Tracking.action, Tracking.data).filter(
             Tracking.model == 'RoomAssignment', Tracking.fk_id.in_(ids))
         if start:
             q = q.filter(Tracking.when > start)
         if end:
             q = q.filter(Tracking.when <= end)
-        return _outside_import_windows(q, Tracking.when, windows).scalar() or 0
+        return len({room_id for room_id, action, data in _outside_import_windows(q, Tracking.when, windows)
+                    if _needs_resend(action, data)})
 
     # Walk newest-first, inserting the gap above each event.
     timeline = []

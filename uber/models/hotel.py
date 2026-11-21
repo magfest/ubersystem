@@ -1528,7 +1528,7 @@ class RoomAssignment(MagModel, table=True):
         tracked = ['attendee_id', 'inventory_id', 'partition_id', 'assignment_reason',
                    'status', 'payment_type', 'assigned_check_in_date', 'assigned_check_out_date',
                    'deposit_cutoff_date', 'booking_url', 'hotel_confirmation_number',
-                   'cancellation_confirmation_number', 'special_requests', 'hotel_rewards_number',
+                   'cancellation_confirmation_number', 'room_number', 'special_requests', 'hotel_rewards_number',
                    'cc_token', 'cc_captured_at',
                    'address1', 'address2', 'city', 'region', 'zip_code', 'country']
         session = object_session(self)

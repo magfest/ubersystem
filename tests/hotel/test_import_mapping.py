@@ -439,3 +439,27 @@ def test_hotel_supplied_values_are_not_changes_the_hotel_has_yet_to_see(session,
     ours.special_requests = 'Low floor'
     session.flush()
     assert ours.last_modified_at is not None
+
+
+def test_our_room_number_edits_flag_the_room_but_the_hotels_do_not(session, no_cherrypy_session):
+    ra = _booking(session)
+    ra.last_modified_at = None
+    session.flush()
+
+    mapping.sync_value(session, ra, 'assignment.room_number', '301')
+    assert ra.room_number == '301' and ra.last_modified_at is None
+
+    ra.room_number = '302'
+    session.flush()
+    assert ra.last_modified_at is not None
+
+    # Placing the booking in a catalogued room sets the number too.
+    from uber.models.hotel import PhysicalRoom
+    room = PhysicalRoom(hotel_id=ra.inventory.hotel_id, inventory_id=ra.inventory_id, room_number='410', floor='4')
+    session.add(room)
+    session.flush()
+    ra.last_modified_at = None
+    session.flush()
+    ra.physical_room_id = room.id
+    session.flush()
+    assert ra.room_number == '410' and ra.last_modified_at is not None

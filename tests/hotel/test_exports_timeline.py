@@ -20,7 +20,10 @@ from tests.hotel.factories import (N, make_application, make_assignment,
                                    make_attendee, make_hotel, make_inventory)
 
 
-def _track(session, ra, when, data="room_number=''301' -> '302''"):
+STAMPED = ", last_modified_at='None -> datetime.datetime(2026, 1, 2, 3, 4, 5, tzinfo=<UTC>)'"
+
+
+def _track(session, ra, when, data="special_requests='None -> 'Low floor''" + STAMPED):
     from uber.config import c
     session.add(Tracking(model='RoomAssignment', fk_id=ra.id, when=when,
                          who='Tester', which=repr(ra), data=data,
@@ -210,8 +213,7 @@ def test_import_changes_are_not_double_counted_in_gap_rows(session):
     # an admin edit afterward.
     _track(session, ra, base + timedelta(hours=1, milliseconds=200),
            data="hotel_confirmation_number='None -> 'FROM-HOTEL''")
-    _track(session, ra, base + timedelta(hours=2),
-           data="room_number=''301' -> '302''")
+    _track(session, ra, base + timedelta(hours=2))
     session.flush()
 
     timeline = hotel_activity_timeline(session, hotel.id)
@@ -222,7 +224,7 @@ def test_import_changes_are_not_double_counted_in_gap_rows(session):
     assert changes[0]['count'] == 1
     gap = changed_rooms_between(session, hotel.id, changes[0]['start'],
                                 changes[0]['end'], exclude_imports=True)
-    assert [f for row in gap for f, _o, _n in row['changes']] == ['room_number']
+    assert [f for row in gap for f, _o, _n in row['changes']] == ['special_requests']
 
     # And the import row still reports its own change.
     from uber.hotel.exports import import_changes
@@ -542,3 +544,30 @@ def test_catch_up_unflags_rooms_only_the_hotel_changed(session, no_cherrypy_sess
     assert {ra.last_modified_at for ra in (also_ours, ours_later, by_hand)} == {during, after}
     # The other catch-up does not put the flag back.
     assert flag_rooms_changed_since_export(session) == []
+
+
+def test_timeline_counts_only_changes_the_hotel_has_yet_to_see(session):
+    hotel = make_hotel(session)
+    inv = make_inventory(session, hotel)
+    notes, unflagged, roommates, edited = [
+        make_assignment(session, make_attendee(session), inventory=inv, check_in=N[1], check_out=N[3])
+        for _ in range(4)]
+    export = store_export_file(session, hotel, b'x', 'f.csv', 'text/csv', source='admin')
+    session.query(Tracking).filter(Tracking.fk_id.in_([ra.id for ra in (notes, unflagged, roommates, edited)])).delete(
+        synchronize_session=False)
+    when = export.exported_at + timedelta(hours=1)
+    later, earlier = 'datetime.datetime(2026, 1, 2, 3, 4, 6, tzinfo=<UTC>)', 'datetime.datetime(2026, 1, 2, 3, 4)'
+
+    # Not for the hotel: a field it never gets, its own upload, and the catch-up clearing a flag.
+    _track(session, notes, when, data="admin_notes=''' -> 'called''")
+    _track(session, notes, when, data="hotel_confirmation_number='None -> 'H1''")
+    _track(session, unflagged, when, data=f"last_modified_at='{later} -> {earlier}'")
+    # For the hotel: a roommate change is a stamp alone.
+    _track(session, roommates, when, data=f"last_modified_at='{earlier} -> {later}'")
+    _track(session, edited, when)
+
+    gap = hotel_activity_timeline(session, hotel.id)[0]
+    assert gap['kind'] == 'changes' and gap['count'] == 2
+    rows = changed_rooms_between(session, hotel.id, export.exported_at, None, exclude_imports=True)
+    assert {row['assignment_id']: [f for f, _, _ in row['changes']] for row in rows} == {
+        roommates.id: ['roommates or guest details'], edited.id: ['special_requests']}
