@@ -1,37 +1,14 @@
 // Per-hotel export-details modal glue for
 // hotel_lottery_admin/export_tracking.html: loads the paginated
 // details partial into the modal, wires the export/import buttons to
-// the hotel picked from the table, and filters in-sync rows.
+// the hotel picked from the table, and reloads when the pending-only
+// filter changes.
 (function () {
   var modalEl       = document.getElementById('hotel-export-details-modal');
   var modalLabel    = document.getElementById('hotel-export-details-modal-label');
   var modalBody     = document.getElementById('hotel-export-details-body');
   var pendingOnly   = document.getElementById('hotel-export-pending-only');
   if (!modalEl) return;
-
-  function applyFilter() {
-    var rows = modalBody.querySelectorAll('tr[data-sync-status]');
-    var hideInSync = pendingOnly.checked;
-    var visible = 0;
-    rows.forEach(function (r) {
-      var inSync = r.dataset.syncStatus === 'in_sync';
-      if (hideInSync && inSync) {
-        r.style.display = 'none';
-      } else {
-        r.style.display = '';
-        visible++;
-      }
-    });
-    // Update the row count line emitted by the partial.
-    var countEl = modalBody.querySelector('.hotel-export-row-count');
-    if (countEl) {
-      var total = rows.length;
-      countEl.textContent = (hideInSync && visible !== total)
-        ? (visible + ' of ' + total)
-        : total;
-    }
-  }
-  pendingOnly.addEventListener('change', applyFilter);
 
   var csvBtn         = document.getElementById('hotel-export-csv-btn');
   var xlsxBtn        = document.getElementById('hotel-export-xlsx-btn');
@@ -57,7 +34,8 @@
       '<p class="mt-2 mb-0">Loading...</p></div>';
 
     var url = 'hotel_export_details?hotel_id=' + encodeURIComponent(hotelId)
-            + '&page=' + encodeURIComponent(page || 1);
+            + '&page=' + encodeURIComponent(page || 1)
+            + (pendingOnly.checked ? '&pending_only=1' : '');
     fetch(url, {credentials: 'same-origin'})
       .then(function (r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -65,7 +43,6 @@
       })
       .then(function (html) {
         modalBody.innerHTML = html;
-        applyFilter();
       })
       .catch(function (err) {
         modalBody.innerHTML =
@@ -85,6 +62,11 @@
     if (li && li.classList.contains('disabled')) return;
     if (!currentHotelId) return;
     loadPage(currentHotelId, a.getAttribute('data-page'));
+  });
+
+  // The filter runs on the server, so it covers every page.
+  pendingOnly.addEventListener('change', function () {
+    if (currentHotelId) loadPage(currentHotelId, 1);
   });
 
   modalEl.addEventListener('show.bs.modal', function (event) {

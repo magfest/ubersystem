@@ -20,6 +20,7 @@ underneath them:
     workbook.
 """
 import csv
+import json
 import os
 import re
 import uuid
@@ -390,6 +391,147 @@ def derive_sync_status(ra, last_export):
     elif not has_conf:
         return 'awaiting_confirmation'
     return 'in_sync'
+
+
+_GUEST_COL_RE = re.compile(r'(guest\d+)_(\w+)')
+# Bookkeeping, or derived from the guests.
+_DIFF_SKIP = {'last_modified_at', 'num_occupants', 'guests'}
+
+
+def _comparable(value):
+    return '' if value is None else str(value).strip()
+
+
+def _comparable_booking(row):
+    """A booking from the JSON payload or a spreadsheet row as
+    ({field: text}, {guest tuples}), so two can be compared."""
+    fields, columns = {}, {}
+    for key, value in row.items():
+        match = _GUEST_COL_RE.fullmatch(key)
+        if match:
+            columns.setdefault(match.group(1), {})[match.group(2)] = value
+        elif key not in _DIFF_SKIP:
+            fields[key] = _comparable(value)
+    guests = list(columns.values()) + [g for g in row.get('guests') or [] if isinstance(g, dict)]
+    people = {tuple(_comparable(g.get(f)) for f in BOOKING_GUEST_FIELDS) for g in guests}
+    return fields, {person for person in people if any(person)}
+
+
+def _stored_bookings(entry):
+    """{assignment id: booking} from a retained export file; {} if it cannot be read."""
+    if not entry.filepath or not os.path.exists(entry.filepath):
+        return {}
+    with open(entry.filepath, 'rb') as f:
+        raw = f.read()
+    if (entry.filename or '').lower().endswith('.json') or 'json' in (entry.content_type or ''):
+        try:
+            payload = json.loads(raw.decode('utf-8'))
+        except ValueError:
+            return {}
+        rows = payload.get('bookings', []) if isinstance(payload, dict) else payload
+    else:
+        from uber.hotel.imports import parse_spreadsheet
+        _, rows, error = parse_spreadsheet(raw, entry.filename)
+        if error:
+            return {}
+    return {str(row['assignment_id']): row for row in rows if isinstance(row, dict) and row.get('assignment_id')}
+
+
+def _booking_changes(saved, ra):
+    """Names of the fields where the room no longer matches a booking the hotel was sent."""
+    current = booking_dict(ra, ra.lottery_application)
+    from_spreadsheet = 'guests' not in saved
+    if from_spreadsheet:
+        current = dict(zip(BOOKING_BASE_COLS, booking_row(ra, None, current)), guests=current['guests'])
+    was, was_guests = _comparable_booking(saved)
+    now, now_guests = _comparable_booking(current)
+    changed = sorted(field for field in was if field in now and was[field] != now[field])
+    if from_spreadsheet and len(now_guests) > BOOKING_MAX_GUESTS:
+        # The spreadsheet only has room for the first few guests.
+        same_guests = was_guests <= now_guests and len(was_guests) == BOOKING_MAX_GUESTS
+    else:
+        same_guests = was_guests == now_guests
+    return changed if same_guests else changed + ['guests']
+
+
+# What a hotel's own confirmation upload changes on a room.
+_HOTEL_SUPPLIED = {'hotel_confirmation_number', 'cancellation_confirmation_number', 'status', 'is_cancelled'}
+
+
+def _rooms_against_last_file(session, flagged):
+    """Yield (room, export log, changed fields) for each exported room,
+    compared with the last retained file that included it. `flagged`
+    picks the rooms that are, or are not, marked changed since export."""
+    from uber.hotel.queries import exported_assignments_for_hotel
+
+    for hotel in session.query(LotteryHotel).order_by(LotteryHotel.name):
+        logs = session.query(HotelExportLog).filter_by(
+            hotel_id=hotel.id, export_type='room_export').order_by(HotelExportLog.exported_at.desc()).all()
+        if not logs:
+            continue
+        is_flagged = RoomAssignment.last_modified_at > logs[0].exported_at
+        rooms = {ra.id: ra for ra in exported_assignments_for_hotel(session, hotel.id).filter(
+            is_flagged if flagged else or_(RoomAssignment.last_modified_at == None, ~is_flagged))}  # noqa: E711
+        # A portal pull can cover only some blocks, so look back for each room's latest file.
+        for entry in logs:
+            if not rooms:
+                break
+            for room_id, saved in _stored_bookings(entry).items():
+                ra = rooms.pop(room_id, None)
+                if ra:
+                    yield ra, entry, _booking_changes(saved, ra)
+
+
+def flag_rooms_changed_since_export(session, commit=False):
+    """One-time catch-up for changes that never moved last_modified_at
+    (roommates, guest contact details): stamp the unflagged rooms that
+    differ from what their hotel was last sent, other than in what the
+    hotel itself supplied. Without `commit` nothing is written.
+    Returns [(room, [changed fields])]."""
+    found, now = [], datetime.now(UTC)
+    for ra, _, changed in _rooms_against_last_file(session, flagged=False):
+        changed = [field for field in changed if field not in _HOTEL_SUPPLIED]
+        if changed:
+            found.append((ra, changed))
+            if commit:
+                ra.last_modified_at = now
+    if commit:
+        session.flush()
+    return found
+
+
+def unflag_rooms_changed_by_hotel(session, commit=False):
+    """One-time catch-up for rooms a hotel's own upload marked as changed:
+    clear the flag where the room was last stamped while an import was
+    being applied and differs from what the hotel was last sent only in
+    what the hotel supplied. Without `commit` nothing is written.
+    Returns [(room, [changed fields])]."""
+    from uber.models.hotel import HotelImportFile
+
+    windows = {}
+    for record in session.query(HotelImportFile):
+        start, end = record.applied_from, record.applied_to
+        if not start and record.uploaded_at:
+            # Imported before the window was recorded: bound a guess.
+            start, end = record.uploaded_at, record.uploaded_at + timedelta(minutes=1)
+        if start and end:
+            windows.setdefault(record.hotel_id, []).append((start, end))
+
+    found = []
+    for ra, entry, changed in _rooms_against_last_file(session, flagged=True):
+        hotel_id = ra.inventory.hotel_id if ra.inventory else None
+        during_import = any(start <= ra.last_modified_at <= end
+                            for start, end in windows.get(hotel_id, []) + windows.get(None, []))
+        # A status change alone is ours; the hotel's comes with its cancellation number.
+        cancelled = 'cancellation_confirmation_number' in changed
+        if during_import and all(field in _HOTEL_SUPPLIED for field in changed) and (
+                cancelled or not {'status', 'is_cancelled'} & set(changed)):
+            found.append((ra, changed))
+            if commit:
+                ra.last_modified_at = entry.exported_at
+    if commit:
+        session.flush()
+    return found
 
 
 def render_booking_export(session, hotel_id, fmt='csv'):

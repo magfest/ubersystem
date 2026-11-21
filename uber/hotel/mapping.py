@@ -17,6 +17,7 @@ import os
 from datetime import datetime
 
 from uber.config import c
+from uber.hotel.service import hotel_sourced_changes
 
 log = logging.getLogger(__name__)
 
@@ -380,16 +381,15 @@ def sync_value(session, ra, key, value):
         parsed = _parse_date(value)
         if value and not parsed:
             return False, f'Could not read {value} as a date.'
-        setattr(target, attr, parsed)
+        value = parsed
     elif kind == 'enum:payment_type':
         if value and value not in c.HOTEL_PAYMENT_TYPES:
             return False, f'Unknown payment type: {value}'
-        setattr(target, attr, value or c.DEFAULT_HOTEL_PAYMENT_TYPE)
-    else:
-        setattr(target, attr, value)
+        value = value or c.DEFAULT_HOTEL_PAYMENT_TYPE
 
-    session.add(target)
-    session.flush()
+    with hotel_sourced_changes(session):
+        setattr(target, attr, value)
+        session.add(target)
     return True, f'{TARGETS_BY_KEY[key]["label"]} updated.'
 
 

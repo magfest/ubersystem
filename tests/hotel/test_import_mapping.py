@@ -10,7 +10,7 @@ from uber.config import c
 from uber.hotel import mapping
 from uber.hotel.imports import parse_spreadsheet
 
-from tests.hotel.factories import (make_assignment, make_attendee, make_hotel,
+from tests.hotel.factories import (make_application, make_assignment, make_attendee, make_hotel,
                                    make_inventory, make_room_type)
 
 
@@ -408,3 +408,34 @@ def test_header_map_round_trips(session):
 
     stored = session.query(ImportMappingTemplate).get(template.id)
     assert stored.header_map == {'acknowledgement_number': 'Acknowledgement Number'}
+
+
+def test_hotel_supplied_values_are_not_changes_the_hotel_has_yet_to_see(session, no_cherrypy_session):
+    from uber.hotel.imports import apply_cancellation_rows, apply_confirmation_rows, import_confirmation_file
+
+    def unstamped(email):
+        ra = _booking(session, email=email)
+        ra.last_modified_at = None
+        session.flush()
+        return ra
+
+    templated, synced, confirmed, cancelled, ours = [
+        unstamped(f'{name}@example.com') for name in ('templated', 'synced', 'confirmed', 'cancelled', 'ours')]
+    app = make_application(session, confirmed.attendee, confirmation_num='LOTTERY1')
+    confirmed.lottery_application_id = cancelled.lottery_application_id = app.id
+    session.flush()
+    assert confirmed.last_modified_at is None
+
+    raw = _room_list_csv([{'email': 'templated@example.com', 'acknowledgement_number': 'ACK1'}])
+    import_confirmation_file(session, raw, 'list.csv', template=mapping.builtin_template())
+    mapping.sync_value(session, synced, 'assignment.assigned_check_out_date', '2027-01-12')
+    apply_confirmation_rows(session, [{'confirmation_num': 'LOTTERY1', 'new_confirmation_num': 'ACK2'}])
+    assert templated.hotel_confirmation_number == 'ACK1' and confirmed.hotel_confirmation_number == 'ACK2'
+    apply_cancellation_rows(session, [{'confirmation_num': 'LOTTERY1', 'cancellation_confirmation_number': 'X1'}])
+    assert cancelled.status == c.CANCELLED
+    assert [ra.last_modified_at for ra in (templated, synced, confirmed, cancelled)] == [None] * 4
+
+    # Our own edits afterwards still count.
+    ours.special_requests = 'Low floor'
+    session.flush()
+    assert ours.last_modified_at is not None
