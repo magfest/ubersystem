@@ -499,3 +499,46 @@ def test_catch_up_flags_rooms_that_differ_from_the_last_file(session, no_cherryp
     assert new_mate.last_modified_at > export.exported_at and new_email.last_modified_at > export.exported_at
     assert same.last_modified_at < export.exported_at
     assert flag_rooms_changed_since_export(session) == []
+
+
+def test_catch_up_unflags_rooms_only_the_hotel_changed(session, no_cherrypy_session):
+    from uber.hotel.exports import flag_rooms_changed_since_export, unflag_rooms_changed_by_hotel
+    from uber.models.hotel import room_assignment_occupant
+
+    hotel = make_hotel(session)
+    inv = make_inventory(session, hotel)
+    confirmed, cancelled, also_ours, ours_later, by_hand = rooms = [
+        make_assignment(session, make_attendee(session), inventory=inv, check_in=N[1], check_out=N[3],
+                        hotel_confirmation_number='OLD' if i == 1 else '') for i in range(5)]
+    _, name, kind, raw = render_booking_export(session, hotel.id, 'csv')
+    export = store_export_file(session, hotel, raw, name, kind, source='admin', record_count=5)
+    during, after = export.exported_at + timedelta(hours=1), export.exported_at + timedelta(hours=3)
+    session.add(HotelImportFile(hotel_id=hotel.id, filename='back.csv', filepath='/tmp/back.csv', source='portal',
+                                uploaded_at=during, applied_from=during - timedelta(seconds=5),
+                                applied_to=during + timedelta(seconds=5)))
+
+    # What the old code did: the upload's numbers stamped every room they landed on.
+    for ra in (confirmed, also_ours, ours_later, by_hand):
+        ra.hotel_confirmation_number = 'NEW'
+    cancelled.cancellation_confirmation_number = 'X1'
+    session.execute(room_assignment_occupant.insert().values(
+        room_assignment_id=also_ours.id, attendee_id=make_attendee(session).id))
+    ours_later.special_requests = 'Low floor'
+    session.flush()
+    for ra in rooms:
+        ra.last_modified_at = during
+    ours_later.last_modified_at = by_hand.last_modified_at = after
+    session.flush()
+    session.expire_all()
+
+    found = {ra.id: changed for ra, changed in unflag_rooms_changed_by_hotel(session)}
+    assert set(found) == {confirmed.id, cancelled.id}
+    assert found[confirmed.id] == ['hotel_confirmation_number']
+    assert 'cancellation_confirmation_number' in found[cancelled.id]
+    assert confirmed.last_modified_at == during   # a dry run
+
+    unflag_rooms_changed_by_hotel(session, commit=True)
+    assert confirmed.last_modified_at <= export.exported_at and cancelled.last_modified_at <= export.exported_at
+    assert {ra.last_modified_at for ra in (also_ours, ours_later, by_hand)} == {during, after}
+    # The other catch-up does not put the flag back.
+    assert flag_rooms_changed_since_export(session) == []

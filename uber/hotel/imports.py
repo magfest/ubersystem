@@ -15,6 +15,7 @@ from datetime import date, datetime
 from pytz import UTC
 
 from uber.config import c
+from uber.hotel.service import hotel_sourced
 
 
 def _normalize(value):
@@ -385,6 +386,7 @@ def match_assignments(session, app_id='', conf=''):
     return []
 
 
+@hotel_sourced
 def apply_confirmation_rows(session, rows, apply_changes=True, on_update=None):
     """Shared row applier for hotel confirmation numbers.
 
@@ -446,6 +448,7 @@ def apply_confirmation_rows(session, rows, apply_changes=True, on_update=None):
     return preview
 
 
+@hotel_sourced
 def apply_cancellation_rows(session, rows, apply_changes=True):
     """Shared row applier for hotel cancellation numbers.
 

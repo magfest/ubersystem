@@ -182,6 +182,18 @@ def materialize_room_occupants():
     print(f"Filled in the occupant list of {filled} room(s).")
 
 
+def _hotel_change_flag_catch_up(find, did, would):
+    commit = '--commit' in sys.argv
+    with Session() as session:
+        found = find(session, commit=commit)
+        for ra, changed in found:
+            hotel = ra.inventory.hotel.name if ra.inventory and ra.inventory.hotel else '?'
+            print(f"{hotel}\t{ra.id}\t{', '.join(changed)}")
+        if commit:
+            session.commit()
+    print(f"{len(found)} room(s) {did if commit else would + '; pass --commit'}.")
+
+
 @entry_point
 def flag_rooms_changed_since_export():
     """
@@ -189,17 +201,19 @@ def flag_rooms_changed_since_export():
     file their hotel received but are not marked as changed. Pass --commit to
     mark them changed since export.
     """
-    from uber.hotel.exports import flag_rooms_changed_since_export as flag
+    from uber.hotel.exports import flag_rooms_changed_since_export as find
+    _hotel_change_flag_catch_up(find, 'marked as changed', 'would be marked as changed')
 
-    commit = '--commit' in sys.argv
-    with Session() as session:
-        flagged = flag(session, commit=commit)
-        for ra, changed in flagged:
-            hotel = ra.inventory.hotel.name if ra.inventory and ra.inventory.hotel else '?'
-            print(f"{hotel}\t{ra.id}\t{', '.join(changed)}")
-        if commit:
-            session.commit()
-    print(f"{len(flagged)} room(s) {'marked as changed' if commit else 'would be marked as changed; pass --commit'}.")
+
+@entry_point
+def unflag_rooms_changed_by_hotel():
+    """
+    One-time catch-up: list the hotel rooms marked as changed since export only
+    because their hotel uploaded confirmation or cancellation numbers. Pass
+    --commit to clear the mark.
+    """
+    from uber.hotel.exports import unflag_rooms_changed_by_hotel as find
+    _hotel_change_flag_catch_up(find, 'no longer marked as changed', 'would no longer be marked as changed')
 
 
 @entry_point

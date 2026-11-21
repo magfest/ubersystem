@@ -1531,6 +1531,10 @@ class RoomAssignment(MagModel, table=True):
                    'cancellation_confirmation_number', 'special_requests', 'hotel_rewards_number',
                    'cc_token', 'cc_captured_at',
                    'address1', 'address2', 'city', 'region', 'zip_code', 'country']
+        session = object_session(self)
+        if session is not None and session.info.get('hotel_sourced'):
+            # The hotel made this change, so it has already seen it.
+            return
         if any(getattr(self, f) != self.orig_value_of(f) for f in tracked) or self._roommates_changed():
             self.last_modified_at = datetime.now(UTC)
 

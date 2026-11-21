@@ -12,7 +12,9 @@ never commit - the calling route handler / API method / background task owns the
 transaction.
 """
 
+from contextlib import contextmanager
 from datetime import date, timedelta
+from functools import wraps
 
 from uber.config import c
 from uber.hotel.perms import record_partition_audit
@@ -145,6 +147,29 @@ def _held_nights(ra):
             nights.add(night)
             night += timedelta(days=1)
     return ra.inventory_id, ra.partition_id, nights
+
+
+@contextmanager
+def hotel_sourced_changes(session):
+    """Room changes written inside come from the hotel's own file, so they
+    do not mark the room as changed since export. Flushes on the way in
+    and out, so only those writes are covered."""
+    session.flush()
+    session.info['hotel_sourced'] = session.info.get('hotel_sourced', 0) + 1
+    try:
+        yield
+        session.flush()
+    finally:
+        session.info['hotel_sourced'] -= 1
+
+
+def hotel_sourced(func):
+    """Run func(session, ...) inside hotel_sourced_changes."""
+    @wraps(func)
+    def wrapped(session, *args, **kwargs):
+        with hotel_sourced_changes(session):
+            return func(session, *args, **kwargs)
+    return wrapped
 
 
 def check_partition_capacity(session, ra, held=None):

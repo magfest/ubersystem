@@ -50,7 +50,7 @@ from uber.hotel.imports import (apply_cancellation_rows, apply_confirmation_rows
                                 parse_iso_date, parse_spreadsheet)
 from uber.hotel.service import (RoomAssignmentError, add_room_occupant, apply_room_assignment_edits,
                                 assign_physical_room, cancel_room_occupant_invite,
-                                create_room_assignment, remove_room_occupant,
+                                create_room_assignment, hotel_sourced_changes, remove_room_occupant,
                                 validate_physical_room)
 from uber.hotel.solver import (LOTTERY_TYPE_BOTH,
                                        adjust_available_rooms,
@@ -2239,8 +2239,9 @@ class Root:
         confirmation = (row.get('mapped') or {}).get(
             'assignment.hotel_confirmation_number', '').strip()
         if confirmation:
-            ra.hotel_confirmation_number = confirmation
-            session.add(ra)
+            with hotel_sourced_changes(session):
+                ra.hotel_confirmation_number = confirmation
+                session.add(ra)
 
         previous_status = row.get('status')
         row['assignment_ids'] = [str(ra.id)]
