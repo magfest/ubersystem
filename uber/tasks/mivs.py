@@ -1,4 +1,5 @@
 from datetime import timedelta
+import json
 import logging
 from sqlalchemy.orm import joinedload
 
@@ -58,12 +59,16 @@ def mivs_assign_game_codes_to_judges():
 
 
 def should_send_reminder(session, studio, keys, render_data_key):
-    # TODO: Test this
-    sent_emails = session.query(Email.ident).filter(Email.ident.contains('checklist_reminder'), Email.fk_id == studio.id)
+    sent_emails = session.query(Email.render_data).filter(Email.ident.contains('checklist_reminder'),
+                                                          Email.fk_id == studio.id)
 
     already_reminded = set()
     for email in sent_emails:
-        already_reminded.update(email.render_data.get(render_data_key, []))
+        # EmailHandler has stored each value as a JSON string since 2026-09-15; older rows hold the raw list.
+        items = email.render_data.get(render_data_key, [])
+        if isinstance(items, str):
+            items = json.loads(items)
+        already_reminded.update(key for key, label in items)
     return set(keys).difference(already_reminded)
 
 
