@@ -2,10 +2,11 @@
 the invite itself. It used to get the room and its leader through queued
 `data`, which is JSON-serialized: models became plain dicts with string
 dates, so the room summary failed and the body came out empty."""
-from datetime import date
+from datetime import date, datetime, timedelta
 
 import cherrypy
 import pytest
+from pytz import UTC
 
 from uber.errors import HTTPRedirect
 
@@ -60,3 +61,37 @@ def test_invite_email_renders_the_same_at_send_time(queued_invite_email):
     """Sending re-renders the body from the model plus stored data."""
     email, _ra = queued_invite_email
     assert email.automated_email.render_body(email.fk, email.render_data) == email.body
+
+
+def test_send_pass_picks_up_the_invite_email(queued_invite_email, session, monkeypatch):
+    """send_automated_emails only selects emails whose model is some fixture's model."""
+    from uber.config import c
+    from uber.email import EmailService
+    from uber.models import AutomatedEmail
+
+    email, _ra = queued_invite_email
+    # The test database has no send policy, so the email starts Pending Approval; production autosends.
+    email.status = c.QUEUED
+    email.send_after = datetime.now(UTC) - timedelta(minutes=1)
+    session.flush()
+    attempted = []
+    monkeypatch.setattr(EmailService, 'send_email', lambda session, email, *args: attempted.append(email.id))
+
+    for model_class in set(fixture.model for fixture in AutomatedEmail._fixtures.values()):
+        EmailService.process_emails_by_class(session, model_class)
+
+    assert email.id in attempted
+
+
+def test_invite_email_sends(queued_invite_email, session, monkeypatch):
+    from uber.config import c
+    from uber.email import EmailService
+
+    email, _ra = queued_invite_email
+    # DEV_BOX runs the whole send path but skips the SES call.
+    monkeypatch.setattr(c, 'DEV_BOX', True)
+
+    assert EmailService.send_email(session, email, email.automated_email) is email
+    assert email.status == c.SENT
+    assert email.to == 'friend@example.com'
+    assert not email.error

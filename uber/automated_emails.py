@@ -13,7 +13,7 @@ from uber.jinja import JinjaEnv
 from uber.models import (AdminAccount, Attendee, AttendeeAccount, ArtShowApplication, ArtShowBidder, AutomatedEmail, AttractionSignup,
                          BadgeWaitlistSignup, Group, GuestGroup, IndieGame, IndieJudge, IndieStudio, ArtistMarketplaceApplication, MITSTeam,
                          MITSApplicant, ReceiptInfo, PanelApplication, PanelApplicant, PromoCode, PromoCodeGroup, LotteryApplication,
-                         RoomAssignment, Shift)
+                         RoomAssignment, RoomAssignmentInvite, Shift)
 from uber.utils import after, before, days_after, days_before, days_between, localized_now, DeptChecklistConf
 
 log = logging.getLogger(__name__)
@@ -1281,10 +1281,14 @@ HotelLotteryEmailFixture(
     'group_lottery_member_joined'
 )
 
-HotelLotteryEmailFixture(
+# Queued on the invite, not a LotteryApplication. send_automated_emails only picks up emails whose
+# model is some fixture's model, so this fixture must name RoomAssignmentInvite.
+AutomatedEmailFixture(
+    RoomAssignmentInvite,
     f'You have a room at {c.EVENT_NAME}',
     'hotel/room_occupant_invite.html', None,
-    'room_occupant_invite'
+    'room_occupant_invite',
+    sender=c.HOTEL_LOTTERY_EMAIL,
 )
 HotelLotteryEmailFixture(
     f'Someone joined your {c.EVENT_NAME} room',
