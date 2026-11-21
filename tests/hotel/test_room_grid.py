@@ -231,3 +231,23 @@ def test_ineligible_roommate_is_refused(session, save, inv):
     refunded = make_attendee(session, badge_status=c.REFUNDED_STATUS)
     errors = _errors(save({room.id: {'add': [refunded.id]}}))
     assert len(errors) == 1 and 'does not have a badge' in errors[0]
+
+
+def test_room_fills_to_capacity(session, save, inv):
+    room = _room(session, inv)
+    mates = [_staff(session) for _ in range(inv.capacity - 1)]
+
+    for mate in mates[:-1]:
+        assert save({room.id: {'add': [mate.id]}})['saved']
+    result = save({room.id: {'add': [mates[-1].id]}})
+    assert result['saved'], result['issues']
+    assert len(result['rows'][0]['occupants']) == inv.capacity
+
+    assert 'full' in _errors(save({room.id: {'add': [_staff(session).id]}}))[0]
+
+
+def test_room_fills_to_capacity_in_one_batch(session, save, inv):
+    room = _room(session, inv)
+    mates = [_staff(session) for _ in range(inv.capacity - 1)]
+    result = save({room.id: {'add': [m.id for m in mates]}})
+    assert result['saved'], result['issues']

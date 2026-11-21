@@ -1770,7 +1770,7 @@ class Root:
         message = "; ".join(msg_parts) or "No matching rows to import."
         raise HTTPRedirect('export_tracking?message={}', message)
 
-    def hotel_export_details(self, session, hotel_id, page='1', page_size='25'):
+    def hotel_export_details(self, session, hotel_id, page='1', page_size='25', pending_only=''):
         """Per-room export/import detail for a single hotel, used by the
         modal on the export tracking page. Returns a server-rendered
         partial (no base layout) for direct injection into the modal body.
@@ -1804,6 +1804,12 @@ class Root:
                           RoomAssignment.is_live)
                   .order_by(RoomAssignment.parent_assignment_id.asc().nullsfirst(),
                             RoomAssignment.created.asc()))
+        if pending_only and last_export:
+            # Everything derive_sync_status would not call in_sync.
+            base_q = base_q.filter(or_(
+                RoomAssignment.last_modified_at > last_export.exported_at,
+                RoomAssignment.hotel_confirmation_number == None,  # noqa: E711
+                func.trim(RoomAssignment.hotel_confirmation_number) == ''))
         assignments, total, page_num, page_count = paginate(
             base_q, page, page_size, default_size=25, min_size=5, max_size=200)
         ps = clamp_page_size(page_size, default_size=25, min_size=5, max_size=200)
@@ -1818,6 +1824,7 @@ class Root:
             'hotel': hotel,
             'last_export': last_export,
             'bookings': bookings,
+            'pending_only': bool(pending_only),
             'page': page_num,
             'page_size': ps,
             'total': total,

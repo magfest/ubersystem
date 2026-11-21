@@ -1796,6 +1796,10 @@ class HotelLookup:
                          'admin_notes', 'occupant_message']:
                 if attr in kwargs:
                     setattr(assignment, attr, kwargs[attr])
+            if occupant_rows is not None and assignment.attendee_id and (
+                    {a.id for a in assignment.effective_occupants} != set(occupant_rows) | {assignment.attendee_id}):
+                # The rows are replaced in SQL below, which the model's own stamp cannot see.
+                assignment.last_modified_at = datetime.now(pytz.UTC)
             session.add(assignment)
             if occupant_rows is not None:
                 session.flush()

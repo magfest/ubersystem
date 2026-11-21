@@ -20,6 +20,7 @@ underneath them:
     workbook.
 """
 import csv
+import json
 import os
 import re
 import uuid
@@ -390,6 +391,100 @@ def derive_sync_status(ra, last_export):
     elif not has_conf:
         return 'awaiting_confirmation'
     return 'in_sync'
+
+
+_GUEST_COL_RE = re.compile(r'(guest\d+)_(\w+)')
+# Bookkeeping, or derived from the guests.
+_DIFF_SKIP = {'last_modified_at', 'num_occupants', 'guests'}
+
+
+def _comparable(value):
+    return '' if value is None else str(value).strip()
+
+
+def _comparable_booking(row):
+    """A booking from the JSON payload or a spreadsheet row as
+    ({field: text}, {guest tuples}), so two can be compared."""
+    fields, columns = {}, {}
+    for key, value in row.items():
+        match = _GUEST_COL_RE.fullmatch(key)
+        if match:
+            columns.setdefault(match.group(1), {})[match.group(2)] = value
+        elif key not in _DIFF_SKIP:
+            fields[key] = _comparable(value)
+    guests = list(columns.values()) + [g for g in row.get('guests') or [] if isinstance(g, dict)]
+    people = {tuple(_comparable(g.get(f)) for f in BOOKING_GUEST_FIELDS) for g in guests}
+    return fields, {person for person in people if any(person)}
+
+
+def _stored_bookings(entry):
+    """{assignment id: booking} from a retained export file; {} if it cannot be read."""
+    if not entry.filepath or not os.path.exists(entry.filepath):
+        return {}
+    with open(entry.filepath, 'rb') as f:
+        raw = f.read()
+    if (entry.filename or '').lower().endswith('.json') or 'json' in (entry.content_type or ''):
+        try:
+            payload = json.loads(raw.decode('utf-8'))
+        except ValueError:
+            return {}
+        rows = payload.get('bookings', []) if isinstance(payload, dict) else payload
+    else:
+        from uber.hotel.imports import parse_spreadsheet
+        _, rows, error = parse_spreadsheet(raw, entry.filename)
+        if error:
+            return {}
+    return {str(row['assignment_id']): row for row in rows if isinstance(row, dict) and row.get('assignment_id')}
+
+
+def _booking_changes(saved, ra):
+    """Names of the fields where the room no longer matches a booking the hotel was sent."""
+    current = booking_dict(ra, ra.lottery_application)
+    from_spreadsheet = 'guests' not in saved
+    if from_spreadsheet:
+        current = dict(zip(BOOKING_BASE_COLS, booking_row(ra, None, current)), guests=current['guests'])
+    was, was_guests = _comparable_booking(saved)
+    now, now_guests = _comparable_booking(current)
+    changed = sorted(field for field in was if field in now and was[field] != now[field])
+    if from_spreadsheet and len(now_guests) > BOOKING_MAX_GUESTS:
+        # The spreadsheet only has room for the first few guests.
+        same_guests = was_guests <= now_guests and len(was_guests) == BOOKING_MAX_GUESTS
+    else:
+        same_guests = was_guests == now_guests
+    return changed if same_guests else changed + ['guests']
+
+
+def flag_rooms_changed_since_export(session, commit=False):
+    """One-time catch-up for changes that never moved last_modified_at
+    (roommates, guest contact details): compare each exported room with
+    the last retained file that included it, and stamp the ones that
+    differ. Rooms already flagged as changed are left alone. Without
+    `commit` nothing is written. Returns [(room, [changed fields])]."""
+    from uber.hotel.queries import exported_assignments_for_hotel
+
+    flagged, now = [], datetime.now(UTC)
+    for hotel in session.query(LotteryHotel).order_by(LotteryHotel.name):
+        logs = session.query(HotelExportLog).filter_by(
+            hotel_id=hotel.id, export_type='room_export').order_by(HotelExportLog.exported_at.desc()).all()
+        if not logs:
+            continue
+        rooms = {ra.id: ra for ra in exported_assignments_for_hotel(session, hotel.id).filter(or_(
+            RoomAssignment.last_modified_at == None,  # noqa: E711
+            RoomAssignment.last_modified_at <= logs[0].exported_at))}
+        # A portal pull can cover only some blocks, so look back for each room's latest file.
+        for entry in logs:
+            if not rooms:
+                break
+            for room_id, saved in _stored_bookings(entry).items():
+                ra = rooms.pop(room_id, None)
+                changed = _booking_changes(saved, ra) if ra else []
+                if changed:
+                    flagged.append((ra, changed))
+                    if commit:
+                        ra.last_modified_at = now
+    if commit:
+        session.flush()
+    return flagged
 
 
 def render_booking_export(session, hotel_id, fmt='csv'):

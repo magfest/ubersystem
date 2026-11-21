@@ -183,6 +183,26 @@ def materialize_room_occupants():
 
 
 @entry_point
+def flag_rooms_changed_since_export():
+    """
+    One-time catch-up: list the hotel rooms that no longer match the last export
+    file their hotel received but are not marked as changed. Pass --commit to
+    mark them changed since export.
+    """
+    from uber.hotel.exports import flag_rooms_changed_since_export as flag
+
+    commit = '--commit' in sys.argv
+    with Session() as session:
+        flagged = flag(session, commit=commit)
+        for ra, changed in flagged:
+            hotel = ra.inventory.hotel.name if ra.inventory and ra.inventory.hotel else '?'
+            print(f"{hotel}\t{ra.id}\t{', '.join(changed)}")
+        if commit:
+            session.commit()
+    print(f"{len(flagged)} room(s) {'marked as changed' if commit else 'would be marked as changed; pass --commit'}.")
+
+
+@entry_point
 def insert_admin():
     with Session() as session:
         if session.insert_test_admin_account():

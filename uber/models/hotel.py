@@ -1531,8 +1531,19 @@ class RoomAssignment(MagModel, table=True):
                    'cancellation_confirmation_number', 'special_requests', 'hotel_rewards_number',
                    'cc_token', 'cc_captured_at',
                    'address1', 'address2', 'city', 'region', 'zip_code', 'country']
-        if any(getattr(self, f) != self.orig_value_of(f) for f in tracked):
+        if any(getattr(self, f) != self.orig_value_of(f) for f in tracked) or self._roommates_changed():
             self.last_modified_at = datetime.now(UTC)
+
+    def _roommates_changed(self):
+        """Whether this flush changes who is in the room. Writing out a
+        room's implied occupants as its list is not a change."""
+        state = sa.inspect(self).attrs.occupants
+        if not state.history.has_changes():
+            return False
+        history = state.load_history()
+        before = list(history.unchanged or ()) + list(history.deleted or ())
+        return ({a.id for a in before or self.implied_occupants}
+                != {a.id for a in self.effective_occupants})
 
 
 class RoomAssignmentInvite(MagModel, table=True):

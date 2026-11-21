@@ -14,7 +14,9 @@
 </p>
 
 {% if not bookings %}
-<div class="alert alert-secondary mb-0">No awarded bookings at this hotel yet.</div>
+<div class="alert alert-secondary mb-0">
+  {% if pending_only %}Every booking at this hotel is in sync.{% else %}No awarded bookings at this hotel yet.{% endif %}
+</div>
 {% else %}
 
 <table class="table table-sm align-middle hotel-export-details-table">
@@ -85,8 +87,8 @@
     Showing
     <strong>{{ ((page - 1) * page_size) + 1 }}-{{ ((page - 1) * page_size) + bookings|length }}</strong>
     of
-    <strong class="hotel-export-row-count">{{ total }}</strong>
-    booking{{ 's' if total != 1 else '' }}.
+    <strong>{{ total }}</strong>
+    {{ 'pending ' if pending_only }}booking{{ 's' if total != 1 else '' }}.
   </p>
   {{ hotel_macros.pagination_js(page, page_count) }}
 </div>
