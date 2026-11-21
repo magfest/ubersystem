@@ -48,6 +48,17 @@ from uber.payments import ReceiptManager
 
 log = logging.getLogger(__name__)
 
+
+def _cherrypy_session():
+    """Return the CherryPy session for the current request, or an empty dict outside one.
+
+    cherrypy.session is not a dict. It is a thread-local proxy that exists once any thread has served a
+    request, and it raises AttributeError on a thread with no request, such as a startup hook.
+    """
+    session = getattr(cherrypy, 'session', {})
+    return session if hasattr(session, 'get') else {}
+
+
 def _make_getter(model):
     def getter(
             self, params=None, *, bools=(), checkgroups=(), allowed=(), restricted=False, ignore_csrf=False, **query):
@@ -942,15 +953,15 @@ class UberSession(sqlalchemy.orm.Session):
 
     class SessionMixin:
         def current_admin_account(self):
-            if getattr(cherrypy, 'session', {}).get('account_id', getattr(cherrypy.request, 'admin_account', None)):
+            if _cherrypy_session().get('account_id', getattr(cherrypy.request, 'admin_account', None)):
                 return self.admin_account(cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None)))
             
         def current_supervisor_admin(self):
-            if getattr(cherrypy, 'session', {}).get('kiosk_supervisor_id'):
+            if _cherrypy_session().get('kiosk_supervisor_id'):
                 return self.admin_account(cherrypy.session.get('kiosk_supervisor_id'))
 
         def admin_attendee(self):
-            if getattr(cherrypy, 'session', {}).get('account_id', getattr(cherrypy.request, 'admin_account', None)):
+            if _cherrypy_session().get('account_id', getattr(cherrypy.request, 'admin_account', None)):
                 try:
                     return self.query(Attendee).join(Attendee.admin_account).filter(
                         AdminAccount.id == cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))).options(
@@ -960,14 +971,14 @@ class UberSession(sqlalchemy.orm.Session):
                     return
                 
         def kiosk_operator_attendee(self):
-            if self.current_supervisor_admin and getattr(cherrypy, 'session', {}).get('kiosk_operator_id'):
+            if self.current_supervisor_admin and _cherrypy_session().get('kiosk_operator_id'):
                 try:
                     return self.attendee(cherrypy.session.get('kiosk_operator_id'))
                 except NoResultFound:
                     return
 
         def current_attendee_account(self):
-            if c.ATTENDEE_ACCOUNTS_ENABLED and getattr(cherrypy, 'session', {}).get('attendee_account_id', getattr(cherrypy.request, 'attendee_account', None)):
+            if c.ATTENDEE_ACCOUNTS_ENABLED and _cherrypy_session().get('attendee_account_id', getattr(cherrypy.request, 'attendee_account', None)):
                 account_id = cherrypy.session.get('attendee_account_id', getattr(cherrypy.request, 'attendee_account', None))
                 # Handlers ask for this several times per request; reuse the copy already in this session
                 cached = self.info.get('current_attendee_account')
@@ -2283,7 +2294,7 @@ class UberSession(sqlalchemy.orm.Session):
         # ========================
 
         def logged_in_judge(self):
-            account_id = getattr(cherrypy, 'session', {}).get('account_id', getattr(cherrypy.request, 'admin_account', None))
+            account_id = _cherrypy_session().get('account_id', getattr(cherrypy.request, 'admin_account', None))
             if not account_id:
                 raise HTTPRedirect('../landing/index?message=', 'You are not logged in or you do not have judge access.')
             try:
