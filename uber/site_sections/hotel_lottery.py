@@ -364,7 +364,7 @@ def _render_room_detail(session, assignment_id, attendee_id, message):
         seen_ids = {o.id for o in (ra.occupants or [])}
         for other in other_rooms:
             for occ in (other.occupants or []):
-                if occ.id in seen_ids or occ.id == viewer.id:
+                if occ.id in seen_ids or occ.id == viewer.id or not occ.can_hold_hotel_room:
                     continue
                 seen_ids.add(occ.id)
                 copy_candidates.append(occ)
@@ -405,7 +405,9 @@ def _viewer_attendee(session):
         with_rooms = [a for a in aa.attendees
                       if any(ra.is_live for ra in a.released_room_assignments)
                       or a.released_occupied_rooms]
-        return with_rooms[0] if with_rooms else aa.attendees[0]
+        if with_rooms:
+            return with_rooms[0]
+        return next((a for a in aa.attendees if a.can_hold_hotel_room), aa.attendees[0])
     admin = session.current_admin_account()
     if admin and admin.attendee:
         return admin.attendee
@@ -1076,6 +1078,10 @@ class Root:
             ra = invite.room_assignment
             if ra.changes_locked:
                 raise HTTPRedirect('rooms?message={}', _lock_message(ra))
+            if action == 'accept' and not acceptor.can_hold_hotel_room:
+                raise HTTPRedirect(
+                    'rooms?attendee_id={}&message={}', acceptor.id,
+                    f'{acceptor.full_name} does not have a badge that can be given a hotel room.')
             assignment_id = ra.id
             session.delete(invite)
             if action == 'accept' and ra and acceptor.id != ra.attendee_id:
@@ -1155,6 +1161,11 @@ class Root:
                 ra.id, attendee_id,
                 message=f'{target.first_name} {target.last_name} is already '
                         'the room leader.'))
+        if not target.can_hold_hotel_room:
+            raise HTTPRedirect(_room_url(
+                ra.id, attendee_id,
+                message=f'{target.full_name} does not have a badge that can '
+                        'be given a hotel room.'))
 
         # Any card on file belongs to the outgoing leader, so it comes
         # off (with their billing address) and a SECURED room drops back
@@ -1333,7 +1344,7 @@ class Root:
             if aid not in allowed or aid in existing or aid == ra.attendee_id:
                 continue
             a = session.attendee(aid)
-            if not a:
+            if not a or not a.can_hold_hotel_room:
                 continue
             ra.occupants.append(a)
             existing.add(a.id)

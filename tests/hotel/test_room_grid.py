@@ -233,6 +233,14 @@ def test_ineligible_roommate_is_refused(session, save, inv):
     assert len(errors) == 1 and 'does not have a badge' in errors[0]
 
 
+def test_placeholder_roommate_is_found_and_added(session, grid, save, inv):
+    room = _room(session, inv)
+    guest = make_attendee(session, first='Zebulon', last='Placeholder', placeholder=True)
+    assert guest.id in [r['id'] for r in grid('grid_search_roommates', id=room.id, q='Zebulon')]
+    result = save({room.id: {'add': [guest.id]}})
+    assert result['saved'], result['issues']
+
+
 def test_room_fills_to_capacity(session, save, inv):
     room = _room(session, inv)
     mates = [_staff(session) for _ in range(inv.capacity - 1)]

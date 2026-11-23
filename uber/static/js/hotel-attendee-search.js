@@ -47,7 +47,8 @@
 
     function render(items) {
       if (!items || items.length === 0) {
-        results.innerHTML = '<div class="list-group-item text-muted small">No matches</div>';
+        results.innerHTML = '<div class="list-group-item text-muted small">No matches. ' +
+          'Badges that cannot be given a hotel room, such as refunded, deferred, or on hold badges, are not listed.</div>';
         results.style.display = 'block';
         return;
       }

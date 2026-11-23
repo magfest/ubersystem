@@ -138,11 +138,12 @@
                     <input type="hidden" class="full_name" value="{{ attendee.full_name }}" />
                     <input type="hidden" class="badge_num" value="{{ attendee.badge_num or '' }}" />
                     <div class="input-group">
-                        <input type="email" name="account_email" class="form-control" placeholder="Account Email Address" required />
-                        <button type="submit" class="btn btn-primary">
+                        <input type="email" name="account_email" class="form-control" placeholder="Account Email Address" required {% if attendee.cannot_reassign_reason %}disabled{% endif %} />
+                        <button type="submit" class="btn btn-primary" {% if attendee.cannot_reassign_reason %}disabled{% endif %}>
                             <i class="fa fa-plus"></i> Reassign
                         </button>
                     </div>
+                    {% if attendee.cannot_reassign_reason %}<div class="form-text">{{ attendee.cannot_reassign_reason }}</div>{% endif %}
                 </form>
             </td>
             </tr>

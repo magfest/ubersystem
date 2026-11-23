@@ -51,7 +51,7 @@ from uber.hotel.imports import (apply_cancellation_rows, apply_confirmation_rows
 from uber.hotel.service import (RoomAssignmentError, add_room_occupant, apply_room_assignment_edits,
                                 assign_physical_room, cancel_room_occupant_invite,
                                 create_room_assignment, hotel_sourced_changes, remove_room_occupant,
-                                validate_physical_room)
+                                require_room_badge, validate_physical_room)
 from uber.hotel.solver import (LOTTERY_TYPE_BOTH,
                                        adjust_available_rooms,
                                        build_eligible_applications,
@@ -3565,6 +3565,13 @@ class Root:
                                            assignment.id, msg)
 
                     if picked_attendee != assignment.attendee_id:
+                        new_booker = session.query(Attendee).get(picked_attendee)
+                        if not new_booker:
+                            fail('Attendee not found.')
+                        try:
+                            require_room_badge(new_booker)
+                        except RoomAssignmentError as e:
+                            fail(e.message)
                         assignment.attendee_id = picked_attendee
                         session.add(assignment)
                     if (not assignment.assignment_reason
@@ -3620,6 +3627,10 @@ class Root:
                 params['attendee_id'])
             if prefill_attendee:
                 assignment.attendee_id = prefill_attendee.id
+                try:
+                    require_room_badge(prefill_attendee)
+                except RoomAssignmentError as e:
+                    message = message or e.message
 
         # Availability per inventory block, per scope: '' keys the main
         # (unpartitioned) pool, partition ids key their blocks.

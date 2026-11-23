@@ -150,19 +150,58 @@ def test_reassign_to_a_new_sso_account_without_notify_sends_nothing(session, mon
     assert claimed == []
 
 
-def test_reassign_that_cannot_move_the_badge_says_so_and_sends_nothing(session):
+@pytest.mark.parametrize('sso_id', ['', 'login-two'])
+@pytest.mark.parametrize('destination', ['existing', 'new'])
+def test_a_badge_with_an_admin_account_is_not_moved(session, sso_id, destination):
     from_account, attendee = _account_with_badge(session)
     to_account, _ = _account_with_badge(session)
     to_account.sso_id = 'login-one'
-    session.add(AdminAccount(attendee=attendee, hashed='', sso_id='login-two'))
+    admin_account = AdminAccount(attendee=attendee, hashed='', sso_id=sso_id)
+    session.add(admin_account)
     session.flush()
     session.expire(attendee)
+    to_email = to_account.email if destination == 'existing' else _address()
 
-    redirect = _reassign(session, attendee, from_account, to_account.email, notify=True)
+    redirect = _reassign(session, attendee, from_account, to_email, notify=True)
 
     assert _emails(session, 'attendee_account_attendee_added', to_account) == 0
+    assert not session.query(AttendeeAccount).filter_by(email=to_email).filter(
+        AttendeeAccount.id != to_account.id).count()
     assert attendee.managers == [from_account]
+    assert admin_account.sso_id == sso_id
     assert 'DevOps' in str(redirect)
+
+
+def _account_page(session, account, monkeypatch):
+    from uber.decorators import render
+
+    monkeypatch.setattr(c, 'BADGE_WAITLIST_ENABLED', False)
+    monkeypatch.setattr(cherrypy, 'session', {}, raising=False)
+    return render('reg_admin/attendee_account_form.html', {'account': account, 'message': '', 'badge_moves': []},
+                  encoding=None)
+
+
+def _reassign_form(html, attendee):
+    for form in html.split('<form class="form form-inline reassign"')[1:]:
+        form = form.split('</form>')[0]
+        if attendee.id in form:
+            return form
+
+
+def test_account_page_disables_reassign_only_for_a_badge_with_an_admin_account(session, monkeypatch):
+    account, attendee = _account_with_badge(session)
+    admin = Attendee(first_name='Priya', last_name='Nair', email=_address(), badge_status=c.COMPLETED_STATUS)
+    session.add_all([admin, AdminAccount(attendee=admin, hashed='')])
+    session.flush()
+    session.add_attendee_to_account(admin, account)
+    session.flush()
+
+    html = _account_page(session, account, monkeypatch)
+
+    admin_form, regular_form = _reassign_form(html, admin), _reassign_form(html, attendee)
+    assert admin_form.count('disabled') == 2
+    assert 'admin account' in admin_form
+    assert 'disabled' not in regular_form
 
 
 def _render_badge_flags(monkeypatch, attendee, access, read_only_access=()):
