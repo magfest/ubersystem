@@ -232,7 +232,7 @@ def requires_account(models=None):
                 attendee_account_id = cherrypy.session.get('attendee_account_id', getattr(cherrypy.request, 'attendee_account', None))
                 message = ''
                 if c.LOCAL_ACCOUNTS_DISABLED and admin_account_id is None and attendee_account_id is None:
-                    ajax_or_redirect(func, '../accounts/login?message=', message, True)
+                    return ajax_or_redirect(func, '../accounts/login?message=', message, True)
                 elif attendee_account_id is None and admin_account_id is None:
                     message = 'You must log in to view this page.'
                     message_add = ''
@@ -242,7 +242,7 @@ def requires_account(models=None):
                         message_add = 'fill out this application'
                     if message_add:
                         message = f'Please log in or create an account to {message_add}!'
-                    ajax_or_redirect(func, '../landing/index?message=', message, True)
+                    return ajax_or_redirect(func, '../landing/index?message=', message, True)
                 elif kwargs.get('id', kwargs.get('attendee_id')) and models:
                     model_list = [models] if not isinstance(models, list) else models
                     attendee, other_account_model, error, model_id = None, None, None, None
@@ -284,7 +284,7 @@ def requires_account(models=None):
                             break
 
                     if error and not attendee and not other_account_model:
-                        ajax_or_redirect(func, f'../preregistration/not_found?id={model_id}&message=', error)
+                        return ajax_or_redirect(func, f'../preregistration/not_found?id={model_id}&message=', error)
 
                     if other_account_model:
                         if session.current_admin_account():
@@ -309,8 +309,8 @@ def requires_account(models=None):
 
                 if message:
                     if admin_account_id:
-                        ajax_or_redirect(func, '../accounts/homepage?message=', message)
-                    ajax_or_redirect(func, '../landing/index?message=', message, True)
+                        return ajax_or_redirect(func, '../accounts/homepage?message=', message)
+                    return ajax_or_redirect(func, '../landing/index?message=', message, True)
             return func(*args, **kwargs)
         return protected
     return model_requires_account
@@ -327,7 +327,7 @@ def requires_admin(func=None, inherent_role=None, override_access=None):
                 with uber.models.Session() as session:
                     message = check_can_edit_dept(session, department_id, inherent_role, override_access)
                     if message:
-                        ajax_or_redirect(func, '../accounts/homepage?message=', message, True)
+                        return ajax_or_redirect(func, '../accounts/homepage?message=', message, True)
             return func(*args, **kwargs)
         return _protected
 
@@ -370,7 +370,7 @@ def requires_email_admin(inherent_role=None):
                     depts_tuples = EmailService.depts_from_email(session, email.sender)
                     if not depts_tuples:
                         message = "You must have full email admin permissions to manage this email."
-                        ajax_or_redirect(func, '../accounts/homepage?message=', message, False)
+                        return ajax_or_redirect(func, '../accounts/homepage?message=', message, False)
 
                     for id, _ in depts_tuples:
                         message = ''
@@ -378,12 +378,12 @@ def requires_email_admin(inherent_role=None):
                         if not message:
                             return func(*args, **kwargs)
                     if message:
-                        ajax_or_redirect(func, '../accounts/homepage?message=', message, False)
+                        return ajax_or_redirect(func, '../accounts/homepage?message=', message, False)
                     return func(*args, **kwargs)
                 else:
                     message = check_can_edit_dept(session, department_id, inherent_role, 'full_email_admin')
                     if message:
-                        ajax_or_redirect(func, '../accounts/homepage?message=', message, True)
+                        return ajax_or_redirect(func, '../accounts/homepage?message=', message, True)
                     return func(*args, **kwargs)
         return protected
     return email_admin_decorator
@@ -559,7 +559,7 @@ def check_shutdown(func):
     @wraps(func)
     def with_check(self, *args, **kwargs):
         if c.UBER_SHUT_DOWN:
-            ajax_or_redirect(func, 'index?message=', 'The page you requested is only available pre-event.')
+            return ajax_or_redirect(func, 'index?message=', 'The page you requested is only available pre-event.')
         else:
             return func(self, *args, **kwargs)
     return with_check
@@ -791,12 +791,12 @@ def renderable(func):
             message = "Your CSRF token is invalid. Please go back and try again."
             uber.server.log_exception_with_verbose_context(msg=str(e))
             if not c.DEV_BOX:
-                ajax_or_redirect(func, '../landing/invalid?message=', message)
+                return ajax_or_redirect(func, '../landing/invalid?message=', message)
         except (AssertionError, ValueError) as e:
             message = str(e)
             uber.server.log_exception_with_verbose_context(msg=message)
             if not c.DEV_BOX:
-                ajax_or_redirect(func, '../landing/invalid?message=', message)
+                return ajax_or_redirect(func, '../landing/invalid?message=', message)
         except TypeError as e:
             # Very restrictive pattern so we don't accidentally match legit errors
             pattern = r"^{}\(\) missing 1 required positional argument: '\S*?id'$".format(func.__name__)
@@ -805,7 +805,7 @@ def renderable(func):
                 message = 'Looks like you tried to access a page without all the query parameters. '\
                           'Please go back and try again.'
                 if not c.DEV_BOX:
-                    ajax_or_redirect(func, '../landing/invalid?message=', message)
+                    return ajax_or_redirect(func, '../landing/invalid?message=', message)
             else:
                 raise
 
@@ -865,7 +865,7 @@ def attendee_view(func):
     @wraps(func)
     def with_check(*args, **kwargs):
         if cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None)) is None:
-            ajax_or_redirect(func, '../accounts/login?message=', "You are not logged in.", True)
+            return ajax_or_redirect(func, '../accounts/login?message=', "You are not logged in.", True)
 
         if kwargs.get('id') and str(kwargs.get('id')) != "None":
             with uber.models.Session() as session:
@@ -907,25 +907,25 @@ def restricted(func):
         admin_account_id = cherrypy.session.get('account_id', getattr(cherrypy.request, 'admin_account', None))
         attendee_account_id = cherrypy.session.get('attendee_account_id', getattr(cherrypy.request, 'attendee_account', None))
         if not admin_account_id and not attendee_account_id:
-            ajax_or_redirect(func, '../accounts/login?message=', "You are not logged in.", True)
+            return ajax_or_redirect(func, '../accounts/login?message=', "You are not logged in.", True)
 
         if '/staffing/' in c.PAGE_PATH and not c.CHECKLIST_OR_SIGNUPS_OPEN and not c.DEV_BOX:
             message = "The volunteer checklist is not open yet." if c.VOLUNTEER_CHECKLIST_OPEN else "Shift signups are not available yet."
             redirect = '../preregistration/homepage' if c.ATTENDEE_ACCOUNTS_ENABLED else '../landing/index'
-            ajax_or_redirect(func, f'{redirect}?message=', message, True)
+            return ajax_or_redirect(func, f'{redirect}?message=', message, True)
         elif admin_account_id is None:
             if getattr(func, 'kiosk_login', None):
                 if not cherrypy.session.get('kiosk_supervisor_id'):
                     cherrypy.session.pop('kiosk_operator_id', None)
-                    ajax_or_redirect(func, '../accounts/login?message=',
+                    return ajax_or_redirect(func, '../accounts/login?message=',
                                      "Session timed out. Please have your supervisor log in.", True)
 
                 if not cherrypy.session.get('kiosk_operator_id') and cherrypy.request.method == 'POST':
-                    ajax_or_redirect(func, f'{func.kiosk_login}?message=',
+                    return ajax_or_redirect(func, f'{func.kiosk_login}?message=',
                                      "Please enter your badge number to log into the kiosk.")
             else:
                 page = 'preregistration/homepage' if c.ATTENDEE_ACCOUNTS_ENABLED else 'landing/index'
-                ajax_or_redirect(func, f'../{page}?message=', "You do not have admin access.")
+                return ajax_or_redirect(func, f'../{page}?message=', "You do not have admin access.")
 
         elif '/showcase_judging/' in c.PAGE_PATH:
             if not uber.models.AdminAccount.is_mivs_judge_or_admin:
@@ -1093,7 +1093,7 @@ def id_required(model):
         def check_id(*args, **params):
             error, model_id = check_id_for_model(model=model, **params)
             if error:
-                ajax_or_redirect(func, f'../preregistration/not_found?id={model_id}&message=', error)
+                return ajax_or_redirect(func, f'../preregistration/not_found?id={model_id}&message=', error)
             return func(*args, **params)
         return check_id
     return model_id_required
