@@ -232,6 +232,17 @@ def partition_overages(session, edited):
     return problems
 
 
+def require_room_badge(attendee):
+    """Raise RoomAssignmentError if this badge cannot hold a hotel room.
+
+    The message leaves out the badge status: partition owners see it, and On
+    Hold would reveal a watchlist match.
+    """
+    if not attendee.can_hold_hotel_room:
+        raise RoomAssignmentError(
+            f'{attendee.full_name} does not have a badge that can be given a hotel room.')
+
+
 def create_room_assignment(session, *, attendee_id, inventory_id,
                            partition_id=None, lottery_application_id=None,
                            assignment_reason=None, status=None,
@@ -242,7 +253,8 @@ def create_room_assignment(session, *, attendee_id, inventory_id,
                            audit_description=None, allow_room_number=True):
     """Create one RoomAssignment (added and flushed, NOT committed).
 
-    Validates that the attendee and inventory exist, parses the date
+    Validates that the attendee and inventory exist and that the badge
+    can hold a room, parses the date
     parameters (ISO strings or date instances; bad input raises
     RoomAssignmentError), and - whenever partition_id is set (or
     enforce_partition_block is passed as True) - requires an
@@ -263,8 +275,10 @@ def create_room_assignment(session, *, attendee_id, inventory_id,
 
     if not attendee_id or not inventory_id:
         raise RoomAssignmentError('Attendee and inventory are required.')
-    if not session.query(Attendee).get(attendee_id):
+    attendee = session.query(Attendee).get(attendee_id)
+    if not attendee:
         raise RoomAssignmentError('Attendee not found.')
+    require_room_badge(attendee)
     if not session.query(HotelRoomInventory).get(inventory_id):
         raise RoomAssignmentError('Inventory not found.')
 
@@ -570,6 +584,7 @@ def add_room_occupant(session, ra, attendee_id, *, audit_prefix=''):
     current = ra.effective_occupants
     if attendee in current:
         raise RoomAssignmentError(f'{attendee.full_name} is already in this room.')
+    require_room_badge(attendee)
     cap = ra.inventory.capacity if ra.inventory else 0
     invites = _pending_invite_count(session, ra)
     if cap and len(current) + invites >= cap:
@@ -612,6 +627,7 @@ def set_room_leader(session, ra, attendee_id, *, audit_prefix=''):
         raise RoomAssignmentError('The room leader must be one of the roommates.')
     if target.id == ra.attendee_id:
         raise RoomAssignmentError(f'{target.full_name} is already the room leader.')
+    require_room_badge(target)
 
     card_removed = False
     for room in [ra] + list(ra.child_assignments):

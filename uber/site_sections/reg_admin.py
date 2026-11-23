@@ -126,6 +126,9 @@ def assign_account_by_email(session, attendee, account_email, notify=False):
     from uber.email import EmailService
     from uber.site_sections.preregistration import set_up_new_account
 
+    if attendee.cannot_reassign_reason:
+        return "{} was not moved. {}".format(attendee.full_name, attendee.cannot_reassign_reason)
+
     account = session.query(AttendeeAccount).filter_by(normalized_email=normalize_email_legacy(account_email)).first()
 
     # It's too confusing for an admin to move someone to a new account and still see them on their old account

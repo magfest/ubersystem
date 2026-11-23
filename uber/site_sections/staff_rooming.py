@@ -266,11 +266,7 @@ def _apply_grid_edits(session, ra, edit):
     for attendee_id in [r for r in removals if r not in outgoing]:
         attempt(remove_room_occupant, attendee_id)
     for attendee_id in edit.get('add') or []:
-        newcomer = session.query(Attendee).get(attendee_id)
-        if newcomer and not newcomer.hotel_lottery_eligible:
-            problems.append(f'{newcomer.full_name} does not have a badge that can be given a hotel room.')
-        else:
-            attempt(add_room_occupant, attendee_id)
+        attempt(add_room_occupant, attendee_id)
     if leader and leader != ra.attendee_id:
         target = session.query(Attendee).get(leader)
         # A non-staff leader would drop the room off the staff rooming pages.
@@ -743,13 +739,12 @@ class Root:
 
     @ajax_gettable
     def grid_search_roommates(self, session, id='', q='', **params):
-        """Attendees who could be added to this room: hotel-eligible and not already in it."""
+        """Attendees who could be added to this room and are not already in it."""
         ra = _find_staffer_room(session, id)
         if not ra:
             return []
         return attendee_search_results(
-            session, q, filters=[Attendee.hotel_lottery_eligible,
-                                 ~Attendee.id.in_([o.id for o in ra.effective_occupants])])
+            session, q, filters=[~Attendee.id.in_([o.id for o in ra.effective_occupants])])
 
     # List all staff with toggleable `hotel_eligible` flag. Default
     # filter shows currently-eligible staff so the admin can scan who

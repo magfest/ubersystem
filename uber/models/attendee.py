@@ -1922,6 +1922,13 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
             reasons.append("their badge was bought from the badge waitlist")
         return reasons
 
+    @property
+    def cannot_reassign_reason(self):
+        # Permission boundary: a badge's admin account stays with the login that holds it.
+        if self.admin_account and self.managers:
+            return "This badge has an admin account, so it cannot be reassigned. Contact DevOps to move it."
+        return ""
+
     @presave_adjustment
     def force_no_transfer(self):
         if self.admin_account or self.badge_type not in c.TRANSFERABLE_BADGE_TYPES or \
@@ -2642,24 +2649,28 @@ class Attendee(MagModel, TakesPaymentMixin, table=True):
 
 
     @hybrid_property
+    def can_hold_hotel_room(self):
+        """Whether this badge can be put in a hotel room. Placeholder badges
+        can: staff assign rooms to guests and panelists before they register."""
+        return (self.is_valid and not self.is_unassigned
+                and self.badge_status not in [c.WAITLIST_REFUND_STATUS, c.NOT_ATTENDING,
+                                              c.DEFERRED_STATUS, c.WATCHED_STATUS])
+
+    @can_hold_hotel_room.expression
+    def can_hold_hotel_room(cls):
+        # Must match the Python property above: the room pickers and the solver
+        # pool query through this expression.
+        return and_(cls.is_valid == True, cls.is_unassigned == False,  # noqa: E712
+                    not_(cls.badge_status.in_([c.WAITLIST_REFUND_STATUS, c.NOT_ATTENDING,
+                                               c.DEFERRED_STATUS, c.WATCHED_STATUS])))
+
+    @hybrid_property
     def hotel_lottery_eligible(self):
-        return (self.is_valid and not self.placeholder and not self.is_unassigned
-                and self.badge_status not in [c.WAITLIST_REFUND_STATUS,
-                                              c.REFUNDED_STATUS,
-                                              c.NOT_ATTENDING,
-                                              c.DEFERRED_STATUS,
-                                              c.WATCHED_STATUS])
-                                                           
+        return self.can_hold_hotel_room and not self.placeholder
 
     @hotel_lottery_eligible.expression
     def hotel_lottery_eligible(cls):
-        # Must exclude the same statuses as the Python property above -
-        # the solver pool and exports query through this expression, and a
-        # mismatch lets an attendee win a room the property says they
-        # can't hold.
-        return and_(cls.is_valid == True, cls.is_unassigned == False, cls.placeholder == False,
-                    not_(cls.badge_status.in_([c.REFUNDED_STATUS, c.NOT_ATTENDING,
-                                               c.DEFERRED_STATUS, c.WATCHED_STATUS])))
+        return and_(cls.can_hold_hotel_room, cls.placeholder == False)  # noqa: E712
 
     @property
     def staff_hotel_lottery_eligible(self):

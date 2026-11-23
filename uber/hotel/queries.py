@@ -205,13 +205,14 @@ def attendee_search_results(session, q, limit=25, filters=()):
     exactly the keys the picker JS expects: id, name, email, badge_num,
     badge_type. Access control is the caller's job - both consuming
     routes keep their own gates. `filters` are extra Attendee clauses.
+    Badges that cannot hold a hotel room are never listed.
     """
     q = (q or '').strip()
     if len(q) < 2:
         return []
 
     try:
-        results, _ = session.search(q, *filters)
+        results, _ = session.search(q, Attendee.can_hold_hotel_room, *filters)
     except Exception:
         return []
 
