@@ -1306,6 +1306,11 @@ HotelLotteryEmailFixture(
     'hotel_lottery_confirm_interest'
 )
 HotelLotteryEmailFixture(
+    f'Your {c.EVENT_NAME_AND_YEAR} hotel confirmation number',
+    'hotel/confirmation_uploaded.html', None,
+    'hotel_lottery_confirmation_uploaded'
+)
+HotelLotteryEmailFixture(
     f'{c.EVENT_NAME_AND_YEAR} Hotel Reservation Updated',
     'hotel/confirmation_updated.html', None,
     'hotel_lottery_confirmation_updated'

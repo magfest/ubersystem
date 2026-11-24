@@ -1,0 +1,38 @@
+{% set attendee = assignment.attendee %}
+{% set hotel = assignment.inventory.hotel if assignment.inventory else none %}
+{% set room_url = c.URL_BASE ~ '/hotel_lottery/room?id=' ~ assignment.id ~ '&attendee_id=' ~ attendee.id %}
+<p>Hello {{ attendee.first_name }}:</p>
+
+<p>
+  This email is to let you know that {{ hotel.name if hotel else 'your hotel' }} has uploaded your
+  reservation into their system and your confirmation number at their hotel is
+  <strong>{{ assignment.hotel_confirmation_number }}</strong>.
+  {% if assignment.assigned_check_in_date and assignment.assigned_check_out_date %}
+  Your confirmed reservation runs from {{ assignment.assigned_check_in_date|date("%A, %B %-d") }}
+  through {{ assignment.assigned_check_out_date|date("%A, %B %-d") }}.
+  {% endif %}
+</p>
+
+{% block changes_info %}
+<p>
+  If you need to change your dates of stay, you must do this on
+  <a href="{{ room_url }}" target="_blank">your room page</a>, where you can also continue to
+  add other occupants to your room. If you want to call the hotel to discuss any special
+  requests with them (such as a crib request, etc.), you can do so starting now but you cannot
+  change your room type at all.
+</p>
+{% endblock %}
+
+{% block closing %}
+<p>
+  {% if c.HOTEL_LOTTERY_EMAIL %}
+  If you have any questions about this message, please reach out at
+  {{ c.HOTEL_LOTTERY_EMAIL|email_only|email_to_link }} and we
+  {% else %}
+  We
+  {% endif %}
+  look forward to seeing you in {{ c.EPOCH|datetime_local("%B") }}!
+</p>
+{% endblock %}
+
+<p>{{ c.EVENT_NAME }} Hotel Team</p>

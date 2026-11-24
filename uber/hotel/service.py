@@ -172,6 +172,23 @@ def hotel_sourced(func):
     return wrapped
 
 
+def queue_confirmation_number_email(session, ra, previous=''):
+    """Tell the booker the hotel's confirmation number for `ra`: the
+    "uploaded" email the first time one lands, "updated" when it replaces
+    `previous`. Call once all of a file row's fields are applied, so a row
+    that also cancels the room sends nothing."""
+    from uber.email import EmailService
+
+    number = ra.hotel_confirmation_number or ''
+    if not number or number == (previous or '') or not ra.attendee:
+        return
+    if not ra.is_live or not ra.is_released or ra.cancellation_confirmation_number:
+        return
+    ident = ('hotel_lottery_confirmation_updated' if previous
+             else 'hotel_lottery_confirmation_uploaded')
+    EmailService.queue_email(session, ident, ra)
+
+
 def check_partition_capacity(session, ra, held=None):
     """Raise RoomAssignmentError when a live partitioned row would put a
     night of its stay over the partition's allocation of its block.
