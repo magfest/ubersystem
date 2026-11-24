@@ -508,12 +508,11 @@ def _notify_partition_owners_of_inventory_change(session, partition, change_desc
     for grant in grants:
         if not grant.admin_account or not grant.admin_account.attendee:
             continue
-        recipient = grant.admin_account.attendee
         EmailService.queue_email(
-            session, 'hotel_lottery_inventory_changed_owner', partition,
+            session, 'hotel_lottery_inventory_changed_owner', grant.admin_account.attendee,
             subject=f"{c.EVENT_NAME_AND_YEAR}: Inventory change in {partition.name}",
             data={
-            'attendee': recipient, 'partition': partition,
+            'partition_name': partition.name, 'partition_id': partition.id,
             'change_description': change_description,
         })
 
