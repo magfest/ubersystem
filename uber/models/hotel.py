@@ -388,6 +388,16 @@ class LotteryApplication(MagModel, table=True):
             self.lottery_run_id = None
             session.add(self)
 
+    def release_invites(self, session):
+        """Unlink every room group invite this entry sent and cancel pending ones."""
+        invitees = session.query(LotteryApplication).filter(LotteryApplication.invited_by_id == self.id)
+        for invitee in invitees:
+            if invitee.invite_status == c.INVITE_PENDING:
+                invitee.invite_status = c.INVITE_CANCELLED
+                invitee.invite_token = ''
+            invitee.invited_by_id = None
+            session.add(invitee)
+
     @hybrid_property
     def holds_pending_award(self):
         """True while this entry has won rooms in a lottery run that hasn't
