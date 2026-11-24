@@ -3,9 +3,23 @@ from datetime import datetime, timedelta
 import jinja2
 import pytest
 from markupsafe import Markup
+from pytz import UTC
 
-from uber.custom_tags import jsonize, linebreaksbr, datetime_local_filter, datetime_filter, full_datetime_local, \
-    hour_day_local, time_day_local, timedelta_filter, timestamp, url_to_link, basename, form_link, humanize_timedelta
+from uber.custom_tags import (
+    basename,
+    datetime_filter,
+    datetime_local_filter,
+    form_link,
+    full_datetime_local,
+    hour_day_local,
+    humanize_timedelta,
+    jsonize,
+    linebreaksbr,
+    time_day_local,
+    timedelta_filter,
+    timestamp,
+    url_to_link,
+)
 from uber.jinja import JinjaEnv
 from uber.models import WatchList
 
