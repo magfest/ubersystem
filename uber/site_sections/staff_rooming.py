@@ -233,9 +233,9 @@ def _apply_grid_edits(session, ra, edit):
     Returns (problems that stop them being saved, things worth a warning)."""
     problems, warnings = [], []
 
-    def attempt(action, *args):
+    def attempt(action, *args, **kwargs):
         try:
-            return action(session, ra, *args, audit_prefix='Staff rooming admin')
+            return action(session, ra, *args, audit_prefix='Staff rooming admin', **kwargs)
         except RoomAssignmentError as e:
             problems.append(e.message)
 
@@ -273,7 +273,11 @@ def _apply_grid_edits(session, ra, edit):
         if target and target.badge_type not in (c.STAFF_BADGE, c.CONTRACTOR_BADGE):
             problems.append(f'{target.full_name} is not staff, so cannot lead a staff room.')
         else:
-            changed = attempt(set_room_leader, leader)
+            deadline_passed = ra.leader_change_blocked
+            changed = attempt(set_room_leader, leader, extend_deadline=True)
+            if changed and deadline_passed:
+                warnings.append('The card deadline had passed, so it was extended to '
+                                f'{ra.deposit_cutoff_date.strftime("%A, %B %-d")}.')
             if changed and changed[1]:
                 warnings.append('Changing the leader resets the payment information on this room; '
                                 'the new leader will need to secure it with their own card.')

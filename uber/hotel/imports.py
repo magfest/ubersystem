@@ -15,7 +15,7 @@ from datetime import date, datetime
 from pytz import UTC
 
 from uber.config import c
-from uber.hotel.service import hotel_sourced, queue_confirmation_number_email
+from uber.hotel.service import hotel_sourced, queue_confirmation_updated_email
 
 
 def _normalize(value):
@@ -228,7 +228,7 @@ def _apply_with_template(session, record, raw, filename, template, hotel):
                                 'new': entry['imported']})
                 if ra.inventory and ra.inventory.hotel_id:
                     hotels_imported.add(str(ra.inventory.hotel_id))
-            queue_confirmation_number_email(session, ra, previous)
+            queue_confirmation_updated_email(session, ra, previous)
         if row_present:
             updated += 1 if row_changed else 0
             unchanged += 0 if row_changed else 1
@@ -335,7 +335,7 @@ def import_confirmation_file(session, raw, filename, hotel=None, source='',
                 changes.append({'confirmation_num': conf_num, 'field': col,
                                 'old': old_val, 'new': new_val})
         for ra in ras:
-            queue_confirmation_number_email(session, ra, previous[ra.id])
+            queue_confirmation_updated_email(session, ra, previous[ra.id])
         if row_present:
             updated += 1 if row_changed else 0
             unchanged += 0 if row_changed else 1
@@ -401,8 +401,8 @@ def apply_confirmation_rows(session, rows, apply_changes=True):
     Rows without a value are skipped. The value is written to EVERY
     assignment on the matched booking, one preview entry per assignment.
 
-    Each assignment actually changed while applying is emailed its
-    confirmation number (see queue_confirmation_number_email).
+    An assignment whose number was replaced is emailed the new one; a
+    first number is announced by the email sweep.
 
     Flushes, never commits - the caller owns the transaction.
     Returns {'new', 'changed', 'unchanged', 'unmatched', 'applied'}.
@@ -447,7 +447,7 @@ def apply_confirmation_rows(session, rows, apply_changes=True):
                 # A row that also cancels the room is not good news.
                 if not (row.get('cancellation_confirmation_number')
                         or row.get('hotel_cancellation_number') or '').strip():
-                    queue_confirmation_number_email(session, assignment, existing)
+                    queue_confirmation_updated_email(session, assignment, existing)
 
     session.flush()
     return preview

@@ -1166,6 +1166,14 @@ class Root:
                 ra.id, attendee_id,
                 message=f'{target.full_name} does not have a badge that can '
                         'be given a hotel room.'))
+        new_deadline = None
+        if ra.leader_change_blocked:
+            if not is_lottery_admin():
+                raise HTTPRedirect(_room_url(
+                    ra.id, attendee_id,
+                    message='The room leader cannot be changed after the credit '
+                            'card deadline for this room.'))
+            new_deadline = ra.extend_passed_card_deadlines()
 
         # Any card on file belongs to the outgoing leader, so it comes
         # off (with their billing address) and a SECURED room drops back
@@ -1184,6 +1192,8 @@ class Root:
         if card_removed:
             message += (' The card on file was removed - they will need to '
                         're-secure the room with their own card.')
+        if new_deadline:
+            message += f' The card deadline was extended to {new_deadline.strftime("%A, %B %-d")}.'
         raise HTTPRedirect(_room_url(ra.id, attendee_id, message=message))
 
     @requires_account(Attendee)

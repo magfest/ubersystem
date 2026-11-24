@@ -21,7 +21,7 @@ from uber.decorators import presave_adjustment
 from uber.hotel.config import hotel_lottery_config, late_run_open
 from uber.models import MagModel
 from uber.models.types import Choice, RankedList, UniqueList, DefaultColumn as Column, DefaultField as Field, DefaultRelationship as Relationship
-from uber.utils import RegistrationCode
+from uber.utils import RegistrationCode, localized_now
 
 log = logging.getLogger(__name__)
 
@@ -1397,6 +1397,26 @@ class RoomAssignment(MagModel, table=True):
         return self.deposit_cutoff_date
 
     @property
+    def card_deadline_passed(self):
+        """True once the expiry cron would cancel this room if its card came off."""
+        return bool(self.require_cc and self.deposit_cutoff_date
+                    and self.deposit_cutoff_date < localized_now().date())
+
+    @property
+    def leader_change_blocked(self):
+        # Changing the leader clears the card, so past the deadline it would expire the room.
+        return any(room.card_deadline_passed for room in [self] + list(self.child_assignments))
+
+    def extend_passed_card_deadlines(self, days=2):
+        """Push any passed card deadline on this room and its connectors to
+        `days` from today. Returns the new deadline, or None if none had passed."""
+        new_deadline = None
+        for room in [self] + list(self.child_assignments):
+            if room.card_deadline_passed:
+                new_deadline = room.deposit_cutoff_date = localized_now().date() + timedelta(days=days)
+        return new_deadline
+
+    @property
     def is_waitlisted(self):
         """True iff the attendee asked for a wider window than they
         currently hold confirmed - i.e. the waitlisted_* range strictly
@@ -1537,6 +1557,14 @@ class RoomAssignment(MagModel, table=True):
             return
         if any(getattr(self, f) != self.orig_value_of(f) for f in tracked) or self._roommates_changed():
             self.last_modified_at = datetime.now(UTC)
+
+    def track_roommate(self, action, attendee):
+        """Log a roommate joining or leaving, on both their history and the booker's."""
+        from uber.models.tracking import Tracking
+        if attendee.id == self.attendee_id:
+            return
+        Tracking.track_collection_change(
+            action, self, attendee, also_link=[f'attendee({self.attendee_id})'] if self.attendee_id else [])
 
     def _roommates_changed(self):
         """Whether this flush changes who is in the room. Writing out a

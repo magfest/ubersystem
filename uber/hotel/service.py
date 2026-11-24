@@ -172,21 +172,17 @@ def hotel_sourced(func):
     return wrapped
 
 
-def queue_confirmation_number_email(session, ra, previous=''):
-    """Tell the booker the hotel's confirmation number for `ra`: the
-    "uploaded" email the first time one lands, "updated" when it replaces
-    `previous`. Call once all of a file row's fields are applied, so a row
-    that also cancels the room sends nothing."""
+def queue_confirmation_updated_email(session, ra, previous):
+    """Tell the booker the hotel replaced `previous` with a new confirmation
+    number. A first number is left to the email sweep
+    (hotel_lottery_confirmation_uploaded)."""
     from uber.email import EmailService
 
     number = ra.hotel_confirmation_number or ''
-    if not number or number == (previous or '') or not ra.attendee:
+    if not previous or not number or number == previous or not ra.attendee:
         return
-    if not ra.is_live or not ra.is_released or ra.cancellation_confirmation_number:
-        return
-    ident = ('hotel_lottery_confirmation_updated' if previous
-             else 'hotel_lottery_confirmation_uploaded')
-    EmailService.queue_email(session, ident, ra)
+    if ra.is_live and ra.is_released and not ra.cancellation_confirmation_number:
+        EmailService.queue_email(session, 'hotel_lottery_confirmation_updated', ra)
 
 
 def check_partition_capacity(session, ra, held=None):
@@ -634,17 +630,24 @@ def remove_room_occupant(session, ra, attendee_id, *, audit_prefix=''):
     return attendee
 
 
-def set_room_leader(session, ra, attendee_id, *, audit_prefix=''):
+def set_room_leader(session, ra, attendee_id, *, audit_prefix='', extend_deadline=False):
     """Hand the booker (room leader) role to another occupant; the old
     leader stays in the room. Connector children follow. Any card on file
     is the outgoing leader's, so it comes off and a SECURED room drops back
-    to ASSIGNED. Returns (new leader, whether a card was removed)."""
+    to ASSIGNED. Past the card deadline this is refused unless
+    `extend_deadline` (admins), which pushes the deadline out instead.
+    Returns (new leader, whether a card was removed)."""
     target = next((o for o in ra.occupants if o.id == attendee_id), None)
     if not target:
         raise RoomAssignmentError('The room leader must be one of the roommates.')
     if target.id == ra.attendee_id:
         raise RoomAssignmentError(f'{target.full_name} is already the room leader.')
     require_room_badge(target)
+    if ra.leader_change_blocked:
+        if not extend_deadline:
+            raise RoomAssignmentError(
+                'The room leader cannot be changed after the credit card deadline for this room.')
+        ra.extend_passed_card_deadlines()
 
     card_removed = False
     for room in [ra] + list(ra.child_assignments):

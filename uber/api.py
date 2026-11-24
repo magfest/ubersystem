@@ -1803,6 +1803,11 @@ class HotelLookup:
             session.add(assignment)
             if occupant_rows is not None:
                 session.flush()
+                before = {a.id: a for a in assignment.occupants}
+                for attendee_id in set(before) - set(occupant_rows):
+                    assignment.track_roommate(c.ITEM_REMOVED, before[attendee_id])
+                for attendee_id in set(occupant_rows) - set(before):
+                    assignment.track_roommate(c.ITEM_ADDED, session.get(Attendee, attendee_id))
                 session.execute(room_assignment_occupant.delete().where(
                     room_assignment_occupant.c.room_assignment_id == assignment.id))
                 if occupant_rows:

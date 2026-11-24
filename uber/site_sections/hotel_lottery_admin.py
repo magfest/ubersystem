@@ -51,7 +51,7 @@ from uber.hotel.imports import (apply_cancellation_rows, apply_confirmation_rows
 from uber.hotel.service import (RoomAssignmentError, add_room_occupant, apply_room_assignment_edits,
                                 assign_physical_room, cancel_room_occupant_invite,
                                 create_room_assignment, hotel_sourced_changes,
-                                queue_confirmation_number_email, remove_room_occupant,
+                                queue_confirmation_updated_email, remove_room_occupant,
                                 require_room_badge, validate_physical_room)
 from uber.hotel.solver import (LOTTERY_TYPE_BOTH,
                                        adjust_available_rooms,
@@ -2182,7 +2182,7 @@ class Root:
         if not ok:
             session.rollback()
             return {'error': message}
-        queue_confirmation_number_email(session, ra, previous)
+        queue_confirmation_updated_email(session, ra, previous)
         session.commit()
         return {'ok': True, 'message': message,
                 'current': mapping._current_value(ra, field)}

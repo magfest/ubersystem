@@ -1305,10 +1305,15 @@ HotelLotteryEmailFixture(
     'hotel/confirm_interest_request.html', None,
     'hotel_lottery_confirm_interest'
 )
-HotelLotteryEmailFixture(
+# Queued by the email sweep, which also reaches rooms confirmed before this email existed.
+AutomatedEmailFixture(
+    RoomAssignment,
     f'Your {c.EVENT_NAME_AND_YEAR} hotel confirmation number',
-    'hotel/confirmation_uploaded.html', None,
-    'hotel_lottery_confirmation_uploaded'
+    'hotel/confirmation_uploaded.html',
+    "lambda ra: ra.hotel_confirmation_number and ra.is_live and ra.is_released \
+        and not ra.cancellation_confirmation_number",
+    'hotel_lottery_confirmation_uploaded',
+    sender=c.HOTEL_LOTTERY_EMAIL,
 )
 HotelLotteryEmailFixture(
     f'{c.EVENT_NAME_AND_YEAR} Hotel Reservation Updated',

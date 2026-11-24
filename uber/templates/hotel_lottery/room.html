@@ -377,14 +377,19 @@
                    (on this room or a connector child) - the transfer
                    removes it and un-secures the room. #}
                 {% set _has_card = ra.cc_token or (ra.child_assignments|selectattr('cc_token')|list) %}
+                {% if ra.leader_change_blocked and not c.HAS_HOTEL_LOTTERY_ADMIN_ACCESS %}
+                <button type="button" class="btn btn-sm btn-outline-primary" disabled
+                        title="The room leader cannot be changed after the credit card deadline.">Make Room Leader</button>
+                {% else %}
                 <form method="post" action="make_room_leader" class="d-inline"
-                      onsubmit="return confirm('Make {{ occ.first_name }} {{ occ.last_name }} the room leader? They become the name on the reservation and take over managing dates, occupants, and payment for this room. You will remain an occupant.{% if _has_card %} The card on file will be REMOVED and {{ occ.first_name }} will need to re-secure the room with their own card{% if ra.deposit_cutoff_date %} by {{ ra.deposit_cutoff_date.strftime('%B %-d') }}{% endif %}.{% endif %}');">
+                      onsubmit="return confirm('Make {{ occ.first_name }} {{ occ.last_name }} the room leader? They become the name on the reservation and take over managing dates, occupants, and payment for this room. You will remain an occupant.{% if _has_card %} The card on file will be REMOVED and {{ occ.first_name }} will need to re-secure the room with their own card{% if ra.deposit_cutoff_date and not ra.leader_change_blocked %} by {{ ra.deposit_cutoff_date.strftime('%B %-d') }}{% endif %}.{% endif %}{% if ra.leader_change_blocked %} The card deadline has passed, so it will be extended to two days from today.{% endif %}');">
                   {{ csrf_token() }}
                   <input type="hidden" name="assignment_id" value="{{ ra.id }}" />
                   <input type="hidden" name="attendee_id" value="{{ viewer.id }}" />
                   <input type="hidden" name="occupant_attendee_id" value="{{ occ.id }}" />
                   <button type="submit" class="btn btn-sm btn-outline-primary">Make Room Leader</button>
                 </form>
+                {% endif %}
                 <form method="post" action="remove_occupant" class="d-inline"
                       onsubmit="return confirm('Remove {{ occ.first_name }} {{ occ.last_name }} from this room?');">
                   {{ csrf_token() }}

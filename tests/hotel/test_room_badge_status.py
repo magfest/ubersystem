@@ -1,6 +1,8 @@
 """Only badges in a state that can hold a hotel room are offered by the room
 pickers or accepted by the paths that put someone in a room."""
 
+from datetime import timedelta
+
 import cherrypy
 import pytest
 import sqlalchemy as sa
@@ -262,3 +264,102 @@ def test_the_leader_cannot_hand_the_room_to_a_blocked_badge(session, room, atten
                   occupant_attendee_id=roommate.id)
 
     assert room.attendee_id == booker.id
+
+
+def _roommate_past_deadline(session, room, **room_attrs):
+    from datetime import timedelta
+    from uber.utils import localized_now
+
+    roommate = make_attendee(session)
+    room.occupants.append(roommate)
+    room.deposit_cutoff_date = localized_now().date() - timedelta(days=1)
+    for attr, value in room_attrs.items():
+        setattr(room, attr, value)
+    session.flush()
+    return roommate
+
+
+def test_the_leader_cannot_be_changed_after_the_card_deadline(session, room):
+    from uber.hotel.service import RoomAssignmentError, set_room_leader
+
+    booker = room.attendee
+    roommate = _roommate_past_deadline(session, room, status=c.SECURED, cc_token='tok')
+
+    with pytest.raises(RoomAssignmentError):
+        set_room_leader(session, room, roommate.id)
+
+    assert (room.attendee_id, room.status, room.cc_token) == (booker.id, c.SECURED, 'tok')
+
+
+def test_the_leader_can_be_changed_on_the_card_deadline_day(session, room):
+    from uber.hotel.service import set_room_leader
+    from uber.utils import localized_now
+
+    roommate = _roommate_past_deadline(session, room, deposit_cutoff_date=localized_now().date())
+
+    set_room_leader(session, room, roommate.id)
+
+    assert room.attendee_id == roommate.id
+
+
+def test_a_room_that_needs_no_card_can_change_leader_after_the_deadline(session, room):
+    from uber.hotel.service import set_room_leader
+
+    roommate = _roommate_past_deadline(session, room, payment_type='master_bill')
+    assert not room.require_cc
+
+    set_room_leader(session, room, roommate.id)
+
+    assert room.attendee_id == roommate.id
+
+
+def test_the_attendee_page_refuses_a_leader_change_after_the_card_deadline(session, room, attendee_page):
+    booker = room.attendee
+    roommate = _roommate_past_deadline(session, room, status=c.SECURED, cc_token='tok')
+
+    url = attendee_page('make_room_leader', make_attendee_account(session, booker), ra=room,
+                        occupant_attendee_id=roommate.id)
+
+    assert 'deadline' in url
+    assert (room.attendee_id, room.status, room.cc_token) == (booker.id, c.SECURED, 'tok')
+
+
+def _two_days_out():
+    from datetime import timedelta
+    from uber.utils import localized_now
+
+    return localized_now().date() + timedelta(days=2)
+
+
+def test_an_admin_leader_change_after_the_deadline_extends_it_two_days(session, room):
+    from uber.hotel.service import set_room_leader
+
+    roommate = _roommate_past_deadline(session, room, status=c.SECURED, cc_token='tok')
+
+    set_room_leader(session, room, roommate.id, extend_deadline=True)
+
+    assert (room.attendee_id, room.status, room.cc_token) == (roommate.id, c.ASSIGNED, None)
+    assert room.deposit_cutoff_date == _two_days_out()
+
+
+def test_an_admin_leader_change_before_the_deadline_leaves_it_alone(session, room):
+    from uber.hotel.service import set_room_leader
+
+    deadline = _two_days_out() + timedelta(days=10)
+    roommate = _roommate_past_deadline(session, room, deposit_cutoff_date=deadline)
+
+    set_room_leader(session, room, roommate.id, extend_deadline=True)
+
+    assert room.deposit_cutoff_date == deadline
+
+
+def test_an_admin_on_the_attendee_page_extends_the_deadline(session, room, attendee_page, monkeypatch):
+    booker = room.attendee
+    roommate = _roommate_past_deadline(session, room, status=c.SECURED, cc_token='tok')
+    monkeypatch.setattr(c, 'HAS_HOTEL_LOTTERY_ADMIN_ACCESS', True, raising=False)
+
+    url = attendee_page('make_room_leader', make_attendee_account(session, booker), ra=room,
+                        occupant_attendee_id=roommate.id)
+
+    assert 'extended' in url
+    assert (room.attendee_id, room.deposit_cutoff_date) == (roommate.id, _two_days_out())
