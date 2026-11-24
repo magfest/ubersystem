@@ -1931,9 +1931,11 @@ class PanelAppEmailFixture(AutomatedEmailFixture):
         panel_filter = None
         if filter:
             if callable(filter):
-                panel_filter = lambda a: (not a.submitter or not a.submitter.attendee_id) and filter(a)
+                panel_filter = lambda a: (not a.submitter or not a.submitter.attendee_id or
+                                          getattr(a.submitter.attendee, 'badge_type', None) != c.GUEST_BADGE) and filter(a)
             else:
-                panel_filter = f"lambda a: (not a.submitter or not a.submitter.attendee_id) and eval({filter.encode()})(a)"
+                panel_filter = f"lambda a: (not a.submitter or not a.submitter.attendee_id or \
+                    getattr(a.submitter.attendee, 'badge_type', None) != c.GUEST_BADGE) and eval({filter.encode()})(a)"
 
         AutomatedEmailFixture.__init__(
             self,
@@ -1999,7 +2001,7 @@ if c.PANELS_START:
         'panels/panel_app_scheduled.html',
         "lambda app: app.event_id and app.department in c.EMAILLESS_PANEL_DEPTS",
         'panel_scheduled',
-        shared_ident='panelapps_received')
+        shared_ident='panelapps_scheduled')
 
     AutomatedEmailFixture(
         Attendee,

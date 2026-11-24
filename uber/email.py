@@ -193,7 +193,10 @@ class EmailService:
                     email_handler.queue_email_obj(session)
                 elif existing and not fixture.filter(to_model):
                     for email in existing:
-                        if email.status != c.SENT:
+                        # An email found by shared ident can belong to another automated email; its own filter decides.
+                        own_fixture = email.automated_email.fixture if email.automated_email else None
+                        own_filter = own_fixture and (own_fixture.filter or own_fixture.send_filter)
+                        if email.status != c.SENT and not (own_filter and own_filter(to_model)):
                             session.delete(email)
 
     @staticmethod
