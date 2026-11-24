@@ -1311,8 +1311,18 @@ AutomatedEmailFixture(
     f'Your {c.EVENT_NAME_AND_YEAR} hotel confirmation number',
     'hotel/confirmation_uploaded.html',
     "lambda ra: ra.hotel_confirmation_number and ra.is_live and ra.is_released \
-        and not ra.cancellation_confirmation_number",
+        and not ra.cancellation_confirmation_number and ra.announces_confirmation_number",
     'hotel_lottery_confirmation_uploaded',
+    sender=c.HOTEL_LOTTERY_EMAIL,
+)
+# Queued by uber.hotel.service.queue_new_leader_email when a leader change leaves the room needing a card.
+# The filter never generates this email; it deletes a queued copy once the room is secured or released.
+AutomatedEmailFixture(
+    RoomAssignment,
+    f'You are now the leader of your {c.EVENT_NAME_AND_YEAR} hotel room',
+    'hotel/new_room_leader.html',
+    "lambda ra: ra.leader_email_applies",
+    'hotel_room_leader_changed',
     sender=c.HOTEL_LOTTERY_EMAIL,
 )
 HotelLotteryEmailFixture(

@@ -363,3 +363,101 @@ def test_an_admin_on_the_attendee_page_extends_the_deadline(session, room, atten
 
     assert 'extended' in url
     assert (room.attendee_id, room.deposit_cutoff_date) == (roommate.id, _two_days_out())
+
+
+def _leader_emails(session, room):
+    from uber.models import Email
+
+    session.flush()
+    return session.query(Email).filter_by(fk_id=room.id, ident='hotel_room_leader_changed').all()
+
+
+def test_the_new_leader_is_told_to_put_a_card_down(session, room, attendee_page, monkeypatch):
+    booker = room.attendee
+    roommate = _roommate_past_deadline(session, room, status=c.SECURED, cc_token='tok')
+    monkeypatch.setattr(c, 'HAS_HOTEL_LOTTERY_ADMIN_ACCESS', True, raising=False)
+
+    attendee_page('make_room_leader', make_attendee_account(session, booker), ra=room,
+                  occupant_attendee_id=roommate.id)
+
+    [email] = _leader_emails(session, room)
+    assert email.to == roommate.email
+    assert f'Hello {roommate.first_name}:' in email.body
+    assert _two_days_out().strftime('%A, %B %-d') in email.body
+
+
+def test_a_room_that_needs_no_card_sends_no_leader_email(session, room):
+    from uber.hotel.service import set_room_leader
+
+    roommate = _roommate_past_deadline(session, room, payment_type='master_bill')
+
+    set_room_leader(session, room, roommate.id)
+
+    assert _leader_emails(session, room) == []
+
+
+def test_changing_the_leader_twice_leaves_one_unsent_email(session, room):
+    from uber.hotel.service import set_room_leader
+
+    booker = room.attendee
+    roommate = make_attendee(session)
+    room.occupants.append(roommate)
+    session.flush()
+
+    set_room_leader(session, room, roommate.id)
+    set_room_leader(session, room, booker.id)
+
+    [email] = _leader_emails(session, room)
+    assert f'Hello {booker.first_name}:' in email.body
+
+
+@pytest.fixture
+def leader_email_enabled(session, monkeypatch):
+    """The leader email set to Autosend, so the sweep and save checks consider it."""
+    from uber.models import AutomatedEmail
+
+    if not AutomatedEmail.initialized:
+        AutomatedEmail.reconcile_fixtures()
+        AutomatedEmail.initialized = True
+    fixture = session.query(AutomatedEmail).filter_by(ident='hotel_room_leader_changed').one()
+    fixture.policy = c.AUTOSEND
+    session.flush()
+    # The sweep commits; keep it inside the per-test rollback.
+    monkeypatch.setattr(session, 'commit', session.flush)
+    return fixture
+
+
+def test_the_sweeps_never_generate_the_leader_email(session, room, leader_email_enabled):
+    from uber.email import EmailService
+
+    assert room.needs_card
+    assert EmailService.check_emails_for_fixture(session, leader_email_enabled) == 0
+    EmailService.check_emails_for_model(session, room)
+
+    assert _leader_emails(session, room) == []
+
+
+def test_the_save_check_does_not_copy_an_unflushed_leader_email(session, room, leader_email_enabled):
+    from uber.email import EmailService
+    from uber.hotel.service import queue_new_leader_email
+
+    queue_new_leader_email(session, room)
+    EmailService.check_emails_for_model(session, room)
+
+    assert len(_leader_emails(session, room)) == 1
+
+
+def test_a_leader_email_for_a_room_since_cancelled_is_deleted_at_send(session, room, leader_email_enabled):
+    from uber.email import EmailService
+    from uber.hotel.service import set_room_leader
+
+    roommate = make_attendee(session)
+    room.occupants.append(roommate)
+    session.flush()
+    set_room_leader(session, room, roommate.id)
+    [email] = _leader_emails(session, room)
+
+    room.status = c.CANCELLED
+    session.flush()
+    assert EmailService.send_email(session, email, to_model=room) is None
+    assert _leader_emails(session, room) == []

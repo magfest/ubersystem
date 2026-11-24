@@ -14,6 +14,8 @@
 </p>
 
 {% block changes_info %}
+{# Staff crash space dates and roommates are set by staff rooming, not the guest. #}
+{% if assignment.assignment_reason != c.STAFF_CRASH_SPACE %}
 <p>
   If you need to change your dates of stay, you must do this on
   <a href="{{ room_url }}" target="_blank">your room page</a>, where you can also continue to
@@ -21,6 +23,7 @@
   requests with them (such as a crib request, etc.), you can do so starting now but you cannot
   change your room type at all.
 </p>
+{% endif %}
 {% endblock %}
 
 {% block closing %}

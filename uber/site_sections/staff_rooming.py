@@ -275,7 +275,7 @@ def _apply_grid_edits(session, ra, edit):
         else:
             deadline_passed = ra.leader_change_blocked
             changed = attempt(set_room_leader, leader, extend_deadline=True)
-            if changed and deadline_passed:
+            if changed and deadline_passed and ra.deposit_cutoff_date:
                 warnings.append('The card deadline had passed, so it was extended to '
                                 f'{ra.deposit_cutoff_date.strftime("%A, %B %-d")}.')
             if changed and changed[1]:

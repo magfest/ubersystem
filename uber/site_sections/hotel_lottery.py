@@ -1145,6 +1145,7 @@ class Root:
         to ASSIGNED - the new leader must re-secure with their own card.
         """
         from uber.hotel.perms import is_lottery_admin
+        from uber.hotel.service import queue_new_leader_email
         viewer = _viewer_attendee(session)
         if not is_lottery_admin() and (not viewer or viewer.id != ra.attendee_id):
             raise HTTPRedirect(_room_url(
@@ -1179,12 +1180,16 @@ class Root:
         # off (with their billing address) and a SECURED room drops back
         # to ASSIGNED - the new leader re-secures with their own card.
         card_removed = ra.clear_card()
+        # The relationship too, so the new leader's email renders with their name.
+        ra.attendee = target
         ra.attendee_id = target.id
         session.add(ra)
         for child in ra.child_assignments:
             card_removed = child.clear_card() or card_removed
+            child.attendee = target
             child.attendee_id = target.id
             session.add(child)
+        queue_new_leader_email(session, ra)
         session.commit()
 
         message = (f'{target.first_name} {target.last_name} is now the '

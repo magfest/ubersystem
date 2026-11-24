@@ -2220,9 +2220,11 @@ class Root:
         confirmation = (row.get('mapped') or {}).get(
             'assignment.hotel_confirmation_number', '').strip()
         if confirmation:
+            previous = ra.hotel_confirmation_number or ''
             with hotel_sourced_changes(session):
                 ra.hotel_confirmation_number = confirmation
                 session.add(ra)
+            queue_confirmation_updated_email(session, ra, previous)
 
         previous_status = row.get('status')
         row['assignment_ids'] = [str(ra.id)]
