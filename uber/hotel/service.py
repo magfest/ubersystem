@@ -172,6 +172,34 @@ def hotel_sourced(func):
     return wrapped
 
 
+def queue_confirmation_updated_email(session, ra, previous):
+    """Tell the booker the hotel replaced `previous` with a new confirmation
+    number. A first number is left to the email sweep
+    (hotel_lottery_confirmation_uploaded)."""
+    from uber.email import EmailService
+    from uber.models.hotel import room_email_exists
+
+    number = ra.hotel_confirmation_number or ''
+    if not previous or not number or number == previous or not ra.attendee:
+        return
+    if not (ra.is_live and ra.is_released and not ra.cancellation_confirmation_number):
+        return
+    # One email per booker and number. An unsent copy on any room of the
+    # booking re-renders with the latest number when it sends.
+    room_ids = [ra.id] + [room.id for room in ra.confirmation_siblings() if room.is_live]
+    if not room_email_exists(session, 'hotel_lottery_confirmation_updated', room_ids, unsent_only=True):
+        EmailService.queue_email(session, 'hotel_lottery_confirmation_updated', ra)
+
+
+def queue_new_leader_email(session, ra):
+    """Tell a new room leader to put their own card down. A room that needs
+    no card sends nothing."""
+    from uber.email import EmailService
+
+    if ra.is_live and ra.is_released and any(room.needs_card for room in [ra, *ra.child_assignments]):
+        EmailService.queue_email(session, 'hotel_room_leader_changed', ra, replace_unsent=True)
+
+
 def check_partition_capacity(session, ra, held=None):
     """Raise RoomAssignmentError when a live partitioned row would put a
     night of its stay over the partition's allocation of its block.
@@ -617,17 +645,24 @@ def remove_room_occupant(session, ra, attendee_id, *, audit_prefix=''):
     return attendee
 
 
-def set_room_leader(session, ra, attendee_id, *, audit_prefix=''):
+def set_room_leader(session, ra, attendee_id, *, audit_prefix='', extend_deadline=False):
     """Hand the booker (room leader) role to another occupant; the old
     leader stays in the room. Connector children follow. Any card on file
     is the outgoing leader's, so it comes off and a SECURED room drops back
-    to ASSIGNED. Returns (new leader, whether a card was removed)."""
+    to ASSIGNED. Past the card deadline this is refused unless
+    `extend_deadline` (admins), which pushes the deadline out instead.
+    Returns (new leader, whether a card was removed)."""
     target = next((o for o in ra.occupants if o.id == attendee_id), None)
     if not target:
         raise RoomAssignmentError('The room leader must be one of the roommates.')
     if target.id == ra.attendee_id:
         raise RoomAssignmentError(f'{target.full_name} is already the room leader.')
     require_room_badge(target)
+    if ra.leader_change_blocked:
+        if not extend_deadline:
+            raise RoomAssignmentError(
+                'The room leader cannot be changed after the credit card deadline for this room.')
+        ra.extend_passed_card_deadlines()
 
     card_removed = False
     for room in [ra] + list(ra.child_assignments):
@@ -637,6 +672,7 @@ def set_room_leader(session, ra, attendee_id, *, audit_prefix=''):
         room.attendee_id = target.id
         session.add(room)
     _audit_roommate_change(session, ra, audit_prefix, "changed room leader", target.id)
+    queue_new_leader_email(session, ra)
     session.flush()
     return target, card_removed
 

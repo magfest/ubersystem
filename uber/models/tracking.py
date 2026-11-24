@@ -207,7 +207,7 @@ class Tracking(MagModel, table=True):
         return diff
 
     @classmethod
-    def track_collection_change(cls, action, target, instance):
+    def track_collection_change(cls, action, target, instance, also_link=()):
         """Record an add or remove on a many-to-many collection, such as the badges on an attendee account.
 
         The row joins the session that owns the change, so it commits or rolls back with it. A failure here
@@ -224,6 +224,10 @@ class Tracking(MagModel, table=True):
                 who = 'server admin'
             else:
                 who = AdminAccount.acting_name() or (current_thread().name if current_thread().daemon else 'non-admin')
+                if who == 'non-admin' and c.ATTENDEE_ACCOUNTS_ENABLED:
+                    logged_in_account = session.current_attendee_account()
+                    if logged_in_account:
+                        who = f"{logged_in_account.email}"
 
             target_email = getattr(target, 'email', '')
             target_label = f'{repr(target)} ({target_email})' if target_email else repr(target)
@@ -234,7 +238,7 @@ class Tracking(MagModel, table=True):
                 who=who,
                 supervisor=AdminAccount.supervisor_name() or '',
                 page=c.PAGE_PATH,
-                links=f'{instance.__table__.name}({instance.id})',
+                links=', '.join([f'{instance.__table__.name}({instance.id})', *also_link]),
                 action=action,
                 data=f'{repr(instance)} id={instance.id}; {target_label}',
             )

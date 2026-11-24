@@ -1145,6 +1145,7 @@ class Root:
         to ASSIGNED - the new leader must re-secure with their own card.
         """
         from uber.hotel.perms import is_lottery_admin
+        from uber.hotel.service import queue_new_leader_email
         viewer = _viewer_attendee(session)
         if not is_lottery_admin() and (not viewer or viewer.id != ra.attendee_id):
             raise HTTPRedirect(_room_url(
@@ -1166,17 +1167,29 @@ class Root:
                 ra.id, attendee_id,
                 message=f'{target.full_name} does not have a badge that can '
                         'be given a hotel room.'))
+        new_deadline = None
+        if ra.leader_change_blocked:
+            if not is_lottery_admin():
+                raise HTTPRedirect(_room_url(
+                    ra.id, attendee_id,
+                    message='The room leader cannot be changed after the credit '
+                            'card deadline for this room.'))
+            new_deadline = ra.extend_passed_card_deadlines()
 
         # Any card on file belongs to the outgoing leader, so it comes
         # off (with their billing address) and a SECURED room drops back
         # to ASSIGNED - the new leader re-secures with their own card.
         card_removed = ra.clear_card()
+        # The relationship too, so the new leader's email renders with their name.
+        ra.attendee = target
         ra.attendee_id = target.id
         session.add(ra)
         for child in ra.child_assignments:
             card_removed = child.clear_card() or card_removed
+            child.attendee = target
             child.attendee_id = target.id
             session.add(child)
+        queue_new_leader_email(session, ra)
         session.commit()
 
         message = (f'{target.first_name} {target.last_name} is now the '
@@ -1184,6 +1197,8 @@ class Root:
         if card_removed:
             message += (' The card on file was removed - they will need to '
                         're-secure the room with their own card.')
+        if new_deadline:
+            message += f' The card deadline was extended to {new_deadline.strftime("%A, %B %-d")}.'
         raise HTTPRedirect(_room_url(ra.id, attendee_id, message=message))
 
     @requires_account(Attendee)

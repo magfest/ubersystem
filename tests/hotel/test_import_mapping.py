@@ -9,6 +9,7 @@ import pytest
 from uber.config import c
 from uber.hotel import mapping
 from uber.hotel.imports import parse_spreadsheet
+from uber.models.hotel import RoomAssignment
 
 from tests.hotel.factories import (make_application, make_assignment, make_attendee, make_hotel,
                                    make_inventory, make_room_type)
@@ -463,3 +464,162 @@ def test_our_room_number_edits_flag_the_room_but_the_hotels_do_not(session, no_c
     ra.physical_room_id = room.id
     session.flush()
     assert ra.room_number == '410' and ra.last_modified_at is not None
+
+
+# ---------------------------------------------------------------------------
+# confirmation number emails
+# ---------------------------------------------------------------------------
+
+def _confirmation_emails(session, ra):
+    """What `ra` has been sent once the email sweep has run."""
+    from uber.email import EmailService
+    from uber.models import AutomatedEmail, Email
+
+    session.flush()
+    EmailService.check_emails_for_fixture(session, session.query(AutomatedEmail).filter_by(
+        ident='hotel_lottery_confirmation_uploaded').one())
+    return [e for e in session.query(Email).filter_by(fk_id=ra.id)
+            if e.ident.startswith('hotel_lottery_confirmation_')]
+
+
+@pytest.fixture
+def email_fixtures(session, monkeypatch):
+    """Both confirmation emails approved, as an admin would have them."""
+    from uber.models import AutomatedEmail
+
+    if not AutomatedEmail.initialized:
+        AutomatedEmail.reconcile_fixtures()
+        AutomatedEmail.initialized = True
+    for row in session.query(AutomatedEmail).filter(
+            AutomatedEmail.ident.startswith('hotel_lottery_confirmation_')):
+        row.policy = c.AUTOSEND
+    session.flush()
+    # The sweep commits; keep it inside the per-test rollback.
+    monkeypatch.setattr(session, 'commit', session.flush)
+
+
+def test_hotel_upload_emails_the_confirmation_number(session, no_cherrypy_session, email_fixtures):
+    from uber.hotel.imports import apply_confirmation_rows, import_confirmation_file
+
+    hotel = make_hotel(session, name='Harbor Hotel')
+    ra = _booking(session, email='auto@example.com', hotel=hotel)
+    raw = _room_list_csv([{'email': 'auto@example.com', 'acknowledgement_number': 'ACK1'}])
+
+    import_confirmation_file(session, raw, 'list.csv', template=mapping.builtin_template())
+    [email] = _confirmation_emails(session, ra)
+    assert email.ident == 'hotel_lottery_confirmation_uploaded'
+    assert email.to == 'auto@example.com'
+    for expected in (f'Hello {ra.attendee.first_name}:', 'Harbor Hotel has uploaded',
+                     '<strong>ACK1</strong>', 'Thursday, January 7', 'Sunday, January 10',
+                     f'/hotel_lottery/room?id={ra.id}'):
+        assert expected in email.body
+
+    # The same file again changes nothing, so nobody is emailed twice.
+    import_confirmation_file(session, raw, 'list.csv', template=mapping.builtin_template())
+    assert len(_confirmation_emails(session, ra)) == 1
+
+    # A replacement number is an update, not a first upload.
+    app = make_application(session, ra.attendee, confirmation_num='LOTTERY9')
+    ra.lottery_application_id = app.id
+    session.flush()
+    apply_confirmation_rows(session, [{'confirmation_num': 'LOTTERY9', 'new_confirmation_num': 'ACK2'}])
+    assert sorted(e.ident for e in _confirmation_emails(session, ra)) == [
+        'hotel_lottery_confirmation_updated', 'hotel_lottery_confirmation_uploaded']
+
+
+def test_plain_confirmation_file_emails_once_per_room(session, no_cherrypy_session, email_fixtures):
+    from uber.hotel.imports import import_confirmation_file
+
+    kept = _booking(session, email='kept@example.com')
+    gone = _booking(session, email='gone@example.com')
+    kept.lottery_application_id = make_application(
+        session, kept.attendee, confirmation_num='KEPT1').id
+    gone.lottery_application_id = make_application(
+        session, gone.attendee, confirmation_num='GONE1').id
+    session.flush()
+
+    raw = (b'confirmation_num,hotel_confirmation_number,hotel_cancellation_number\n'
+           b'KEPT1,ACK1,\n'
+           b'GONE1,ACK2,X2\n')
+    import_confirmation_file(session, raw, 'numbers.csv')
+
+    [email] = _confirmation_emails(session, kept)
+    assert email.ident == 'hotel_lottery_confirmation_uploaded'
+    # Confirmed and cancelled in the same row: no "you're confirmed" email.
+    assert gone.status == c.CANCELLED
+    assert _confirmation_emails(session, gone) == []
+
+
+def test_rooms_confirmed_before_the_email_existed_get_it_once(session, no_cherrypy_session, email_fixtures):
+    from uber.hotel.imports import apply_cancellation_rows
+
+    confirmed, unconfirmed, cancelled = [
+        _booking(session, email=f'{name}@example.com') for name in ('confirmed', 'unconfirmed', 'cancelled')]
+    cancelled.lottery_application_id = make_application(
+        session, cancelled.attendee, confirmation_num='GONE2').id
+    session.flush()
+    session.execute(RoomAssignment.__table__.update().where(
+        RoomAssignment.id.in_([confirmed.id, cancelled.id])).values(hotel_confirmation_number='OLDACK'))
+    session.expire_all()
+    apply_cancellation_rows(session, [{'confirmation_num': 'GONE2', 'cancellation_confirmation_number': 'X9'}])
+    assert cancelled.status == c.CANCELLED
+
+    _confirmation_emails(session, confirmed)  # a second sweep adds nothing
+    assert [e.ident for e in _confirmation_emails(session, confirmed)] == ['hotel_lottery_confirmation_uploaded']
+    assert _confirmation_emails(session, unconfirmed) == []
+    assert _confirmation_emails(session, cancelled) == []
+
+
+def test_a_second_replacement_before_sending_leaves_one_updated_email(session, no_cherrypy_session, email_fixtures):
+    from uber.hotel.imports import apply_confirmation_rows
+    from uber.models import Email
+
+    ra = _booking(session, email='twice@example.com')
+    ra.lottery_application_id = make_application(session, ra.attendee, confirmation_num='TWICE1').id
+    ra.hotel_confirmation_number = 'ACK1'
+    session.flush()
+
+    for number in ('ACK2', 'ACK3'):
+        apply_confirmation_rows(session, [{'confirmation_num': 'TWICE1', 'new_confirmation_num': number}])
+    session.flush()
+
+    [email] = session.query(Email).filter_by(fk_id=ra.id, ident='hotel_lottery_confirmation_updated').all()
+    assert email.status != c.SENT
+
+
+def test_a_booking_with_two_rooms_gets_one_email_of_each_kind(session, no_cherrypy_session, email_fixtures):
+    from uber.hotel.imports import apply_confirmation_rows
+    from uber.models import Email
+
+    first = _booking(session, email='suite@example.com')
+    second = make_assignment(session, attendee=first.attendee, inventory=first.inventory,
+                             check_in=date(2027, 1, 7), check_out=date(2027, 1, 10))
+    app = make_application(session, first.attendee, confirmation_num='SUITE1')
+    first.lottery_application_id = second.lottery_application_id = app.id
+    session.flush()
+
+    apply_confirmation_rows(session, [{'confirmation_num': 'SUITE1', 'hotel_confirmation_number': 'ACK1'}])
+    assert first.hotel_confirmation_number == second.hotel_confirmation_number == 'ACK1'
+    _confirmation_emails(session, first)
+    apply_confirmation_rows(session, [{'confirmation_num': 'SUITE1', 'new_confirmation_num': 'ACK2'}])
+    _confirmation_emails(session, first)  # a second sweep adds nothing
+
+    emails = session.query(Email).filter(Email.fk_id.in_([first.id, second.id]),
+                                         Email.ident.startswith('hotel_lottery_confirmation_'))
+    assert sorted(e.ident for e in emails) == [
+        'hotel_lottery_confirmation_updated', 'hotel_lottery_confirmation_uploaded']
+    assert next(e for e in emails if e.ident.endswith('uploaded')).fk_id == first.id
+
+
+def test_staff_crash_space_is_not_told_to_change_its_own_dates(session, no_cherrypy_session, email_fixtures):
+    lottery = _booking(session, email='lottery@example.com')
+    crash = _booking(session, email='crash@example.com')
+    lottery.hotel_confirmation_number = 'ACK1'
+    crash.hotel_confirmation_number = 'ACK2'
+    crash.assignment_reason = c.STAFF_CRASH_SPACE
+
+    [lottery_email] = _confirmation_emails(session, lottery)
+    [crash_email] = _confirmation_emails(session, crash)
+    assert 'change your dates of stay' in lottery_email.body
+    assert 'change your dates of stay' not in crash_email.body
+    assert '<strong>ACK2</strong>' in crash_email.body

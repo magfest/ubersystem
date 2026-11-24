@@ -2612,6 +2612,8 @@ def register_attribute_listeners():
     ]:
         listen(collection, 'append', _track_collection_append, propagate=True)
         listen(collection, 'remove', _track_collection_remove, propagate=True)
+    listen(RoomAssignment.occupants, 'append', lambda room, attendee, _: room.track_roommate(c.ITEM_ADDED, attendee))
+    listen(RoomAssignment.occupants, 'remove', lambda room, attendee, _: room.track_roommate(c.ITEM_REMOVED, attendee))
 
 
 register_session_listeners()

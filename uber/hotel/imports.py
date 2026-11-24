@@ -15,7 +15,7 @@ from datetime import date, datetime
 from pytz import UTC
 
 from uber.config import c
-from uber.hotel.service import hotel_sourced
+from uber.hotel.service import hotel_sourced, queue_confirmation_updated_email
 
 
 def _normalize(value):
@@ -214,6 +214,7 @@ def _apply_with_template(session, record, raw, filename, template, hotel):
         row_present = any((mapped.get(key) or '').strip() for key in auto_fields)
         row_changed = False
         for ra in assignments:
+            previous = ra.hotel_confirmation_number or ''
             diff = mapping.diff_row(ra, mapped)
             for entry in diff:
                 if entry['key'] not in auto_fields or not entry['changed']:
@@ -227,6 +228,7 @@ def _apply_with_template(session, record, raw, filename, template, hotel):
                                 'new': entry['imported']})
                 if ra.inventory and ra.inventory.hotel_id:
                     hotels_imported.add(str(ra.inventory.hotel_id))
+            queue_confirmation_updated_email(session, ra, previous)
         if row_present:
             updated += 1 if row_changed else 0
             unchanged += 0 if row_changed else 1
@@ -309,6 +311,7 @@ def import_confirmation_file(session, raw, filename, hotel=None, source='',
         if not ras:
             continue  # no matching booking; skip the row
 
+        previous = {ra.id: ra.hotel_confirmation_number or '' for ra in ras}
         row_present = False
         row_changed = False
         for col, attr in fields:
@@ -331,6 +334,8 @@ def import_confirmation_file(session, raw, filename, hotel=None, source='',
                 row_changed = True
                 changes.append({'confirmation_num': conf_num, 'field': col,
                                 'old': old_val, 'new': new_val})
+        for ra in ras:
+            queue_confirmation_updated_email(session, ra, previous[ra.id])
         if row_present:
             updated += 1 if row_changed else 0
             unchanged += 0 if row_changed else 1
@@ -387,7 +392,7 @@ def match_assignments(session, app_id='', conf=''):
 
 
 @hotel_sourced
-def apply_confirmation_rows(session, rows, apply_changes=True, on_update=None):
+def apply_confirmation_rows(session, rows, apply_changes=True):
     """Shared row applier for hotel confirmation numbers.
 
     Row columns: `lottery_application_id` and/or `confirmation_num`
@@ -396,10 +401,8 @@ def apply_confirmation_rows(session, rows, apply_changes=True, on_update=None):
     Rows without a value are skipped. The value is written to EVERY
     assignment on the matched booking, one preview entry per assignment.
 
-    `on_update(assignment)` is invoked for each assignment actually
-    changed while applying, so each controller keeps its own email
-    behavior (the admin import pages queue a confirmation-updated email;
-    the portal upload does not).
+    An assignment whose number was replaced is emailed the new one; a
+    first number is announced by the email sweep.
 
     Flushes, never commits - the caller owns the transaction.
     Returns {'new', 'changed', 'unchanged', 'unmatched', 'applied'}.
@@ -441,8 +444,10 @@ def apply_confirmation_rows(session, rows, apply_changes=True, on_update=None):
                 assignment.hotel_confirmation_number = new_conf
                 session.add(assignment)
                 preview['applied'] += 1
-                if on_update:
-                    on_update(assignment)
+                # A row that also cancels the room is not good news.
+                if not (row.get('cancellation_confirmation_number')
+                        or row.get('hotel_cancellation_number') or '').strip():
+                    queue_confirmation_updated_email(session, assignment, existing)
 
     session.flush()
     return preview

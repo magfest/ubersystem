@@ -50,7 +50,8 @@ from uber.hotel.imports import (apply_cancellation_rows, apply_confirmation_rows
                                 parse_iso_date, parse_spreadsheet)
 from uber.hotel.service import (RoomAssignmentError, add_room_occupant, apply_room_assignment_edits,
                                 assign_physical_room, cancel_room_occupant_invite,
-                                create_room_assignment, hotel_sourced_changes, remove_room_occupant,
+                                create_room_assignment, hotel_sourced_changes,
+                                queue_confirmation_updated_email, remove_room_occupant,
                                 require_room_badge, validate_physical_room)
 from uber.hotel.solver import (LOTTERY_TYPE_BOTH,
                                        adjust_available_rooms,
@@ -516,26 +517,6 @@ def _notify_partition_owners_of_inventory_change(session, partition, change_desc
             'attendee': recipient, 'partition': partition,
             'change_description': change_description,
         })
-
-
-def _send_confirmation_updated_email(session, assignment):
-    """Notify the attendee that hotel_confirmation_number has changed.
-
-    Direct send rather than AutomatedEmailFixture so it fires exactly once
-    at the change site (the import endpoint or the API). Called after the
-    field is set on `assignment` but before commit.
-    """
-    if not assignment or not assignment.attendee_id:
-        return
-    attendee = session.query(Attendee).get(assignment.attendee_id)
-    if not attendee:
-        return
-    EmailService.queue_email(
-        session, 'hotel_lottery_confirmation_updated', assignment,
-        subject=f"{c.EVENT_NAME_AND_YEAR}: Hotel confirmation number updated",
-        data={
-        'attendee': attendee, 'assignment': assignment,
-    })
 
 
 def _queue_waitlist_fulfilled_email(session, ra):
@@ -1693,10 +1674,8 @@ class Root:
 
         # Confirmation and cancellation numbers go through the shared
         # row-appliers (uber.hotel.imports): every-assignment matching, one
-        # applied count per assignment touched. Email behavior stays here.
-        conf_preview = apply_confirmation_rows(
-            session, rows, apply_changes=True,
-            on_update=lambda ra: _send_confirmation_updated_email(session, ra))
+        # applied count per assignment touched.
+        conf_preview = apply_confirmation_rows(session, rows, apply_changes=True)
         updated = conf_preview['applied']
 
         # Unlike the cancellations import page - where a row's presence
@@ -2198,10 +2177,12 @@ class Root:
             return {'error': 'That row is no longer in this upload.'}
 
         value = (row.get('mapped') or {}).get(field, '')
+        previous = ra.hotel_confirmation_number or ''
         ok, message = mapping.sync_value(session, ra, field, value)
         if not ok:
             session.rollback()
             return {'error': message}
+        queue_confirmation_updated_email(session, ra, previous)
         session.commit()
         return {'ok': True, 'message': message,
                 'current': mapping._current_value(ra, field)}
@@ -2239,9 +2220,11 @@ class Root:
         confirmation = (row.get('mapped') or {}).get(
             'assignment.hotel_confirmation_number', '').strip()
         if confirmation:
+            previous = ra.hotel_confirmation_number or ''
             with hotel_sourced_changes(session):
                 ra.hotel_confirmation_number = confirmation
                 session.add(ra)
+            queue_confirmation_updated_email(session, ra, previous)
 
         previous_status = row.get('status')
         row['assignment_ids'] = [str(ra.id)]
@@ -3274,11 +3257,7 @@ class Root:
             if kind == 'cancellation':
                 preview = apply_cancellation_rows(session, rows, apply_changes)
             else:
-                # Email behavior stays with this controller: the admin
-                # confirmation import notifies the attendee per change.
-                preview = apply_confirmation_rows(
-                    session, rows, apply_changes,
-                    on_update=lambda ra: _send_confirmation_updated_email(session, ra))
+                preview = apply_confirmation_rows(session, rows, apply_changes)
 
             if apply_changes and preview['applied']:
                 session.commit()

@@ -517,9 +517,12 @@ def _set_occupants(session, assignment, attendee_ids):
     from uber.models.hotel import room_assignment_occupant
     session.execute(room_assignment_occupant.delete().where(
         room_assignment_occupant.c.room_assignment_id == assignment.id))
+    from uber.models import Attendee
     for aid in attendee_ids:
         session.execute(room_assignment_occupant.insert().values(
             room_assignment_id=assignment.id, attendee_id=aid))
+        # Raw inserts skip the collection listener.
+        assignment.track_roommate(c.ITEM_ADDED, session.get(Attendee, aid))
 
 
 def materialize_room_assignments(session, applications, allocations,

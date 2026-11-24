@@ -1,0 +1,33 @@
+{% set attendee = assignment.attendee %}
+{% set hotel = assignment.inventory.hotel if assignment.inventory else none %}
+{% set room_url = c.URL_BASE ~ '/hotel_lottery/room?id=' ~ assignment.id ~ '&attendee_id=' ~ attendee.id %}
+{% set unsecured = ([assignment] + assignment.child_assignments|list)|selectattr('needs_card')|list %}
+{% set deadlines = unsecured|map(attribute='card_deadline')|select|list %}
+<p>Hello {{ attendee.first_name }}:</p>
+
+<p>
+  You are now the room leader for your {{ c.EVENT_NAME_AND_YEAR }} room at
+  {{ hotel.name if hotel else 'the hotel' }}. The reservation is in your name, and you manage its dates,
+  occupants, and payment on <a href="{{ room_url }}" target="_blank">your room page</a>.
+</p>
+
+{% if unsecured %}
+<p>
+  This room needs a credit card guarantee in your name. You <strong>must</strong> put your card down on
+  <a href="{{ room_url }}" target="_blank">your room page</a>
+  {% if deadlines %}before the end of {{ (deadlines|min).strftime('%A, %B %-d') }}{% else %}as soon as possible{% endif %},
+  or the room will be released.
+</p>
+{% endif %}
+
+<p>
+  {% if c.HOTEL_LOTTERY_EMAIL %}
+  If you have any questions about this message, please reach out at
+  {{ c.HOTEL_LOTTERY_EMAIL|email_only|email_to_link }} and we
+  {% else %}
+  We
+  {% endif %}
+  look forward to seeing you in {{ c.EPOCH|datetime_local("%B") }}!
+</p>
+
+<p>{{ c.EVENT_NAME }} Hotel Team</p>

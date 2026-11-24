@@ -46,3 +46,28 @@ def test_saving_a_room_keeps_its_implied_group(session, group_room):
     session.add(ra)
     session.flush()
     assert _stored(session, ra) == {leader.id, member.id}
+
+
+def _roommate_log(session, ra):
+    from uber.config import c
+    from uber.models import Tracking
+    session.flush()
+    return [(t.action, t.links) for t in session.query(Tracking).filter(
+        Tracking.model == 'RoomAssignment', Tracking.fk_id == ra.id,
+        Tracking.action.in_([c.ITEM_ADDED, c.ITEM_REMOVED])).order_by(Tracking.when)]
+
+
+def test_roommate_changes_reach_both_badge_histories(session, group_room):
+    from uber.config import c
+    from uber.hotel.service import add_room_occupant
+
+    ra, leader, member = group_room
+    materialize_implied_occupants(session)
+    newcomer = make_attendee(session)
+    add_room_occupant(session, ra, newcomer.id)
+    remove_room_occupant(session, ra, member.id)
+
+    both = lambda a: f'attendee({a.id}), attendee({leader.id})'  # noqa: E731
+    # The booker is never logged as their own roommate.
+    assert _roommate_log(session, ra) == [
+        (c.ITEM_ADDED, both(member)), (c.ITEM_ADDED, both(newcomer)), (c.ITEM_REMOVED, both(member))]

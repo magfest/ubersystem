@@ -177,8 +177,7 @@ def test_nothing_is_revealed_until_award_winners(session, world):
     from uber.hotel.imports import apply_confirmation_rows
     from uber.hotel.solver import build_eligible_applications
     from uber.models.hotel import LotteryRun, RoomAssignment
-    from uber.site_sections.hotel_lottery_admin import (
-        Root as Admin, _send_confirmation_updated_email)
+    from uber.site_sections.hotel_lottery_admin import Root as Admin
     from uber.tasks.hotel import expire_unsecured_assignments
 
     hotel = make_hotel(session)
@@ -272,8 +271,7 @@ def test_nothing_is_revealed_until_award_winners(session, world):
         session,
         [{'lottery_application_id': ra.lottery_application_id,
           'hotel_confirmation_number': f'HOTEL-{ra.id[:6]}'} for ra in pending_rooms],
-        apply_changes=True,
-        on_update=lambda ra: _send_confirmation_updated_email(session, ra))
+        apply_changes=True)
     session.flush()
     assert_nothing_revealed('booking links and confirmation import')
 
