@@ -115,6 +115,10 @@
       <div class="small text-muted mb-2">
         Matched to
         <a href="edit_room_assignment?id={{ row.assignment.id }}">{{ row.assignment.room_summary }}</a>
+        {% if row.via == 'roommate' %}
+          through a roommate; the room leader is
+          {{ row.assignment.attendee.full_name if row.assignment.attendee else 'unknown' }} and is not changed.
+        {% endif %}
       </div>
       {% if not row.changed %}
         <p class="form-text mb-0">Everything in this row already matches the booking.</p>

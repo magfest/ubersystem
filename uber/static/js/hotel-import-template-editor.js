@@ -53,17 +53,17 @@
     columnMap.innerHTML = pairs.map(function (pair) {
       return [
         '<div class="row g-2 align-items-end mb-2 column-row" data-source="' + escapeHtml(pair.key) + '">',
-        '  <div class="col-md-5">',
+        '  <div class="col-md-4">',
         '    <div class="form-control form-control-sm bg-light">' + escapeHtml(pair.raw || pair.key) + '</div>',
         '    <div class="form-text mt-1 mb-0 matched-as">matched as <code>' + escapeHtml(pair.key) + '</code></div>',
         '    <input type="hidden" name="column__' + escapeHtml(pair.key) + '" class="column-target-input" />',
         '    <input type="hidden" name="raw__' + escapeHtml(pair.key) + '" class="raw-header-input" value="' + escapeHtml(pair.raw || '') + '" />',
         '  </div>',
-        '  <div class="col-md-5">',
+        '  <div class="col-md-4">',
         '    <select class="form-select form-select-sm column-target">' +
              optionsHtml(existing[pair.key] || 'match.ignore') + '</select>',
         '  </div>',
-        '  <div class="col-md-2 date-format" style="display:none;">',
+        '  <div class="col-md-4 date-format" style="display:none;">',
         '    <input type="text" class="form-control form-control-sm" placeholder="%m/%d/%Y" />',
         '  </div>',
         '</div>'
@@ -105,7 +105,7 @@
         rawInput.type = 'hidden';
         rawInput.name = 'raw__' + pair.key;
         rawInput.className = 'raw-header-input';
-        row.querySelector('.col-md-5').appendChild(rawInput);
+        row.querySelector('.col-md-4').appendChild(rawInput);
       }
       rawInput.value = pair.raw;
     });
@@ -140,6 +140,36 @@
   var labelByKey = {};
   targetFields.forEach(function (f) { labelByKey[f.key] = f.label; });
 
+  var enumChoices = JSON.parse(
+    (document.getElementById('enum-choices-data') || {}).textContent || '{}');
+
+  // "Our value" as a pick list of what the field accepts; a saved value that
+  // is no longer offered stays selectable so it is not silently dropped.
+  function choiceControl(target, value) {
+    var choices = enumChoices[target] || [];
+    if (!choices.length) {
+      var text = document.createElement('input');
+      text.type = 'text';
+      text.className = 'form-control form-control-sm enum-ours';
+      text.value = value || '';
+      return text;
+    }
+    var select = document.createElement('select');
+    select.className = 'form-select form-select-sm enum-ours';
+    var options = [{value: '', label: 'Choose...'}].concat(choices);
+    if (value && !choices.some(function (c) { return c.value === value; })) {
+      options.push({value: value, label: value + ' (not in our list)'});
+    }
+    options.forEach(function (choice) {
+      var option = document.createElement('option');
+      option.value = choice.value;
+      option.textContent = choice.label;
+      select.appendChild(option);
+    });
+    select.value = value || '';
+    return select;
+  }
+
   function hasEnumRow(target, source) {
     var wanted = ('enum__' + target + '__' + source).toLowerCase();
     return Array.prototype.some.call(
@@ -154,15 +184,33 @@
     row.innerHTML = [
       '<div class="col-md-3 small text-muted">' + escapeHtml(labelByKey[target] || target) + '</div>',
       '<div class="col-md-4"><input type="text" class="form-control form-control-sm bg-light" readonly /></div>',
-      '<div class="col-md-4"><input type="text" class="form-control form-control-sm enum-ours" /></div>',
+      '<div class="col-md-4 enum-ours-box"></div>',
       '<div class="col-md-1"><button type="button" class="btn btn-sm btn-outline-secondary enum-remove" title="Remove">&times;</button></div>'
     ].join('');
     row.querySelector('[readonly]').value = source;
-    var input = row.querySelector('.enum-ours');
+    var input = choiceControl(target, ours);
     input.name = 'enum__' + target + '__' + source;
-    input.value = ours || '';
+    row.querySelector('.enum-ours-box').appendChild(input);
     enumRows.appendChild(row);
   }
+
+  enumRows.querySelectorAll('input.enum-ours').forEach(function (input) {
+    var control = choiceControl(input.dataset.target, input.value);
+    control.name = input.name;
+    input.replaceWith(control);
+  });
+
+  var addTarget = document.getElementById('enum-add-target');
+  function renderAddControl() {
+    var control = choiceControl(addTarget.value, '');
+    control.id = 'enum-add-ours';
+    if (control.tagName === 'INPUT') { control.placeholder = 'Our name'; }
+    var box = document.getElementById('enum-add-ours-box');
+    box.innerHTML = '';
+    box.appendChild(control);
+  }
+  addTarget.addEventListener('change', renderAddControl);
+  renderAddControl();
 
   enumRows.addEventListener('click', function (e) {
     var remove = e.target.closest('.enum-remove');
@@ -172,8 +220,7 @@
   document.getElementById('enum-add').addEventListener('click', function () {
     var source = document.getElementById('enum-add-source');
     var ours = document.getElementById('enum-add-ours');
-    addEnumRow(document.getElementById('enum-add-target').value,
-               source.value.trim(), ours.value.trim());
+    addEnumRow(addTarget.value, source.value.trim(), ours.value.trim());
     source.value = '';
     ours.value = '';
     source.focus();

@@ -1977,7 +1977,7 @@ class Root:
         return {
             'template': template,
             'target_fields': mapping.TARGET_FIELDS,
-            'payment_types': c.HOTEL_PAYMENT_TYPE_OPTS,
+            'enum_choices': mapping.enum_choices(session),
             'message': message,
         }
 
@@ -2121,10 +2121,12 @@ class Root:
         for row in rows:
             ids = row.get('assignment_ids', [])
             primary = by_id.get(ids[0]) if len(ids) == 1 else None
-            diff = mapping.diff_row(primary, row.get('mapped', {})) if primary else []
+            via = row.get('via', '')
+            diff = mapping.diff_row(primary, row.get('mapped', {}), via=via) if primary else []
             prepared.append({
                 'index': row.get('index'),
                 'status': row.get('status'),
+                'via': via,
                 'source': row.get('source', {}),
                 'mapped': row.get('mapped', {}),
                 'assignment': primary,
@@ -2184,6 +2186,9 @@ class Root:
                         if str(r.get('index')) == str(row_index)), None)
         if row is None:
             return {'error': 'That row is no longer in this upload.'}
+
+        if row.get('via') == 'roommate' and field.startswith('attendee.'):
+            return {'error': "This row names a roommate, so it cannot change the room leader's details."}
 
         value = (row.get('mapped') or {}).get(field, '')
         previous = ra.hotel_confirmation_number or ''

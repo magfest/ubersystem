@@ -737,3 +737,52 @@ def test_the_editor_is_told_which_list_values_a_file_uses(session, no_cherrypy_s
     template = mapping.draft_template(ROOMING_LIST_SPEC)
     rows, _error = mapping.build_rows(session, ROOMING_LIST, 'list.csv', template)
     assert mapping.enum_source_values(rows, template) == {'match.room_type': ['KING']}
+
+
+def test_list_backed_fields_offer_their_available_values(session, no_cherrypy_session):
+    _booking(session, type_name='Deluxe King')
+    choices = mapping.enum_choices(session)
+    assert {'value': 'Deluxe King', 'label': 'Deluxe King'} in choices['match.room_type']
+    assert {c['value'] for c in choices['assignment.payment_type']} == set(c.HOTEL_PAYMENT_TYPES)
+
+
+def test_a_row_naming_a_roommate_matches_without_touching_the_leader(session, no_cherrypy_session):
+    hotel = make_hotel(session)
+    ra = _named_booking(session, 'Lee', 'Leader', hotel=hotel)
+    roommate = make_attendee(session)
+    roommate.first_name, roommate.last_name = 'Robin', 'Roomie'
+    session.refresh(ra)
+    ra.occupants.append(roommate)
+    session.flush()
+
+    mapped = {'attendee.hotel_first_name': 'Robin', 'attendee.hotel_last_name': 'Roomie',
+              'assignment.hotel_confirmation_number': 'RM1'}
+    found, status, via = mapping.match_row_detail(session, mapped, hotel_id=str(hotel.id))
+    assert (status, via, found[0].id) == ('matched', 'roommate', ra.id)
+    assert [d['key'] for d in mapping.diff_row(ra, mapped, via=via)] == [
+        'assignment.hotel_confirmation_number']
+
+    # The leader's own name still matches as the leader.
+    leader = {'match.first_name': 'Lee', 'match.last_name': 'Leader'}
+    assert mapping.match_row_detail(session, leader, hotel_id=str(hotel.id))[2] == ''
+
+
+def test_matching_a_roommate_row_by_hand_also_protects_the_leader(session, no_cherrypy_session):
+    from uber.models.hotel import HotelImportFile
+
+    hotel = make_hotel(session)
+    ra = _named_booking(session, 'Lee', 'Leader', hotel=hotel)
+    roommate = make_attendee(session)
+    roommate.hotel_first_name, roommate.hotel_last_name = 'Atall', 'Nobody'
+    session.refresh(ra)
+    ra.occupants.append(roommate)
+    session.flush()
+
+    rows = [{'index': 0, 'source': {}, 'status': 'unmatched', 'assignment_ids': [],
+             'mapped': {'match.first_name': 'Atall', 'match.last_name': 'Nobody'}}]
+    record = HotelImportFile(hotel_id=hotel.id, filename='x.csv', parsed_rows=rows,
+                             unmatched_count=1)
+    session.add(record)
+    session.flush()
+    assert mapping.assign_row(session, record, 0, ra)
+    assert record.parsed_rows[0]['via'] == 'roommate'

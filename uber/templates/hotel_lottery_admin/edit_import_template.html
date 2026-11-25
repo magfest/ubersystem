@@ -73,7 +73,7 @@
         {% if template.column_map %}
           {% for source, target in (template.column_map or {}).items() %}
           <div class="row g-2 align-items-end mb-2 column-row" data-source="{{ source }}">
-            <div class="col-md-5">
+            <div class="col-md-4">
               <input type="hidden" name="column__{{ source }}" value="{{ target }}"
                      class="column-target-input" />
               <input type="hidden" name="raw__{{ source }}" class="raw-header-input"
@@ -81,7 +81,7 @@
               <div class="form-control form-control-sm bg-light">{{ (template.header_map or {}).get(source) or source }}</div>
               <div class="form-text mt-1 mb-0 matched-as">matched as <code>{{ source }}</code></div>
             </div>
-            <div class="col-md-5">
+            <div class="col-md-4">
               <select class="form-select form-select-sm column-target" data-source="{{ source }}">
                 {% for field in target_fields %}
                 <option value="{{ field.key }}" {% if field.key == target %}selected{% endif %}>
@@ -90,7 +90,7 @@
                 {% endfor %}
               </select>
             </div>
-            <div class="col-md-2 date-format" style="display:none;">
+            <div class="col-md-4 date-format" style="display:none;">
               <input type="text" class="form-control form-control-sm"
                      name="format__{{ target }}" placeholder="%m/%d/%Y"
                      value="{{ (template.format_map or {}).get(target, '') }}" />
@@ -122,7 +122,7 @@
                      value="{{ source_value }}" readonly />
             </div>
             <div class="col-md-4">
-              <input type="text" class="form-control form-control-sm"
+              <input type="text" class="form-control form-control-sm enum-ours" data-target="{{ target }}"
                      name="enum__{{ target }}__{{ source_value }}" value="{{ our_value }}" />
             </div>
             <div class="col-md-1">
@@ -145,7 +145,7 @@
             <input type="text" class="form-control form-control-sm" id="enum-add-source"
                    placeholder="As the hotel writes it, e.g. QUEN" />
           </div>
-          <div class="col-md-4">
+          <div class="col-md-4" id="enum-add-ours-box">
             <input type="text" class="form-control form-control-sm" id="enum-add-ours"
                    placeholder="Our name, e.g. Queen" />
           </div>
@@ -153,10 +153,6 @@
             <button type="button" class="btn btn-sm btn-outline-primary" id="enum-add">Add</button>
           </div>
         </div>
-        <p class="form-text mb-0">
-          Room types match when our name appears in the room's name.
-          Payment types available: {% for key, label in payment_types %}<code>{{ key }}</code>{% if not loop.last %}, {% endif %}{% endfor %}
-        </p>
       </div>
 
       <div class="mt-3">
@@ -184,6 +180,7 @@
   </div>
 </div>
 
+<script type="application/json" id="enum-choices-data">{{ enum_choices|tojson }}</script>
 <script type="application/json" id="target-fields-data">{{ target_fields|tojson }}</script>
 {{ "js/hotel-import-template-editor.js"|serve_static_content }}
 
