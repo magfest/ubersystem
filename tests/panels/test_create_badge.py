@@ -39,14 +39,14 @@ def panel():
         account = session.create_attendee_account(emails['submitter'])
         app = PanelApplication(name=f'Panel {tag}', status=c.ACCEPTED, attendee_account=account,
                                presentation=c.PRESENTATION_OPTS[0][0], noise_level=c.NOISE_LEVEL_OPTS[0][0])
-        submitter = PanelApplicant(first_name='Dana', last_name='Okafor', email=emails['submitter'],
+        submitter = PanelApplicant(first_name='Dana', last_name=f'Okafor{tag}', email=emails['submitter'],
                                    submitter=True, applications=[app])
-        cohost = PanelApplicant(first_name='Priya', last_name='Raman', email=emails['cohost'], applications=[app])
+        cohost = PanelApplicant(first_name='Priya', last_name=f'Raman{tag}', email=emails['cohost'], applications=[app])
         session.add_all([app, submitter, cohost])
         session.flush()
         app.submitter_id = submitter.id
         session.commit()
-        ids = {'app': app.id, 'submitter': submitter.id, 'cohost': cohost.id}
+        ids = {'app': app.id, 'submitter': submitter.id, 'cohost': cohost.id, 'tag': tag}
 
     yield ids, emails
 
@@ -75,9 +75,9 @@ def _delete_panel(ids, emails):
         session.commit()
 
 
-def _create(applicant_id):
+def _create(applicant_id, **params):
     with Session() as session:
-        return create_badge(Root(), session, applicant_id=applicant_id)
+        return create_badge(Root(), session, applicant_id=applicant_id, **params)
 
 
 def _managers(applicant_id):
@@ -159,12 +159,13 @@ def test_copanelist_without_email_gets_a_badge_but_no_account(panel, queued):
 
 def _add_earlier_row(ids, emails, badge_status=c.NEW_STATUS):
     """Give the co-panelist a second applicant row, as for a second panel, already linked to a badge."""
+    last_name = f'Raman{ids["tag"]}'
     with Session() as session:
-        badge = Attendee(first_name='Priya', last_name='Raman', email=emails['cohost'], paid=c.NEED_NOT_PAY,
+        badge = Attendee(first_name='Priya', last_name=last_name, email=emails['cohost'], paid=c.NEED_NOT_PAY,
                          placeholder=True, badge_status=badge_status)
         session.add(badge)
         session.flush()
-        earlier = PanelApplicant(first_name='Priya', last_name='Raman', email=emails['cohost'], attendee_id=badge.id,
+        earlier = PanelApplicant(first_name='Priya', last_name=last_name, email=emails['cohost'], attendee_id=badge.id,
                                  applications=[session.get(PanelApplication, ids['app'])])
         session.add(earlier)
         session.commit()
@@ -210,3 +211,47 @@ def test_invalid_badge_on_another_applicant_row_does_not_block(panel, queued):
     assert new_id != invalid_id
     assert _linked_badge(earlier_id) == new_id
     assert queued == [('sso_account_setup', emails['cohost'])]
+
+
+def _family_badge_count(family):
+    with Session() as session:
+        return session.query(Attendee).filter(Attendee.last_name == family.last).count()
+
+
+def test_possible_match_asks_and_creates_nothing(family, queued):
+    before = _family_badge_count(family)
+
+    result = _create(family.ids['jim_row'])
+
+    assert 'Jimmy' in result['confirm'] and 'matches email and name' in result['confirm']
+    assert _family_badge_count(family) == before
+    assert queued == []
+
+
+def test_confirmed_create_adds_badge(family, queued):
+    assert 'added' in _create(family.ids['jim_row'], confirmed='1')
+
+    assert _linked_badge(family.ids['jim_row']) not in family.ids.values()
+
+
+def _invalidate(*badge_ids):
+    with Session() as session:
+        for badge_id in badge_ids:
+            session.get(Attendee, badge_id).badge_status = c.INVALID_STATUS
+        session.commit()
+
+
+def test_sibling_badge_linked_to_sibling_does_not_ask(family, queued):
+    _invalidate(family.ids['jimmy'], family.ids['jim_work'])
+    family.add_row('Sarah', 'app', 'sarah')
+
+    assert 'added' in _create(family.ids['jim_row'])
+
+
+def test_own_name_badge_linked_to_someone_else_still_asks(family, queued):
+    # A badge matching this panelist's name, mislinked to a sibling, is still likely this panelist's.
+    _invalidate(family.ids['jim_work'])
+    family.add_row('Sarah', 'app', 'sarah')
+    family.add_row('Sarah', 'other_app', 'jimmy')
+
+    assert 'Jimmy' in _create(family.ids['jim_row'])['confirm']

@@ -15,6 +15,8 @@ from uber.models import AssignedPanelist, Attendee, AttendeeAccount, AutomatedEm
 from uber.site_sections.registration import create_new_account
 from uber.utils import add_opt, check, localized_now, validate_model, groupify, normalize_email_legacy
 from uber.forms import load_forms
+from uber.panelist_matching import MATCH_EMAIL, badge_candidates, candidates_by_applicant, \
+    create_confirm_message, find_conflict, link_confirm_message
 
 log = logging.getLogger(__name__)
 
@@ -289,25 +291,25 @@ class Root:
         }
 
     def badges(self, session):
-        possibles = session.possible_match_list()
-
-        applicants = []
-        for pa in session.panel_applicants():
-            if not pa.attendee_id and pa.accepted_applications:
-                applicants.append([pa, set(possibles[pa.email.lower()] + possibles[pa.first_name, pa.last_name])])
-
-        return {'applicants': applicants}
+        unlinked = [pa for pa in session.panel_applicants() if not pa.attendee_id and pa.accepted_applications]
+        candidates = candidates_by_applicant(session, unlinked)
+        return {'applicants': [(pa, candidates[pa.id]) for pa in unlinked]}
 
     @ajax
-    def link_badge(self, session, applicant_id, attendee_id):
+    def link_badge(self, session, applicant_id, attendee_id, confirmed=''):
         ids = []
         try:
             attendee = session.attendee(attendee_id)
+            pa = session.panel_applicant(applicant_id)
+            # Checked at click time: the page may predate a link another admin just made.
+            conflict, same_panel = find_conflict(session, pa, attendee)
+            if conflict and not confirmed:
+                return {'confirm': link_confirm_message(pa, attendee, conflict, same_panel)}
+
             if attendee.badge_type != c.GUEST_BADGE:
                 attendee.ribbon = add_opt(attendee.ribbon_ints, c.PANELIST_RIBBON)
             attendee.transferable = c.CANNOT_TRANSFER
 
-            pa = session.panel_applicant(applicant_id)
             applicants = session.query(PanelApplicant).filter_by(
                 first_name=pa.first_name, last_name=pa.last_name, email=pa.email)
             for applicant in applicants:
@@ -325,7 +327,7 @@ class Root:
             }
 
     @ajax
-    def create_badge(self, session, applicant_id):
+    def create_badge(self, session, applicant_id, confirmed=''):
         ids = []
         try:
             pa = session.panel_applicant(applicant_id)
@@ -338,6 +340,12 @@ class Root:
             if any(applicant.attendee and applicant.attendee.is_valid for applicant in applicants):
                 return {'error': f'{pa.full_name} already has a badge from another panel. '
                                  'Use the Link button next to it instead.'}
+            # A sibling's badge linked to that sibling is no duplicate. A badge with this panelist's name still
+            # is, even when it is linked to someone else, because that link may be the mistake.
+            possible = [cand for cand in badge_candidates(session, pa)
+                        if not cand.conflict or cand.reason != MATCH_EMAIL]
+            if possible and not confirmed:
+                return {'confirm': create_confirm_message(pa, possible[0])}
 
             attendee = Attendee(
                 placeholder=True,

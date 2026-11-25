@@ -8,9 +8,15 @@
             $('#' + id).hide('slow');
         });
     };
-    var link = function (applicantId, attendeeId) {
-        $.post('link_badge', {csrf_token: csrf_token, applicant_id: applicantId, attendee_id: attendeeId}, function (response) {
-            if (response.error) {
+    // Both handlers re-check matches on every click and answer {confirm: message} until the admin confirms.
+    var link = function (applicantId, attendeeId, confirmed) {
+        $.post('link_badge', {csrf_token: csrf_token, applicant_id: applicantId, attendee_id: attendeeId,
+                              confirmed: confirmed || ''}, function (response) {
+            if (response.confirm) {
+                if (confirm(response.confirm)) {
+                    link(applicantId, attendeeId, 1);
+                }
+            } else if (response.error) {
                 showErrorMessage(response.error);
             } else {
                 $("#message-alert").addClass("alert-info").show().children('span').html('Linked panelist to ' + response.name);
@@ -18,9 +24,14 @@
             }
         }, 'json');
     };
-    var create = function (applicantId) {
-        $.post('create_badge', {csrf_token: csrf_token, applicant_id: applicantId}, function (response) {
-            if (response.error) {
+    var create = function (applicantId, confirmed) {
+        $.post('create_badge', {csrf_token: csrf_token, applicant_id: applicantId,
+                                confirmed: confirmed || ''}, function (response) {
+            if (response.confirm) {
+                if (confirm(response.confirm)) {
+                    create(applicantId, 1);
+                }
+            } else if (response.error) {
                 showErrorMessage(response.error);
             } else {
                 $("#message-alert").addClass("alert-info").show().children('span').html('Added panelist');
@@ -32,9 +43,25 @@
 
 <h3>Panelists Needing Badges</h3>
 
-The following is a list of panelists with accepted panels which are NOT marked as having a badge.  You may use the
-forms below to add badges for those without them OR associate these panelists with existing attendee records.
+<p class="mb-1">Panelists on accepted panels with no badge yet. Link each one to their existing badge, or add a new badge
+if none of the matches is this person.</p>
+<p class="mb-1 small">
+    <span class="badge bg-secondary">email and name</span> usually the right badge (Jim matches Jimmy) &nbsp;&middot;&nbsp;
+    <span class="badge bg-secondary">email only</span> check the name; families often share one email &nbsp;&middot;&nbsp;
+    <span class="badge bg-secondary">name only</span> a second email, or a namesake &nbsp;&middot;&nbsp;
+    <span class="text-danger">red</span>: the badge belongs to another panelist
+</p>
+<details class="mb-2 small">
+    <summary class="text-primary">What Link and Add New Badge change</summary>
+    <div class="mt-1">
+        <b>Link</b> attaches this panelist, on every panel under the same name and email, to that badge. The badge gets
+        the Panelist ribbon and can no longer be transferred.<br/>
+        <b>Add New Badge</b> creates a free badge with the Panelist ribbon on the account for the panelist's email, or a
+        new account, and that account gets an email. Panelists who share an email all land on one account.
+    </div>
+</details>
 
+{% if applicants %}
 <table class="table table-striped datatable">
 <thead>
     <tr>
@@ -62,10 +89,16 @@ forms below to add badges for those without them OR associate these panelists wi
         <td>{{ pa.full_name }}</td>
         <td>{{ pa.email|email_to_link }}</td>
         <td>
-            {% for attendee in matches %}
+            {% for match in matches %}{% set attendee = match.attendee %}
                 <p>
-                    <button class="btn btn-info" onClick="link('{{ pa.id }}', '{{ attendee.id }}')">Link</button>
+                    <button class="btn {{ 'btn-outline-danger' if match.conflict else 'btn-info' }}"
+                            onClick="link('{{ pa.id }}', '{{ attendee.id }}')">Link</button>
+                    <span class="badge bg-secondary">{{ match.reason }}</span>
                     {{ attendee|form_link }} [{{ attendee.badge }}] ({{ attendee.email }})
+                    {% if match.conflict %}
+                    <br/><span class="text-danger">Already linked to {{ match.conflict.full_name }}
+                        {{ 'on this panel' if match.conflict_same_panel else 'on another panel' }}</span>
+                    {% endif %}
                 </p>
             {% else %}
                 (no matching attendees)
@@ -76,5 +109,8 @@ forms below to add badges for those without them OR associate these panelists wi
 {% endfor %}
 </tbody>
 </table>
+{% else %}
+<p>Every panelist on an accepted panel has a badge.</p>
+{% endif %}
 
 {% endblock %}
