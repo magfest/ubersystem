@@ -731,3 +731,9 @@ def test_an_unmatched_row_can_be_matched_and_rematched_by_hand(session, no_cherr
     assert (record.matched_count, record.unmatched_count) == (1, 3)
 
     assert not mapping.assign_row(session, record, 99, right)
+
+
+def test_the_editor_is_told_which_list_values_a_file_uses(session, no_cherrypy_session):
+    template = mapping.draft_template(ROOMING_LIST_SPEC)
+    rows, _error = mapping.build_rows(session, ROOMING_LIST, 'list.csv', template)
+    assert mapping.enum_source_values(rows, template) == {'match.room_type': ['KING']}

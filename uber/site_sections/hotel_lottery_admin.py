@@ -2036,8 +2036,13 @@ class Root:
             return {'error': error}
 
         counts = mapping.counts_for(rows)
+        # Up to ten of each outcome, so the rare ones are not crowded out.
         sample = []
-        for row in rows[:10]:
+        shown = dict.fromkeys(counts, 0)
+        for row in rows:
+            if shown[row['status']] >= 10:
+                continue
+            shown[row['status']] += 1
             sample.append({
                 'status': row['status'],
                 'mapped': {mapping.TARGETS_BY_KEY[k]['label']: v
@@ -2048,7 +2053,8 @@ class Root:
         return {'ok': True, 'headers': fieldnames,
                 'header_pairs': [{'raw': raw_header, 'key': key}
                                  for raw_header, key in header_pairs],
-                'total': len(rows), 'counts': counts, 'sample': sample}
+                'total': len(rows), 'counts': counts, 'sample': sample,
+                'enum_values': mapping.enum_source_values(rows, draft)}
 
     def delete_import_template(self, session, id='', csrf_token=None):
         from uber.models.hotel import ImportMappingTemplate

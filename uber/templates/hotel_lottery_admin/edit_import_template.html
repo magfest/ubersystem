@@ -106,24 +106,55 @@
       <h5>Value names</h5>
       <p class="form-text">
         When a column maps to one of our lists, say how this hotel spells each
-        value. Anything not listed is passed through as-is.
+        value. Anything not listed is passed through as-is. Previewing a
+        sample file lists the values it uses; a row left blank is not saved.
       </p>
       <div id="enum-map">
+        <div id="enum-rows">
         {% for target, values in (template.enum_map or {}).items() %}
           {% for source_value, our_value in values.items() %}
-          <div class="row g-2 align-items-end mb-1">
-            <div class="col-md-5">
+          <div class="row g-2 align-items-center mb-1 enum-row">
+            <div class="col-md-3 small text-muted">
+              {{ target_fields|selectattr('key', 'equalto', target)|map(attribute='label')|first or target }}
+            </div>
+            <div class="col-md-4">
               <input type="text" class="form-control form-control-sm bg-light"
                      value="{{ source_value }}" readonly />
             </div>
-            <div class="col-md-5">
+            <div class="col-md-4">
               <input type="text" class="form-control form-control-sm"
                      name="enum__{{ target }}__{{ source_value }}" value="{{ our_value }}" />
+            </div>
+            <div class="col-md-1">
+              <button type="button" class="btn btn-sm btn-outline-secondary enum-remove"
+                      title="Remove">&times;</button>
             </div>
           </div>
           {% endfor %}
         {% endfor %}
+        </div>
+        <div class="row g-2 align-items-center mt-1 mb-2">
+          <div class="col-md-3">
+            <select class="form-select form-select-sm" id="enum-add-target">
+              {% for field in target_fields if field.kind.startswith('enum:') %}
+              <option value="{{ field.key }}">{{ field.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <input type="text" class="form-control form-control-sm" id="enum-add-source"
+                   placeholder="As the hotel writes it, e.g. QUEN" />
+          </div>
+          <div class="col-md-4">
+            <input type="text" class="form-control form-control-sm" id="enum-add-ours"
+                   placeholder="Our name, e.g. Queen" />
+          </div>
+          <div class="col-md-1">
+            <button type="button" class="btn btn-sm btn-outline-primary" id="enum-add">Add</button>
+          </div>
+        </div>
         <p class="form-text mb-0">
+          Room types match when our name appears in the room's name.
           Payment types available: {% for key, label in payment_types %}<code>{{ key }}</code>{% if not loop.last %}, {% endif %}{% endfor %}
         </p>
       </div>

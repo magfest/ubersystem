@@ -572,6 +572,22 @@ def build_rows(session, raw, filename, template, hotel_id=None):
     return rows, None
 
 
+def enum_source_values(rows, template, limit=50):
+    """{target key: distinct source spellings} for the list-backed columns, so
+    the editor can ask what each one means."""
+    out = {}
+    for source_key, target_key in clean_column_map(template.column_map).items():
+        kind = TARGETS_BY_KEY.get(target_key, {}).get('kind', '')
+        if not kind.startswith('enum:'):
+            continue
+        seen = out.setdefault(target_key, [])
+        for row in rows:
+            value = str(row.get('source', {}).get(source_key, '') or '').strip()
+            if value and value not in seen and len(seen) < limit:
+                seen.append(value)
+    return {key: sorted(values) for key, values in out.items() if values}
+
+
 def counts_for(rows):
     counts = {'matched': 0, 'ambiguous': 0, 'unmatched': 0}
     for row in rows:
