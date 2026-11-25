@@ -136,6 +136,49 @@
   });
   syncHiddenInputs();
 
+  var enumRows = document.getElementById('enum-rows');
+  var labelByKey = {};
+  targetFields.forEach(function (f) { labelByKey[f.key] = f.label; });
+
+  function hasEnumRow(target, source) {
+    var wanted = ('enum__' + target + '__' + source).toLowerCase();
+    return Array.prototype.some.call(
+      enumRows.querySelectorAll('[name^="enum__"]'),
+      function (input) { return input.name.toLowerCase() === wanted; });
+  }
+
+  function addEnumRow(target, source, ours) {
+    if (!target || !source || hasEnumRow(target, source)) { return; }
+    var row = document.createElement('div');
+    row.className = 'row g-2 align-items-center mb-1 enum-row';
+    row.innerHTML = [
+      '<div class="col-md-3 small text-muted">' + escapeHtml(labelByKey[target] || target) + '</div>',
+      '<div class="col-md-4"><input type="text" class="form-control form-control-sm bg-light" readonly /></div>',
+      '<div class="col-md-4"><input type="text" class="form-control form-control-sm enum-ours" /></div>',
+      '<div class="col-md-1"><button type="button" class="btn btn-sm btn-outline-secondary enum-remove" title="Remove">&times;</button></div>'
+    ].join('');
+    row.querySelector('[readonly]').value = source;
+    var input = row.querySelector('.enum-ours');
+    input.name = 'enum__' + target + '__' + source;
+    input.value = ours || '';
+    enumRows.appendChild(row);
+  }
+
+  enumRows.addEventListener('click', function (e) {
+    var remove = e.target.closest('.enum-remove');
+    if (remove) { remove.closest('.enum-row').remove(); }
+  });
+
+  document.getElementById('enum-add').addEventListener('click', function () {
+    var source = document.getElementById('enum-add-source');
+    var ours = document.getElementById('enum-add-ours');
+    addEnumRow(document.getElementById('enum-add-target').value,
+               source.value.trim(), ours.value.trim());
+    source.value = '';
+    ours.value = '';
+    source.focus();
+  });
+
   function currentMaps() {
     var columns = {};
     var formats = {};
@@ -198,26 +241,63 @@
         annotateRawHeaders(pairs);
       }
 
-      var rows = payload.sample.map(function (row) {
-        var pairs = Object.keys(row.mapped).map(function (label) {
+      // Offer a row for every value the file uses in a list-backed column.
+      Object.keys(payload.enum_values || {}).forEach(function (target) {
+        payload.enum_values[target].forEach(function (value) {
+          addEnumRow(target, value, '');
+        });
+      });
+
+      var statuses = ['matched', 'ambiguous', 'unmatched'];
+      var samples = {};
+      statuses.forEach(function (status) { samples[status] = []; });
+      payload.sample.forEach(function (row) {
+        var fields = Object.keys(row.mapped).map(function (label) {
           return '<div><span class="text-muted">' + escapeHtml(label) + ':</span> ' +
             escapeHtml(row.mapped[label]) + '</div>';
         }).join('');
-        return '<li class="list-group-item px-0"><span class="badge bg-' +
-          (row.status === 'matched' ? 'success'
-            : row.status === 'ambiguous' ? 'warning text-dark' : 'secondary') +
-          '">' + row.status + '</span><div class="small mt-1">' + pairs + '</div></li>';
-      }).join('');
+        (samples[row.status] || []).push(
+          '<li class="list-group-item px-0 small">' +
+          (fields || '<span class="text-muted">Nothing mapped from this row.</span>') + '</li>');
+      });
+
+      // Open on the first outcome that has rows.
+      var active = statuses.filter(function (s) { return samples[s].length; })[0] || 'matched';
 
       output.innerHTML = [
-        '<p class="mb-1"><strong>' + payload.total + '</strong> row(s): ',
-        '<span class="badge bg-success">' + payload.counts.matched + ' matched</span> ',
-        '<span class="badge bg-warning text-dark">' + payload.counts.ambiguous + ' ambiguous</span> ',
-        '<span class="badge bg-secondary">' + payload.counts.unmatched + ' unmatched</span></p>',
+        '<p class="mb-1"><strong>' + payload.total + '</strong> row(s)</p>',
         '<p class="form-text">Columns found: ' +
           pairs.map(function (p) { return escapeHtml(p.raw || p.key); }).join(', ') + '</p>',
-        '<ul class="list-group list-group-flush">' + rows + '</ul>'
+        '<ul class="nav nav-tabs mb-2">' + statuses.map(function (status) {
+          return '<li class="nav-item"><button type="button" class="nav-link preview-tab' +
+            (status === active ? ' active' : '') + '" data-status="' + status + '">' +
+            status.charAt(0).toUpperCase() + status.slice(1) +
+            ' <span class="badge bg-' + (status === 'matched' ? 'success'
+              : status === 'ambiguous' ? 'warning text-dark' : 'secondary') + '">' +
+            payload.counts[status] + '</span></button></li>';
+        }).join('') + '</ul>',
+        statuses.map(function (status) {
+          var count = payload.counts[status];
+          var note = !count ? '<p class="form-text mb-0">No ' + status + ' rows.</p>'
+            : count > samples[status].length
+              ? '<p class="form-text mb-1">Showing the first ' + samples[status].length +
+                ' of ' + count + '.</p>' : '';
+          return '<div class="preview-pane" data-status="' + status + '"' +
+            (status === active ? '' : ' style="display:none;"') + '>' + note +
+            '<ul class="list-group list-group-flush">' + samples[status].join('') + '</ul></div>';
+        }).join('')
       ].join('');
+    });
+  });
+
+  output.addEventListener('click', function (e) {
+    var tab = e.target.closest('.preview-tab');
+    if (!tab) { return; }
+    output.querySelectorAll('.preview-tab').forEach(function (other) {
+      other.classList.toggle('active', other === tab);
+    });
+    output.querySelectorAll('.preview-pane').forEach(function (pane) {
+      pane.style.display = pane.dataset.status === tab.dataset.status ? '' : 'none';
     });
   });
 
