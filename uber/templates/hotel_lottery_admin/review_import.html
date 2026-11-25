@@ -69,11 +69,13 @@
 <div class="card mb-2 import-row" data-row-index="{{ row.index }}">
   <div class="card-header d-flex justify-content-between align-items-center">
     <div>
+      {% set row_first = row.mapped.get('attendee.hotel_first_name') or row.mapped.get('match.first_name') or row.source.get('first_name', '') %}
+      {% set row_last = row.mapped.get('attendee.hotel_last_name') or row.mapped.get('match.last_name') or row.source.get('last_name', '') %}
       <strong>
-        {{ row.source.get('first_name', '') }} {{ row.source.get('last_name', '') }}
-        {%- if not row.source.get('first_name') %}Row {{ row.index + 1 }}{% endif %}
+        {{ row_first }} {{ row_last }}
+        {%- if not row_first and not row_last %}Row {{ row.index + 1 }}{% endif %}
       </strong>
-      <span class="small text-muted ms-2">{{ row.source.get('email', '') }}</span>
+      <span class="small text-muted ms-2">{{ row.mapped.get('attendee.email') or row.mapped.get('match.email') or row.source.get('email', '') }}</span>
     </div>
     <span class="badge bg-{{ 'success' if row.status == 'matched' else ('warning text-dark' if row.status == 'ambiguous' else 'secondary') }}">
       {{ row.status }}
@@ -82,10 +84,14 @@
   <div class="card-body py-2">
 
     {% if row.status == 'unmatched' %}
-      <p class="form-text mb-0">
-        No booking matched this row. Check the guest's email and room type, or
-        add the acknowledgement number to the right booking by hand.
+      <p class="form-text">
+        No booking matched this row. Find the right booking below to match it by hand.
       </p>
+      <div class="small mb-2">
+        {% for key, value in row.source.items() if value %}
+          <span class="me-2"><span class="text-muted">{{ key }}:</span> <code>{{ value }}</code></span>
+        {% endfor %}
+      </div>
 
     {% elif row.status == 'ambiguous' %}
       <p class="form-text">
@@ -136,6 +142,21 @@
       </table>
       {% endif %}
     {% endif %}
+
+    <div class="import-rematch mt-2">
+      <button type="button" class="btn btn-sm btn-link p-0 import-rematch-toggle">
+        {{ 'Match to a different booking' if row.status == 'matched' else 'Find a booking' }}
+      </button>
+      <div class="import-rematch-panel mt-2" style="display:none;">
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+          <input type="text" class="form-control form-control-sm w-auto import-rematch-query"
+                 placeholder="Name, email, or confirmation #" size="32"
+                 value="{{ (row_first ~ ' ' ~ row_last)|trim }}" />
+          <button type="button" class="btn btn-sm btn-outline-secondary import-rematch-search">Search</button>
+        </div>
+        <div class="import-rematch-results mt-2"></div>
+      </div>
+    </div>
   </div>
 </div>
 {% endfor %}

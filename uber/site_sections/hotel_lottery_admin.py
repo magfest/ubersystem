@@ -1947,6 +1947,7 @@ class Root:
 
             column_map, format_map, enum_map, header_map = {}, {}, {}, {}
             for key, value in params.items():
+                value = mapping.single_value(value)
                 if key.startswith('column__') and value:
                     column_map[key[len('column__'):]] = value
                 elif key.startswith('raw__') and value:
@@ -1970,6 +1971,8 @@ class Root:
             session.commit()
             raise HTTPRedirect('import_templates?message={}',
                                f'{template.name or "Format"} saved.')
+
+        template.column_map = mapping.clean_column_map(template.column_map)
 
         return {
             'template': template,
@@ -2190,7 +2193,8 @@ class Root:
     @ajax
     def resolve_import_row(self, session, file_id='', row_index='',
                            assignment_id='', csrf_token=None):
-        """Point an ambiguous row at one booking.
+        """Point a row at one booking, whether it was ambiguous, unmatched,
+        or matched to the wrong one.
 
         Stamps the row's acknowledgement number onto the chosen booking, so
         that booking matches outright on every later upload rather than
@@ -2207,42 +2211,28 @@ class Root:
         if not record or not ra:
             return {'error': 'That upload or booking no longer exists.'}
 
-        rows = list(record.parsed_rows or [])
-        row = next((r for r in rows if str(r.get('index')) == str(row_index)), None)
-        stored = row is not None
-        if row is None:
-            # Rows past the storage cap live only in the retained file.
-            row = next((r for r in mapping.full_parsed_rows(session, record)
-                        if str(r.get('index')) == str(row_index)), None)
-        if row is None:
+        if not mapping.assign_row(session, record, row_index, ra):
             return {'error': 'That row is no longer in this upload.'}
-
-        confirmation = (row.get('mapped') or {}).get(
-            'assignment.hotel_confirmation_number', '').strip()
-        if confirmation:
-            previous = ra.hotel_confirmation_number or ''
-            with hotel_sourced_changes(session):
-                ra.hotel_confirmation_number = confirmation
-                session.add(ra)
-            queue_confirmation_updated_email(session, ra, previous)
-
-        previous_status = row.get('status')
-        row['assignment_ids'] = [str(ra.id)]
-        row['status'] = 'matched'
-        if stored:
-            record.parsed_rows = rows
-        # Adjusted incrementally rather than recounted, because the stored
-        # rows may be only a slice of the file.
-        if previous_status != 'matched':
-            record.matched_count += 1
-            if previous_status == 'ambiguous':
-                record.ambiguous_count = max(0, record.ambiguous_count - 1)
-            elif previous_status == 'unmatched':
-                record.unmatched_count = max(0, record.unmatched_count - 1)
-        session.add(record)
         session.commit()
 
         return {'ok': True, 'message': f'Row matched to {ra.room_summary}.'}
+
+    @ajax_gettable
+    def search_import_bookings(self, session, file_id='', q=''):
+        """Bookings an import row could be pointed at by hand."""
+        from uber.hotel import mapping
+
+        record = session.query(HotelImportFile).get(file_id)
+        if not record:
+            return {'error': 'That upload no longer exists.'}
+        found = mapping.search_bookings(session, q, hotel_id=record.hotel_id or None)
+        return {'results': [{
+            'id': str(ra.id),
+            'name': ra.attendee.full_name if ra.attendee else 'Unknown',
+            'email': ra.attendee.email if ra.attendee else '',
+            'room': ra.room_summary,
+            'confirmation': ra.hotel_confirmation_number or '',
+        } for ra in found]}
 
     def mark_import_processed(self, session, id='', status='processed',
                               csrf_token=None):

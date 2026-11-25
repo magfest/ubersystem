@@ -14,10 +14,13 @@ Transaction convention matches the rest of the package: flush, never commit.
 
 import logging
 import os
+import re
 from datetime import datetime
 
+from sqlalchemy import and_, or_
+
 from uber.config import c
-from uber.hotel.service import hotel_sourced_changes
+from uber.hotel.service import hotel_sourced_changes, queue_confirmation_updated_email
 
 log = logging.getLogger(__name__)
 
@@ -28,6 +31,7 @@ TARGET_FIELDS = [
     {'key': 'match.email', 'label': 'Match on: email', 'kind': 'text'},
     {'key': 'match.first_name', 'label': 'Match on: first name', 'kind': 'text'},
     {'key': 'match.last_name', 'label': 'Match on: last name', 'kind': 'text'},
+    {'key': 'match.pattern', 'label': 'Match on: combined name (pattern)', 'kind': 'pattern'},
     {'key': 'match.room_type', 'label': 'Match on: room type', 'kind': 'enum:room_type'},
     {'key': 'assignment.hotel_confirmation_number',
      'label': 'Acknowledgement / confirmation number', 'kind': 'text'},
@@ -219,6 +223,65 @@ def _parse_date(value, fmt=''):
     return parse_iso_date(value)
 
 
+# What a combined-column pattern such as "%last_name, %first_name" may name.
+PATTERN_FIELDS = {
+    'first_name': 'match.first_name',
+    'last_name': 'match.last_name',
+    'email': 'match.email',
+    'ignore': None,
+}
+_PATTERN_TOKEN = re.compile(r'%([a-z_]+)')
+
+
+def split_pattern(value, pattern):
+    """{match key: text} for one cell read with a pattern like
+    "%last_name, %first_name"; empty when the cell does not fit it.
+    Whitespace around the literal separators is not significant."""
+    value = str(value or '').strip()
+    pattern = (pattern or '').strip()
+    if not value or not pattern:
+        return {}
+
+    regex, names, pos = '', [], 0
+    for token in _PATTERN_TOKEN.finditer(pattern):
+        literal = pattern[pos:token.start()].strip()
+        if literal:
+            regex += r'\s*' + re.escape(literal) + r'\s*'
+        elif names:
+            regex += r'\s+'
+        regex += '(.+?)'
+        names.append(token.group(1))
+        pos = token.end()
+    if not names:
+        return {}
+    trailing = pattern[pos:].strip()
+    if trailing:
+        regex += r'\s*' + re.escape(trailing)
+
+    found = re.fullmatch(regex, value, re.DOTALL)
+    if not found:
+        return {}
+    out = {}
+    for name, text in zip(names, found.groups()):
+        key = PATTERN_FIELDS.get(name)
+        if key and text.strip():
+            out[key] = text.strip()
+    return out
+
+
+def single_value(value):
+    """A repeated form field arrives as a list; keep its first real choice."""
+    if isinstance(value, (list, tuple)):
+        return next((v for v in value if v and v != 'match.ignore'), '')
+    return value
+
+
+def clean_column_map(column_map):
+    # Formats saved from a file with repeated headings stored list targets.
+    return {source: single_value(target)
+            for source, target in (column_map or {}).items()}
+
+
 def apply_maps(row, template):
     """One source row as {target_key: value}, with enum names and date
     formats resolved."""
@@ -229,15 +292,18 @@ def apply_maps(row, template):
     format_map = template.format_map or {}
     mapped = {}
 
-    for source_key, target_key in (template.column_map or {}).items():
+    for source_key, target_key in clean_column_map(template.column_map).items():
         if not target_key or target_key == 'match.ignore':
             continue
         raw_value = row.get(source_key, '')
         target = TARGETS_BY_KEY.get(target_key, {})
         kind = target.get('kind', 'text')
 
-        if kind == 'date':
-            parsed = _parse_date(raw_value, format_map.get(target_key, ''))
+        if kind == 'pattern':
+            mapped.update(split_pattern(
+                raw_value, single_value(format_map.get(target_key, ''))))
+        elif kind == 'date':
+            parsed = _parse_date(raw_value, single_value(format_map.get(target_key, '')))
             mapped[target_key] = parsed.isoformat() if parsed else ''
         elif kind.startswith('enum:'):
             lookup = {str(k).strip().lower(): v
@@ -270,6 +336,16 @@ def match_row(session, mapped, hotel_id=None):
                 HotelRoomInventory.hotel_id == hotel_id)
         return query
 
+    def _by_name(first, last):
+        return _scoped(
+            session.query(RoomAssignment)
+            .join(Attendee, Attendee.id == RoomAssignment.attendee_id)
+            .filter(RoomAssignment.is_live, or_(
+                and_(Attendee.first_name.ilike(first),
+                     Attendee.last_name.ilike(last)),
+                and_(Attendee.hotel_first_name.ilike(first),
+                     Attendee.hotel_last_name.ilike(last))))).all()
+
     confirmation = mapped.get('assignment.hotel_confirmation_number', '').strip()
     if confirmation:
         exact = _scoped(session.query(RoomAssignment).filter(
@@ -293,12 +369,10 @@ def match_row(session, mapped, hotel_id=None):
         last = (mapped.get('attendee.hotel_last_name')
                 or mapped.get('match.last_name') or '').strip()
         if first and last:
-            candidates = _scoped(
-                session.query(RoomAssignment)
-                .join(Attendee, Attendee.id == RoomAssignment.attendee_id)
-                .filter(RoomAssignment.is_live,
-                        Attendee.first_name.ilike(first),
-                        Attendee.last_name.ilike(last))).all()
+            candidates = _by_name(first, last)
+            # Hotels often append a middle name or initial to the first name.
+            if not candidates and ' ' in first:
+                candidates = _by_name(first.split()[0], last)
 
     if not candidates:
         return [], 'unmatched'
@@ -307,6 +381,85 @@ def match_row(session, mapped, hotel_id=None):
     if len(candidates) == 1:
         return candidates, 'matched'
     return candidates, 'ambiguous'
+
+
+def search_bookings(session, text, hotel_id=None, limit=20):
+    """Live bookings whose guest name, email, or confirmation number contains
+    the text, for pointing an import row at a booking by hand."""
+    from uber.models import Attendee
+    from uber.models.hotel import HotelRoomInventory, RoomAssignment
+
+    words = (text or '').split()
+    if not words:
+        return []
+    query = (session.query(RoomAssignment)
+             .join(Attendee, Attendee.id == RoomAssignment.attendee_id)
+             .filter(RoomAssignment.is_live))
+    if hotel_id:
+        query = query.join(
+            HotelRoomInventory,
+            HotelRoomInventory.id == RoomAssignment.inventory_id).filter(
+            HotelRoomInventory.hotel_id == hotel_id)
+    for word in words:
+        like = '%' + word.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_') + '%'
+        query = query.filter(or_(
+            Attendee.first_name.ilike(like), Attendee.last_name.ilike(like),
+            Attendee.hotel_first_name.ilike(like), Attendee.hotel_last_name.ilike(like),
+            Attendee.email.ilike(like),
+            RoomAssignment.hotel_confirmation_number.ilike(like)))
+    return query.order_by(Attendee.last_name, Attendee.first_name).limit(limit).all()
+
+
+def assign_row(session, record, row_index, ra):
+    """Point one row of an upload at a booking, whatever it matched before.
+
+    Stamps the row's acknowledgement number onto the chosen booking so later
+    uploads match it outright, and takes that number back off a booking the
+    row was wrongly matched to. Returns False when the row is gone.
+    """
+    from uber.models.hotel import RoomAssignment
+
+    rows = list(record.parsed_rows or [])
+    row = next((r for r in rows if str(r.get('index')) == str(row_index)), None)
+    stored = row is not None
+    if row is None:
+        # Rows past the storage cap live only in the retained file.
+        row = next((r for r in full_parsed_rows(session, record)
+                    if str(r.get('index')) == str(row_index)), None)
+    if row is None:
+        return False
+
+    confirmation = (row.get('mapped') or {}).get(
+        'assignment.hotel_confirmation_number', '').strip()
+    previous_ids = [i for i in row.get('assignment_ids', []) if i != str(ra.id)]
+    if confirmation:
+        with hotel_sourced_changes(session):
+            if row.get('status') == 'matched' and previous_ids:
+                for old in session.query(RoomAssignment).filter(
+                        RoomAssignment.id.in_(previous_ids),
+                        RoomAssignment.hotel_confirmation_number == confirmation):
+                    old.hotel_confirmation_number = ''
+                    session.add(old)
+            previous = ra.hotel_confirmation_number or ''
+            ra.hotel_confirmation_number = confirmation
+            session.add(ra)
+        queue_confirmation_updated_email(session, ra, previous)
+
+    previous_status = row.get('status')
+    row['assignment_ids'] = [str(ra.id)]
+    row['status'] = 'matched'
+    if stored:
+        record.parsed_rows = rows
+    # Adjusted incrementally rather than recounted, because the stored
+    # rows may be only a slice of the file.
+    if previous_status != 'matched':
+        record.matched_count += 1
+        if previous_status == 'ambiguous':
+            record.ambiguous_count = max(0, record.ambiguous_count - 1)
+        elif previous_status == 'unmatched':
+            record.unmatched_count = max(0, record.unmatched_count - 1)
+    session.add(record)
+    return True
 
 
 def _narrow(candidates, mapped):
