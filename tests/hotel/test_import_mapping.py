@@ -623,3 +623,111 @@ def test_staff_crash_space_is_not_told_to_change_its_own_dates(session, no_cherr
     assert 'change your dates of stay' in lottery_email.body
     assert 'change your dates of stay' not in crash_email.body
     assert '<strong>ACK2</strong>' in crash_email.body
+
+
+def test_list_targets_from_repeated_headings_are_collapsed():
+    template = mapping.draft_template({
+        'column_map': {'email': ['match.ignore', 'attendee.email'],
+                       'check-in': ['assignment.assigned_check_in_date'] * 2},
+        'format_map': {'assignment.assigned_check_in_date': ['', '%m/%d/%Y']},
+    })
+    assert mapping.apply_maps({'email': 'a@b.c', 'check-in': '01/02/2027'}, template) == {
+        'attendee.email': 'a@b.c',
+        'assignment.assigned_check_in_date': '2027-01-02',
+    }
+
+
+# ---------------------------------------------------------------------------
+# combined-name patterns and matching by hand
+# ---------------------------------------------------------------------------
+
+ROOMING_LIST = (
+    b'Room,Name,Conf. No.,Arr.,Dep.,Room,Res.,Adl.,Chl.,Nts.,Rms.\n'
+    b',"Allen,Kaiden",34779122,1/6/2027,1/11/2027,KING,CO-G,1,0,5,1\n'
+    b',"Noel,Nathaniel W",34779440,1/6/2027,1/11/2027,KING,CO-G,1,0,5,1\n'
+    b',"Nobody,Atall",34779999,1/6/2027,1/11/2027,KING,CO-G,1,0,5,1\n'
+    b',tal Block Code MAG1 MAGfest 2026  352715,,Reservations,59,,,59,0,213,59\n'
+)
+
+ROOMING_LIST_SPEC = {
+    'column_map': {
+        'name': 'match.pattern',
+        'conf._no.': 'assignment.hotel_confirmation_number',
+        'arr.': 'assignment.assigned_check_in_date',
+        'dep.': 'assignment.assigned_check_out_date',
+        'room': 'match.room_type',
+    },
+    'format_map': {
+        'match.pattern': '%last_name, %first_name',
+        'assignment.assigned_check_in_date': '%m/%d/%Y',
+        'assignment.assigned_check_out_date': '%m/%d/%Y',
+    },
+}
+
+
+def _named_booking(session, first, last, hotel=None):
+    ra = _booking(session, email=f'{first}.{last}@example.com'.lower(), hotel=hotel)
+    ra.attendee.first_name, ra.attendee.last_name = first, last
+    session.flush()
+    return ra
+
+
+def test_a_pattern_splits_a_combined_name():
+    split = mapping.split_pattern
+    assert split('Allen,Kaiden', '%last_name, %first_name') == {
+        'match.last_name': 'Allen', 'match.first_name': 'Kaiden'}
+    assert split('Kaiden  Allen', '%first_name %last_name') == {
+        'match.first_name': 'Kaiden', 'match.last_name': 'Allen'}
+    assert split('Allen, Kaiden (VIP)', '%last_name,%first_name (%ignore)') == {
+        'match.last_name': 'Allen', 'match.first_name': 'Kaiden'}
+    assert split('no separator here', '%last_name, %first_name') == {}
+    assert split('Allen,Kaiden', '') == {}
+
+
+def test_a_rooming_list_matches_on_reformatted_names(session, no_cherrypy_session):
+    hotel = make_hotel(session)
+    allen = _named_booking(session, 'Kaiden', 'Allen', hotel=hotel)
+    noel = _named_booking(session, 'Nathaniel', 'Noel', hotel=hotel)
+
+    rows, error = mapping.build_rows(
+        session, ROOMING_LIST, 'list.csv', mapping.draft_template(ROOMING_LIST_SPEC),
+        hotel_id=str(hotel.id))
+    assert error is None
+    assert [r['status'] for r in rows] == ['matched', 'matched', 'unmatched', 'unmatched']
+    assert rows[0]['assignment_ids'] == [str(allen.id)]
+    assert rows[1]['assignment_ids'] == [str(noel.id)]
+    assert rows[0]['mapped']['assignment.assigned_check_in_date'] == '2027-01-06'
+
+
+def test_an_unmatched_row_can_be_matched_and_rematched_by_hand(session, no_cherrypy_session):
+    from uber.models.hotel import HotelImportFile
+
+    hotel = make_hotel(session)
+    wrong = _named_booking(session, 'Adam', 'Tall', hotel=hotel)
+    right = _named_booking(session, 'Atall', 'Nobodie', hotel=hotel)
+    session.flush()
+
+    rows, _error = mapping.build_rows(
+        session, ROOMING_LIST, 'list.csv', mapping.draft_template(ROOMING_LIST_SPEC),
+        hotel_id=str(hotel.id))
+    record = HotelImportFile(hotel_id=hotel.id, filename='list.csv', parsed_rows=rows,
+                             unmatched_count=4)
+    session.add(record)
+    session.flush()
+
+    assert [ra.id for ra in mapping.search_bookings(
+        session, 'atall nobod', hotel_id=str(hotel.id))] == [right.id]
+
+    assert mapping.assign_row(session, record, 2, wrong)
+    session.flush()
+    assert wrong.hotel_confirmation_number == '34779999'
+    assert (record.matched_count, record.unmatched_count) == (1, 3)
+
+    assert mapping.assign_row(session, record, 2, right)
+    session.flush()
+    assert wrong.hotel_confirmation_number == ''
+    assert right.hotel_confirmation_number == '34779999'
+    assert record.parsed_rows[2]['assignment_ids'] == [str(right.id)]
+    assert (record.matched_count, record.unmatched_count) == (1, 3)
+
+    assert not mapping.assign_row(session, record, 99, right)

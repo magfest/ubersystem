@@ -60,6 +60,14 @@
         are matched after being lowercased with spaces turned into underscores,
         so the raw heading and the key we match on are both shown.
       </p>
+      <p class="form-text">
+        When one column holds several of our fields, such as a name written
+        <code>Smith,Jane</code>, map it to "Match on: combined name (pattern)"
+        and describe it with <code>%last_name, %first_name</code>. Patterns
+        can use <code>%first_name</code>, <code>%last_name</code>,
+        <code>%email</code>, and <code>%ignore</code>; spacing around the
+        separators does not matter.
+      </p>
 
       <div id="column-map">
         {% if template.column_map %}

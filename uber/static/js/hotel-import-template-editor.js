@@ -42,6 +42,14 @@
       existing[row.dataset.source] = select ? select.value : '';
     });
 
+    // Repeated headings collapse to one key when the file is read.
+    var seen = {};
+    pairs = pairs.filter(function (pair) {
+      if (seen[pair.key]) { return false; }
+      seen[pair.key] = true;
+      return true;
+    });
+
     columnMap.innerHTML = pairs.map(function (pair) {
       return [
         '<div class="row g-2 align-items-end mb-2 column-row" data-source="' + escapeHtml(pair.key) + '">',
@@ -112,10 +120,13 @@
       var dateInput = dateBox ? dateBox.querySelector('input') : null;
       if (!select || !hidden) { return; }
       hidden.value = select.value;
-      var isDate = kindByKey[select.value] === 'date';
-      if (dateBox) { dateBox.style.display = isDate ? '' : 'none'; }
+      // Dates and combined-name patterns both take a format string.
+      var kind = kindByKey[select.value];
+      var hasFormat = kind === 'date' || kind === 'pattern';
+      if (dateBox) { dateBox.style.display = hasFormat ? '' : 'none'; }
       if (dateInput) {
-        dateInput.name = isDate ? 'format__' + select.value : '';
+        dateInput.name = hasFormat ? 'format__' + select.value : '';
+        dateInput.placeholder = kind === 'pattern' ? '%last_name, %first_name' : '%m/%d/%Y';
       }
     });
   }
@@ -133,7 +144,7 @@
       if (!select || select.value === 'match.ignore') { return; }
       columns[row.dataset.source] = select.value;
       var dateInput = row.querySelector('.date-format input');
-      if (dateInput && dateInput.value) { formats[select.value] = dateInput.value; }
+      if (dateInput && dateInput.name && dateInput.value) { formats[select.value] = dateInput.value; }
     });
 
     var enums = {};
