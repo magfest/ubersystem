@@ -206,7 +206,7 @@ def _apply_with_template(session, record, raw, filename, template, hotel):
     hotel_id = str(hotel.id) if hotel else None
     for source in source_rows:
         mapped = mapping.apply_maps(source, template)
-        assignments, status = mapping.match_row(session, mapped, hotel_id=hotel_id)
+        assignments, status, via = mapping.match_row_detail(session, mapped, hotel_id=hotel_id)
         counts[status] += 1
         if status != 'matched':
             continue
@@ -215,7 +215,7 @@ def _apply_with_template(session, record, raw, filename, template, hotel):
         row_changed = False
         for ra in assignments:
             previous = ra.hotel_confirmation_number or ''
-            diff = mapping.diff_row(ra, mapped)
+            diff = mapping.diff_row(ra, mapped, via=via)
             for entry in diff:
                 if entry['key'] not in auto_fields or not entry['changed']:
                     continue

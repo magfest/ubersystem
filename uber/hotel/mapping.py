@@ -317,16 +317,23 @@ def apply_maps(row, template):
 
 
 def match_row(session, mapped, hotel_id=None):
-    """(assignments, status) for one mapped row.
+    """(assignments, status) for one mapped row; see match_row_detail."""
+    return match_row_detail(session, mapped, hotel_id=hotel_id)[:2]
+
+
+def match_row_detail(session, mapped, hotel_id=None):
+    """(assignments, status, via) for one mapped row.
 
     status is 'matched' for exactly one candidate, 'ambiguous' for several,
     and 'unmatched' for none. Precedence runs from the most reliable key
     down: an acknowledgement number we already recorded identifies a booking
     outright, then email, then name, each narrowed by room type and check-in
-    date when the row carries them.
+    date when the row carries them. The room's leader is tried before its
+    roommates; via is 'roommate' when only a roommate fit, so callers know
+    the row's guest details are not the leader's.
     """
-    from uber.models import Attendee, LotteryApplication
-    from uber.models.hotel import HotelRoomInventory, RoomAssignment
+    from uber.models import Attendee
+    from uber.models.hotel import HotelRoomInventory, RoomAssignment, room_assignment_occupant
 
     def _scoped(query):
         if hotel_id:
@@ -336,51 +343,59 @@ def match_row(session, mapped, hotel_id=None):
                 HotelRoomInventory.hotel_id == hotel_id)
         return query
 
-    def _by_name(first, last):
-        return _scoped(
-            session.query(RoomAssignment)
-            .join(Attendee, Attendee.id == RoomAssignment.attendee_id)
-            .filter(RoomAssignment.is_live, or_(
-                and_(Attendee.first_name.ilike(first),
-                     Attendee.last_name.ilike(last)),
-                and_(Attendee.hotel_first_name.ilike(first),
-                     Attendee.hotel_last_name.ilike(last))))).all()
+    def _people(roommates):
+        query = session.query(RoomAssignment)
+        if roommates:
+            return query.join(
+                room_assignment_occupant,
+                room_assignment_occupant.c.room_assignment_id == RoomAssignment.id).join(
+                Attendee, Attendee.id == room_assignment_occupant.c.attendee_id).filter(
+                Attendee.id != RoomAssignment.attendee_id)
+        return query.join(Attendee, Attendee.id == RoomAssignment.attendee_id)
+
+    def _by_name(first, last, roommates):
+        return _scoped(_people(roommates).filter(RoomAssignment.is_live, or_(
+            and_(Attendee.first_name.ilike(first),
+                 Attendee.last_name.ilike(last)),
+            and_(Attendee.hotel_first_name.ilike(first),
+                 Attendee.hotel_last_name.ilike(last))))).all()
 
     confirmation = mapped.get('assignment.hotel_confirmation_number', '').strip()
     if confirmation:
         exact = _scoped(session.query(RoomAssignment).filter(
             RoomAssignment.hotel_confirmation_number == confirmation)).all()
         if len(exact) == 1:
-            return exact, 'matched'
+            return exact, 'matched', ''
         if len(exact) > 1:
-            return exact, 'ambiguous'
+            return exact, 'ambiguous', ''
 
     email = (mapped.get('attendee.email') or mapped.get('match.email') or '').strip()
-    candidates = []
-    if email:
-        candidates = _scoped(
-            session.query(RoomAssignment)
-            .join(Attendee, Attendee.id == RoomAssignment.attendee_id)
-            .filter(RoomAssignment.is_live, Attendee.email.ilike(email))).all()
+    first = (mapped.get('attendee.hotel_first_name')
+             or mapped.get('match.first_name') or '').strip()
+    last = (mapped.get('attendee.hotel_last_name')
+            or mapped.get('match.last_name') or '').strip()
 
-    if not candidates:
-        first = (mapped.get('attendee.hotel_first_name')
-                 or mapped.get('match.first_name') or '').strip()
-        last = (mapped.get('attendee.hotel_last_name')
-                or mapped.get('match.last_name') or '').strip()
-        if first and last:
-            candidates = _by_name(first, last)
+    candidates, via = [], ''
+    for roommates in (False, True):
+        if email:
+            candidates = _scoped(_people(roommates).filter(
+                RoomAssignment.is_live, Attendee.email.ilike(email))).all()
+        if not candidates and first and last:
+            candidates = _by_name(first, last, roommates)
             # Hotels often append a middle name or initial to the first name.
             if not candidates and ' ' in first:
-                candidates = _by_name(first.split()[0], last)
+                candidates = _by_name(first.split()[0], last, roommates)
+        if candidates:
+            via = 'roommate' if roommates else ''
+            break
 
     if not candidates:
-        return [], 'unmatched'
+        return [], 'unmatched', ''
 
     candidates = _narrow(candidates, mapped)
     if len(candidates) == 1:
-        return candidates, 'matched'
-    return candidates, 'ambiguous'
+        return candidates, 'matched', via
+    return candidates, 'ambiguous', via
 
 
 def search_bookings(session, text, hotel_id=None, limit=20):
@@ -448,6 +463,8 @@ def assign_row(session, record, row_index, ra):
     previous_status = row.get('status')
     row['assignment_ids'] = [str(ra.id)]
     row['status'] = 'matched'
+    # Keep guest fields off the leader when the row names one of the roommates.
+    row['via'] = 'roommate' if _names_a_roommate(ra, row.get('mapped') or {}) else ''
     if stored:
         record.parsed_rows = rows
     # Adjusted incrementally rather than recounted, because the stored
@@ -460,6 +477,25 @@ def assign_row(session, record, row_index, ra):
             record.unmatched_count = max(0, record.unmatched_count - 1)
     session.add(record)
     return True
+
+
+def _names_a_roommate(ra, mapped):
+    first = (mapped.get('attendee.hotel_first_name')
+             or mapped.get('match.first_name') or '').strip().casefold()
+    last = (mapped.get('attendee.hotel_last_name')
+            or mapped.get('match.last_name') or '').strip().casefold()
+    email = (mapped.get('attendee.email') or mapped.get('match.email') or '').strip().casefold()
+
+    def fits(attendee):
+        if email and (attendee.email or '').casefold() == email:
+            return True
+        return bool(first and last) and (first, last) in (
+            ((attendee.first_name or '').casefold(), (attendee.last_name or '').casefold()),
+            ((attendee.hotel_first_name or '').casefold(), (attendee.hotel_last_name or '').casefold()))
+
+    if ra.attendee and fits(ra.attendee):
+        return False
+    return any(fits(a) for a in ra.occupants if a.id != ra.attendee_id)
 
 
 def _narrow(candidates, mapped):
@@ -494,13 +530,16 @@ def _current_value(ra, key):
     return value.isoformat() if hasattr(value, 'isoformat') else str(value)
 
 
-def diff_row(ra, mapped):
+def diff_row(ra, mapped, via=''):
     """[{key, label, imported, current, changed}] for the writable fields this
     row carries. Compared case-insensitively on trimmed text so cosmetic
-    differences do not read as changes."""
+    differences do not read as changes. A row matched through a roommate
+    describes that roommate, so its guest fields never apply to the leader."""
     out = []
     for key in WRITABLE_KEYS:
         if key not in mapped:
+            continue
+        if via == 'roommate' and key.startswith('attendee.'):
             continue
         imported = (mapped.get(key) or '').strip()
         if not imported:
@@ -561,12 +600,13 @@ def build_rows(session, raw, filename, template, hotel_id=None):
     rows = []
     for index, source in enumerate(source_rows):
         mapped = apply_maps(source, template)
-        assignments, status = match_row(session, mapped, hotel_id=hotel_id)
+        assignments, status, via = match_row_detail(session, mapped, hotel_id=hotel_id)
         rows.append({
             'index': index,
             'source': source,
             'mapped': mapped,
             'status': status,
+            'via': via,
             'assignment_ids': [str(ra.id) for ra in assignments],
         })
     return rows, None
@@ -586,6 +626,19 @@ def enum_source_values(rows, template, limit=50):
             if value and value not in seen and len(seen) < limit:
                 seen.append(value)
     return {key: sorted(values) for key, values in out.items() if values}
+
+
+def enum_choices(session):
+    """{target key: [{value, label}]} of what each list-backed field accepts."""
+    from uber.models.hotel import HotelRoomInventory
+
+    room_names = sorted({inv.display_name for inv in session.query(HotelRoomInventory)
+                         if inv.display_name}, key=str.casefold)
+    return {
+        'match.room_type': [{'value': name, 'label': name} for name in room_names],
+        'assignment.payment_type': [{'value': key, 'label': f'{label} ({key})'}
+                                    for key, label in c.HOTEL_PAYMENT_TYPE_OPTS],
+    }
 
 
 def counts_for(rows):
