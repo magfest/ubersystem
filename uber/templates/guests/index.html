@@ -74,7 +74,6 @@
         {% endif %}
       {% endfor %}
     {% else %}
-    hi
       {% for item in guest.sorted_checklist_items -%}
         {# Try to include the checklist template with a prefix matching the group's type, e.g. band_info_deadline.html #}
         {%- include [
